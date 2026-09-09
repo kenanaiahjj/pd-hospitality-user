@@ -81,6 +81,29 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('Booking HEN-241109')).toBeInTheDocument();
   });
 
+  it('turns a room QR link into an active stay home', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    await user.click(screen.getByRole('button', { name: 'Simulate Room QR' }));
+    await user.click(screen.getByRole('button', { name: 'Link my stay' }));
+    await user.click(screen.getByRole('button', { name: 'Open stay overview' }));
+
+    expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
+    expect(screen.getByText(/room 304/i)).toBeInTheDocument();
+  });
+
+  it('returns a pre-arrival guest to the upcoming home after registration', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="prereg-complete" />);
+
+    expect(screen.getByRole('button', { name: /view my stay/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /view my stay/i }));
+
+    expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /your stay qr/i })).toBeNull();
+  });
+
   it.each([
     ['upcoming', [makeBooking({ status: 'upcoming' })]],
     [
@@ -240,6 +263,15 @@ describe('GuestAppPrototype', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Stay QR/i }));
     expect(screen.getByRole('heading', { name: 'Your Stay QR' })).toBeInTheDocument();
+  });
+
+  it('labels the booking state and profile action for assistive technology', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /open profile/i })).toBeInTheDocument();
+    expect(screen.getByTestId('guest-home-active')).toHaveClass('guest-home-booking', 'guest-home-booking--active');
+    expect(guestStyles).toContain('.guest-home-booking--active {');
   });
 
   it('renders a contextual spa image with a resilient fallback', () => {

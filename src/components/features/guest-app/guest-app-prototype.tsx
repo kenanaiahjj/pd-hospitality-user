@@ -209,6 +209,32 @@ export function GuestAppPrototype({ initialSession, initialScreen }: GuestAppPro
     go('booking-confirmation');
   };
 
+  const linkRoomStay = () => {
+    const booking = session.bookings.find((item) => item.status === 'active')
+      ?? session.bookings
+        .filter((item) => item.status === 'upcoming')
+        .sort((a, b) => a.checkIn.localeCompare(b.checkIn))[0];
+    if (!booking) {
+      go('front-desk-assist');
+      return;
+    }
+
+    const roomNumber = booking.roomNumber ?? '304';
+    setSession((current) => ({
+      ...current,
+      activeBookingId: booking.id,
+      bookings: current.bookings.map((item) => item.id === booking.id ? {
+        ...item,
+        status: 'active',
+        roomNumber,
+        stayQrAvailable: true,
+        folioTotal: item.folioTotal ?? '₱3,050',
+      } : item),
+      folioTotal: booking.folioTotal ?? (current.folioTotal === '₱0' ? '₱3,050' : current.folioTotal),
+    }));
+    go('room-qr-midstay');
+  };
+
   const renderScreen = () => {
     switch (activeScreen) {
       case 'entry-hub':
@@ -230,7 +256,7 @@ export function GuestAppPrototype({ initialSession, initialScreen }: GuestAppPro
         );
 
       case 'room-qr-landing':
-        return <ScreenIntro icon={<QrCode size={30} />} eyebrow="Room QR detected" title="Let’s link this room to you" text="This permanent room code opens the guest app. Your last name confirms which live booking is yours."><StayMiniCard booking={contextBooking} status={`${contextRoom} detected`} /> <Field label="Last name" name="qr-last-name" placeholder="Santos" required />{primary('Link my stay', 'room-qr-midstay')}<TextButton onClick={() => go('front-desk-assist')}>I need help</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<QrCode size={30} />} eyebrow="Room QR detected" title="Let’s link this room to you" text="This permanent room code opens the guest app. Your last name confirms which live booking is yours."><StayMiniCard booking={contextBooking} status={`Room ${contextBooking.roomNumber ?? '304'} detected`} /> <Field label="Last name" name="qr-last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="button" onClick={linkRoomStay}>Link my stay<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('front-desk-assist')}>I need help</TextButton></ScreenIntro>;
 
       case 'wifi-landing':
         return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your Stay QR and itinerary remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
@@ -283,8 +309,10 @@ export function GuestAppPrototype({ initialSession, initialScreen }: GuestAppPro
       case 'insurance-offer':
         return <ScreenIntro eyebrow="Pre-arrival" title="You’re ready for arrival" text="Continue to the hotel handoff. Your room and on-property charges are settled with the hotel at checkout.">{primary('Continue to arrival', 'prereg-complete')}</ScreenIntro>;
 
-      case 'prereg-complete':
-        return <ScreenIntro icon={<Check size={30} />} eyebrow="Pre-registered" title="You’re ready for arrival" text="Open your Stay QR at the front desk. A team member will verify your identity and complete check-in."><div className="guest-timeline"><TimelineItem title="Before arrival" text="Details received by the hotel" done /><TimelineItem title="At the front desk" text="Show your Stay QR and original ID" /><TimelineItem title="After verification" text={`${contextRoom} becomes active in the app`} /></div>{primary('Open my Stay QR', 'wallet')}<TextButton onClick={() => go('stay-overview')}>View stay overview</TextButton></ScreenIntro>;
+      case 'prereg-complete': {
+        const arrived = contextBooking.status === 'active';
+        return <ScreenIntro icon={<Check size={30} />} eyebrow="Pre-registered" title="You’re ready for arrival" text={arrived ? 'Open your Stay QR at the front desk. A team member will verify your identity and complete check-in.' : 'Your pre-arrival details are saved. Review your stay before you arrive.'}><div className="guest-timeline"><TimelineItem title="Before arrival" text="Details received by the hotel" done /><TimelineItem title="At the front desk" text="Show your Stay QR and original ID" /><TimelineItem title="After verification" text={`${contextRoom} becomes active in the app`} /></div>{primary(arrived ? 'Open my Stay QR' : 'View my stay', arrived ? 'wallet' : 'stay-overview')}<TextButton onClick={() => go('stay-overview')}>View stay overview</TextButton></ScreenIntro>;
+      }
 
       case 'prereg-queued':
         return <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Saved on this device" title="Ready to send when connected" text="Your pre-registration is safely queued. It will send automatically when a connection returns."><Notice tone="offline" title="No action needed">Your edits remain on this device. The hotel has not received them yet.</Notice>{primary('Open cached stay', 'stay-overview')}</ScreenIntro>;
@@ -416,7 +444,7 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
     const roomLabel = booking.roomNumber ? `Room ${booking.roomNumber}` : 'Active room';
     const folioTotal = session.folioTotal || booking.folioTotal || '₱0';
     return (
-      <div className="guest-stack guest-home-booking" data-testid="guest-home-active">
+      <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
         <section className="guest-home-hero guest-home-booking--primary">
           <div>
             <p className="guest-eyebrow">Good afternoon, {session.guestName.split(' ')[0]}</p>
@@ -464,7 +492,7 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
 
   if (variant === 'multiple-upcoming') {
     return (
-      <div className="guest-stack guest-home-booking" data-testid="guest-home-multiple-upcoming">
+      <div className="guest-stack guest-home-booking guest-home-booking--multiple" data-testid="guest-home-multiple-upcoming">
         <div className="guest-page-title"><p className="guest-eyebrow">Your trips</p><h1>Upcoming stays</h1><p>Keep every reservation in one place. Your nearest arrival is shown first.</p></div>
         <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} />
         <section>
@@ -480,7 +508,7 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
 
   if (variant === 'completed') {
     return (
-      <div className="guest-stack guest-home-booking" data-testid="guest-home-completed">
+      <div className="guest-stack guest-home-booking guest-home-booking--completed" data-testid="guest-home-completed">
         <div className="guest-page-title"><p className="guest-eyebrow">Welcome back, {session.guestName.split(' ')[0]}</p><h1>Your latest stay</h1><p>Reconnect another reservation whenever you’re ready.</p></div>
         <div className="guest-home-booking guest-home-booking--primary"><Tag>Completed</Tag><h2>{booking.property}</h2><p>{formatStayDateRange(booking)} · {booking.roomType}</p><small>Booking {booking.id}</small></div>
         <Notice tone="positive" icon={<CheckCircle />} title="Stay complete">Your previous room charges were settled at checkout.</Notice>
@@ -491,7 +519,7 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
   }
 
   return (
-    <div className="guest-stack guest-home-booking" data-testid="guest-home-upcoming">
+    <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
       <div className="guest-page-title"><p className="guest-eyebrow">Your next stay</p><Tag tone="warning">Upcoming</Tag><h1>{booking.property}</h1><p>{booking.city} · {formatStayDateRange(booking)}</p></div>
       <section className="guest-home-booking guest-home-booking--primary">
         <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>

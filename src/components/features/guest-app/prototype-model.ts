@@ -145,7 +145,7 @@ export const MOCK_SESSION: GuestSession = {
   email: 'ana@example.com',
   bookings: [
     {
-      id: 'hen-manila-241109',
+      id: 'HEN-241109',
       property: 'The Henry Manila',
       city: 'Manila',
       status: 'upcoming',
@@ -160,7 +160,7 @@ export const MOCK_SESSION: GuestSession = {
       stayQrAvailable: false,
     },
     {
-      id: 'hen-cebu-240615',
+      id: 'HEN-CEBU-240615',
       property: 'The Henry Cebu',
       city: 'Cebu',
       status: 'completed',

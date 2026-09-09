@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
@@ -125,6 +126,95 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText(/room 304/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /room charges/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /ask front desk/i })).toBeInTheDocument();
+  });
+
+  it('shows room settlement and confirms a service without a payment method', async () => {
+    const user = userEvent.setup();
+    const active = makeBooking({
+      id: 'active',
+      property: 'The Henry Cebu',
+      city: 'Cebu',
+      status: 'active',
+      roomNumber: '512',
+      stayQrAvailable: true,
+      folioTotal: '₱3,050',
+    });
+    render(
+      <GuestAppPrototype
+        initialScreen="service-booking"
+        initialSession={sessionFor([active], {
+          activeBookingId: 'active',
+          folioTotal: '₱3,050',
+        })}
+      />,
+    );
+
+    expect(screen.getByText(/room 512/i)).toBeInTheDocument();
+    expect(screen.getByText(/charge at checkout/i)).toBeInTheDocument();
+    expect(screen.queryByText(/gcash|maya|card/i)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /confirm and charge to room/i }));
+
+    expect(await screen.findByRole('heading', { name: /your massage is booked/i })).toBeInTheDocument();
+    expect(screen.getByText(/added to room 512/i)).toBeInTheDocument();
+    expect(screen.getByText(/hotel folio at checkout/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'View my bookings' }));
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
+    await user.click(screen.getByRole('button', { name: /room charges/i }));
+    expect(screen.getByText('₱5,450')).toBeInTheDocument();
+  });
+
+  it('turns early check-in into a room-charge request without payment choices', () => {
+    render(
+      <GuestAppPrototype
+        initialScreen="early-check-in"
+        initialSession={sessionFor([makeBooking({ status: 'upcoming' })])}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /request early check-in/i })).toBeInTheDocument();
+    expect(screen.queryByText(/gcash|maya|card|insurance/i)).toBeNull();
+    expect(screen.getByText(/charged to your room folio/i)).toBeInTheDocument();
+  });
+
+  it('keeps confirmed services and cancellation status in the active stay', async () => {
+    const user = userEvent.setup();
+    const active = makeBooking({
+      id: 'active',
+      property: 'The Henry Cebu',
+      city: 'Cebu',
+      status: 'active',
+      roomNumber: '512',
+      stayQrAvailable: true,
+      folioTotal: '₱3,050',
+    });
+    render(
+      <GuestAppPrototype
+        initialScreen="my-bookings"
+        initialSession={sessionFor([active], {
+          activeBookingId: 'active',
+          folioTotal: '₱5,450',
+          serviceBookings: [{
+            id: 'service-hilom-1',
+            bookingId: 'active',
+            title: 'Hilom signature massage',
+            scheduledFor: 'Tuesday · November 11 · 1:30 PM',
+            amount: '₱2,400',
+            status: 'confirmed',
+          }],
+        })}
+      />,
+    );
+
+    expect(screen.getByText(/room 512/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /hilom signature massage/i }));
+    await user.click(screen.getByRole('button', { name: /cancel service/i }));
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
+    await user.click(screen.getByRole('button', { name: /room charges/i }));
+    expect(screen.getByText('₱3,050')).toBeInTheDocument();
   });
 
   it('groups account actions and keeps four stable app destinations', () => {

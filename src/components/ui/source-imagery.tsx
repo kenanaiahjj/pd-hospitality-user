@@ -89,9 +89,9 @@ export function SourcePhoto({
 
 export function SourceLogo({
   src,
-  alt = 'Klarna logo',
-  name = 'Klarna',
-  mark = 'K',
+  alt = 'Guest app logo placeholder',
+  name = 'Cabana',
+  mark = 'C',
   className,
 }: {
   src?: string;

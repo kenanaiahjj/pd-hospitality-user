@@ -1,15 +1,18 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import {
+  AirplaneTilt,
   ArrowRight,
   ArrowUpRight,
   Bell,
   BookmarkSimple,
   ChartLineUp,
+  ChatCircleDots,
   CheckCircle,
   CreditCard,
-  DotsThree,
+  ForkKnife,
   Gear,
   Globe,
   House,
@@ -19,19 +22,19 @@ import {
   Plus,
   ShieldCheck,
   SlidersHorizontal,
+  MapPin,
   Sparkle,
   UserCircle,
   Wallet,
+  Waves,
 } from '@phosphor-icons/react';
 import {
   designSystemCategories,
   designSystemComponents,
-  sourceThemeDetails,
 } from '@/lib/design-system';
-import type { ComponentCategory, SourceTheme } from '@/lib/design-system';
+import type { ComponentCategory } from '@/lib/design-system';
 import {
   SourceAvatar,
-  SourceAccordion,
   SourceBadge,
   SourceBanner,
   SourceBottomSheet,
@@ -41,24 +44,16 @@ import {
   SourceCheckbox,
   SourceChip,
   SourceColorPicker,
-  SourceDatePicker,
-  SourceDropdownMenu,
   SourceDivider,
-  SourceFloatingActionButton,
   SourceFullScreenOverlay,
-  SourceGallery,
   SourceIcon,
   SourceIllustration,
-  SourceLoadingIndicator,
   SourceLogo,
-  SourcePhoto,
   SourceRadioGroup,
   SourceSearchBar,
   SourceSegmentedControl,
-  SourceSlider,
   SourceStackedList,
   SourceStatusDot,
-  SourceTable,
   SourceSwitch,
   SourceTab,
   SourceTabBar,
@@ -68,14 +63,17 @@ import {
   SourceToolbar,
   SourceTopNavigationBar,
 } from '@/components/ui';
+import {
+  SourceAccordion,
+  SourceDatePicker,
+  SourceFloatingActionButton,
+  SourceSlider,
+} from '@/components/ui/source-controls';
+import { SourcePhoto } from '@/components/ui/source-imagery';
+import { SourceDropdownMenu } from '@/components/ui/source-overlays';
+import { SourceGallery, SourceLoadingIndicator, SourceTable } from '@/components/ui/source-views';
 
 type GalleryCategory = 'all' | ComponentCategory;
-
-const themeOptions = [
-  { value: 'system', label: 'System' },
-  { value: 'klarna', label: 'Klarna' },
-  { value: 'wise', label: 'Wise' },
-];
 
 const categoryOptions = [
   { value: 'all', label: 'All elements' },
@@ -144,7 +142,6 @@ function matchesComponent(category: ComponentCategory, name: string, query: stri
 }
 
 export function DesignSystemGallery() {
-  const [theme, setTheme] = useState<SourceTheme>('klarna');
   const [selectedCategory, setSelectedCategory] = useState<GalleryCategory>('all');
   const [query, setQuery] = useState('');
   const [selectedPayment, setSelectedPayment] = useState('card');
@@ -154,7 +151,7 @@ export function DesignSystemGallery() {
   const [isNewsletterChecked, setIsNewsletterChecked] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [fullScreenOpen, setFullScreenOpen] = useState(false);
-  const [toastOpen, setToastOpen] = useState(true);
+  const [toastOpen, setToastOpen] = useState(false);
   const [selectedTile, setSelectedTile] = useState('personal');
 
   const visibleCount = useMemo(
@@ -162,34 +159,31 @@ export function DesignSystemGallery() {
     [query, selectedCategory],
   );
 
-  const themeDetail = sourceThemeDetails[theme];
-
   const show = (category: ComponentCategory, name: string) => matchesComponent(category, name, query, selectedCategory);
 
   return (
-    <div className="gallery" data-source-theme={theme}>
-      <div className="gallery__grain" aria-hidden="true" />
+    <div className="gallery" data-source-theme="cabana">
       <header className="gallery-masthead">
-        <a className="gallery-wordmark" href="#top" aria-label="Asbir Source UI home">
-          <span className="gallery-wordmark__mark">A</span>
+        <a className="gallery-wordmark" href="#top" aria-label="Cabana UI home">
+          <span className="gallery-wordmark__mark">C</span>
           <span>
-            <strong>Asbir Source UI</strong>
-            <small>component reference</small>
+            <strong>Cabana UI</strong>
+            <small>component library</small>
           </span>
         </a>
         <div className="gallery-masthead__right">
-          <span className="gallery-masthead__status"><span /> synced to source patterns</span>
-          <a className="gallery-masthead__link" href="/dashboard">Dashboard <ArrowUpRight aria-hidden="true" /></a>
+          <span className="gallery-masthead__status"><span /> Light theme</span>
+          <Link className="gallery-masthead__link" href="/">Open the app <ArrowUpRight aria-hidden="true" /></Link>
         </div>
       </header>
 
       <main id="top" className="gallery__main">
         <section className="gallery-hero" aria-labelledby="gallery-title">
           <div className="gallery-hero__copy">
-            <div className="gallery-kicker"><span>KLARNA UI ELEMENTS</span><span className="gallery-kicker__line" /><span>01—36</span></div>
-            <h1 id="gallery-title">Klarna <span>×</span> Wise,<br /> <em>made reusable.</em></h1>
+            <div className="gallery-kicker"><span>Cabana design system</span><span className="gallery-kicker__line" /><span>36 elements</span></div>
+            <h1 id="gallery-title">The parts Cabana<br /> <em>is built from.</em></h1>
             <p className="gallery-hero__lede">
-              A source-aware component library distilled from two of the clearest mobile finance systems. Warm enough to feel human, precise enough to ship.
+              A quiet neutral canvas, white surfaces, hairline separators, and one pink accent held back for the primary action. Every control ships its full state set on a 44px target.
             </p>
             <div className="gallery-hero__actions">
               <SourceButton size="lg" trailingIcon={<ArrowRight aria-hidden="true" />} onClick={() => document.querySelector('#controls')?.scrollIntoView({ behavior: 'smooth' })}>
@@ -198,21 +192,48 @@ export function DesignSystemGallery() {
               <a className="gallery-text-link" href="#foundation">View tokens <ArrowUpRight aria-hidden="true" /></a>
             </div>
           </div>
-          <div className="gallery-hero__visual" aria-label="Design system preview">
-            <div className="hero-card hero-card--back hero-card--green">
-              <span className="hero-card__tiny-label">WISE / BALANCE</span>
-              <strong>$2,840.24</strong>
-              <span className="hero-card__sparkline"><span /><span /><span /><span /><span /><span /><span /></span>
+          <div className="gallery-hero__visual" aria-label="Cabana app surface preview">
+            <div className="cabana-app-preview">
+              <div className="cabana-app-preview__status"><span>9:41</span><span aria-hidden="true">● ◒ ▮</span></div>
+              <div className="cabana-app-preview__top">
+                <span className="cabana-app-preview__brand">Cabana</span>
+                <button type="button" className="source-icon-button" aria-label="Notifications"><Bell aria-hidden="true" /></button>
+              </div>
+              <div className="cabana-app-preview__search"><MagnifyingGlass aria-hidden="true" /><span>Search services and places</span></div>
+              <div className="cabana-app-preview__cards" aria-label="Stay summary preview">
+                <article className="cabana-app-preview__balance cabana-app-preview__balance--pink">
+                  <span className="cabana-app-preview__eyebrow">Room charges</span>
+                  <strong>₱3,050</strong>
+                  <small>Settles with the hotel at checkout</small>
+                  <div className="cabana-app-preview__actions">
+                    <SourceButton size="sm">Stay QR</SourceButton>
+                    <SourceButton size="sm" variant="secondary">Folio</SourceButton>
+                  </div>
+                </article>
+                <article className="cabana-app-preview__balance cabana-app-preview__balance--lilac">
+                  <span className="cabana-app-preview__eyebrow">Next up</span>
+                  <strong>1:30 PM</strong>
+                  <small>Hilom massage · today</small>
+                </article>
+              </div>
+              <div className="cabana-app-preview__pager" aria-hidden="true"><i data-state="active" /><i /><i /></div>
+              <div className="cabana-app-preview__promo"><div><strong>Late checkout is available</strong><small>Ask the front desk to hold your room</small></div><span aria-hidden="true">C</span></div>
+              <div className="cabana-app-preview__heading"><strong>During your stay</strong><span>See all <ArrowRight aria-hidden="true" /></span></div>
+              <div className="cabana-app-preview__stores">
+                <span className="cabana-app-preview__store cabana-app-preview__store--pink"><span><ForkKnife aria-hidden="true" /></span><small>Dining</small></span>
+                <span className="cabana-app-preview__store cabana-app-preview__store--soft"><span><Sparkle aria-hidden="true" /></span><small>Spa</small></span>
+                <span className="cabana-app-preview__store"><span><AirplaneTilt aria-hidden="true" /></span><small>Transfer</small></span>
+                <span className="cabana-app-preview__store"><span><Waves aria-hidden="true" /></span><small>Pool</small></span>
+                <span className="cabana-app-preview__store"><span><MapPin aria-hidden="true" /></span><small>Tours</small></span>
+                <span className="cabana-app-preview__store cabana-app-preview__store--ink"><span><ChatCircleDots aria-hidden="true" /></span><small>Desk</small></span>
+              </div>
+              <nav className="cabana-app-preview__nav" aria-label="Preview navigation">
+                <button type="button" data-state="active"><House aria-hidden="true" /><span>Stay</span></button>
+                <button type="button"><CreditCard aria-hidden="true" /><span>Services</span></button>
+                <button type="button"><Wallet aria-hidden="true" /><span>Wallet</span></button>
+                <button type="button"><UserCircle aria-hidden="true" /><span>Chat</span></button>
+              </nav>
             </div>
-            <div className="hero-card hero-card--front">
-              <div className="hero-card__topline"><span className="hero-card__k-logo">K</span><span>Available to spend <DotsThree aria-hidden="true" /></span></div>
-              <strong>$1,280.40</strong>
-              <div className="hero-card__footline"><span>•••• 2488</span><span>Today</span></div>
-            </div>
-            <div className="hero-orbit hero-orbit--one" />
-            <div className="hero-orbit hero-orbit--two" />
-            <span className="hero-note hero-note--pink">soft signal</span>
-            <span className="hero-note hero-note--green">clear action</span>
           </div>
         </section>
 
@@ -221,13 +242,7 @@ export function DesignSystemGallery() {
             <span className="gallery-toolbar__eyebrow">Browse the system</span>
             <strong>{visibleCount} of {designSystemComponents.length} elements</strong>
           </div>
-          <SourceSegmentedControl
-            label="Source theme"
-            options={themeOptions}
-            value={theme}
-            onValueChange={(value) => setTheme(value as SourceTheme)}
-            className="gallery-theme-switcher"
-          />
+          <div className="gallery-source-badge" aria-label="Active theme"><span aria-hidden="true" />Cabana light</div>
           <SourceSearchBar value={query} onValueChange={setQuery} placeholder="Search elements" className="gallery-search" />
         </section>
         <div className="gallery-filter-row" aria-label="Filter by component category">
@@ -248,13 +263,13 @@ export function DesignSystemGallery() {
         </div>
 
         {selectedCategory === 'all' && !query ? (
-          <section className="source-callout" aria-label="Source themes">
+          <section className="source-callout" aria-label="How the accent is used">
             <div className="source-callout__main">
               <span className="source-callout__icon"><Sparkle weight="fill" aria-hidden="true" /></span>
               <div>
-                <span className="source-callout__eyebrow">Current lens / {themeDetail.label}</span>
-                <h2>{themeDetail.accentName}, balanced for everyday use.</h2>
-                <p>{themeDetail.description} The component contracts stay shared while color and emphasis shift with the selected source.</p>
+                <span className="source-callout__eyebrow">Colour strategy</span>
+                <h2>Pink marks the next action. Nothing else.</h2>
+                <p>The accent is reserved for primary actions, the current selection, and live state. Everything else is a neutral surface, so the one coloured thing on a screen is always the thing to press.</p>
               </div>
             </div>
             <div className="source-callout__tokens">
@@ -281,14 +296,14 @@ export function DesignSystemGallery() {
               <SectionHeader
                 number={String(designSystemCategories.indexOf(category) + 1).padStart(2, '0')}
                 eyebrow={`${category.label} / ${category.count} patterns`}
-                title={category.id === 'controls' ? 'Make the next step clear.' : category.id === 'views' ? 'Give information a shape.' : category.id === 'overlay' ? 'Bring focus forward.' : 'Let identity do some work.'}
+                title={category.id === 'controls' ? 'Make the next action obvious.' : category.id === 'views' ? 'Keep the screen calm.' : category.id === 'overlay' ? 'Bring context forward.' : 'Let identity do some work.'}
                 description={category.description}
                 titleId={`${category.id}-title`}
               />
 
               {category.id === 'controls' ? (
                 <div className="specimen-grid specimen-grid--controls">
-                  {show('controls', 'Accordion') ? <Specimen name="Accordion" description="Progressive disclosure for secondary detail."><SourceAccordion title="Why Klarna?">Flexible payments, clear status, and secure controls in one place.</SourceAccordion></Specimen> : null}
+                  {show('controls', 'Accordion') ? <Specimen name="Accordion" description="Progressive disclosure for secondary detail."><SourceAccordion title="Why this pattern?">Clear status and secure controls stay together without overwhelming the screen.</SourceAccordion></Specimen> : null}
                   {show('controls', 'Button') ? <Specimen name="Button" description="Action hierarchy without visual noise." className="specimen--wide"><div className="specimen-stack"><div className="specimen-row"><SourceButton trailingIcon={<ArrowRight aria-hidden="true" />}>Continue</SourceButton><SourceButton variant="secondary">Save for later</SourceButton><SourceButton variant="quiet" leadingIcon={<BookmarkSimple aria-hidden="true" />}>Save</SourceButton></div><div className="specimen-row"><SourceButton size="sm">Small action</SourceButton><SourceButton size="lg" variant="danger">Remove card</SourceButton></div></div></Specimen> : null}
                   {show('controls', 'Checkbox') ? <Specimen name="Checkbox" description="Native binary choice with a generous target."><SourceCheckbox label="Notify me about rate changes" checked={isNewsletterChecked} onCheckedChange={setIsNewsletterChecked} /></Specimen> : null}
                   {show('controls', 'Color Picker') ? <Specimen name="Color Picker" description="A compact value field that keeps the swatch visible."><SourceColorPicker label="Card accent" /></Specimen> : null}
@@ -310,13 +325,13 @@ export function DesignSystemGallery() {
                   {show('views', 'Badge') ? <Specimen name="Badge" description="Metadata that stays close to its subject."><div className="specimen-row"><SourceBadge>New</SourceBadge><SourceBadge tone="success">Verified</SourceBadge><SourceBadge tone="warning">Review</SourceBadge><SourceBadge tone="danger">Action needed</SourceBadge></div></Specimen> : null}
                   {show('views', 'Banner') ? <Specimen name="Banner" description="A visible message with an appropriate level of urgency." className="specimen--wide"><SourceBanner title="Your card is ready" icon={<CheckCircle weight="fill" aria-hidden="true" />} action={<button type="button" className="source-inline-action">View card <ArrowRight aria-hidden="true" /></button>}>Add it to your wallet to start spending.</SourceBanner></Specimen> : null}
                   {show('views', 'Card') ? <Specimen name="Card" description="A contained surface for one clear idea."><SourceCard eyebrow="CASHBACK" title="$12.40 earned" icon={<Sparkle weight="fill" aria-hidden="true" />} footer={<button type="button" className="source-inline-action">See rewards <ArrowRight aria-hidden="true" /></button>}><p className="source-card__metric-copy">You are on track to earn <strong>$18.00</strong> this month.</p></SourceCard></Specimen> : null}
-                  {show('views', 'Carousel') ? <Specimen name="Carousel" description="Paging that tells you where you are."><SourceCarousel labels={['Main balance', 'Travel fund', 'Shared pot']} items={[<div key="one" className="carousel-slide carousel-slide--pink"><span>MAIN BALANCE</span><strong>$1,280.40</strong><small>Available now</small></div>, <div key="two" className="carousel-slide carousel-slide--green"><span>TRAVEL FUND</span><strong>$840.00</strong><small>Paris · October</small></div>, <div key="three" className="carousel-slide carousel-slide--blue"><span>SHARED POT</span><strong>$240.20</strong><small>4 contributors</small></div>]} /></Specimen> : null}
+                  {show('views', 'Carousel') ? <Specimen name="Carousel" description="Paging that tells you where you are."><SourceCarousel labels={['Main balance', 'Rewards', 'Shared pot']} items={[<div key="one" className="carousel-slide carousel-slide--pink"><span>MAIN BALANCE</span><strong>$1,280.40</strong><small>Available now</small></div>, <div key="two" className="carousel-slide carousel-slide--lilac"><span>REWARDS</span><strong>$12.40</strong><small>Earned this month</small></div>, <div key="three" className="carousel-slide carousel-slide--paper"><span>SHARED POT</span><strong>$240.20</strong><small>4 contributors</small></div>]} /></Specimen> : null}
                   {show('views', 'Chip') ? <Specimen name="Chip" description="Small enough to group. Clear enough to scan."><div className="specimen-row"><SourceChip selected>All</SourceChip><SourceChip>Completed</SourceChip><SourceChip dismissible>Europe</SourceChip></div></Specimen> : null}
                   {show('views', 'Divider') ? <Specimen name="Divider" description="A quiet line that keeps related content together."><div className="divider-demo"><span>Account details</span><SourceDivider /><span>Recent activity</span><SourceDivider /><span>Support</span></div></Specimen> : null}
-                  {show('views', 'Gallery') ? <Specimen name="Gallery" description="A browseable set of visual items with one clear focus." className="specimen--wide"><SourceGallery items={[{ id: 'stores', label: 'Stores for you', children: <span className="gallery-media gallery-media--pink">K</span> }, { id: 'offers', label: 'Offers', children: <span className="gallery-media gallery-media--lilac">%</span> }, { id: 'saved', label: 'Saved', children: <span className="gallery-media gallery-media--ink">♡</span> }]} /></Specimen> : null}
+                  {show('views', 'Gallery') ? <Specimen name="Gallery" description="A browseable set of visual items with one clear focus." className="specimen--wide"><SourceGallery items={[{ id: 'stores', label: 'Services for you', children: <span className="gallery-media gallery-media--pink">C</span> }, { id: 'offers', label: 'Offers', children: <span className="gallery-media gallery-media--lilac">%</span> }, { id: 'saved', label: 'Saved', children: <span className="gallery-media gallery-media--ink">♡</span> }]} /></Specimen> : null}
                   {show('views', 'Loading Indicator') ? <Specimen name="Loading Indicator" description="A compact signal while content is resolving."><SourceLoadingIndicator label="Loading recommendations" /></Specimen> : null}
-                  {show('views', 'Stacked List') ? <Specimen name="Stacked List" description="Rows with a clear reading order." className="specimen--wide"><SourceStackedList items={[{ id: 'one', title: 'Coffee shop', description: 'Today, 09:42', value: '− $4.80', leading: <SourceIcon tone="soft"><Sparkle aria-hidden="true" /></SourceIcon> }, { id: 'two', title: 'Salary payment', description: 'Yesterday, 17:12', value: '+ $2,400.00', leading: <SourceIcon tone="soft"><ArrowRight aria-hidden="true" /></SourceIcon> }, { id: 'three', title: 'Wise transfer', description: 'Yesterday, 10:03', value: '− $120.00', leading: <SourceIcon tone="soft"><Globe aria-hidden="true" /></SourceIcon> }]} /></Specimen> : null}
-                  {show('views', 'Table') ? <Specimen name="Table" description="Structured comparison for repeated financial data." className="specimen--wide"><SourceTable caption="Recent activity" columns={['Merchant', 'Date', 'Amount']} rows={[{ id: 'coffee', cells: ['Coffee shop', 'Today', '− $4.80'] }, { id: 'salary', cells: ['Salary payment', 'Yesterday', '+ $2,400.00'] }, { id: 'transfer', cells: ['Wise transfer', 'Yesterday', '− $120.00'] }]} /></Specimen> : null}
+                  {show('views', 'Stacked List') ? <Specimen name="Stacked List" description="Rows with a clear reading order." className="specimen--wide"><SourceStackedList items={[{ id: 'one', title: 'In-room dining', description: 'Today, 09:42', value: '₱850', leading: <SourceIcon tone="soft"><Sparkle aria-hidden="true" /></SourceIcon> }, { id: 'two', title: 'Airport transfer', description: 'Yesterday, 17:12', value: '₱1,200', leading: <SourceIcon tone="soft"><ArrowRight aria-hidden="true" /></SourceIcon> }, { id: 'three', title: 'Spa booking', description: 'Yesterday, 10:03', value: '₱2,400', leading: <SourceIcon tone="soft"><Globe aria-hidden="true" /></SourceIcon> }]} /></Specimen> : null}
+                  {show('views', 'Table') ? <Specimen name="Table" description="Structured comparison for repeated service data." className="specimen--wide"><SourceTable caption="Recent activity" columns={['Service', 'Date', 'Amount']} rows={[{ id: 'dining', cells: ['In-room dining', 'Today', '₱850'] }, { id: 'transfer', cells: ['Airport transfer', 'Yesterday', '₱1,200'] }, { id: 'spa', cells: ['Spa booking', 'Yesterday', '₱2,400'] }]} /></Specimen> : null}
                   {show('views', 'Tab Bar') ? <Specimen name="Tab Bar" description="Persistent navigation belongs at the edge of the screen." className="specimen--wide"><SourceTabBar items={[{ value: 'home', label: 'Home', icon: <House aria-hidden="true" /> }, { value: 'cards', label: 'Cards', icon: <CreditCard aria-hidden="true" /> }, { value: 'activity', label: 'Activity', icon: <ChartLineUp aria-hidden="true" /> }, { value: 'profile', label: 'Profile', icon: <UserCircle aria-hidden="true" /> }]} value={selectedNav} onValueChange={setSelectedNav} /></Specimen> : null}
                   {show('views', 'Toolbar') ? <Specimen name="Toolbar" description="Utility actions grouped without competing with content."><SourceToolbar><span className="toolbar-demo__title">March 2026</span><span className="toolbar-demo__actions"><button type="button" className="source-icon-button" aria-label="Filter"><SlidersHorizontal aria-hidden="true" /></button><button type="button" className="source-icon-button" aria-label="Add"><Plus aria-hidden="true" /></button></span></SourceToolbar></Specimen> : null}
                   {show('views', 'Top Navigation Bar') ? <Specimen name="Top Navigation Bar" description="A stable anchor for the current screen." className="specimen--wide"><SourceTopNavigationBar eyebrow="WALLET" title="Your cards" leading={<button type="button" className="source-icon-button" aria-label="Back"><ArrowRight className="is-rotated-180" aria-hidden="true" /></button>} trailing={<button type="button" className="source-icon-button" aria-label="Settings"><Gear aria-hidden="true" /></button>} /></Specimen> : null}
@@ -337,7 +352,7 @@ export function DesignSystemGallery() {
                   {show('imagery', 'Avatar') ? <Specimen name="Avatar" description="Presence with a useful fallback." className="specimen--compact"><div className="specimen-avatar-row"><SourceAvatar name="Ava Santos" size="sm" /><SourceAvatar name="Mina Lee" size="md" /><SourceAvatar name="Jules Park" size="lg" /></div></Specimen> : null}
                   {show('imagery', 'Icon') ? <Specimen name="Icon" description="A visual cue that supports the label." className="specimen--compact"><div className="specimen-icon-row"><SourceIcon label="Wallet"><Wallet aria-hidden="true" /></SourceIcon><SourceIcon tone="neutral" label="Security"><LockKey aria-hidden="true" /></SourceIcon><SourceIcon tone="soft" label="Instant transfer"><Lightning aria-hidden="true" /></SourceIcon></div></Specimen> : null}
                   {show('imagery', 'Illustration') ? <Specimen name="Illustration" description="A little warmth, used with restraint."><SourceIllustration caption="An open world for every transfer." /></Specimen> : null}
-                  {show('imagery', 'Logo') ? <Specimen name="Logo" description="A mark and name that can travel together."><SourceLogo name="Klarna" /></Specimen> : null}
+                  {show('imagery', 'Logo') ? <Specimen name="Logo" description="A source mark that official rebranding can replace."><SourceLogo name="Cabana" /></Specimen> : null}
                   {show('imagery', 'Photo') ? <Specimen name="Photo" description="A cropped image surface for product context."><SourcePhoto alt="Abstract finance artwork" caption="Product imagery slot" /></Specimen> : null}
                 </div>
               ) : null}
@@ -358,35 +373,35 @@ export function DesignSystemGallery() {
           <div className="gallery-section__header gallery-section__header--foundation">
             <span className="gallery-section__number">05</span>
             <div>
-              <span className="gallery-section__eyebrow">Foundation / design system</span>
-              <h2 id="foundation-title">A small set of rules. A lot of room to move.</h2>
-              <p>Shared tokens keep the system coherent while the source themes give each surface a distinct point of view.</p>
+              <span className="gallery-section__eyebrow">Foundation</span>
+              <h2 id="foundation-title">Three token layers, one surface.</h2>
+              <p>Primitives feed semantics, semantics feed components. Change a primitive and the whole app moves with it.</p>
             </div>
           </div>
           <div className="foundation-grid">
             <div className="foundation-card foundation-card--type">
               <span className="foundation-card__eyebrow">Typography / Asbir Sans</span>
-              <strong className="foundation-card__display">Kind money,<br /><em>clear moves.</em></strong>
-              <div className="foundation-card__type-row"><span>Display</span><strong>56 / 0.94 / 500</strong></div>
-              <div className="foundation-card__type-row"><span>Body</span><strong>15 / 1.5 / 400</strong></div>
-              <div className="foundation-card__type-row"><span>Label</span><strong>11 / 1.1 / 700</strong></div>
+              <strong className="foundation-card__display">One family,<br /><em>five weights.</em></strong>
+              <div className="foundation-card__type-row"><span>Title</span><strong>30 / 1.08 / 700</strong></div>
+              <div className="foundation-card__type-row"><span>Body</span><strong>15 / 1.50 / 400</strong></div>
+              <div className="foundation-card__type-row"><span>Label</span><strong>13 / 1.35 / 650</strong></div>
             </div>
             <div className="foundation-card foundation-card--colors">
-              <span className="foundation-card__eyebrow">Color / source accents</span>
-              <div className="foundation-swatches"><div><i className="foundation-swatch foundation-swatch--pink" /><span>soft pink</span></div><div><i className="foundation-swatch foundation-swatch--green" /><span>acid green</span></div><div><i className="foundation-swatch foundation-swatch--lilac" /><span>quiet lilac</span></div><div><i className="foundation-swatch foundation-swatch--ink" /><span>deep ink</span></div></div>
-              <p>Accent color is expressive. Ink, surface, and border do the heavy lifting.</p>
+              <span className="foundation-card__eyebrow">Colour / Cabana palette</span>
+              <div className="foundation-swatches"><div><i className="foundation-swatch foundation-swatch--pink" /><span>Cabana pink</span></div><div><i className="foundation-swatch foundation-swatch--lilac" /><span>pink tint</span></div><div><i className="foundation-swatch foundation-swatch--paper" /><span>white surface</span></div><div><i className="foundation-swatch foundation-swatch--ink" /><span>ink</span></div></div>
+              <p>Pink carries the primary action and always takes ink on top, never white. Tint marks selection. White is the surface, ink is the hierarchy.</p>
             </div>
             <div className="foundation-card foundation-card--rules">
               <span className="foundation-card__eyebrow">Rules / useful defaults</span>
-              <ul><li><strong>04</strong><span>base spacing unit</span></li><li><strong>16</strong><span>comfortable surface radius</span></li><li><strong>44</strong><span>minimum touch target</span></li><li><strong>02</strong><span>source-inspired themes</span></li></ul>
+              <ul><li><strong>04</strong><span>base spacing unit</span></li><li><strong>16</strong><span>surface radius</span></li><li><strong>44</strong><span>minimum touch target</span></li><li><strong>4.5</strong><span>minimum text contrast</span></li></ul>
             </div>
           </div>
         </section>
       </main>
 
       <footer className="gallery-footer">
-        <span>Asbir Source UI / v0.1</span>
-        <span>Built from source observation. No source screenshots shipped.</span>
+        <span>Cabana UI</span>
+        <span>Built for stakeholder review.</span>
         <a href="#top">Back to top <ArrowUpRight aria-hidden="true" /></a>
       </footer>
 

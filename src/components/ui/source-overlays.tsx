@@ -57,7 +57,7 @@ function SourceDialogFrame({ open, title, kind, children, onOpenChange, classNam
       <div ref={dialogRef} className="source-dialog" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
         <div className="source-dialog__header">
           <div>
-            <span className="source-dialog__eyebrow">Asbir Source UI</span>
+            <span className="source-dialog__eyebrow">Cabana UI</span>
             <h3>{title}</h3>
           </div>
           <button type="button" className="source-icon-button" aria-label="Close" onClick={handleClose}>

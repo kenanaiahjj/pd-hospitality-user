@@ -1,4 +1,4 @@
-export const APP_NAME = 'Asbir Source UI';
+export const APP_NAME = 'Cabana';
 
 export const ROUTES = {
   home: '/',

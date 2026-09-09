@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   ANONYMOUS_SESSION,
+  MINI_APP_CATEGORIES,
   MOCK_SESSION,
+  RESTAURANTS,
   SCENARIOS,
   SCREENS,
   UPCOMING_BOOKING_FIXTURE,
@@ -10,6 +12,8 @@ import {
   getCancellationState,
   getOfflineAction,
   getPostAuthScreen,
+  getVenueCartSummary,
+  parsePesoAmount,
   signInSession,
   signOutSession,
   verifyPendingSession,
@@ -21,14 +25,18 @@ import {
 } from './prototype-model';
 
 describe('guest app prototype model', () => {
-  it('contains the complete 41-screen inventory from the brief', () => {
-    expect(SCREENS).toHaveLength(41);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(41);
+  it('contains the complete 42-screen inventory including restaurant ordering', () => {
+    expect(SCREENS).toHaveLength(42);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(42);
+    expect(SCREENS.find((s) => s.id === 'restaurant-menu')?.group).toBe('Stay');
+    expect(SCREENS.find((s) => s.id === 'restaurant-cart')?.group).toBe('Stay');
+    expect(SCREENS.find((s) => s.id === 'dining-order-confirmation')?.group).toBe('Stay');
+    expect(SCREENS.find((s) => s.id === 'room-preferences')?.group).toBe('Account');
   });
 
   it('exposes every guided flow from A through I', () => {
     expect(SCENARIOS.map((scenario) => scenario.id)).toEqual([
-      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
+      'A', 'B', 'D', 'E', 'F', 'G', 'H', 'I',
     ]);
   });
 
@@ -45,8 +53,26 @@ describe('guest app prototype model', () => {
     expect(getOfflineAction('pre-registration')).toBe('queued');
     expect(getOfflineAction('service-booking')).toBe('blocked');
     expect(getOfflineAction('payment')).toBe('blocked');
-    expect(getOfflineAction('wallet')).toBe('available');
+    expect(getOfflineAction('cached-stay')).toBe('available');
     expect(getOfflineAction('authentication')).toBe('blocked');
+  });
+
+  it('calculates a venue cart from menu item quantities', () => {
+    const menu = RESTAURANTS[0]!.menu;
+    const summary = getVenueCartSummary(menu, {
+      'a1b-calamari': 2,
+      'a1b-ribeye': 1,
+      'a1b-1': 0,
+    });
+
+    expect(parsePesoAmount('₱1,850')).toBe(1850);
+    expect(summary.itemCount).toBe(3);
+    expect(summary.total).toBe(2810);
+    expect(summary.formattedTotal).toBe('₱2,810');
+    expect(summary.items).toEqual([
+      expect.objectContaining({ id: 'a1b-calamari', quantity: 2 }),
+      expect.objectContaining({ id: 'a1b-ribeye', quantity: 1 }),
+    ]);
   });
 });
 
@@ -61,8 +87,7 @@ const makeBooking = (overrides: Partial<Booking> = {}): Booking => ({
   guestCount: 2,
   source: 'Agoda',
   preArrivalCompleted: 2,
-  preArrivalTotal: 5,
-  stayQrAvailable: false,
+  preArrivalTotal: 4,
   ...overrides,
 });
 
@@ -197,5 +222,45 @@ describe('getPostAuthScreen', () => {
     };
 
     expect(getPostAuthScreen(session)).toBe('stay-overview');
+  });
+});
+
+describe('mini-app categories and restaurant menus', () => {
+  it('exposes the 4 core experience categories', () => {
+    expect(MINI_APP_CATEGORIES.map((c) => c.id)).toEqual([
+      'dining',
+      'spa',
+      'entertainment',
+      'services',
+    ]);
+  });
+
+  it('provides browsable restaurant menus with structured items and pricing', () => {
+    expect(RESTAURANTS.length).toBeGreaterThanOrEqual(3);
+    const apt1b = RESTAURANTS.find((r) => r.id === 'apartment-1b');
+    expect(apt1b).toBeDefined();
+    expect(apt1b?.menu.length).toBeGreaterThan(0);
+
+    const categories = new Set(apt1b?.menu.map((item) => item.category));
+    expect(categories.has('starters')).toBe(true);
+    expect(categories.has('mains')).toBe(true);
+    expect(categories.has('desserts')).toBe(true);
+    expect(categories.has('drinks')).toBe(true);
+
+    for (const item of apt1b!.menu) {
+      expect(item.price).toMatch(/^₱\d/);
+      expect(item.name.length).toBeGreaterThan(0);
+      expect(item.description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('defaults room preferences in anonymous and mock sessions', () => {
+    expect(ANONYMOUS_SESSION.roomPreferences).toEqual({
+      floor: 'Higher floor',
+      bed: 'King bed',
+      accessibility: [],
+    });
+    expect(MOCK_SESSION.roomPreferences.bed).toBe('King bed');
+    expect(UPCOMING_BOOKING_FIXTURE.preArrivalTotal).toBe(5);
   });
 });

@@ -3,14 +3,15 @@ import { describe, expect, it } from 'vitest';
 import HomePage from './page';
 
 describe('HomePage', () => {
-  it('renders the account gate at the root route', () => {
+  it('renders the booking-first welcome screen at the root route', () => {
     render(<HomePage />);
 
-    expect(screen.getByText('Cabana', { exact: true })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Your stay starts here' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Booking email' })).toBeInTheDocument();
+    expect(screen.getAllByText('Cabana', { exact: true })).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
+    expect(screen.getByText('Check in before arrival')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Find my booking' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /create account/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /log in/i })).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 });

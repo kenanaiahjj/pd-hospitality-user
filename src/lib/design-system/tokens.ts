@@ -1,29 +1,17 @@
-export type SourceTheme = 'system' | 'klarna' | 'wise';
+export type SourceTheme = 'cabana';
 export type ComponentCategory = 'controls' | 'views' | 'overlay' | 'imagery';
 
-export const DEFAULT_COLOR_PICKER_VALUE = '#ffb3d9';
+export const DEFAULT_COLOR_PICKER_VALUE = '#ff86d5';
 
 export const sourceThemeDetails: Record<
   SourceTheme,
   { label: string; description: string; className: string; accentName: string }
 > = {
-  system: {
-    label: 'System',
-    description: 'Cool white surfaces with quiet lilac accents for neutral comparison.',
-    className: 'system',
-    accentName: 'System lilac',
-  },
-  klarna: {
-    label: 'Klarna',
-    description: 'White surfaces, black ink, soft pink actions, and lilac supporting panels.',
-    className: 'klarna',
-    accentName: 'Klarna pink',
-  },
-  wise: {
-    label: 'Wise',
-    description: 'The same Klarna-shaped components with Wise green as the active accent.',
-    className: 'wise',
-    accentName: 'Wise green',
+  cabana: {
+    label: 'Cabana light',
+    description: 'A neutral canvas, white surfaces, and Cabana pink held back for primary actions and live state.',
+    className: 'cabana',
+    accentName: 'Cabana pink',
   },
 };
 
@@ -37,25 +25,25 @@ export const designSystemCategories: Array<{
     id: 'controls',
     label: 'Controls',
     count: 14,
-    description: 'Inputs and actions that help people make a choice, the Klarna way.',
+    description: 'Inputs and actions that keep the next step clear and easy to reach.',
   },
   {
     id: 'views',
     label: 'Views',
     count: 13,
-    description: 'Content patterns that organize information, lists, and status.',
+    description: 'Content patterns that make stays, services, charges, and status easy to scan.',
   },
   {
     id: 'overlay',
     label: 'Overlay',
     count: 4,
-    description: 'Focused moments that temporarily sit above the page.',
+    description: 'Focused moments that temporarily sit above the current app surface.',
   },
   {
     id: 'imagery',
     label: 'Imagery',
     count: 5,
-    description: 'Visual identity, presence, imagery, and supporting illustration.',
+    description: 'Marks, avatars, imagery, and illustration that make the app feel human.',
   },
 ];
 
@@ -87,7 +75,7 @@ export const designSystemComponents: Array<{
   { name: 'Gallery', category: 'views', description: 'A browseable set of visual items with a clear focal item.' },
   { name: 'Loading Indicator', category: 'views', description: 'A compact state signal while content is resolving.' },
   { name: 'Stacked List', category: 'views', description: 'Rows of scannable content with clear hierarchy.' },
-  { name: 'Table', category: 'views', description: 'Structured comparison for repeated financial data.' },
+  { name: 'Table', category: 'views', description: 'Structured comparison for repeated charge data.' },
   { name: 'Tab Bar', category: 'views', description: 'Persistent navigation across the primary app areas.' },
   { name: 'Toolbar', category: 'views', description: 'A horizontal utility row for actions and context.' },
   { name: 'Top Navigation Bar', category: 'views', description: 'A stable title and action anchor at the top of a screen.' },

@@ -2,7 +2,6 @@
 
 import {
   AirplaneTilt,
-  AppleLogo,
   ArrowLeft,
   ArrowRight,
   Bed,
@@ -11,19 +10,19 @@ import {
   ChatCircleDots,
   Check,
   CheckCircle,
-  Coffee,
   EnvelopeSimple,
+  Eye,
+  EyeSlash,
   ForkKnife,
-  GoogleLogo,
   House,
   IdentificationCard,
   MapPin,
+  Minus,
   Person,
+  Plus,
   QrCode,
   Receipt,
-  ShieldCheck,
   SignOut,
-  SlidersHorizontal,
   Sparkle,
   SpinnerGap,
   Storefront,
@@ -34,27 +33,39 @@ import {
 } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { CabanaLockup } from '@/components/ui/cabana-logo';
+import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { Button, Input } from '@/components/ui';
 import {
   ANONYMOUS_SESSION,
   connectBooking,
-  createAccountSession,
+  createAccountWithPassword,
+  formatPesoAmount,
   getHomeVariant,
   getPostAuthScreen,
   getPrimaryBooking,
+  getVenueCartSummary,
+  MINI_APP_CATEGORIES,
   MOCK_SESSION,
+  RESTAURANTS,
   SERVICES,
-  signInSession,
+  signInWithPassword,
   signOutSession,
   verifyPendingSession,
-  type AuthMethod,
+  parsePesoAmount,
   type Booking,
   type GuestSession,
+  type DiningFulfillment,
+  type MenuItemCategory,
+  type MiniAppCategoryId,
   type ServiceBooking,
   type ScreenId,
 } from './prototype-model';
-import { getServiceImage, type ServiceImageKey } from './service-images';
+import {
+  getServiceImage,
+  getPropertyImage,
+  getCategoryCoverImage,
+  type ServiceImageKey,
+} from './service-images';
 import './guest-app-prototype.css';
 
 type ActiveScreen = ScreenId | 'entry-hub';
@@ -75,6 +86,49 @@ function Field({ label, name, type = 'text', placeholder, defaultValue, helper, 
     <label className="guest-field" htmlFor={name}>
       <span>{label}{required ? ' *' : ''}</span>
       <Input id={name} name={name} type={type} placeholder={placeholder} defaultValue={defaultValue} aria-describedby={helperId} required={required} />
+      {helper ? <small id={helperId}>{helper}</small> : null}
+    </label>
+  );
+}
+
+function PasswordField({
+  label,
+  name,
+  placeholder = '••••••••',
+  helper,
+  required,
+}: {
+  label: string;
+  name: string;
+  placeholder?: string;
+  helper?: string;
+  required?: boolean;
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+  const helperId = helper ? `${name}-helper` : undefined;
+  return (
+    <label className="guest-field" htmlFor={name}>
+      <span>{label}{required ? ' *' : ''}</span>
+      <div className="guest-password-wrapper">
+        <Input
+          id={name}
+          name={name}
+          type={showPassword ? 'text' : 'password'}
+          placeholder={placeholder}
+          aria-describedby={helperId}
+          required={required}
+          minLength={8}
+          autoComplete={name.includes('create') || name.includes('account') ? 'new-password' : 'current-password'}
+        />
+        <button
+          type="button"
+          className="guest-password-toggle"
+          onClick={() => setShowPassword((prev) => !prev)}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+        >
+          {showPassword ? <EyeSlash size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+        </button>
+      </div>
       {helper ? <small id={helperId}>{helper}</small> : null}
     </label>
   );
@@ -110,15 +164,6 @@ function SummaryRow({ label, value, strong }: { label: string; value: string; st
   return <div className="guest-summary-row"><span>{label}</span><b className={strong ? 'is-strong' : ''}>{value}</b></div>;
 }
 
-function QrArtwork() {
-  return (
-    <svg className="guest-qr" viewBox="0 0 29 29" role="img" aria-label="Stay identity QR code">
-      <rect width="29" height="29" rx="1" fill="white" />
-      <path fill="currentColor" d="M2 2h8v8H2V2Zm2 2v4h4V4H4Zm15-2h8v8h-8V2Zm2 2v4h4V4h-4ZM2 19h8v8H2v-8Zm2 2v4h4v-4H4Zm8-19h2v2h-2V2Zm3 0h2v4h-2V2Zm-3 4h4v2h-4V6Zm1 3h2v2h-2V9Zm4 0h2v4h-4v-2h2V9Zm4 3h2v2h-2v-2Zm3 0h3v2h-3v-2Zm-12 3h2v4h-2v-4Zm3 0h4v2h-4v-2Zm5 0h2v2h-2v-2Zm3 0h5v2h-3v2h-2v-4Zm-8 4h2v2h-2v-2Zm3 0h3v2h-3v-2Zm5 0h2v5h-2v-5Zm3 0h4v2h-4v-2Zm-12 4h5v2h-5v-2Zm6-1h2v3h-2v-3Zm6 1h4v2h-4v-2Zm-10 4h2v2h-2v-2Zm4 0h3v2h-3v-2Zm5 0h2v2h-2v-2Zm3 0h3v2h-3v-2Z" />
-    </svg>
-  );
-}
-
 function ServiceVisual({ tone, icon }: { tone: string; icon: ReactNode }) {
   return <div className={`guest-service-visual guest-service-visual--${tone}`} aria-hidden="true"><span>{icon}</span><i /><i /></div>;
 }
@@ -142,6 +187,68 @@ function ServiceImage({ imageKey, tone, icon, decorative = false }: { imageKey: 
   );
 }
 
+function PropertyImage({
+  property,
+  aspectRatio = '16/9',
+  className = '',
+  decorative = false,
+}: {
+  property?: string;
+  aspectRatio?: string;
+  className?: string;
+  decorative?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  const image = getPropertyImage(property);
+
+  return (
+    <div className={`guest-property-image ${failed ? 'is-error' : ''} ${className}`} style={{ aspectRatio }}>
+      <div className="guest-property-image__fallback" aria-hidden="true">
+        <House size={30} />
+      </div>
+      <Image
+        src={image.src}
+        alt={decorative ? '' : image.alt}
+        fill
+        sizes="(max-width: 720px) calc(100vw - 32px), 480px"
+        style={{ objectPosition: image.focalPoint }}
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+function CategoryCoverImage({
+  categoryId,
+  aspectRatio = '16/10',
+  className = '',
+}: {
+  categoryId: string;
+  aspectRatio?: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const image = getCategoryCoverImage(categoryId);
+
+  return (
+    <div className={`guest-category-image ${failed ? 'is-error' : ''} ${className}`} style={{ aspectRatio }}>
+      <div className="guest-property-image__fallback" aria-hidden="true">
+        {categoryId === 'dining' ? <ForkKnife size={22} /> : categoryId === 'spa' ? <Sparkle size={22} /> : categoryId === 'entertainment' ? <AirplaneTilt size={22} /> : <Storefront size={22} />}
+      </div>
+      <Image
+        src={image.src}
+        alt=""
+        fill
+        sizes="(max-width: 720px) 50vw, 240px"
+        style={{ objectPosition: image.focalPoint }}
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+
+
 /**
  * The room QR identifies a room, so it may be the very first thing that
  * attaches a stay to the session. Connecting before activating means the path
@@ -163,7 +270,6 @@ function withActiveRoom(current: GuestSession): GuestSession {
       ...item,
       status: 'active' as const,
       roomNumber,
-      stayQrAvailable: true,
       folioTotal: item.folioTotal ?? '₱3,050',
     } : item),
     folioTotal: booking.folioTotal ?? (connected.folioTotal === '₱0' ? '₱3,050' : connected.folioTotal),
@@ -182,19 +288,88 @@ function BookingEntryOptions({ onNavigate }: { onNavigate: (screen: ActiveScreen
 }
 
 /**
- * Apple and Google are simulated the way QR scanning and ID capture already
- * are: the provider is treated as already knowing the guest, so it resolves to
- * the recognized account rather than inventing a second identity.
+ * The three things a booking unlocks, drawn as the screen's hero instead of
+ * listed as text. Each card is a fragment of the screen its feature leads to,
+ * so the graphic previews the app rather than decorating it -- which is also
+ * why the glyphs stay bare: a tinted disc here would read as an action.
  */
-function AuthMethods({ disabled, onSelect }: { disabled?: boolean; onSelect: (method: AuthMethod) => void }) {
+const WELCOME_PROOF = [
+  {
+    step: '01',
+    stage: 'Before you arrive',
+    title: 'Check in before arrival',
+    icon: <CalendarBlank />,
+    label: 'Online check-in',
+    value: 'Complete',
+    settled: true,
+  },
+  {
+    step: '02',
+    stage: 'At the hotel',
+    title: 'Skip the front desk paperwork',
+    icon: <IdentificationCard />,
+    label: 'Government ID',
+    value: 'Verified',
+    settled: true,
+  },
+  {
+    step: '03',
+    stage: 'During your stay',
+    title: 'View charges and hotel services',
+    icon: <Receipt />,
+    label: 'Folio total',
+    value: '₱3,050',
+    settled: false,
+  },
+];
+
+function WelcomeProof() {
   return (
-    <>
-      <div className="guest-auth-divider"><span>or continue with</span></div>
-      <div className="guest-auth-methods">
-        <Button className="guest-button guest-button--secondary" type="button" disabled={disabled} onClick={() => onSelect('apple')}><AppleLogo aria-hidden="true" />Apple</Button>
-        <Button className="guest-button guest-button--secondary" type="button" disabled={disabled} onClick={() => onSelect('google')}><GoogleLogo aria-hidden="true" />Google</Button>
+    <ul className="guest-welcome__proof" aria-label="Available after you connect your booking">
+      {WELCOME_PROOF.map((feature) => (
+        <li key={feature.step} className="guest-welcome__proof-card">
+          <div className="guest-welcome__proof-head">
+            <span aria-hidden="true">{feature.icon}</span>
+            <div>
+              <p className="guest-welcome__proof-stage"><span aria-hidden="true">{feature.step}</span>{feature.stage}</p>
+              <b>{feature.title}</b>
+            </div>
+          </div>
+          <p className="guest-welcome__proof-row" aria-hidden="true">
+            <span>{feature.label}</span>
+            <span data-settled={feature.settled}>
+              {feature.settled ? <Check aria-hidden="true" /> : null}
+              {feature.value}
+            </span>
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function WelcomeScreen({ onFindBooking }: { onFindBooking: () => void }) {
+  return (
+    <section className="guest-welcome" aria-labelledby="guest-welcome-title">
+      <div className="guest-welcome__splash" aria-hidden="true">
+        <CabanaFullLockup className="guest-welcome__splash-brand" markWidth={92} />
       </div>
-    </>
+      <div className="guest-welcome__content">
+        <CabanaFullLockup className="guest-welcome__brand" markWidth={44} />
+        <WelcomeProof />
+        <div className="guest-welcome__message">
+          <h1 id="guest-welcome-title">Welcome to your stay</h1>
+          <p>Find your booking to check in and access everything you need during your stay.</p>
+          <Button
+            className="guest-button guest-button--primary guest-welcome__action"
+            type="button"
+            onClick={onFindBooking}
+          >
+            Find my booking<ArrowRight aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -224,6 +399,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?' },
   ]);
   const [sending, setSending] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<MiniAppCategoryId>('dining');
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
+  const [selectedMenuTab, setSelectedMenuTab] = useState<MenuItemCategory>('all');
+  const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
+  const [diningMethod, setDiningMethod] = useState<'delivery' | 'pickup'>('delivery');
+  const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
+  const [diningTime, setDiningTime] = useState('7:00 PM');
+  const [diningOrderError, setDiningOrderError] = useState<string | null>(null);
 
   const go = (next: ActiveScreen) => {
     setHistory((items) => [...items, activeScreen]);
@@ -252,8 +435,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 850);
   };
 
-  const showNav = ['stay-overview', 'wallet', 'wallet-offline', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-bookings', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history'].includes(activeScreen);
-  const showPrimaryNav = showNav && session.auth === 'authenticated';
+  const showNav = ['stay-overview', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-bookings', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history'].includes(activeScreen);
+  const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
+  const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
   const displayBooking = primaryBooking ?? MOCK_SESSION.bookings[0]!;
   const contextBooking = primaryBooking ?? displayBooking;
@@ -261,6 +445,70 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const contextService = session.serviceBookings.find(
     (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
   );
+
+  const changeCartQuantity = (venueId: string, itemId: string, delta: number) => {
+    setRestaurantCarts((carts) => {
+      const venueCart = carts[venueId] ?? {};
+      const quantity = Math.max(0, (venueCart[itemId] ?? 0) + delta);
+      return { ...carts, [venueId]: { ...venueCart, [itemId]: quantity } };
+    });
+  };
+
+  const confirmDiningOrder = () => {
+    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+    const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
+    const cartSummary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
+
+    if (!online) {
+      setDiningOrderError('Connect to place this order');
+      return;
+    }
+    if (!booking || booking.status !== 'active') {
+      setDiningOrderError('An active stay is required to place this order');
+      return;
+    }
+    if (diningMethod === 'delivery' && !booking.roomNumber) {
+      setDiningOrderError('Room delivery is available after your room is assigned.');
+      return;
+    }
+    if (cartSummary.itemCount === 0) {
+      setDiningOrderError('Add at least one item before placing your order');
+      return;
+    }
+
+    const scheduledFor = diningMethod === 'delivery'
+      ? diningTiming === 'asap'
+        ? `Deliver to Room ${booking.roomNumber} · As soon as possible`
+        : `Deliver to Room ${booking.roomNumber} · Today, ${diningTime}`
+      : `Pick up at ${venue.name} · Today, ${diningTime}`;
+    const fulfillment: DiningFulfillment = diningMethod === 'delivery'
+      ? { method: 'delivery', timing: diningTiming, scheduledFor }
+      : { method: 'pickup', timing: 'scheduled', scheduledFor };
+    const orderBooking: ServiceBooking = {
+      id: `dining-order-${venue.id}-${session.serviceBookings.length + 1}`,
+      bookingId: booking.id,
+      title: venue.name,
+      scheduledFor,
+      amount: cartSummary.formattedTotal,
+      status: 'confirmed',
+      diningOrder: {
+        venueId: venue.id,
+        venueName: venue.name,
+        items: cartSummary.items,
+        fulfillment,
+      },
+    };
+    const newFolioTotal = formatPesoAmount(parsePesoAmount(session.folioTotal) + cartSummary.total);
+
+    setSession((current) => ({
+      ...current,
+      serviceBookings: [orderBooking, ...current.serviceBookings],
+      folioTotal: newFolioTotal,
+    }));
+    setRestaurantCarts((carts) => ({ ...carts, [venue.id]: {} }));
+    setDiningOrderError(null);
+    go('dining-order-confirmation');
+  };
 
   const primary = (label: string, next: ActiveScreen, options?: { disabled?: boolean }) => (
     <Button className="guest-button guest-button--primary" type="button" onClick={() => go(next)} disabled={options?.disabled}>{label}<ArrowRight aria-hidden="true" /></Button>
@@ -293,23 +541,33 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('booking-confirmation');
   };
 
-  const linkRoomStay = () => {
-    if (session.auth !== 'authenticated') {
-      setPendingIntent('link-room');
-      go('create-account');
-      return;
-    }
-    setSession(withActiveRoom(session));
-    go('room-qr-midstay');
+  const linkRoomStay = (lastName?: string) => {
+    const next = withActiveRoom(session);
+    setSession({
+      ...next,
+      guestName: next.guestName || lastName || 'Guest',
+    });
+    go('stay-overview');
   };
 
-  /** Send the guest to the code screen carrying a pending session. */
-  const beginVerification = (pending: GuestSession) => {
-    setSession(pending);
-    setCode('');
-    setCodeNotice(null);
-    go('verify-code');
+  const completePreArrival = () => {
+    const next: GuestSession = {
+      ...session,
+      bookings: session.bookings.map((booking) =>
+        booking.id === contextBooking.id
+          ? {
+              ...booking,
+              preArrivalCompleted: booking.preArrivalTotal,
+            }
+          : booking,
+      ),
+    };
+
+    setSession(next);
+    go(online ? 'stay-overview' : 'prereg-queued');
   };
+
+
 
   /**
    * The one place identity becomes real. Applies whatever the guest was in the
@@ -335,11 +593,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const claimBooking = () => {
-    if (session.auth !== 'authenticated') {
-      setPendingIntent('connect-booking');
-      go('create-account');
-      return;
-    }
     const next = connectBooking(session);
     setSession(next);
     go(getPostAuthScreen(next));
@@ -358,38 +611,35 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const renderScreen = () => {
     switch (activeScreen) {
       case 'entry-hub':
-        return (
-          <div className="guest-entry">
-            <div className="guest-entry__utility"><Tag>Clickable MVP</Tag><span>Guest app · Phase 1</span></div>
-            <HeroIcon tone="dark"><SuitcaseRolling size={30} /></HeroIcon>
-            <p className="guest-eyebrow">The Henry&apos;s Hotels pilot</p>
-            <h1>Your stay starts here</h1>
-            <p className="guest-lede">One account keeps your stays, room preferences, and charges together across all 13 properties.</p>
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Signing in needs a connection">An account cannot be created or verified offline. Your room QR and front-desk help still work.</Notice> : null}
-            <Button className="guest-button guest-button--primary" type="button" disabled={!online} onClick={() => go('create-account')}>Create account<ArrowRight aria-hidden="true" /></Button>
-            <TextButton disabled={!online} onClick={() => go('sign-in')}>Log in</TextButton>
-            <div className="guest-auth-divider"><span>Already have a booking?</span></div>
-            <BookingEntryOptions onNavigate={go} />
-            <p className="guest-footnote">Prototype only · No real booking data or payment is used.</p>
-          </div>
-        );
+        return <WelcomeScreen onFindBooking={() => go('connect-booking')} />;
 
       case 'sign-in':
         return (
           <div className="guest-stack guest-stack--intro">
-            <HeroIcon tone="dark"><ShieldCheck size={30} /></HeroIcon>
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">Returning guest</p>
-              <h1>Log in</h1>
-              <p>Enter the email on your account and we&apos;ll send a 6-digit code. There is no password to remember.</p>
+            <div className="guest-auth-header">
+              <CabanaFullLockup markWidth={48} tagline="Your Home Away From Home" />
             </div>
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Logging in needs a connection">A code cannot be sent or checked offline.</Notice> : null}
-            <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); beginVerification(signInSession('email-code')); }}>
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">Welcome back</p>
+              <h1>Log in</h1>
+              <p>Enter your account email and password to continue.</p>
+            </div>
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Logging in needs a connection">A connection is required to sign in.</Notice> : null}
+            <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              const email = String(data.get('sign-in-email') ?? '').trim();
+              completeAuth(signInWithPassword(email));
+            }}>
               <Field label="Email" name="sign-in-email" type="email" placeholder="you@example.com" required />
-              <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>Send my code<ArrowRight aria-hidden="true" /></Button>
+              <PasswordField label="Password" name="sign-in-password" placeholder="Enter your password" required />
+              <div className="guest-auth-actions">
+                <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
+                  Log in<ArrowRight aria-hidden="true" />
+                </Button>
+              </div>
             </form>
-            <AuthMethods disabled={!online} onSelect={(method) => completeAuth(signInSession(method))} />
-            <TextButton onClick={() => go('create-account')}>Create an account instead</TextButton>
+            <TextButton onClick={() => go('create-account')}>Don&apos;t have an account? Create an account</TextButton>
           </div>
         );
 
@@ -427,24 +677,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'connect-booking':
         return (
-          <div className="guest-stack guest-stack--intro">
-            <HeroIcon tone="dark"><Receipt size={30} /></HeroIcon>
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">{session.guestName ? `Signed in as ${session.guestName}` : 'Account ready'}</p>
-              <h1>Add your booking</h1>
-              <p>Link a confirmed reservation to unlock arrival details, on-property services, room charges, and front-desk help.</p>
-            </div>
+          <ScreenIntro
+            eyebrow="Connect your stay"
+            title="Find your booking"
+            text="Choose the way you arrived here. You can use your booking details, a room QR, or the hotel Wi-Fi connection."
+          >
             <BookingEntryOptions onNavigate={go} />
-            <Notice title="A booking is required">This app starts after a hotel booking. It does not search or compare hotels.</Notice>
-            <TextButton onClick={() => go('stay-overview')}>I&apos;ll do this later</TextButton>
-          </div>
+            <Notice title="A booking is required">Cabana starts after a confirmed hotel booking. It does not search or compare hotels.</Notice>
+          </ScreenIntro>
         );
 
       case 'room-qr-landing':
-        return <ScreenIntro icon={<QrCode size={30} />} eyebrow="Room QR detected" title="Let’s link this room to you" text="This permanent room code opens the guest app. Your last name confirms which live booking is yours."><StayMiniCard booking={contextBooking} status={`Room ${contextBooking.roomNumber ?? '304'} detected`} /> <Field label="Last name" name="qr-last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="button" onClick={linkRoomStay}>Link my stay<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('front-desk-assist')}>I need help</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<QrCode size={30} />} eyebrow="Room QR detected" title="Let’s link this room to you" text="This permanent room code opens the guest app. Your last name confirms which live booking is yours."><StayMiniCard booking={contextBooking} status={`Room ${contextBooking.roomNumber ?? '304'} detected`} /><form className="guest-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); linkRoomStay(String(data.get('qr-last-name') ?? '').trim()); }}><Field label="Last name" name="qr-last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Link my stay<ArrowRight aria-hidden="true" /></Button></form><TextButton onClick={() => go('front-desk-assist')}>I need help</TextButton></ScreenIntro>;
 
       case 'wifi-landing':
-        return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your Stay QR and itinerary remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
+        return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your itinerary and stay details remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
 
       case 'identify':
         return <ScreenIntro eyebrow="Connect your stay" title="Find your booking" text="Use the details from your confirmation email. OTA references from Agoda and Booking.com work too."><form className="guest-form" onSubmit={(event) => { event.preventDefault(); go('booking-found'); }}><Field label="Booking or confirmation number" name="booking-number" placeholder="Any format" helper="We’ll match hotel and OTA references." required /><Field label="Last name" name="last-name" placeholder="As shown on the booking" required /><Button className="guest-button guest-button--primary" type="submit">Find booking<ArrowRight /></Button></form><TextButton onClick={() => go('lookup-fallback')}>I can’t find my booking</TextButton></ScreenIntro>;
@@ -459,41 +706,45 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No stay attached" title="You need a confirmed booking" text="Cabana starts after a hotel booking. The app does not search or compare hotels."><Notice title="Already booked?">Try your OTA reference or ask the property to send you a secure link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('front-desk-assist')}>Contact the front desk</TextButton></ScreenIntro>;
 
       case 'booking-found':
-        return <ScreenIntro eyebrow="Match found" title="Is this your stay?" text="Confirm the details before creating your guest profile."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label="Guest" value={session.guestName || MOCK_SESSION.guestName} /><SummaryRow label="Guests" value={`${displayBooking.guestCount} guests`} /><SummaryRow label="Source" value={displayBooking.source} /></div><Button className="guest-button guest-button--primary" type="button" onClick={claimBooking}>Yes, this is my stay<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('identify')}>This isn’t my booking</TextButton></ScreenIntro>;
+        return <ScreenIntro eyebrow="Match found" title="Is this your stay?" text="Confirm the details before continuing to pre-arrival check-in."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label="Guest" value={session.guestName || MOCK_SESSION.guestName} /><SummaryRow label="Guests" value={`${displayBooking.guestCount} guests`} /><SummaryRow label="Source" value={displayBooking.source} /></div><Button className="guest-button guest-button--primary" type="button" onClick={claimBooking}>Yes, this is my stay<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('identify')}>This isn’t my booking</TextButton></ScreenIntro>;
 
       case 'create-account':
         return (
           <div className="guest-stack guest-stack--intro">
-            <HeroIcon tone="dark"><Person size={30} /></HeroIcon>
+            <div className="guest-auth-header">
+              <CabanaFullLockup markWidth={48} tagline="Your Home Away From Home" />
+            </div>
             <div className="guest-page-title">
               <p className="guest-eyebrow">One account, 13 properties</p>
               <h1>Create your account</h1>
-              <p>{pendingIntent === 'none' ? 'We’ll email a 6-digit code to confirm it’s you. Room charges settle with the hotel, so no card is ever stored here.' : 'Your stay is matched. Create an account to hold it, and to keep room charges attached to a name.'}</p>
+              <p>{pendingIntent === 'none' ? 'Set up your email and password to access your stay and room services.' : 'Your stay is matched. Create an account with your email and password to hold it.'}</p>
             </div>
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Creating an account needs a connection">A code cannot be sent offline. Nothing has been saved yet.</Notice> : null}
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Creating an account needs a connection">A connection is required to create an account.</Notice> : null}
             <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
-              beginVerification(createAccountSession(
-                String(data.get('account-name') ?? '').trim(),
-                String(data.get('account-email') ?? '').trim(),
-                'email-code',
-              ));
+              const name = String(data.get('account-name') ?? '').trim();
+              const email = String(data.get('account-email') ?? '').trim();
+              completeAuth(createAccountWithPassword(name, email));
             }}>
               <Field label="Full name" name="account-name" placeholder="As shown on your ID" required />
               <Field label="Email" name="account-email" type="email" placeholder="you@example.com" required />
-              <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>Send my code<ArrowRight aria-hidden="true" /></Button>
+              <PasswordField label="Password" name="account-password" placeholder="Create a password" helper="At least 8 characters" required />
+              <div className="guest-auth-actions">
+                <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
+                  Create account<ArrowRight aria-hidden="true" />
+                </Button>
+              </div>
             </form>
-            <AuthMethods disabled={!online} onSelect={(method) => completeAuth(signInSession(method))} />
-            <TextButton onClick={() => go('sign-in')}>I already have an account</TextButton>
+            <TextButton onClick={() => go('sign-in')}>Already have an account? Log in</TextButton>
           </div>
         );
 
       case 'welcome-back':
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Returning guest recognized" title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity and room preferences are ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Returning guest recognized" title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} />;
 
       case 'guest-details':
         return <FormScreen step="1 of 5" title="Your details" text="These details are sent securely to the property for registration."><Field label="Full name" name="guest-name" defaultValue="Ana Santos" required /><Field label="Nationality" name="nationality" defaultValue="Filipino" /><Field label="Email" name="guest-email" type="email" defaultValue="ana@example.com" /><Field label="Mobile" name="guest-mobile" type="tel" defaultValue="+63 917 555 0142" />{primary('Continue to ID', 'id-capture')}</FormScreen>;
@@ -501,43 +752,526 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'id-capture':
         return <FormScreen step="2 of 5" title="ID or passport" text="International guests need passport details."><button className="guest-upload" type="button"><IdentificationCard size={28} /><b>Capture or upload ID</b><small>Passport, national ID, or driver’s license</small></button><Field label="Document number" name="document-number" placeholder="Enter document number" /><Field label="Expiry date" name="expiry" type="date" />{primary('Save and continue', 'room-preferences')}</FormScreen>;
 
-      case 'room-preferences':
-        return <FormScreen step="3 of 5" title="Room preferences" text="We’ll save these above the property level and pre-fill them on future stays."><SelectField label="Preferred floor" name="floor" defaultValue="high"><option value="high">Higher floor</option><option value="low">Lower floor</option><option value="none">No preference</option></SelectField><SelectField label="Bed type" name="bed" defaultValue="king"><option value="king">King bed</option><option value="twin">Twin beds</option></SelectField><fieldset className="guest-fieldset"><legend>Accessibility needs</legend><CheckOption label="Step-free room access" /><CheckOption label="Bathroom grab rails" /><CheckOption label="Visual door alert" /></fieldset>{primary('Save preferences', online ? 'additional-guests' : 'prereg-queued')}</FormScreen>;
+      case 'room-preferences': {
+        const isProfileEdit = history.includes('profile');
+        return (
+          <div className="guest-stack">
+            {isProfileEdit ? (
+              <div className="guest-page-title">
+                <p className="guest-eyebrow">Profile preferences</p>
+                <h1>Room preferences</h1>
+                <p>We’ll save these above the property level and pre-fill them on future stays.</p>
+              </div>
+            ) : (
+              <>
+                <div className="guest-step">
+                  <span>3 of 5</span>
+                  <i><b /></i>
+                </div>
+                <div className="guest-page-title">
+                  <h1>Room preferences</h1>
+                  <p>Choose your floor, bed, and accessibility needs. We’ll pre-fill these for future stays across The Henry.</p>
+                </div>
+              </>
+            )}
+            <form
+              className="guest-form"
+              onSubmit={(e: FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                const data = new FormData(e.currentTarget);
+                const floor = String(data.get('floor') ?? 'Higher floor');
+                const bed = String(data.get('bed') ?? 'King bed');
+                const accessibility: string[] = [];
+                if (data.get('step-free')) accessibility.push('Step-free room access');
+                if (data.get('grab-rails')) accessibility.push('Bathroom grab rails');
+                if (data.get('door-alert')) accessibility.push('Visual door alert');
+                setSession((cur) => ({
+                  ...cur,
+                  roomPreferences: { floor, bed, accessibility },
+                }));
+                go(isProfileEdit ? 'profile' : 'additional-guests');
+              }}
+            >
+              <SelectField label="Preferred floor" name="floor" defaultValue={session.roomPreferences.floor}>
+                <option value="Higher floor">Higher floor</option>
+                <option value="Lower floor">Lower floor</option>
+                <option value="Ground floor">Ground floor</option>
+                <option value="No preference">No preference</option>
+              </SelectField>
+              <SelectField label="Bed type" name="bed" defaultValue={session.roomPreferences.bed}>
+                <option value="King bed">King bed</option>
+                <option value="Twin beds">Twin beds</option>
+                <option value="Queen bed">Queen bed</option>
+              </SelectField>
+              <fieldset className="guest-fieldset">
+                <legend>Accessibility needs</legend>
+                <CheckOption label="Step-free room access" name="step-free" defaultChecked={session.roomPreferences.accessibility.includes('Step-free room access')} />
+                <CheckOption label="Bathroom grab rails" name="grab-rails" defaultChecked={session.roomPreferences.accessibility.includes('Bathroom grab rails')} />
+                <CheckOption label="Visual door alert" name="door-alert" defaultChecked={session.roomPreferences.accessibility.includes('Visual door alert')} />
+              </fieldset>
+              <Button className="guest-button guest-button--primary" type="submit">
+                {isProfileEdit ? 'Save preferences' : 'Save and continue'}
+                <ArrowRight aria-hidden="true" />
+              </Button>
+              {isProfileEdit ? (
+                <TextButton onClick={() => go('profile')}>Back to profile</TextButton>
+              ) : (
+                <TextButton onClick={() => go('additional-guests')}>Skip for now</TextButton>
+              )}
+            </form>
+          </div>
+        );
+      }
 
       case 'additional-guests':
-        return <FormScreen step="4 of 5" title="Who else is staying?" text="Add names only. Additional guests do not need accounts."><Field label="Additional guest 1" name="guest-2" defaultValue="Marco Santos" /><button type="button" className="guest-button guest-button--secondary">Add another guest</button><Notice title="One booking, one account">Your Stay QR can be shared as a screenshot with the people staying with you.</Notice>{primary('Continue', 'early-check-in')}</FormScreen>;
+        return <FormScreen step="4 of 5" title="Who else is staying?" text="Add names only. Additional guests do not need accounts."><Field label="Additional guest 1" name="guest-2" defaultValue="Marco Santos" /><button type="button" className="guest-button guest-button--secondary">Add another guest</button><Notice title="One booking, one account">You stay in control of the booking. The people staying with you do not need their own accounts.</Notice>{primary('Continue', 'early-check-in')}</FormScreen>;
 
       case 'repeat-review':
-        return <ScreenIntro eyebrow="Saved from your Cebu stay" title="Review, then confirm" text="Everything is pre-filled. Change only what’s different this time."><div className="guest-review-card"><ReviewBlock icon={<Person />} title="Ana Santos" lines={['Filipino · Passport on file', 'ana@example.com · +63 917 555 0142']} /><ReviewBlock icon={<SlidersHorizontal />} title="Room preferences" lines={['Higher floor · King bed', 'No accessibility requests']} /><ReviewBlock icon={<Users />} title="Additional guest" lines={['Marco Santos']} /></div>{primary('Confirm everything', 'prereg-complete')}<TextButton onClick={() => go('guest-details')}>Edit details</TextButton></ScreenIntro>;
+        return (
+          <ScreenIntro
+            eyebrow="Saved from your Cebu stay"
+            title="Review, then confirm"
+            text="Everything is pre-filled. Change only what’s different this time."
+          >
+            <div className="guest-review-card">
+              <ReviewBlock
+                icon={<Person />}
+                title="Ana Santos"
+                lines={['Filipino · Passport on file', 'ana@example.com · +63 917 555 0142']}
+              />
+              <ReviewBlock
+                icon={<Bed />}
+                title="Room preferences"
+                lines={[
+                  `${session.roomPreferences.floor} · ${session.roomPreferences.bed}`,
+                  session.roomPreferences.accessibility.length > 0
+                    ? `Accessibility: ${session.roomPreferences.accessibility.join(', ')}`
+                    : 'Standard room access',
+                ]}
+              />
+              <ReviewBlock
+                icon={<Users />}
+                title="Additional guest"
+                lines={['Marco Santos']}
+              />
+            </div>
+            <Button
+              className="guest-button guest-button--primary"
+              type="button"
+              onClick={completePreArrival}
+            >
+              Confirm everything<ArrowRight aria-hidden="true" />
+            </Button>
+            <TextButton onClick={() => go('guest-details')}>Edit details</TextButton>
+          </ScreenIntro>
+        );
 
       case 'rate-detail':
         return <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label={`${displayBooking.checkOut} · ${displayBooking.roomType}`} value="₱18,000" /><SummaryRow label="Taxes and fees" value="₱2,160" /><SummaryRow label="Booking total" value="₱20,160" strong /><SummaryRow label={`Paid through ${displayBooking.source}`} value="₱20,160" /></div><Notice title="Live hotel data">Availability, rates, and payment details require a connection.</Notice></ScreenIntro>;
 
       case 'early-check-in':
-        return <ScreenIntro eyebrow="Arrival · 10:30 AM" title="Check in earlier" text="Standard check-in is 3:00 PM. Request a room from 11:00 AM and settle the added charge with the hotel at checkout."><div className="guest-price-card"><div><small>Early check-in</small><b>11:00 AM</b></div><strong>₱1,500</strong></div><Notice title="Charged to your room folio">The hotel confirms availability first. If approved, the ₱1,500 charge is added to your room and settled at checkout.</Notice>{primary('Request early check-in', online ? 'prereg-complete' : 'prereg-queued')}<TextButton onClick={() => go('prereg-complete')}>Keep standard 3:00 PM</TextButton></ScreenIntro>;
+        return (
+          <ScreenIntro
+            eyebrow="Step 5 of 5 · Arrival"
+            title="Check in earlier"
+            text="Standard check-in is 3:00 PM. Request a room from 11:00 AM and settle the added charge with the hotel at checkout."
+          >
+            <div className="guest-price-card">
+              <div>
+                <small>Early check-in</small>
+                <b>11:00 AM</b>
+              </div>
+              <strong>₱1,500</strong>
+            </div>
+            <Notice title="Charged to your room folio">
+              The hotel confirms availability first. If approved, the ₱1,500 charge is added to your room and settled at checkout.
+            </Notice>
+            <Button
+              className="guest-button guest-button--primary"
+              type="button"
+              onClick={completePreArrival}
+            >
+              Request early check-in<ArrowRight aria-hidden="true" />
+            </Button>
+            <TextButton onClick={completePreArrival}>Keep standard 3:00 PM</TextButton>
+          </ScreenIntro>
+        );
 
       case 'insurance-offer':
         return <ScreenIntro eyebrow="Pre-arrival" title="You’re ready for arrival" text="Continue to the hotel handoff. Your room and on-property charges are settled with the hotel at checkout.">{primary('Continue to arrival', 'prereg-complete')}</ScreenIntro>;
 
       case 'prereg-complete': {
         const arrived = contextBooking.status === 'active';
-        return <ScreenIntro icon={<Check size={30} />} eyebrow="Pre-registered" title="You’re ready for arrival" text={arrived ? 'Open your Stay QR at the front desk. A team member will verify your identity and complete check-in.' : 'Your pre-arrival details are saved. Review your stay before you arrive.'}><div className="guest-timeline"><TimelineItem title="Before arrival" text="Details received by the hotel" done /><TimelineItem title="At the front desk" text="Show your Stay QR and original ID" /><TimelineItem title="After verification" text={`${contextRoom} becomes active in the app`} /></div>{primary(arrived ? 'Open my Stay QR' : 'View my stay', arrived ? 'wallet' : 'stay-overview')}<TextButton onClick={() => go('stay-overview')}>View stay overview</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Check size={30} />} eyebrow="Pre-registered" title="You’re ready for arrival" text={arrived ? 'Stop by the front desk. A team member will verify your identity and complete check-in.' : 'Your pre-arrival details are saved. Review your stay before you arrive.'}><div className="guest-timeline"><TimelineItem title="Before arrival" text="Details received by the hotel" done /><TimelineItem title="At the front desk" text="Present your original ID" /><TimelineItem title="After verification" text={`${contextRoom} becomes active in the app`} /></div>{primary('View my stay', 'stay-overview')}<TextButton onClick={() => go('stay-overview')}>View stay overview</TextButton></ScreenIntro>;
       }
 
       case 'prereg-queued':
         return <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Saved on this device" title="Ready to send when connected" text="Your pre-registration is safely queued. It will send automatically when a connection returns."><Notice tone="offline" title="No action needed">Your edits remain on this device. The hotel has not received them yet.</Notice>{primary('Open cached stay', 'stay-overview')}</ScreenIntro>;
 
-      case 'wallet':
-      case 'wallet-offline': {
-        const isOfflineWallet = activeScreen === 'wallet-offline' || !online;
-        return <div className="guest-wallet"><div className="guest-wallet__status"><Tag tone={isOfflineWallet ? 'warning' : 'positive'}>{isOfflineWallet ? 'Saved on this device' : 'Ready for arrival'}</Tag><span>Valid until {contextBooking.checkOut.slice(5).replace('-', '/')}</span></div><h1>{isOfflineWallet ? 'Your Stay QR works offline' : 'Your Stay QR'}</h1><p>Show this identity code at the front desk. It does not authorize charges or unlock your room.</p><div className="guest-qr-card"><QrArtwork /><div className="guest-qr-card__identity"><b>{session.guestName}</b><span>{contextBooking.property} · {contextRoom}</span><code>STAY · {contextBooking.id.slice(-6).toUpperCase()}</code></div></div><div className="guest-tag-row"><Tag>Identity only</Tag><Tag>Screenshot-shareable</Tag><Tag>Offline-ready</Tag></div>{isOfflineWallet ? <Notice tone="offline" icon={<WifiSlash />} title="Offline">This cached QR, your room, itinerary, booking details, last-known folio, and chat history are available.</Notice> : <Notice tone="positive" icon={<CheckCircle />} title="Saved for offline use">This QR remains available if your connection drops.</Notice>}<button className="guest-button guest-button--secondary" type="button">Save screenshot</button></div>;
+      case 'marketplace': {
+        const stayServices = session.serviceBookings.filter((service) => service.bookingId === contextBooking.id);
+        const upcomingServices = stayServices.filter((service) => service.status === 'confirmed');
+        const pastServices = stayServices.filter((service) => service.status !== 'confirmed');
+        return (
+          <div className="guest-stack guest-bookings-hub">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">{contextBooking.property} · {contextRoom}</p>
+              <h1>Bookings Hub</h1>
+              <p>Manage your on-property bookings, scheduled dining, and activities.</p>
+            </div>
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
+            <div className="guest-featured-service">
+              <ServiceImage imageKey="spa" tone="sage" icon={<Sparkle size={32} />} />
+              <div>
+                <Tag>Third-party · on property</Tag>
+                <h2>Hilom signature massage</h2>
+                <p>Traditional Filipino therapeutic massage.</p>
+                <button onClick={() => go('vendor-service')}>View service<ArrowRight /></button>
+              </div>
+            </div>
+
+            {upcomingServices.length ? (
+              <section>
+                <SectionHeading title="Upcoming & Confirmed" />
+                <div className="guest-stack" style={{ gap: '10px' }}>
+                  {upcomingServices.map((service) => (
+                    <button key={service.id} className="guest-booking-card" onClick={() => go('cancel-before-cutoff')} type="button">
+                      <div>
+                        <Tag tone="positive">Confirmed</Tag>
+                        <h2>{service.title}</h2>
+                        <p>{service.scheduledFor} · {service.amount}</p>
+                        <small>On property · Added to {contextRoom.toLowerCase()} · settles at checkout</small>
+                      </div>
+                      <CaretRight />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : (
+              <div className="guest-hub-empty">
+                <Tag>No upcoming services</Tag>
+                <h2>No active bookings yet</h2>
+                <p>Browse our mini-app categories on Home to book room dining, spa massages, or tours.</p>
+                <Button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-overview')}>
+                  Explore categories on Home<ArrowRight aria-hidden="true" />
+                </Button>
+              </div>
+            )}
+
+            {pastServices.length ? (
+              <section>
+                <SectionHeading title="Past & Completed" />
+                <div className="guest-stack" style={{ gap: '10px' }}>
+                  {pastServices.map((service) => (
+                    <div key={service.id} className="guest-booking-card is-static">
+                      <div>
+                        <Tag tone={service.status === 'cancelled' ? 'neutral' : 'positive'}>
+                          {service.status === 'cancelled' ? 'Cancelled' : 'Completed'}
+                        </Tag>
+                        <h2>{service.title}</h2>
+                        <p>{service.scheduledFor} · {service.amount}</p>
+                        <small>On property · Settled with room folio</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : (
+              <section>
+                <SectionHeading title="Past & Completed" />
+                <div className="guest-booking-card is-static">
+                  <div>
+                    <Tag>Completed</Tag>
+                    <h2>Airport transfer</h2>
+                    <p>Sun, Nov 9 · 9:00 AM · ₱1,200</p>
+                    <small>Hotel arranged · Settled at checkout</small>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            <section>
+              <SectionHeading title="Explore categories" />
+              <div className="guest-category-grid">
+                <ActionTile icon={<ForkKnife />} label="Food & drink" onClick={() => { setSelectedCategory('dining'); go('category-listing'); }} />
+                <ActionTile icon={<Sparkle />} label="Spa & wellness" onClick={() => { setSelectedCategory('spa'); go('category-listing'); }} />
+                <ActionTile icon={<AirplaneTilt />} label="Entertainment & tours" onClick={() => { setSelectedCategory('entertainment'); go('category-listing'); }} />
+                <ActionTile icon={<Storefront />} label="Hotel services" onClick={() => { setSelectedCategory('services'); go('category-listing'); }} />
+              </div>
+            </section>
+          </div>
+        );
       }
 
-      case 'marketplace':
-        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">On-property only</p><h1>Make the most of your stay</h1><p>Book hotel services and verified on-property providers. Charges are added to {contextRoom.toLowerCase()} and settle at checkout.</p></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}<div className="guest-featured-service"><ServiceImage imageKey="spa" tone="sage" icon={<Sparkle size={32} />} /><div><Tag>Third-party · on property</Tag><h2>Hilom signature massage</h2><p>Traditional Filipino therapeutic massage.</p><button onClick={() => go('vendor-service')}>View service<ArrowRight /></button></div></div><section><SectionHeading title="Browse services" /><div className="guest-category-grid"><ActionTile icon={<ForkKnife />} label="In-room dining" onClick={() => go('hotel-service')} /><ActionTile icon={<Sparkle />} label="Spa & massage" onClick={() => go('category-listing')} /><ActionTile icon={<Coffee />} label="Restaurants & bar" onClick={() => go('category-listing')} /><ActionTile icon={<MapPin />} label="Activities & tours" onClick={() => go('category-listing')} /><ActionTile icon={<AirplaneTilt />} label="Transfers" onClick={() => go('category-listing')} /><ActionTile icon={<Storefront />} label="Other amenities" onClick={() => go('category-listing')} /></div></section><button className="guest-list-row" onClick={() => go('my-bookings')}><span><CalendarBlank /></span><div><b>My bookings</b><small>View upcoming and past services</small></div><CaretRight /></button></div>;
+      case 'category-listing': {
+        const categoryData = MINI_APP_CATEGORIES.find((cat) => cat.id === selectedCategory) ?? MINI_APP_CATEGORIES[0];
+        const categoryServices = SERVICES.filter((s) => s.categoryId === selectedCategory);
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <div className="guest-tag-row">
+                <Tag tone="positive">{categoryData.badge}</Tag>
+                <Tag>{contextBooking.property}</Tag>
+              </div>
+              <h1>{categoryData.title}</h1>
+              <p>{categoryData.subtitle}. Charges are added to {contextRoom.toLowerCase()} and settle at checkout.</p>
+            </div>
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved offerings">Live availability and booking require a connection.</Notice> : null}
 
-      case 'category-listing':
-        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">2 services</p><h1>Spa & massage</h1><p>Verified providers operating inside this property.</p></div>{SERVICES.filter((service) => service.id === 'spa' || service.id === 'tour').map((service) => <button key={service.id} className="guest-service-row" onClick={() => go('vendor-service')}><ServiceImage imageKey={service.id} tone={service.tone} icon={<Sparkle />} decorative /><div><Tag>{service.operator}</Tag><h2>{service.name}</h2><p>{service.price} · {service.cutoff}</p></div><CaretRight /></button>)}</div>;
+            {selectedCategory === 'dining' ? (
+              <div className="guest-stack" style={{ gap: '12px' }}>
+                {RESTAURANTS.map((res) => (
+                  <button
+                    key={res.id}
+                    className="guest-service-row"
+                    type="button"
+                    onClick={() => {
+                      setSelectedRestaurantId(res.id);
+                      setSelectedMenuTab('all');
+                      go('restaurant-menu');
+                    }}
+                  >
+                    <ServiceImage imageKey={res.id === 'apartment-1b' ? 'restaurant' : 'dining'} tone={res.tone} icon={<ForkKnife />} decorative />
+                    <div>
+                      <Tag>{res.operator}</Tag>
+                      <h2>{res.name}</h2>
+                      <p>{res.priceRange} · {res.hours}</p>
+                      <small>{res.location}</small>
+                    </div>
+                    <CaretRight />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="guest-stack" style={{ gap: '12px' }}>
+                {categoryServices.map((service) => (
+                  <button
+                    key={service.id}
+                    className="guest-service-row"
+                    type="button"
+                    onClick={() => {
+                      if (service.id === 'spa' || service.id === 'scrub') {
+                        go('vendor-service');
+                      } else {
+                        go(online ? 'service-booking' : 'booking-blocked');
+                      }
+                    }}
+                  >
+                    <ServiceImage imageKey={service.id === 'spa' || service.id === 'scrub' || service.id === 'reflexology' ? 'spa' : service.id === 'tour' || service.id === 'music' || service.id === 'heritage-walk' ? 'tour' : service.id === 'transfer' ? 'transfer' : 'amenity'} tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <AirplaneTilt /> : <Storefront />} decorative />
+                    <div>
+                      <Tag>{service.operator}</Tag>
+                      <h2>{service.name}</h2>
+                      <p>{service.price} · {service.cutoff}</p>
+                    </div>
+                    <CaretRight />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case 'restaurant-menu': {
+        const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
+        const filteredMenu = selectedMenuTab === 'all'
+          ? venue.menu
+          : venue.menu.filter((item) => item.category === selectedMenuTab);
+        const venueCart = restaurantCarts[venue.id] ?? {};
+        const cartSummary = getVenueCartSummary(venue.menu, venueCart);
+        return (
+          <div className="guest-stack guest-restaurant-menu">
+            <ServiceImage
+              imageKey={venue.id === 'apartment-1b' ? 'restaurant' : 'dining'}
+              tone={venue.tone}
+              icon={<ForkKnife size={38} />}
+              decorative
+            />
+            <div className="guest-restaurant-hero">
+              <div className="guest-tag-row">
+                <Tag>{venue.operator}</Tag>
+                <Tag>{venue.hours}</Tag>
+              </div>
+              <h1>{venue.name}</h1>
+              <p>{venue.description}</p>
+              <div className="guest-restaurant-hero__meta">
+                <span><MapPin size={16} /> {venue.location}</span>
+                <span>·</span>
+                <span>Billed to {contextRoom.toLowerCase()}</span>
+              </div>
+            </div>
+
+            <div className="guest-menu-tabs" role="tablist" aria-label="Menu categories">
+              {(['all', 'starters', 'mains', 'desserts', 'drinks'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  role="tab"
+                  aria-selected={selectedMenuTab === tab}
+                  className={`guest-menu-tab ${selectedMenuTab === tab ? 'is-active' : ''}`}
+                  onClick={() => setSelectedMenuTab(tab)}
+                  type="button"
+                >
+                  {tab === 'all' ? 'All Items' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div className="guest-menu-grid">
+              {filteredMenu.map((item) => (
+                <div key={item.id} className="guest-menu-item-card">
+                  <div className="guest-menu-item-card__header">
+                    <div>
+                      {item.tag ? <Tag tone="positive">{item.tag}</Tag> : null}
+                      <h4>{item.name}</h4>
+                    </div>
+                    <span className="guest-menu-item-card__price">{item.price}</span>
+                  </div>
+                  <p>{item.description}</p>
+                  <div className="guest-menu-item-card__actions">
+                    <small>{venueCart[item.id] ? `${venueCart[item.id]} in this cart` : 'Add to venue cart'}</small>
+                    {venueCart[item.id] ? (
+                      <div className="guest-menu-quantity" aria-label={`${item.name} quantity`}>
+                        <button type="button" aria-label={`Decrease ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, -1)}><Minus aria-hidden="true" /></button>
+                        <output aria-live="polite">{venueCart[item.id]}</output>
+                        <button type="button" aria-label={`Increase ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, 1)}><Plus aria-hidden="true" /></button>
+                      </div>
+                    ) : (
+                      <Button className="guest-button guest-button--secondary guest-menu-add" type="button" aria-label={`Add ${item.name}`} onClick={() => changeCartQuantity(venue.id, item.id, 1)}>Add</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {cartSummary.itemCount > 0 ? (
+              <button
+                className="guest-mini-cart"
+                type="button"
+                aria-label={`View ${venue.name} cart · ${cartSummary.itemCount} ${cartSummary.itemCount === 1 ? 'item' : 'items'} · ${cartSummary.formattedTotal}`}
+                onClick={() => go('restaurant-cart')}
+              >
+                <span><small>{venue.name} cart</small><b>{cartSummary.itemCount} {cartSummary.itemCount === 1 ? 'item' : 'items'}</b></span>
+                <strong>{cartSummary.formattedTotal}</strong>
+                <CaretRight aria-hidden="true" />
+              </button>
+            ) : null}
+
+            <div className="guest-summary">
+              <SummaryRow label="Property" value={contextBooking.property} />
+              <SummaryRow label="Room" value={contextRoom} />
+              <SummaryRow label="Billing" value="Settled at checkout" />
+            </div>
+
+            <Button
+              className="guest-button guest-button--primary"
+              type="button"
+              onClick={() => {
+                sendQuickMessage(`Hi, I would like to reserve a table at ${venue.name} for 2 guests tonight.`);
+                go('chat');
+              }}
+            >
+              Reserve a table via Front Desk<ArrowRight aria-hidden="true" />
+            </Button>
+            <TextButton onClick={() => go('category-listing')}>Back to {selectedCategory === 'dining' ? 'Food & Drink' : 'Services'}</TextButton>
+          </div>
+        );
+      }
+
+      case 'restaurant-cart': {
+        const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
+        const cartSummary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
+        return (
+          <div className="guest-stack guest-order-cart">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">{venue.name} · charged at checkout</p>
+              <h1>Your {venue.name} order</h1>
+              <p>Review your items, then choose delivery or pickup.</p>
+            </div>
+            <div className="guest-order-cart__summary" aria-live="polite">
+              <span>{cartSummary.itemCount} {cartSummary.itemCount === 1 ? 'item' : 'items'}</span>
+              <strong>{cartSummary.formattedTotal}</strong>
+            </div>
+            <div className="guest-order-items">
+              {cartSummary.items.map((item) => (
+                <div className="guest-order-item" key={item.id}>
+                  <div><b>{item.name}</b><small>{item.unitPrice} each</small></div>
+                  <div className="guest-menu-quantity" aria-label={`${item.name} quantity`}>
+                    <button type="button" aria-label={`Decrease ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, -1)}><Minus aria-hidden="true" /></button>
+                    <output aria-live="polite">{item.quantity}</output>
+                    <button type="button" aria-label={`Increase ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, 1)}><Plus aria-hidden="true" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <fieldset className="guest-fulfillment-options">
+              <legend>How would you like this order?</legend>
+              <div>
+                <button
+                  type="button"
+                  aria-label="Deliver to room"
+                  aria-pressed={diningMethod === 'delivery'}
+                  className={diningMethod === 'delivery' ? 'is-active' : ''}
+                  disabled={!contextBooking.roomNumber}
+                  onClick={() => setDiningMethod('delivery')}
+                >
+                  <b>Deliver to room</b><small>{contextBooking.roomNumber ? contextRoom : 'Room assignment required'}</small>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Pick up"
+                  aria-pressed={diningMethod === 'pickup'}
+                  className={diningMethod === 'pickup' ? 'is-active' : ''}
+                  onClick={() => { setDiningMethod('pickup'); setDiningTiming('scheduled'); }}
+                >
+                  <b>Pick up</b><small>{venue.location}</small>
+                </button>
+              </div>
+            </fieldset>
+            {!contextBooking.roomNumber ? <Notice title="Room delivery is available after your room is assigned.">Choose pickup to order before a room has been assigned.</Notice> : null}
+            <fieldset className="guest-fulfillment-options">
+              <legend>When?</legend>
+              {diningMethod === 'delivery' ? (
+                <div>
+                  <button type="button" aria-label="As soon as possible" aria-pressed={diningTiming === 'asap'} className={diningTiming === 'asap' ? 'is-active' : ''} onClick={() => setDiningTiming('asap')}><b>As soon as possible</b><small>About 30–40 minutes</small></button>
+                  <button type="button" aria-label="Schedule for later" aria-pressed={diningTiming === 'scheduled'} className={diningTiming === 'scheduled' ? 'is-active' : ''} onClick={() => setDiningTiming('scheduled')}><b>Schedule for later</b><small>Choose an available time</small></button>
+                </div>
+              ) : null}
+              {diningMethod === 'pickup' || diningTiming === 'scheduled' ? (
+                <div className="guest-order-times" aria-label="Available order times">
+                  {['6:30 PM', '7:00 PM', '7:30 PM'].map((time) => (
+                    <button key={time} type="button" aria-pressed={diningTime === time} className={diningTime === time ? 'is-active' : ''} onClick={() => setDiningTime(time)}>{time}</button>
+                  ))}
+                </div>
+              ) : null}
+            </fieldset>
+            {diningOrderError ? <Notice tone={!online ? 'offline' : 'warning'} title={diningOrderError}>Your cart is saved. Review it and try again when you’re ready.</Notice> : null}
+            <Notice title="Nothing is charged yet">Your room folio changes only after you review and place this order.</Notice>
+            <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0} onClick={confirmDiningOrder}>Place order and charge to room<ArrowRight aria-hidden="true" /></Button>
+            <TextButton onClick={() => go('restaurant-menu')}>Add more from {venue.name}</TextButton>
+          </div>
+        );
+      }
+
+      case 'dining-order-confirmation': {
+        const order = session.serviceBookings.find((service) => service.diningOrder && service.bookingId === contextBooking.id);
+        return (
+          <ScreenIntro
+            icon={<CheckCircle size={30} />}
+            eyebrow="Order confirmed · charged at checkout"
+            title={order?.diningOrder?.fulfillment.method === 'pickup' ? 'Your order is confirmed' : 'Your order is on its way'}
+            text={order?.scheduledFor ?? 'The establishment has received your order.'}
+          >
+            <div className="guest-summary">
+              <SummaryRow label="Establishment" value={order?.diningOrder?.venueName ?? 'Food & Drink'} />
+              <SummaryRow label="Items" value={`${order?.diningOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0}`} />
+              <SummaryRow label="Added to room charges" value={order?.amount ?? '₱0'} strong />
+            </div>
+            <Notice title="Pay at checkout">This order is now part of your personal room tab. No payment is due now.</Notice>
+            {primary('View room charges', 'folio')}
+            <TextButton onClick={() => go('category-listing')}>Order from another establishment</TextButton>
+          </ScreenIntro>
+        );
+      }
 
       case 'hotel-service':
         return <ServiceDetail kind="hotel" booking={contextBooking} online={online} onBook={() => go(online ? 'service-booking' : 'booking-blocked')} onChat={() => go('chat')} />;
@@ -587,7 +1321,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'folio': {
         const folioServices = session.serviceBookings.filter((service) => service.bookingId === contextBooking.id && service.status === 'confirmed');
         const folioTotal = session.folioTotal || contextBooking.folioTotal || '₱0';
-        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">{contextBooking.property} · {contextRoom} · Last updated 2:14 PM</p><h1>Room charges</h1><p>These charges settle with the hotel at checkout.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-total-card"><span>Current room total</span><strong>{folioTotal}</strong><small>Booking room rate paid through {contextBooking.source}</small></div><div className="guest-folio"><FolioItem date="NOV 9" title="Airport transfer" meta="Hotel arranged" amount="₱1,200" /><FolioItem date="NOV 10" title="In-room dining" meta="Dinner · 2 guests" amount="₱850" /><FolioItem date="NOV 10" title="Laundry service" meta="Hotel operated" amount="₱1,000" />{folioServices.map((service) => <FolioItem key={service.id} date="NOV 11" title={service.title} meta={`${service.scheduledFor} · Added to ${contextRoom.toLowerCase()} · settles at checkout`} amount={service.amount} />)}</div><Notice title="Questions about a charge?">The front desk can explain or correct a folio line before checkout.</Notice>{primary('Ask the front desk', 'chat')}</div>;
+        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">{contextBooking.property} · {contextRoom} · Last updated 2:14 PM</p><h1>Room charges</h1><p>These charges settle with the hotel at checkout.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-total-card"><span>Current room total</span><strong>{folioTotal}</strong><small>Booking room rate paid through {contextBooking.source}</small></div><div className="guest-folio"><FolioItem date="NOV 9" title="Airport transfer" meta="Hotel arranged" amount="₱1,200" /><FolioItem date="NOV 10" title="In-room dining" meta="Dinner · 2 guests" amount="₱850" /><FolioItem date="NOV 10" title="Laundry service" meta="Hotel operated" amount="₱1,000" />{folioServices.map((service) => <FolioItem key={service.id} date="NOV 11" title={service.title} meta={service.diningOrder ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${service.scheduledFor} · settles at checkout` : `${service.scheduledFor} · Added to ${contextRoom.toLowerCase()} · settles at checkout`} amount={service.amount} />)}</div><Notice title="Questions about a charge?">The front desk can explain or correct a folio line before checkout.</Notice>{primary('Ask the front desk', 'chat')}</div>;
       }
 
       case 'chat':
@@ -600,7 +1334,39 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={`${contextRoom} linked`} title="You’re checked in" text="Pre-arrival steps are no longer relevant. Go straight to services, your room charges, or the front desk."><StayMiniCard booking={contextBooking} status={`Active until ${contextBooking.checkOut}`} />{primary('Explore services', 'marketplace')}<button className="guest-button guest-button--secondary" onClick={() => go('stay-overview')}>Open stay overview</button></ScreenIntro>;
 
       case 'profile':
-        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">Guest identity</p><h1>{session.guestName || 'Your profile'}</h1><p>Recognized across all 13 participating properties.</p></div><div className="guest-profile-card"><div className="guest-avatar">{(session.guestName || 'Guest').split(' ').map((part) => part[0]).slice(0, 2).join('')}</div><div><b>{session.email || 'No email on file'}</b><span>+63 917 555 0142</span><small>Passport on file · ends 4821</small></div></div><section><SectionHeading title="Saved preferences" action="Edit" onAction={() => go('room-preferences')} /><div className="guest-summary"><SummaryRow label="Floor" value="Higher floor" /><SummaryRow label="Bed" value="King" /><SummaryRow label="Accessibility" value="None" /></div></section><button className="guest-list-row" onClick={() => go('stay-history')}><span><SuitcaseRolling /></span><div><b>Stay history</b><small>3 stays across 2 properties</small></div><CaretRight /></button><div className="guest-list-row is-muted"><span><Sparkle /></span><div><b>Loyalty</b><small>Coming soon</small></div></div><button className="guest-list-row" type="button" aria-label="Sign out" onClick={signOut}><span><SignOut /></span><div><b>Sign out</b><small>Return to the welcome screen</small></div><CaretRight /></button></div>;
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">Guest identity</p>
+              <h1>{session.guestName || 'Profile'}</h1>
+              <p>Recognized across all 13 participating properties.</p>
+            </div>
+            <div className="guest-profile-card">
+              <div className="guest-avatar">
+                {(session.guestName || 'Guest').split(' ').map((part) => part[0]).slice(0, 2).join('')}
+              </div>
+              <div>
+                <b>{session.email || 'No email on file'}</b>
+                <span>+63 917 555 0142</span>
+                <small>Passport on file · ends 4821</small>
+              </div>
+            </div>
+            <button className="guest-list-row" onClick={() => go('stay-history')}>
+              <span><SuitcaseRolling /></span>
+              <div><b>Stay history</b><small>3 stays across 2 properties</small></div>
+              <CaretRight />
+            </button>
+            <div className="guest-list-row is-muted">
+              <span><Sparkle /></span>
+              <div><b>Loyalty</b><small>Coming soon</small></div>
+            </div>
+            <button className="guest-list-row" type="button" aria-label="Sign out" onClick={signOut}>
+              <span><SignOut /></span>
+              <div><b>Sign out</b><small>Return to the welcome screen</small></div>
+              <CaretRight />
+            </button>
+          </div>
+        );
 
       case 'stay-history':
         return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">Across properties</p><h1>Stay history</h1></div><HistoryItem property="The Henry Cebu" dates="March 14–17, 2026" room="Room 211 · Completed" /><HistoryItem property="The Henry Manila" dates="October 2–4, 2025" room="Room 406 · Completed" /><HistoryItem property="The Henry Cebu" dates="May 8–10, 2025" room="Room 108 · Completed" /></div>;
@@ -609,8 +1375,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   return (
     <main className="guest-prototype guest-app">
-        <section className="guest-device" aria-label="Cabana guest app">
-          <header className="guest-appbar" data-scrolled={scrolled}>
+        <section className={`guest-device ${isWelcome ? 'is-welcome' : ''}`} aria-label="Cabana guest app">
+          {!isWelcome ? <header className="guest-appbar" data-scrolled={scrolled}>
             <div className="guest-appbar__side">
               {history.length ? <button className="guest-icon-button" type="button" onClick={back} aria-label="Go back"><ArrowLeft /></button> : <span className="guest-brand"><CabanaLockup className="guest-brand__lockup" /><span className="sr-only">Cabana</span></span>}
             </div>
@@ -618,12 +1384,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-appbar__center">{online ? null : <span className="guest-connection"><WifiSlash />Offline</span>}</div>
             {/* No profile to open before there is an account to open it for. */}
             <div className="guest-appbar__side guest-appbar__side--end">
-              {session.auth === 'authenticated' ? <button className="guest-icon-button" type="button" onClick={() => go('profile')} aria-label="Open profile"><Person /></button> : null}
+              {session.auth === 'authenticated' || session.bookings.length > 0 ? <button className="guest-icon-button" type="button" onClick={() => go('profile')} aria-label="Open profile"><Person /></button> : null}
             </div>
-          </header>
+          </header> : null}
 
           <div
-            className={`guest-screen ${showNav ? 'has-nav' : ''}`}
+            className={`guest-screen ${showNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''}`}
             key={activeScreen}
             onScroll={(event) => {
               const next = event.currentTarget.scrollTop > 4;
@@ -633,7 +1399,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {renderScreen()}
           </div>
 
-          {showPrimaryNav ? <nav className="guest-bottom-nav" aria-label="Primary navigation"><NavButton label="Stay" icon={<House />} active={activeScreen === 'stay-overview'} onClick={() => go('stay-overview')} /><NavButton label="Services" icon={<Storefront />} active={['marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-bookings', 'cancel-before-cutoff', 'cancel-after-cutoff'].includes(activeScreen)} onClick={() => go('marketplace')} /><NavButton label="Wallet" icon={<QrCode />} active={activeScreen === 'wallet' || activeScreen === 'wallet-offline'} onClick={() => go(online ? 'wallet' : 'wallet-offline')} /><NavButton label="Chat" icon={<ChatCircleDots />} active={activeScreen === 'chat' || activeScreen === 'chat-after-hours'} onClick={() => go('chat')} /></nav> : null}
+          {showPrimaryNav ? <nav className="guest-bottom-nav" aria-label="Primary navigation"><NavButton label="Stay" icon={<House />} active={activeScreen === 'stay-overview'} onClick={() => go('stay-overview')} /><NavButton label="Bookings" icon={<CalendarBlank />} active={['marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-bookings', 'cancel-before-cutoff', 'cancel-after-cutoff'].includes(activeScreen)} onClick={() => go('marketplace')} /><NavButton label="Chat" icon={<ChatCircleDots />} active={activeScreen === 'chat' || activeScreen === 'chat-after-hours'} onClick={() => go('chat')} /></nav> : null}
         </section>
     </main>
   );
@@ -644,9 +1410,10 @@ type StayOverviewHomeProps = {
   booking?: Booking;
   online: boolean;
   onNavigate: (screen: ActiveScreen) => void;
+  onSelectCategory: (cat: MiniAppCategoryId) => void;
 };
 
-function StayOverviewHome({ session, booking, online, onNavigate }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, online, onNavigate, onSelectCategory }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -664,38 +1431,64 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
     const folioTotal = session.folioTotal || booking.folioTotal || '₱0';
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
-        <section className="guest-home-hero">
-          <div className="guest-home-hero__meta">
-            <p className="guest-eyebrow">Good afternoon, {session.guestName.split(' ')[0]}</p>
-            <Tag tone="positive">Active stay</Tag>
+        <section className="guest-stay-hero-card">
+          <div className="guest-stay-hero-card__media">
+            <PropertyImage property={booking.property} aspectRatio="16/9" decorative />
+            <div className="guest-stay-hero-card__badges">
+              <Tag tone="positive">Active stay</Tag>
+              <span className="guest-tag guest-tag--dark">{roomLabel}</span>
+            </div>
           </div>
-          <h1>{booking.property}</h1>
-          <p>{formatStayDateRange(booking)} · {roomLabel}</p>
+          <div className="guest-stay-hero-card__body">
+            <p className="guest-eyebrow">Good afternoon, {session.guestName.split(' ')[0]}</p>
+            <h1>{booking.property}</h1>
+            <p className="guest-stay-hero-card__meta">{formatStayDateRange(booking)} · {booking.city}</p>
+            <div className="guest-stay-hero-card__chips">
+              <span><WifiHigh size={14} /> Hotel Wi-Fi</span>
+              <span>·</span>
+              <span><Bed size={14} /> {booking.roomType}</span>
+            </div>
+          </div>
         </section>
         {!online ? <Notice tone="offline" icon={<WifiSlash />} title="You’re offline">Cached stay details are available. Requests will send when connected.</Notice> : null}
-        <button className="guest-stay-banner" onClick={() => onNavigate('wallet')} type="button">
-          <div>
-            <Tag tone="positive">Identity ready</Tag>
-            <h2>Stay QR</h2>
-            <p>Show this identity code at the front desk. It does not authorize charges.</p>
-          </div>
-          <div className="guest-stay-banner__qr"><QrCode /></div>
-        </button>
         <section>
-          <SectionHeading title="During your stay" action="See all" onAction={() => onNavigate('marketplace')} />
-          <div className="guest-action-grid">
-            <ActionTile icon={<ForkKnife />} label="Room dining" onClick={() => onNavigate('hotel-service')} />
-            <ActionTile icon={<Sparkle />} label="Spa" onClick={() => onNavigate('vendor-service')} />
-            <ActionTile icon={<AirplaneTilt />} label="Transfer" onClick={() => onNavigate('marketplace')} />
-            <ActionTile icon={<ChatCircleDots />} label="Ask front desk" onClick={() => onNavigate('chat')} />
+          <SectionHeading title="Explore on-property" action="Bookings Hub" onAction={() => onNavigate('marketplace')} />
+          <div className="guest-miniapp-grid" role="group" aria-label="Experience categories">
+            {MINI_APP_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                className="guest-miniapp-card"
+                onClick={() => {
+                  onSelectCategory(cat.id);
+                  onNavigate('category-listing');
+                }}
+              >
+                <div className="guest-miniapp-card__cover">
+                  <CategoryCoverImage categoryId={cat.id} aspectRatio="16/10" />
+                  <div className="guest-miniapp-card__tag">
+                    <Tag tone={cat.id === 'spa' ? 'positive' : 'neutral'}>{cat.badge}</Tag>
+                  </div>
+                </div>
+                <div className="guest-miniapp-card__info">
+                  <div className="guest-miniapp-card__header">
+                    <div className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
+                      {cat.id === 'dining' ? <ForkKnife /> : cat.id === 'spa' ? <Sparkle /> : cat.id === 'entertainment' ? <AirplaneTilt /> : <Storefront />}
+                    </div>
+                    <h3>{cat.title}</h3>
+                  </div>
+                  <p>{cat.subtitle}</p>
+                </div>
+              </button>
+            ))}
           </div>
         </section>
-        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="My bookings" onAction={() => onNavigate('my-bookings')} /><div className="guest-booking-card is-static"><div><Tag tone="positive">Confirmed</Tag><h2>{confirmedServices[0].title}</h2><p>{confirmedServices[0].scheduledFor} · {confirmedServices[0].amount}</p><small>Added to {roomLabel.toLowerCase()} · settles at checkout</small></div></div></section> : null}
+        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="Bookings Hub" onAction={() => onNavigate('marketplace')} /><div className="guest-booking-card is-static"><div><Tag tone="positive">Confirmed</Tag><h2>{confirmedServices[0].title}</h2><p>{confirmedServices[0].scheduledFor} · {confirmedServices[0].amount}</p><small>Added to {roomLabel.toLowerCase()} · settles at checkout</small></div></div></section> : null}
         <section>
           <SectionHeading title="Your account" />
           <div className="guest-list-group" role="group" aria-label="Your account">
             <button className="guest-list-row" onClick={() => onNavigate('folio')} type="button"><span><Receipt /></span><div><b>Room charges</b><small>Current folio · {folioTotal}</small></div><CaretRight /></button>
-            <button className="guest-list-row" onClick={() => onNavigate('my-bookings')} type="button"><span><CalendarBlank /></span><div><b>My bookings</b><small>{serviceCountLabel(confirmedServices.length)}</small></div><CaretRight /></button>
+            <button className="guest-list-row" onClick={() => onNavigate('marketplace')} type="button"><span><CalendarBlank /></span><div><b>Bookings Hub</b><small>{serviceCountLabel(confirmedServices.length)}</small></div><CaretRight /></button>
           </div>
         </section>
         <section>
@@ -720,7 +1513,7 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
             {upcomingBookings.filter((item) => item.id !== booking.id).map((item) => <UpcomingBookingCard key={item.id} booking={item} onNavigate={onNavigate} />)}
           </div>
         </section>
-        <button className="guest-list-row" onClick={() => onNavigate('profile')} type="button"><span><Person /></span><div><b>Guest profile</b><small>{session.guestName} · saved preferences</small></div><CaretRight /></button>
+        <button className="guest-list-row" onClick={() => onNavigate('profile')} type="button"><span><Person /></span><div><b>Guest profile</b><small>{session.guestName} · Account details</small></div><CaretRight /></button>
       </div>
     );
   }
@@ -729,7 +1522,19 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--completed" data-testid="guest-home-completed">
         <div className="guest-page-title"><p className="guest-eyebrow">Welcome back, {session.guestName.split(' ')[0]}</p><h1>Your latest stay</h1><p>Reconnect another reservation whenever you’re ready.</p></div>
-        <div className="guest-home-booking guest-home-booking--primary"><Tag>Completed</Tag><h2>{booking.property}</h2><p>{formatStayDateRange(booking)} · {booking.roomType}</p><small>Booking {booking.id}</small></div>
+        <div className="guest-home-booking guest-upcoming-card guest-home-booking--primary">
+          <div className="guest-upcoming-card__media">
+            <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
+            <div className="guest-upcoming-card__badges">
+              <Tag>Completed</Tag>
+            </div>
+          </div>
+          <div className="guest-upcoming-card__content">
+            <h2>{booking.property}</h2>
+            <p>{formatStayDateRange(booking)} · {booking.roomType}</p>
+            <small>Booking {booking.id}</small>
+          </div>
+        </div>
         <Notice tone="positive" icon={<CheckCircle />} title="Stay complete">Your previous room charges were settled at checkout.</Notice>
         <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('connect-booking')}>Connect another stay<ArrowRight aria-hidden="true" /></Button>
         <TextButton onClick={() => onNavigate('stay-history')}>View stay history</TextButton>
@@ -739,12 +1544,57 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
 
   return (
     <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
-      <div className="guest-page-title"><div className="guest-home-hero__meta"><p className="guest-eyebrow">Your next stay</p><Tag tone="warning">Upcoming</Tag></div><h1>{booking.property}</h1><p>{booking.city} · {formatStayDateRange(booking)}</p></div>
+      <div className="guest-stay-hero-card">
+        <div className="guest-stay-hero-card__media">
+          <PropertyImage property={booking.property} aspectRatio="16/9" decorative />
+          <div className="guest-stay-hero-card__badges">
+            <Tag tone="warning">Upcoming</Tag>
+            <span className="guest-tag guest-tag--dark">{booking.city}</span>
+          </div>
+        </div>
+        <div className="guest-stay-hero-card__body">
+          <p className="guest-eyebrow">Your next stay</p>
+          <h1>{booking.property}</h1>
+          <p className="guest-stay-hero-card__meta">{booking.city} · {formatStayDateRange(booking)}</p>
+        </div>
+      </div>
       <section className="guest-home-booking guest-home-booking--primary">
         <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>
         <div className="guest-home-progress" role="progressbar" aria-label="Pre-arrival progress" aria-valuemin={0} aria-valuemax={booking.preArrivalTotal} aria-valuenow={booking.preArrivalCompleted}><span style={{ width: `${Math.min(100, (booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%` }} /></div>
         <p>{booking.nextPreArrivalStep ?? 'Review your stay details before arrival.'}</p>
         <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate(booking.preArrivalCompleted < booking.preArrivalTotal ? 'guest-details' : 'repeat-review')}>{booking.preArrivalCompleted < booking.preArrivalTotal ? 'Complete pre-arrival' : 'Review stay'}<ArrowRight aria-hidden="true" /></Button>
+      </section>
+      <section>
+        <SectionHeading title="Explore on-property" action="Bookings Hub" onAction={() => onNavigate('marketplace')} />
+        <div className="guest-miniapp-grid" role="group" aria-label="Experience categories">
+          {MINI_APP_CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              className="guest-miniapp-card"
+              onClick={() => {
+                onSelectCategory(cat.id);
+                onNavigate('category-listing');
+              }}
+            >
+              <div className="guest-miniapp-card__cover">
+                <CategoryCoverImage categoryId={cat.id} aspectRatio="16/10" />
+                <div className="guest-miniapp-card__tag">
+                  <Tag tone={cat.id === 'spa' ? 'positive' : 'neutral'}>{cat.badge}</Tag>
+                </div>
+              </div>
+              <div className="guest-miniapp-card__info">
+                <div className="guest-miniapp-card__header">
+                  <div className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
+                    {cat.id === 'dining' ? <ForkKnife /> : cat.id === 'spa' ? <Sparkle /> : cat.id === 'entertainment' ? <AirplaneTilt /> : <Storefront />}
+                  </div>
+                  <h3>{cat.title}</h3>
+                </div>
+                <p>{cat.subtitle}</p>
+              </div>
+            </button>
+          ))}
+        </div>
       </section>
       <section>
         <SectionHeading title="Stay details" action="View booking" onAction={() => onNavigate('rate-detail')} />
@@ -753,14 +1603,30 @@ function StayOverviewHome({ session, booking, online, onNavigate }: StayOverview
           <InfoTile icon={<Bed />} label="Room" value={booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : `${booking.roomType} · Assigned at arrival`} />
         </div>
       </section>
-      <Notice title="Stay QR at arrival">Your identity QR appears when the property activates your room. Until then, keep this booking confirmation nearby.</Notice>
-      <button className="guest-list-row" onClick={() => onNavigate('profile')} type="button"><span><Person /></span><div><b>Guest profile</b><small>{session.guestName} · saved preferences</small></div><CaretRight /></button>
+      <button className="guest-list-row" onClick={() => onNavigate('profile')} type="button"><span><Person /></span><div><b>Guest profile</b><small>{session.guestName} · Account details</small></div><CaretRight /></button>
     </div>
   );
 }
 
+
 function UpcomingBookingCard({ booking, primary = false, onNavigate }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void }) {
-  return <div className={`guest-home-booking ${primary ? 'guest-home-booking--primary' : ''}`}><div className="guest-home-booking__status"><Tag tone={primary ? 'positive' : 'neutral'}>{primary ? 'Next arrival' : 'Upcoming'}</Tag><small>{booking.city}</small></div><h2>{booking.property}</h2><p>{formatStayDateRange(booking)} · {booking.roomType}</p><small>{booking.preArrivalCompleted} of {booking.preArrivalTotal} pre-arrival steps complete</small><Button className="guest-button guest-button--secondary" type="button" onClick={() => onNavigate('rate-detail')}>View booking<ArrowRight aria-hidden="true" /></Button></div>;
+  return (
+    <div className={`guest-home-booking guest-upcoming-card ${primary ? 'guest-home-booking--primary' : ''}`}>
+      <div className="guest-upcoming-card__media">
+        <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
+        <div className="guest-upcoming-card__badges">
+          <Tag tone={primary ? 'positive' : 'neutral'}>{primary ? 'Next arrival' : 'Upcoming'}</Tag>
+          <span className="guest-tag guest-tag--dark">{booking.city}</span>
+        </div>
+      </div>
+      <div className="guest-upcoming-card__content">
+        <h2>{booking.property}</h2>
+        <p>{formatStayDateRange(booking)} · {booking.roomType}</p>
+        <small>{booking.preArrivalCompleted} of {booking.preArrivalTotal} pre-arrival steps complete</small>
+        <Button className="guest-button guest-button--secondary" type="button" onClick={() => onNavigate('rate-detail')}>View booking<ArrowRight aria-hidden="true" /></Button>
+      </div>
+    </div>
+  );
 }
 
 function EmptyStayHome({ onNavigate }: { onNavigate: (screen: ActiveScreen) => void }) {
@@ -795,15 +1661,27 @@ function TextButton({ children, onClick, disabled }: { children: ReactNode; onCl
 function StayCard({ booking }: { booking: Booking }) {
   const checkIn = new Date(`${booking.checkIn}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   const checkOut = new Date(`${booking.checkOut}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-  return <div className="guest-stay-card"><div className="guest-stay-card__art"><House size={28} /></div><div><Tag>Confirmed</Tag><h2>{booking.property}</h2><p>{booking.roomType} · {checkIn}–{checkOut}, {booking.checkIn.slice(0, 4)}</p><small>Booking {booking.id}</small></div></div>;
+  return (
+    <div className="guest-stay-card">
+      <div className="guest-stay-card__art">
+        <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
+      </div>
+      <div className="guest-stay-card__content">
+        <Tag tone="positive">Confirmed</Tag>
+        <h2>{booking.property}</h2>
+        <p>{booking.roomType} · {checkIn}–{checkOut}, {booking.checkIn.slice(0, 4)}</p>
+        <small>Booking {booking.id}</small>
+      </div>
+    </div>
+  );
 }
 
 function StayMiniCard({ booking, status }: { booking: Booking; status: string }) {
   return <div className="guest-mini-stay"><span><House /></span><div><b>{booking.property}</b><small>{status}</small></div><CheckCircle /></div>;
 }
 
-function CheckOption({ label }: { label: string }) {
-  return <label className="guest-check"><input type="checkbox" /><span>{label}</span></label>;
+function CheckOption({ label, name, defaultChecked }: { label: string; name?: string; defaultChecked?: boolean }) {
+  return <label className="guest-check"><input type="checkbox" name={name} defaultChecked={defaultChecked} /><span>{label}</span></label>;
 }
 
 function ReviewBlock({ icon, title, lines }: { icon: ReactNode; title: string; lines: string[] }) {
@@ -837,7 +1715,19 @@ function FolioItem({ date, title, meta, amount }: { date: string; title: string;
 }
 
 function HistoryItem({ property, dates, room }: { property: string; dates: string; room: string }) {
-  return <div className="guest-history-item"><span><House /></span><div><b>{property}</b><p>{dates}</p><small>{room}</small></div></div>;
+  return (
+    <div className="guest-history-card">
+      <div className="guest-history-card__media">
+        <PropertyImage property={property} aspectRatio="16/8" decorative />
+        <Tag tone="neutral">Completed</Tag>
+      </div>
+      <div className="guest-history-card__body">
+        <b>{property}</b>
+        <p>{dates}</p>
+        <small>{room}</small>
+      </div>
+    </div>
+  );
 }
 
 function NavButton({ label, icon, active, onClick }: { label: string; icon: ReactNode; active: boolean; onClick: () => void }) {

@@ -1,11 +1,14 @@
-# Asbir Source UI
+# Cabana — hospitality guest app
 
-An Asbir Sans component gallery built from Klarna and Wise UI-element references,
-using the supplied Templify Next.js structure and preserving its typed API demo.
+Cabana is a mobile-first guest-stay app prototype: a light, neutral canvas with
+white surfaces, hairline separators, and a single pink accent reserved for the
+primary action. It covers arrival, stay access, hotel services, bookings, folio,
+and front-desk support, and it is built with Asbir Sans.
 
-The home route is the design-system gallery. See
+The home route opens the guest app. The design-system gallery is available at
+`/components`. See
 [docs/design-system.md](docs/design-system.md) for the component taxonomy, token
-layers, source references, and interaction contracts.
+layers, and interaction contracts.
 
 ## Getting started
 
@@ -21,10 +24,10 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000. The gallery includes 31 reusable patterns across
-controls, views, overlays, and imagery. The dashboard at `/dashboard` continues
-to exercise the template's full data path (route handler → typed API layer →
-upstream).
+Open http://localhost:3000 for the guest app. Open
+http://localhost:3000/components for the 36-pattern design-system gallery. The
+dashboard at `/dashboard` continues to exercise the template's full data path
+(route handler → typed API layer → upstream).
 
 ### Environment
 

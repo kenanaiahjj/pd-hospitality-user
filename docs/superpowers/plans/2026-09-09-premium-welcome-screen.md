@@ -1,5 +1,11 @@
 # Premium Welcome Screen Implementation Plan
 
+> **Final visual revision:** The approved implementation replaces the planned
+> property photograph with a pink Cabana splash followed by a white welcome
+> screen. The second screen includes three concise booking benefits and keeps
+> **Find my booking** as its only action. The booking and Home routing tasks
+> below remain unchanged.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the promotional entry hub with a full-viewport booking-first welcome screen and route successful booking access or completed check-in into the correct booking home.

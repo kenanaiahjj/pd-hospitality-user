@@ -1,7 +1,7 @@
 # Premium welcome screen design
 
 **Date:** September 9, 2026
-**Status:** Approved direction; ready for implementation planning after review
+**Status:** Implemented with the approved two-stage splash revision
 
 ## Goal
 
@@ -15,15 +15,16 @@ the app opens the guest home screen for that booking.
 
 ## Welcome screen
 
-Use a single full-bleed Henry property image as the visual foundation. Apply a
-restrained dark gradient so the brand, headline, supporting text, and action
-remain readable without turning the image into a promotional card.
+Open with a short, full-screen pink Cabana splash that centers the complete
+logo and tagline. Fade the splash into a white welcome screen with a smaller
+Cabana lockup at the top and the booking content near the bottom.
 
 The screen contains only:
 
 - the Cabana or Henry guest-app identity near the top;
 - a short welcome headline;
 - one sentence that explains that the guest can connect an existing booking;
+- three concise benefits that explain what connecting a booking unlocks;
 - one primary **Find my booking** action.
 
 Remove the collection badge, destination count, carousel controls, promotional
@@ -60,9 +61,9 @@ folio, and front-desk contact when those actions are available.
 
 ## Component boundaries
 
-The welcome screen is a focused entry component. It owns the background media,
-brand treatment, welcome copy, and primary action. It does not own booking data
-or authentication state.
+The welcome screen is a focused entry component. It owns the splash, brand
+treatment, welcome copy, booking benefits, and primary action. It does not own
+booking data or authentication state.
 
 The booking-access flow owns lookup methods, validation, recovery, and booking
 selection. On success, it resolves the applicable booking and routes through
@@ -75,11 +76,11 @@ content. This change does not redesign the home screen.
 
 - Keep the primary action at least 44 CSS pixels high.
 - Preserve visible keyboard focus and semantic button behavior.
-- Provide meaningful alternative text for informative imagery, or mark purely
-  atmospheric imagery as decorative.
-- Maintain sufficient text contrast across all responsive crops.
+- Keep the splash decorative so assistive technology reaches the welcome
+  content without waiting for the visual transition.
+- Maintain sufficient text contrast on both brand surfaces.
 - Respect mobile safe-area insets and dynamic viewport height.
-- Avoid automatic carousel motion because the welcome screen uses one image.
+- Skip the splash animation when reduced motion is requested.
 
 ## Verification
 

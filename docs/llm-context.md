@@ -82,20 +82,20 @@ scope and current visual system:
 - Entry offers booking confirmation, room QR, and hotel Wi-Fi paths.
 - Bottom navigation is hidden during onboarding and appears only after a
   booking is connected.
-- A connected guest can reach Stay, Services, Wallet, Chat, and Profile.
+- A connected guest can reach Stay, Services, Chat, and Profile.
 - Home content is derived from booking state. Do not hard-code one active
   Manila stay into every branch.
 - An upcoming booking can show a room type and `Assigned at arrival`; do not
   fabricate a room number before arrival.
-- An active booking can show its room, Stay QR, services, room charges, and
-  front-desk support.
+- An active booking can show its room, services, room charges, and front-desk
+  support.
 - Services are on-property only. Live availability and price are required
   before a service can be confirmed.
 - A service confirmation is a reservation and a folio mutation, not a payment
   confirmation.
-- Offline behavior must remain explicit. Cached stay and QR details can be
-  viewed; chat and pre-arrival edits can queue; live service capacity and
-  booking confirmation are blocked.
+- Offline behavior must remain explicit. Cached stay details can be viewed;
+  chat and pre-arrival edits can queue; live service capacity and booking
+  confirmation are blocked.
 - Preserve the current Asbir Sans, light source-aligned visual language and
   existing `.guest-*` component contracts. The current shell displays
   `Cabana`; inspect the uncommitted refinements before changing the brand.
@@ -135,9 +135,8 @@ request: the hotel confirms availability first, then an approved `₱1,500`
 charge settles at checkout. It never opens a payment form.
 
 When pre-arrival is complete for an upcoming booking, the primary action is
-`View my stay`, which returns to the upcoming home. It must not show an active
-Stay QR before the room is activated. If the booking is already active, the
-primary action can open `Your Stay QR`.
+`View my stay`, which returns to the upcoming home. Identity is verified at the
+front desk against an original ID; the app issues no credential of its own.
 
 ### Returning guest
 
@@ -154,8 +153,8 @@ entry-hub -> room-qr-landing -> Link my stay -> room-qr-midstay -> stay-overview
 
 The room QR path links the active booking, or the nearest upcoming booking if
 there is no active booking. The current prototype fixture uses Room 304. The
-linking mutation marks the booking `active`, enables `stayQrAvailable`, and
-initializes the room folio at `₱3,050` when needed.
+linking mutation marks the booking `active` and initializes the room folio at
+`₱3,050` when needed.
 
 ### Active stay services
 
@@ -199,7 +198,7 @@ service as a folio line.
 
 | Variant | When it appears | Main content and actions |
 |---|---|---|
-| `active` | Any active booking exists or is selected | Property, dates, room, Stay QR, stay services, next service, room charges, My bookings, front desk |
+| `active` | Any active booking exists or is selected | Property, dates, room, stay services, next service, room charges, My bookings, front desk |
 | `upcoming` | Exactly one upcoming booking and no active booking | Property, dates, room type, pre-arrival progress, next required step, booking details |
 | `multiple-upcoming` | More than one upcoming booking and no active booking | Nearest arrival as the focal card, remaining upcoming bookings as compact cards |
 | `completed` | No active/upcoming booking, but a completed booking exists | Latest completed stay, settled-charge notice, connect another stay, stay history |
@@ -238,7 +237,6 @@ type Booking = {
   preArrivalTotal: number;
   nextPreArrivalStep?: string;
   folioTotal?: string;
-  stayQrAvailable: boolean;
 };
 
 type ServiceBooking = {
@@ -285,7 +283,7 @@ route per prototype screen.
   offline rules. No React, browser APIs, or network calls.
 - `src/components/features/guest-app/guest-app-prototype.tsx` — screen state,
   navigation history, connectivity state, session mutations, and rendering
-  for entry, onboarding, Home, Stay, Services, Wallet, Chat, and Profile.
+  for entry, onboarding, Home, Stay, Services, Chat, and Profile.
 - `src/components/features/guest-app/guest-app-prototype.css` — existing
   mobile shell and the booking-state, progress, folio, notice, focus, and
   reduced-motion styles.
@@ -330,13 +328,13 @@ new icon set, new route structure, or card-payment checkout.
 
 | Capability | Offline result | UI expectation |
 |---|---|---|
-| `wallet` / `cached-stay` | `available` | Show cached Stay QR and stay details |
+| `cached-stay` | `available` | Show cached stay details |
 | `chat` / `pre-registration` / `preferences` | `queued` | Keep edits or messages on device and explain delivery status |
 | `service-booking` / `payment` / `live-rates` | `blocked` | Do not reserve or imply current price/capacity; offer reconnection or chat |
 
-`wallet-offline` can display the cached QR, itinerary, booking details,
-last-known folio, and chat history. It must explain that the QR is for
-identity and does not authorize charges or unlock the room.
+Offline, the app can still display the cached itinerary, booking details,
+last-known folio, and chat history. It must say plainly which actions are
+waiting to send and which are unavailable.
 
 ## Verification and local development
 

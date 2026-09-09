@@ -95,6 +95,135 @@ export const SCREENS: PrototypeScreen[] = [
   screen(38, 'Account', 'stay-history', 'Stay history'),
 ];
 
+export type BookingStatus = 'upcoming' | 'active' | 'completed';
+
+export type Booking = {
+  id: string;
+  property: string;
+  city: string;
+  status: BookingStatus;
+  checkIn: string;
+  checkOut: string;
+  roomType: string;
+  roomNumber?: string;
+  guestCount: number;
+  source: string;
+  preArrivalCompleted: number;
+  preArrivalTotal: number;
+  nextPreArrivalStep?: string;
+  folioTotal?: string;
+  stayQrAvailable: boolean;
+};
+
+export type ServiceBooking = {
+  id: string;
+  bookingId: string;
+  title: string;
+  scheduledFor: string;
+  amount: string;
+  status: 'confirmed' | 'cancelled' | 'completed';
+};
+
+export type GuestSession = {
+  guestName: string;
+  email: string;
+  bookings: Booking[];
+  activeBookingId?: string;
+  serviceBookings: ServiceBooking[];
+  folioTotal: string;
+};
+
+export type HomeVariant =
+  | 'active'
+  | 'upcoming'
+  | 'multiple-upcoming'
+  | 'completed'
+  | 'empty';
+
+export const MOCK_SESSION: GuestSession = {
+  guestName: 'Ana Santos',
+  email: 'ana@example.com',
+  bookings: [
+    {
+      id: 'hen-manila-241109',
+      property: 'The Henry Manila',
+      city: 'Manila',
+      status: 'upcoming',
+      checkIn: '2026-11-09',
+      checkOut: '2026-11-12',
+      roomType: 'King room',
+      guestCount: 2,
+      source: 'Agoda',
+      preArrivalCompleted: 2,
+      preArrivalTotal: 5,
+      nextPreArrivalStep: 'Add your ID details',
+      stayQrAvailable: false,
+    },
+    {
+      id: 'hen-cebu-240615',
+      property: 'The Henry Cebu',
+      city: 'Cebu',
+      status: 'completed',
+      checkIn: '2026-06-15',
+      checkOut: '2026-06-18',
+      roomType: 'Garden suite',
+      roomNumber: '208',
+      guestCount: 2,
+      source: 'Direct booking',
+      preArrivalCompleted: 5,
+      preArrivalTotal: 5,
+      stayQrAvailable: false,
+    },
+  ],
+  serviceBookings: [],
+  folioTotal: '₱0',
+};
+
+export function getPrimaryBooking(
+  bookings: Booking[],
+  activeBookingId?: string,
+): Booking | undefined {
+  const selected = activeBookingId
+    ? bookings.find((booking) => booking.id === activeBookingId)
+    : undefined;
+  if (selected) return selected;
+
+  const active = bookings.find((booking) => booking.status === 'active');
+  if (active) return active;
+
+  const upcoming = bookings
+    .filter((booking) => booking.status === 'upcoming')
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  if (upcoming[0]) return upcoming[0];
+
+  return bookings
+    .filter((booking) => booking.status === 'completed')
+    .sort((a, b) => b.checkIn.localeCompare(a.checkIn))[0];
+}
+
+export function getHomeVariant(
+  bookings: Booking[],
+  activeBookingId?: string,
+): HomeVariant {
+  const selectedBooking = activeBookingId
+    ? bookings.find((booking) => booking.id === activeBookingId)
+    : undefined;
+  if (
+    selectedBooking?.status === 'active' ||
+    bookings.some((booking) => booking.status === 'active')
+  ) {
+    return 'active';
+  }
+
+  const upcomingCount = bookings.filter(
+    (booking) => booking.status === 'upcoming',
+  ).length;
+  if (upcomingCount > 1) return 'multiple-upcoming';
+  if (upcomingCount === 1) return 'upcoming';
+  if (bookings.some((booking) => booking.status === 'completed')) return 'completed';
+  return 'empty';
+}
+
 export type ScenarioId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I';
 
 export type Scenario = {

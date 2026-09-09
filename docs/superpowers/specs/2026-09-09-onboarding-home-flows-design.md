@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Review` |
+| **Status** | `Approved` |
 | **Created** | 2026-09-09 |
 | **Updated** | 2026-09-09 |
 | **Owner** | Kenanaiah |

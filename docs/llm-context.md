@@ -35,6 +35,7 @@ The user supplied these Mobbin references as flow and interaction context:
 
 - [Shangri-La Circle iOS UI elements](https://mobbin.com/apps/shangri-la-circle-ios-fcf8602c-4b77-4871-8d1a-b196647b013e/f6706627-77ff-45c0-8ee8-03c8825cf315/ui-elements)
 - [Expedia iOS screens](https://mobbin.com/apps/expedia-ios-d74936eb-9c7c-47e3-b9dc-e4905935bf46/ad35c0d0-588e-405a-ab54-6c001117b4ed/screens)
+- [Marriott Bonvoy iOS screens and flows](https://mobbin.com/apps/marriott-bonvoy-ios-a67650c4-0098-4634-b8db-fcb3bd0bb33c/_/screens)
 
 Use the references for patterns, not for adding unrelated product scope:
 
@@ -42,8 +43,38 @@ Use the references for patterns, not for adding unrelated product scope:
   property, the room, on-property services, and a folio settled later.
 - Expedia informed booking-centric entry, clear reservation context, modular
   trip or booking cards, grouped actions, and explicit confirmation states.
+- Marriott Bonvoy adds a useful hospitality information architecture reference:
+  onboarding, Home, Trips, Account, and login are separated into named flows.
+  The reviewed Mobbin page contains 204 screens and 53 flows, including a
+  13-screen onboarding flow and a 7-screen Home flow.
 - The Hospitality adaptation keeps the guest inside an existing stay. It does
   not add a public booking engine or Expedia-style hotel marketplace.
+
+### Marriott Bonvoy patterns to carry forward
+
+Use Marriott as a structural reference, while keeping Hospitality's stay-only
+scope and current visual system:
+
+- Onboarding uses a clear sequence: brand introduction, value proposition,
+  optional `Skip`, a strong `Join Now` / `Sign In` choice, and grouped account
+  fields. It also shows a focused field and keyboard state, which is useful for
+  validating mobile form ergonomics.
+- Home leads with a large destination or stay context, a single prominent
+  search or next-action control, a greeting and trip status, then supporting
+  cards such as recently viewed, promotions, recommendations, and destinations.
+  Hospitality should adapt that hierarchy to property, dates, room, and the
+  next stay action rather than adding destination discovery.
+- Trips is a dedicated reservation hub with Trip detail, Trip updates, and
+  Canceling a trip. This supports keeping the active Stay home separate from
+  service bookings and folio details.
+- Account groups member benefits, activity, rewards, profile, member card,
+  preferences, feedback, and logout. Hospitality should keep identity,
+  preferences, and stay history in Profile; loyalty and rewards remain out of
+  scope for the current phase.
+- Marriott's search flows include list/map switching, hotel detail, road-trip
+  search, guest count, special rates, and filtering/sorting. These are useful
+  patterns to remember for a future booking product, but they must not leak
+  into the current guest-companion flow.
 
 ## Non-negotiable UX rules
 
@@ -65,8 +96,9 @@ Use the references for patterns, not for adding unrelated product scope:
 - Offline behavior must remain explicit. Cached stay and QR details can be
   viewed; chat and pre-arrival edits can queue; live service capacity and
   booking confirmation are blocked.
-- Preserve the current Asbir Sans, light Klarna-source visual language and
-  existing `.guest-*` component contracts.
+- Preserve the current Asbir Sans, light source-aligned visual language and
+  existing `.guest-*` component contracts. The current shell displays
+  `Cabana`; inspect the uncommitted refinements before changing the brand.
 
 ## Current user journeys
 
@@ -89,7 +121,7 @@ entry-hub
 The root screen uses these visible entry actions:
 
 - `Open confirmation link` / `Booking email` goes to `identify`.
-- `Simulate Room QR` goes to `room-qr-landing`.
+- `Continue with room QR` goes to `room-qr-landing`.
 - `Open hotel Wi-Fi entry` goes to `wifi-landing`.
 
 The booking lookup accepts a booking or confirmation number and last name.
@@ -278,7 +310,7 @@ route per prototype screen.
 
 The current guest app uses:
 
-- Asbir Sans and the existing light Klarna-source visual system.
+- Asbir Sans and the existing light source-aligned visual system.
 - A lilac and pink canvas with white layered surfaces and black action color.
 - Existing Phosphor icon primitives and `.guest-*` class contracts.
 - A 4px spacing base, restrained borders, soft depth, and a calm arrival

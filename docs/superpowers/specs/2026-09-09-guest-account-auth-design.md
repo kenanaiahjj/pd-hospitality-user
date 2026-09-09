@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Review` |
+| **Status** | `Implemented` |
 | **Created** | 2026-09-09 |
 | **Updated** | 2026-09-09 |
 | **Owner** | kenanaiah@lmf.ventures |
@@ -87,28 +87,28 @@ email + one-time code with Apple and Google, and sign-in unlocking the app shell
 
 ## Success criteria
 
-- [ ] First render at `/` shows **Create account** and **Log in** as the two
+- [x] First render at `/` shows **Create account** and **Log in** as the two
       account actions, and no primary navigation.
-- [ ] The three booking-entry paths (confirmation link, room QR, hotel Wi-Fi)
+- [x] The three booking-entry paths (confirmation link, room QR, hotel Wi-Fi)
       remain reachable from that first render.
-- [ ] Creating an account with an email advances to a one-time-code screen, and a
+- [x] Creating an account with an email advances to a one-time-code screen, and a
       submitted code lands on **Add your booking** — not on a fabricated active
       stay.
-- [ ] Logging in as a returning account lands on that account's stays, and
+- [x] Logging in as a returning account lands on that account's stays, and
       reaches `welcome-back` when an upcoming booking still needs pre-arrival.
       `welcome-back` is reachable from the live flow, not only from `SCENARIOS`.
-- [ ] A booking-first arrival (`identify` → `booking-found`) reaches the same
+- [x] A booking-first arrival (`identify` → `booking-found`) reaches the same
       account gate before pre-arrival, and completing it continues into
       `guest-details`.
-- [ ] An authenticated guest with zero bookings sees the tab bar and the existing
+- [x] An authenticated guest with zero bookings sees the tab bar and the existing
       `empty` home variant, and its primary action goes to **Add your booking**.
-- [ ] Sign-out from `profile` returns to `/`'s welcome screen with the tab bar
+- [x] Sign-out from `profile` returns to `/`'s welcome screen with the tab bar
       hidden.
-- [ ] Offline at the welcome screen states that sign-in needs a connection and
+- [x] Offline at the welcome screen states that sign-in needs a connection and
       does not pretend to authenticate; `getOfflineAction('authentication')`
       returns `'blocked'`.
-- [ ] `npx vitest run src/components/features/guest-app/prototype-model.test.ts src/components/features/guest-app/guest-app-prototype.test.tsx src/app/\(marketing\)/page.test.tsx` passes.
-- [ ] `API_BASE_URL=https://jsonplaceholder.typicode.com npm run typecheck && … npm run lint && … npm run build && … npm test` passes with fresh output.
+- [x] `npx vitest run src/components/features/guest-app/prototype-model.test.ts src/components/features/guest-app/guest-app-prototype.test.tsx src/app/\(marketing\)/page.test.tsx` passes.
+- [x] `API_BASE_URL=https://jsonplaceholder.typicode.com npm run typecheck && … npm run lint && … npm run build && … npm test` passes with fresh output.
 
 ---
 
@@ -210,6 +210,12 @@ screen state and renders.
 - **Depends on:** `prototype-model.ts`, the existing `ui/` primitives, Phosphor
   icons, `guest-app-prototype.css`.
 
+**`BookingEntryOptions` (in `guest-app-prototype.tsx`)**
+- **Does:** renders the three booking-entry cards (confirmation link, room QR,
+  hotel Wi-Fi) once, so `entry-hub` and `connect-booking` cannot drift apart.
+- **Used as:** `<BookingEntryOptions onNavigate={go} />`.
+- **Depends on:** the existing `.guest-entry-card` contract and Phosphor icons.
+
 **`src/components/features/guest-app/guest-app-prototype.css`**
 - **Does:** adds three class families for the auth screens and leaves the rest
   of the sheet alone.
@@ -220,18 +226,17 @@ screen state and renders.
 
 ### Screens
 
-Four new `ScreenId`s, one repurposed, one rewritten. All join the `'Entry'`
+Three new `ScreenId`s, one repurposed, one rewritten. All join the `'Entry'`
 group; `SCREENS` is renumbered so the array still reads in journey order, which
 is safe because its only consumer is its own test.
 
 | Screen | Status | Content |
 |---|---|---|
-| `entry-hub` | rewritten | "Your stay starts here". **Create account** primary, **Log in** text button, Apple/Google row, divider, then the three existing entry cards under "Already have a booking?". Offline: a notice that sign-in needs a connection, entry cards and front-desk help still shown. |
+| `entry-hub` | rewritten | "Your stay starts here". **Create account** primary, **Log in** text button, divider, then the three existing entry cards under "Already have a booking?". No Apple/Google row here — the welcome screen carries two account actions and the booking paths, nothing more. Offline: a notice that sign-in needs a connection, entry cards and front-desk help still shown. |
 | `sign-in` | new | "Log in". Email field, **Continue**, Apple/Google row, "Create an account instead". |
 | `create-account` | repurposed | "Create your account". Full name, email, Apple/Google row, a plain-language line that the account carries stays across all 13 properties. No mobile field — that belongs to `guest-details`, which removes the current duplication. |
-| `verify-code` | new | "Check your email". One `<input inputMode="numeric" autoComplete="one-time-code" maxLength={6}>` with a visible label, the destination email, **Verify**, resend, and "Use a different email". |
-| `code-expired` | new | "That code expired". Resend, or back to the email step. |
-| `connect-booking` | new | "Add your booking". The post-auth booking hub: the same three entry routes plus "I'll do this later", which goes to `stay-overview`'s `empty` variant. |
+| `verify-code` | new | "Check your email". One `<input inputMode="numeric" autoComplete="one-time-code" maxLength={6}>` with a visible label, the destination email, **Verify**, resend, and "Use a different email". An expired code is a `Notice` plus resend on this screen, not a separate destination. |
+| `connect-booking` | new | "Add your booking". The post-auth booking hub: the same three entry routes — rendered from the *same* `BookingEntryOptions` component `entry-hub` uses, not a second copy — plus "I'll do this later", which goes to `stay-overview`'s `empty` variant. |
 
 `welcome-back` and `repeat-review` are unchanged in content but become reachable:
 `getPostAuthScreen` routes a returning account with incomplete pre-arrival there.
@@ -354,7 +359,7 @@ There is no server, so "errors" here are prototype states, surfaced in-screen.
 |---|---|
 | Empty or malformed email | native `required` / `type="email"` validation on the field, consistent with every other form in the prototype |
 | Code not 6 digits | `Verify` stays disabled until `maxLength` is met |
-| Expired code | `code-expired` screen with resend |
+| Expired code | an offline-styled `Notice` and a resend action on `verify-code` |
 | Offline at any auth step | `getOfflineAction('authentication') === 'blocked'`; the screen shows an offline `Notice` and the submit is disabled — never a fake success |
 | Booking lookup failure | unchanged: existing `lookup-fallback` → `front-desk-assist` → `no-booking` chain |
 
@@ -372,7 +377,7 @@ Model tests in `prototype-model.test.ts`:
 - `signOutSession` returns the anonymous shape.
 - `getPostAuthScreen` covers all five rules above.
 - `getOfflineAction('authentication') === 'blocked'`.
-- `SCREENS` length and uniqueness updated from 38 to 42.
+- `SCREENS` length and uniqueness updated from 38 to 41.
 
 Component tests in `guest-app-prototype.test.tsx`, driven through visible text
 and roles as the existing suite is:
@@ -445,6 +450,10 @@ recorded in the Decision Log.
 | 2026-09-09 | `create-account` is repurposed from profile form to account creation; the mobile field moves to `guest-details` | The two screens currently ask for the same fields; making one of them auth removes the duplication rather than adding a fourth form | If the property needs mobile at account creation, add the field back to `create-account` |
 | 2026-09-09 | `entry-hub` stays the initial screen id and keeps its headline; only its content changes | Keeps `ActiveScreen`, the `back()` fallback, and most of the root-route test intact | None material |
 | 2026-09-09 | `ANONYMOUS_SESSION` becomes the component default; `MOCK_SESSION` gains authenticated/returning fields | Existing tests inject `MOCK_SESSION` and must keep landing in the shell | If any test depended on the anonymous default having bookings, it fails loudly at once |
+| 2026-09-09 | No Apple/Google row on `entry-hub`; social lives only on `sign-in` and `create-account` | Three copies of one control, and it made the welcome screen five decisions deep; home should be two account actions plus the booking paths | If social on home turns out to lift conversion, it is one row added back |
+| 2026-09-09 | `code-expired` is a state of `verify-code`, not its own screen | It is not a destination; a `Notice` plus resend does the job without inflating the registry | None material |
+| 2026-09-09 | `entry-hub` and `connect-booking` share one `BookingEntryOptions` component | They are the same three routes under different headings and would otherwise drift | None material |
+| 2026-09-09 | Merging `guest-details` into account creation is out of scope | It touches the pre-arrival progress counters the home variants read, so it is its own piece of work | Pre-arrival keeps one thin form longer than ideal |
 
 ---
 

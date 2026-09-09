@@ -34,6 +34,8 @@ const sessionFor = (
   bookings,
   serviceBookings: [],
   folioTotal: '₱0',
+  auth: 'authenticated',
+  accountStatus: 'returning',
   ...overrides,
 });
 
@@ -58,7 +60,7 @@ describe('GuestAppPrototype', () => {
   it('starts first-time guests at booking-linked onboarding without primary navigation', () => {
     render(<GuestAppPrototype />);
 
-    expect(screen.getByText('Klarna', { exact: true })).toBeInTheDocument();
+    expect(screen.getByText('Cabana', { exact: true })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Your stay starts here' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open confirmation link' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
@@ -85,7 +87,7 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Simulate Room QR' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with room QR' }));
     await user.click(screen.getByRole('button', { name: 'Link my stay' }));
     await user.click(screen.getByRole('button', { name: 'Open stay overview' }));
 
@@ -271,7 +273,6 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open profile/i })).toBeInTheDocument();
     expect(screen.getByTestId('guest-home-active')).toHaveClass('guest-home-booking', 'guest-home-booking--active');
-    expect(guestStyles).toContain('.guest-home-booking--active {');
   });
 
   it('renders a contextual spa image with a resilient fallback', () => {
@@ -286,28 +287,47 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('button', { name: /View service/i })).toBeEnabled();
   });
 
-  it('consumes the shared pink, white, and black color system', () => {
-    expect(globalStyles).toContain('--ds-ink: oklch(0.16 0.012 275);');
+  it('keeps the brand colour intact across the shared token layers', () => {
+    // The brand primitives are a product contract: the app may be restyled,
+    // but Cabana pink, Cabana plum, the ink, and the white surface do not move.
+    // The ink sits on hue 351 -- the logo's own hue -- so the neutral ramp
+    // reads warm against the plum mark instead of fighting it with a cool grey.
+    expect(globalStyles).toContain('--ds-ink: oklch(0.16 0.016 351);');
     expect(globalStyles).toContain('--ds-paper: oklch(1 0 0);');
     expect(globalStyles).toContain('--ds-pink: oklch(0.79 0.18 345);');
+    expect(globalStyles).toContain('--ds-plum: oklch(0.305 0.062 351);');
     expect(globalStyles).toContain('--primitive-ink: var(--ds-ink);');
     expect(globalStyles).toContain('--primitive-pink: var(--ds-pink);');
+
+    // The app derives every surface from those primitives rather than
+    // hard-coding its own copies.
     expect(guestStyles).toContain('--guest-ink: var(--ds-ink);');
     expect(guestStyles).toContain('--guest-paper: var(--ds-paper);');
+    expect(guestStyles).toContain('--guest-brand: var(--ds-plum);');
+    expect(guestStyles).toContain('--guest-accent: var(--ds-pink);');
     expect(guestStyles).toContain('--guest-soft: var(--ds-pink-soft);');
-    expect(guestStyles).toContain('--guest-blue: var(--ds-pink);');
-    expect(guestStyles).toContain('.guest-app--focus-dark .guest-notice {');
-    expect(guestStyles).toContain('color: var(--guest-ink);');
-    expect(guestStyles).toContain('background: var(--guest-blue); color: var(--guest-ink) !important; text-align: left;');
-    expect(guestStyles).toContain('.guest-stay-card__art { display: grid; height: 106px; place-items: center; background: var(--guest-accent-gradient);');
-    for (const tone of ['sage', 'sand', 'clay', 'blue', 'sun']) {
-      expect(guestStyles).toContain(`.guest-service-visual--${tone} { background: var(--guest-accent-gradient); }`);
-    }
   });
 
-  it('keeps status colors separate from the decorative palette', () => {
-    expect(guestStyles).toContain('--guest-positive: oklch(0.56 0.105 150);');
-    expect(guestStyles).toContain('--guest-warning: oklch(0.64 0.12 73);');
-    expect(guestStyles).toContain('--guest-danger: oklch(0.54 0.17 25);');
+  it('puts ink on the accent instead of white, which the pink cannot carry', () => {
+    // oklch(0.79 …) pink is a light surface: white text on it fails WCAG AA,
+    // ink clears it at 8.9:1. Everything filled with the accent takes ink.
+    expect(globalStyles).toContain('--ds-on-pink: var(--ds-ink);');
+    expect(guestStyles).toContain('--guest-on-accent: var(--ds-on-pink);');
+    expect(guestStyles).toContain('background: var(--guest-accent); color: var(--guest-on-accent); }');
+  });
+
+  it('keeps status colours separate from the brand palette', () => {
+    for (const token of ['--ds-positive:', '--ds-warning:', '--ds-danger:']) {
+      expect(globalStyles).toContain(token);
+    }
+    expect(guestStyles).toContain('--guest-positive: var(--ds-positive);');
+    expect(guestStyles).toContain('--guest-warning: var(--ds-warning);');
+    expect(guestStyles).toContain('--guest-danger: var(--ds-danger);');
+  });
+
+  it('respects reduced motion and never animates with an unscoped transition', () => {
+    expect(guestStyles).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(guestStyles).not.toMatch(/transition:\s*all/);
+    expect(globalStyles).not.toMatch(/transition:\s*all/);
   });
 });

@@ -1,6 +1,9 @@
 export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
 
 export type ScreenId =
+  | 'sign-in'
+  | 'verify-code'
+  | 'connect-booking'
   | 'room-qr-landing'
   | 'wifi-landing'
   | 'identify'
@@ -55,44 +58,47 @@ const screen = (number: number, group: ScreenGroup, id: ScreenId, title: string)
 });
 
 export const SCREENS: PrototypeScreen[] = [
-  screen(1, 'Entry', 'room-qr-landing', 'Room QR detected'),
-  screen(2, 'Entry', 'wifi-landing', 'Hotel Wi-Fi'),
-  screen(3, 'Entry', 'identify', 'Find your booking'),
-  screen(4, 'Entry', 'lookup-fallback', 'Try another way'),
-  screen(5, 'Entry', 'front-desk-assist', 'Front desk assist'),
-  screen(6, 'Entry', 'no-booking', 'No booking found'),
-  screen(7, 'Entry', 'booking-found', 'Booking found'),
-  screen(8, 'Entry', 'create-account', 'Create your profile'),
-  screen(9, 'Entry', 'welcome-back', 'Welcome back'),
-  screen(10, 'Pre-arrival', 'stay-overview', 'Your stay'),
-  screen(11, 'Pre-arrival', 'guest-details', 'Guest details'),
-  screen(12, 'Pre-arrival', 'id-capture', 'ID or passport'),
-  screen(13, 'Pre-arrival', 'room-preferences', 'Room preferences'),
-  screen(14, 'Pre-arrival', 'additional-guests', 'Additional guests'),
-  screen(15, 'Pre-arrival', 'repeat-review', 'Review your details'),
-  screen(16, 'Pre-arrival', 'rate-detail', 'Room and rate'),
-  screen(17, 'Pre-arrival', 'early-check-in', 'Early check-in'),
-  screen(18, 'Pre-arrival', 'insurance-offer', 'Travel insurance'),
-  screen(19, 'Pre-arrival', 'prereg-complete', 'Pre-registration complete'),
-  screen(20, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
-  screen(21, 'Stay', 'wallet', 'Stay QR'),
-  screen(22, 'Stay', 'wallet-offline', 'Stay QR offline'),
-  screen(23, 'Stay', 'marketplace', 'Services'),
-  screen(24, 'Stay', 'category-listing', 'Spa and massage'),
-  screen(25, 'Stay', 'hotel-service', 'In-room dining'),
-  screen(26, 'Stay', 'vendor-service', 'Hilom signature massage'),
-  screen(27, 'Stay', 'service-booking', 'Choose a time'),
-  screen(28, 'Stay', 'booking-confirmation', 'Service confirmed'),
-  screen(29, 'Stay', 'booking-blocked', 'Connect to book'),
-  screen(30, 'Stay', 'my-bookings', 'My bookings'),
-  screen(31, 'Stay', 'cancel-before-cutoff', 'Cancel service'),
-  screen(32, 'Stay', 'cancel-after-cutoff', 'Contact front desk'),
-  screen(33, 'Stay', 'folio', 'Room charges'),
-  screen(34, 'Stay', 'chat', 'Front desk chat'),
-  screen(35, 'Stay', 'chat-after-hours', 'Chat after hours'),
-  screen(36, 'Stay', 'room-qr-midstay', 'You are checked in'),
-  screen(37, 'Account', 'profile', 'Profile and preferences'),
-  screen(38, 'Account', 'stay-history', 'Stay history'),
+  screen(1, 'Entry', 'sign-in', 'Log in'),
+  screen(2, 'Entry', 'create-account', 'Create your account'),
+  screen(3, 'Entry', 'verify-code', 'Check your email'),
+  screen(4, 'Entry', 'connect-booking', 'Add your booking'),
+  screen(5, 'Entry', 'room-qr-landing', 'Room QR detected'),
+  screen(6, 'Entry', 'wifi-landing', 'Hotel Wi-Fi'),
+  screen(7, 'Entry', 'identify', 'Find your booking'),
+  screen(8, 'Entry', 'lookup-fallback', 'Try another way'),
+  screen(9, 'Entry', 'front-desk-assist', 'Front desk assist'),
+  screen(10, 'Entry', 'no-booking', 'No booking found'),
+  screen(11, 'Entry', 'booking-found', 'Booking found'),
+  screen(12, 'Entry', 'welcome-back', 'Welcome back'),
+  screen(13, 'Pre-arrival', 'stay-overview', 'Your stay'),
+  screen(14, 'Pre-arrival', 'guest-details', 'Guest details'),
+  screen(15, 'Pre-arrival', 'id-capture', 'ID or passport'),
+  screen(16, 'Pre-arrival', 'room-preferences', 'Room preferences'),
+  screen(17, 'Pre-arrival', 'additional-guests', 'Additional guests'),
+  screen(18, 'Pre-arrival', 'repeat-review', 'Review your details'),
+  screen(19, 'Pre-arrival', 'rate-detail', 'Room and rate'),
+  screen(20, 'Pre-arrival', 'early-check-in', 'Early check-in'),
+  screen(21, 'Pre-arrival', 'insurance-offer', 'Travel insurance'),
+  screen(22, 'Pre-arrival', 'prereg-complete', 'Pre-registration complete'),
+  screen(23, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
+  screen(24, 'Stay', 'wallet', 'Stay QR'),
+  screen(25, 'Stay', 'wallet-offline', 'Stay QR offline'),
+  screen(26, 'Stay', 'marketplace', 'Services'),
+  screen(27, 'Stay', 'category-listing', 'Spa and massage'),
+  screen(28, 'Stay', 'hotel-service', 'In-room dining'),
+  screen(29, 'Stay', 'vendor-service', 'Hilom signature massage'),
+  screen(30, 'Stay', 'service-booking', 'Choose a time'),
+  screen(31, 'Stay', 'booking-confirmation', 'Service confirmed'),
+  screen(32, 'Stay', 'booking-blocked', 'Connect to book'),
+  screen(33, 'Stay', 'my-bookings', 'My bookings'),
+  screen(34, 'Stay', 'cancel-before-cutoff', 'Cancel service'),
+  screen(35, 'Stay', 'cancel-after-cutoff', 'Contact front desk'),
+  screen(36, 'Stay', 'folio', 'Room charges'),
+  screen(37, 'Stay', 'chat', 'Front desk chat'),
+  screen(38, 'Stay', 'chat-after-hours', 'Chat after hours'),
+  screen(39, 'Stay', 'room-qr-midstay', 'You are checked in'),
+  screen(40, 'Account', 'profile', 'Profile and preferences'),
+  screen(41, 'Account', 'stay-history', 'Stay history'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -124,6 +130,18 @@ export type ServiceBooking = {
   status: 'confirmed' | 'cancelled' | 'completed';
 };
 
+/**
+ * Authentication is a three-state affair rather than a boolean because the
+ * one-time code screen is a real place the guest can sit, back out of, or
+ * abandon. A boolean would make that screen indistinguishable from being in.
+ */
+export type AuthState = 'anonymous' | 'pending-verification' | 'authenticated';
+
+/** Drives the "onboarding if new" branch. `none` is the signed-out shape. */
+export type AccountStatus = 'none' | 'new' | 'returning';
+
+export type AuthMethod = 'email-code' | 'apple' | 'google';
+
 export type GuestSession = {
   guestName: string;
   email: string;
@@ -131,6 +149,9 @@ export type GuestSession = {
   activeBookingId?: string;
   serviceBookings: ServiceBooking[];
   folioTotal: string;
+  auth: AuthState;
+  accountStatus: AccountStatus;
+  authMethod?: AuthMethod;
 };
 
 export type HomeVariant =
@@ -140,25 +161,45 @@ export type HomeVariant =
   | 'completed'
   | 'empty';
 
+/**
+ * The booking `identify` matches. Extracted so `connectBooking` and
+ * `MOCK_SESSION` cannot drift into describing two different stays.
+ */
+export const UPCOMING_BOOKING_FIXTURE: Booking = {
+  id: 'HEN-241109',
+  property: 'The Henry Manila',
+  city: 'Manila',
+  status: 'upcoming',
+  checkIn: '2026-11-09',
+  checkOut: '2026-11-12',
+  roomType: 'King room',
+  guestCount: 2,
+  source: 'Agoda',
+  preArrivalCompleted: 2,
+  preArrivalTotal: 5,
+  nextPreArrivalStep: 'Add your ID details',
+  stayQrAvailable: false,
+};
+
+/** The signed-out default: what the app renders before anyone identifies. */
+export const ANONYMOUS_SESSION: GuestSession = {
+  guestName: '',
+  email: '',
+  bookings: [],
+  serviceBookings: [],
+  folioTotal: '₱0',
+  auth: 'anonymous',
+  accountStatus: 'none',
+};
+
 export const MOCK_SESSION: GuestSession = {
   guestName: 'Ana Santos',
   email: 'ana@example.com',
+  auth: 'authenticated',
+  accountStatus: 'returning',
+  authMethod: 'email-code',
   bookings: [
-    {
-      id: 'HEN-241109',
-      property: 'The Henry Manila',
-      city: 'Manila',
-      status: 'upcoming',
-      checkIn: '2026-11-09',
-      checkOut: '2026-11-12',
-      roomType: 'King room',
-      guestCount: 2,
-      source: 'Agoda',
-      preArrivalCompleted: 2,
-      preArrivalTotal: 5,
-      nextPreArrivalStep: 'Add your ID details',
-      stayQrAvailable: false,
-    },
+    UPCOMING_BOOKING_FIXTURE,
     {
       id: 'HEN-CEBU-240615',
       property: 'The Henry Cebu',
@@ -178,6 +219,68 @@ export const MOCK_SESSION: GuestSession = {
   serviceBookings: [],
   folioTotal: '₱0',
 };
+
+/**
+ * Creating an account and signing in both land on the code screen. They differ
+ * only in what they carry: a new account has no stays, a returning one arrives
+ * with everything already on file.
+ */
+export function createAccountSession(
+  guestName: string,
+  email: string,
+  method: AuthMethod,
+): GuestSession {
+  return {
+    ...ANONYMOUS_SESSION,
+    guestName,
+    email,
+    auth: 'pending-verification',
+    accountStatus: 'new',
+    authMethod: method,
+  };
+}
+
+export function signInSession(method: AuthMethod): GuestSession {
+  return {
+    ...MOCK_SESSION,
+    auth: 'pending-verification',
+    accountStatus: 'returning',
+    authMethod: method,
+  };
+}
+
+/** Only a pending session can be promoted; every other state passes through. */
+export function verifyPendingSession(session: GuestSession): GuestSession {
+  if (session.auth !== 'pending-verification') return session;
+  return { ...session, auth: 'authenticated' };
+}
+
+export function signOutSession(): GuestSession {
+  return { ...ANONYMOUS_SESSION };
+}
+
+/** Idempotent: connecting an already-connected booking is not a second stay. */
+export function connectBooking(session: GuestSession): GuestSession {
+  if (session.bookings.some((booking) => booking.id === UPCOMING_BOOKING_FIXTURE.id)) {
+    return session;
+  }
+  return { ...session, bookings: [...session.bookings, UPCOMING_BOOKING_FIXTURE] };
+}
+
+/**
+ * Where a guest lands the moment their code is accepted. Ordered and total, so
+ * the component never has to guess. A returning guest gets the short
+ * `welcome-back` review; a new one goes through pre-arrival properly.
+ */
+export function getPostAuthScreen(session: GuestSession): ScreenId {
+  const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+  if (!booking) return 'connect-booking';
+
+  const preArrivalIncomplete = booking.preArrivalCompleted < booking.preArrivalTotal;
+  if (!preArrivalIncomplete) return 'stay-overview';
+
+  return session.accountStatus === 'returning' ? 'welcome-back' : 'guest-details';
+}
 
 export function getPrimaryBooking(
   bookings: Booking[],
@@ -246,7 +349,7 @@ export const SCENARIOS: Scenario[] = [
   { id: 'I', title: 'Offline booking attempt', description: 'Capacity is blocked; chat queues', start: 'vendor-service', offline: true },
 ];
 
-export type OfflineCapability = 'wallet' | 'cached-stay' | 'chat' | 'pre-registration' | 'preferences' | 'service-booking' | 'payment' | 'live-rates';
+export type OfflineCapability = 'wallet' | 'cached-stay' | 'chat' | 'pre-registration' | 'preferences' | 'service-booking' | 'payment' | 'live-rates' | 'authentication';
 export type OfflineAction = 'available' | 'queued' | 'blocked';
 
 export function getOfflineAction(capability: OfflineCapability): OfflineAction {

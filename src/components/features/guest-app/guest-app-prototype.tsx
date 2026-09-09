@@ -616,8 +616,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </div>
             {/* Connection is only worth a slot when it is the exception. */}
             <div className="guest-appbar__center">{online ? null : <span className="guest-connection"><WifiSlash />Offline</span>}</div>
+            {/* No profile to open before there is an account to open it for. */}
             <div className="guest-appbar__side guest-appbar__side--end">
-              <button className="guest-icon-button" type="button" onClick={() => go('profile')} aria-label="Open profile"><Person /></button>
+              {session.auth === 'authenticated' ? <button className="guest-icon-button" type="button" onClick={() => go('profile')} aria-label="Open profile"><Person /></button> : null}
             </div>
           </header>
 

@@ -420,6 +420,12 @@ describe('guest account gate', () => {
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
+  it('hides the profile action until an account exists', () => {
+    render(<GuestAppPrototype />);
+
+    expect(screen.queryByRole('button', { name: /open profile/i })).toBeNull();
+  });
+
   it('never pretends to authenticate offline', () => {
     render(<GuestAppPrototype initialOnline={false} />);
 

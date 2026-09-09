@@ -3,9 +3,51 @@ import { resolve } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
+import type { Booking, GuestSession } from './prototype-model';
 
 const globalStyles = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
 const guestStyles = readFileSync(resolve(process.cwd(), 'src/components/features/guest-app/guest-app-prototype.css'), 'utf8');
+
+const makeBooking = (overrides: Partial<Booking> = {}): Booking => ({
+  id: 'booking-default',
+  property: 'The Henry Manila',
+  city: 'Manila',
+  status: 'upcoming',
+  checkIn: '2026-11-09',
+  checkOut: '2026-11-12',
+  roomType: 'King room',
+  guestCount: 2,
+  source: 'Agoda',
+  preArrivalCompleted: 2,
+  preArrivalTotal: 5,
+  stayQrAvailable: false,
+  ...overrides,
+});
+
+const sessionFor = (
+  bookings: Booking[],
+  overrides: Partial<GuestSession> = {},
+): GuestSession => ({
+  guestName: 'Ana Santos',
+  email: 'ana@example.com',
+  bookings,
+  serviceBookings: [],
+  folioTotal: '₱0',
+  ...overrides,
+});
+
+const activeSession = sessionFor(
+  [
+    makeBooking({
+      id: 'active',
+      status: 'active',
+      roomNumber: '304',
+      stayQrAvailable: true,
+      folioTotal: '₱3,050',
+    }),
+  ],
+  { activeBookingId: 'active', folioTotal: '₱3,050' },
+);
 
 beforeAll(() => {
   Object.defineProperty(window, 'scrollTo', { value: vi.fn(), writable: true });
@@ -38,8 +80,55 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('Booking HEN-241109')).toBeInTheDocument();
   });
 
+  it.each([
+    ['upcoming', [makeBooking({ status: 'upcoming' })]],
+    [
+      'multiple-upcoming',
+      [
+        makeBooking({ id: 'near', checkIn: '2026-10-01' }),
+        makeBooking({ id: 'far', checkIn: '2026-12-01' }),
+      ],
+    ],
+    ['completed', [makeBooking({ status: 'completed', checkIn: '2026-05-01' })]],
+    ['empty', []],
+  ])('renders the %s home state', (variant, bookings) => {
+    render(
+      <GuestAppPrototype
+        initialScreen="stay-overview"
+        initialSession={sessionFor(bookings)}
+      />,
+    );
+
+    expect(screen.getByTestId('guest-home-' + variant)).toBeInTheDocument();
+  });
+
+  it('renders active stay actions and booking-linked room context', () => {
+    const active = makeBooking({
+      id: 'active',
+      status: 'active',
+      roomNumber: '304',
+      stayQrAvailable: true,
+      folioTotal: '₱3,050',
+    });
+    render(
+      <GuestAppPrototype
+        initialScreen="stay-overview"
+        initialSession={sessionFor([active], {
+          activeBookingId: 'active',
+          folioTotal: '₱3,050',
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
+    expect(screen.getByText(/stay qr/i)).toBeInTheDocument();
+    expect(screen.getByText(/room 304/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /room charges/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ask front desk/i })).toBeInTheDocument();
+  });
+
   it('groups account actions and keeps four stable app destinations', () => {
-    render(<GuestAppPrototype initialScreen="stay-overview" />);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     expect(screen.getByRole('group', { name: 'Your account' })).toBeInTheDocument();
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
@@ -57,7 +146,7 @@ describe('GuestAppPrototype', () => {
   });
 
   it('keeps the Stay QR feature connected to the wallet', () => {
-    render(<GuestAppPrototype initialScreen="stay-overview" />);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Stay QR/i }));
     expect(screen.getByRole('heading', { name: 'Your Stay QR' })).toBeInTheDocument();

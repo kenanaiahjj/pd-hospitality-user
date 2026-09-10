@@ -982,13 +982,22 @@ describe('home mini-apps and browsable restaurant menu', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    expect(screen.getByRole('group', { name: 'Experience categories' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dining' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Spa' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tours' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Services' })).toBeInTheDocument();
+    const diningBtn = screen.getByRole('button', { name: 'Dining' });
+    const spaBtn = screen.getByRole('button', { name: 'Spa' });
+    const toursBtn = screen.getByRole('button', { name: 'Tours' });
+    const servicesBtn = screen.getByRole('button', { name: 'Services' });
 
-    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    expect(diningBtn).toBeInTheDocument();
+    expect(spaBtn).toBeInTheDocument();
+    expect(toursBtn).toBeInTheDocument();
+    expect(servicesBtn).toBeInTheDocument();
+
+    expect(diningBtn.querySelector('img')).toHaveAttribute('src', expect.stringContaining('category-dining'));
+    expect(spaBtn.querySelector('img')).toHaveAttribute('src', expect.stringContaining('category-spa'));
+    expect(toursBtn.querySelector('img')).toHaveAttribute('src', expect.stringContaining('category-tours'));
+    expect(servicesBtn.querySelector('img')).toHaveAttribute('src', expect.stringContaining('category-services'));
+
+    await user.click(diningBtn);
 
     expect(screen.getByRole('heading', { name: 'Food & Drink', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Apartment 1B' })).toBeInTheDocument();

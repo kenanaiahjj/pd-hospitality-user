@@ -40,7 +40,7 @@ import {
 import Image from 'next/image';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
-import { ENTRY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
+import { CATEGORY_ILLUSTRATIONS, ENTRY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
@@ -250,10 +250,18 @@ function PropertyImage({
 }
 
 function CategoryIcon({ id }: { id: MiniAppCategoryId }) {
-  if (id === 'dining') return <ForkKnife />;
-  if (id === 'spa') return <Sparkle />;
-  if (id === 'entertainment') return <AirplaneTilt />;
-  return <Storefront />;
+  const art = CATEGORY_ILLUSTRATIONS[id];
+  if (!art) return null;
+  return (
+    <Image
+      src={art.src}
+      alt=""
+      width={art.width}
+      height={art.height}
+      className="guest-category-icon-img"
+      loading="eager"
+    />
+  );
 }
 
 
@@ -1236,10 +1244,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <section>
               <SectionHeading title="Explore categories" />
               <div className="guest-category-grid">
-                <ActionTile icon={<ForkKnife />} label="Food & drink" onClick={() => { setSelectedCategory('dining'); go('category-listing'); }} />
-                <ActionTile icon={<Sparkle />} label="Spa & wellness" onClick={() => { setSelectedCategory('spa'); go('category-listing'); }} />
-                <ActionTile icon={<AirplaneTilt />} label="Entertainment & tours" onClick={() => { setSelectedCategory('entertainment'); go('category-listing'); }} />
-                <ActionTile icon={<Storefront />} label="Hotel services" onClick={() => { setSelectedCategory('services'); go('category-listing'); }} />
+                <ActionTile icon={<CategoryIcon id="dining" />} label="Food & drink" onClick={() => { setSelectedCategory('dining'); go('category-listing'); }} />
+                <ActionTile icon={<CategoryIcon id="spa" />} label="Spa & wellness" onClick={() => { setSelectedCategory('spa'); go('category-listing'); }} />
+                <ActionTile icon={<CategoryIcon id="entertainment" />} label="Entertainment & tours" onClick={() => { setSelectedCategory('entertainment'); go('category-listing'); }} />
+                <ActionTile icon={<CategoryIcon id="services" />} label="Hotel services" onClick={() => { setSelectedCategory('services'); go('category-listing'); }} />
               </div>
             </section>
           </div>

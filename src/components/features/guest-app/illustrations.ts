@@ -29,3 +29,12 @@ export const ENTRY_ILLUSTRATIONS = {
   roomQr: { src: '/illustrations/room-qr.png', width: 662, height: 452 },
   hotelWifi: { src: '/illustrations/hotel-wifi.png', width: 662, height: 452 },
 } satisfies Record<string, GuestIllustration>;
+
+/** The experience categories: illustrated squircle badges. */
+export const CATEGORY_ILLUSTRATIONS = {
+  dining: { src: '/illustrations/category-dining.png', width: 196, height: 196 },
+  spa: { src: '/illustrations/category-spa.png', width: 196, height: 196 },
+  entertainment: { src: '/illustrations/category-tours.png', width: 196, height: 196 },
+  services: { src: '/illustrations/category-services.png', width: 196, height: 196 },
+} satisfies Record<string, GuestIllustration>;
+

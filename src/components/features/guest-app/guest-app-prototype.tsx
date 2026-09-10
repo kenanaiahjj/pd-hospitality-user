@@ -1243,6 +1243,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Saved on this device" title="Ready to send when connected" text="Your pre-registration is safely queued. It will send automatically when a connection returns."><Notice tone="offline" title="No action needed">Your edits remain on this device. The hotel has not received them yet.</Notice>{primary('Open cached stay', 'stay-overview')}</ScreenIntro>;
 
       case 'marketplace': {
+        const featured = SERVICES.find((service) => service.id === 'spa')!;
         const stayServices = session.serviceBookings.filter((service) => service.bookingId === contextBooking.id);
         const upcomingServices = stayServices.filter((service) => service.status === 'confirmed');
         const pastServices = stayServices.filter((service) => service.status !== 'confirmed');
@@ -1254,16 +1255,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <p>Manage your on-property bookings, scheduled dining, and activities.</p>
             </div>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
-            <div className="guest-featured-service">
-              <ServiceImage imageKey="spa" tone="sage" icon={<Sparkle size={32} />} />
-              <div>
-                <Tag>Third-party · on property</Tag>
-                <h2>Hilom signature massage</h2>
-                <p>Traditional Filipino therapeutic massage.</p>
-                <button onClick={() => go('vendor-service')}>View service<ArrowRight /></button>
-              </div>
-            </div>
-
             {upcomingServices.length ? (
               <section>
                 <SectionHeading title="Upcoming & Confirmed" />
@@ -1296,6 +1287,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </Button>
               </div>
             )}
+
+            {/*
+              A promotion, not a booking. It used to sit unlabelled directly
+              under the page title, which put a service card immediately above
+              "No bookings yet" and read as the screen contradicting itself.
+              Below the guest's own bookings, under a heading that names it as
+              a suggestion, it stops competing with them.
+            */}
+            <section>
+              <SectionHeading title="Featured on property" />
+              <div className="guest-featured-service">
+                <ServiceImage imageKey="spa" tone={featured.tone} icon={<Sparkle size={32} />} />
+                <div>
+                  <Tag>{featured.operator}</Tag>
+                  <h2>{featured.name}</h2>
+                  <p>Traditional Filipino therapeutic massage. {featured.price} · {featured.cutoff}.</p>
+                  <button onClick={() => go('vendor-service')}>View service<ArrowRight /></button>
+                </div>
+              </div>
+            </section>
 
             {pastServices.length ? (
               <section>

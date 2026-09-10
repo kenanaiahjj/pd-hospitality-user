@@ -43,6 +43,7 @@ export type ScreenId =
   | 'room-qr-midstay'
   | 'profile'
   | 'stay-history'
+  | 'stay-detail'
   | 'travel'
   | 'travel-search'
   | 'travel-checkout'
@@ -111,6 +112,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(45, 'Travel', 'travel-checkout', 'Travel checkout'),
   screen(46, 'Travel', 'travel-confirmation', 'Travel confirmed'),
   screen(47, 'Stay', 'notifications', 'Notifications'),
+  screen(48, 'Account', 'stay-detail', 'Stay detail'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -182,7 +184,15 @@ export type ServiceBooking = {
   id: string;
   bookingId: string;
   title: string;
+  /** Human-readable, for display: "Tuesday · November 11 · 1:30 PM". */
   scheduledFor: string;
+  /**
+   * The same moment, sortable. `scheduledFor` is prose and cannot be compared,
+   * so whether a booking is still ahead was previously inferred from its
+   * status -- which left a confirmed booking sitting in Upcoming long after it
+   * had happened.
+   */
+  scheduledDate: string;
   amount: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   diningOrder?: DiningOrderDetails;
@@ -287,7 +297,21 @@ export const MOCK_SESSION: GuestSession = {
     bed: 'King bed',
     accessibility: [],
   },
-  travelBookings: [],
+  travelBookings: [
+    {
+      id: 'travel-seed-1',
+      reference: 'CBP-8842',
+      categoryId: 'flights',
+      operator: 'Cebu Pacific',
+      detail: '09:15 → 11:05',
+      meta: '5J 561 · Direct · Airbus A320',
+      route: 'Manila (MNL) → Cebu (CEB)',
+      date: '2026-11-14',
+      travellers: 2,
+      amount: '₱8,560',
+      status: 'confirmed',
+    },
+  ],
   additionalGuests: ['Marco Santos'],
   bookings: [
     UPCOMING_BOOKING_FIXTURE,
@@ -306,8 +330,79 @@ export const MOCK_SESSION: GuestSession = {
       preArrivalTotal: 4,
     },
   ],
-  serviceBookings: [],
-  folioTotal: '₱0',
+  /*
+    A populated stay, so the relationships are visible without having to book
+    five things by hand first. Read as a set these say: two venues and a spa
+    inside The Henry Manila, one tour the hotel arranged, one leg from a
+    carrier that is not the hotel's, and one order already delivered. Every
+    on-property line settles on room 512's folio; the flight never touches it.
+
+    Dates straddle PROTOTYPE_TODAY (2026-11-11) on purpose, so Upcoming and
+    Past both have something in them.
+  */
+  serviceBookings: [
+    {
+      id: 'service-hilom-1',
+      bookingId: 'HEN-241109',
+      title: 'Hilom signature massage',
+      scheduledFor: 'Wednesday · November 12 · 1:30 PM',
+      scheduledDate: '2026-11-12',
+      amount: '₱2,400',
+      status: 'confirmed',
+    },
+    {
+      id: 'service-rooftop-1',
+      bookingId: 'HEN-241109',
+      title: 'Azotea Rooftop',
+      scheduledFor: 'Tonight · November 11 · 7:30 PM',
+      scheduledDate: '2026-11-11',
+      amount: '₱2,850',
+      status: 'confirmed',
+      diningOrder: {
+        venueId: 'rooftop',
+        venueName: 'Azotea Rooftop',
+        items: [
+          { id: 'tasting', name: 'Chef\u2019s tasting menu', unitPrice: '₱1,200', quantity: 2 },
+          { id: 'wine', name: 'Wine pairing', unitPrice: '₱450', quantity: 1 },
+        ],
+        fulfillment: { method: 'pickup', timing: 'scheduled', scheduledFor: 'November 11 · 7:30 PM' },
+      },
+    },
+    {
+      id: 'service-tour-1',
+      bookingId: 'HEN-241109',
+      title: 'Binondo food crawl',
+      scheduledFor: 'Thursday · November 13 · 9:00 AM',
+      scheduledDate: '2026-11-13',
+      amount: '₱4,400',
+      status: 'confirmed',
+    },
+    {
+      id: 'service-dining-past',
+      bookingId: 'HEN-241109',
+      title: 'Apartment 1B',
+      scheduledFor: 'Yesterday · November 10 · 8:00 PM',
+      scheduledDate: '2026-11-10',
+      amount: '₱1,850',
+      status: 'completed',
+      diningOrder: {
+        venueId: 'apartment-1b',
+        venueName: 'Apartment 1B',
+        items: [{ id: 'ribeye', name: 'Grilled Angus Ribeye', unitPrice: '₱1,850', quantity: 1 }],
+        fulfillment: { method: 'delivery', timing: 'asap', scheduledFor: 'November 10 · 8:00 PM' },
+      },
+    },
+    {
+      id: 'service-cafe-cancelled',
+      bookingId: 'HEN-241109',
+      title: 'Kape Manila Café',
+      scheduledFor: 'Monday · November 9 · 7:00 AM',
+      scheduledDate: '2026-11-09',
+      amount: '₱480',
+      status: 'cancelled',
+    },
+  ],
+  folioTotal: '₱12,730',
 };
 
 /**
@@ -378,7 +473,22 @@ export function connectBooking(session: GuestSession): GuestSession {
   if (session.bookings.some((booking) => booking.id === UPCOMING_BOOKING_FIXTURE.id)) {
     return session;
   }
-  return { ...session, bookings: [...session.bookings, UPCOMING_BOOKING_FIXTURE] };
+  /*
+    Connecting a booking brings what is already attached to it, not a blank
+    stay. The middleware reads a reservation and everything posted against it
+    -- the spa slot, last night's dining order, the folio -- so a guest who
+    connects mid-stay sees their stay as it stands rather than as if they had
+    just booked it. Anything the guest already has is kept ahead of the
+    fixture's.
+  */
+  return {
+    ...session,
+    bookings: [...session.bookings, UPCOMING_BOOKING_FIXTURE],
+    serviceBookings: [...session.serviceBookings, ...MOCK_SESSION.serviceBookings],
+    travelBookings: [...session.travelBookings, ...MOCK_SESSION.travelBookings],
+    folioTotal: parsePesoAmount(session.folioTotal) > 0 ? session.folioTotal : MOCK_SESSION.folioTotal,
+    additionalGuests: session.additionalGuests.length ? session.additionalGuests : MOCK_SESSION.additionalGuests,
+  };
 }
 
 /**
@@ -562,6 +672,137 @@ export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
 ];
 
 /**
+ * A stay the guest has finished, with enough detail to answer "what did that
+ * trip actually cost me, and what did I do?" long after checkout.
+ *
+ * Held separately from `Booking` on purpose. A `Booking` is a live thing the
+ * middleware keeps refreshing -- room assignment, folio total, pre-arrival
+ * progress -- while a past stay is settled and immutable. Modelling history as
+ * a `Booking` with `status: 'completed'` would leave every one of those live
+ * fields hanging around meaning nothing.
+ */
+export type PastStayCharge = {
+  id: string;
+  /** What it belonged to: the venue, the spa, the operator. */
+  parent: string;
+  title: string;
+  detail: string;
+  amount: string;
+  category: 'Dining' | 'Spa & wellness' | 'Tours' | 'Hotel services' | 'Travel';
+};
+
+export type PastStay = {
+  id: string;
+  property: string;
+  city: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  roomType: string;
+  roomNumber: string;
+  guestCount: number;
+  source: string;
+  /** What the room rate came to, before anything was added to it. */
+  roomRate: string;
+  /** Everything charged to the room on top of the rate. */
+  charges: PastStayCharge[];
+  /** Room rate plus charges: what the stay cost in total. */
+  total: string;
+};
+
+export const PAST_STAYS: PastStay[] = [
+  {
+    id: 'HEN-CEBU-260314',
+    property: 'The Henry Cebu',
+    city: 'Cebu',
+    checkIn: '2026-03-14',
+    checkOut: '2026-03-17',
+    nights: 3,
+    roomType: 'Garden suite',
+    roomNumber: '211',
+    guestCount: 2,
+    source: 'Direct booking',
+    roomRate: '₱18,600',
+    charges: [
+      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness' },
+      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining' },
+      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours' },
+      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining' },
+      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services' },
+    ],
+    total: '₱37,390',
+  },
+  {
+    id: 'HEN-MNL-251002',
+    property: 'The Henry Manila',
+    city: 'Manila',
+    checkIn: '2025-10-02',
+    checkOut: '2025-10-04',
+    nights: 2,
+    roomType: 'King room',
+    roomNumber: '406',
+    guestCount: 1,
+    source: 'Agoda',
+    roomRate: '₱9,800',
+    charges: [
+      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining' },
+      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services' },
+      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours' },
+    ],
+    total: '₱14,150',
+  },
+  {
+    id: 'HEN-CEBU-250508',
+    property: 'The Henry Cebu',
+    city: 'Cebu',
+    checkIn: '2025-05-08',
+    checkOut: '2025-05-10',
+    nights: 2,
+    roomType: 'Deluxe room',
+    roomNumber: '108',
+    guestCount: 2,
+    source: 'Booking.com',
+    roomRate: '₱11,200',
+    charges: [
+      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining' },
+      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness' },
+    ],
+    total: '₱13,820',
+  },
+];
+
+export const findPastStay = (id: string) => PAST_STAYS.find((stay) => stay.id === id);
+
+/**
+ * Groups a past stay's charges by the category that sold them, so the detail
+ * screen can show where the money went rather than one flat ledger.
+ */
+export function summarisePastStay(stay: PastStay) {
+  const byCategory = new Map<PastStayCharge['category'], { category: PastStayCharge['category']; total: number; charges: PastStayCharge[] }>();
+
+  for (const charge of stay.charges) {
+    const group = byCategory.get(charge.category)
+      ?? { category: charge.category, total: 0, charges: [] };
+    group.total += parsePesoAmount(charge.amount);
+    group.charges.push(charge);
+    byCategory.set(charge.category, group);
+  }
+
+  const groups = [...byCategory.values()]
+    .sort((a, b) => b.total - a.total)
+    .map((group) => ({ ...group, formattedTotal: formatPesoAmount(group.total) }));
+
+  const extras = groups.reduce((sum, group) => sum + group.total, 0);
+
+  return {
+    groups,
+    extras: formatPesoAmount(extras),
+    /** Nightly average of the room rate alone -- the extras are not per-night. */
+    perNight: formatPesoAmount(Math.round(parsePesoAmount(stay.roomRate) / Math.max(stay.nights, 1))),
+  };
+}
+
+/**
  * One row of My Stay, whatever it started life as -- a spa booking, a dining
  * order, a ferry.
  *
@@ -588,9 +829,28 @@ export type StayEntry = {
   parentDetail?: string;
   /** How it settles, in the guest's terms. */
   settlement: string;
+  /** ISO date of the booking, for ordering and for the upcoming/past split. */
+  date: string;
   /** Where tapping it goes, when it goes anywhere. */
   screen?: ScreenId;
 };
+
+/**
+ * Whether the guest is actually in the stay, read off the dates rather than
+ * off `Booking.status`.
+ *
+ * The two can disagree. `status` is asserted by whoever built the booking --
+ * a fixture, or a PMS that has not caught up -- while the dates are the
+ * booking's own account of when it happens. The reference stay runs 9-12
+ * November against a prototype clock of the 11th and still calls itself
+ * `upcoming`, which had My Stay reporting a trip total of travel only while a
+ * populated room folio sat one screen away. Where the question is "can this
+ * stay have charges yet", the dates answer it.
+ */
+export function hasStayStarted(booking: Booking, today: string = PROTOTYPE_TODAY): boolean {
+  if (booking.status === 'completed') return true;
+  return dayIndex(today) >= dayIndex(booking.checkIn);
+}
 
 /**
  * Splits everything the guest has booked into what is still ahead and what is
@@ -631,6 +891,7 @@ export function getStayEntries(
       parent: booking.property,
       parentDetail: venue?.location,
       settlement: `Added to ${booking.roomNumber ? `room ${booking.roomNumber}` : 'your room'} · settles at checkout`,
+      date: service.scheduledDate,
       screen: service.status === 'confirmed' ? 'cancel-before-cutoff' : undefined,
     });
   }
@@ -648,13 +909,28 @@ export function getStayEntries(
       parent: leg.operator,
       parentDetail: leg.route ?? undefined,
       settlement: `${leg.reference} · paid to the operator`,
+      date: leg.date,
       screen: undefined,
     });
   }
 
+  /*
+    Time decides this, not status. A confirmed booking whose slot has already
+    passed is history the guest cannot act on -- leaving it in Upcoming meant
+    yesterday's massage sat above tomorrow's flight, and the tab stopped
+    meaning "what is still ahead". Cancelled and completed are past whatever
+    their date says.
+  */
+  const today = dayIndex(PROTOTYPE_TODAY);
+  const isAhead = (entry: StayEntry) =>
+    entry.status === 'confirmed' && dayIndex(entry.date) >= today;
+
+  const byDateAscending = (a: StayEntry, b: StayEntry) => a.date.localeCompare(b.date);
+
   return {
-    upcoming: entries.filter((entry) => entry.status === 'confirmed'),
-    past: entries.filter((entry) => entry.status !== 'confirmed'),
+    upcoming: entries.filter(isAhead).sort(byDateAscending),
+    // Most recent first: history is read backwards from now.
+    past: entries.filter((entry) => !isAhead(entry)).sort((a, b) => byDateAscending(b, a)),
   };
 }
 

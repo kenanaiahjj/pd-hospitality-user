@@ -3,6 +3,7 @@ import {
   describeRoomAssignment,
   ANONYMOUS_SESSION,
   CHECK_IN_FROM,
+  PAST_STAYS,
   CHECK_OUT_BY,
   MINI_APP_CATEGORIES,
   MOCK_SESSION,
@@ -21,6 +22,9 @@ import {
   describeCheckoutCountdown,
   getCancellationState,
   getNotifications,
+  getStayEntries,
+  hasStayStarted,
+  summarisePastStay,
   getOfflineAction,
   getPostAuthScreen,
   getVenueCartSummary,
@@ -37,9 +41,10 @@ import {
 } from './prototype-model';
 
 describe('guest app prototype model', () => {
-  it('contains the complete 47-screen inventory including travel checkout', () => {
-    expect(SCREENS).toHaveLength(47);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(47);
+  it('contains the complete 48-screen inventory including travel checkout', () => {
+    expect(SCREENS).toHaveLength(48);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(48);
+    expect(SCREENS.find((s) => s.id === 'stay-detail')?.group).toBe('Account');
     // My Stay subsumed the old `my-bookings` screen rather than sitting beside
     // it -- two screens listing the same service bookings was the duplication
     // the nav pass exists to remove.
@@ -540,6 +545,7 @@ describe('notifications', () => {
     bookingId: 'HEN-241109',
     title: 'Hilom signature massage',
     scheduledFor: 'Tuesday · November 11 · 1:30 PM',
+    scheduledDate: '2026-11-11',
     amount: '₱2,400',
     status: 'confirmed' as const,
   };
@@ -594,7 +600,8 @@ describe('notifications', () => {
 
     expect(getNotifications(charged, active).some((n) => n.tone === 'folio')).toBe(true);
     expect(getNotifications(charged, UPCOMING_BOOKING_FIXTURE).some((n) => n.tone === 'folio')).toBe(false);
-    expect(getNotifications(MOCK_SESSION, active).some((n) => n.tone === 'folio')).toBe(false);
+    const unspent = { ...MOCK_SESSION, folioTotal: '₱0' };
+    expect(getNotifications(unspent, { ...active, folioTotal: undefined }).some((n) => n.tone === 'folio')).toBe(false);
   });
 
   it('carries travel confirmations, which belong to the trip rather than the stay', () => {
@@ -635,5 +642,110 @@ describe('notifications', () => {
 
   it('has nothing to show before a booking is connected', () => {
     expect(getNotifications(ANONYMOUS_SESSION, undefined)).toEqual([]);
+  });
+});
+
+describe('upcoming and past', () => {
+  const stay: Booking = { ...UPCOMING_BOOKING_FIXTURE, status: 'active', roomNumber: '512' };
+
+  const service = (id: string, scheduledDate: string, status: 'confirmed' | 'cancelled' | 'completed') => ({
+    id,
+    bookingId: stay.id,
+    title: id,
+    scheduledFor: scheduledDate,
+    scheduledDate,
+    amount: '₱1,000',
+    status,
+  });
+
+  it('puts a confirmed booking whose date has passed into past', () => {
+    // PROTOTYPE_TODAY is 2026-11-11. Status alone would have left this in
+    // Upcoming forever, above bookings that had not happened yet.
+    const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [service('yesterday', '2026-11-10', 'confirmed')] };
+    const { upcoming, past } = getStayEntries(session, stay);
+
+    expect(upcoming).toHaveLength(0);
+    expect(past.map((entry) => entry.id)).toEqual(['yesterday']);
+  });
+
+  it('keeps today and later in upcoming', () => {
+    const session = {
+      ...MOCK_SESSION,
+      travelBookings: [],
+      serviceBookings: [service('today', '2026-11-11', 'confirmed'), service('later', '2026-11-14', 'confirmed')],
+    };
+
+    expect(getStayEntries(session, stay).upcoming.map((e) => e.id)).toEqual(['today', 'later']);
+  });
+
+  it('treats cancelled and completed as past whatever their date says', () => {
+    const session = {
+      ...MOCK_SESSION,
+      travelBookings: [],
+      serviceBookings: [service('scrapped', '2026-11-20', 'cancelled'), service('done', '2026-11-20', 'completed')],
+    };
+    const { upcoming, past } = getStayEntries(session, stay);
+
+    expect(upcoming).toHaveLength(0);
+    expect(past).toHaveLength(2);
+  });
+
+  it('orders upcoming soonest first and past most recent first', () => {
+    const session = {
+      ...MOCK_SESSION,
+      travelBookings: [],
+      serviceBookings: [
+        service('far', '2026-11-20', 'confirmed'),
+        service('near', '2026-11-12', 'confirmed'),
+        service('old', '2026-11-02', 'completed'),
+        service('recent', '2026-11-09', 'completed'),
+      ],
+    };
+    const { upcoming, past } = getStayEntries(session, stay);
+
+    expect(upcoming.map((e) => e.id)).toEqual(['near', 'far']);
+    expect(past.map((e) => e.id)).toEqual(['recent', 'old']);
+  });
+});
+
+describe('past stays', () => {
+  it('totals each stay to its room rate plus its charges', () => {
+    for (const stay of PAST_STAYS) {
+      const charges = stay.charges.reduce((sum, charge) => sum + parsePesoAmount(charge.amount), 0);
+      expect(parsePesoAmount(stay.total)).toBe(parsePesoAmount(stay.roomRate) + charges);
+    }
+  });
+
+  it('groups charges by category, largest spend first', () => {
+    const summary = summarisePastStay(PAST_STAYS[0]!);
+    const totals = summary.groups.map((group) => group.total);
+
+    expect(totals).toEqual([...totals].sort((a, b) => b - a));
+    expect(summary.groups.flatMap((g) => g.charges)).toHaveLength(PAST_STAYS[0]!.charges.length);
+    expect(parsePesoAmount(summary.extras)).toBe(totals.reduce((a, b) => a + b, 0));
+  });
+
+  it('averages the room rate over the nights, not the extras', () => {
+    const stay = PAST_STAYS[0]!;
+    const summary = summarisePastStay(stay);
+
+    expect(parsePesoAmount(summary.perNight)).toBe(Math.round(parsePesoAmount(stay.roomRate) / stay.nights));
+  });
+});
+
+describe('has the stay started', () => {
+  it('reads the dates, not an asserted status', () => {
+    // The reference stay runs 9-12 November and still calls itself `upcoming`.
+    // Mid-window it has charges, whatever its status field claims.
+    const midStay: Booking = { ...UPCOMING_BOOKING_FIXTURE, status: 'upcoming' };
+
+    expect(hasStayStarted(midStay, '2026-11-11')).toBe(true);
+    expect(hasStayStarted(midStay, '2026-11-09')).toBe(true);
+    expect(hasStayStarted(midStay, '2026-11-08')).toBe(false);
+  });
+
+  it('treats a completed stay as started whatever the clock says', () => {
+    const done: Booking = { ...UPCOMING_BOOKING_FIXTURE, status: 'completed' };
+    expect(hasStayStarted(done, '2020-01-01')).toBe(true);
   });
 });

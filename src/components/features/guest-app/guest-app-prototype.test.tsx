@@ -374,6 +374,7 @@ describe('GuestAppPrototype', () => {
             bookingId: 'active',
             title: 'Hilom signature massage',
             scheduledFor: 'Tuesday · November 11 · 1:30 PM',
+            scheduledDate: '2026-11-11',
             amount: '₱2,400',
             status: 'confirmed',
           }],
@@ -994,6 +995,34 @@ describe('travel destination', () => {
   });
 });
 
+describe('stay history', () => {
+  it('opens a finished stay and shows what it cost and what was booked', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-history" initialSession={MOCK_SESSION} />);
+
+    // The card was inert before, which made the spend it represents
+    // unreachable -- a guest could see they stayed somewhere and nothing else.
+    await user.click(screen.getByRole('button', { name: /March 14–17, 2026/ }));
+
+    expect(screen.getByRole('heading', { name: 'The Henry Cebu', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('₱37,390')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Hilom signature massage' })).toBeInTheDocument();
+    // Grouped by what sold it, each group carrying its own total.
+    expect(screen.getByRole('heading', { name: 'Spa & wellness' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Dining' })).toBeInTheDocument();
+  });
+
+  it('names the venue that sold each charge, not just the hotel', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-history" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('button', { name: /March 14–17, 2026/ }));
+
+    expect(screen.getByText('Azotea Rooftop')).toBeInTheDocument();
+    expect(screen.getByText('Kape Manila Café')).toBeInTheDocument();
+  });
+});
+
 describe('notifications', () => {
   it('opens the inbox from the bell and clears its dot', async () => {
     const user = userEvent.setup();
@@ -1063,6 +1092,7 @@ describe('my stay', () => {
           bookingId: 'active',
           title: 'Azotea Rooftop',
           scheduledFor: 'Tonight · 7:30 PM',
+          scheduledDate: '2026-11-11',
           amount: '₱2,400',
           status: 'confirmed',
           diningOrder: {
@@ -1090,8 +1120,8 @@ describe('my stay', () => {
       {
         activeBookingId: 'active',
         serviceBookings: [
-          { id: 'a', bookingId: 'active', title: 'Hilom signature massage', scheduledFor: 'Tue · 1:30 PM', amount: '₱2,400', status: 'confirmed' },
-          { id: 'b', bookingId: 'active', title: 'Island day tour', scheduledFor: 'Mon · 8:00 AM', amount: '₱3,800', status: 'completed' },
+          { id: 'a', bookingId: 'active', title: 'Hilom signature massage', scheduledFor: 'Tue · 1:30 PM', scheduledDate: '2026-11-12', amount: '₱2,400', status: 'confirmed' },
+          { id: 'b', bookingId: 'active', title: 'Island day tour', scheduledFor: 'Mon · 8:00 AM', scheduledDate: '2026-11-09', amount: '₱3,800', status: 'completed' },
         ],
       },
     );

@@ -63,6 +63,7 @@ import {
   getHomeVariant,
   getNotifications,
   getStayEntries,
+  hasStayStarted,
   getPostAuthScreen,
   getPrimaryBooking,
   getVenueCartSummary,
@@ -82,7 +83,11 @@ import {
   describeRoomAssignment,
   getTravelCategory,
   MINI_APP_CATEGORIES,
+  PAST_STAYS,
   PROPERTY_ANNOUNCEMENTS,
+  PROTOTYPE_TODAY,
+  findPastStay,
+  summarisePastStay,
   getFeaturedServices,
   MOCK_SESSION,
   RESTAURANTS,
@@ -97,6 +102,7 @@ import {
   type Booking,
   type GuestNotification,
   type GuestSession,
+  type PastStay,
   type StayEntry,
   type NotificationTone,
   type DiningFulfillment,
@@ -971,6 +977,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     actually opened.
   */
   const [stayTab, setStayTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
@@ -1116,6 +1123,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       bookingId: booking.id,
       title: venue.name,
       scheduledFor,
+      scheduledDate: PROTOTYPE_TODAY,
       amount: cartSummary.formattedTotal,
       status: 'confirmed',
       diningOrder: {
@@ -1153,6 +1161,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       bookingId: booking.id,
       title: 'Hilom signature massage',
       scheduledFor: 'Tuesday · November 11 · 1:30 PM',
+      scheduledDate: PROTOTYPE_TODAY,
       amount: '₱2,400',
       status: 'confirmed',
     };
@@ -2013,8 +2022,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         if (!primaryBooking) return <EmptyStayHome onNavigate={go} />;
 
         // A stay that has not started cannot have run anything up, so the folio
-        // block is absent rather than showing a confident zero.
-        const started = contextBooking.status !== 'upcoming';
+        // block is absent rather than showing a confident zero. Read off the
+        // dates, not `status`: the two disagree when a PMS has not caught up.
+        const started = hasStayStarted(contextBooking);
         const stayFolioTotal = session.folioTotal || contextBooking.folioTotal || '₱0';
         const stayCharges = getRoomCharges(session, contextBooking, contextRoom);
         const travelLegs = session.travelBookings.filter((leg) => leg.status === 'confirmed');
@@ -2077,18 +2087,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               live ones meant scrolling past history to reach what is next.
             */}
             <section>
-              <div className="guest-menu-tabs" role="tablist" aria-label="Bookings">
+              <div className="guest-tabs" role="tablist" aria-label="Bookings">
                 {(['upcoming', 'past'] as const).map((tab) => (
                   <button
                     key={tab}
                     role="tab"
                     aria-selected={stayTab === tab}
-                    className={`guest-menu-tab ${stayTab === tab ? 'is-active' : ''}`}
+                    className="guest-tab"
                     onClick={() => setStayTab(tab)}
                     type="button"
                   >
                     {tab === 'upcoming' ? 'Upcoming' : 'Past'}
-                    <span className="guest-menu-tab__count">{tab === 'upcoming' ? stayEntries.upcoming.length : stayEntries.past.length}</span>
+                    <span className="guest-tab__count">{tab === 'upcoming' ? stayEntries.upcoming.length : stayEntries.past.length}</span>
                   </button>
                 ))}
               </div>
@@ -3075,8 +3085,89 @@ const fare = category.options.find((option) => option.id === selectedFare);
           </div>
         );
 
-      case 'stay-history':
-        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">Across properties</p><h1>Stay history</h1></div><HistoryItem property="The Henry Cebu" dates="March 14–17, 2026" room="Room 211 · Completed" /><HistoryItem property="The Henry Manila" dates="October 2–4, 2025" room="Room 406 · Completed" /><HistoryItem property="The Henry Cebu" dates="May 8–10, 2025" room="Room 108 · Completed" /></div>;
+      case 'stay-history': {
+        const lifetime = formatPesoAmount(PAST_STAYS.reduce((sum, stay) => sum + parsePesoAmount(stay.total), 0));
+        const nights = PAST_STAYS.reduce((sum, stay) => sum + stay.nights, 0);
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">Across properties</p>
+              <h1>Stay history</h1>
+              <p>{PAST_STAYS.length} completed stays · {nights} nights · {lifetime} spent</p>
+            </div>
+            {PAST_STAYS.map((stay) => (
+              <HistoryItem
+                key={stay.id}
+                stay={stay}
+                onOpen={() => { setSelectedPastStayId(stay.id); go('stay-detail'); }}
+              />
+            ))}
+          </div>
+        );
+      }
+
+      case 'stay-detail': {
+        const stay = findPastStay(selectedPastStayId ?? '') ?? PAST_STAYS[0]!;
+        const summary = summarisePastStay(stay);
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">{formatPastStayDates(stay)} · {stay.nights} {stay.nights === 1 ? 'night' : 'nights'}</p>
+              <h1>{stay.property}</h1>
+              <p>Room {stay.roomNumber} · {stay.roomType} · {stay.guestCount} {stay.guestCount === 1 ? 'guest' : 'guests'}</p>
+            </div>
+
+            <div className="guest-total-card">
+              <span>Total for this stay</span>
+              <strong>{stay.total}</strong>
+              <small>{stay.roomRate} room · {summary.extras} charged to room {stay.roomNumber}</small>
+            </div>
+
+            <section className="guest-stay-summary">
+              <div className="guest-stay-summary__stats">
+                <div><small>Room rate</small><b>{stay.roomRate}</b></div>
+                <div><small>Per night</small><b>{summary.perNight}</b></div>
+                <div><small>Extras</small><b>{summary.extras}</b></div>
+                <div><small>Booked via</small><b>{stay.source}</b></div>
+              </div>
+            </section>
+
+            {/*
+              Grouped by what sold it, largest first. A flat ledger answers
+              "what did I pay" but not "what did I spend it on", which is the
+              question a guest looking back actually has.
+            */}
+            {summary.groups.map((group) => (
+              <section key={group.category}>
+                <SectionHeading title={group.category} />
+                <div className="guest-stay-entries">
+                  {group.charges.map((charge) => (
+                    <div key={charge.id} className="guest-stay-entry is-static">
+                      <div className="guest-stay-entry__parent">
+                        <span aria-hidden="true"><Storefront /></span>
+                        <div><b>{charge.parent}</b></div>
+                      </div>
+                      <div className="guest-stay-entry__body">
+                        <h2>{charge.title}</h2>
+                        <p>{charge.detail}</p>
+                      </div>
+                      <div className="guest-stay-entry__footer">
+                        <strong>{charge.amount}</strong>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="guest-stay-group-total">
+                  <span>{group.category} total</span>
+                  <b>{group.formattedTotal}</b>
+                </div>
+              </section>
+            ))}
+
+            <Notice title="Settled at checkout">Every line above was charged to room {stay.roomNumber} and paid when you checked out on {formatPastStayDates(stay).split('–').pop()}.</Notice>
+          </div>
+        );
+      }
     }
   };
 
@@ -3862,19 +3953,41 @@ function FolioItem({ date, title, meta, amount }: { date: string; title: string;
   return <div className="guest-folio-item"><span>{date}</span><div><b>{title}</b><small>{meta}</small></div><strong>{amount}</strong></div>;
 }
 
-function HistoryItem({ property, dates, room }: { property: string; dates: string; room: string }) {
+/** "March 14–17, 2026" -- one month named once when the stay does not cross one. */
+function formatPastStayDates(stay: PastStay) {
+  const start = new Date(`${stay.checkIn}T00:00:00Z`);
+  const end = new Date(`${stay.checkOut}T00:00:00Z`);
+  const month = (d: Date) => d.toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
+  const day = (d: Date) => d.getUTCDate();
+  const year = end.getUTCFullYear();
+
+  return month(start) === month(end)
+    ? `${month(start)} ${day(start)}–${day(end)}, ${year}`
+    : `${month(start)} ${day(start)} – ${month(end)} ${day(end)}, ${year}`;
+}
+
+/**
+ * A finished stay, as a card that opens. It used to be inert, which made the
+ * spend it represents unreachable: the guest could see they stayed somewhere
+ * and nothing about what it cost or what they did there.
+ */
+function HistoryItem({ stay, onOpen }: { stay: PastStay; onOpen: () => void }) {
   return (
-    <div className="guest-history-card">
+    <button className="guest-history-card" type="button" onClick={onOpen}>
       <div className="guest-history-card__media">
-        <PropertyImage property={property} aspectRatio="16/8" decorative />
+        <PropertyImage property={stay.property} aspectRatio="16/8" decorative />
         <Tag tone="neutral">Completed</Tag>
       </div>
       <div className="guest-history-card__body">
-        <b>{property}</b>
-        <p>{dates}</p>
-        <small>{room}</small>
+        <b>{stay.property}</b>
+        <p>{formatPastStayDates(stay)}</p>
+        <small>Room {stay.roomNumber} · {stay.nights} {stay.nights === 1 ? 'night' : 'nights'}</small>
       </div>
-    </div>
+      <div className="guest-history-card__footer">
+        <span>{stay.charges.length} {stay.charges.length === 1 ? 'charge' : 'charges'} · {stay.city}</span>
+        <b>{stay.total}<CaretRight /></b>
+      </div>
+    </button>
   );
 }
 

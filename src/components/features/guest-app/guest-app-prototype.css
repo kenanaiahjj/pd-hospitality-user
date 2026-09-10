@@ -4448,3 +4448,140 @@
 @media (hover: hover) and (pointer: fine) {
   .guest-stay-entry:not(.is-static):hover { border-color: var(--guest-line-strong); }
 }
+
+/* --------------------------------------------------------------------------
+   Tabs: two views of one list.
+   -------------------------------------------------------------------------- */
+
+/*
+   An underlined bar, not the filter chips used elsewhere. Chips read as
+   filters you can combine or clear; these are exclusive views where one is
+   always on, and the rule under the active label ties it to the content
+   below. The track's own hairline runs the full width so the active segment
+   reads as a section of it rather than a floating mark.
+*/
+.guest-tabs {
+  display: flex;
+  gap: 22px;
+  margin: 0 0 4px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--guest-line);
+}
+
+.guest-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 1px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--guest-subtle);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+/* Sits on the track's hairline rather than above it, so the two read as one
+   line with a thicker segment. */
+.guest-tab::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  content: '';
+  transition: background-color var(--duration-fast) ease;
+}
+
+.guest-tab[aria-selected='true'] { color: var(--guest-ink); font-weight: 700; }
+.guest-tab[aria-selected='true']::after { background: var(--guest-accent-strong); }
+
+/* A pill, so a count of zero still reads as a count and not as part of the
+   label. Muted on the inactive tab; accent-tinted on the active one. */
+.guest-tab__count {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-sunken);
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.guest-tab[aria-selected='true'] .guest-tab__count {
+  background: var(--guest-soft);
+  color: var(--guest-accent-strong);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-tab:hover { color: var(--guest-ink); }
+}
+
+/* --------------------------------------------------------------------------
+   Stay history: a finished stay opens.
+   -------------------------------------------------------------------------- */
+
+.guest-history-card {
+  width: 100%;
+  padding: 0;
+  color: var(--guest-ink);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease;
+}
+.guest-history-card:active { transform: scale(0.99); }
+
+/* The spend is why the card is worth opening, so it gets its own row rather
+   than being appended to the body's `small`. */
+.guest-history-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--guest-line);
+}
+.guest-history-card__footer span { color: var(--guest-muted); font-size: 12.5px; }
+.guest-history-card__footer b {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.014em;
+}
+.guest-history-card__footer svg { width: 14px; height: 14px; color: var(--guest-subtle); }
+
+/* Closes a category group: the sum of the cards above it. */
+.guest-stay-group-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 0 4px;
+  color: var(--guest-muted);
+  font-size: 13px;
+}
+.guest-stay-group-total b {
+  color: var(--guest-ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-history-card:hover { border-color: var(--guest-line-strong); }
+}

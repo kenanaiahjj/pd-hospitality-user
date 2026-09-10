@@ -698,6 +698,18 @@ export type PopularRoute = {
   startingPrice: string;
   operators: string[];
   tag: string;
+  flightNumber?: string;
+  departureTime?: string;
+  arrivalTime?: string;
+  originCity?: string;
+  destCity?: string;
+  originTerminal?: string;
+  destTerminal?: string;
+  gate?: string;
+  aircraft?: string;
+  cabinClass?: string;
+  onTimeRate?: string;
+  inclusions?: string[];
 };
 
 export const POPULAR_ROUTES: PopularRoute[] = [
@@ -713,6 +725,18 @@ export const POPULAR_ROUTES: PopularRoute[] = [
     startingPrice: '₱3,620',
     operators: ['AirAsia Philippines', 'Cebu Pacific', 'Philippine Airlines'],
     tag: 'Top island hop',
+    flightNumber: 'Z2 837',
+    departureTime: '07:15',
+    arrivalTime: '08:20',
+    originCity: 'Manila',
+    destCity: 'Boracay (Caticlan)',
+    originTerminal: 'Terminal 2',
+    destTerminal: 'MPH Main',
+    gate: 'Gate 22',
+    aircraft: 'Airbus A320neo',
+    cabinClass: 'Economy Lite',
+    onTimeRate: '98% on-time',
+    inclusions: ['7kg carry-on', 'Web check-in', 'Instant confirmation'],
   },
   {
     id: 'pr-2',
@@ -726,6 +750,18 @@ export const POPULAR_ROUTES: PopularRoute[] = [
     startingPrice: '₱1,250',
     operators: ['OceanJet', '2GO Travel'],
     tag: 'Daily fastcraft',
+    flightNumber: 'OJ 702',
+    departureTime: '08:20',
+    arrivalTime: '10:10',
+    originCity: 'Cebu Pier 1',
+    destCity: 'Tagbilaran (Bohol)',
+    originTerminal: 'Pier 1',
+    destTerminal: 'Tagbilaran Port',
+    gate: 'Berth 3',
+    aircraft: 'Twin-Hull Fastcraft',
+    cabinClass: 'Tourist Aircon',
+    onTimeRate: '97% on-schedule',
+    inclusions: ['Aircon cabin', '15kg luggage check', 'Instant boarding pass'],
   },
   {
     id: 'pr-3',
@@ -739,6 +775,18 @@ export const POPULAR_ROUTES: PopularRoute[] = [
     startingPrice: '₱2,850',
     operators: ['Cebu Pacific', 'Philippine Airlines'],
     tag: 'Most frequent',
+    flightNumber: '5J 563',
+    departureTime: '10:45',
+    arrivalTime: '12:10',
+    originCity: 'Manila',
+    destCity: 'Cebu City',
+    originTerminal: 'Terminal 3',
+    destTerminal: 'Terminal 2',
+    gate: 'Gate 118',
+    aircraft: 'Airbus A321neo',
+    cabinClass: 'Economy Flex',
+    onTimeRate: '96% on-time',
+    inclusions: ['7kg carry-on', 'Complimentary snack', 'In-flight Wi-Fi'],
   },
   {
     id: 'pr-4',
@@ -752,6 +800,18 @@ export const POPULAR_ROUTES: PopularRoute[] = [
     startingPrice: '₱1,450',
     operators: ['Henry Fleet'],
     tag: 'Private chauffeur',
+    flightNumber: 'HF 101',
+    departureTime: '13:30',
+    arrivalTime: '14:10',
+    originCity: 'The Henry Manila',
+    destCity: 'NAIA Terminal 3',
+    originTerminal: 'Hotel Front Lobby',
+    destTerminal: 'Departure Curbside',
+    gate: 'Chauffeur Placed',
+    aircraft: 'Camry / Grandia',
+    cabinClass: 'Executive Chauffeur',
+    onTimeRate: '100% on-schedule',
+    inclusions: ['Flight tracking', 'Meet & greet', 'Chilled water & towels'],
   },
 ];
 
@@ -1531,21 +1591,203 @@ export const RESTAURANTS: RestaurantVenue[] = [
       },
     ],
   },
+  {
+    id: 'cafe',
+    name: 'Kape Manila Café',
+    category: 'Café & Bakery',
+    operator: 'Hotel operated',
+    priceRange: 'From ₱180',
+    hours: '6:00 AM – 8:00 PM',
+    location: 'Lobby, beside reception',
+    description: 'Single-origin Philippine coffee, morning pastries, and all-day light plates by the lobby garden.',
+    cutoff: 'Walk-in & takeaway',
+    tone: 'sand',
+    menu: [
+      {
+        id: 'cafe-1',
+        name: 'Pandesal & Kesong Puti',
+        description: 'Warm stone-baked pandesal, fresh carabao milk cheese, calamansi marmalade.',
+        price: '₱220',
+        category: 'starters',
+        tag: 'Heritage',
+        dietary: ['vegetarian'],
+      },
+      {
+        id: 'cafe-2',
+        name: 'Longganisa Breakfast Bowl',
+        description: 'Vigan longganisa, garlic rice, sunny egg, pickled papaya.',
+        price: '₱420',
+        category: 'mains',
+        tag: 'All Day',
+      },
+      {
+        id: 'cafe-3',
+        name: 'Smoked Tuna Panini',
+        description: 'General Santos smoked tuna, gruyère, caramelised onion on sourdough.',
+        price: '₱390',
+        category: 'mains',
+        dietary: ['seafood'],
+      },
+      {
+        id: 'cafe-4',
+        name: 'Ube Cheese Croissant',
+        description: 'Laminated croissant, purple yam custard, salted cheese crumble.',
+        price: '₱280',
+        category: 'desserts',
+        tag: 'Popular',
+        dietary: ['vegetarian'],
+      },
+      {
+        id: 'cafe-5',
+        name: 'Bibingka Waffles',
+        description: 'Rice flour waffles, salted duck egg, coconut caramel, queso de bola.',
+        price: '₱320',
+        category: 'desserts',
+        dietary: ['vegetarian'],
+      },
+      {
+        id: 'cafe-6',
+        name: 'Barako Cold Brew',
+        description: 'Sixteen-hour cold brew from Batangas barako beans, over clear ice.',
+        price: '₱210',
+        category: 'drinks',
+        tag: 'Signature',
+        dietary: ['vegetarian', 'vegan'],
+      },
+      {
+        id: 'cafe-7',
+        name: 'Tsokolate de Batirol',
+        description: 'Stone-ground tablea whisked to a froth, toasted pinipig on the side.',
+        price: '₱240',
+        category: 'drinks',
+        dietary: ['vegetarian'],
+      },
+    ],
+  },
+  {
+    id: 'rooftop',
+    name: 'Azotea Rooftop',
+    category: 'Fine Dining',
+    operator: 'Hotel operated',
+    priceRange: 'From ₱1,200',
+    hours: '5:30 PM – 12:00 MN',
+    location: 'Ninth floor terrace',
+    description: 'A tasting-led rooftop kitchen working Philippine produce over live fire, with the bay on three sides.',
+    cutoff: '24-hour cancellation cutoff',
+    tone: 'clay',
+    menu: [
+      {
+        id: 'roof-1',
+        name: 'Kinilaw na Tanigue',
+        description: 'Line-caught mackerel cured in coconut vinegar, ginger, chili, and burnt coconut cream.',
+        price: '₱520',
+        category: 'starters',
+        tag: 'Signature',
+        dietary: ['seafood'],
+      },
+      {
+        id: 'roof-2',
+        name: 'Charred Octopus',
+        description: 'Live-fire octopus, smoked paprika oil, adlai grain, pickled shallot.',
+        price: '₱680',
+        category: 'starters',
+        dietary: ['seafood'],
+      },
+      {
+        id: 'roof-3',
+        name: 'Heirloom Tomato & Kamias',
+        description: 'Benguet heirloom tomatoes, kamias granita, basil oil, toasted pili nut crumb.',
+        price: '₱420',
+        category: 'starters',
+        dietary: ['vegetarian', 'vegan'],
+      },
+      {
+        id: 'roof-4',
+        name: 'Slow-Roast Lamb Belly',
+        description: 'Twelve-hour lamb belly, burnt eggplant purée, pickled mustard seed, jus.',
+        price: '₱1,450',
+        category: 'mains',
+        tag: 'Chef’s Special',
+      },
+      {
+        id: 'roof-5',
+        name: 'Seared Palawan Scallops',
+        description: 'Day-boat scallops, brown butter, cauliflower cream, calamansi beurre blanc.',
+        price: '₱1,280',
+        category: 'mains',
+        dietary: ['seafood'],
+      },
+      {
+        id: 'roof-6',
+        name: 'Kalabasa Gnocchi',
+        description: 'Squash gnocchi, sage brown butter, aged kesong puti, crisp malunggay.',
+        price: '₱780',
+        category: 'mains',
+        dietary: ['vegetarian'],
+      },
+      {
+        id: 'roof-7',
+        name: 'Calamansi Sorbet',
+        description: 'Sharp calamansi sorbet, basil syrup, candied zest.',
+        price: '₱280',
+        category: 'desserts',
+        dietary: ['vegetarian', 'vegan'],
+      },
+      {
+        id: 'roof-8',
+        name: 'Lambanog Negroni',
+        description: 'Coconut lambanog, Philippine bitter aperitivo, sweet vermouth, orange oil.',
+        price: '₱480',
+        category: 'drinks',
+        tag: 'Cocktail',
+        dietary: ['vegetarian', 'vegan'],
+      },
+    ],
+  },
 ];
 
 export const SERVICES = [
+  /* Dining -- the venues themselves live in RESTAURANTS; these are the rows
+     the Home rail and cross-category search read. */
   { id: 'dining', name: 'In-room dining', category: 'Dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱450', cutoff: '2-hour cancellation cutoff', tone: 'sand' },
   { id: 'restaurant', name: 'Apartment 1B', category: 'Restaurant & bar', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱550', cutoff: '2-hour cancellation cutoff', tone: 'clay' },
   { id: 'poolside-bar', name: 'The Poolside Bar & Lounge', category: 'Bar & Lounge', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱350', cutoff: 'Walk-in & lounge', tone: 'clay' },
+  { id: 'cafe', name: 'Kape Manila Café', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
+  { id: 'rooftop', name: 'Azotea Rooftop', category: 'Fine dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱1,200', cutoff: '24-hour cancellation cutoff', tone: 'clay' },
+
+  /* Spa & wellness */
   { id: 'spa', name: 'Hilom signature massage', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,400', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'scrub', name: 'Herbal body scrub & wrap', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,800', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
+  { id: 'hot-stone', name: 'Hot stone therapy', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱3,200', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
+  { id: 'couples-massage', name: 'Couples massage suite', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱4,600', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'reflexology', name: 'Express foot reflexology', category: 'Spa & massage', categoryId: 'spa', operator: 'Hotel operated', price: '₱1,200', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
+  { id: 'facial', name: 'Calamansi brightening facial', category: 'Facial & skin', categoryId: 'spa', operator: 'Third-party on property', price: '₱1,950', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
+  { id: 'mani-pedi', name: 'Manicure & pedicure', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱900', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
+  { id: 'barber', name: 'Barber & blow-dry bar', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱1,100', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
+
+  /* Entertainment & tours */
   { id: 'tour', name: 'Island day tour', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱3,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
-  { id: 'music', name: 'Sunset acoustic sessions', category: 'Live entertainment', categoryId: 'entertainment', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Friday–Sunday · 6 PM', tone: 'sun' },
   { id: 'heritage-walk', name: 'Old Manila cultural walk', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱1,500', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'food-crawl', name: 'Binondo food crawl', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱2,200', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'sunset-cruise', name: 'Manila Bay sunset cruise', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱2,600', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'diving', name: 'Discover scuba session', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱4,500', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'museum-pass', name: 'Museum & gallery pass', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱850', cutoff: 'Same-day service', tone: 'sun' },
+  { id: 'cooking-class', name: 'Filipino cooking class', category: 'Workshops', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱1,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'music', name: 'Sunset acoustic sessions', category: 'Live entertainment', categoryId: 'entertainment', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Friday–Sunday · 6 PM', tone: 'sun' },
+  { id: 'film-night', name: 'Poolside film night', category: 'Live entertainment', categoryId: 'entertainment', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Saturday · 8 PM', tone: 'sun' },
+
+  /* Hotel services */
   { id: 'transfer', name: 'Airport transfer', category: 'Transfers', categoryId: 'services', operator: 'Hotel arranged', price: '₱1,200', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  { id: 'private-car', name: 'Private car & driver', category: 'Transfers', categoryId: 'services', operator: 'Hotel arranged', price: '₱4,800 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
   { id: 'rental', name: 'City bicycle', category: 'Vehicle & bike rental', categoryId: 'services', operator: 'Hotel operated', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  { id: 'scooter', name: 'Scooter rental', category: 'Vehicle & bike rental', categoryId: 'services', operator: 'Third-party on property', price: '₱900 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
   { id: 'laundry', name: 'Express laundry & pressing', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'From ₱250', cutoff: 'Same-day service', tone: 'blue' },
+  { id: 'luggage', name: 'Luggage storage & delivery', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Same-day service', tone: 'blue' },
+  { id: 'celebration', name: 'Flowers & celebration setup', category: 'Hotel services', categoryId: 'services', operator: 'Curated guide', price: 'From ₱1,600', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
+  { id: 'trainer', name: 'Personal training session', category: 'Fitness & wellness', categoryId: 'services', operator: 'Hotel operated', price: '₱1,400', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  { id: 'babysitting', name: 'Babysitting & childcare', category: 'Family services', categoryId: 'services', operator: 'Third-party on property', price: '₱600 / hour', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
+  { id: 'meeting-room', name: 'Meeting room hire', category: 'Business services', categoryId: 'services', operator: 'Hotel operated', price: '₱2,500 / half day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
+  { id: 'doctor', name: 'On-call doctor visit', category: 'Health & medical', categoryId: 'services', operator: 'Third-party on property', price: '₱3,500', cutoff: 'Same-day service', tone: 'blue' },
 ] as const;
 
 /* --------------------------------------------------------------------------

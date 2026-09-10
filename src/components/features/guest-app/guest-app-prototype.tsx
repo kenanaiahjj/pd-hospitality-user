@@ -2,11 +2,8 @@
 
 import {
   AirplaneTilt,
-  AirplaneTakeoff,
-  AirplaneLanding,
   ArrowLeft,
   Boat,
-  Broadcast,
   ArrowRight,
   ArrowsDownUp,
   NavigationArrow,
@@ -1366,6 +1363,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'category-listing': {
         const categoryData = MINI_APP_CATEGORIES.find((cat) => cat.id === selectedCategory) ?? MINI_APP_CATEGORIES[0];
         const categoryServices = SERVICES.filter((s) => s.categoryId === selectedCategory);
+        // Venues carry their price as `priceRange`; aliasing it lets the shared
+        // filter/sort run over them unchanged.
+        const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
+        const venueOperatorFacets = availableOperators(venueRows);
+        const visibleVenues = filterServices(venueRows, { operators: serviceOperators, sort: serviceSort });
         const operatorFacets = availableOperators(categoryServices);
         const visibleServices = filterServices(categoryServices, { operators: serviceOperators, sort: serviceSort });
         const servicesNarrowed = serviceOperators.length > 0 || serviceSort !== 'recommended';
@@ -1383,8 +1385,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved offerings">Live availability and booking require a connection.</Notice> : null}
 
             {selectedCategory === 'dining' ? (
+              <>
+              <ListingControls
+                name="venues"
+                sort={serviceSort}
+                onSort={setServiceSort}
+                filters={venueOperatorFacets.map((operator) => ({ value: operator, label: operator }))}
+                selected={serviceOperators}
+                onToggleFilter={(value) => setServiceOperators((current) => (
+                  current.includes(value) ? current.filter((operator) => operator !== value) : [...current, value]
+                ))}
+                filterLabel="Operator"
+                count={visibleVenues.length}
+                nouns={['venue', 'venues']}
+                narrowed={servicesNarrowed}
+                onClear={clearServiceControls}
+              />
+              {visibleVenues.length ? (
               <div className="guest-stack" style={{ gap: '12px' }}>
-                {RESTAURANTS.map((res) => (
+                {visibleVenues.map((res) => (
                   <button
                     key={res.id}
                     className="guest-service-row"
@@ -1397,7 +1416,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       go('restaurant-menu');
                     }}
                   >
-                    <ServiceImage imageKey={res.id === 'apartment-1b' ? 'restaurant' : 'dining'} tone={res.tone} icon={<ForkKnife />} decorative />
+                    <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} tone={res.tone} icon={<ForkKnife />} decorative />
                     <div>
                       <Tag>{res.operator}</Tag>
                       <h2>{res.name}</h2>
@@ -1408,6 +1427,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   </button>
                 ))}
               </div>
+              ) : (
+                <Notice title="No venues match those filters">
+                  Clear a filter to see all {RESTAURANTS.length} venues on property.
+                </Notice>
+              )}
+              </>
             ) : (
               <>
               <ListingControls
@@ -1440,7 +1465,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       }
                     }}
                   >
-                    <ServiceImage imageKey={getServiceImageKey(service.id)} tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <AirplaneTilt /> : <Storefront />} decorative />
+                    <ServiceImage imageKey={getServiceImageKey(service)} tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <AirplaneTilt /> : <Storefront />} decorative />
                     <div>
                       <Tag>{service.operator}</Tag>
                       <h2>{service.name}</h2>
@@ -1472,7 +1497,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack guest-restaurant-menu">
             <ServiceImage
-              imageKey={venue.id === 'apartment-1b' ? 'restaurant' : 'dining'}
+              imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })}
               tone={venue.tone}
               icon={<ForkKnife size={38} />}
               decorative
@@ -1762,76 +1787,253 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <p>Book the legs between stays — flights, sailings, and the ride to your next hotel.</p>
             </div>
 
-            <div className="guest-travel-cat-grid" role="list">
-              {TRAVEL_CATEGORIES.map((category) => (
+            {/* Flighty Live Journey Radar Hero Card */}
+            <div className="guest-flighty-radar-card" role="region" aria-label="Live Journey Radar">
+              <div className="guest-flighty-radar-card__header">
+                <div className="guest-flighty-radar-live">
+                  <span className="guest-flighty-radar-beacon" aria-hidden="true" />
+                  <span className="guest-flighty-radar-label">LIVE RADAR · FLIGHT TELEMETRY</span>
+                </div>
+                <span className="guest-flighty-status-pill">
+                  <span className="guest-flighty-status-dot" aria-hidden="true" /> ON TIME · 98% RELIABLE
+                </span>
+              </div>
+
+              <div className="guest-flighty-radar-card__body">
+                <div className="guest-flighty-radar-carrier">
+                  <CarrierLogo operator="Cebu Pacific" size={24} />
+                  <div>
+                    <strong className="guest-flighty-radar-flight-num">5J 921 · Airbus A320neo</strong>
+                    <small className="guest-flighty-radar-route-sub">Manila ➔ Cagayan de Oro</small>
+                  </div>
+                </div>
+
+                <div className="guest-flighty-radar-route">
+                  <div className="guest-flighty-radar-node">
+                    <span className="guest-flighty-radar-iata">MNL</span>
+                    <span className="guest-flighty-radar-city">Manila</span>
+                    <span className="guest-flighty-radar-gate">
+                      <NavigationArrow size={10} weight="fill" aria-hidden="true" /> Gate 118
+                    </span>
+                    <span className="guest-flighty-radar-time">09:15</span>
+                  </div>
+
+                  <div className="guest-flighty-radar-path">
+                    <span className="guest-flighty-radar-duration">1h 50m</span>
+                    <div className="guest-flighty-radar-line">
+                      <span className="guest-flighty-radar-dot" aria-hidden="true" />
+                      <div className="guest-flighty-radar-dash">
+                        <AirplaneTilt size={14} weight="fill" className="guest-flighty-radar-plane" aria-hidden="true" />
+                      </div>
+                      <span className="guest-flighty-radar-dot" aria-hidden="true" />
+                    </div>
+                    <span className="guest-flighty-radar-status">Cruising 32,000 ft</span>
+                  </div>
+
+                  <div className="guest-flighty-radar-node is-dest">
+                    <span className="guest-flighty-radar-iata">CGY</span>
+                    <span className="guest-flighty-radar-city">Cagayan de Oro</span>
+                    <span className="guest-flighty-radar-belt">
+                      <SuitcaseRolling size={10} weight="bold" aria-hidden="true" /> Belt 4
+                    </span>
+                    <span className="guest-flighty-radar-time">11:05</span>
+                  </div>
+                </div>
+
+                <div className="guest-flighty-radar-strip">
+                  <div className="guest-flighty-radar-stat">
+                    <span className="guest-flighty-stat-label">Boarding</span>
+                    <span className="guest-flighty-stat-val">08:35 (T3)</span>
+                  </div>
+                  <div className="guest-flighty-radar-stat">
+                    <span className="guest-flighty-stat-label">Aircraft</span>
+                    <span className="guest-flighty-stat-val">RP-C4118</span>
+                  </div>
+                  <div className="guest-flighty-radar-stat">
+                    <span className="guest-flighty-stat-label">Tail Wind</span>
+                    <span className="guest-flighty-stat-val">18 kts ENE</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="guest-flighty-radar-card__footer">
                 <button
-                  key={category.id}
-                  className="guest-travel-cat-card"
                   type="button"
+                  className="guest-flighty-radar-action"
                   onClick={() => {
-                    setSelectedTravel(category.id);
+                    setSelectedTravel('flights');
                     setSelectedFare(null);
-                    setTravelFrom('');
-                    setTravelTo('');
+                    setTravelFrom('Manila (MNL)');
+                    setTravelTo('Cagayan de Oro (CGY)');
                     go('travel-search');
                   }}
                 >
-                  <div className="guest-travel-cat-card__icon-wrap">
-                    <span className="guest-travel-cat-card__icon">{TRAVEL_ICONS[category.id]}</span>
-                    <span className="guest-travel-cat-card__pill">
-                      {category.id === 'flights' ? 'Flagship & LCC' : category.id === 'ferries' ? 'Fast Craft' : category.id === 'transfers' ? 'Chauffeur' : 'Instant'}
-                    </span>
-                  </div>
-                  <div className="guest-travel-cat-card__content">
-                    <b>{category.title}</b>
-                    <small>{category.subtitle}</small>
-                  </div>
-                  <div className="guest-travel-cat-card__meta">
-                    <span>
-                      {category.id === 'flights' ? 'From ₱3,620' : category.id === 'ferries' ? 'From ₱980' : category.id === 'transfers' ? 'From ₱480' : 'From ₱390'}
-                    </span>
-                    <CaretRight size={14} aria-hidden="true" />
-                  </div>
+                  <span>Track & book this leg</span>
+                  <ArrowRight size={14} weight="bold" aria-hidden="true" />
                 </button>
-              ))}
+              </div>
+            </div>
+
+            {/* Flighty Transit Modes Grid */}
+            <div className="guest-travel-cat-grid" role="list">
+              {TRAVEL_CATEGORIES.map((category) => {
+                const modeCode = category.id === 'flights' ? 'AIR · 01' : category.id === 'ferries' ? 'SEA · 02' : category.id === 'transfers' ? 'LND · 03' : 'COV · 04';
+                const tag = category.id === 'flights' ? 'Flagship & LCC' : category.id === 'ferries' ? 'Fast Craft' : category.id === 'transfers' ? 'Chauffeur' : 'Instant';
+                const priceText = category.id === 'flights' ? 'From ₱3,620' : category.id === 'ferries' ? 'From ₱980' : category.id === 'transfers' ? 'From ₱480' : 'From ₱390';
+
+                return (
+                  <button
+                    key={category.id}
+                    className="guest-travel-cat-card"
+                    type="button"
+                    onClick={() => {
+                      setSelectedTravel(category.id);
+                      setSelectedFare(null);
+                      setTravelFrom('');
+                      setTravelTo('');
+                      go('travel-search');
+                    }}
+                  >
+                    <div className="guest-travel-cat-card__header">
+                      <span className="guest-flighty-mode-badge">{modeCode}</span>
+                      <span className="guest-travel-cat-card__pill">{tag}</span>
+                    </div>
+                    <div className="guest-travel-cat-card__icon-wrap">
+                      <span className="guest-travel-cat-card__icon">{TRAVEL_ICONS[category.id]}</span>
+                    </div>
+                    <div className="guest-travel-cat-card__content">
+                      <b>{category.title}</b>
+                      <small>{category.subtitle}</small>
+                    </div>
+                    <div className="guest-travel-cat-card__meta">
+                      <span className="guest-travel-cat-card__price">{priceText}</span>
+                      <CaretRight size={14} aria-hidden="true" />
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             <section className="guest-travel-section">
               <div className="guest-section-heading">
                 <h2>Popular island routes</h2>
               </div>
-              <div className="guest-popular-routes-grid">
-                {POPULAR_ROUTES.map((route) => (
-                  <button
-                    key={route.id}
-                    type="button"
-                    className="guest-popular-route-card"
-                    onClick={() => {
-                      setSelectedTravel(route.category);
-                      setSelectedFare(null);
-                      setTravelFrom(route.origin);
-                      setTravelTo(route.destination);
-                      go('travel-search');
-                    }}
-                  >
-                    <div className="guest-popular-route-card__top">
-                      <div className="guest-popular-route-card__carrier">
-                        <CarrierLogo operator={route.operators[0] ?? ''} size={24} />
-                        <span>{route.operators[0]}</span>
+              <div className="guest-flighty-booking-cards" role="list">
+                {POPULAR_ROUTES.map((route) => {
+                  const actionLabel = route.category === 'flights' ? 'Book flight' : route.category === 'ferries' ? 'Book ferry' : 'Book ride';
+
+                  return (
+                    <button
+                      key={route.id}
+                      type="button"
+                      className="guest-flighty-booking-card"
+                      onClick={() => {
+                        setSelectedTravel(route.category);
+                        setSelectedFare(null);
+                        setTravelFrom(route.origin);
+                        setTravelTo(route.destination);
+                        go('travel-search');
+                      }}
+                    >
+                      {/* Top Header: Airline logo, flight number, aircraft, and status badge */}
+                      <div className="guest-flighty-booking-card__top">
+                        <div className="guest-flighty-booking-card__carrier">
+                          <CarrierLogo operator={route.operators[0] ?? ''} size={30} />
+                          <div>
+                            <div className="guest-flighty-booking-card__carrier-title">
+                              <strong>{route.operators[0]}</strong>
+                              {route.flightNumber ? (
+                                <span className="guest-flighty-booking-card__flight-code">{route.flightNumber}</span>
+                              ) : null}
+                            </div>
+                            <div className="guest-flighty-booking-card__aircraft-meta">
+                              <span>{route.aircraft ?? 'Scheduled Craft'}</span>
+                              <span className="guest-flighty-dot-sep">·</span>
+                              <span>{route.cabinClass ?? 'Standard'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="guest-flighty-booking-card__badges">
+                          <span className="guest-flighty-status-pill is-sm">
+                            <span className="guest-flighty-status-dot" aria-hidden="true" /> {route.onTimeRate ?? 'ON TIME'}
+                          </span>
+                          <span className="guest-flighty-tag-pill">{route.tag}</span>
+                        </div>
                       </div>
-                      <span className="guest-popular-route-card__badge">{route.tag}</span>
-                    </div>
-                    <div className="guest-popular-route-card__title">
-                      <strong>{route.title}</strong>
-                    </div>
-                    <div className="guest-popular-route-card__bottom">
-                      <span className="guest-popular-route-card__duration">
-                        <Clock size={12} weight="bold" /> {route.duration}
-                      </span>
-                      <span className="guest-popular-route-card__price">From {route.startingPrice}</span>
-                    </div>
-                  </button>
-                ))}
+
+                      {/* Flight Route & Dual Node Telemetry */}
+                      <div className="guest-flighty-booking-card__route-telemetry">
+                        {/* Origin Node */}
+                        <div className="guest-flighty-booking-card__node">
+                          <span className="guest-flighty-booking-card__time">{route.departureTime ?? '07:15'}</span>
+                          <span className="guest-flighty-booking-card__iata">{route.originCode}</span>
+                          <span className="guest-flighty-booking-card__city">{route.originCity ?? route.origin}</span>
+                          {route.gate ? (
+                            <span className="guest-flighty-gate-tag">
+                              <NavigationArrow size={10} weight="fill" aria-hidden="true" /> {route.gate}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {/* Flight Track */}
+                        <div className="guest-flighty-booking-card__track">
+                          <span className="guest-flighty-booking-card__duration">
+                            <Clock size={11} weight="bold" aria-hidden="true" /> {route.duration}
+                          </span>
+                          <div className="guest-flighty-booking-card__flight-line">
+                            <span className="guest-flighty-booking-card__line-dot" aria-hidden="true" />
+                            <div className="guest-flighty-booking-card__glyph-wrap">
+                              {route.category === 'flights' ? (
+                                <AirplaneTilt size={14} weight="fill" className="guest-flighty-booking-card__glyph" aria-hidden="true" />
+                              ) : route.category === 'ferries' ? (
+                                <Boat size={14} weight="fill" className="guest-flighty-booking-card__glyph" aria-hidden="true" />
+                              ) : (
+                                <Van size={14} weight="fill" className="guest-flighty-booking-card__glyph" aria-hidden="true" />
+                              )}
+                            </div>
+                            <span className="guest-flighty-booking-card__line-dot" aria-hidden="true" />
+                          </div>
+                          <span className="guest-flighty-booking-card__type">Non-stop Direct</span>
+                        </div>
+
+                        {/* Destination Node */}
+                        <div className="guest-flighty-booking-card__node is-dest">
+                          <span className="guest-flighty-booking-card__time">{route.arrivalTime ?? '08:20'}</span>
+                          <span className="guest-flighty-booking-card__iata">{route.destCode}</span>
+                          <span className="guest-flighty-booking-card__city">{route.destCity ?? route.destination}</span>
+                          {route.destTerminal ? (
+                            <span className="guest-flighty-terminal">{route.destTerminal}</span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {/* Inclusions Chips */}
+                      {route.inclusions && route.inclusions.length > 0 ? (
+                        <div className="guest-flighty-booking-card__inclusions">
+                          {route.inclusions.map((inc) => (
+                            <span key={inc} className="guest-flighty-booking-card__inc-pill">
+                              <Check size={11} weight="bold" aria-hidden="true" /> {inc}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {/* Card Footer: Starting Price + Airline Booking Button */}
+                      <div className="guest-flighty-booking-card__bottom">
+                        <div className="guest-flighty-booking-card__fare-lockup">
+                          <span className="guest-flighty-booking-card__fare-label">Starting fare per guest</span>
+                          <strong className="guest-flighty-booking-card__fare-price">From {route.startingPrice}</strong>
+                        </div>
+
+                        <span className="guest-flighty-booking-card__cta">
+                          <span>{actionLabel}</span>
+                          <ArrowRight size={14} weight="bold" aria-hidden="true" />
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </section>
 
@@ -1839,7 +2041,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <div className="guest-travel-carrier-banner">
                 <div className="guest-travel-carrier-banner__head">
                   <span className="guest-carrier-trust-badge">
-                    <ShieldCheck size={14} weight="fill" /> Verified Partner Network
+                    <ShieldCheck size={14} weight="fill" aria-hidden="true" /> Verified Partner Network
                   </span>
                   <p>Direct inventory from Philippine flagships, fast craft, and trusted underwriters.</p>
                 </div>
@@ -1981,6 +2183,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 const isSelected = option.id === selectedFare;
                 const originCode = category.route ? extractLocationCode(currentFrom) : null;
                 const destCode = category.route ? extractLocationCode(currentTo) : null;
+                const originCity = category.route ? extractLocationName(currentFrom) : null;
+                const destCity = category.route ? extractLocationName(currentTo) : null;
 
                 return (
                   <button
@@ -1995,44 +2199,69 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                         <CarrierLogo operator={option.operator} size={32} />
                         <div>
                           <b>{option.operator}</b>
-                          {option.carrierCode ? (
-                            <span className="guest-travel-carrier-code">{option.carrierCode}</span>
-                          ) : null}
+                          <div className="guest-travel-carrier-sub">
+                            {option.carrierCode ? (
+                              <span className="guest-travel-carrier-code">{option.carrierCode}</span>
+                            ) : null}
+                            {option.vesselOrVehicle ? (
+                              <span className="guest-flighty-vessel-badge">{option.vesselOrVehicle}</span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-                      {option.badge ? (
-                        <span className="guest-travel-badge-pill">{option.badge}</span>
-                      ) : null}
+                      <div className="guest-travel-option__badges">
+                        {option.onTimeRate ? (
+                          <span className="guest-flighty-status-pill is-sm">
+                            <span className="guest-flighty-status-dot" aria-hidden="true" /> {option.onTimeRate}
+                          </span>
+                        ) : null}
+                        {option.badge ? (
+                          <span className="guest-travel-badge-pill">{option.badge}</span>
+                        ) : null}
+                      </div>
                     </div>
 
                     {option.departureTime && option.arrivalTime ? (
                       <div className="guest-travel-timeline">
                         <div className="guest-travel-time-point">
                           <span className="guest-travel-time-main">{option.departureTime}</span>
-                          <span className="guest-travel-code">{originCode}</span>
+                          <span className="guest-travel-code">{originCode} · {originCity}</span>
+                          {option.gate ? (
+                            <span className="guest-flighty-gate-tag">
+                              <NavigationArrow size={10} weight="fill" aria-hidden="true" /> {option.gate}
+                            </span>
+                          ) : null}
+                          {option.terminal ? (
+                            <span className="guest-flighty-terminal">{option.terminal}</span>
+                          ) : null}
                         </div>
 
                         <div className="guest-travel-flight-path">
                           <span className="guest-travel-duration">{option.duration ?? 'Direct'}</span>
                           <div className="guest-travel-flight-line">
-                            <span className="guest-travel-line-dot" />
+                            <span className="guest-travel-line-dot" aria-hidden="true" />
                             <span className="guest-travel-line-glyph">
                               {category.id === 'flights' ? (
-                                <AirplaneTilt size={13} weight="fill" />
+                                <AirplaneTilt size={14} weight="fill" aria-hidden="true" />
                               ) : category.id === 'ferries' ? (
-                                <Boat size={13} weight="fill" />
+                                <Boat size={14} weight="fill" aria-hidden="true" />
                               ) : (
-                                <Van size={13} weight="fill" />
+                                <Van size={14} weight="fill" aria-hidden="true" />
                               )}
                             </span>
-                            <span className="guest-travel-line-dot" />
+                            <span className="guest-travel-line-dot" aria-hidden="true" />
                           </div>
                           <span className="guest-travel-path-sub">Non-stop</span>
                         </div>
 
                         <div className="guest-travel-time-point is-destination">
                           <span className="guest-travel-time-main">{option.arrivalTime}</span>
-                          <span className="guest-travel-code">{destCode}</span>
+                          <span className="guest-travel-code">{destCode} · {destCity}</span>
+                          {option.baggageBelt ? (
+                            <span className="guest-flighty-baggage-tag">
+                              <SuitcaseRolling size={10} weight="bold" aria-hidden="true" /> {option.baggageBelt}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     ) : null}
@@ -2045,7 +2274,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       <div className="guest-travel-inclusions">
                         {option.inclusions.map((tag) => (
                           <span key={tag} className="guest-travel-tag">
-                            <Check size={11} weight="bold" />
+                            <Check size={11} weight="bold" aria-hidden="true" />
                             {tag}
                           </span>
                         ))}
@@ -2053,10 +2282,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     ) : null}
 
                     <div className="guest-travel-option__footer">
-                      <span className="guest-travel-price-caption">
-                        {category.partyLabel === 'Passengers' ? 'Per passenger' : 'Per policy'}
-                      </span>
-                      <strong className="guest-travel-price-val">{option.price}</strong>
+                      <div>
+                        <span className="guest-travel-price-caption">
+                          {category.partyLabel === 'Passengers' ? 'Per passenger' : 'Per policy'}
+                        </span>
+                        <strong className="guest-travel-price-val">{option.price}</strong>
+                      </div>
+                      {isSelected ? (
+                        <span className="guest-flighty-selected-indicator">
+                          <CheckCircle size={16} weight="fill" aria-hidden="true" /> Selected
+                        </span>
+                      ) : (
+                        <span className="guest-flighty-select-prompt">Select fare <CaretRight size={12} aria-hidden="true" /></span>
+                      )}
                     </div>
                   </button>
                 );
@@ -2112,8 +2350,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <p>{routeLabel ?? 'Cover for the whole trip'}</p>
             </div>
 
-            {/* Itinerary / Boarding Pass preview */}
+            {/* Itinerary / Flighty Passbook Ticket preview */}
             <div className="guest-travel-ticket-preview">
+              <div className="guest-travel-ticket-preview__notch-left" aria-hidden="true" />
+              <div className="guest-travel-ticket-preview__notch-right" aria-hidden="true" />
+
               <div className="guest-travel-ticket-preview__top">
                 <div className="guest-travel-ticket-preview__carrier">
                   <CarrierLogo operator={fare.operator} size={28} />
@@ -2122,7 +2363,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     <small>{fare.carrierCode ?? fare.detail}</small>
                   </div>
                 </div>
-                <span className="guest-travel-ticket-pill">Direct</span>
+                <span className="guest-flighty-status-pill is-sm">
+                  <span className="guest-flighty-status-dot" aria-hidden="true" /> ON SCHEDULE
+                </span>
               </div>
 
               {routeLabel ? (
@@ -2130,14 +2373,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <div className="guest-travel-ticket-point">
                     <span>{category.route ? extractLocationCode(category.route.defaultFrom) : 'DEP'}</span>
                     <small>{fare.departureTime ?? 'Depart'}</small>
+                    {fare.terminal ? <span className="guest-flighty-ticket-sub">{fare.terminal}</span> : null}
                   </div>
                   <div className="guest-travel-ticket-line">
                     <span>{fare.duration ?? ''}</span>
                     <div className="guest-travel-ticket-dash" />
+                    <span className="guest-flighty-ticket-nonstop">Non-stop</span>
                   </div>
                   <div className="guest-travel-ticket-point is-end">
                     <span>{category.route ? extractLocationCode(category.route.defaultTo) : 'ARR'}</span>
                     <small>{fare.arrivalTime ?? 'Arrive'}</small>
+                    {fare.gate ? <span className="guest-flighty-ticket-sub">{fare.gate}</span> : null}
                   </div>
                 </div>
               ) : (
@@ -2256,6 +2502,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             text={`${booked.operator} has your booking. Nothing was added to your room folio.`}
           >
             <div className="guest-travel-confirmation-pass">
+              <div className="guest-travel-confirmation-pass__notch-left" aria-hidden="true" />
+              <div className="guest-travel-confirmation-pass__notch-right" aria-hidden="true" />
+
               <div className="guest-travel-confirmation-pass__header">
                 <CarrierLogo operator={booked.operator} size={28} />
                 <div className="guest-travel-confirmation-pass__operator">
@@ -2308,6 +2557,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <span style={{ width: 4 }} />
                 </div>
                 <span className="guest-travel-barcode-code">{booked.reference} · E-TICKET ISSUED</span>
+              </div>
+
+              <div className="guest-flighty-wallet-action">
+                <button type="button" className="guest-flighty-wallet-button">
+                  <Ticket size={15} weight="bold" aria-hidden="true" /> Add to Apple Wallet
+                </button>
               </div>
             </div>
             <Notice title="Bring government ID">
@@ -2867,7 +3122,7 @@ function FeaturedRail({ onOpenCategory }: { onOpenCategory: (category: MiniAppCa
             onClick={() => onOpenCategory(service.categoryId)}
           >
             <ServiceImage
-              imageKey={getServiceImageKey(service.id)}
+              imageKey={getServiceImageKey(service)}
               tone={service.tone}
               icon={<CategoryIcon id={service.categoryId} />}
               decorative

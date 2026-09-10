@@ -1847,8 +1847,364 @@
 }
 
 /* --------------------------------------------------------------------------
-   Travel Hub: Category Cards, Popular Routes & Partner Carrier Banner
+   Travel Hub: Flighty Live Radar Card, Transit Modes & Popular Routes
    -------------------------------------------------------------------------- */
+
+/* Common Flighty telemetry chips */
+.guest-flighty-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--guest-radius-pill);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #059669;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.guest-flighty-status-pill.is-sm {
+  padding: 2px 7px;
+  font-size: 10px;
+  gap: 4px;
+}
+
+.guest-flighty-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+}
+
+.guest-flighty-gate-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: var(--guest-radius-pill);
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.guest-flighty-baggage-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-surface);
+  border: 1px solid var(--guest-line);
+  color: var(--guest-ink);
+  font-size: 10.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.guest-flighty-vessel-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--guest-muted);
+}
+
+.guest-flighty-terminal {
+  font-size: 11px;
+  color: var(--guest-subtle);
+  font-weight: 550;
+}
+
+/* Flighty Live Journey Radar Hero Card */
+.guest-flighty-radar-card {
+  position: relative;
+  overflow: hidden;
+  padding: 18px 20px;
+  border-radius: var(--guest-radius-lg);
+  background: linear-gradient(145deg, #18191E 0%, #111216 100%);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  display: grid;
+  gap: 16px;
+}
+
+.guest-flighty-radar-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 85% 15%, rgba(224, 76, 150, 0.15), transparent 45%);
+  pointer-events: none;
+}
+
+.guest-flighty-radar-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.guest-flighty-radar-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.guest-flighty-radar-beacon {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 10px #10B981;
+  animation: guest-flighty-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes guest-flighty-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.guest-flighty-radar-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
+  font-family: var(--font-mono, monospace);
+}
+
+.guest-flighty-radar-card__body {
+  display: grid;
+  gap: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.guest-flighty-radar-carrier {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guest-flighty-radar-flight-num {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+}
+
+.guest-flighty-radar-route-sub {
+  display: block;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.guest-flighty-radar-route {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.guest-flighty-radar-node {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 70px;
+}
+
+.guest-flighty-radar-node.is-dest {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.guest-flighty-radar-iata {
+  font-size: 28px;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-family: var(--font-mono, monospace);
+}
+
+.guest-flighty-radar-city {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.guest-flighty-radar-gate {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: var(--guest-radius-pill);
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.guest-flighty-radar-belt {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: var(--guest-radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.guest-flighty-radar-time {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #FFFFFF;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-flighty-radar-path {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.guest-flighty-radar-duration {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-flighty-radar-line {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.guest-flighty-radar-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.guest-flighty-radar-dash {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guest-flighty-radar-dash::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2), rgba(224, 76, 150, 0.8), rgba(255, 255, 255, 0.2));
+}
+
+.guest-flighty-radar-plane {
+  position: relative;
+  z-index: 1;
+  color: #FFFFFF;
+  background: #141519;
+  padding: 0 4px;
+}
+
+.guest-flighty-radar-status {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #10B981;
+}
+
+.guest-flighty-radar-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--guest-radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.guest-flighty-radar-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.guest-flighty-stat-label {
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.guest-flighty-stat-val {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-flighty-radar-card__footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
+}
+
+.guest-flighty-radar-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: var(--guest-radius-sm);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+
+.guest-flighty-radar-action:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Transit Modes Category Cards */
 .guest-travel-cat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1863,7 +2219,7 @@
   padding: 14px;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
-  border: 1px solid var(--guest-line);
+  border: 1.5px solid var(--guest-line);
   color: var(--guest-ink);
   text-align: left;
   cursor: pointer;
@@ -1880,38 +2236,52 @@
   transform: scale(0.98);
 }
 
-.guest-travel-cat-card__icon-wrap {
+.guest-travel-cat-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.guest-flighty-mode-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--guest-subtle);
+  letter-spacing: 0.05em;
+}
+
+.guest-travel-cat-card__pill {
+  font-size: 9.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--guest-surface);
+  color: var(--guest-muted);
+  border: 1px solid var(--guest-line);
+}
+
+.guest-travel-cat-card__icon-wrap {
+  display: flex;
+  align-items: center;
 }
 
 .guest-travel-cat-card__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--guest-radius-sm);
   background: #FBDCE6;
   color: var(--guest-ink);
+  box-shadow: inset 0 0 0 1px rgba(224, 76, 150, 0.15);
 }
 
 .guest-travel-cat-card__icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.guest-travel-cat-card__pill {
-  font-size: 10px;
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--guest-surface);
-  color: var(--guest-muted);
-  border: 1px solid var(--guest-line);
+  width: 22px;
+  height: 22px;
 }
 
 .guest-travel-cat-card__content {
@@ -1938,9 +2308,13 @@
   justify-content: space-between;
   padding-top: 8px;
   border-top: 1px solid var(--guest-line);
-  font-size: 11.5px;
-  font-weight: 650;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--guest-brand);
+}
+
+.guest-travel-cat-card__price {
+  font-variant-numeric: tabular-nums;
 }
 
 .guest-travel-section {
@@ -1949,87 +2323,283 @@
   margin-top: 4px;
 }
 
-.guest-popular-routes-grid {
+/* Flighty Route Board */
+/* --------------------------------------------------------------------------
+   Flighty Airline Route Booking Cards (1 card per row)
+   -------------------------------------------------------------------------- */
+.guest-flighty-booking-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 14px;
 }
 
-.guest-popular-route-card {
+.guest-flighty-booking-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  width: 100%;
+  gap: 14px;
+  padding: 16px 18px;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
-  border: 1px solid var(--guest-line);
+  border: 1.5px solid var(--guest-line);
   text-align: left;
   cursor: pointer;
   box-shadow: var(--shadow-xs);
-  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease;
+  color: var(--guest-ink);
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
-.guest-popular-route-card:hover {
+.guest-flighty-booking-card:hover {
   border-color: #CBD0D6;
+  box-shadow: var(--shadow-sm);
 }
 
-.guest-popular-route-card:active {
-  transform: scale(0.98);
+.guest-flighty-booking-card:hover .guest-flighty-booking-card__cta {
+  background: var(--guest-accent-strong);
+  transform: translateX(2px);
 }
 
-.guest-popular-route-card__top {
+.guest-flighty-booking-card:active {
+  transform: scale(0.99);
+}
+
+.guest-flighty-booking-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.guest-flighty-booking-card__carrier {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
 }
 
-.guest-popular-route-card__carrier {
+.guest-flighty-booking-card__carrier-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guest-flighty-booking-card__carrier-title strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--guest-ink);
+}
+
+.guest-flighty-booking-card__flight-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 750;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--guest-surface);
+  border: 1px solid var(--guest-line);
+  color: var(--guest-ink);
+}
+
+.guest-flighty-booking-card__aircraft-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--guest-muted);
+  margin-top: 1px;
+}
+
+.guest-flighty-dot-sep {
+  color: var(--guest-subtle);
+}
+
+.guest-flighty-booking-card__badges {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--guest-muted);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.guest-popular-route-card__badge {
-  font-size: 9.5px;
-  font-weight: 600;
-  padding: 2px 6px;
+.guest-flighty-tag-pill {
+  font-size: 10px;
+  font-weight: 650;
+  padding: 2.5px 8px;
   border-radius: 999px;
   background: var(--guest-surface);
   color: var(--guest-muted);
+  border: 1px solid var(--guest-line);
 }
 
-.guest-popular-route-card__title strong {
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--guest-ink);
-  line-height: 1.35;
-  display: block;
-}
-
-.guest-popular-route-card__bottom {
+.guest-flighty-booking-card__route-telemetry {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11.5px;
-  margin-top: auto;
-  padding-top: 6px;
-  border-top: 1px solid var(--guest-line);
+  gap: 12px;
+  padding: 4px 0;
 }
 
-.guest-popular-route-card__duration {
+.guest-flighty-booking-card__node {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 80px;
+}
+
+.guest-flighty-booking-card__node.is-dest {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.guest-flighty-booking-card__time {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--guest-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.guest-flighty-booking-card__iata {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--guest-ink);
+}
+
+.guest-flighty-booking-card__city {
+  font-size: 11.5px;
+  color: var(--guest-muted);
+  line-height: 1.25;
+}
+
+.guest-flighty-booking-card__track {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+}
+
+.guest-flighty-booking-card__duration {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--guest-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-flighty-booking-card__flight-line {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.guest-flighty-booking-card__line-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--guest-line-strong);
+  flex-shrink: 0;
+}
+
+.guest-flighty-booking-card__glyph-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
   color: var(--guest-muted);
 }
 
-.guest-popular-route-card__price {
-  font-weight: 700;
+.guest-flighty-booking-card__glyph-wrap::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--guest-line-strong);
+  z-index: 0;
+}
+
+.guest-flighty-booking-card__glyph {
+  position: relative;
+  z-index: 1;
+  background: var(--guest-paper);
+  padding: 0 5px;
+}
+
+.guest-flighty-booking-card__type {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--guest-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.guest-flighty-booking-card__inclusions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.guest-flighty-booking-card__inc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 550;
+  padding: 2.5px 8px;
+  border-radius: 999px;
+  background: var(--guest-surface);
+  color: var(--guest-muted);
+  border: 1px solid var(--guest-line);
+}
+
+.guest-flighty-booking-card__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--guest-line);
+  margin-top: 2px;
+}
+
+.guest-flighty-booking-card__fare-lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.guest-flighty-booking-card__fare-label {
+  font-size: 11px;
+  color: var(--guest-muted);
+}
+
+.guest-flighty-booking-card__fare-price {
+  font-size: 18px;
+  font-weight: 800;
   color: var(--guest-ink);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.guest-flighty-booking-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-ink);
+  color: #FFFFFF;
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: background-color var(--duration-fast) ease, transform var(--duration-fast) ease;
 }
 
 .guest-travel-carrier-banner {
@@ -2224,17 +2794,20 @@
   text-underline-offset: 3px;
 }
 
+/* --------------------------------------------------------------------------
+   Travel Search & Flighty Departure Cards
+   -------------------------------------------------------------------------- */
 .guest-travel-options {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .guest-travel-option {
   display: flex;
   flex-direction: column;
   width: 100%;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 16px 18px;
   border: 1.5px solid var(--guest-line);
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
@@ -2255,35 +2828,52 @@
 }
 
 .guest-travel-option[aria-pressed='true'] {
-  border-color: var(--guest-accent-strong);
+  border-color: var(--guest-brand);
   background: #FFFFFF;
-  box-shadow: 0 0 0 1px var(--guest-accent-strong), var(--shadow-sm);
+  box-shadow: 0 0 0 1px var(--guest-brand), var(--shadow-sm);
 }
 
 .guest-travel-option__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .guest-travel-option__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .guest-travel-option__brand b {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--guest-ink);
   display: block;
 }
 
+.guest-travel-carrier-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+}
+
 .guest-travel-carrier-code {
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--guest-muted);
+  font-family: var(--font-mono, monospace);
+}
+
+.guest-travel-option__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .guest-travel-badge-pill {
@@ -2301,33 +2891,35 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 4px 0;
+  padding: 6px 0;
 }
 
 .guest-travel-time-point {
   display: flex;
   flex-direction: column;
-  min-width: 58px;
+  gap: 2px;
+  min-width: 80px;
 }
 
 .guest-travel-time-point.is-destination {
   text-align: right;
+  align-items: flex-end;
 }
 
 .guest-travel-time-main {
-  font-size: 18px;
-  font-weight: 750;
+  font-size: 20px;
+  font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--guest-ink);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .guest-travel-code {
   font-size: 11px;
   font-weight: 700;
   color: var(--guest-muted);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .guest-travel-flight-path {
@@ -2335,12 +2927,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
+  padding: 0 4px;
 }
 
 .guest-travel-duration {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--guest-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -2353,8 +2946,8 @@
 }
 
 .guest-travel-line-dot {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--guest-line-strong);
   flex-shrink: 0;
@@ -2384,12 +2977,12 @@
   position: relative;
   z-index: 1;
   background: var(--guest-paper);
-  padding: 0 4px;
+  padding: 0 5px;
 }
 
 .guest-travel-path-sub {
   font-size: 10px;
-  font-weight: 550;
+  font-weight: 600;
   color: var(--guest-subtle);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2422,36 +3015,83 @@
 
 .guest-travel-option__footer {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--guest-line);
   margin-top: 2px;
 }
 
 .guest-travel-price-caption {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--guest-muted);
+  display: block;
 }
 
 .guest-travel-price-val {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--guest-ink);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.guest-flighty-selected-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--guest-brand);
+}
+
+.guest-flighty-select-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--guest-muted);
 }
 
 /* --------------------------------------------------------------------------
    Travel Checkout & Confirmation Pass
    -------------------------------------------------------------------------- */
 .guest-travel-ticket-preview {
+  position: relative;
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
+  padding: 20px;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
-  border: 1px solid var(--guest-line);
-  box-shadow: var(--shadow-xs);
+  border: 1.5px solid var(--guest-line);
+  box-shadow: var(--shadow-sm);
+}
+
+.guest-travel-ticket-preview__notch-left,
+.guest-travel-confirmation-pass__notch-left {
+  position: absolute;
+  left: -9px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--guest-surface);
+  border-right: 1.5px solid var(--guest-line);
+  transform: translateY(-50%);
+}
+
+.guest-travel-ticket-preview__notch-right,
+.guest-travel-confirmation-pass__notch-right {
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--guest-surface);
+  border-left: 1.5px solid var(--guest-line);
+  transform: translateY(-50%);
 }
 
 .guest-travel-ticket-preview__top {
@@ -2467,7 +3107,7 @@
 }
 
 .guest-travel-ticket-preview__carrier strong {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--guest-ink);
   display: block;
@@ -2479,20 +3119,11 @@
   display: block;
 }
 
-.guest-travel-ticket-pill {
-  font-size: 10.5px;
-  font-weight: 650;
-  padding: 2.5px 8px;
-  border-radius: 999px;
-  background: var(--guest-positive-soft);
-  color: var(--guest-positive);
-}
-
 .guest-travel-ticket-preview__route {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 12px 0;
   border-top: 1px dashed var(--guest-line-strong);
   border-bottom: 1px dashed var(--guest-line-strong);
 }
@@ -2507,15 +3138,24 @@
 }
 
 .guest-travel-ticket-point span {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--guest-ink);
   letter-spacing: -0.01em;
+  font-family: var(--font-mono, monospace);
 }
 
 .guest-travel-ticket-point small {
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--guest-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-flighty-ticket-sub {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--guest-subtle);
 }
 
 .guest-travel-ticket-line {
@@ -2529,8 +3169,16 @@
 
 .guest-travel-ticket-line span {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--guest-muted);
+}
+
+.guest-flighty-ticket-nonstop {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--guest-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .guest-travel-ticket-dash {
@@ -2556,7 +3204,7 @@
   justify-content: space-between;
   font-size: 12px;
   color: var(--guest-muted);
-  font-weight: 550;
+  font-weight: 600;
 }
 
 .guest-travel-payment-methods {
@@ -2601,12 +3249,13 @@
 }
 
 .guest-travel-confirmation-pass {
+  position: relative;
   display: grid;
   gap: 14px;
-  padding: 18px;
+  padding: 20px;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
-  border: 1px solid var(--guest-line);
+  border: 1.5px solid var(--guest-line);
   box-shadow: var(--shadow-sm);
   text-align: left;
 }
@@ -2654,7 +3303,7 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--guest-muted);
-  font-weight: 600;
+  font-weight: 650;
   margin-bottom: 2px;
 }
 
@@ -2677,7 +3326,7 @@
   display: flex;
   align-items: stretch;
   gap: 3px;
-  height: 36px;
+  height: 38px;
 }
 
 .guest-travel-barcode-lines span {
@@ -2687,11 +3336,37 @@
 }
 
 .guest-travel-barcode-code {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--guest-muted);
   font-family: var(--font-mono, monospace);
+}
+
+.guest-flighty-wallet-action {
+  display: flex;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.guest-flighty-wallet-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #000000;
+  color: #FFFFFF;
+  border: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out), opacity var(--duration-fast) ease;
+}
+
+.guest-flighty-wallet-button:hover {
+  opacity: 0.9;
 }
 
 /* --------------------------------------------------------------------------

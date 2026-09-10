@@ -45,17 +45,23 @@ export const SERVICE_IMAGES: Record<ServiceImageKey, ServiceImageDefinition> = {
   },
 };
 
+/** Services whose subject is a vehicle, whatever category they sit in. */
+const TRANSPORT_SERVICE_IDS = new Set(['transfer', 'private-car', 'rental', 'scooter']);
+
 /**
- * The photo for a service id. The category listing carried this as an inline
- * ternary; the Home rail needed the same mapping, and two copies of it is how
- * one surface ends up showing a massage a picture of a van.
+ * The photo for a service. Keyed on category rather than on a list of ids, so
+ * a service added to the catalogue inherits its category's photo instead of
+ * silently falling through to the generic amenity shot.
+ *
+ * The category listing carried this as an inline ternary and the Home rail
+ * needed the same mapping; two copies of it is how one surface ends up showing
+ * a massage a picture of a van.
  */
-export function getServiceImageKey(serviceId: string): ServiceImageKey {
-  if (serviceId === 'restaurant' || serviceId === 'poolside-bar') return 'restaurant';
-  if (serviceId === 'dining') return 'dining';
-  if (serviceId === 'spa' || serviceId === 'scrub' || serviceId === 'reflexology') return 'spa';
-  if (serviceId === 'tour' || serviceId === 'music' || serviceId === 'heritage-walk') return 'tour';
-  if (serviceId === 'transfer') return 'transfer';
+export function getServiceImageKey(service: { id: string; categoryId: string }): ServiceImageKey {
+  if (TRANSPORT_SERVICE_IDS.has(service.id)) return 'transfer';
+  if (service.categoryId === 'dining') return service.id === 'dining' ? 'dining' : 'restaurant';
+  if (service.categoryId === 'spa') return 'spa';
+  if (service.categoryId === 'entertainment') return 'tour';
   return 'amenity';
 }
 

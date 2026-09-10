@@ -6,6 +6,8 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
 import {
   MOCK_SESSION,
+  RESTAURANTS,
+  SERVICES,
   TRAVEL_CATEGORIES,
   createAccountSession,
   verifyPendingSession,
@@ -838,23 +840,31 @@ describe('menu and service listing controls', () => {
     expect(screen.getByText('5 dishes')).toBeInTheDocument();
   });
 
-  it('offers an operator filter only where a category has more than one', async () => {
+  it('filters a service category by operator', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
+    const spa = SERVICES.filter((service) => service.categoryId === 'spa');
+    const hotelRun = spa.filter((service) => service.operator === 'Hotel operated');
+
     await user.click(screen.getByRole('button', { name: 'Spa' }));
-    expect(screen.getByRole('checkbox', { name: 'Hotel operated' })).toBeInTheDocument();
+    expect(screen.getByText(`${spa.length} services`)).toBeInTheDocument();
 
     await user.click(screen.getByRole('checkbox', { name: 'Hotel operated' }));
-    expect(screen.getByText('1 service')).toBeInTheDocument();
+    // Derived, not pinned: the catalogue will keep growing.
+    expect(screen.getByText(`${hotelRun.length} ${hotelRun.length === 1 ? 'service' : 'services'}`)).toBeInTheDocument();
+  });
 
-    cleanup();
-
-    // Every dining venue is hotel operated: one pill would change nothing.
-    const user2 = userEvent.setup();
+  it('gives the dining venue list the same controls', async () => {
+    const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
-    await user2.click(screen.getByRole('button', { name: 'Dining' }));
-    expect(screen.queryByRole('checkbox', { name: 'Hotel operated' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    expect(screen.getByText(`${RESTAURANTS.length} venues`)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Lowest price' }));
+    const names = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(names[0]).toBe('Kape Manila Café');
   });
 });
 

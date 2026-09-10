@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   SERVICE_IMAGES,
   getServiceImage,
+  getServiceImageKey,
   getPropertyImage,
   getRoomImage,
   getCategoryCoverImage,
@@ -38,3 +39,29 @@ describe('service images', () => {
   });
 });
 
+describe('service image keys', () => {
+  it('keys off the category, so a new service inherits a real photo', () => {
+    // The bug this guards: an id-keyed lookup silently drops every service
+    // added later into the generic amenity shot.
+    expect(getServiceImageKey({ id: 'hot-stone', categoryId: 'spa' })).toBe('spa');
+    expect(getServiceImageKey({ id: 'never-seen-before', categoryId: 'spa' })).toBe('spa');
+    expect(getServiceImageKey({ id: 'diving', categoryId: 'entertainment' })).toBe('tour');
+  });
+
+  it('gives transport its vehicle photo whatever category it sits in', () => {
+    for (const id of ['transfer', 'private-car', 'rental', 'scooter']) {
+      expect(getServiceImageKey({ id, categoryId: 'services' })).toBe('transfer');
+    }
+  });
+
+  it('separates in-room dining from the venues that have a room of their own', () => {
+    expect(getServiceImageKey({ id: 'dining', categoryId: 'dining' })).toBe('dining');
+    for (const id of ['apartment-1b', 'rooftop', 'cafe', 'poolside-bar']) {
+      expect(getServiceImageKey({ id, categoryId: 'dining' })).toBe('restaurant');
+    }
+  });
+
+  it('falls back to amenity only for genuinely uncategorised services', () => {
+    expect(getServiceImageKey({ id: 'laundry', categoryId: 'services' })).toBe('amenity');
+  });
+});

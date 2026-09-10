@@ -435,13 +435,25 @@ describe('listing controls', () => {
     expect(menu.map((item) => item.id)).toEqual(authored.map((item) => item.id));
   });
 
-  it('offers an operator cut only where a category actually has more than one', () => {
-    const spa = SERVICES.filter((service) => service.categoryId === 'spa');
-    expect(availableOperators(spa).length).toBeGreaterThan(1);
-    // Every dining venue is hotel operated, so a filter there would be one
-    // pill that changes nothing.
-    const dining = SERVICES.filter((service) => service.categoryId === 'dining');
-    expect(availableOperators(dining)).toEqual([]);
+  it('offers an operator cut only where there is more than one operator', () => {
+    // The contract, stated against a synthetic list so it survives the
+    // catalogue growing: one distinct operator is a pill that changes nothing.
+    expect(availableOperators([{ operator: 'Hotel operated' }])).toEqual([]);
+    expect(availableOperators([
+      { operator: 'Hotel operated' },
+      { operator: 'Hotel operated' },
+    ])).toEqual([]);
+    expect(availableOperators([
+      { operator: 'Hotel operated' },
+      { operator: 'Third-party on property' },
+      { operator: 'Hotel operated' },
+    ])).toEqual(['Hotel operated', 'Third-party on property']);
+
+    // And it holds over the real catalogue.
+    for (const categoryId of ['spa', 'entertainment', 'services'] as const) {
+      const rows = SERVICES.filter((service) => service.categoryId === categoryId);
+      expect(availableOperators(rows).length).toBeGreaterThan(1);
+    }
   });
 
   it('sorts service prices across their mixed formats', () => {

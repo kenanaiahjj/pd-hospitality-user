@@ -1,4 +1,4 @@
-export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
+export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Travel' | 'Account';
 
 export type ScreenId =
   | 'sign-in'
@@ -21,7 +21,7 @@ export type ScreenId =
   | 'repeat-review'
   | 'rate-detail'
   | 'early-check-in'
-  | 'insurance-offer'
+  | 'arrival-handoff'
   | 'prereg-complete'
   | 'prereg-queued'
   | 'marketplace'
@@ -42,7 +42,11 @@ export type ScreenId =
   | 'chat-after-hours'
   | 'room-qr-midstay'
   | 'profile'
-  | 'stay-history';
+  | 'stay-history'
+  | 'travel'
+  | 'travel-search'
+  | 'travel-checkout'
+  | 'travel-confirmation';
 
 export type PrototypeScreen = {
   id: ScreenId;
@@ -79,7 +83,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(18, 'Pre-arrival', 'repeat-review', 'Review your details'),
   screen(19, 'Pre-arrival', 'rate-detail', 'Room and rate'),
   screen(20, 'Pre-arrival', 'early-check-in', 'Early check-in'),
-  screen(21, 'Pre-arrival', 'insurance-offer', 'Travel insurance'),
+  screen(21, 'Pre-arrival', 'arrival-handoff', 'Arrival handoff'),
   screen(22, 'Pre-arrival', 'prereg-complete', 'Pre-registration complete'),
   screen(23, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
   screen(24, 'Stay', 'marketplace', 'Bookings Hub'),
@@ -101,6 +105,10 @@ export const SCREENS: PrototypeScreen[] = [
   screen(40, 'Account', 'stay-history', 'Stay history'),
   screen(41, 'Stay', 'restaurant-cart', 'Review dining order'),
   screen(42, 'Stay', 'dining-order-confirmation', 'Dining order confirmed'),
+  screen(43, 'Travel', 'travel', 'Travel'),
+  screen(44, 'Travel', 'travel-search', 'Travel search'),
+  screen(45, 'Travel', 'travel-checkout', 'Travel checkout'),
+  screen(46, 'Travel', 'travel-confirmation', 'Travel confirmed'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -113,7 +121,26 @@ export type Booking = {
   checkIn: string;
   checkOut: string;
   roomType: string;
+  /**
+   * The single home for the room number. Known from `assigned` onward; the
+   * assignment state below describes it rather than restating it, so the two
+   * cannot drift.
+   */
   roomNumber?: string;
+  /** Defaults are derived in `describeRoomAssignment` -- see its doc. */
+  roomAssignment?: RoomAssignmentState;
+  /** When housekeeping released the room. Only meaningful once `ready`. */
+  roomReadyAt?: string;
+  /**
+   * Whether this property's PMS reports housekeeping status at all. Legacy
+   * on-premise systems in the estate can report an allocated room but nothing
+   * about whether it is clean, so those stays sit in `assigned` and never
+   * advance. Defaults to true; set false and the app stops promising a
+   * readiness moment that will never arrive.
+   */
+  reportsRoomReadiness?: boolean;
+  /** Preferences the property could honour, echoed back after allocation. */
+  honouredPreferences?: string[];
   guestCount: number;
   source: string;
   preArrivalCompleted: number;
@@ -121,6 +148,15 @@ export type Booking = {
   nextPreArrivalStep?: string;
   folioTotal?: string;
 };
+
+/**
+ * How far the property's PMS has got with allocating a specific room.
+ *
+ * Cabana never assigns a room: allocation is the property's operation, run
+ * against its own inventory. These states only reflect what the middleware can
+ * read back.
+ */
+export type RoomAssignmentState = 'pending' | 'assigned' | 'ready';
 
 export type DiningOrderItem = {
   id: string;
@@ -179,6 +215,18 @@ export type GuestSession = {
   accountStatus: AccountStatus;
   authMethod?: AuthMethod;
   roomPreferences: RoomPreferences;
+  /**
+   * Travel is not stay-scoped the way `serviceBookings` are -- a ferry between
+   * two properties belongs to the trip, not to either stay -- so it has no
+   * `bookingId` and lives in its own list.
+   */
+  travelBookings: TravelBooking[];
+  /**
+   * Companion names, persisted from the additional-guests step. Travel
+   * checkout needs real traveller names; inventing them there would be a lie,
+   * and Philippine carriers match passenger names against government ID.
+   */
+  additionalGuests: string[];
 };
 
 export type HomeVariant =
@@ -203,8 +251,9 @@ export const UPCOMING_BOOKING_FIXTURE: Booking = {
   guestCount: 2,
   source: 'Agoda',
   preArrivalCompleted: 2,
-  preArrivalTotal: 5,
-  nextPreArrivalStep: 'Select room preferences',
+  preArrivalTotal: 4,
+  nextPreArrivalStep: 'Add who else is staying',
+  roomAssignment: 'pending',
 };
 
 /** The signed-out default: what the app renders before anyone identifies. */
@@ -221,6 +270,8 @@ export const ANONYMOUS_SESSION: GuestSession = {
     bed: 'King bed',
     accessibility: [],
   },
+  travelBookings: [],
+  additionalGuests: [],
 };
 
 export const MOCK_SESSION: GuestSession = {
@@ -234,6 +285,8 @@ export const MOCK_SESSION: GuestSession = {
     bed: 'King bed',
     accessibility: [],
   },
+  travelBookings: [],
+  additionalGuests: ['Marco Santos'],
   bookings: [
     UPCOMING_BOOKING_FIXTURE,
     {
@@ -247,8 +300,8 @@ export const MOCK_SESSION: GuestSession = {
       roomNumber: '208',
       guestCount: 2,
       source: 'Direct booking',
-      preArrivalCompleted: 5,
-      preArrivalTotal: 5,
+      preArrivalCompleted: 4,
+      preArrivalTotal: 4,
     },
   ],
   serviceBookings: [],
@@ -416,6 +469,86 @@ export function getOfflineAction(capability: OfflineCapability): OfflineAction {
   return 'blocked';
 }
 
+/** Standard check-in across the estate. */
+export const CHECK_IN_FROM = '3:00 PM';
+
+export type RoomAssignmentView = {
+  state: RoomAssignmentState;
+  roomNumber?: string;
+  /** The one line a card leads with. */
+  headline: string;
+  /** Supporting detail. Never speculative -- '' when there is nothing honest. */
+  detail: string;
+  /** True only when the guest can walk up to the room now. */
+  canGoUp: boolean;
+};
+
+/**
+ * Derives the assignment state and the copy for it in one place, so the home
+ * card, the stay screen and the timeline cannot describe the same room
+ * differently.
+ *
+ * The state is inferred when a booking does not carry one, which keeps every
+ * existing fixture valid: a stay the guest is already in reads as `ready`, a
+ * booking that has a number reads as `assigned`, and everything else is
+ * `pending`.
+ */
+export function describeRoomAssignment(booking: Booking): RoomAssignmentView {
+  const inferred: RoomAssignmentState = booking.roomAssignment
+    ?? (booking.roomNumber ? (booking.status === 'active' ? 'ready' : 'assigned') : 'pending');
+  const reportsReadiness = booking.reportsRoomReadiness ?? true;
+  const room = booking.roomNumber;
+
+  if (inferred === 'pending' || !room) {
+    return {
+      state: 'pending',
+      headline: 'Room assigned on arrival day',
+      detail: `The hotel allocates rooms from its own inventory. Yours appears here as soon as it does. Check-in from ${CHECK_IN_FROM}.`,
+      canGoUp: false,
+    };
+  }
+
+  if (inferred === 'assigned') {
+    return {
+      state: 'assigned',
+      roomNumber: room,
+      headline: `Room ${room} is yours`,
+      detail: reportsReadiness
+        ? `Housekeeping releases it before check-in, and we'll tell you the moment it is ready.`
+        : `Collect your key at the desk from ${CHECK_IN_FROM}. This property does not report room readiness to the app.`,
+      canGoUp: false,
+    };
+  }
+
+  return {
+    state: 'ready',
+    roomNumber: room,
+    headline: `Room ${room} is ready`,
+    detail: booking.roomReadyAt ? `Released at ${booking.roomReadyAt}. Go straight up.` : 'Go straight up.',
+    canGoUp: true,
+  };
+}
+
+/** Applies a PMS room-release event only when this booking can report one. */
+export function markRoomReady(booking: Booking, roomReadyAt: string): Booking {
+  const assignment = describeRoomAssignment(booking);
+
+  if (
+    booking.status !== 'upcoming'
+    || assignment.state !== 'assigned'
+    || !booking.roomNumber
+    || booking.reportsRoomReadiness === false
+  ) {
+    return booking;
+  }
+
+  return {
+    ...booking,
+    roomAssignment: 'ready',
+    roomReadyAt,
+  };
+}
+
 export type CancellationState = 'self-service' | 'front-desk';
 
 export function getCancellationState(hoursUntilService: number, cutoffHours: number): CancellationState {
@@ -462,6 +595,242 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
     tone: 'blue',
   },
 ];
+
+/* --------------------------------------------------------------------------
+   Travel: the bookings that move a guest between places.
+
+   Kept apart from MINI_APP_CATEGORIES on purpose. Those are on-property --
+   sourced from the hotel through the PMS middleware, consumed during one stay,
+   settled on that stay's folio. These come from airlines, ferry operators and
+   transport vendors, happen between stays, and cannot land on a room folio.
+   See docs/superpowers/specs/2026-09-09-travel-booking-destination-design.md.
+   -------------------------------------------------------------------------- */
+
+export type TravelCategoryId = 'flights' | 'ferries' | 'transfers' | 'insurance';
+
+export type TravelOption = {
+  id: string;
+  /** Airline, ferry line, transport vendor or insurer. */
+  operator: string;
+  /** The headline of the option: times, vehicle class, or cover tier. */
+  detail: string;
+  /** Supporting specifics -- flight number, hull, capacity, excess. */
+  meta: string;
+  price: string;
+};
+
+/**
+ * A journey has two endpoints; insurance does not. `route: null` is what keeps
+ * the shared search screen from inventing a from/to for a category that has
+ * none.
+ */
+export type TravelRoute = {
+  fromLabel: string;
+  toLabel: string;
+  places: string[];
+  defaultFrom: string;
+  defaultTo: string;
+};
+
+export type TravelCategory = {
+  id: TravelCategoryId;
+  title: string;
+  /** Declared, not derived: stripping the "s" off "Ferries" gives "ferrie". */
+  singular: string;
+  subtitle: string;
+  /** What this category calls the people travelling. */
+  partyLabel: string;
+  route: TravelRoute | null;
+  options: TravelOption[];
+};
+
+const PH_AIRPORTS = [
+  'Manila (MNL)',
+  'Cebu (CEB)',
+  'Davao (DVO)',
+  'Cagayan de Oro (CGY)',
+  'Dumaguete (DGT)',
+  'Puerto Princesa (PPS)',
+];
+
+const PH_PORTS = [
+  'Manila North Harbor',
+  'Batangas',
+  'Cebu Pier 1',
+  'Tagbilaran',
+  'Dumaguete',
+  'Ozamiz',
+];
+
+const TRANSFER_POINTS = [
+  'The Henry Manila',
+  'The Henry Cebu',
+  'The Henry Dumaguete',
+  'Manila (MNL) Terminal 3',
+  'Cebu (CEB) Terminal 2',
+];
+
+export const TRAVEL_CATEGORIES: TravelCategory[] = [
+  {
+    id: 'flights',
+    title: 'Flights',
+    singular: 'flight',
+    subtitle: 'Domestic and inter-island',
+    partyLabel: 'Passengers',
+    route: {
+      fromLabel: 'From',
+      toLabel: 'To',
+      places: PH_AIRPORTS,
+      defaultFrom: 'Manila (MNL)',
+      defaultTo: 'Cagayan de Oro (CGY)',
+    },
+    options: [
+      { id: 'fl-1', operator: 'Philippine Airlines', detail: '05:50 → 07:35', meta: 'PR 2971 · Direct · Airbus A321', price: '₱4,780' },
+      { id: 'fl-2', operator: 'Cebu Pacific', detail: '09:15 → 11:05', meta: '5J 921 · Direct · Airbus A320', price: '₱3,940' },
+      { id: 'fl-3', operator: 'AirAsia Philippines', detail: '13:40 → 15:30', meta: 'Z2 837 · Direct · Airbus A320', price: '₱3,620' },
+      { id: 'fl-4', operator: 'Philippine Airlines', detail: '18:05 → 19:55', meta: 'PR 2975 · Direct · Airbus A321', price: '₱5,310' },
+    ],
+  },
+  {
+    id: 'ferries',
+    title: 'Ferries',
+    singular: 'ferry',
+    subtitle: 'Fast craft and RoRo sailings',
+    partyLabel: 'Passengers',
+    route: {
+      fromLabel: 'Departure port',
+      toLabel: 'Arrival port',
+      places: PH_PORTS,
+      defaultFrom: 'Cebu Pier 1',
+      defaultTo: 'Tagbilaran',
+    },
+    options: [
+      { id: 'fe-1', operator: '2GO Travel', detail: '06:00 → 08:00', meta: 'Fast craft · Tourist class', price: '₱1,250' },
+      { id: 'fe-2', operator: 'OceanJet', detail: '08:20 → 10:10', meta: 'Fast craft · Business class', price: '₱1,690' },
+      { id: 'fe-3', operator: 'Lite Ferries', detail: '12:00 → 15:30', meta: 'RoRo · Aircon berth', price: '₱980' },
+      { id: 'fe-4', operator: 'OceanJet', detail: '16:40 → 18:30', meta: 'Fast craft · Tourist class', price: '₱1,250' },
+    ],
+  },
+  {
+    id: 'transfers',
+    title: 'Transfers',
+    singular: 'transfer',
+    subtitle: 'Airports and hotel to hotel',
+    partyLabel: 'Passengers',
+    route: {
+      fromLabel: 'Pick-up',
+      toLabel: 'Drop-off',
+      places: TRANSFER_POINTS,
+      defaultFrom: 'The Henry Manila',
+      defaultTo: 'Manila (MNL) Terminal 3',
+    },
+    options: [
+      { id: 'tr-1', operator: 'Henry Fleet', detail: 'Sedan', meta: 'Up to 3 · 2 bags · Meet and greet', price: '₱1,450' },
+      { id: 'tr-2', operator: 'Henry Fleet', detail: 'Premium van', meta: 'Up to 6 · 6 bags · Meet and greet', price: '₱2,300' },
+      { id: 'tr-3', operator: 'Island Coach', detail: 'Shared shuttle', meta: 'Per seat · Departs hourly', price: '₱480' },
+      { id: 'tr-4', operator: 'Henry Fleet', detail: 'Coaster', meta: 'Up to 18 · Group transfer', price: '₱5,900' },
+    ],
+  },
+  {
+    id: 'insurance',
+    title: 'Travel insurance',
+    singular: 'policy',
+    subtitle: 'Cover for the whole trip',
+    partyLabel: 'Travellers',
+    route: null,
+    options: [
+      { id: 'in-1', operator: 'Pioneer', detail: 'Domestic Essential', meta: 'Medical ₱250,000 · Baggage ₱10,000', price: '₱390' },
+      { id: 'in-2', operator: 'Pioneer', detail: 'Domestic Plus', meta: 'Medical ₱500,000 · Trip cancellation', price: '₱720' },
+      { id: 'in-3', operator: 'Malayan', detail: 'Island Hopper', meta: 'Adds watercraft and diving cover', price: '₱1,150' },
+    ],
+  },
+];
+
+/**
+ * A booked leg. No `bookingId`: travel spans stays, so tying it to one would
+ * hide a ferry between two properties from both of them.
+ */
+export type TravelBooking = {
+  id: string;
+  reference: string;
+  categoryId: TravelCategoryId;
+  operator: string;
+  detail: string;
+  meta: string;
+  /** "Manila (MNL) → Cagayan de Oro (CGY)", or null where there is no journey. */
+  route: string | null;
+  date: string;
+  travellers: number;
+  amount: string;
+  status: 'confirmed' | 'cancelled' | 'completed';
+};
+
+/**
+ * Per-traveller booking fee. Real carriers vary this by fare class and
+ * channel; a single rate keeps the prototype honest that a fee exists without
+ * pretending to model fare rules it does not have.
+ */
+export const TRAVEL_FEE_PER_TRAVELLER = 210;
+
+export type TravelQuote = {
+  fareEach: string;
+  travellers: number;
+  fareTotal: string;
+  fees: string;
+  total: string;
+};
+
+export function quoteTravel(option: TravelOption, travellers: number): TravelQuote {
+  const each = parsePesoAmount(option.price);
+  const fareTotal = each * travellers;
+  const fees = TRAVEL_FEE_PER_TRAVELLER * travellers;
+  return {
+    fareEach: formatPesoAmount(each),
+    travellers,
+    fareTotal: formatPesoAmount(fareTotal),
+    fees: formatPesoAmount(fees),
+    total: formatPesoAmount(fareTotal + fees),
+  };
+}
+
+/**
+ * Books a leg and returns the next session. Travel is paid to the operator at
+ * booking, so unlike a service booking this never touches `folioTotal` -- a
+ * flight is not the hotel's to bill, and the guest may book it when no folio
+ * is even open.
+ */
+export function bookTravel(
+  session: GuestSession,
+  input: {
+    category: TravelCategory;
+    option: TravelOption;
+    travellers: number;
+    route: string | null;
+    date: string;
+  },
+): GuestSession {
+  const sequence = session.travelBookings.length + 1;
+  const booking: TravelBooking = {
+    id: `travel-${input.option.id}-${sequence}`,
+    reference: `CBN-${input.option.id.toUpperCase().replace('-', '')}-${1000 + sequence}`,
+    categoryId: input.category.id,
+    operator: input.option.operator,
+    detail: input.option.detail,
+    meta: input.option.meta,
+    route: input.route,
+    date: input.date,
+    travellers: input.travellers,
+    amount: quoteTravel(input.option, input.travellers).total,
+    status: 'confirmed',
+  };
+  return { ...session, travelBookings: [...session.travelBookings, booking] };
+}
+
+export function getTravelCategory(id: TravelCategoryId): TravelCategory {
+  const found = TRAVEL_CATEGORIES.find((category) => category.id === id);
+  if (!found) throw new Error(`Unknown travel category: ${id}`);
+  return found;
+}
 
 export type MenuItemCategory = 'all' | 'starters' | 'mains' | 'desserts' | 'drinks';
 

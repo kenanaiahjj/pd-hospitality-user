@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+| | |
+|---|---|
+| **Status** | `Complete` |
+| **Updated** | 2026-09-09 |
+
 **Goal:** Build the decision-complete guest-facing mobile prototype described in the v3 brief.
 
 **Architecture:** A pure TypeScript model defines the screen inventory, scenarios, mock entities, and business rules. One React client component owns throwaway in-memory state and renders the active screen inside a responsive phone shell.
@@ -29,10 +34,10 @@
 **Interfaces:**
 - Produces: `SCREENS`, `SCENARIOS`, `getCancellationState()`, and `getOfflineAction()`.
 
-- [ ] Write tests for the inventory, guided-flow entry points, cancellation cutoffs, and offline rules.
-- [ ] Run the focused test and confirm it fails because the model is missing.
-- [ ] Implement the smallest typed model that satisfies the tests.
-- [ ] Run the focused test and confirm it passes.
+- [x] Write tests for the inventory, guided-flow entry points, cancellation cutoffs, and offline rules.
+- [x] Run the focused test and confirm it fails because the model is missing.
+- [x] Implement the smallest typed model that satisfies the tests.
+- [x] Run the focused test and confirm it passes.
 
 ### Task 2: Interactive app shell and flows
 
@@ -46,10 +51,10 @@
 - Consumes: the model exports from Task 1.
 - Produces: `GuestAppPrototype`, a complete in-memory clickable prototype.
 
-- [ ] Write component tests for the entry choices, scenario navigator, and offline wallet.
-- [ ] Run the focused test and confirm the missing component failure.
-- [ ] Implement the shared shell, all screen states, main navigation, scenario navigator, and state transitions.
-- [ ] Run the focused component test and confirm it passes.
+- [x] Write component tests for the entry choices, scenario navigator, and offline wallet.
+- [x] Run the focused test and confirm the missing component failure.
+- [x] Implement the shared shell, all screen states, main navigation, scenario navigator, and state transitions.
+- [x] Run the focused component test and confirm it passes.
 
 ### Task 3: Neutral mobile presentation
 
@@ -62,10 +67,10 @@
 - Consumes: semantic class names from Task 2.
 - Produces: the 390 x 844 responsive layout, offline/status treatments, dialog, QR, cards, forms, and bottom navigation.
 
-- [ ] Add the neutral token set and responsive phone shell.
-- [ ] Add accessible focus, pressed, disabled, error, and live status treatments.
-- [ ] Update document metadata for the prototype.
-- [ ] Run the focused tests and type checker.
+- [x] Add the neutral token set and responsive phone shell.
+- [x] Add accessible focus, pressed, disabled, error, and live status treatments.
+- [x] Update document metadata for the prototype.
+- [x] Run the focused tests and type checker.
 
 ### Task 4: Final verification
 
@@ -76,9 +81,8 @@
 - Consumes: the complete prototype.
 - Produces: verified local prototype source.
 
-- [ ] Run `npm test` and confirm all tests pass.
-- [ ] Run `npm run typecheck` and confirm it exits successfully.
-- [ ] Run `npm run lint` and confirm it exits successfully.
-- [ ] Run `npm run build` and confirm the production build succeeds.
-- [ ] Start the local development server and open the compiled prototype preview.
-
+- [x] Run `npm test` and confirm all tests pass.
+- [x] Run `npm run typecheck` and confirm it exits successfully.
+- [x] Run `npm run lint` and confirm it exits successfully.
+- [x] Run `npm run build` and confirm the production build succeeds.
+- [x] Start the local development server and open the compiled prototype preview.

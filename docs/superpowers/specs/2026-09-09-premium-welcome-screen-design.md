@@ -1,7 +1,7 @@
 # Premium welcome screen design
 
 **Date:** September 9, 2026
-**Status:** Implemented with the approved two-stage splash revision
+**Status:** Implemented with the approved two-stage splash and onboarding-pager revisions
 
 ## Goal
 
@@ -22,14 +22,32 @@ Cabana lockup at the top and the booking content near the bottom.
 The screen contains only:
 
 - the Cabana or Henry guest-app identity near the top;
-- a short welcome headline;
-- one sentence that explains that the guest can connect an existing booking;
-- three concise benefits that explain what connecting a booking unlocks;
+- one illustration per benefit, shown one at a time;
+- the step's stage label and title, in the screen-title slot directly above the
+  action;
+- a step indicator;
 - one primary **Find my booking** action.
 
-Remove the collection badge, destination count, carousel controls, promotional
-property copy, feature tiles, account creation, and login. Do not place room QR
-or hotel Wi-Fi actions on the welcome screen.
+The three benefits are an onboarding pager rather than a static list. It
+advances on its own, and a step indicator below the artwork doubles as
+navigation; a horizontal swipe on the artwork pages it too. Autoplay is a
+courtesy, not a control: the first guest interaction hands paging over
+permanently, and autoplay never starts when reduced motion is requested.
+
+The rotating step title occupies the slot the welcome headline used to hold, so
+there is no separate headline or explanatory sentence on the screen. A heading
+remains in the accessibility tree for the screen's name, because a visible
+heading that rewrote itself every few seconds would not be a stable one.
+
+**Superseded:** earlier revisions of this section required a short welcome
+headline, one explanatory sentence, and the absence of carousel controls. The
+pager replaces all three by direction of the human partner.
+
+Remove the collection badge, destination count, promotional property copy,
+feature tiles, account creation, and login. Do not place room QR or hotel Wi-Fi
+actions on the welcome screen. The step indicator is progress and navigation
+for the pager, not a competing action -- **Find my booking** stays the screen's
+only action and is never gated behind reaching the last step.
 
 The composition fills the available mobile viewport. Keep the primary action
 visible above the safe-area inset without scrolling. Use the existing typeface,
@@ -41,6 +59,12 @@ Selecting **Find my booking** opens the existing booking-access flow. That flow
 can expose the supported ways to access a stay, including booking details, a
 room QR, and the hotel Wi-Fi route. These are booking-access methods, not
 welcome-screen content.
+
+Each access method is a tappable card carrying its own illustration, so the
+three choices are told apart by picture as well as by label. These cards are
+deliberately not the app's plain list row: a repeated list row takes a bare
+glyph, because a screen of tinted discs marking nothing was the loudest thing
+in the app. Here the picture is the point, and there are only three.
 
 The booking flow preserves the existing validation and recovery states. A
 failed lookup stays in the booking flow and provides a clear retry or recovery
@@ -86,9 +110,11 @@ content. This change does not redesign the home screen.
 
 Automated tests must confirm that:
 
-- the root route shows the welcome headline and **Find my booking**;
-- account creation, login, feature tiles, destination counts, and carousel
-  controls are absent;
+- the root route shows the first step's title and **Find my booking**;
+- account creation, login, feature tiles, and destination counts are absent;
+- the pager shows one step at a time, exposes only the current step to
+  assistive tech, and its indicator moves the pager;
+- **Find my booking** is enabled on every step;
 - the welcome screen does not show primary navigation;
 - **Find my booking** opens the booking-access flow;
 - successful booking access enters the correct home screen immediately when no

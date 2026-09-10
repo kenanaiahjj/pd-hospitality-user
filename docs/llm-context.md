@@ -127,12 +127,18 @@ The root screen uses these visible entry actions:
 The booking lookup accepts a booking or confirmation number and last name.
 The current fixture path uses `HEN-241109` and `Santos`, then shows `The Henry
 Manila`. The lookup fallback offers alternate stay details and front-desk
-help. `no-booking` explains that a confirmed booking is required.
+help. `no-booking` says `You’ll need a booking first` and explains: `Cabana
+looks after your stay once your hotel booking is confirmed. It isn’t a place
+to search for or compare hotels.`
 
 Pre-arrival collects profile details, ID or passport details, room
 preferences, and additional guest names. Early check-in is a room-folio
 request: the hotel confirms availability first, then an approved `₱1,500`
 charge settles at checkout. It never opens a payment form.
+
+The prototype-only `arrival-handoff` screen names the `You’re ready for
+arrival` handoff. The connected onboarding path currently proceeds from early
+check-in directly to the pre-registration completion state.
 
 When pre-arrival is complete for an upcoming booking, the primary action is
 `View my stay`, which returns to the upcoming home. Identity is verified at the

@@ -1,7 +1,7 @@
 # Dining venue carts design
 
 **Date:** September 9, 2026  
-**Status:** Approved for implementation
+**Status:** Implemented
 
 ## Goal
 

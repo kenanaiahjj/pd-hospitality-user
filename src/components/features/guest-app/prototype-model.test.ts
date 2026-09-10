@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  describeRoomAssignment,
   ANONYMOUS_SESSION,
   MINI_APP_CATEGORIES,
   MOCK_SESSION,
@@ -13,6 +14,7 @@ import {
   getOfflineAction,
   getPostAuthScreen,
   getVenueCartSummary,
+  markRoomReady,
   parsePesoAmount,
   signInSession,
   signOutSession,
@@ -25,19 +27,112 @@ import {
 } from './prototype-model';
 
 describe('guest app prototype model', () => {
-  it('contains the complete 42-screen inventory including restaurant ordering', () => {
-    expect(SCREENS).toHaveLength(42);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(42);
+  it('contains the complete 46-screen inventory including travel checkout', () => {
+    expect(SCREENS).toHaveLength(46);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(46);
+    expect(SCREENS.find((s) => s.id === 'travel')?.group).toBe('Travel');
+    expect(SCREENS.find((s) => s.id === 'travel-search')?.group).toBe('Travel');
+    expect(SCREENS.find((s) => s.id === 'travel-checkout')?.group).toBe('Travel');
+    expect(SCREENS.find((s) => s.id === 'travel-confirmation')?.group).toBe('Travel');
     expect(SCREENS.find((s) => s.id === 'restaurant-menu')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'restaurant-cart')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'dining-order-confirmation')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'room-preferences')?.group).toBe('Account');
+    expect(SCREENS.find((s) => s.number === 21)).toMatchObject({
+      id: 'arrival-handoff',
+      title: 'Arrival handoff',
+    });
   });
 
   it('exposes every guided flow from A through I', () => {
     expect(SCENARIOS.map((scenario) => scenario.id)).toEqual([
       'A', 'B', 'D', 'E', 'F', 'G', 'H', 'I',
     ]);
+  });
+
+  describe('room assignment', () => {
+    const base = { ...UPCOMING_BOOKING_FIXTURE };
+
+    it('reads as pending with no room, and does not promise a number', () => {
+      const view = describeRoomAssignment({ ...base, roomAssignment: 'pending', roomNumber: undefined });
+      expect(view.state).toBe('pending');
+      expect(view.roomNumber).toBeUndefined();
+      expect(view.canGoUp).toBe(false);
+      expect(view.detail).toMatch(/allocates rooms from its own inventory/);
+    });
+
+    it('promises a readiness moment only where the PMS reports one', () => {
+      const capable = describeRoomAssignment({ ...base, roomAssignment: 'assigned', roomNumber: '512' });
+      expect(capable.headline).toBe('Room 512 is yours');
+      expect(capable.detail).toMatch(/we'll tell you the moment it is ready/i);
+      expect(capable.canGoUp).toBe(false);
+
+      // A legacy PMS can name the room but not its housekeeping status, so the
+      // guest is sent to the desk instead of waiting on a signal never sent.
+      const legacy = describeRoomAssignment({
+        ...base, roomAssignment: 'assigned', roomNumber: '512', reportsRoomReadiness: false,
+      });
+      expect(legacy.detail).toMatch(/Collect your key at the desk/);
+      expect(legacy.detail).not.toMatch(/we'll tell you/i);
+      expect(legacy.canGoUp).toBe(false);
+    });
+
+    it('lets the guest go up once ready, and names the release time when known', () => {
+      const timed = describeRoomAssignment({
+        ...base, roomAssignment: 'ready', roomNumber: '512', roomReadyAt: '2:15 PM',
+      });
+      expect(timed.headline).toBe('Room 512 is ready');
+      expect(timed.detail).toBe('Released at 2:15 PM. Go straight up.');
+      expect(timed.canGoUp).toBe(true);
+
+      const untimed = describeRoomAssignment({ ...base, roomAssignment: 'ready', roomNumber: '512' });
+      expect(untimed.detail).toBe('Go straight up.');
+    });
+
+    it('infers a state for bookings that carry none, so old fixtures stay valid', () => {
+      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: undefined }).state).toBe('pending');
+      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304' }).state).toBe('assigned');
+      // Already in the room is the definition of released.
+      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304', status: 'active' }).state).toBe('ready');
+    });
+
+    it('never reports a room as ready without a number to report', () => {
+      const view = describeRoomAssignment({ ...base, roomAssignment: 'ready', roomNumber: undefined });
+      expect(view.state).toBe('pending');
+      expect(view.canGoUp).toBe(false);
+    });
+
+    it('marks only an assigned, readiness-capable room as ready', () => {
+      const assigned = { ...base, roomAssignment: 'assigned' as const, roomNumber: '512' };
+
+      expect(markRoomReady(assigned, '2:15 PM')).toEqual({
+        ...assigned,
+        roomAssignment: 'ready',
+        roomReadyAt: '2:15 PM',
+      });
+    });
+
+    it('does not invent readiness for an ineligible booking', () => {
+      const pending = { ...base, roomAssignment: 'pending' as const, roomNumber: undefined };
+      const legacy = {
+        ...base,
+        roomAssignment: 'assigned' as const,
+        roomNumber: '512',
+        reportsRoomReadiness: false,
+      };
+      const ready = { ...base, roomAssignment: 'ready' as const, roomNumber: '512' };
+      const completed = {
+        ...base,
+        status: 'completed' as const,
+        roomAssignment: 'assigned' as const,
+        roomNumber: '512',
+      };
+
+      expect(markRoomReady(pending, '2:15 PM')).toBe(pending);
+      expect(markRoomReady(legacy, '2:15 PM')).toBe(legacy);
+      expect(markRoomReady(ready, '2:15 PM')).toBe(ready);
+      expect(markRoomReady(completed, '2:15 PM')).toBe(completed);
+    });
   });
 
   it('allows self-service cancellation before a service cutoff', () => {
@@ -261,6 +356,7 @@ describe('mini-app categories and restaurant menus', () => {
       accessibility: [],
     });
     expect(MOCK_SESSION.roomPreferences.bed).toBe('King bed');
-    expect(UPCOMING_BOOKING_FIXTURE.preArrivalTotal).toBe(5);
+    // Four steps since room preferences left check-in for the profile.
+    expect(UPCOMING_BOOKING_FIXTURE.preArrivalTotal).toBe(4);
   });
 });

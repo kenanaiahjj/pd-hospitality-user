@@ -2,9 +2,14 @@
 
 > **Final visual revision:** The approved implementation replaces the planned
 > property photograph with a pink Cabana splash followed by a white welcome
-> screen. The second screen includes three concise booking benefits and keeps
-> **Find my booking** as its only action. The booking and Home routing tasks
-> below remain unchanged.
+> screen. The three booking benefits are now an auto-advancing onboarding
+> pager -- one supplied Cabana illustration per step, with the step's title in
+> the screen-title slot above the action and an indicator that also navigates.
+> **Find my booking** remains the only action. The booking and Home routing
+> tasks below remain unchanged.
+>
+> The plan text below still describes the earlier static three-benefit list.
+> Where it disagrees with the design doc, the design doc wins.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -17,7 +22,11 @@
 ## Global constraints
 
 - The welcome screen must contain no account creation or login action.
-- **Find my booking** must be the only welcome-screen action.
+- **Find my booking** must be the only welcome-screen action, enabled on every
+  pager step and never gated behind the last one. The pager's step indicator is
+  progress and navigation, not a second action.
+- Autoplay must not start when reduced motion is requested, and must stop for
+  good on the first guest interaction.
 - Room QR and hotel Wi-Fi must remain available inside the booking-access flow.
 - A successful booking with no remaining check-in work must open Home.
 - Completing required online check-in work must open Home.
@@ -195,11 +204,11 @@ case 'connect-booking':
     <ScreenIntro
       eyebrow="Connect your stay"
       title="Find your booking"
-      text="Choose the way you arrived here. You can use your booking details, a room QR, or the hotel Wi-Fi connection."
+      text="Pick whichever matches where you are right now — any of them will find your stay."
     >
       <BookingEntryOptions onNavigate={go} />
-      <Notice title="A booking is required">
-        Cabana starts after a confirmed hotel booking. It does not search or compare hotels.
+      <Notice title="You’ll need a booking first">
+        Cabana looks after your stay once your hotel booking is confirmed. It isn’t a place to search for or compare hotels.
       </Notice>
     </ScreenIntro>
   );

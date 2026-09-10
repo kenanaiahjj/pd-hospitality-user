@@ -5,9 +5,9 @@
 
 | | |
 |---|---|
-| **Status** | `Approved` |
+| **Status** | `Implemented` |
 | **Created** | 2026-09-09 |
-| **Updated** | 2026-09-09 |
+| **Updated** | 2026-09-10 |
 | **Owner** | Kenanaiah |
 | **Plan** | `docs/superpowers/plans/2026-09-09-onboarding-home-flows.md` (once written) |
 | **Supersedes** | `n/a` |
@@ -312,16 +312,16 @@ or notices rather than API error envelopes.
 |---|---:|---|---|
 | Required booking fields are empty | n/a | `validation_error` | Native required-field validation keeps the guest on `identify`. |
 | Booking reference does not match | n/a | `booking_not_found` | `lookup-fallback` offers alternate details and front-desk help. |
-| Guest has no connected booking | n/a | `no_booking` | `no-booking` explains the prerequisite and offers retry or support. |
+| Guest has no connected booking | n/a | `no_booking` | `no-booking` says `You’ll need a booking first`, explains that Cabana starts after hotel confirmation, and offers retry or support. |
 | Connection is unavailable | n/a | `offline` | Cached stay/QR details remain visible; queued chat and pre-arrival notices explain what has not been sent. |
 | Live service capacity or price is unavailable | n/a | `live_data_required` | `booking-blocked` prevents a false reservation and offers reconnection or chat. |
 | Service is past its cancellation cutoff | n/a | `front_desk_required` | `cancel-after-cutoff` routes the guest to the front desk and keeps the folio status clear. |
 
 No card or gateway form appears in the on-property service flow. Early
 check-in, if retained in the prototype, becomes a request or room-charge
-preview and does not use the existing mock payment choices. The travel
-insurance screen is outside this Hospitality flow and is removed from the
-connected onboarding path.
+preview and does not use the existing mock payment choices. Travel insurance
+belongs to the separate Travel destination. The prototype-only
+`arrival-handoff` screen is not part of the connected onboarding path.
 
 ### Testing
 

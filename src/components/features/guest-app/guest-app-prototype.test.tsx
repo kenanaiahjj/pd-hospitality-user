@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import userEvent from '@testing-library/user-event';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
 import {
   MOCK_SESSION,
+  TRAVEL_CATEGORIES,
   createAccountSession,
   verifyPendingSession,
 } from './prototype-model';
@@ -45,6 +46,8 @@ const sessionFor = (
     bed: 'King bed',
     accessibility: [],
   },
+  travelBookings: [],
+  additionalGuests: ['Marco Santos'],
   ...overrides,
 });
 
@@ -60,6 +63,17 @@ const activeSession = sessionFor(
   { activeBookingId: 'active', folioTotal: '₱3,050' },
 );
 
+const assignedSession = sessionFor([
+  makeBooking({
+    id: 'assigned',
+    status: 'upcoming',
+    preArrivalCompleted: 4,
+    preArrivalTotal: 4,
+    roomAssignment: 'assigned',
+    roomNumber: '512',
+  }),
+]);
+
 beforeAll(() => {
   Object.defineProperty(window, 'scrollTo', { value: vi.fn(), writable: true });
 });
@@ -71,7 +85,6 @@ describe('GuestAppPrototype', () => {
     expect(screen.getAllByText('Cabana', { exact: true })).toHaveLength(2);
     expect(screen.getAllByText('Your Home Away From Home')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
-    expect(screen.getByText('Find your booking to check in and access everything you need during your stay.')).toBeInTheDocument();
     expect(screen.getByText('Check in before arrival')).toBeInTheDocument();
     expect(screen.getByText('Skip the front desk paperwork')).toBeInTheDocument();
     expect(screen.getByText('View charges and hotel services')).toBeInTheDocument();
@@ -84,6 +97,36 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByRole('region', { name: /experience showcase/i })).toBeNull();
     expect(screen.queryByRole('banner')).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+  });
+
+  it('pages the welcome steps one at a time from the dots', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    const dots = screen.getAllByRole('button', { name: /^Step 0\d:/ });
+    expect(dots).toHaveLength(3);
+    expect(dots[0]).toHaveAttribute('aria-current', 'step');
+
+    await user.click(dots[2]);
+
+    expect(dots[2]).toHaveAttribute('aria-current', 'step');
+    expect(dots[0]).not.toHaveAttribute('aria-current');
+    // Find my booking is never gated behind reaching the last step.
+    expect(screen.getByRole('button', { name: 'Find my booking' })).toBeEnabled();
+  });
+
+  it('exposes only the current welcome step to assistive tech', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    const stepOf = (title: string) => screen.getByText(title).closest('li');
+    expect(stepOf('Check in before arrival')).toHaveAttribute('aria-hidden', 'false');
+    expect(stepOf('Skip the front desk paperwork')).toHaveAttribute('aria-hidden', 'true');
+
+    await user.click(screen.getByRole('button', { name: /^Step 02:/ }));
+
+    expect(stepOf('Check in before arrival')).toHaveAttribute('aria-hidden', 'true');
+    expect(stepOf('Skip the front desk paperwork')).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('opens the booking access methods from the welcome action', async () => {
@@ -144,6 +187,27 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: 'Yes, this is my stay' }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+  });
+
+  it('names the pre-arrival handoff for the screen it renders', () => {
+    render(
+      <GuestAppPrototype
+        initialScreen="arrival-handoff"
+        initialSession={MOCK_SESSION}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'You’re ready for arrival' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue to arrival' })).toBeInTheDocument();
+  });
+
+  it('uses the booking-first voice when no stay is attached', () => {
+    render(<GuestAppPrototype initialScreen="no-booking" />);
+
+    expect(screen.getByRole('heading', { name: 'You’ll need a booking first' })).toBeInTheDocument();
+    expect(screen.getByText(
+      'Cabana looks after your stay once your hotel booking is confirmed. It isn’t a place to search for or compare hotels.',
+    )).toBeInTheDocument();
   });
 
   it('returns a pre-arrival guest to the upcoming home after registration', async () => {
@@ -298,13 +362,14 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('₱3,050')).toBeInTheDocument();
   });
 
-  it('groups account actions and keeps three stable app destinations', () => {
+  it('groups account actions and keeps four stable app destinations', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     expect(screen.getByRole('group', { name: 'Your account' })).toBeInTheDocument();
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(navigation.querySelectorAll('button')).toHaveLength(3);
-    for (const label of ['Stay', 'Bookings', 'Chat']) {
+    // Four, as DESIGN.md specifies -- Travel joined Stay, Bookings and Chat.
+    expect(navigation.querySelectorAll('button')).toHaveLength(4);
+    for (const label of ['Stay', 'Bookings', 'Travel', 'Chat']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
     expect(screen.queryByRole('button', { name: 'Wallet' })).toBeNull();
@@ -388,8 +453,18 @@ describe('GuestAppPrototype', () => {
 
   it('respects reduced motion and never animates with an unscoped transition', () => {
     expect(guestStyles).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(guestStyles).toMatch(
+      /\.guest-room-ready-notification\s*\{[^}]*animation:\s*guest-room-ready-fade/,
+    );
+    expect(guestStyles).toContain('@keyframes guest-room-ready-fade');
     expect(guestStyles).not.toMatch(/transition:\s*all/);
     expect(globalStyles).not.toMatch(/transition:\s*all/);
+  });
+
+  it('keeps every room-ready control at least 44 CSS pixels tall', () => {
+    expect(guestStyles).toMatch(/\.guest-prototype-toolbar button\s*\{[^}]*min-height:\s*44px/);
+    expect(guestStyles).toMatch(/\.guest-room-ready-notification__content button\s*\{[^}]*min-height:\s*44px/);
+    expect(guestStyles).toMatch(/\.guest-room-ready-notification__dismiss\s*\{[^}]*height:\s*44px/);
   });
 });
 
@@ -428,9 +503,9 @@ describe('guest account and entry flows', () => {
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
     await user.click(screen.getByRole('button', { name: 'Yes, this is my stay' }));
 
-    // Directly reaches pre-arrival Step 1 of 5 without an account creation gate
+    // Directly reaches pre-arrival Step 1 of 4 without an account creation gate
     expect(screen.getByRole('heading', { name: 'Your details' })).toBeInTheDocument();
-    expect(screen.getByText('1 of 5')).toBeInTheDocument();
+    expect(screen.getByText('1 of 4')).toBeInTheDocument();
   });
 
   it('opens the shell and the empty home for an account with no bookings', () => {
@@ -493,7 +568,8 @@ describe('guest account and entry flows', () => {
 
   it('ships styles for the auth screens and password fields', () => {
     expect(guestStyles).toContain('.guest-welcome__splash');
-    expect(guestStyles).toContain('.guest-welcome__proof-card');
+    expect(guestStyles).toContain('.guest-welcome__art-track');
+    expect(guestStyles).toContain('.guest-welcome__dots');
     expect(guestStyles).toMatch(/\.guest-welcome[^}]*background: #fff/);
     expect(guestStyles).toContain('.guest-password-wrapper');
     expect(guestStyles).toContain('.guest-password-toggle');
@@ -502,40 +578,372 @@ describe('guest account and entry flows', () => {
   });
 });
 
-describe('pre-arrival onboarding flow', () => {
-  it('collects details, ID, room preferences, additional guests, and early check-in across 5 steps', async () => {
+describe('pre-arrival progress card', () => {
+  it('shows remaining work and the next step while incomplete', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+
+    expect(screen.getByText('2 of 4 steps complete')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Pre-arrival progress' })).toBeInTheDocument();
+    expect(screen.getByText('Add who else is staying')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Complete pre-arrival/ })).toBeInTheDocument();
+  });
+
+  it('drops the progress framing once every step is done', () => {
+    const done = sessionFor([
+      makeBooking({ id: 'done', status: 'upcoming', preArrivalCompleted: 4, preArrivalTotal: 4 }),
+    ]);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={done} />);
+
+    // No progress bar, no percentage, and above all no stale "next step".
+    expect(screen.queryByRole('progressbar', { name: 'Pre-arrival progress' })).toBeNull();
+    expect(screen.queryByText('4 of 4 steps complete')).toBeNull();
+    expect(screen.queryByText('Add who else is staying')).toBeNull();
+    // The card's job becomes the room instead.
+    expect(screen.getByText('Ready for arrival')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Review stay/ })).toBeInTheDocument();
+  });
+
+  it('says where room assignment stands rather than implying the app can hurry it', () => {
+    const unassigned = sessionFor([
+      makeBooking({ id: 'u', status: 'upcoming', preArrivalCompleted: 4, preArrivalTotal: 4, roomNumber: undefined }),
+    ]);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={unassigned} />);
+    expect(screen.getByText('Room assigned on arrival day')).toBeInTheDocument();
+    expect(screen.getByText(/allocates rooms from its own inventory/)).toBeInTheDocument();
+
+    cleanup();
+
+    const assigned = sessionFor([
+      makeBooking({ id: 'a', status: 'upcoming', preArrivalCompleted: 4, preArrivalTotal: 4, roomNumber: '512' }),
+    ]);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assigned} />);
+    expect(screen.getByText('Room 512 is yours')).toBeInTheDocument();
+    expect(screen.getByText(/moment it is ready/)).toBeInTheDocument();
+  });
+});
+
+describe('room assignment through the flow', () => {
+  it('learns a room number once pre-registration reaches the property', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="guest-details" initialSession={MOCK_SESSION} />);
 
-    // Step 1 of 5: Your details
-    expect(screen.getByText('1 of 5')).toBeInTheDocument();
+    // Before: the stay is pre-registered but unallocated.
+    await user.click(screen.getByRole('button', { name: 'Continue to ID' }));
+    await user.click(screen.getByRole('button', { name: 'Save and continue' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Request early check-in' }));
+
+    // After: the property allocated one, and the app reports it rather than
+    // claiming to have chosen it.
+    expect(screen.getByText('Room 512 is yours')).toBeInTheDocument();
+    expect(screen.getByText(/Honoured: Higher floor · King bed/)).toBeInTheDocument();
+    expect(screen.queryByText(/allocates rooms from its own inventory/)).toBeNull();
+  });
+});
+
+describe('room-ready notification', () => {
+  it('simulates a room-ready push outside the guest app and opens the updated stay', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />,
+    );
+
+    const toolbar = screen.getByRole('region', { name: 'Prototype controls' });
+    expect(container.querySelector('.guest-app')?.contains(toolbar)).toBe(false);
+
+    await user.click(screen.getByRole('button', { name: 'Simulate room ready' }));
+
+    const notification = screen.getByRole('region', { name: 'Room-ready notification' });
+    expect(within(notification).getByText('Room 512 is ready')).toBeInTheDocument();
+    expect(within(notification).getByText('Released at 2:15 PM. Go straight up.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
+
+    await user.click(within(notification).getByRole('button', { name: 'View stay' }));
+
+    expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Go back' })).toBeNull();
+    expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent('Room 512 is ready');
+    expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent('Released at 2:15 PM. Go straight up.');
+  });
+
+  it('disables the PMS simulation while offline', () => {
+    render(
+      <GuestAppPrototype
+        initialScreen="stay-overview"
+        initialSession={assignedSession}
+        initialOnline={false}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Simulate room ready' })).toBeDisabled();
+    expect(screen.getByText('Reconnect to receive a new PMS event.')).toBeInTheDocument();
+  });
+
+  it('does not offer readiness for a property that cannot report it', () => {
+    const legacy = sessionFor([
+      makeBooking({
+        id: 'legacy',
+        status: 'upcoming',
+        preArrivalCompleted: 4,
+        preArrivalTotal: 4,
+        roomAssignment: 'assigned',
+        roomNumber: '512',
+        reportsRoomReadiness: false,
+      }),
+    ]);
+
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={legacy} />);
+
+    expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
+    expect(screen.getByText(/does not report room readiness/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['pending', makeBooking({ roomAssignment: 'pending', roomNumber: undefined })],
+    ['missing-room', makeBooking({ roomAssignment: 'assigned', roomNumber: undefined })],
+    ['ready', makeBooking({ roomAssignment: 'ready', roomNumber: '512' })],
+    ['completed', makeBooking({ status: 'completed', roomAssignment: 'assigned', roomNumber: '512' })],
+  ])('does not offer readiness for a %s booking', (_label, booking) => {
+    render(
+      <GuestAppPrototype
+        initialScreen="stay-overview"
+        initialSession={sessionFor([{ ...booking, preArrivalCompleted: 4, preArrivalTotal: 4 }])}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
+  });
+
+  it('dismisses the push after eight seconds without reverting the room', () => {
+    vi.useFakeTimers();
+    try {
+      render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
+
+      expect(screen.getByRole('region', { name: 'Room-ready notification' })).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(8_000));
+
+      expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();
+      expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent('Room 512 is ready');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('dismisses the push on request without reverting the room', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+
+    expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();
+    expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent('Room 512 is ready');
+  });
+
+  it('pauses automatic dismissal while focus is inside the push', () => {
+    vi.useFakeTimers();
+    try {
+      render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
+
+      const notification = screen.getByRole('region', { name: 'Room-ready notification' });
+      const viewStay = within(notification).getByRole('button', { name: 'View stay' });
+      fireEvent.focus(viewStay);
+      act(() => vi.advanceTimersByTime(8_000));
+
+      expect(screen.getByRole('region', { name: 'Room-ready notification' })).toBeInTheDocument();
+
+      const reviewStay = screen.getByRole('button', { name: 'Review stay' });
+      fireEvent.blur(viewStay, { relatedTarget: reviewStay });
+      fireEvent.focus(reviewStay);
+      act(() => vi.advanceTimersByTime(8_000));
+
+      expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('travel destination', () => {
+  it('exposes travel as a fourth peer destination, not a booking category', () => {
+    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    const destinations = within(nav).getAllByRole('button').map((b) => b.textContent);
+    expect(destinations).toEqual(['Stay', 'Bookings', 'Travel', 'Chat']);
+  });
+
+  it('lists every travel category on the hub', () => {
+    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
+
+    expect(screen.getByRole('heading', { name: 'Get there, and onward' })).toBeInTheDocument();
+    for (const category of TRAVEL_CATEGORIES) {
+      expect(screen.getByText(category.title)).toBeInTheDocument();
+    }
+  });
+
+  it('opens a category with its own route labels, party label and inventory', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByText('Ferries'));
+
+    expect(screen.getByLabelText('Departure port')).toBeInTheDocument();
+    expect(screen.getByLabelText('Arrival port')).toBeInTheDocument();
+    expect(screen.getByLabelText('Passengers')).toBeInTheDocument();
+    expect(screen.getByText('2GO Travel')).toBeInTheDocument();
+    expect(screen.getAllByText('OceanJet')).toHaveLength(2);
+    // Flight inventory must not leak into the ferry category.
+    expect(screen.queryByText('Cebu Pacific')).toBeNull();
+  });
+
+  it('omits the route block for insurance, which is not a journey', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByText('Travel insurance'));
+
+    expect(screen.getByRole('heading', { name: 'Cover your trip' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Travellers')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^From$/)).toBeNull();
+    expect(screen.queryByLabelText('Departure port')).toBeNull();
+  });
+
+  it('marks one fare as selected and totals it against the operator', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByText('Flights'));
+    const fares = screen.getAllByRole('button', { pressed: false });
+    await user.click(screen.getByText('₱3,940').closest('button') as HTMLElement);
+
+    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1);
+    expect(fares.length).toBeGreaterThan(1);
+    // Selecting a fare summarises it and opens the way to checkout.
+    expect(screen.getByText('Fare each')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Continue to checkout/ })).toBeInTheDocument();
+  });
+});
+
+describe('travel checkout', () => {
+  const travelSession = { ...MOCK_SESSION, activeBookingId: MOCK_SESSION.bookings[0]!.id };
+
+  async function pickFlight(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByText('Flights'));
+    await user.click(screen.getByText('₱3,940').closest('button') as HTMLElement);
+    await user.click(screen.getByRole('button', { name: /Continue to checkout/ }));
+  }
+
+  it('totals the fare per traveller and charges the operator, not the folio', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
+    await pickFlight(user);
+
+    expect(screen.getByRole('heading', { name: 'Confirm and pay' })).toBeInTheDocument();
+    // 3,940 x 2 fare, plus a 210 per-traveller fee.
+    expect(screen.getByText('Fare × 2')).toBeInTheDocument();
+    expect(screen.getByText('₱7,880')).toBeInTheDocument();
+    expect(screen.getByText('₱420')).toBeInTheDocument();
+    expect(screen.getByText('₱8,300')).toBeInTheDocument();
+    expect(screen.getByText(/Not charged to your room/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Pay ₱8,300/ })).toBeInTheDocument();
+  });
+
+  it('confirms the traveller Cabana already holds ID for', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
+    await pickFlight(user);
+
+    expect(screen.getByText('Ana Santos')).toBeInTheDocument();
+    expect(screen.getByText('ID on file from check-in')).toBeInTheDocument();
+    expect(screen.getByText('Marco Santos')).toBeInTheDocument();
+  });
+
+  it('books the leg and lands it in my bookings', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
+    await pickFlight(user);
+    await user.click(screen.getByRole('button', { name: /Pay ₱8,300/ }));
+
+    expect(screen.getByRole('heading', { name: 'Your flight is booked' })).toBeInTheDocument();
+    expect(screen.getByText(/Bring government ID/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'View my bookings' }));
+    expect(screen.getByRole('heading', { name: 'Travel' })).toBeInTheDocument();
+    expect(screen.getByText(/Cebu Pacific · 09:15 → 11:05/)).toBeInTheDocument();
+    expect(screen.getByText(/paid to the operator/)).toBeInTheDocument();
+  });
+
+  it('names the booked leg correctly for an irregular plural', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
+
+    await user.click(screen.getByText('Ferries'));
+    // Two sailings share the ₱1,250 fare, so pick by the unique operator.
+    await user.click(screen.getByText('2GO Travel').closest('button') as HTMLElement);
+    await user.click(screen.getByRole('button', { name: /Continue to checkout/ }));
+    await user.click(screen.getByRole('button', { name: /^Pay / }));
+
+    // "Ferries" must not become "ferrie".
+    expect(screen.getByRole('heading', { name: 'Your ferry is booked' })).toBeInTheDocument();
+  });
+
+  it('refuses to hold a fare while offline instead of queueing it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} initialOnline={false} />);
+    await pickFlight(user);
+
+    expect(screen.getByText(/Nothing was booked/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Pay / })).toBeNull();
+  });
+});
+
+describe('pre-arrival onboarding flow', () => {
+  it('collects details, ID, additional guests, and early check-in across 4 steps', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="guest-details" initialSession={MOCK_SESSION} />);
+
+    // Step 1 of 4: Your details
+    expect(screen.getByText('1 of 4')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Your details' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue to ID' }));
 
-    // Step 2 of 5: ID capture
-    expect(screen.getByText('2 of 5')).toBeInTheDocument();
+    // Step 2 of 4: ID capture
+    expect(screen.getByText('2 of 4')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'ID or passport' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Save and continue' }));
 
-    // Step 3 of 5: Room preferences (floor, bed type, accessibility needs)
-    expect(screen.getByText('3 of 5')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Room preferences' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Preferred floor/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Bed type/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Step-free room access/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Save and continue' }));
-
-    // Step 4 of 5: Additional guests
-    expect(screen.getByText('4 of 5')).toBeInTheDocument();
+    // Step 3 of 4: Additional guests -- room preferences no longer interrupt
+    // check-in, so ID hands straight to this step.
+    expect(screen.getByText('3 of 4')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Who else is staying?' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Room preferences' })).toBeNull();
+    expect(screen.queryByLabelText(/Preferred floor/)).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
-    // Step 5 of 5: Early check-in
+    // Step 4 of 4: Early check-in
     expect(screen.getByRole('heading', { name: 'Check in earlier' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Request early check-in' }));
 
     // Completion opens the booking home.
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+  });
+
+  it('keeps room preferences editable from the profile, outside check-in', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="room-preferences" initialSession={MOCK_SESSION} />);
+
+    expect(screen.getByRole('heading', { name: 'Room preferences' })).toBeInTheDocument();
+    expect(screen.getByText(/use them the next time you book/i)).toBeInTheDocument();
+    // No step chrome: this is a profile screen, not a check-in question.
+    expect(screen.queryByText(/of 4$/)).toBeNull();
+
+    await user.selectOptions(screen.getByLabelText(/Bed type/), 'Twin beds');
+    await user.click(screen.getByRole('button', { name: 'Save preferences' }));
+
+    // The profile screen titles itself with the guest's name.
+    expect(screen.getByRole('heading', { name: 'Ana Santos' })).toBeInTheDocument();
   });
 
   it('pre-fills room preferences for repeat guests and allows 1-tap confirmation', async () => {

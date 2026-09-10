@@ -1283,11 +1283,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </section>
             ) : (
               <div className="guest-hub-empty">
-                <Tag>No upcoming services</Tag>
-                <h2>No active bookings yet</h2>
-                <p>Browse our mini-app categories on Home to book room dining, spa massages, or tours.</p>
+                {/*
+                  No Tag here. A Tag marks the status of a thing -- Confirmed,
+                  Cancelled, Completed on the cards above. An empty state has no
+                  thing to mark, so one only restated the heading, in a second
+                  noun ("services" over "bookings") for the same objects.
+                */}
+                <h2>No bookings yet</h2>
+                <p>Dining, spa, tours and hotel services are on your stay home. Anything you book is added to {contextRoom.toLowerCase()} and settles at checkout.</p>
                 <Button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-overview')}>
-                  Explore categories on Home<ArrowRight aria-hidden="true" />
+                  Explore on-property<ArrowRight aria-hidden="true" />
                 </Button>
               </div>
             )}

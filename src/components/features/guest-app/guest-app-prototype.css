@@ -2940,7 +2940,27 @@
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   border: 1px solid var(--guest-line);
-  gap: 12px;
+  gap: 10px;
+}
+/* This block had no type rules, so the heading and the body rendered
+   identically -- 15px/400 both -- and the h2 was a heading in the markup only.
+   17px/700 matches the section headings elsewhere in the app. */
+.guest-hub-empty h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.014em;
+  color: var(--guest-ink);
+}
+.guest-hub-empty p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--guest-muted);
+  text-wrap: pretty;
+}
+.guest-hub-empty .guest-button {
+  margin-top: 4px;
 }
 
 /* --------------------------------------------------------------------------

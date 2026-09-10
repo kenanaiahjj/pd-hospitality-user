@@ -579,24 +579,6 @@
 .guest-category-grid .guest-action-tile:focus-visible { outline-offset: -3px; }
 .guest-list-group .guest-list-row + .guest-list-row { box-shadow: inset 0 1px 0 var(--guest-line); }
 
-.guest-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.guest-info-tile {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  min-width: 0;
-  min-height: 96px;
-  padding: 14px;
-  border: 0;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-paper);
-  box-shadow: var(--shadow-xs);
-}
-.guest-info-tile > span { color: var(--guest-muted); }
-.guest-info-tile svg { width: 18px; height: 18px; }
-.guest-info-tile small { color: var(--guest-muted); font-size: 12px; }
-.guest-info-tile b { font-size: 14px; font-weight: 650; text-wrap: pretty; }
-
 /* Quick actions: circular targets in a row, label underneath. */
 .guest-action-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .guest-action-grid .guest-action-tile {
@@ -1242,11 +1224,11 @@
   .guest-list-row:not(.is-static):hover,
   .guest-service-row:hover,
   .guest-stay-card:hover,
-  .guest-stay-hero-card:hover,
   .guest-upcoming-card:hover,
   .guest-history-card:hover,
-  .guest-miniapp-card:hover,
   .guest-booking-card:hover:not(.is-static) { background: var(--guest-surface); box-shadow: var(--shadow-sm); }
+  .guest-miniapp-tile:hover { background: var(--guest-soft); }
+  .guest-stay-hero-card__actions .guest-list-row:hover { background: var(--guest-surface); }
   .guest-list-group .guest-list-row:not(.is-static):hover,
   .guest-category-grid .guest-action-tile:hover { background: var(--guest-surface); }
   .guest-action-grid .guest-action-tile:hover > span { background: color-mix(in oklch, var(--guest-ink) 12%, var(--guest-paper)); }
@@ -1382,74 +1364,41 @@
 /* --------------------------------------------------------------------------
    Mini-apps category grid on Home
    -------------------------------------------------------------------------- */
-.guest-miniapp-grid {
+.guest-miniapp-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
 }
-.guest-miniapp-card {
+.guest-miniapp-tile {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  padding: 0;
-  border: 1px solid var(--guest-line);
+  align-items: center;
+  gap: 8px;
+  padding: 10px 2px 12px;
+  border: 0;
   border-radius: var(--guest-radius-md);
-  background: var(--guest-paper);
-  text-align: left;
-  box-shadow: var(--shadow-xs);
+  background: none;
   cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+  transition: transform var(--duration-press) var(--ease-out), background var(--duration-fast) ease;
 }
-.guest-miniapp-card:active {
-  transform: scale(0.97);
+.guest-miniapp-tile:active {
+  transform: scale(0.95);
 }
-.guest-miniapp-card:focus-visible {
+.guest-miniapp-tile:focus-visible {
   outline: 2px solid var(--guest-accent-strong);
   outline-offset: 2px;
 }
-.guest-miniapp-card__cover {
-  position: relative;
-  width: 100%;
-  height: 105px;
-  overflow: hidden;
-  background: var(--guest-placeholder);
-}
-.guest-miniapp-card__cover img {
-  object-fit: cover;
-  transition: transform var(--duration-base) var(--ease-out);
-}
-.guest-miniapp-card:hover .guest-miniapp-card__cover img {
-  transform: scale(1.04);
-}
-.guest-miniapp-card__tag {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 4;
-}
-.guest-miniapp-card__info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px 12px;
-  width: 100%;
-}
-.guest-miniapp-card__header {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
 .guest-miniapp-icon {
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 52px;
+  height: 52px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: var(--guest-radius-xs);
+  border-radius: var(--guest-radius-md);
 }
 .guest-miniapp-icon svg {
-  width: 15px;
-  height: 15px;
+  width: 24px;
+  height: 24px;
 }
 .guest-miniapp-icon--sand {
   background: oklch(0.95 0.03 75);
@@ -1467,18 +1416,13 @@
   background: oklch(0.94 0.03 240);
   color: oklch(0.42 0.09 240);
 }
-.guest-miniapp-card h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+.guest-miniapp-tile__label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.006em;
   color: var(--guest-ink);
-  letter-spacing: -0.01em;
-}
-.guest-miniapp-card p {
-  margin: 0;
-  font-size: 11px;
-  color: var(--guest-muted);
-  line-height: 1.35;
+  text-align: center;
 }
 
 /* --------------------------------------------------------------------------
@@ -1516,11 +1460,6 @@
   font-weight: 700;
   letter-spacing: -0.02em;
 }
-.guest-stay-hero-card__meta {
-  margin: 0;
-  color: var(--guest-muted);
-  font-size: 14px;
-}
 .guest-stay-hero-card__chips {
   display: flex;
   flex-wrap: wrap;
@@ -1534,6 +1473,36 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+.guest-stay-hero-card__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.guest-stay-hero-card__stats > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.guest-stay-hero-card__stats small {
+  color: var(--guest-muted);
+  font-size: 12px;
+}
+.guest-stay-hero-card__stats b {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.008em;
+  text-wrap: pretty;
+}
+/* Footer rows sit flush inside the card, so they drop their own chrome and
+   take a hairline instead -- same treatment as .guest-list-group. */
+.guest-stay-hero-card__actions .guest-list-row {
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 var(--guest-line);
+}
+.guest-stay-hero-card__actions .guest-list-row:focus-visible {
+  outline-offset: -3px;
 }
 
 /* --------------------------------------------------------------------------

@@ -362,10 +362,12 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('₱3,050')).toBeInTheDocument();
   });
 
-  it('groups account actions and keeps four stable app destinations', () => {
+  it('keeps four stable app destinations and no separate account group', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    expect(screen.getByRole('group', { name: 'Your account' })).toBeInTheDocument();
+    // Charges and booking moved onto the stay card, so home has no account
+    // group left to hold -- the profile lives behind the header avatar.
+    expect(screen.queryByRole('group', { name: 'Your account' })).toBeNull();
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
     // Four, as DESIGN.md specifies -- Travel joined Stay, Bookings and Chat.
     expect(navigation.querySelectorAll('button')).toHaveLength(4);
@@ -981,12 +983,12 @@ describe('home mini-apps and browsable restaurant menu', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     expect(screen.getByRole('group', { name: 'Experience categories' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Food & Drink' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Spa & Wellness' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Entertainment & Tours' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Hotel Services' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dining' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Spa' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tours' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Services' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Food & Drink/i }));
+    await user.click(screen.getByRole('button', { name: 'Dining' }));
 
     expect(screen.getByRole('heading', { name: 'Food & Drink', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Apartment 1B' })).toBeInTheDocument();
@@ -998,7 +1000,7 @@ describe('home mini-apps and browsable restaurant menu', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: /Entertainment & Tours/i }));
+    await user.click(screen.getByRole('button', { name: 'Tours' }));
 
     expect(screen.getByRole('heading', { name: 'Entertainment & Tours', level: 1 })).toBeInTheDocument();
     expect(screen.queryByText('View your active and upcoming bookings')).toBeNull();
@@ -1010,7 +1012,7 @@ describe('home mini-apps and browsable restaurant menu', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: /Food & Drink/i }));
+    await user.click(screen.getByRole('button', { name: 'Dining' }));
     await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
 
     // Restaurant menu view

@@ -559,7 +559,13 @@ export type MiniAppCategoryId = 'dining' | 'spa' | 'entertainment' | 'services';
 
 export type MiniAppCategory = {
   id: MiniAppCategoryId;
+  /** Full name. Heads the category listing screen. */
   title: string;
+  /**
+   * One word for the home launcher row, where four labels share a phone width.
+   * `title` would wrap to three lines there.
+   */
+  shortTitle: string;
   subtitle: string;
   badge: string;
   tone: 'sand' | 'sage' | 'sun' | 'blue';
@@ -569,6 +575,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   {
     id: 'dining',
     title: 'Food & Drink',
+    shortTitle: 'Dining',
     subtitle: 'Restaurants, in-room dining, bars',
     badge: '3 venues',
     tone: 'sand',
@@ -576,6 +583,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   {
     id: 'spa',
     title: 'Spa & Wellness',
+    shortTitle: 'Spa',
     subtitle: 'Hilom massage, therapies & scrubs',
     badge: 'On property',
     tone: 'sage',
@@ -583,6 +591,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   {
     id: 'entertainment',
     title: 'Entertainment & Tours',
+    shortTitle: 'Tours',
     subtitle: 'Day tours, live music & walks',
     badge: 'Curated',
     tone: 'sun',
@@ -590,6 +599,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   {
     id: 'services',
     title: 'Hotel Services',
+    shortTitle: 'Services',
     subtitle: 'Transfers, rentals & amenities',
     badge: 'Front desk',
     tone: 'blue',

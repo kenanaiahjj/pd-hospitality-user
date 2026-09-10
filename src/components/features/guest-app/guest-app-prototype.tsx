@@ -28,6 +28,7 @@ import {
   Sparkle,
   SpinnerGap,
   Storefront,
+  Ticket,
   ShieldCheck,
   SuitcaseRolling,
   Users,
@@ -77,7 +78,6 @@ import {
 import {
   getServiceImage,
   getPropertyImage,
-  getCategoryCoverImage,
   type ServiceImageKey,
 } from './service-images';
 import './guest-app-prototype.css';
@@ -249,33 +249,11 @@ function PropertyImage({
   );
 }
 
-function CategoryCoverImage({
-  categoryId,
-  aspectRatio = '16/10',
-  className = '',
-}: {
-  categoryId: string;
-  aspectRatio?: string;
-  className?: string;
-}) {
-  const [failed, setFailed] = useState(false);
-  const image = getCategoryCoverImage(categoryId);
-
-  return (
-    <div className={`guest-category-image ${failed ? 'is-error' : ''} ${className}`} style={{ aspectRatio }}>
-      <div className="guest-property-image__fallback" aria-hidden="true">
-        {categoryId === 'dining' ? <ForkKnife size={22} /> : categoryId === 'spa' ? <Sparkle size={22} /> : categoryId === 'entertainment' ? <AirplaneTilt size={22} /> : <Storefront size={22} />}
-      </div>
-      <Image
-        src={image.src}
-        alt=""
-        fill
-        sizes="(max-width: 720px) 50vw, 240px"
-        style={{ objectPosition: image.focalPoint }}
-        onError={() => setFailed(true)}
-      />
-    </div>
-  );
+function CategoryIcon({ id }: { id: MiniAppCategoryId }) {
+  if (id === 'dining') return <ForkKnife />;
+  if (id === 'spa') return <Sparkle />;
+  if (id === 'entertainment') return <AirplaneTilt />;
+  return <Storefront />;
 }
 
 
@@ -2034,62 +2012,49 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
           <div className="guest-stay-hero-card__body">
             <p className="guest-eyebrow">Good afternoon, {session.guestName.split(' ')[0]}</p>
             <h1>{booking.property}</h1>
-            <p className="guest-stay-hero-card__meta">{formatStayDateRange(booking)} · {booking.city}</p>
             <div className="guest-stay-hero-card__chips">
-              <span><WifiHigh size={14} /> Hotel Wi-Fi</span>
+              <span>{booking.city}</span>
               <span>·</span>
-              <span><Bed size={14} /> {booking.roomType}</span>
+              <span><WifiHigh size={14} /> Hotel Wi-Fi</span>
             </div>
+            {/*
+              Dates and room live here, not in a separate "Stay details" grid.
+              One card answers where, when and which room, so the two facts
+              cannot drift apart across sections.
+            */}
+            <div className="guest-stay-hero-card__stats">
+              <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
+              <div><small>Room</small><b>{booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : booking.roomType}</b></div>
+            </div>
+          </div>
+          <div className="guest-stay-hero-card__actions">
+            <button className="guest-list-row" onClick={() => onNavigate('folio')} type="button"><span><Receipt /></span><div><b>Room charges</b><small>Current folio · {folioTotal}</small></div><CaretRight /></button>
+            <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
           </div>
         </section>
         {!online ? <Notice tone="offline" icon={<WifiSlash />} title="You’re offline">Cached stay details are available. Requests will send when connected.</Notice> : null}
         <section>
           <SectionHeading title="Explore on-property" action="Bookings Hub" onAction={() => onNavigate('marketplace')} />
-          <div className="guest-miniapp-grid" role="group" aria-label="Experience categories">
+          <div className="guest-miniapp-row" role="group" aria-label="Experience categories">
             {MINI_APP_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
-                className="guest-miniapp-card"
+                className="guest-miniapp-tile"
                 onClick={() => {
                   onSelectCategory(cat.id);
                   onNavigate('category-listing');
                 }}
               >
-                <div className="guest-miniapp-card__cover">
-                  <CategoryCoverImage categoryId={cat.id} aspectRatio="16/10" />
-                  <div className="guest-miniapp-card__tag">
-                    <Tag tone={cat.id === 'spa' ? 'positive' : 'neutral'}>{cat.badge}</Tag>
-                  </div>
-                </div>
-                <div className="guest-miniapp-card__info">
-                  <div className="guest-miniapp-card__header">
-                    <div className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
-                      {cat.id === 'dining' ? <ForkKnife /> : cat.id === 'spa' ? <Sparkle /> : cat.id === 'entertainment' ? <AirplaneTilt /> : <Storefront />}
-                    </div>
-                    <h3>{cat.title}</h3>
-                  </div>
-                  <p>{cat.subtitle}</p>
-                </div>
+                <span className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
+                  <CategoryIcon id={cat.id} />
+                </span>
+                <span className="guest-miniapp-tile__label">{cat.shortTitle}</span>
               </button>
             ))}
           </div>
         </section>
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="Bookings Hub" onAction={() => onNavigate('marketplace')} /><div className="guest-booking-card is-static"><div><Tag tone="positive">Confirmed</Tag><h2>{confirmedServices[0].title}</h2><p>{confirmedServices[0].scheduledFor} · {confirmedServices[0].amount}</p><small>Added to {roomLabel.toLowerCase()} · settles at checkout</small></div></div></section> : null}
-        <section>
-          <SectionHeading title="Your account" />
-          <div className="guest-list-group" role="group" aria-label="Your account">
-            <button className="guest-list-row" onClick={() => onNavigate('folio')} type="button"><span><Receipt /></span><div><b>Room charges</b><small>Current folio · {folioTotal}</small></div><CaretRight /></button>
-            <button className="guest-list-row" onClick={() => onNavigate('marketplace')} type="button"><span><CalendarBlank /></span><div><b>Bookings Hub</b><small>{serviceCountLabel(confirmedServices.length)}</small></div><CaretRight /></button>
-          </div>
-        </section>
-        <section>
-          <SectionHeading title="Stay details" action="View booking" onAction={() => onNavigate('rate-detail')} />
-          <div className="guest-grid-2">
-            <InfoTile icon={<CalendarBlank />} label="Dates" value={formatStayDateRange(booking)} />
-            <InfoTile icon={<Bed />} label="Room" value={booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : booking.roomType} />
-          </div>
-        </section>
       </div>
     );
   }
@@ -2149,7 +2114,14 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
         <div className="guest-stay-hero-card__body">
           <p className="guest-eyebrow">Your next stay</p>
           <h1>{booking.property}</h1>
-          <p className="guest-stay-hero-card__meta">{booking.city} · {formatStayDateRange(booking)}</p>
+          <div className="guest-stay-hero-card__stats">
+            <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
+            <div><small>Room</small><b>{booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : `${booking.roomType} · Assigned at arrival`}</b></div>
+          </div>
+        </div>
+        {/* No folio row: a stay that has not started cannot have room charges. */}
+        <div className="guest-stay-hero-card__actions">
+          <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
         </div>
       </div>
       <section className="guest-home-booking guest-home-booking--primary">
@@ -2183,41 +2155,23 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
       </section>
       <section>
         <SectionHeading title="Explore on-property" action="Bookings Hub" onAction={() => onNavigate('marketplace')} />
-        <div className="guest-miniapp-grid" role="group" aria-label="Experience categories">
+        <div className="guest-miniapp-row" role="group" aria-label="Experience categories">
           {MINI_APP_CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               type="button"
-              className="guest-miniapp-card"
+              className="guest-miniapp-tile"
               onClick={() => {
                 onSelectCategory(cat.id);
                 onNavigate('category-listing');
               }}
             >
-              <div className="guest-miniapp-card__cover">
-                <CategoryCoverImage categoryId={cat.id} aspectRatio="16/10" />
-                <div className="guest-miniapp-card__tag">
-                  <Tag tone={cat.id === 'spa' ? 'positive' : 'neutral'}>{cat.badge}</Tag>
-                </div>
-              </div>
-              <div className="guest-miniapp-card__info">
-                <div className="guest-miniapp-card__header">
-                  <div className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
-                    {cat.id === 'dining' ? <ForkKnife /> : cat.id === 'spa' ? <Sparkle /> : cat.id === 'entertainment' ? <AirplaneTilt /> : <Storefront />}
-                  </div>
-                  <h3>{cat.title}</h3>
-                </div>
-                <p>{cat.subtitle}</p>
-              </div>
+              <span className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
+                <CategoryIcon id={cat.id} />
+              </span>
+              <span className="guest-miniapp-tile__label">{cat.shortTitle}</span>
             </button>
           ))}
-        </div>
-      </section>
-      <section>
-        <SectionHeading title="Stay details" action="View booking" onAction={() => onNavigate('rate-detail')} />
-        <div className="guest-grid-2">
-          <InfoTile icon={<CalendarBlank />} label="Dates" value={formatStayDateRange(booking)} />
-          <InfoTile icon={<Bed />} label="Room" value={booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : `${booking.roomType} · Assigned at arrival`} />
         </div>
       </section>
       <button className="guest-list-row" onClick={() => onNavigate('profile')} type="button"><span><Person /></span><div><b>Guest profile</b><small>{session.guestName} · Account details</small></div><CaretRight /></button>
@@ -2257,10 +2211,6 @@ function formatStayDateRange(booking: Booking) {
   const start = formatter.format(checkIn);
   const end = formatter.format(checkOut);
   return `${start}–${end}, ${booking.checkIn.slice(0, 4)}`;
-}
-
-function serviceCountLabel(count: number) {
-  return count === 0 ? 'No upcoming services' : `${count} upcoming service${count === 1 ? '' : 's'}`;
 }
 
 function ScreenIntro({ icon, eyebrow, title, text, children }: { icon?: ReactNode; eyebrow: string; title: string; text: string; children: ReactNode }) {
@@ -2311,10 +2261,6 @@ function TimelineItem({ title, text, done }: { title: string; text: string; done
 
 function SectionHeading({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return <div className="guest-section-heading"><h2>{title}</h2>{action ? <button onClick={onAction}>{action}<CaretRight /></button> : null}</div>;
-}
-
-function InfoTile({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return <div className="guest-info-tile"><span>{icon}</span><small>{label}</small><b>{value}</b></div>;
 }
 
 function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {

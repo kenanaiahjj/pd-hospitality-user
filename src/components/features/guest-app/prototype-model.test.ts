@@ -369,13 +369,30 @@ describe('getPostAuthScreen', () => {
 });
 
 describe('mini-app categories and restaurant menus', () => {
-  it('exposes the 4 core experience categories', () => {
+  it('exposes the 5 bookable categories, travel among them', () => {
     expect(MINI_APP_CATEGORIES.map((c) => c.id)).toEqual([
       'dining',
       'spa',
       'entertainment',
       'services',
+      'travel',
     ]);
+  });
+
+  it('sends travel to its own screen, not the on-property listing', () => {
+    // `category-listing` filters SERVICES by categoryId; travel's inventory is
+    // carriers and sailings in TRAVEL_CATEGORIES, with its own search flow.
+    const byId = new Map(MINI_APP_CATEGORIES.map((c) => [c.id, c.screen]));
+
+    expect(byId.get('travel')).toBe('travel');
+    for (const id of ['dining', 'spa', 'entertainment', 'services'] as const) {
+      expect(byId.get(id)).toBe('category-listing');
+    }
+  });
+
+  it('keeps travel out of the on-property service catalogue', () => {
+    // The grid treats it as a peer; the data still knows it is not on-property.
+    expect(SERVICES.some((service) => (service.categoryId as string) === 'travel')).toBe(false);
   });
 
   it('provides browsable restaurant menus with structured items and pricing', () => {

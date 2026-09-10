@@ -12,6 +12,12 @@
 | **Spec** | `docs/superpowers/specs/2026-09-10-nav-information-architecture-design.md` |
 | **Ledger** | `.superpowers/sdd/2026-09-10-nav-information-architecture/progress.md` |
 
+> **Superseded in part, same day.** This plan executed against "My Trip" and a
+> five-tab bar; both changed while it ran. Current truth is four destinations —
+> Home, Explore, My Stay, Profile — with travel as a category inside Explore.
+> The task record below is left as executed; the spec's decision log carries
+> what changed and why.
+
 **Goal:** Re-cut the guest app's destinations to `Home | Explore | My Trip |
 Profile`, add a notification bell and inbox to the app bar, and give
 the reservation a screen of its own.

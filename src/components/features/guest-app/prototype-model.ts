@@ -1169,7 +1169,7 @@ export function getCancellationState(hoursUntilService: number, cutoffHours: num
   return hoursUntilService >= cutoffHours ? 'self-service' : 'front-desk';
 }
 
-export type MiniAppCategoryId = 'dining' | 'spa' | 'entertainment' | 'services';
+export type MiniAppCategoryId = 'dining' | 'spa' | 'entertainment' | 'services' | 'travel';
 
 export type MiniAppCategory = {
   id: MiniAppCategoryId;
@@ -1183,11 +1183,19 @@ export type MiniAppCategory = {
   subtitle: string;
   badge: string;
   tone: 'sand' | 'sage' | 'sun' | 'blue';
+  /**
+   * Where the tile goes. Declared per category rather than assumed, because
+   * travel does not land on `category-listing`: that screen filters `SERVICES`
+   * by `categoryId`, and travel's inventory is carriers and sailings held in
+   * `TRAVEL_CATEGORIES`, with its own search and its own checkout.
+   */
+  screen: ScreenId;
 };
 
 export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   {
     id: 'dining',
+    screen: 'category-listing',
     title: 'Food & Drink',
     shortTitle: 'Dining',
     subtitle: 'Restaurants, in-room dining, bars',
@@ -1196,6 +1204,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   },
   {
     id: 'spa',
+    screen: 'category-listing',
     title: 'Spa & Wellness',
     shortTitle: 'Spa',
     subtitle: 'Hilom massage, therapies & scrubs',
@@ -1204,6 +1213,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   },
   {
     id: 'entertainment',
+    screen: 'category-listing',
     title: 'Entertainment & Tours',
     shortTitle: 'Tours',
     subtitle: 'Day tours, live music & walks',
@@ -1212,10 +1222,28 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   },
   {
     id: 'services',
+    screen: 'category-listing',
     title: 'Hotel Services',
     shortTitle: 'Services',
     subtitle: 'Transfers, rentals & amenities',
     badge: 'Front desk',
+    tone: 'blue',
+  },
+  /*
+    Travel sits in the grid as a peer, but it is not on-property and the rest
+    of this file still knows that: its inventory comes from carriers rather
+    than the property's PMS, and it is paid to the operator at booking instead
+    of joining a room folio. The guest gets one place to look for everything
+    bookable; the model keeps the boundary. See
+    docs/superpowers/specs/2026-09-09-travel-booking-destination-design.md.
+  */
+  {
+    id: 'travel',
+    screen: 'travel',
+    title: 'Travel',
+    shortTitle: 'Travel',
+    subtitle: 'Flights, ferries, transfers & cover',
+    badge: 'Onward',
     tone: 'blue',
   },
 ];

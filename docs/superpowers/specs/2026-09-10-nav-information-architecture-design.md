@@ -19,8 +19,8 @@ document disagree, this document wins.
 
 The guest app's destinations are re-cut around what a guest is trying to do
 rather than around which system supplies the data. `Stay | Bookings | Travel
-| Chat` becomes **`Home | Explore | My Trip | Profile`**, a
-notification bell takes the app bar's right slot, and a new **My Trip** screen
+| Chat` becomes **`Home | Explore | My Stay | Profile`**, a
+notification bell takes the app bar's right slot, and a new **My Stay** screen
 collects everything the guest has booked and owes across the whole journey —
 room, folio, upcoming services, onward legs, activity, and the front desk — in
 one place instead of four.
@@ -63,7 +63,7 @@ makes it the one destination with no label anywhere in the interface.
   confirmation screens exactly as
   [`2026-09-09-travel-booking-destination-design.md`](2026-09-09-travel-booking-destination-design.md)
   built them. Only where they are entered from changes.
-- **A combined bill the guest can settle in one action.** My Trip states the
+- **A combined bill the guest can settle in one action.** My Stay states the
   trip total and splits it by settlement; it does not offer to pay it. Travel is
   already paid to the operator and the room folio settles at the desk.
 - **Search inside Explore.** Explore keeps the existing category grid, filter
@@ -71,17 +71,17 @@ makes it the one destination with no label anywhere in the interface.
 
 ## Success criteria
 
-- [x] The tab bar renders exactly `Home`, `Explore`, `My Trip`, `Profile`, in
+- [x] The tab bar renders exactly `Home`, `Explore`, `My Stay`, `Profile`, in
       that order, and marks the current destination with the accent.
 - [x] Travel inventory is reachable from `Explore`, under its own heading, and a
       travel screen lights the `Explore` tab.
-- [x] `My Trip` shows a running total for the whole trip, with the room-folio
+- [x] `My Stay` shows a running total for the whole trip, with the room-folio
       and paid-to-operator halves stated separately.
 - [x] The app bar's right slot holds a notification bell on every in-app screen;
       it carries a dot when unread items exist and none when they do not.
 - [x] Tapping the bell opens a notification list; opening it clears the dot.
 - [x] Tapping a notification navigates to the screen that notification is about.
-- [x] `My Trip` shows, for an active stay: room and reservation, a check-out
+- [x] `My Stay` shows, for an active stay: room and reservation, a check-out
       countdown, the running total, confirmed upcoming services and travel
       legs, an activity history of past orders, and a row that opens the front
       desk chat.
@@ -97,16 +97,16 @@ makes it the one destination with no label anywhere in the interface.
 
 ### Recommended: four destinations, travel folded into Explore
 
-`Home | Explore | My Trip | Profile`. Explore holds the whole catalogue — the
-property's own services *and* the onward legs. My Trip holds every booking and
-the running bill for the trip. Front-desk chat is a row inside My Trip, and
+`Home | Explore | My Stay | Profile`. Explore holds the whole catalogue — the
+property's own services *and* the onward legs. My Stay holds every booking and
+the running bill for the trip. Front-desk chat is a row inside My Stay, and
 notifications are the bell in the app bar.
 
 **Why:** Each tab answers one question a guest actually asks — *what's happening
 now*, *what can I book*, *what have I booked and what do I owe*, *who am I*. It
 resolves the "Bookings means two things" collision without inventing a
 destination: the catalogue half stays put and is renamed, the my-bookings half
-moves to My Trip, and the duplicate `my-bookings` screen disappears into it.
+moves to My Stay, and the duplicate `my-bookings` screen disappears into it.
 
 Naming the third tab for the **trip** rather than the stay is the load-bearing
 choice. The product's goal is the whole journey — hotel to hotel, island to
@@ -126,15 +126,15 @@ commit rather than being left to contradict the interface.
 
 ### Alternative: five destinations, keeping Travel
 
-`Home | Explore | My Trip | Travel | Profile`.
+`Home | Explore | My Stay | Travel | Profile`.
 
 **Rejected because:** it spends a permanent destination on inventory the guest
 books once or twice a trip, and it splits "what have I booked" across two tabs —
-the ferry in Travel, the massage in My Trip — which is exactly the fragmentation
+the ferry in Travel, the massage in My Stay — which is exactly the fragmentation
 the reshuffle exists to remove. Five tabs also leaves 96px per destination at the
 480px cap, with no room to grow.
 
-### Alternative: keep four tabs, merge Home and My Trip
+### Alternative: keep four tabs, merge Home and My Stay
 
 `Home/Stay | Explore | Travel | Profile`, with the folio and activity folded
 back into the Home hero.
@@ -157,8 +157,8 @@ stays a single Client Component driving a `switch` over `ActiveScreen`;
 it. No new route, no new API surface, so the `CLAUDE.md` invariants about the
 HTTP client, the BFF and the response envelope are untouched.
 
-Two new screens (`my-trip`, `notifications`) are added to `ScreenId`, and
-`my-bookings` is removed — My Trip subsumes it entirely, so keeping both would
+Two new screens (`my-stay`, `notifications`) are added to `ScreenId`, and
+`my-bookings` is removed — My Stay subsumes it entirely, so keeping both would
 reintroduce the duplication this pass exists to remove. `SCREENS` therefore goes
 from 46 entries to 47.
 
@@ -179,7 +179,7 @@ lives in the component as a `Set` of ids.
 
 **`src/components/features/guest-app/guest-app-prototype.tsx`**
 - **Does:** renders the four-destination tab bar, the bell in the app bar, the
-  `my-trip` and `notifications` screens, and Explore's `Onward travel` section;
+  `my-stay` and `notifications` screens, and Explore's `Onward travel` section;
   tracks seen and read state.
 - **Used as:** unchanged public surface — `<GuestAppPrototype />` with the same
   three optional props.
@@ -198,7 +198,7 @@ lives in the component as a `Set` of ids.
 |---|---|---|
 | Home | `stay-overview` | — |
 | Explore | `marketplace` | `travel`, `travel-search`, `category-listing`, `hotel-service`, `vendor-service`, `restaurant-menu`, `restaurant-cart`, `dining-order-confirmation`, `service-booking`, `booking-confirmation`, `booking-blocked` |
-| My Trip | `my-trip` | `folio`, `chat`, `chat-after-hours`, `cancel-before-cutoff`, `cancel-after-cutoff`, `room-qr-midstay`, `notifications` |
+| My Stay | `my-stay` | `folio`, `chat`, `chat-after-hours`, `cancel-before-cutoff`, `cancel-after-cutoff`, `room-qr-midstay`, `notifications` |
 | Profile | `profile` | `stay-history` |
 
 Icons: `House`, `Compass`, `Receipt`, `UserCircle`.
@@ -223,16 +223,19 @@ unchanged.
    pass.
 
 **Explore (`marketplace`)** loses both booking lists — `Upcoming & Confirmed`
-and `Past & Completed` move to My Trip — and its "No bookings yet" empty state,
+and `Past & Completed` move to My Stay — and its "No bookings yet" empty state,
 which has nothing left to be empty about. It keeps the offline notice, the
 featured service and the category grid, gains the page title `Explore`, and
-gains an **Onward travel** section: one tile per `TRAVEL_CATEGORIES` entry
-jumping straight into `travel-search`, a `See all` action opening the travel
-hub, and a note under the heading saying the legs are paid to the operator
-rather than added to the room. Its `SCREENS` title changes from `Bookings Hub`
-to `Explore`.
+and gains **Travel as the fifth category** in that grid, opening the travel
+hub. Its `SCREENS` title changes from `Bookings Hub` to `Explore`.
 
-**My Trip (`my-trip`)**, in order:
+`MiniAppCategory` gains a `screen` field for this. `category-listing` filters
+`SERVICES` by `categoryId` and travel has no rows there, so the destination has
+to be declared per category rather than assumed — which also removes the
+branch that Home's category row would otherwise need, since both surfaces read
+the same list.
+
+**My Stay (`my-stay`)**, in order:
 
 1. **Reservation card** — property, dates, room type and number, and a
    check-out countdown (`Checks out in 2 days` / `Checks out tomorrow` /
@@ -254,7 +257,7 @@ paid and the folio is not.
 
 For a stay that has not started, the countdown reads `Checks in <n> days` and
 the folio row is omitted — an upcoming stay has no room charges — though the
-total still appears if travel has been booked. With no booking at all, My Trip
+total still appears if travel has been booked. With no booking at all, My Stay
 shows the same connect-a-booking empty state Home uses.
 
 The prototype clock is fixed at `PROTOTYPE_TODAY` (`2026-11-11`, the date the
@@ -311,8 +314,8 @@ already exists:
 | Source | Notification |
 |---|---|
 | `describeRoomAssignment(booking).state === 'ready'` | *Room \<n\> is ready* → `stay-overview` |
-| each confirmed `ServiceBooking` | *\<title\> confirmed* → `my-trip` |
-| a confirmed `ServiceBooking` with a `diningOrder` | *Your order is being prepared* → `my-trip` |
+| each confirmed `ServiceBooking` | *\<title\> confirmed* → `my-stay` |
+| a confirmed `ServiceBooking` with a `diningOrder` | *Your order is being prepared* → `my-stay` |
 | `session.folioTotal` non-zero | *New charge on your room* → `folio` |
 | each confirmed `TravelBooking` | *\<operator\> booking confirmed* → `travel` |
 | an active stay | *Front desk* — mirroring the seeded desk message → `chat` |
@@ -322,9 +325,9 @@ No new response shape: this pass adds no route handler and no fetch.
 ### Error handling
 
 No new failure modes. The screens added here read session state that is always
-present in some form, and both handle the empty case explicitly (My Trip with no
+present in some form, and both handle the empty case explicitly (My Stay with no
 booking, Notifications with nothing to show) rather than by guarding a render.
-The existing offline behaviour is unchanged: My Trip shows the last-known folio
+The existing offline behaviour is unchanged: My Stay shows the last-known folio
 under the existing `offline` notice, matching `folio`.
 
 ### Testing
@@ -347,8 +350,8 @@ Vitest + Testing Library, in the existing files.
   while the rows keep their own unread marks.
 - Tapping a notification navigates to that notification's screen and marks only
   that one read.
-- My Trip shows the running total, the folio row, the countdown, and Activity.
-- A booked travel leg lands in My Trip's Upcoming beside the on-property
+- My Stay shows the running total, the folio row, the countdown, and Activity.
+- A booked travel leg lands in My Stay's Upcoming beside the on-property
   bookings.
 - The running total is absent before a stay starts.
 - The front desk row opens the chat.
@@ -365,7 +368,7 @@ Vitest + Testing Library, in the existing files.
 - The architecture invariants in `CLAUDE.md` are binding.
 - No new dependency. Icons come from the `@phosphor-icons/react` set already in
   use; no `clsx` or `tailwind-merge`.
-- No new CSS custom property. The notification list, the My Trip summary and the
+- No new CSS custom property. The notification list, the My Stay summary and the
   announcement cards are built from the existing `--guest-*` tokens.
 - Every interactive element clears a 44px target, ships default, hover, focus,
   active and disabled states, and gates hover behind
@@ -382,11 +385,14 @@ None.
 | Date | Decision | Why | Cost if wrong |
 |---|---|---|---|
 | 2026-09-10 | Five destinations, keeping Travel as a peer | Travel is `Implemented` as a peer destination on source, timing and settlement grounds | Superseded the same day — see the row below |
-| 2026-09-10 | **Reversed: four destinations, Travel folded into Explore** | The product is the whole journey, so the tab that lists bookings has to hold a ferry as naturally as a massage. Splitting "what have I booked" across a Travel tab and a My Trip tab was the fragmentation the pass exists to remove | Restoring Travel as a tab is an additive change: the screens, the section heading and the active-tab mapping all survive |
-| 2026-09-10 | "My Trip", not "My Stay" | A tab named for one stay cannot hold the leg to the next property without lying about its own name | A rename plus the `ScreenId`; no structural rework |
+| 2026-09-10 | **Reversed: four destinations, Travel folded into Explore** | The product is the whole journey, so the tab that lists bookings has to hold a ferry as naturally as a massage. Splitting "what have I booked" across a Travel tab and a My Stay tab was the fragmentation the pass exists to remove | Restoring Travel as a tab is an additive change: the screens, the section heading and the active-tab mapping all survive |
+| 2026-09-10 | "My Stay", not "My Stay" | A tab named for one stay cannot hold the leg to the next property without lying about its own name | A rename plus the `ScreenId`; no structural rework |
 | 2026-09-10 | The trip total states its two settlements rather than merging them | Room charges settle at checkout, travel is already paid to the operator; one undifferentiated figure would misstate what the guest still owes | If guests read the split as clutter, the breakdown collapses behind a tap |
-| 2026-09-10 | Chat demoted from a tab to a My Trip row | A tab is a place you return to; messaging the desk is an action, and its contextual entries already carry most of the traffic | If desk contact drops, chat returns as a persistent app bar icon beside the bell — an additive change |
-| 2026-09-10 | `my-bookings` removed rather than kept alongside `my-trip` | Two screens listing the same service bookings is the duplication this pass exists to remove | Restoring it is a screen re-add plus redirecting the two cancel flows back |
+| 2026-09-10 | Chat demoted from a tab to a My Stay row | A tab is a place you return to; messaging the desk is an action, and its contextual entries already carry most of the traffic | If desk contact drops, chat returns as a persistent app bar icon beside the bell — an additive change |
+| 2026-09-10 | `my-bookings` removed rather than kept alongside `my-stay` | Two screens listing the same service bookings is the duplication this pass exists to remove | Restoring it is a screen re-add plus redirecting the two cancel flows back |
 | 2026-09-10 | Profile avatar removed from the app bar | Profile is now a labelled tab; two routes to one screen in one viewport is the duplication being removed elsewhere | Guests who learned the avatar lose a shortcut; re-adding it is a one-line app bar change |
 | 2026-09-10 | Notifications derived from session state, not stored | Matches every other list in the prototype and needs no persistence layer | A real inbox needs a store; the derivation becomes the seed for it |
-| 2026-09-10 | Orders/activity inside My Trip (brief's Option A) rather than a sixth tab | They are the same objects as the folio lines beside them | Splitting them out later is a section extraction, not a rewrite |
+| 2026-09-10 | Orders/activity inside My Stay (brief's Option A) rather than a sixth tab | They are the same objects as the folio lines beside them | Splitting them out later is a section extraction, not a rewrite |
+| 2026-09-10 | Renamed back: "My Trip" → **"My Stay"** | Partner direction, after the trip-scoped naming had been introduced the same day | A rename plus the `ScreenId`; the trip-wide content it holds is unchanged |
+| 2026-09-10 | Travel becomes the fifth `MINI_APP_CATEGORIES` entry, not an Explore section | Its own section put the thing a guest wants when leaving beneath the featured massage, and made "what can I book" two questions | The boundary now lives only in the model (no `SERVICES` rows, own screens, own checkout); if that erodes, travel needs its seam back |
+| 2026-09-10 | Travel's tile is a Phosphor glyph, not an illustration | The sheet has no travel drawing, and the tile CSS already styles a glyph with the same pink-soft square; fabricating one was the worse option | A real illustration drops in by adding one `CATEGORY_ILLUSTRATIONS` entry |

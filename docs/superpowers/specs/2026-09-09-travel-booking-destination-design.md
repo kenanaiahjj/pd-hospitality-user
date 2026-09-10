@@ -13,18 +13,26 @@
 This spec is the binding authority during execution: when a plan and this
 document disagree, this document wins.
 
-> **Amended 2026-09-10.** Travel is no longer a tab-bar destination. The nav
-> pass in
+> **Amended 2026-09-10.** Travel is no longer a tab-bar destination, and is no
+> longer a section of its own either. The nav pass in
 > [`2026-09-10-nav-information-architecture-design.md`](2026-09-10-nav-information-architecture-design.md)
-> cut the bar to four destinations — Home, Explore, My Trip, Profile — and moved
-> travel inventory into **Explore**, under its own `Onward travel` heading, with
-> the booked legs surfacing in **My Trip** beside the on-property bookings.
-> Everything else here still holds, and the separation this document argues for
-> is preserved rather than abandoned: travel keeps its own screens, its own
-> checkout, its own heading, and the copy that says it is paid to the operator
-> rather than added to a room folio. What changed is that the separation is now
-> carried by a section boundary instead of a tab. The reasoning below — source,
-> timing and settlement — is why that heading exists at all.
+> cut the bar to four destinations — Home, Explore, My Stay, Profile — and
+> travel is now the **fifth entry in `MINI_APP_CATEGORIES`**, sitting in the
+> Explore grid beside Food & Drink, Spa & Wellness, Entertainment & Tours and
+> Hotel Services. Booked legs surface in **My Stay** beside the on-property
+> bookings.
+>
+> The separation this document argues for survives where it matters, in the
+> model rather than in the layout. Travel keeps its own screens, its own
+> search, its own checkout, and the copy saying it is paid to the operator
+> rather than added to a room folio; it carries no rows in `SERVICES`, so it
+> never joins the on-property catalogue or a folio. What it gained is a
+> `screen` field on the category, because `category-listing` filters `SERVICES`
+> by `categoryId` and travel has nothing there to filter — the grid treats it
+> as a peer while the data still knows it is not one.
+>
+> The reasoning below — source, timing, settlement — is why that boundary is
+> still enforced in code even though the interface no longer shows a seam.
 
 ---
 
@@ -55,7 +63,7 @@ inter-island flight" on one screen as peers, and would collide with Hotel
 Services, which already advertises airport transfers. A separate destination
 also takes the tab bar to the four stable destinations `DESIGN.md` specifies;
 it currently ships three. *(Superseded: `DESIGN.md`'s four destinations are now
-Home, Explore, My Trip and Profile — see the amendment above.)*
+Home, Explore, My Stay and Profile — see the amendment above.)*
 
 ## Scope of this pass
 

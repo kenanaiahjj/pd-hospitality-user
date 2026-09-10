@@ -344,8 +344,10 @@ function PropertyImage({
 }
 
 function CategoryIcon({ id }: { id: MiniAppCategoryId }) {
-  const art = CATEGORY_ILLUSTRATIONS[id];
-  if (!art) return null;
+  const art = id in CATEGORY_ILLUSTRATIONS
+    ? CATEGORY_ILLUSTRATIONS[id as keyof typeof CATEGORY_ILLUSTRATIONS]
+    : undefined;
+  if (!art) return <AirplaneTilt />;
   return (
     <Image
       src={art.src}
@@ -1601,39 +1603,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               booked lives in My Stay -- one screen answering both questions was
               what made the old hub send people back to Home to browse.
             */}
+            {/*
+              One grid, driven by the category list. Travel used to sit below
+              in a section of its own -- which put the thing a guest wants when
+              they are leaving beneath the featured massage, and made "what can
+              I book" two questions instead of one. Each category declares
+              where it goes, so travel keeps its own screens without needing a
+              branch here.
+            */}
             <section>
               <SectionHeading title="Categories" />
               <div className="guest-category-grid">
-                <ActionTile icon={<CategoryIcon id="dining" />} label="Food & drink" onClick={() => { setSelectedCategory('dining'); go('category-listing'); }} />
-                <ActionTile icon={<CategoryIcon id="spa" />} label="Spa & wellness" onClick={() => { setSelectedCategory('spa'); go('category-listing'); }} />
-                <ActionTile icon={<CategoryIcon id="entertainment" />} label="Entertainment & tours" onClick={() => { setSelectedCategory('entertainment'); go('category-listing'); }} />
-                <ActionTile icon={<CategoryIcon id="services" />} label="Hotel services" onClick={() => { setSelectedCategory('services'); go('category-listing'); }} />
-              </div>
-            </section>
-
-            {/*
-              Onward legs get their own heading rather than joining the grid
-              above. They come from carriers instead of the property's PMS and
-              are paid to the operator, never to a room folio -- a guest has to
-              be able to tell the two apart at a glance. See
-              docs/superpowers/specs/2026-09-09-travel-booking-destination-design.md.
-            */}
-            <section>
-              <SectionHeading title="Onward travel" action="See all" onAction={() => go('travel')} />
-              <p className="guest-section-note">Flights, ferries and transfers to your next destination. Paid to the operator at booking, not added to your room.</p>
-              <div className="guest-category-grid">
-                {TRAVEL_CATEGORIES.map((category) => (
+                {MINI_APP_CATEGORIES.map((cat) => (
                   <ActionTile
-                    key={category.id}
-                    icon={TRAVEL_ICONS[category.id]}
-                    label={category.title}
-                    onClick={() => {
-                      setSelectedTravel(category.id);
-                      setSelectedFare(null);
-                      setTravelFrom('');
-                      setTravelTo('');
-                      go('travel-search');
-                    }}
+                    key={cat.id}
+                    icon={<CategoryIcon id={cat.id} />}
+                    label={cat.title}
+                    onClick={() => { setSelectedCategory(cat.id); go(cat.screen); }}
                   />
                 ))}
               </div>
@@ -3402,7 +3388,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
         </section>
         <AnnouncementsSection />
         <section>
-          <SectionHeading title="Explore on-property" action="See all" onAction={() => onNavigate('marketplace')} />
+          <SectionHeading title="Categories" action="See all" onAction={() => onNavigate('marketplace')} />
           <div className="guest-miniapp-row" role="group" aria-label="Experience categories">
             {MINI_APP_CATEGORIES.map((cat) => (
               <button
@@ -3411,7 +3397,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
                 className="guest-miniapp-tile"
                 onClick={() => {
                   onSelectCategory(cat.id);
-                  onNavigate('category-listing');
+                  onNavigate(cat.screen);
                 }}
               >
                 <span className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
@@ -3540,7 +3526,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
       )}
       <AnnouncementsSection />
       <section>
-        <SectionHeading title="Explore on-property" action="See all" onAction={() => onNavigate('marketplace')} />
+        <SectionHeading title="Categories" action="See all" onAction={() => onNavigate('marketplace')} />
         <div className="guest-miniapp-row" role="group" aria-label="Experience categories">
           {MINI_APP_CATEGORIES.map((cat) => (
             <button
@@ -3549,7 +3535,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
               className="guest-miniapp-tile"
               onClick={() => {
                 onSelectCategory(cat.id);
-                onNavigate('category-listing');
+                onNavigate(cat.screen);
               }}
             >
               <span className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">

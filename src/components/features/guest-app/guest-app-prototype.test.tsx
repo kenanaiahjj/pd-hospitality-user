@@ -1003,6 +1003,41 @@ describe('travel destination', () => {
   });
 });
 
+describe('travel as a category', () => {
+  it('opens the travel hub from the Explore grid', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="marketplace" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('button', { name: 'Travel' }));
+
+    // Its own hub, not the on-property listing.
+    expect(screen.getByRole('heading', { name: 'Get there, and onward' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Explore' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('opens the travel hub from the Home category row too', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+
+    // Home's row is driven by the same list, so it must route the same way --
+    // this tile used to send every category to `category-listing`.
+    await user.click(screen.getByRole('button', { name: 'Travel' }));
+
+    expect(screen.getByRole('heading', { name: 'Get there, and onward' })).toBeInTheDocument();
+  });
+
+  it('reaches flights, ferries, transfers and cover inside it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="marketplace" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('button', { name: 'Travel' }));
+
+    for (const category of TRAVEL_CATEGORIES) {
+      expect(screen.getByText(category.title)).toBeInTheDocument();
+    }
+  });
+});
+
 describe('stay history', () => {
   it('opens a finished stay and shows what it cost and what was booked', async () => {
     const user = userEvent.setup();
@@ -1572,10 +1607,11 @@ describe('home mini-apps and browsable restaurant menu', () => {
     expect(screen.queryByRole('heading', { name: 'Upcoming & Confirmed' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Past & Completed' })).toBeNull();
 
-    // Onward legs sit here too, under a heading that keeps them distinct.
-    expect(screen.getByRole('heading', { name: 'Onward travel' })).toBeInTheDocument();
+    // Travel is a category in the grid now, not a section of its own.
+    expect(screen.queryByRole('heading', { name: 'Onward travel' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Travel' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Food & drink' }));
+    await user.click(screen.getByRole('button', { name: 'Food & Drink' }));
     expect(screen.getByRole('heading', { name: 'Food & Drink', level: 1 })).toBeInTheDocument();
   });
 });

@@ -2414,6 +2414,30 @@
   color: var(--guest-subtle);
 }
 
+.guest-flighty-booking-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guest-flighty-dest-thumb {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--guest-radius-sm, 10px);
+  overflow: hidden;
+  border: 1px solid oklch(0 0 0 / 0.12);
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.08);
+  background: var(--guest-placeholder);
+}
+
+.guest-flighty-dest-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .guest-flighty-booking-card__badges {
   display: flex;
   align-items: center;

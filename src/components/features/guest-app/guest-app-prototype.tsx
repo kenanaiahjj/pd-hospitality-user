@@ -99,6 +99,9 @@ import {
   getServiceImage,
   getPropertyImage,
   getServiceImageKey,
+  getItemThumbnail,
+  getItemCardImage,
+  getRouteDestinationImage,
   type ServiceImageKey,
 } from './service-images';
 import './guest-app-prototype.css';
@@ -220,12 +223,31 @@ function ServiceVisual({ tone, icon }: { tone: string; icon: ReactNode }) {
   return <div className={`guest-service-visual guest-service-visual--${tone}`} aria-hidden="true"><span>{icon}</span><i /><i /></div>;
 }
 
-function ServiceImage({ imageKey, tone, icon, decorative = false }: { imageKey: ServiceImageKey; tone: string; icon: ReactNode; decorative?: boolean }) {
+function ServiceImage({
+  imageKey,
+  itemId,
+  categoryId,
+  variant = 'thumbnail',
+  tone,
+  icon,
+  decorative = false,
+}: {
+  imageKey?: ServiceImageKey;
+  itemId?: string;
+  categoryId?: string;
+  variant?: 'thumbnail' | 'card';
+  tone: string;
+  icon: ReactNode;
+  decorative?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
-  const image = getServiceImage(imageKey);
+  const effectiveKey: ServiceImageKey = imageKey ?? (itemId ? getServiceImageKey({ id: itemId, categoryId: categoryId ?? '' }) : 'amenity');
+  const image = itemId
+    ? (variant === 'card' ? getItemCardImage(itemId, categoryId) : getItemThumbnail(itemId, categoryId))
+    : getServiceImage(effectiveKey);
 
   return (
-    <div className={`guest-service-image guest-service-image--${imageKey} ${failed ? 'is-error' : ''}`}>
+    <div className={`guest-service-image guest-service-image--${effectiveKey} ${variant === 'card' ? 'is-card' : 'is-thumbnail'} ${failed ? 'is-error' : ''}`}>
       <ServiceVisual tone={tone} icon={icon} />
       <Image
         src={image.src}
@@ -1309,7 +1331,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <section>
               <SectionHeading title="Featured on property" />
               <div className="guest-featured-service">
-                <ServiceImage imageKey="spa" tone={featured.tone} icon={<Sparkle size={32} />} />
+                <ServiceImage imageKey="spa" itemId="spa" variant="card" tone={featured.tone} icon={<Sparkle size={32} />} />
                 <div>
                   <Tag>{featured.operator}</Tag>
                   <h2>{featured.name}</h2>
@@ -1417,7 +1439,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       go('restaurant-menu');
                     }}
                   >
-                    <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} tone={res.tone} icon={<ForkKnife />} decorative />
+                    <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} itemId={res.id} categoryId="dining" variant="thumbnail" tone={res.tone} icon={<ForkKnife />} decorative />
                     <div>
                       <Tag>{res.operator}</Tag>
                       <h2>{res.name}</h2>
@@ -1458,7 +1480,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       }
                     }}
                   >
-                    <ServiceImage imageKey={getServiceImageKey(service)} tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <AirplaneTilt /> : <Storefront />} decorative />
+                    <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="thumbnail" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <AirplaneTilt /> : <Storefront />} decorative />
                     <div>
                       <Tag>{service.operator}</Tag>
                       <h2>{service.name}</h2>
@@ -1491,6 +1513,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <div className="guest-stack guest-restaurant-menu">
             <ServiceImage
               imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })}
+              itemId={venue.id}
+              categoryId="dining"
+              variant="card"
               tone={venue.tone}
               icon={<ForkKnife size={38} />}
               decorative
@@ -1913,6 +1938,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <div className="guest-flighty-booking-cards" role="list">
                 {POPULAR_ROUTES.map((route) => {
                   const actionLabel = route.category === 'flights' ? 'Book flight' : route.category === 'ferries' ? 'Book ferry' : 'Book ride';
+                  const destImage = getRouteDestinationImage(route.id);
 
                   return (
                     <button
@@ -1946,11 +1972,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                           </div>
                         </div>
 
-                        <div className="guest-flighty-booking-card__badges">
-                          <span className="guest-flighty-status-pill is-sm">
-                            <span className="guest-flighty-status-dot" aria-hidden="true" /> {route.onTimeRate ?? 'ON TIME'}
-                          </span>
-                          <span className="guest-flighty-tag-pill">{route.tag}</span>
+                        <div className="guest-flighty-booking-card__header-right">
+                          <div className="guest-flighty-booking-card__badges">
+                            <span className="guest-flighty-status-pill is-sm">
+                              <span className="guest-flighty-status-dot" aria-hidden="true" /> {route.onTimeRate ?? 'ON TIME'}
+                            </span>
+                            <span className="guest-flighty-tag-pill">{route.tag}</span>
+                          </div>
+                          <div className="guest-flighty-dest-thumb" aria-hidden="true">
+                            <Image
+                              src={destImage.src}
+                              alt=""
+                              fill
+                              sizes="44px"
+                              style={{ objectPosition: destImage.focalPoint, objectFit: 'cover' }}
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -3038,6 +3075,9 @@ function FeaturedRail({ onOpenCategory }: { onOpenCategory: (category: MiniAppCa
           >
             <ServiceImage
               imageKey={getServiceImageKey(service)}
+              itemId={service.id}
+              categoryId={service.categoryId}
+              variant="card"
               tone={service.tone}
               icon={<CategoryIcon id={service.categoryId} />}
               decorative
@@ -3257,7 +3297,7 @@ function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; 
 function ServiceDetail({ kind, booking, online, onBook, onChat }: { kind: 'hotel' | 'vendor'; booking: Booking; online: boolean; onBook: () => void; onChat: () => void }) {
   const vendor = kind === 'vendor';
   const roomLabel = booking.roomNumber ? `room ${booking.roomNumber}` : 'your assigned room';
-  return <div className="guest-stack guest-service-detail"><ServiceImage imageKey={vendor ? 'spa' : 'dining'} tone={vendor ? 'sage' : 'sand'} icon={vendor ? <Sparkle size={38} /> : <ForkKnife size={38} />} decorative /><div className="guest-page-title"><div className="guest-tag-row"><Tag>{vendor ? 'Third-party · on property' : 'Hotel operated'}</Tag><Tag>{vendor ? '24-hour cutoff' : '2-hour cutoff'}</Tag></div><h1>{vendor ? 'Hilom signature massage' : 'In-room dining'}</h1><p>{vendor ? 'A 90-minute traditional Filipino therapeutic massage, delivered in the on-property spa.' : `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`}</p></div><div className="guest-summary"><SummaryRow label="Price" value={vendor ? '₱2,400' : 'From ₱450'} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Property" value={booking.property} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Settlement" value="Charge at checkout" /><SummaryRow label="Cancellation" value={vendor ? 'Up to 24 hours before' : 'Up to 2 hours before'} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" onClick={onBook}>{online ? (vendor ? 'Choose a time' : 'View menu and order') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}{vendor ? <div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div> : null}</div>;
+  return <div className="guest-stack guest-service-detail"><ServiceImage imageKey={vendor ? 'spa' : 'dining'} itemId={vendor ? 'spa' : 'dining'} variant="card" tone={vendor ? 'sage' : 'sand'} icon={vendor ? <Sparkle size={38} /> : <ForkKnife size={38} />} decorative /><div className="guest-page-title"><div className="guest-tag-row"><Tag>{vendor ? 'Third-party · on property' : 'Hotel operated'}</Tag><Tag>{vendor ? '24-hour cutoff' : '2-hour cutoff'}</Tag></div><h1>{vendor ? 'Hilom signature massage' : 'In-room dining'}</h1><p>{vendor ? 'A 90-minute traditional Filipino therapeutic massage, delivered in the on-property spa.' : `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`}</p></div><div className="guest-summary"><SummaryRow label="Price" value={vendor ? '₱2,400' : 'From ₱450'} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Property" value={booking.property} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Settlement" value="Charge at checkout" /><SummaryRow label="Cancellation" value={vendor ? 'Up to 24 hours before' : 'Up to 2 hours before'} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" onClick={onBook}>{online ? (vendor ? 'Choose a time' : 'View menu and order') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}{vendor ? <div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div> : null}</div>;
 }
 
 function FolioItem({ date, title, meta, amount }: { date: string; title: string; meta: string; amount: string }) {

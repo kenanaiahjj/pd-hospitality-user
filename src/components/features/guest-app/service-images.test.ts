@@ -6,6 +6,9 @@ import {
   getPropertyImage,
   getRoomImage,
   getCategoryCoverImage,
+  getItemThumbnail,
+  getItemCardImage,
+  getRouteDestinationImage,
 } from './service-images';
 
 describe('service images', () => {
@@ -68,4 +71,48 @@ describe('service image keys', () => {
   it('falls back to amenity only for genuinely uncategorised services', () => {
     expect(getServiceImageKey({ id: 'laundry', categoryId: 'services' })).toBe('amenity');
   });
+
+  it('provides distinct, content-specific thumbnails for each service and venue', () => {
+    // Each dining venue has its own dedicated photo thumbnail
+    const apt1b = getItemThumbnail('apartment-1b', 'dining');
+    const cafe = getItemThumbnail('cafe', 'dining');
+    const rooftop = getItemThumbnail('rooftop', 'dining');
+    expect(apt1b.src).not.toBe(cafe.src);
+    expect(cafe.src).not.toBe(rooftop.src);
+
+    // Each spa service has its own dedicated photo thumbnail
+    const massage = getItemThumbnail('spa', 'spa');
+    const scrub = getItemThumbnail('scrub', 'spa');
+    const stones = getItemThumbnail('hot-stone', 'spa');
+    expect(massage.src).not.toBe(scrub.src);
+    expect(scrub.src).not.toBe(stones.src);
+
+    // Each tour has its own dedicated photo thumbnail
+    const island = getItemThumbnail('tour', 'entertainment');
+    const foodCrawl = getItemThumbnail('food-crawl', 'entertainment');
+    const scuba = getItemThumbnail('diving', 'entertainment');
+    expect(island.src).not.toBe(foodCrawl.src);
+    expect(foodCrawl.src).not.toBe(scuba.src);
+  });
+
+  it('provides distinct, expansive card photography different from thumbnails', () => {
+    // Card images in discovery rails and hero banners differ from row thumbnails
+    const spaThumb = getItemThumbnail('spa', 'spa');
+    const spaCard = getItemCardImage('spa', 'spa');
+    expect(spaCard.src).not.toBe(spaThumb.src);
+    expect(spaCard.alt).toContain('spa treatment');
+
+    const cafeThumb = getItemThumbnail('cafe', 'dining');
+    const cafeCard = getItemCardImage('cafe', 'dining');
+    expect(cafeCard.src).not.toBe(cafeThumb.src);
+  });
+
+  it('provides scenic destination images for popular travel routes', () => {
+    const boracay = getRouteDestinationImage('pr-1');
+    const bohol = getRouteDestinationImage('pr-2');
+    expect(boracay.src).not.toBe(bohol.src);
+    expect(boracay.alt).toContain('Boracay');
+    expect(bohol.alt).toContain('Bohol');
+  });
 });
+

@@ -633,84 +633,253 @@ type GuestAppPrototypeProps = {
  */
 type PendingIntent = 'none' | 'connect-booking' | 'link-room';
 
-function AdditionalGuestsForm({
+type Companion = {
+  name: string;
+  nationality?: string;
+  email?: string;
+  mobile?: string;
+  documentNumber?: string;
+  expiry?: string;
+};
+
+type AdditionalGuestsScreenProps = {
+  primaryGuestName: string;
+  primaryGuestEmail?: string;
+  initialGuests: string[];
+  onSave: (validGuests: string[]) => void;
+};
+
+function AdditionalGuestsScreen({
+  primaryGuestName,
+  primaryGuestEmail = 'ana@example.com',
   initialGuests,
   onSave,
-}: {
-  initialGuests: string[];
-  onSave: (guests: string[]) => void;
-}) {
-  const [guests, setGuests] = useState<string[]>(() =>
-    initialGuests && initialGuests.length > 0 ? initialGuests : ['Marco Santos'],
+}: AdditionalGuestsScreenProps) {
+  const [mode, setMode] = useState<'list' | 'details' | 'id-upload'>('list');
+  const [companions, setCompanions] = useState<Companion[]>(() =>
+    initialGuests.map((name) => ({
+      name,
+      nationality: 'Filipino',
+    })),
   );
-
-  const handleAddGuest = () => {
-    setGuests((prev) => [...prev, '']);
-  };
+  const [draft, setDraft] = useState<Companion>({
+    name: '',
+    nationality: 'Filipino',
+    email: '',
+    mobile: '',
+    documentNumber: '',
+    expiry: '',
+  });
 
   const handleRemoveGuest = (index: number) => {
-    setGuests((prev) => prev.filter((_, i) => i !== index));
+    setCompanions((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleChangeGuest = (index: number, value: string) => {
-    setGuests((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
-  };
+  if (mode === 'details') {
+    return (
+      <FormScreen
+        step="Additional guest"
+        title="Who is staying with you?"
+        text="Enter details for your companion. These details are sent securely to the property for registration."
+      >
+        <form
+          className="guest-form"
+          onSubmit={(e: FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            const name = String(data.get('companion-name') ?? '').trim();
+            const nationality = String(data.get('companion-nationality') ?? 'Filipino').trim();
+            const email = String(data.get('companion-email') ?? '').trim();
+            const mobile = String(data.get('companion-mobile') ?? '').trim();
+            if (!name) return;
+            setDraft((prev) => ({ ...prev, name, nationality, email, mobile }));
+            setMode('id-upload');
+          }}
+        >
+          <Field
+            label="Full name"
+            name="companion-name"
+            placeholder="e.g. Elena Santos"
+            defaultValue={draft.name}
+            required
+          />
+          <Field
+            label="Nationality"
+            name="companion-nationality"
+            defaultValue={draft.nationality || 'Filipino'}
+          />
+          <Field
+            label="Email (optional)"
+            name="companion-email"
+            type="email"
+            placeholder="companion@example.com"
+            defaultValue={draft.email}
+          />
+          <Field
+            label="Mobile (optional)"
+            name="companion-mobile"
+            type="tel"
+            placeholder="+63 917 555 0100"
+            defaultValue={draft.mobile}
+          />
+          <Button className="guest-button guest-button--primary" type="submit">
+            Continue to ID<ArrowRight aria-hidden="true" />
+          </Button>
+          <TextButton onClick={() => setMode('list')}>Cancel</TextButton>
+        </form>
+      </FormScreen>
+    );
+  }
+
+  if (mode === 'id-upload') {
+    return (
+      <FormScreen
+        step="Additional guest ID"
+        title={`ID or passport for ${draft.name}`}
+        text="Government-issued identification is required for property check-in."
+      >
+        <form
+          className="guest-form"
+          onSubmit={(e: FormEvent<HTMLFormElement>) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            const documentNumber = String(data.get('companion-document') ?? '').trim();
+            const expiry = String(data.get('companion-expiry') ?? '').trim();
+            setCompanions((prev) => [
+              ...prev,
+              {
+                name: draft.name,
+                nationality: draft.nationality,
+                email: draft.email,
+                mobile: draft.mobile,
+                documentNumber,
+                expiry,
+              },
+            ]);
+            setMode('list');
+          }}
+        >
+          <button className="guest-upload" type="button">
+            <IdentificationCard size={28} />
+            <b>Capture or upload ID</b>
+            <small>Passport, national ID, or driver’s license</small>
+          </button>
+          <Field
+            label="Document number"
+            name="companion-document"
+            placeholder="Enter document number"
+            defaultValue={draft.documentNumber}
+          />
+          <Field
+            label="Expiry date"
+            name="companion-expiry"
+            type="date"
+            defaultValue={draft.expiry}
+          />
+          <Button className="guest-button guest-button--primary" type="submit">
+            Save guest<ArrowRight aria-hidden="true" />
+          </Button>
+          <TextButton onClick={() => setMode('details')}>Back to details</TextButton>
+        </form>
+      </FormScreen>
+    );
+  }
 
   return (
-    <form
-      className="guest-form"
-      onSubmit={(event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const validGuests = guests.map((g) => g.trim()).filter(Boolean);
-        onSave(validGuests);
-      }}
+    <FormScreen
+      step="3 of 4"
+      title="Who else is staying?"
+      text="Additional guests do not need their own accounts."
     >
-      <div className="guest-companions-list">
-        {guests.map((guest, idx) => (
-          <div key={idx} className="guest-companion-row">
-            <label className="guest-field" htmlFor={`guest-${idx + 1}`}>
-              <span>{`Additional guest ${idx + 1}`}</span>
-              <Input
-                id={`guest-${idx + 1}`}
-                name={`guest-${idx + 1}`}
-                aria-label={`Additional guest ${idx + 1}`}
-                value={guest}
-                placeholder="Full name"
-                onChange={(e) => handleChangeGuest(idx, e.target.value)}
-              />
-            </label>
-            {guests.length > 1 ? (
-              <button
-                type="button"
-                className="guest-companion-remove"
-                aria-label={`Remove additional guest ${idx + 1}`}
-                onClick={() => handleRemoveGuest(idx)}
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            ) : null}
+      <div className="guest-primary-guest-card">
+        <div className="guest-primary-guest-card__header">
+          <Tag tone="dark">Primary guest</Tag>
+          <span className="guest-primary-guest-card__verified">
+            <CheckCircle size={15} weight="fill" aria-hidden="true" /> Details &amp; ID verified
+          </span>
+        </div>
+        <div className="guest-primary-guest-card__body">
+          <div className="guest-primary-guest-card__avatar" aria-hidden="true">
+            <Person size={22} />
           </div>
-        ))}
+          <div className="guest-primary-guest-card__info">
+            <strong>{primaryGuestName}</strong>
+            <small>Lead booker · {primaryGuestEmail}</small>
+          </div>
+        </div>
       </div>
-      <button
-        type="button"
-        className="guest-button guest-button--secondary"
-        onClick={handleAddGuest}
-      >
-        <Plus size={16} aria-hidden="true" />
-        Add another guest
-      </button>
+
+      <div className="guest-companions-section">
+        <div className="guest-companions-header">
+          <strong>Additional guests</strong>
+          <span className="guest-companion-count">
+            {companions.length === 0 ? 'None added' : `${companions.length} companion${companions.length > 1 ? 's' : ''}`}
+          </span>
+        </div>
+
+        {companions.length === 0 ? (
+          <div className="guest-companions-empty">
+            <p>No additional guests added yet. Traveling alone? You can continue directly.</p>
+          </div>
+        ) : (
+          <div className="guest-companions-list">
+            {companions.map((companion, idx) => (
+              <div key={idx} className="guest-companion-card">
+                <div className="guest-companion-card__avatar" aria-hidden="true">
+                  <Users size={18} />
+                </div>
+                <div className="guest-companion-card__info">
+                  <strong>{companion.name}</strong>
+                  <small>{companion.nationality ? `${companion.nationality} · ` : ''}Details &amp; ID on file</small>
+                </div>
+                <button
+                  type="button"
+                  className="guest-companion-remove"
+                  aria-label={`Remove ${companion.name}`}
+                  onClick={() => handleRemoveGuest(idx)}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="guest-button guest-button--secondary guest-add-guest-button"
+          onClick={() => {
+            setDraft({
+              name: '',
+              nationality: 'Filipino',
+              email: '',
+              mobile: '',
+              documentNumber: '',
+              expiry: '',
+            });
+            setMode('details');
+          }}
+        >
+          <Plus size={16} aria-hidden="true" />
+          Add another guest
+        </button>
+      </div>
+
       <Notice title="One booking, one account">
         You stay in control of the booking. The people staying with you do not need their own accounts.
       </Notice>
-      <Button className="guest-button guest-button--primary" type="submit">
+
+      <Button
+        className="guest-button guest-button--primary"
+        type="button"
+        onClick={() => {
+          const validGuests = companions.map((c) => c.name.trim()).filter(Boolean);
+          onSave(validGuests);
+        }}
+      >
         Continue<ArrowRight aria-hidden="true" />
       </Button>
-    </form>
+    </FormScreen>
   );
 }
 
@@ -1210,15 +1379,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'additional-guests':
         return (
-          <FormScreen step="3 of 4" title="Who else is staying?" text="Add names only. Additional guests do not need accounts.">
-            <AdditionalGuestsForm
-              initialGuests={session.additionalGuests}
-              onSave={(validGuests) => {
-                setSession((cur) => ({ ...cur, additionalGuests: validGuests }));
-                go('early-check-in');
-              }}
-            />
-          </FormScreen>
+          <AdditionalGuestsScreen
+            primaryGuestName={session.guestName || 'Ana Santos'}
+            primaryGuestEmail={session.email || 'ana@example.com'}
+            initialGuests={session.additionalGuests}
+            onSave={(validGuests) => {
+              setSession((cur) => ({ ...cur, additionalGuests: validGuests }));
+              go('early-check-in');
+            }}
+          />
         );
 
       case 'repeat-review':

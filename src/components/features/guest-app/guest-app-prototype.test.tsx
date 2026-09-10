@@ -1057,21 +1057,41 @@ describe('pre-arrival onboarding flow', () => {
     render(<GuestAppPrototype initialScreen="additional-guests" initialSession={MOCK_SESSION} />);
 
     expect(screen.getByRole('heading', { name: 'Who else is staying?' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Additional guest 1')).toHaveValue('Marco Santos');
 
-    // Add another guest
+    // 1. Shows the main person as Primary guest, not as additional
+    expect(screen.getByText('Primary guest')).toBeInTheDocument();
+    expect(screen.getByText('Ana Santos')).toBeInTheDocument();
+    expect(screen.getByText(/Lead booker/)).toBeInTheDocument();
+    expect(screen.getByText(/Details & ID verified/)).toBeInTheDocument();
+
+    // Marco Santos is listed under Additional guests
+    expect(screen.getByText('Marco Santos')).toBeInTheDocument();
+
+    // 2. Tapping "Add another guest" triggers form fill up step
     await user.click(screen.getByRole('button', { name: 'Add another guest' }));
-    expect(screen.getByLabelText('Additional guest 2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Who is staying with you?' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Full name/)).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Additional guest 2'), 'Elena Santos');
+    await user.type(screen.getByLabelText(/Full name/), 'Elena Santos');
 
-    // Add a 3rd guest and then remove it
-    await user.click(screen.getByRole('button', { name: 'Add another guest' }));
-    expect(screen.getByLabelText('Additional guest 3')).toBeInTheDocument();
+    // Continuing triggers ID upload step
+    await user.click(screen.getByRole('button', { name: 'Continue to ID' }));
+    expect(screen.getByRole('heading', { name: 'ID or passport for Elena Santos' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Capture or upload ID/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Remove additional guest 3' }));
-    expect(screen.queryByLabelText('Additional guest 3')).toBeNull();
+    await user.type(screen.getByLabelText(/Document number/), 'P9823411A');
+    await user.click(screen.getByRole('button', { name: 'Save guest' }));
 
+    // Returns to Who else is staying? with Elena Santos added
+    expect(screen.getByRole('heading', { name: 'Who else is staying?' })).toBeInTheDocument();
+    expect(screen.getByText('Elena Santos')).toBeInTheDocument();
+
+    // Remove Marco Santos
+    await user.click(screen.getByRole('button', { name: 'Remove Marco Santos' }));
+    expect(screen.queryByText('Marco Santos')).toBeNull();
+    expect(screen.getByText('Elena Santos')).toBeInTheDocument();
+
+    // Continue to next pre-arrival step
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     expect(screen.getByRole('heading', { name: 'Check in earlier' })).toBeInTheDocument();
   });

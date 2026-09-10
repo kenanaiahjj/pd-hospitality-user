@@ -110,7 +110,7 @@
 
 .guest-room-ready-notification__dismiss {
   display: grid;
-  width: 44px;
+  width: 34px;
   height: 44px;
   padding: 0;
   border: 0;
@@ -2470,11 +2470,6 @@
   transform: translateY(-50%);
 }
 
-.guest-filter-pill:has(:focus-visible) {
-  outline: 2px solid var(--guest-accent-strong);
-  outline-offset: 2px;
-}
-
 .guest-filter-pill.is-active {
   background: var(--guest-soft);
   border-color: var(--guest-accent);
@@ -2498,7 +2493,7 @@
 .guest-filter-bar__all {
   position: relative;
   display: grid;
-  width: 34px;
+  width: 44px;
   height: 34px;
   place-items: center;
   border: 1px solid var(--guest-line);
@@ -2506,6 +2501,15 @@
   background: var(--guest-paper);
   color: var(--guest-ink);
   cursor: pointer;
+}
+.guest-filter-bar__all::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 44px;
+  transform: translateY(-50%);
 }
 .guest-filter-bar__all svg { width: 17px; height: 17px; }
 .guest-filter-bar__all[data-active] {

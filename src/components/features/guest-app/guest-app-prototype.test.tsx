@@ -919,6 +919,44 @@ describe('menu and service listing controls', () => {
     expect(screen.getByText('5 dishes')).toBeInTheDocument();
   });
 
+  it('announces which filter sheet is open', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
+
+    const sortButton = screen.getByRole('button', { name: 'Recommended' });
+    expect(sortButton).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(sortButton);
+
+    expect(sortButton).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('dialog', { name: 'Sort by' })).toBeInTheDocument();
+  });
+
+  it('lets guests clear a changed sort before applying it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
+    await user.click(screen.getByRole('button', { name: 'Recommended' }));
+
+    const clearAll = screen.getByRole('button', { name: 'Clear all' });
+    expect(clearAll).toBeDisabled();
+
+    await user.click(screen.getByRole('radio', { name: 'Lowest price' }));
+
+    expect(clearAll).toBeEnabled();
+    await user.click(clearAll);
+    expect(clearAll).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Recommended' })).toBeChecked();
+
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(screen.getByRole('button', { name: 'Recommended' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('filters a service category by operator', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);

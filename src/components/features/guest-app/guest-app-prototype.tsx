@@ -3924,20 +3924,27 @@ function FilterSheet({
   const cleared = Object.fromEntries(
     facets.map((facet) => [facet.key, facet.single ? [facet.options[0]!.value] : []]),
   );
-  const changes = facets.reduce((count, facet) => count + (facet.single ? 0 : (draft[facet.key]?.length ?? 0)), 0);
+  const hasChanges = facets.some((facet) => {
+    const selected = draft[facet.key] ?? [];
+    return facet.single
+      ? selected[0] !== facet.options[0]?.value
+      : selected.length > 0;
+  });
 
   return (
     <dialog
       ref={ref}
+      id="guest-filter-sheet"
       className="guest-sheet"
+      aria-labelledby="guest-filter-sheet-title"
       onClose={onClose}
       onClick={(event) => { if (event.target === ref.current) ref.current?.close(); }}
     >
       <div className="guest-sheet__panel">
         <span className="guest-sheet__grip" aria-hidden="true" />
         <div className="guest-sheet__head">
-          <h2>{title}</h2>
-          <button type="button" className="guest-sheet__clear" onClick={() => setDraft(cleared)} disabled={!changes}>
+          <h2 id="guest-filter-sheet-title">{title}</h2>
+          <button type="button" className="guest-sheet__clear" onClick={() => setDraft(cleared)} disabled={!hasChanges}>
             Clear all
           </button>
         </div>
@@ -3999,6 +4006,10 @@ function ListingControls({
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const open = facets.filter((facet) => openKey === 'all' || facet.key === openKey);
+  const activeFilterCount = facets.reduce((count, facet) => {
+    if (facet.single) return count + (facet.selected[0] !== facet.options[0]?.value ? 1 : 0);
+    return count + facet.selected.length;
+  }, 0);
 
   const apply = (draft: Record<string, string[]>) => {
     for (const facet of facets) {
@@ -4013,7 +4024,9 @@ function ListingControls({
         <button
           type="button"
           className="guest-filter-bar__all"
-          aria-label={`All filters${narrowed ? ' · active' : ''}`}
+          aria-label={`All filters${narrowed ? ` · ${activeFilterCount} active` : ''}`}
+          aria-controls="guest-filter-sheet"
+          aria-expanded={openKey === 'all'}
           data-active={narrowed || undefined}
           onClick={() => setOpenKey('all')}
         >
@@ -4032,6 +4045,8 @@ function ListingControls({
               key={facet.key}
               type="button"
               className={`guest-filter-pill ${active ? 'is-active' : ''}`}
+              aria-controls="guest-filter-sheet"
+              aria-expanded={openKey === facet.key}
               onClick={() => setOpenKey(facet.key)}
             >
               {label}<CaretDown aria-hidden="true" />

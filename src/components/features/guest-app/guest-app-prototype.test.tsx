@@ -386,9 +386,10 @@ describe('GuestAppPrototype', () => {
     expect(screen.getAllByText(/room 512/i).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: /hilom signature massage/i }));
     await user.click(screen.getByRole('button', { name: /cancel service/i }));
-    // Cancelling moves the booking out of Upcoming and into Past.
+    // Cancelling moves the booking out of Upcoming and into Past, where the
+    // settlement line reports the state now that the chip is gone.
     await user.click(screen.getByRole('tab', { name: /Past/ }));
-    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled · not charged')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Home' }));
     await user.click(screen.getByRole('button', { name: /room charges/i }));

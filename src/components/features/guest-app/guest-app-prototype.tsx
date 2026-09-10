@@ -3106,11 +3106,9 @@ const fare = category.options.find((option) => option.id === selectedFare);
                 <div className="guest-stay-entries">
                   {group.charges.map((charge) => (
                     <div key={charge.id} className="guest-stay-entry is-static">
-                      <span className="guest-stay-entry__caption">
-                        <span className="guest-stay-entry__parent">
-                          <span aria-hidden="true"><Storefront /></span>
-                          <span>{charge.parent}</span>
-                        </span>
+                      <span className="guest-stay-entry__parent">
+                        <span aria-hidden="true"><Storefront /></span>
+                        <span>{charge.parent}</span>
                       </span>
                       <span className="guest-stay-entry__headline">
                         <h2>{charge.title}</h2>
@@ -3376,7 +3374,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
           </div>
           <FeaturedRail onOpenCategory={(category) => { onSelectCategory(category); onNavigate('category-listing'); }} />
         </section>
-        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('marketplace')} /><div className="guest-booking-card is-static"><div><Tag tone="positive">Confirmed</Tag><h2>{confirmedServices[0].title}</h2><p>{confirmedServices[0].scheduledFor} · {confirmedServices[0].amount}</p><small>Added to {roomLabel.toLowerCase()} · settles at checkout</small></div></div></section> : null}
+        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('marketplace')} /><div className="guest-booking-card is-static"><div><h2>{confirmedServices[0].title}</h2><p>{confirmedServices[0].scheduledFor} · {confirmedServices[0].amount}</p><small>Added to {roomLabel.toLowerCase()} · settles at checkout</small></div></div></section> : null}
       </div>
     );
   }
@@ -3617,7 +3615,6 @@ const STAY_ENTRY_ICONS: Record<StayEntry['kind'], ReactNode> = {
  * the card honest about who is being paid.
  */
 function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => void }) {
-  const status = entry.status === 'confirmed' ? 'Confirmed' : entry.status === 'cancelled' ? 'Cancelled' : 'Completed';
   /*
     One surface, four lines. This card used to be three stacked bands -- a
     tinted parent header, a body, a bordered footer -- which put twelve
@@ -3628,12 +3625,9 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
   */
   const body = (
     <>
-      <span className="guest-stay-entry__caption">
-        <span className="guest-stay-entry__parent">
-          <span aria-hidden="true">{STAY_ENTRY_ICONS[entry.kind]}</span>
-          <span>{entry.parent}{entry.parentDetail ? <em> · {entry.parentDetail}</em> : null}</span>
-        </span>
-        <Tag tone={entry.status === 'cancelled' ? 'neutral' : 'positive'}>{status}</Tag>
+      <span className="guest-stay-entry__parent">
+        <span aria-hidden="true">{STAY_ENTRY_ICONS[entry.kind]}</span>
+        <span>{entry.parent}{entry.parentDetail ? <em> · {entry.parentDetail}</em> : null}</span>
       </span>
 
       <span className="guest-stay-entry__headline">

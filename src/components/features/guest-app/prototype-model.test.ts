@@ -847,7 +847,7 @@ describe('settlement wording', () => {
     const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [service('completed')] };
     const [entry] = getStayEntries(session, stay).past;
 
-    expect(entry!.settlement).toBe('Charged to room 512 · settles at checkout');
+    expect(entry!.settlement).toBe('Completed · charged to room 512');
   });
 
   it('says what will happen while the booking is still ahead', () => {

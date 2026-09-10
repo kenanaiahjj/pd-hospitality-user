@@ -4030,14 +4030,6 @@
 .guest-stay-entry:not(.is-static):active { transform: scale(0.99); }
 .guest-stay-entry.is-static { cursor: default; }
 
-.guest-stay-entry__caption {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
 /* The parent, as a caption. `em` carries the sub-location without a second
    font size -- one step lighter in colour is enough separation. */
 .guest-stay-entry__parent {

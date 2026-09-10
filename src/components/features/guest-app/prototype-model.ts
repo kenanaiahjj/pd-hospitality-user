@@ -908,7 +908,7 @@ const describeServiceSettlement = (
 ): string => {
   const room = roomNumber ? `room ${roomNumber}` : 'your room';
   if (status === 'cancelled') return 'Cancelled · not charged';
-  if (status === 'completed') return `Charged to ${room} · settles at checkout`;
+  if (status === 'completed') return `Completed · charged to ${room}`;
   return `Added to ${room} · settles at checkout`;
 };
 

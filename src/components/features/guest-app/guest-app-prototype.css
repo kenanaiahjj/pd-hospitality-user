@@ -3948,3 +3948,44 @@
   gap: 12px;
   margin-top: 8px;
 }
+
+/* --------------------------------------------------------------------------
+   Additional Guests Form
+   -------------------------------------------------------------------------- */
+.guest-companions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guest-companion-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.guest-companion-row .guest-field {
+  flex: 1;
+}
+
+.guest-companion-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 48px;
+  padding: 0;
+  border-radius: var(--guest-radius-sm);
+  border: 1px solid var(--guest-line);
+  background: var(--guest-surface);
+  color: var(--guest-subtle);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+}
+
+.guest-companion-remove:hover {
+  color: var(--guest-ink);
+  border-color: var(--guest-line-strong);
+  background: var(--guest-paper);
+}

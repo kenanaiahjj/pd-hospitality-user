@@ -360,13 +360,6 @@ const BOOKING_ENTRY_OPTIONS = [
     detail: 'You’re already in your room',
     art: ENTRY_ILLUSTRATIONS.roomQr,
   },
-  {
-    screen: 'wifi-landing' as const,
-    label: 'Open hotel Wi-Fi entry',
-    title: 'Hotel Wi-Fi',
-    detail: 'You’re on the hotel network',
-    art: ENTRY_ILLUSTRATIONS.hotelWifi,
-  },
 ];
 
 /** Rendered by both `entry-hub` and `connect-booking`, so they cannot drift. */
@@ -584,7 +577,7 @@ function WelcomeScreen({ onFindBooking }: { onFindBooking: () => void }) {
             type="button"
             onClick={onFindBooking}
           >
-            Find my booking<ArrowRight aria-hidden="true" />
+            Get started<ArrowRight aria-hidden="true" />
           </Button>
         </div>
       </div>
@@ -639,6 +632,87 @@ type GuestAppPrototypeProps = {
  * a clean session and would otherwise discard the booking they just matched.
  */
 type PendingIntent = 'none' | 'connect-booking' | 'link-room';
+
+function AdditionalGuestsForm({
+  initialGuests,
+  onSave,
+}: {
+  initialGuests: string[];
+  onSave: (guests: string[]) => void;
+}) {
+  const [guests, setGuests] = useState<string[]>(() =>
+    initialGuests && initialGuests.length > 0 ? initialGuests : ['Marco Santos'],
+  );
+
+  const handleAddGuest = () => {
+    setGuests((prev) => [...prev, '']);
+  };
+
+  const handleRemoveGuest = (index: number) => {
+    setGuests((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleChangeGuest = (index: number, value: string) => {
+    setGuests((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  return (
+    <form
+      className="guest-form"
+      onSubmit={(event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const validGuests = guests.map((g) => g.trim()).filter(Boolean);
+        onSave(validGuests);
+      }}
+    >
+      <div className="guest-companions-list">
+        {guests.map((guest, idx) => (
+          <div key={idx} className="guest-companion-row">
+            <label className="guest-field" htmlFor={`guest-${idx + 1}`}>
+              <span>{`Additional guest ${idx + 1}`}</span>
+              <Input
+                id={`guest-${idx + 1}`}
+                name={`guest-${idx + 1}`}
+                aria-label={`Additional guest ${idx + 1}`}
+                value={guest}
+                placeholder="Full name"
+                onChange={(e) => handleChangeGuest(idx, e.target.value)}
+              />
+            </label>
+            {guests.length > 1 ? (
+              <button
+                type="button"
+                className="guest-companion-remove"
+                aria-label={`Remove additional guest ${idx + 1}`}
+                onClick={() => handleRemoveGuest(idx)}
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="guest-button guest-button--secondary"
+        onClick={handleAddGuest}
+      >
+        <Plus size={16} aria-hidden="true" />
+        Add another guest
+      </button>
+      <Notice title="One booking, one account">
+        You stay in control of the booking. The people staying with you do not need their own accounts.
+      </Notice>
+      <Button className="guest-button guest-button--primary" type="submit">
+        Continue<ArrowRight aria-hidden="true" />
+      </Button>
+    </form>
+  );
+}
 
 export function GuestAppPrototype({ initialSession, initialScreen, initialOnline }: GuestAppPrototypeProps = {}) {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
@@ -935,7 +1009,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const renderScreen = () => {
     switch (activeScreen) {
       case 'entry-hub':
-        return <WelcomeScreen onFindBooking={() => go('connect-booking')} />;
+        return <WelcomeScreen onFindBooking={() => go('identify')} />;
 
       case 'sign-in':
         return (
@@ -1137,22 +1211,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'additional-guests':
         return (
           <FormScreen step="3 of 4" title="Who else is staying?" text="Add names only. Additional guests do not need accounts.">
-            <form
-              className="guest-form"
-              onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                event.preventDefault();
-                const companion = String(new FormData(event.currentTarget).get('guest-2') ?? '').trim();
-                // Persisted because travel checkout needs real traveller
-                // names -- carriers match them against government ID.
-                setSession((cur) => ({ ...cur, additionalGuests: companion ? [companion] : [] }));
+            <AdditionalGuestsForm
+              initialGuests={session.additionalGuests}
+              onSave={(validGuests) => {
+                setSession((cur) => ({ ...cur, additionalGuests: validGuests }));
                 go('early-check-in');
               }}
-            >
-              <Field label="Additional guest 1" name="guest-2" defaultValue="Marco Santos" />
-              <button type="button" className="guest-button guest-button--secondary">Add another guest</button>
-              <Notice title="One booking, one account">You stay in control of the booking. The people staying with you do not need their own accounts.</Notice>
-              <Button className="guest-button guest-button--primary" type="submit">Continue<ArrowRight aria-hidden="true" /></Button>
-            </form>
+            />
           </FormScreen>
         );
 
@@ -2766,12 +2831,13 @@ function RoomReadyNotification({
 type StayOverviewHomeProps = {
   session: GuestSession;
   booking?: Booking;
-  online: boolean;
+  online?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
   onSelectCategory: (cat: MiniAppCategoryId) => void;
 };
 
-function StayOverviewHome({ session, booking, online, onNavigate, onSelectCategory }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: StayOverviewHomeProps) {
+  const [roomReadyDismissed, setRoomReadyDismissed] = useState(false);
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -2802,8 +2868,6 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
             <h1>{booking.property}</h1>
             <div className="guest-stay-hero-card__chips">
               <span>{booking.city}</span>
-              <span>·</span>
-              <span><WifiHigh size={14} /> Hotel Wi-Fi</span>
             </div>
             {/*
               Dates and room live here, not in a separate "Stay details" grid.
@@ -2820,7 +2884,6 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
             <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
           </div>
         </section>
-        {!online ? <Notice tone="offline" icon={<WifiSlash />} title="You’re offline">Cached stay details are available. Requests will send when connected.</Notice> : null}
         <section>
           <SectionHeading title="Explore on-property" action="Bookings Hub" onAction={() => onNavigate('marketplace')} />
           <div className="guest-miniapp-row" role="group" aria-label="Experience categories">
@@ -2912,44 +2975,52 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
           <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
         </div>
       </div>
-      <section className="guest-home-booking guest-home-booking--primary">
-        {booking.preArrivalCompleted < booking.preArrivalTotal ? (
-          <>
-            <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>
-            <div className="guest-home-progress" role="progressbar" aria-label="Pre-arrival progress" aria-valuemin={0} aria-valuemax={booking.preArrivalTotal} aria-valuenow={booking.preArrivalCompleted}><span style={{ width: `${Math.min(100, (booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%` }} /></div>
-            <p>{booking.nextPreArrivalStep ?? 'Review your stay details before arrival.'}</p>
-            <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('guest-details')}>Complete pre-arrival<ArrowRight aria-hidden="true" /></Button>
-          </>
-        ) : (
-          <>
-            {/*
-              Pre-arrival is done, so the card's job becomes the room. All copy
-              comes from `describeRoomAssignment` so this card, the stay screen
-              and the timeline cannot describe one room three ways.
-            */}
-            {/*
-              "Your room", not "Ready for arrival": the eyebrow used to name a
-              different subject than the tag beside it, so a pending room read
-              as "Ready ... Pre-registered".
-            */}
+      {booking.preArrivalCompleted < booking.preArrivalTotal ? (
+        <section className="guest-home-booking guest-home-booking--primary">
+          <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>
+          <div className="guest-home-progress" role="progressbar" aria-label="Pre-arrival progress" aria-valuemin={0} aria-valuemax={booking.preArrivalTotal} aria-valuenow={booking.preArrivalCompleted}><span style={{ width: `${Math.min(100, (booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%` }} /></div>
+          <p>{booking.nextPreArrivalStep ?? 'Review your stay details before arrival.'}</p>
+          <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('guest-details')}>Complete pre-arrival<ArrowRight aria-hidden="true" /></Button>
+        </section>
+      ) : roomAssignment.state === 'ready' ? (
+        roomReadyDismissed ? null : (
+          <section className="guest-home-booking guest-home-booking--primary" data-testid="guest-room-ready-card">
             <div className="guest-home-booking__heading">
-              <div><small>Your room</small><h2>{roomAssignment.headline}</h2></div>
-              <Tag tone={roomAssignment.canGoUp ? 'positive' : undefined}>{roomAssignment.statusLabel}</Tag>
+              <div><small>Your room</small><h2>{`Room ${booking.roomNumber ?? 'assigned'} is ready`}</h2></div>
+              <Tag tone="positive">Ready now</Tag>
             </div>
-            <p>{roomAssignment.detail}</p>
-            {roomAssignment.state !== 'pending' && booking.honouredPreferences?.length ? (
+            <p>Please proceed to the front desk to collect your key and check in to your room.</p>
+            {booking.honouredPreferences?.length ? (
               <p className="guest-home-booking__note">Honoured: {booking.honouredPreferences.join(' · ')}</p>
             ) : null}
-            {roomAssignment.action.tone === 'primary' ? (
-              <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate(roomAssignment.action.screen)}>
-                {roomAssignment.action.label}<ArrowRight aria-hidden="true" />
-              </Button>
-            ) : (
-              <TextButton onClick={() => onNavigate(roomAssignment.action.screen)}>{roomAssignment.action.label}</TextButton>
-            )}
-          </>
-        )}
-      </section>
+            <Button
+              className="guest-button guest-button--primary"
+              type="button"
+              onClick={() => setRoomReadyDismissed(true)}
+            >
+              I understand<ArrowRight aria-hidden="true" />
+            </Button>
+          </section>
+        )
+      ) : (
+        <section className="guest-home-booking guest-home-booking--primary">
+          <div className="guest-home-booking__heading">
+            <div><small>Your room</small><h2>{roomAssignment.headline}</h2></div>
+            <Tag tone={roomAssignment.canGoUp ? 'positive' : undefined}>{roomAssignment.statusLabel}</Tag>
+          </div>
+          <p>{roomAssignment.detail}</p>
+          {roomAssignment.state !== 'pending' && booking.honouredPreferences?.length ? (
+            <p className="guest-home-booking__note">Honoured: {booking.honouredPreferences.join(' · ')}</p>
+          ) : null}
+          {roomAssignment.action.tone === 'primary' ? (
+            <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate(roomAssignment.action.screen)}>
+              {roomAssignment.action.label}<ArrowRight aria-hidden="true" />
+            </Button>
+          ) : (
+            <TextButton onClick={() => onNavigate(roomAssignment.action.screen)}>{roomAssignment.action.label}</TextButton>
+          )}
+        </section>
+      )}
       <section>
         <SectionHeading title="Explore on-property" action="Bookings Hub" onAction={() => onNavigate('marketplace')} />
         <div className="guest-miniapp-row" role="group" aria-label="Experience categories">

@@ -9,7 +9,7 @@ describe('HomePage', () => {
     expect(screen.getAllByText('Cabana', { exact: true })).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
     expect(screen.getByText('Check in before arrival')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Find my booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /create account/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /log in/i })).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();

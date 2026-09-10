@@ -90,7 +90,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('Check in before arrival')).toBeInTheDocument();
     expect(screen.getByText('Skip the front desk paperwork')).toBeInTheDocument();
     expect(screen.getByText('View charges and hotel services')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Find my booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /create account/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /log in/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /room qr/i })).toBeNull();
@@ -113,8 +113,8 @@ describe('GuestAppPrototype', () => {
 
     expect(dots[2]).toHaveAttribute('aria-current', 'step');
     expect(dots[0]).not.toHaveAttribute('aria-current');
-    // Find my booking is never gated behind reaching the last step.
-    expect(screen.getByRole('button', { name: 'Find my booking' })).toBeEnabled();
+    // Get started is never gated behind reaching the last step.
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeEnabled();
   });
 
   it('exposes only the current welcome step to assistive tech', async () => {
@@ -131,16 +131,15 @@ describe('GuestAppPrototype', () => {
     expect(stepOf('Skip the front desk paperwork')).toHaveAttribute('aria-hidden', 'false');
   });
 
-  it('opens the booking access methods from the welcome action', async () => {
+  it('opens booking identification directly from the welcome action', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Find my booking' }));
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Booking email' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue with room QR' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open hotel Wi-Fi entry' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
   });
 
   it('connects a booking and reaches the matched-stay confirmation', () => {
@@ -558,7 +557,7 @@ describe('guest account and entry flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    expect(screen.getByRole('button', { name: 'Find my booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -568,14 +567,15 @@ describe('guest account and entry flows', () => {
     expect(screen.queryByRole('button', { name: /open profile/i })).toBeNull();
   });
 
-  it('keeps the welcome focused and exposes local booking options offline', async () => {
+  it('keeps the welcome focused and navigates straight to booking lookup', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialOnline={false} />);
 
     expect(screen.queryByText(/Offline mode active/i)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Find my booking' }));
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
 
-    expect(screen.getByRole('button', { name: 'Continue with room QR' })).toBeEnabled();
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
   });
 
   it('labels the code field for assistive technology and autofill', () => {
@@ -699,7 +699,10 @@ describe('room-ready notification', () => {
     expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Go back' })).toBeNull();
     expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent('Room 512 is ready');
-    expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent('Released at 2:15 PM. Go straight up.');
+    expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent(
+      'Please proceed to the front desk to collect your key and check in to your room.',
+    );
+    expect(screen.getByRole('button', { name: 'I understand' })).toBeInTheDocument();
   });
 
   it('disables the PMS simulation while offline', () => {
@@ -789,12 +792,17 @@ describe('room-ready notification', () => {
 
       expect(screen.getByRole('region', { name: 'Room-ready notification' })).toBeInTheDocument();
 
-      const roomAction = screen.getByRole('button', { name: /Head to your room/ });
+      const roomAction = screen.getByRole('button', { name: /I understand/ });
+      expect(screen.getByText(/Please proceed to the front desk to collect your key/)).toBeInTheDocument();
       fireEvent.blur(viewStay, { relatedTarget: roomAction });
       fireEvent.focus(roomAction);
       act(() => vi.advanceTimersByTime(8_000));
 
       expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();
+
+      // Dismisses the room ready card on home
+      fireEvent.click(roomAction);
+      expect(screen.queryByRole('button', { name: /I understand/ })).toBeNull();
     } finally {
       vi.useRealTimers();
     }
@@ -1042,6 +1050,30 @@ describe('pre-arrival onboarding flow', () => {
 
     // Completion opens the booking home.
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+  });
+
+  it('allows adding and removing companions on the additional guests screen', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="additional-guests" initialSession={MOCK_SESSION} />);
+
+    expect(screen.getByRole('heading', { name: 'Who else is staying?' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Additional guest 1')).toHaveValue('Marco Santos');
+
+    // Add another guest
+    await user.click(screen.getByRole('button', { name: 'Add another guest' }));
+    expect(screen.getByLabelText('Additional guest 2')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Additional guest 2'), 'Elena Santos');
+
+    // Add a 3rd guest and then remove it
+    await user.click(screen.getByRole('button', { name: 'Add another guest' }));
+    expect(screen.getByLabelText('Additional guest 3')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Remove additional guest 3' }));
+    expect(screen.queryByLabelText('Additional guest 3')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('heading', { name: 'Check in earlier' })).toBeInTheDocument();
   });
 
   it('keeps room preferences editable from the profile, outside check-in', async () => {

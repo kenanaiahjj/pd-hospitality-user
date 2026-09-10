@@ -297,6 +297,22 @@
 }
 .guest-icon-button svg { width: 20px; height: 20px; }
 .guest-icon-button:active { background: var(--guest-sunken); transform: scale(0.94); }
+.guest-icon-button--back { background: var(--guest-soft); }
+
+.guest-profile-avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--guest-brand), var(--guest-accent-strong));
+  color: var(--ds-on-ink);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.18), 0 1px 2px oklch(0 0 0 / 0.12);
+}
 
 .guest-screen {
   flex: 1 1 auto;
@@ -308,7 +324,10 @@
      overlay scrollbar does on the device. Keyboard and wheel scrolling are
      untouched. */
   scrollbar-width: none;
-  animation: guest-screen-in var(--duration-base) var(--ease-out) both;
+  /* `backwards`, not `both`: a retained transform would make this element the
+     containing block for its fixed children, and .guest-mini-cart would scroll
+     with the menu instead of holding above the nav bar. */
+  animation: guest-screen-in var(--duration-base) var(--ease-out) backwards;
 }
 .guest-screen::-webkit-scrollbar { display: none; }
 
@@ -675,6 +694,7 @@
 .guest-home-booking__heading small { color: var(--guest-muted); font-size: 13px; }
 .guest-home-booking__heading h2 { margin: 4px 0 0; font-size: 19px; font-weight: 700; letter-spacing: -0.018em; }
 .guest-home-booking__heading > strong { flex: 0 0 auto; color: var(--guest-accent-strong); font-size: 17px; font-variant-numeric: tabular-nums; }
+.guest-home-booking__heading > .guest-tag { flex: 0 0 auto; white-space: nowrap; }
 .guest-home-progress { height: 6px; overflow: hidden; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
 .guest-home-progress > span {
   display: block;
@@ -1417,21 +1437,12 @@
   width: 24px;
   height: 24px;
 }
-.guest-miniapp-icon--sand:has(svg) {
-  background: oklch(0.95 0.03 75);
-  color: oklch(0.45 0.1 75);
-}
-.guest-miniapp-icon--sage:has(svg) {
-  background: oklch(0.95 0.03 150);
-  color: oklch(0.42 0.09 150);
-}
-.guest-miniapp-icon--sun:has(svg) {
-  background: oklch(0.96 0.05 90);
-  color: oklch(0.5 0.14 80);
-}
+.guest-miniapp-icon--sand:has(svg),
+.guest-miniapp-icon--sage:has(svg),
+.guest-miniapp-icon--sun:has(svg),
 .guest-miniapp-icon--blue:has(svg) {
-  background: oklch(0.94 0.03 240);
-  color: oklch(0.42 0.09 240);
+  background: var(--ds-pink-soft);
+  color: var(--ds-pink-strong);
 }
 .guest-miniapp-tile__label {
   font-size: 12px;
@@ -1756,48 +1767,788 @@
 }
 
 /* --------------------------------------------------------------------------
-   Travel inventory: a fare list you pick one row from.
+   Travel Hub: Category Cards, Popular Routes & Partner Carrier Banner
    -------------------------------------------------------------------------- */
-.guest-travel-options { display: grid; gap: 8px; }
+.guest-travel-cat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.guest-travel-cat-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  border: 1px solid var(--guest-line);
+  color: var(--guest-ink);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+
+.guest-travel-cat-card:hover {
+  border-color: #CBD0D6;
+  box-shadow: var(--shadow-sm);
+}
+
+.guest-travel-cat-card:active {
+  transform: scale(0.98);
+}
+
+.guest-travel-cat-card__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.guest-travel-cat-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--guest-radius-sm);
+  background: #FBDCE6;
+  color: var(--guest-ink);
+}
+
+.guest-travel-cat-card__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.guest-travel-cat-card__pill {
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--guest-surface);
+  color: var(--guest-muted);
+  border: 1px solid var(--guest-line);
+}
+
+.guest-travel-cat-card__content {
+  display: grid;
+  gap: 2px;
+}
+
+.guest-travel-cat-card__content b {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--guest-ink);
+}
+
+.guest-travel-cat-card__content small {
+  font-size: 12px;
+  color: var(--guest-muted);
+  line-height: 1.35;
+}
+
+.guest-travel-cat-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--guest-line);
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--guest-brand);
+}
+
+.guest-travel-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.guest-popular-routes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.guest-popular-route-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  border: 1px solid var(--guest-line);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease;
+}
+
+.guest-popular-route-card:hover {
+  border-color: #CBD0D6;
+}
+
+.guest-popular-route-card:active {
+  transform: scale(0.98);
+}
+
+.guest-popular-route-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.guest-popular-route-card__carrier {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--guest-muted);
+}
+
+.guest-popular-route-card__badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--guest-surface);
+  color: var(--guest-muted);
+}
+
+.guest-popular-route-card__title strong {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--guest-ink);
+  line-height: 1.35;
+  display: block;
+}
+
+.guest-popular-route-card__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  margin-top: auto;
+  padding-top: 6px;
+  border-top: 1px solid var(--guest-line);
+}
+
+.guest-popular-route-card__duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--guest-muted);
+}
+
+.guest-popular-route-card__price {
+  font-weight: 700;
+  color: var(--guest-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-travel-carrier-banner {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  border: 1px solid var(--guest-line);
+  box-shadow: var(--shadow-xs);
+}
+
+.guest-travel-carrier-banner__head {
+  display: grid;
+  gap: 3px;
+}
+
+.guest-carrier-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--guest-brand);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.guest-travel-carrier-banner__head p {
+  font-size: 12px;
+  color: var(--guest-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.guest-travel-carrier-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.guest-carrier-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--guest-surface);
+  border: 1px solid var(--guest-line);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--guest-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Travel Search & Departure Inventory
+   -------------------------------------------------------------------------- */
+.guest-travel-search-box {
+  display: grid;
+  gap: 8px;
+}
+
+.guest-travel-route-pair {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.guest-travel-swap-button {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--guest-paper);
+  border: 1px solid var(--guest-line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--guest-ink);
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.guest-travel-swap-button:hover {
+  background: var(--guest-surface);
+  color: var(--guest-brand);
+}
+
+.guest-travel-swap-button:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.guest-travel-dates-row {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 10px;
+}
+
+.guest-filter-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.guest-filter-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--guest-line);
+  background: var(--guest-paper);
+  font-size: 12px;
+  color: var(--guest-muted);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.guest-filter-pill:hover {
+  border-color: #CBD0D6;
+  color: var(--guest-ink);
+}
+
+.guest-filter-pill.is-active {
+  background: var(--guest-ink);
+  border-color: var(--guest-ink);
+  color: var(--guest-paper);
+}
+
+.guest-travel-options {
+  display: grid;
+  gap: 10px;
+}
 
 .guest-travel-option {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  min-height: 68px;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border: 0;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--guest-line);
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   box-shadow: var(--shadow-xs);
   color: var(--guest-ink);
   text-align: left;
   cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
-.guest-travel-option:active { transform: scale(0.99); }
-.guest-travel-option div { display: grid; gap: 2px; min-width: 0; }
-.guest-travel-option b { font-size: 15px; font-weight: 650; letter-spacing: -0.008em; }
-.guest-travel-option small { color: var(--guest-muted); font-size: 13px; }
+.guest-travel-option:hover {
+  border-color: #CBD0D6;
+  box-shadow: var(--shadow-sm);
+}
 
-.guest-travel-option strong {
-  font-size: 15px;
+.guest-travel-option:active {
+  transform: scale(0.99);
+}
+
+.guest-travel-option[aria-pressed='true'] {
+  border-color: var(--guest-accent-strong);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 1px var(--guest-accent-strong), var(--shadow-sm);
+}
+
+.guest-travel-option__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.guest-travel-option__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guest-travel-option__brand b {
+  font-size: 14.5px;
   font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--guest-ink);
+  display: block;
+}
+
+.guest-travel-carrier-code {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--guest-muted);
+}
+
+.guest-travel-badge-pill {
+  font-size: 10.5px;
+  font-weight: 650;
+  padding: 2.5px 8px;
+  border-radius: 999px;
+  background: #FDE8EF;
+  color: var(--guest-brand);
+  border: 1px solid #F5B8D0;
+}
+
+.guest-travel-timeline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.guest-travel-time-point {
+  display: flex;
+  flex-direction: column;
+  min-width: 58px;
+}
+
+.guest-travel-time-point.is-destination {
+  text-align: right;
+}
+
+.guest-travel-time-main {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--guest-ink);
   font-variant-numeric: tabular-nums;
 }
 
-/* Selection is the accent fill with ink on top -- the accent's second
-   sanctioned job. White on this pink fails contrast; ink clears it. */
-.guest-travel-option[aria-pressed='true'] {
-  background: var(--guest-accent);
-  box-shadow: none;
-  color: var(--guest-on-accent);
+.guest-travel-code {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--guest-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.guest-travel-option[aria-pressed='true'] small { color: var(--guest-on-accent-muted); }
+.guest-travel-flight-path {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.guest-travel-duration {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--guest-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-travel-flight-line {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.guest-travel-line-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--guest-line-strong);
+  flex-shrink: 0;
+}
+
+.guest-travel-line-glyph {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: var(--guest-muted);
+}
+
+.guest-travel-line-glyph::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--guest-line-strong);
+  z-index: 0;
+}
+
+.guest-travel-line-glyph svg {
+  position: relative;
+  z-index: 1;
+  background: var(--guest-paper);
+  padding: 0 4px;
+}
+
+.guest-travel-path-sub {
+  font-size: 10px;
+  font-weight: 550;
+  color: var(--guest-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.guest-travel-option__meta small {
+  font-size: 12.5px;
+  color: var(--guest-muted);
+  line-height: 1.35;
+}
+
+.guest-travel-inclusions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.guest-travel-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 550;
+  padding: 2.5px 8px;
+  border-radius: 999px;
+  background: var(--guest-surface);
+  color: var(--guest-muted);
+  border: 1px solid var(--guest-line);
+}
+
+.guest-travel-option__footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--guest-line);
+  margin-top: 2px;
+}
+
+.guest-travel-price-caption {
+  font-size: 11.5px;
+  color: var(--guest-muted);
+}
+
+.guest-travel-price-val {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--guest-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Travel Checkout & Confirmation Pass
+   -------------------------------------------------------------------------- */
+.guest-travel-ticket-preview {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  border: 1px solid var(--guest-line);
+  box-shadow: var(--shadow-xs);
+}
+
+.guest-travel-ticket-preview__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.guest-travel-ticket-preview__carrier {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guest-travel-ticket-preview__carrier strong {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--guest-ink);
+  display: block;
+}
+
+.guest-travel-ticket-preview__carrier small {
+  font-size: 12px;
+  color: var(--guest-muted);
+  display: block;
+}
+
+.guest-travel-ticket-pill {
+  font-size: 10.5px;
+  font-weight: 650;
+  padding: 2.5px 8px;
+  border-radius: 999px;
+  background: var(--guest-positive-soft);
+  color: var(--guest-positive);
+}
+
+.guest-travel-ticket-preview__route {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px dashed var(--guest-line-strong);
+  border-bottom: 1px dashed var(--guest-line-strong);
+}
+
+.guest-travel-ticket-point {
+  display: flex;
+  flex-direction: column;
+}
+
+.guest-travel-ticket-point.is-end {
+  text-align: right;
+}
+
+.guest-travel-ticket-point span {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--guest-ink);
+  letter-spacing: -0.01em;
+}
+
+.guest-travel-ticket-point small {
+  font-size: 12px;
+  color: var(--guest-muted);
+}
+
+.guest-travel-ticket-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  padding: 0 16px;
+}
+
+.guest-travel-ticket-line span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--guest-muted);
+}
+
+.guest-travel-ticket-dash {
+  width: 100%;
+  height: 1px;
+  background: var(--guest-line-strong);
+}
+
+.guest-travel-ticket-preview__policy strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.guest-travel-ticket-preview__policy small {
+  display: block;
+  font-size: 12px;
+  color: var(--guest-muted);
+}
+
+.guest-travel-ticket-preview__footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--guest-muted);
+  font-weight: 550;
+}
+
+.guest-travel-payment-methods {
+  display: grid;
+  gap: 8px;
+}
+
+.guest-travel-payment-label {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--guest-ink);
+}
+
+.guest-travel-payment-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.guest-payment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--guest-line);
+  background: var(--guest-paper);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--guest-ink);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+
+.guest-payment-chip:hover {
+  border-color: #CBD0D6;
+}
+
+.guest-payment-chip.is-selected {
+  border-color: var(--guest-ink);
+  background: var(--guest-surface);
+  box-shadow: 0 0 0 1px var(--guest-ink);
+}
+
+.guest-travel-confirmation-pass {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  border: 1px solid var(--guest-line);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+
+.guest-travel-confirmation-pass__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.guest-travel-confirmation-pass__operator {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.guest-travel-confirmation-pass__operator strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--guest-ink);
+}
+
+.guest-travel-confirmation-pass__operator small {
+  font-size: 12px;
+  color: var(--guest-muted);
+}
+
+.guest-travel-confirmation-pass__body {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px dashed var(--guest-line-strong);
+  border-bottom: 1px dashed var(--guest-line-strong);
+}
+
+.guest-travel-pass-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.guest-pass-label {
+  display: block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--guest-muted);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.guest-pass-value {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--guest-ink);
+}
+
+.guest-travel-pass-barcode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.guest-travel-barcode-lines {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  height: 36px;
+}
+
+.guest-travel-barcode-lines span {
+  background: var(--guest-ink);
+  border-radius: 1px;
+  display: inline-block;
+}
+
+.guest-travel-barcode-code {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--guest-muted);
+  font-family: var(--font-mono, monospace);
+}
 
 /* --------------------------------------------------------------------------
    Upcoming Stays & Multiple Booking Cards
@@ -1917,9 +2668,9 @@
   transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 .guest-menu-tab.is-active {
-  border-color: var(--guest-ink);
-  background: var(--guest-ink);
-  color: var(--guest-paper);
+  border-color: var(--guest-soft);
+  background: var(--guest-soft);
+  color: var(--guest-accent-strong);
 }
 .guest-menu-grid {
   display: flex;

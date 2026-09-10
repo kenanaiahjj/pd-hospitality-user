@@ -377,6 +377,13 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByRole('button', { name: 'Wallet' })).toBeNull();
   });
 
+  it('keeps profile access in the app bar instead of a duplicate Home row', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+
+    expect(screen.queryByRole('button', { name: /Guest profile/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open profile' })).toBeInTheDocument();
+  });
+
   it('navigates from home to the bookings hub section', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
 
@@ -401,6 +408,29 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open profile/i })).toBeInTheDocument();
     expect(screen.getByTestId('guest-home-active')).toHaveClass('guest-home-booking', 'guest-home-booking--active');
+  });
+
+  it('shows the Cabana logo and guest initials in the Home app bar', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="profile" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
+
+    const appBar = screen.getByRole('banner');
+    expect(within(appBar).queryByRole('button', { name: 'Go back' })).toBeNull();
+    expect(within(appBar).getByText('Cabana', { exact: true })).toBeInTheDocument();
+    expect(within(appBar).getByRole('button', { name: 'Open profile' })).toHaveTextContent('AS');
+  });
+
+  it('keeps the back button on non-Home screens', () => {
+    render(<GuestAppPrototype initialScreen="profile" initialSession={activeSession} />);
+
+    const backButton = screen.getByRole('button', { name: 'Go back' });
+    expect(screen.getByRole('banner')).toContainElement(backButton);
+    expect(backButton).toHaveClass('guest-icon-button--back');
+    expect(guestStyles).toMatch(
+      /\.guest-icon-button--back\s*\{[^}]*background:\s*var\(--guest-soft\)/,
+    );
   });
 
   it('renders a contextual spa image with a resilient fallback', () => {
@@ -601,8 +631,10 @@ describe('pre-arrival progress card', () => {
     expect(screen.queryByText('4 of 4 steps complete')).toBeNull();
     expect(screen.queryByText('Add who else is staying')).toBeNull();
     // The card's job becomes the room instead.
-    expect(screen.getByText('Ready for arrival')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Review stay/ })).toBeInTheDocument();
+    expect(screen.getByText('Your room')).toBeInTheDocument();
+    // Nothing is allocated yet, so the way out stays quiet rather than
+    // offering a full-width button for a state the guest cannot act on.
+    expect(screen.getByRole('button', { name: /Review stay/ })).toHaveClass('guest-text-button');
   });
 
   it('says where room assignment stands rather than implying the app can hurry it', () => {
@@ -755,9 +787,9 @@ describe('room-ready notification', () => {
 
       expect(screen.getByRole('region', { name: 'Room-ready notification' })).toBeInTheDocument();
 
-      const reviewStay = screen.getByRole('button', { name: 'Review stay' });
-      fireEvent.blur(viewStay, { relatedTarget: reviewStay });
-      fireEvent.focus(reviewStay);
+      const roomAction = screen.getByRole('button', { name: /Head to your room/ });
+      fireEvent.blur(viewStay, { relatedTarget: roomAction });
+      fireEvent.focus(roomAction);
       act(() => vi.advanceTimersByTime(8_000));
 
       expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();

@@ -481,7 +481,21 @@ export type RoomAssignmentView = {
   detail: string;
   /** True only when the guest can walk up to the room now. */
   canGoUp: boolean;
+  /** Tag copy, derived here so a tag cannot contradict the headline above it. */
+  statusLabel: string;
+  /**
+   * What the card offers next.
+   *
+   * `primary` earns the full-width button; `quiet` demotes it to a text link.
+   * Only `ready` is a state the guest can act on -- while the property has yet
+   * to allocate or release, there is nothing to do but wait, and a loud button
+   * there implies the app can hurry an operation it does not control.
+   */
+  action: { label: string; screen: ScreenId; tone: 'primary' | 'quiet' };
 };
+
+/** Waiting states share one quiet way out: look over the stay in the meantime. */
+const WAITING_ACTION = { label: 'Review stay', screen: 'repeat-review', tone: 'quiet' } as const;
 
 /**
  * Derives the assignment state and the copy for it in one place, so the home
@@ -505,6 +519,8 @@ export function describeRoomAssignment(booking: Booking): RoomAssignmentView {
       headline: 'Room assigned on arrival day',
       detail: `The hotel allocates rooms from its own inventory. Yours appears here as soon as it does. Check-in from ${CHECK_IN_FROM}.`,
       canGoUp: false,
+      statusLabel: 'Pre-registered',
+      action: WAITING_ACTION,
     };
   }
 
@@ -517,6 +533,8 @@ export function describeRoomAssignment(booking: Booking): RoomAssignmentView {
         ? `Housekeeping releases it before check-in, and we'll tell you the moment it is ready.`
         : `Collect your key at the desk from ${CHECK_IN_FROM}. This property does not report room readiness to the app.`,
       canGoUp: false,
+      statusLabel: 'Assigned',
+      action: WAITING_ACTION,
     };
   }
 
@@ -526,6 +544,9 @@ export function describeRoomAssignment(booking: Booking): RoomAssignmentView {
     headline: `Room ${room} is ready`,
     detail: booking.roomReadyAt ? `Released at ${booking.roomReadyAt}. Go straight up.` : 'Go straight up.',
     canGoUp: true,
+    statusLabel: 'Ready',
+    // The only state with somewhere to go: the arrival handoff.
+    action: { label: 'Head to your room', screen: 'arrival-handoff', tone: 'primary' },
   };
 }
 
@@ -627,6 +648,13 @@ export type TravelOption = {
   /** Supporting specifics -- flight number, hull, capacity, excess. */
   meta: string;
   price: string;
+  departureTime?: string;
+  arrivalTime?: string;
+  duration?: string;
+  carrierCode?: string;
+  vesselOrVehicle?: string;
+  badge?: string;
+  inclusions?: string[];
 };
 
 /**
@@ -653,6 +681,75 @@ export type TravelCategory = {
   route: TravelRoute | null;
   options: TravelOption[];
 };
+
+export type PopularRoute = {
+  id: string;
+  category: TravelCategoryId;
+  title: string;
+  origin: string;
+  destination: string;
+  originCode: string;
+  destCode: string;
+  duration: string;
+  startingPrice: string;
+  operators: string[];
+  tag: string;
+};
+
+export const POPULAR_ROUTES: PopularRoute[] = [
+  {
+    id: 'pr-1',
+    category: 'flights',
+    title: 'Manila ⇄ Boracay (Caticlan)',
+    origin: 'Manila (MNL)',
+    destination: 'Caticlan (MPH)',
+    originCode: 'MNL',
+    destCode: 'MPH',
+    duration: '1h 05m',
+    startingPrice: '₱3,620',
+    operators: ['AirAsia Philippines', 'Cebu Pacific', 'Philippine Airlines'],
+    tag: 'Top island hop',
+  },
+  {
+    id: 'pr-2',
+    category: 'ferries',
+    title: 'Cebu Pier 1 ⇄ Bohol (Tagbilaran)',
+    origin: 'Cebu Pier 1',
+    destination: 'Tagbilaran',
+    originCode: 'CEB',
+    destCode: 'TAG',
+    duration: '1h 50m',
+    startingPrice: '₱1,250',
+    operators: ['OceanJet', '2GO Travel'],
+    tag: 'Daily fastcraft',
+  },
+  {
+    id: 'pr-3',
+    category: 'flights',
+    title: 'Manila ⇄ Cebu City',
+    origin: 'Manila (MNL)',
+    destination: 'Cebu (CEB)',
+    originCode: 'MNL',
+    destCode: 'CEB',
+    duration: '1h 25m',
+    startingPrice: '₱2,850',
+    operators: ['Cebu Pacific', 'Philippine Airlines'],
+    tag: 'Most frequent',
+  },
+  {
+    id: 'pr-4',
+    category: 'transfers',
+    title: 'The Henry Manila ⇄ NAIA Terminal 3',
+    origin: 'The Henry Manila',
+    destination: 'Manila (MNL) Terminal 3',
+    originCode: 'HEN',
+    destCode: 'MNL',
+    duration: '25–40m',
+    startingPrice: '₱1,450',
+    operators: ['Henry Fleet'],
+    tag: 'Private chauffeur',
+  },
+];
 
 const PH_AIRPORTS = [
   'Manila (MNL)',
@@ -695,10 +792,62 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
       defaultTo: 'Cagayan de Oro (CGY)',
     },
     options: [
-      { id: 'fl-1', operator: 'Philippine Airlines', detail: '05:50 → 07:35', meta: 'PR 2971 · Direct · Airbus A321', price: '₱4,780' },
-      { id: 'fl-2', operator: 'Cebu Pacific', detail: '09:15 → 11:05', meta: '5J 921 · Direct · Airbus A320', price: '₱3,940' },
-      { id: 'fl-3', operator: 'AirAsia Philippines', detail: '13:40 → 15:30', meta: 'Z2 837 · Direct · Airbus A320', price: '₱3,620' },
-      { id: 'fl-4', operator: 'Philippine Airlines', detail: '18:05 → 19:55', meta: 'PR 2975 · Direct · Airbus A321', price: '₱5,310' },
+      {
+        id: 'fl-1',
+        operator: 'Philippine Airlines',
+        detail: '05:50 → 07:35',
+        meta: 'PR 2971 · Direct · Airbus A321',
+        price: '₱4,780',
+        departureTime: '05:50',
+        arrivalTime: '07:35',
+        duration: '1h 45m',
+        carrierCode: 'PR 2971',
+        vesselOrVehicle: 'Airbus A321',
+        badge: 'Fastest',
+        inclusions: ['20kg checked baggage', 'Cabin carry-on 7kg', 'Complimentary snack'],
+      },
+      {
+        id: 'fl-2',
+        operator: 'Cebu Pacific',
+        detail: '09:15 → 11:05',
+        meta: '5J 921 · Direct · Airbus A320',
+        price: '₱3,940',
+        departureTime: '09:15',
+        arrivalTime: '11:05',
+        duration: '1h 50m',
+        carrierCode: '5J 921',
+        vesselOrVehicle: 'Airbus A320',
+        badge: 'Popular',
+        inclusions: ['Cabin carry-on 7kg', 'Direct connection', 'Web check-in ready'],
+      },
+      {
+        id: 'fl-3',
+        operator: 'AirAsia Philippines',
+        detail: '13:40 → 15:30',
+        meta: 'Z2 837 · Direct · Airbus A320',
+        price: '₱3,620',
+        departureTime: '13:40',
+        arrivalTime: '15:30',
+        duration: '1h 50m',
+        carrierCode: 'Z2 837',
+        vesselOrVehicle: 'Airbus A320',
+        badge: 'Best value',
+        inclusions: ['Cabin carry-on 7kg', 'Direct connection'],
+      },
+      {
+        id: 'fl-4',
+        operator: 'Philippine Airlines',
+        detail: '18:05 → 19:55',
+        meta: 'PR 2975 · Direct · Airbus A321',
+        price: '₱5,310',
+        departureTime: '18:05',
+        arrivalTime: '19:55',
+        duration: '1h 50m',
+        carrierCode: 'PR 2975',
+        vesselOrVehicle: 'Airbus A321',
+        badge: 'Evening flight',
+        inclusions: ['20kg checked baggage', 'Cabin carry-on 7kg', 'Complimentary snack'],
+      },
     ],
   },
   {
@@ -715,10 +864,62 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
       defaultTo: 'Tagbilaran',
     },
     options: [
-      { id: 'fe-1', operator: '2GO Travel', detail: '06:00 → 08:00', meta: 'Fast craft · Tourist class', price: '₱1,250' },
-      { id: 'fe-2', operator: 'OceanJet', detail: '08:20 → 10:10', meta: 'Fast craft · Business class', price: '₱1,690' },
-      { id: 'fe-3', operator: 'Lite Ferries', detail: '12:00 → 15:30', meta: 'RoRo · Aircon berth', price: '₱980' },
-      { id: 'fe-4', operator: 'OceanJet', detail: '16:40 → 18:30', meta: 'Fast craft · Tourist class', price: '₱1,250' },
+      {
+        id: 'fe-1',
+        operator: '2GO Travel',
+        detail: '06:00 → 08:00',
+        meta: 'Fast craft · Tourist class',
+        price: '₱1,250',
+        departureTime: '06:00',
+        arrivalTime: '08:00',
+        duration: '2h 00m',
+        carrierCode: '2GO Express',
+        vesselOrVehicle: 'Tourist class aircon',
+        badge: 'Early sailing',
+        inclusions: ['Aircon cabin', 'Standard seat', '15kg luggage check-in'],
+      },
+      {
+        id: 'fe-2',
+        operator: 'OceanJet',
+        detail: '08:20 → 10:10',
+        meta: 'Fast craft · Business class',
+        price: '₱1,690',
+        departureTime: '08:20',
+        arrivalTime: '10:10',
+        duration: '1h 50m',
+        carrierCode: 'OceanJet 88',
+        vesselOrVehicle: 'Business class upper deck',
+        badge: 'Recommended',
+        inclusions: ['Reclining leather seats', 'Priority boarding', '20kg baggage'],
+      },
+      {
+        id: 'fe-3',
+        operator: 'Lite Ferries',
+        detail: '12:00 → 15:30',
+        meta: 'RoRo · Aircon berth',
+        price: '₱980',
+        departureTime: '12:00',
+        arrivalTime: '15:30',
+        duration: '3h 30m',
+        carrierCode: 'Lite Cat 1',
+        vesselOrVehicle: 'Aircon berth',
+        badge: 'Vehicle & RoRo',
+        inclusions: ['Berth access', 'Vehicle deck transport available'],
+      },
+      {
+        id: 'fe-4',
+        operator: 'OceanJet',
+        detail: '16:40 → 18:30',
+        meta: 'Fast craft · Tourist class',
+        price: '₱1,250',
+        departureTime: '16:40',
+        arrivalTime: '18:30',
+        duration: '1h 50m',
+        carrierCode: 'OceanJet 15',
+        vesselOrVehicle: 'Tourist class aircon',
+        badge: 'Sunset trip',
+        inclusions: ['Aircon cabin', '15kg baggage allowance'],
+      },
     ],
   },
   {
@@ -735,10 +936,54 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
       defaultTo: 'Manila (MNL) Terminal 3',
     },
     options: [
-      { id: 'tr-1', operator: 'Henry Fleet', detail: 'Sedan', meta: 'Up to 3 · 2 bags · Meet and greet', price: '₱1,450' },
-      { id: 'tr-2', operator: 'Henry Fleet', detail: 'Premium van', meta: 'Up to 6 · 6 bags · Meet and greet', price: '₱2,300' },
-      { id: 'tr-3', operator: 'Island Coach', detail: 'Shared shuttle', meta: 'Per seat · Departs hourly', price: '₱480' },
-      { id: 'tr-4', operator: 'Henry Fleet', detail: 'Coaster', meta: 'Up to 18 · Group transfer', price: '₱5,900' },
+      {
+        id: 'tr-1',
+        operator: 'Henry Fleet',
+        detail: 'Sedan',
+        meta: 'Up to 3 · 2 bags · Meet and greet',
+        price: '₱1,450',
+        duration: '35m',
+        carrierCode: 'Executive Sedan',
+        vesselOrVehicle: 'Toyota Camry / Corolla Altis',
+        badge: 'Private',
+        inclusions: ['Up to 3 guests', '2 suitcases', 'Flight tracking', 'Meet & greet with placard'],
+      },
+      {
+        id: 'tr-2',
+        operator: 'Henry Fleet',
+        detail: 'Premium van',
+        meta: 'Up to 6 · 6 bags · Meet and greet',
+        price: '₱2,300',
+        duration: '35m',
+        carrierCode: 'Luxury Van',
+        vesselOrVehicle: 'Toyota HiAce Super Grandia',
+        badge: 'Family & Group',
+        inclusions: ['Up to 6 guests', '6 suitcases', 'Chilled water & cold towels', 'Captain chairs'],
+      },
+      {
+        id: 'tr-3',
+        operator: 'Island Coach',
+        detail: 'Shared shuttle',
+        meta: 'Per seat · Departs hourly',
+        price: '₱480',
+        duration: '50m',
+        carrierCode: 'Hourly Express',
+        vesselOrVehicle: 'Shared AC Minibus',
+        badge: 'Best value',
+        inclusions: ['Guaranteed departure', '1 bag + 1 personal item'],
+      },
+      {
+        id: 'tr-4',
+        operator: 'Henry Fleet',
+        detail: 'Coaster',
+        meta: 'Up to 18 · Group transfer',
+        price: '₱5,900',
+        duration: '40m',
+        carrierCode: 'Executive Coaster',
+        vesselOrVehicle: 'Toyota Coaster Deluxe',
+        badge: 'Large party',
+        inclusions: ['Up to 18 guests', 'Dedicated luggage compartment', 'Private coordinator'],
+      },
     ],
   },
   {
@@ -749,9 +994,39 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
     partyLabel: 'Travellers',
     route: null,
     options: [
-      { id: 'in-1', operator: 'Pioneer', detail: 'Domestic Essential', meta: 'Medical ₱250,000 · Baggage ₱10,000', price: '₱390' },
-      { id: 'in-2', operator: 'Pioneer', detail: 'Domestic Plus', meta: 'Medical ₱500,000 · Trip cancellation', price: '₱720' },
-      { id: 'in-3', operator: 'Malayan', detail: 'Island Hopper', meta: 'Adds watercraft and diving cover', price: '₱1,150' },
+      {
+        id: 'in-1',
+        operator: 'Pioneer',
+        detail: 'Domestic Essential',
+        meta: 'Medical ₱250,000 · Baggage ₱10,000',
+        price: '₱390',
+        carrierCode: 'Policy PE-26',
+        vesselOrVehicle: 'Comprehensive Domestic',
+        badge: 'Essential',
+        inclusions: ['₱250,000 emergency medical', '₱10,000 baggage protection', '24/7 hotline'],
+      },
+      {
+        id: 'in-2',
+        operator: 'Pioneer',
+        detail: 'Domestic Plus',
+        meta: 'Medical ₱500,000 · Trip cancellation',
+        price: '₱720',
+        carrierCode: 'Policy PP-26',
+        vesselOrVehicle: 'Enhanced Domestic Plus',
+        badge: 'Most popular',
+        inclusions: ['₱500,000 medical', 'Trip cancellation refund', 'Flight delay compensation'],
+      },
+      {
+        id: 'in-3',
+        operator: 'Malayan',
+        detail: 'Island Hopper',
+        meta: 'Adds watercraft and diving cover',
+        price: '₱1,150',
+        carrierCode: 'Policy MI-26',
+        vesselOrVehicle: 'Island Adventure Plan',
+        badge: 'Water sports',
+        inclusions: ['₱1,000,000 medical', 'Scuba diving & watercraft cover', 'Medical evacuation'],
+      },
     ],
   },
 ];
@@ -856,6 +1131,64 @@ export type MenuItem = {
 export const parsePesoAmount = (amount: string) => Number(amount.replace(/[^\d]/g, '')) || 0;
 
 export const formatPesoAmount = (amount: number) => `₱${amount.toLocaleString('en-US')}`;
+
+/* --------------------------------------------------------------------------
+   Room charges
+
+   One list, read by every screen that shows what the stay has run up. The
+   folio and the booking screen used to hold their own copies of these lines;
+   two copies of one stay's money is how they end up disagreeing.
+   -------------------------------------------------------------------------- */
+
+export type RoomCharge = {
+  id: string;
+  /** Short stamp for the folio gutter, e.g. "NOV 9". */
+  date: string;
+  title: string;
+  /** Which venue, amenity or vendor -- plus anything the guest chose. */
+  detail: string;
+  amount: string;
+};
+
+/**
+ * Charges the property posted itself: amenities and hotel-operated services
+ * the guest never booked through the app. They arrive over the middleware, so
+ * the app reports them rather than creating them.
+ */
+const POSTED_ROOM_CHARGES: RoomCharge[] = [
+  { id: 'posted-transfer', date: 'NOV 9', title: 'Airport transfer', detail: 'Hotel arranged', amount: '₱1,200' },
+  { id: 'posted-dining', date: 'NOV 10', title: 'In-room dining', detail: 'Dinner · 2 guests', amount: '₱850' },
+  { id: 'posted-laundry', date: 'NOV 10', title: 'Laundry service', detail: 'Hotel operated', amount: '₱1,000' },
+];
+
+/**
+ * Every charge sitting on one booking's room: what the property posted, then
+ * what the guest booked in the app. Travel is deliberately absent -- it is
+ * paid to the operator and never reaches a folio.
+ */
+export function getRoomCharges(
+  session: GuestSession,
+  booking: Booking,
+  roomLabel: string,
+): RoomCharge[] {
+  // A stay that has not started cannot have run anything up yet.
+  const posted = booking.status === 'upcoming' ? [] : POSTED_ROOM_CHARGES;
+  const booked = session.serviceBookings
+    .filter((service) => service.bookingId === booking.id && service.status === 'confirmed')
+    .map((service) => ({
+      id: service.id,
+      date: 'NOV 11',
+      title: service.title,
+      detail: service.diningOrder
+        ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${service.scheduledFor} · settles at checkout`
+        : `${service.scheduledFor} · Added to ${roomLabel.toLowerCase()} · settles at checkout`,
+      amount: service.amount,
+    }));
+  return [...posted, ...booked];
+}
+
+export const sumRoomCharges = (charges: RoomCharge[]) =>
+  formatPesoAmount(charges.reduce((sum, charge) => sum + parsePesoAmount(charge.amount), 0));
 
 export function getVenueCartSummary(menu: MenuItem[], quantities: Record<string, number>) {
   const items = menu.flatMap((item) => {

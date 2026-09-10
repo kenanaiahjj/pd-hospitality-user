@@ -32,9 +32,9 @@ export const ENTRY_ILLUSTRATIONS = {
 
 /** The experience categories: illustrated squircle badges. */
 export const CATEGORY_ILLUSTRATIONS = {
-  dining: { src: '/illustrations/category-dining.png', width: 196, height: 196 },
-  spa: { src: '/illustrations/category-spa.png', width: 196, height: 196 },
-  entertainment: { src: '/illustrations/category-tours.png', width: 196, height: 196 },
-  services: { src: '/illustrations/category-services.png', width: 196, height: 196 },
+  dining: { src: '/illustrations/category-dining-pink.png', width: 196, height: 196 },
+  spa: { src: '/illustrations/category-spa-pink.png', width: 196, height: 196 },
+  entertainment: { src: '/illustrations/category-tours-pink.png', width: 196, height: 196 },
+  services: { src: '/illustrations/category-services-pink.png', width: 196, height: 196 },
 } satisfies Record<string, GuestIllustration>;
 

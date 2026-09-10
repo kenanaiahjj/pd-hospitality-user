@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Boat,
   ArrowRight,
+  ArrowsDownUp,
   Bed,
   BellRinging,
   CalendarBlank,
@@ -12,6 +13,8 @@ import {
   ChatCircleDots,
   Check,
   CheckCircle,
+  Clock,
+  CreditCard,
   EnvelopeSimple,
   Eye,
   EyeSlash,
@@ -40,6 +43,7 @@ import {
 import Image from 'next/image';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
+import { CarrierLogo } from './company-logos';
 import { CATEGORY_ILLUSTRATIONS, ENTRY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
@@ -52,6 +56,8 @@ import {
   getPostAuthScreen,
   getPrimaryBooking,
   getVenueCartSummary,
+  getRoomCharges,
+  sumRoomCharges,
   markRoomReady,
   bookTravel,
   describeRoomAssignment,
@@ -62,6 +68,7 @@ import {
   SERVICES,
   quoteTravel,
   TRAVEL_CATEGORIES,
+  POPULAR_ROUTES,
   signInWithPassword,
   signOutSession,
   verifyPendingSession,
@@ -557,6 +564,29 @@ const TRAVEL_ICONS: Record<TravelCategoryId, ReactNode> = {
   insurance: <ShieldCheck />,
 };
 
+function extractLocationCode(place: string): string {
+  const match = place.match(/\(([A-Z0-9]{3})\)/);
+  if (match && match[1]) return match[1];
+  const lower = place.toLowerCase();
+  if (lower.includes('tagbilaran')) return 'TAG';
+  if (lower.includes('pier 1') || lower.includes('cebu')) return 'CEB';
+  if (lower.includes('dumaguete')) return 'DGT';
+  if (lower.includes('caticlan') || lower.includes('boracay')) return 'MPH';
+  if (lower.includes('manila')) return 'MNL';
+  return place.slice(0, 3).toUpperCase();
+}
+
+function getGuestInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'G';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase();
+}
+
+function GuestAvatar({ name }: { name: string }) {
+  return <span className="guest-profile-avatar" aria-hidden="true">{getGuestInitials(name)}</span>;
+}
+
 type GuestAppPrototypeProps = {
   initialSession?: GuestSession;
   initialScreen?: ActiveScreen;
@@ -587,6 +617,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [selectedTravel, setSelectedTravel] = useState<TravelCategoryId>('flights');
   const [selectedFare, setSelectedFare] = useState<string | null>(null);
   const [travelParty, setTravelParty] = useState('2');
+  const [travelFrom, setTravelFrom] = useState<string>('');
+  const [travelTo, setTravelTo] = useState<string>('');
+  const [travelFilter, setTravelFilter] = useState<'all' | 'earliest' | 'cheapest'>('all');
+  const [travelPaymentMethod, setTravelPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
   const [selectedMenuTab, setSelectedMenuTab] = useState<MenuItemCategory>('all');
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
@@ -1117,8 +1151,45 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </ScreenIntro>
         );
 
-      case 'rate-detail':
-        return <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label={`${displayBooking.checkOut} · ${displayBooking.roomType}`} value="₱18,000" /><SummaryRow label="Taxes and fees" value="₱2,160" /><SummaryRow label="Booking total" value="₱20,160" strong /><SummaryRow label={`Paid through ${displayBooking.source}`} value="₱20,160" /></div><Notice title="Live hotel data">Availability, rates, and payment details require a connection.</Notice></ScreenIntro>;
+      case 'rate-detail': {
+        /*
+          Two separate sums, deliberately not added together. The room booking
+          is prepaid through the OTA; everything below it is unpaid and settles
+          with the hotel at checkout. One combined total would hide which half
+          the guest still owes.
+        */
+        const roomCharges = getRoomCharges(session, displayBooking, contextRoom);
+        return (
+          <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system.">
+            <StayCard booking={displayBooking} />
+            <div className="guest-summary">
+              <SummaryRow label={`${displayBooking.checkOut} · ${displayBooking.roomType}`} value="₱18,000" />
+              <SummaryRow label="Taxes and fees" value="₱2,160" />
+              <SummaryRow label="Booking total" value="₱20,160" strong />
+              <SummaryRow label={`Paid through ${displayBooking.source}`} value="₱20,160" />
+            </div>
+            <section>
+              <SectionHeading title="Additional charges" action="Room charges" onAction={() => go('folio')} />
+              {roomCharges.length ? (
+                <>
+                  <div className="guest-folio">
+                    {roomCharges.map((charge) => (
+                      <FolioItem key={charge.id} date={charge.date} title={charge.title} meta={charge.detail} amount={charge.amount} />
+                    ))}
+                  </div>
+                  <div className="guest-summary">
+                    <SummaryRow label={`Charged to ${contextRoom.toLowerCase()}`} value={sumRoomCharges(roomCharges)} strong />
+                    <SummaryRow label="Settles" value="With the hotel at checkout" />
+                  </div>
+                </>
+              ) : (
+                <Notice title="Nothing charged yet">Dining, spa and hotel services you book on property are added here and settle at checkout.</Notice>
+              )}
+            </section>
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live hotel data">Availability, rates, and payment details require a connection.</Notice> : null}
+          </ScreenIntro>
+        );
+      }
 
       case 'early-check-in':
         return (
@@ -1570,9 +1641,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro eyebrow="4 hours before service" title="Contact the front desk to change this" text="The provider’s 24-hour self-service cutoff has passed. The charge stays on your room folio."><Notice tone="warning" title="Front desk help required">Send a message and the team will check what the provider can do.</Notice>{primary('Chat with front desk', 'chat')}<TextButton onClick={() => go('my-bookings')}>Keep booking</TextButton><div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div></ScreenIntro>;
 
       case 'folio': {
-        const folioServices = session.serviceBookings.filter((service) => service.bookingId === contextBooking.id && service.status === 'confirmed');
+        const folioCharges = getRoomCharges(session, contextBooking, contextRoom);
         const folioTotal = session.folioTotal || contextBooking.folioTotal || '₱0';
-        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">{contextBooking.property} · {contextRoom} · Last updated 2:14 PM</p><h1>Room charges</h1><p>These charges settle with the hotel at checkout.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-total-card"><span>Current room total</span><strong>{folioTotal}</strong><small>Booking room rate paid through {contextBooking.source}</small></div><div className="guest-folio"><FolioItem date="NOV 9" title="Airport transfer" meta="Hotel arranged" amount="₱1,200" /><FolioItem date="NOV 10" title="In-room dining" meta="Dinner · 2 guests" amount="₱850" /><FolioItem date="NOV 10" title="Laundry service" meta="Hotel operated" amount="₱1,000" />{folioServices.map((service) => <FolioItem key={service.id} date="NOV 11" title={service.title} meta={service.diningOrder ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${service.scheduledFor} · settles at checkout` : `${service.scheduledFor} · Added to ${contextRoom.toLowerCase()} · settles at checkout`} amount={service.amount} />)}</div><Notice title="Questions about a charge?">The front desk can explain or correct a folio line before checkout.</Notice>{primary('Ask the front desk', 'chat')}</div>;
+        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">{contextBooking.property} · {contextRoom} · Last updated 2:14 PM</p><h1>Room charges</h1><p>These charges settle with the hotel at checkout.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-total-card"><span>Current room total</span><strong>{folioTotal}</strong><small>Booking room rate paid through {contextBooking.source}</small></div><div className="guest-folio">{folioCharges.map((charge) => <FolioItem key={charge.id} date={charge.date} title={charge.title} meta={charge.detail} amount={charge.amount} />)}</div><Notice title="Questions about a charge?">The front desk can explain or correct a folio line before checkout.</Notice>{primary('Ask the front desk', 'chat')}</div>;
       }
 
       case 'chat':
@@ -1598,20 +1669,101 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <h1>Get there, and onward</h1>
               <p>Book the legs between stays — flights, sailings, and the ride to your next hotel.</p>
             </div>
-            <div className="guest-list-group">
+
+            <div className="guest-travel-cat-grid" role="list">
               {TRAVEL_CATEGORIES.map((category) => (
                 <button
                   key={category.id}
-                  className="guest-list-row"
+                  className="guest-travel-cat-card"
                   type="button"
-                  onClick={() => { setSelectedTravel(category.id); setSelectedFare(null); go('travel-search'); }}
+                  onClick={() => {
+                    setSelectedTravel(category.id);
+                    setSelectedFare(null);
+                    setTravelFrom('');
+                    setTravelTo('');
+                    go('travel-search');
+                  }}
                 >
-                  <span>{TRAVEL_ICONS[category.id]}</span>
-                  <div><b>{category.title}</b><small>{category.subtitle}</small></div>
-                  <CaretRight />
+                  <div className="guest-travel-cat-card__icon-wrap">
+                    <span className="guest-travel-cat-card__icon">{TRAVEL_ICONS[category.id]}</span>
+                    <span className="guest-travel-cat-card__pill">
+                      {category.id === 'flights' ? 'Flagship & LCC' : category.id === 'ferries' ? 'Fast Craft' : category.id === 'transfers' ? 'Chauffeur' : 'Instant'}
+                    </span>
+                  </div>
+                  <div className="guest-travel-cat-card__content">
+                    <b>{category.title}</b>
+                    <small>{category.subtitle}</small>
+                  </div>
+                  <div className="guest-travel-cat-card__meta">
+                    <span>
+                      {category.id === 'flights' ? 'From ₱3,620' : category.id === 'ferries' ? 'From ₱980' : category.id === 'transfers' ? 'From ₱480' : 'From ₱390'}
+                    </span>
+                    <CaretRight size={14} aria-hidden="true" />
+                  </div>
                 </button>
               ))}
             </div>
+
+            <section className="guest-travel-section">
+              <div className="guest-section-heading">
+                <h2>Popular island routes</h2>
+              </div>
+              <div className="guest-popular-routes-grid">
+                {POPULAR_ROUTES.map((route) => (
+                  <button
+                    key={route.id}
+                    type="button"
+                    className="guest-popular-route-card"
+                    onClick={() => {
+                      setSelectedTravel(route.category);
+                      setSelectedFare(null);
+                      setTravelFrom(route.origin);
+                      setTravelTo(route.destination);
+                      go('travel-search');
+                    }}
+                  >
+                    <div className="guest-popular-route-card__top">
+                      <div className="guest-popular-route-card__carrier">
+                        <CarrierLogo operator={route.operators[0] ?? ''} size={24} />
+                        <span>{route.operators[0]}</span>
+                      </div>
+                      <span className="guest-popular-route-card__badge">{route.tag}</span>
+                    </div>
+                    <div className="guest-popular-route-card__title">
+                      <strong>{route.title}</strong>
+                    </div>
+                    <div className="guest-popular-route-card__bottom">
+                      <span className="guest-popular-route-card__duration">
+                        <Clock size={12} weight="bold" /> {route.duration}
+                      </span>
+                      <span className="guest-popular-route-card__price">From {route.startingPrice}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="guest-travel-section">
+              <div className="guest-travel-carrier-banner">
+                <div className="guest-travel-carrier-banner__head">
+                  <span className="guest-carrier-trust-badge">
+                    <ShieldCheck size={14} weight="fill" /> Verified Partner Network
+                  </span>
+                  <p>Direct inventory from Philippine flagships, fast craft, and trusted underwriters.</p>
+                </div>
+                <div className="guest-travel-carrier-pills">
+                  <div className="guest-carrier-pill"><CarrierLogo operator="Philippine Airlines" size={20} /><span>Philippine Airlines</span></div>
+                  <div className="guest-carrier-pill"><CarrierLogo operator="Cebu Pacific" size={20} /><span>Cebu Pacific</span></div>
+                  <div className="guest-carrier-pill"><CarrierLogo operator="AirAsia" size={20} /><span>AirAsia</span></div>
+                  <div className="guest-carrier-pill"><CarrierLogo operator="OceanJet" size={20} /><span>OceanJet</span></div>
+                  <div className="guest-carrier-pill"><CarrierLogo operator="2GO Travel" size={20} /><span>2GO Travel</span></div>
+                  <div className="guest-carrier-pill"><CarrierLogo operator="Lite Ferries" size={20} /><span>Lite Ferries</span></div>
+                  <div className="guest-carrier-pill"><CarrierLogo operator="The Henry Fleet" size={20} /><span>The Henry Fleet</span></div>
+                  <div className="guest-carrier-pill"><CarrierLogo operator="Pioneer Insurance" size={20} /><span>Pioneer</span></div>
+                </div>
+              </div>
+            </section>
+
             <Notice title="Paid to the operator">
               Travel is settled with the carrier or vendor. Only on-property charges reach your room folio.
             </Notice>
@@ -1625,6 +1777,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'travel-search': {
         const category = getTravelCategory(selectedTravel);
         const fare = category.options.find((option) => option.id === selectedFare);
+
+        const currentFrom = (category.route && travelFrom && category.route.places.includes(travelFrom))
+          ? travelFrom
+          : category.route?.defaultFrom ?? '';
+        const currentTo = (category.route && travelTo && category.route.places.includes(travelTo))
+          ? travelTo
+          : category.route?.defaultTo ?? '';
+
+        const displayedOptions = [...category.options];
+        if (travelFilter === 'earliest') {
+          displayedOptions.sort((a, b) => (a.departureTime || '').localeCompare(b.departureTime || ''));
+        } else if (travelFilter === 'cheapest') {
+          displayedOptions.sort((a, b) => parsePesoAmount(a.price) - parsePesoAmount(b.price));
+        }
+
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
@@ -1634,52 +1801,174 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </div>
             <div className="guest-form">
               {category.route ? (
-                <>
-                  <SelectField label={category.route.fromLabel} name="travel-from" defaultValue={category.route.defaultFrom}>
-                    {category.route.places.map((place) => <option key={place} value={place}>{place}</option>)}
-                  </SelectField>
-                  <SelectField label={category.route.toLabel} name="travel-to" defaultValue={category.route.defaultTo}>
-                    {category.route.places.map((place) => <option key={place} value={place}>{place}</option>)}
-                  </SelectField>
-                </>
+                <div className="guest-travel-search-box">
+                  <div className="guest-travel-route-pair">
+                    <SelectField
+                      label={category.route.fromLabel}
+                      name="travel-from"
+                      value={currentFrom}
+                      onValueChange={setTravelFrom}
+                    >
+                      {category.route.places.map((place) => <option key={place} value={place}>{place}</option>)}
+                    </SelectField>
+                    <button
+                      type="button"
+                      className="guest-travel-swap-button"
+                      aria-label="Swap departure and arrival"
+                      title="Swap departure and arrival"
+                      onClick={() => {
+                        const fromVal = currentFrom;
+                        const toVal = currentTo;
+                        setTravelFrom(toVal);
+                        setTravelTo(fromVal);
+                      }}
+                    >
+                      <ArrowsDownUp size={16} />
+                    </button>
+                    <SelectField
+                      label={category.route.toLabel}
+                      name="travel-to"
+                      value={currentTo}
+                      onValueChange={setTravelTo}
+                    >
+                      {category.route.places.map((place) => <option key={place} value={place}>{place}</option>)}
+                    </SelectField>
+                  </div>
+                </div>
               ) : null}
-              <Field
-                label={category.route ? 'Date' : 'Trip starts'}
-                name="travel-date"
-                type="date"
-                defaultValue={contextBooking.checkIn}
-              />
-              <SelectField
-                label={category.partyLabel}
-                name="travel-party"
-                value={travelParty}
-                onValueChange={setTravelParty}
-              >
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-              </SelectField>
+              <div className="guest-travel-dates-row">
+                <Field
+                  label={category.route ? 'Date' : 'Trip starts'}
+                  name="travel-date"
+                  type="date"
+                  defaultValue={contextBooking.checkIn}
+                />
+                <SelectField
+                  label={category.partyLabel}
+                  name="travel-party"
+                  value={travelParty}
+                  onValueChange={setTravelParty}
+                >
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </SelectField>
+              </div>
             </div>
             <div className="guest-section-heading">
               <h2>{category.route ? 'Available departures' : 'Available plans'}</h2>
+              {category.route ? (
+                <div className="guest-filter-pills" role="tablist" aria-label="Sort options">
+                  <button
+                    type="button"
+                    className={`guest-filter-pill ${travelFilter === 'all' ? 'is-active' : ''}`}
+                    onClick={() => setTravelFilter('all')}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    className={`guest-filter-pill ${travelFilter === 'earliest' ? 'is-active' : ''}`}
+                    onClick={() => setTravelFilter('earliest')}
+                  >
+                    Earliest
+                  </button>
+                  <button
+                    type="button"
+                    className={`guest-filter-pill ${travelFilter === 'cheapest' ? 'is-active' : ''}`}
+                    onClick={() => setTravelFilter('cheapest')}
+                  >
+                    Cheapest
+                  </button>
+                </div>
+              ) : null}
             </div>
             <div className="guest-travel-options" role="group" aria-label={`${category.title} options`}>
-              {category.options.map((option) => (
-                <button
-                  key={option.id}
-                  className="guest-travel-option"
-                  type="button"
-                  aria-pressed={option.id === selectedFare}
-                  onClick={() => setSelectedFare(option.id)}
-                >
-                  <div>
-                    <b>{option.operator}</b>
-                    <small>{option.detail} · {option.meta}</small>
-                  </div>
-                  <strong>{option.price}</strong>
-                </button>
-              ))}
+              {displayedOptions.map((option) => {
+                const isSelected = option.id === selectedFare;
+                const originCode = category.route ? extractLocationCode(currentFrom) : null;
+                const destCode = category.route ? extractLocationCode(currentTo) : null;
+
+                return (
+                  <button
+                    key={option.id}
+                    className={`guest-travel-option ${isSelected ? 'is-selected' : ''}`}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => setSelectedFare(option.id)}
+                  >
+                    <div className="guest-travel-option__header">
+                      <div className="guest-travel-option__brand">
+                        <CarrierLogo operator={option.operator} size={32} />
+                        <div>
+                          <b>{option.operator}</b>
+                          {option.carrierCode ? (
+                            <span className="guest-travel-carrier-code">{option.carrierCode}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                      {option.badge ? (
+                        <span className="guest-travel-badge-pill">{option.badge}</span>
+                      ) : null}
+                    </div>
+
+                    {option.departureTime && option.arrivalTime ? (
+                      <div className="guest-travel-timeline">
+                        <div className="guest-travel-time-point">
+                          <span className="guest-travel-time-main">{option.departureTime}</span>
+                          <span className="guest-travel-code">{originCode}</span>
+                        </div>
+
+                        <div className="guest-travel-flight-path">
+                          <span className="guest-travel-duration">{option.duration ?? 'Direct'}</span>
+                          <div className="guest-travel-flight-line">
+                            <span className="guest-travel-line-dot" />
+                            <span className="guest-travel-line-glyph">
+                              {category.id === 'flights' ? (
+                                <AirplaneTilt size={13} weight="fill" />
+                              ) : category.id === 'ferries' ? (
+                                <Boat size={13} weight="fill" />
+                              ) : (
+                                <Van size={13} weight="fill" />
+                              )}
+                            </span>
+                            <span className="guest-travel-line-dot" />
+                          </div>
+                          <span className="guest-travel-path-sub">Non-stop</span>
+                        </div>
+
+                        <div className="guest-travel-time-point is-destination">
+                          <span className="guest-travel-time-main">{option.arrivalTime}</span>
+                          <span className="guest-travel-code">{destCode}</span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="guest-travel-option__meta">
+                      <small>{option.detail} · {option.meta}</small>
+                    </div>
+
+                    {option.inclusions && option.inclusions.length > 0 ? (
+                      <div className="guest-travel-inclusions">
+                        {option.inclusions.map((tag) => (
+                          <span key={tag} className="guest-travel-tag">
+                            <Check size={11} weight="bold" />
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <div className="guest-travel-option__footer">
+                      <span className="guest-travel-price-caption">
+                        {category.partyLabel === 'Passengers' ? 'Per passenger' : 'Per policy'}
+                      </span>
+                      <strong className="guest-travel-price-val">{option.price}</strong>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
             {fare ? (
               <>
@@ -1731,6 +2020,47 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <p>{routeLabel ?? 'Cover for the whole trip'}</p>
             </div>
 
+            {/* Itinerary / Boarding Pass preview */}
+            <div className="guest-travel-ticket-preview">
+              <div className="guest-travel-ticket-preview__top">
+                <div className="guest-travel-ticket-preview__carrier">
+                  <CarrierLogo operator={fare.operator} size={28} />
+                  <div>
+                    <strong>{fare.operator}</strong>
+                    <small>{fare.carrierCode ?? fare.detail}</small>
+                  </div>
+                </div>
+                <span className="guest-travel-ticket-pill">Direct</span>
+              </div>
+
+              {routeLabel ? (
+                <div className="guest-travel-ticket-preview__route">
+                  <div className="guest-travel-ticket-point">
+                    <span>{category.route ? extractLocationCode(category.route.defaultFrom) : 'DEP'}</span>
+                    <small>{fare.departureTime ?? 'Depart'}</small>
+                  </div>
+                  <div className="guest-travel-ticket-line">
+                    <span>{fare.duration ?? ''}</span>
+                    <div className="guest-travel-ticket-dash" />
+                  </div>
+                  <div className="guest-travel-ticket-point is-end">
+                    <span>{category.route ? extractLocationCode(category.route.defaultTo) : 'ARR'}</span>
+                    <small>{fare.arrivalTime ?? 'Arrive'}</small>
+                  </div>
+                </div>
+              ) : (
+                <div className="guest-travel-ticket-preview__policy">
+                  <strong>{fare.detail}</strong>
+                  <small>{fare.meta}</small>
+                </div>
+              )}
+
+              <div className="guest-travel-ticket-preview__footer">
+                <span>Date: {contextBooking.checkIn}</span>
+                <span>{partySize} {category.partyLabel.toLowerCase()}</span>
+              </div>
+            </div>
+
             <SectionHeading title={category.partyLabel} />
             <div className="guest-list-group">
               {travellers.map((name, index) => (
@@ -1763,6 +2093,33 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
             {canPay ? (
               <>
+                <div className="guest-travel-payment-methods">
+                  <span className="guest-travel-payment-label">Payment method</span>
+                  <div className="guest-travel-payment-pills" role="radiogroup" aria-label="Payment method">
+                    <button
+                      type="button"
+                      className={`guest-payment-chip ${travelPaymentMethod === 'card' ? 'is-selected' : ''}`}
+                      onClick={() => setTravelPaymentMethod('card')}
+                    >
+                      <CreditCard size={15} /> Card
+                    </button>
+                    <button
+                      type="button"
+                      className={`guest-payment-chip ${travelPaymentMethod === 'gcash' ? 'is-selected' : ''}`}
+                      onClick={() => setTravelPaymentMethod('gcash')}
+                    >
+                      GCash
+                    </button>
+                    <button
+                      type="button"
+                      className={`guest-payment-chip ${travelPaymentMethod === 'maya' ? 'is-selected' : ''}`}
+                      onClick={() => setTravelPaymentMethod('maya')}
+                    >
+                      Maya
+                    </button>
+                  </div>
+                </div>
+
                 <Notice title="Not charged to your room">
                   Travel is paid now to the operator. Only on-property charges reach your room folio.
                 </Notice>
@@ -1806,13 +2163,60 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             title={`Your ${category.singular} is booked`}
             text={`${booked.operator} has your booking. Nothing was added to your room folio.`}
           >
-            <div className="guest-ticket">
-              <div>
-                <small>{booked.route ?? booked.meta}</small>
-                <h2>{booked.detail}</h2>
-                <p>{booked.reference} · {booked.travellers} travelling · {booked.amount}</p>
+            <div className="guest-travel-confirmation-pass">
+              <div className="guest-travel-confirmation-pass__header">
+                <CarrierLogo operator={booked.operator} size={28} />
+                <div className="guest-travel-confirmation-pass__operator">
+                  <strong>{booked.operator}</strong>
+                  <small>{booked.route ?? booked.meta}</small>
+                </div>
+                <Tag tone="positive">Confirmed</Tag>
               </div>
-              <Tag>Confirmed</Tag>
+
+              <div className="guest-travel-confirmation-pass__body">
+                <div className="guest-travel-pass-row">
+                  <div>
+                    <span className="guest-pass-label">Reference</span>
+                    <strong className="guest-pass-value">{booked.reference}</strong>
+                  </div>
+                  <div>
+                    <span className="guest-pass-label">Schedule</span>
+                    <strong className="guest-pass-value">{booked.detail}</strong>
+                  </div>
+                </div>
+                <div className="guest-travel-pass-row">
+                  <div>
+                    <span className="guest-pass-label">Travellers</span>
+                    <strong className="guest-pass-value">{booked.travellers} guest{booked.travellers > 1 ? 's' : ''}</strong>
+                  </div>
+                  <div>
+                    <span className="guest-pass-label">Total Paid</span>
+                    <strong className="guest-pass-value">{booked.amount}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="guest-travel-pass-barcode" aria-hidden="true">
+                <div className="guest-travel-barcode-lines">
+                  <span style={{ width: 2 }} />
+                  <span style={{ width: 4 }} />
+                  <span style={{ width: 1 }} />
+                  <span style={{ width: 3 }} />
+                  <span style={{ width: 2 }} />
+                  <span style={{ width: 5 }} />
+                  <span style={{ width: 1 }} />
+                  <span style={{ width: 4 }} />
+                  <span style={{ width: 2 }} />
+                  <span style={{ width: 3 }} />
+                  <span style={{ width: 1 }} />
+                  <span style={{ width: 4 }} />
+                  <span style={{ width: 3 }} />
+                  <span style={{ width: 1 }} />
+                  <span style={{ width: 2 }} />
+                  <span style={{ width: 4 }} />
+                </div>
+                <span className="guest-travel-barcode-code">{booked.reference} · E-TICKET ISSUED</span>
+              </div>
             </div>
             <Notice title="Bring government ID">
               Philippine carriers check passenger names against ID at the gate. The name on this booking must match the ID each traveller brings.
@@ -1890,13 +2294,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         <section className={`guest-device ${isWelcome ? 'is-welcome' : ''}`} aria-label="Cabana guest app">
           {!isWelcome ? <header className="guest-appbar" data-scrolled={scrolled}>
             <div className="guest-appbar__side">
-              {history.length ? <button className="guest-icon-button" type="button" onClick={back} aria-label="Go back"><ArrowLeft /></button> : <span className="guest-brand"><CabanaLockup className="guest-brand__lockup" /><span className="sr-only">Cabana</span></span>}
+              {activeScreen !== 'stay-overview' ? <button className="guest-icon-button guest-icon-button--back" type="button" onClick={history.length ? back : () => go('stay-overview')} aria-label="Go back"><ArrowLeft /></button> : <span className="guest-brand"><CabanaLockup className="guest-brand__lockup" /><span className="sr-only">Cabana</span></span>}
             </div>
             {/* Connection is only worth a slot when it is the exception. */}
             <div className="guest-appbar__center">{online ? null : <span className="guest-connection"><WifiSlash />Offline</span>}</div>
             {/* No profile to open before there is an account to open it for. */}
             <div className="guest-appbar__side guest-appbar__side--end">
-              {session.auth === 'authenticated' || session.bookings.length > 0 ? <button className="guest-icon-button" type="button" onClick={() => go('profile')} aria-label="Open profile"><Person /></button> : null}
+              {session.auth === 'authenticated' || session.bookings.length > 0 ? <button className="guest-icon-button" type="button" onClick={() => go('profile')} aria-label="Open profile"><GuestAvatar name={session.guestName} /></button> : null}
             </div>
           </header> : null}
 
@@ -2078,7 +2482,6 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
             {upcomingBookings.filter((item) => item.id !== booking.id).map((item) => <UpcomingBookingCard key={item.id} booking={item} onNavigate={onNavigate} />)}
           </div>
         </section>
-        <button className="guest-list-row" onClick={() => onNavigate('profile')} type="button"><span><Person /></span><div><b>Guest profile</b><small>{session.guestName} · Account details</small></div><CaretRight /></button>
       </div>
     );
   }
@@ -2147,17 +2550,26 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
               comes from `describeRoomAssignment` so this card, the stay screen
               and the timeline cannot describe one room three ways.
             */}
+            {/*
+              "Your room", not "Ready for arrival": the eyebrow used to name a
+              different subject than the tag beside it, so a pending room read
+              as "Ready ... Pre-registered".
+            */}
             <div className="guest-home-booking__heading">
-              <div><small>Ready for arrival</small><h2>{roomAssignment.headline}</h2></div>
-              <Tag tone={roomAssignment.canGoUp ? 'positive' : undefined}>
-                {roomAssignment.state === 'pending' ? 'Pre-registered' : roomAssignment.canGoUp ? 'Ready' : 'Assigned'}
-              </Tag>
+              <div><small>Your room</small><h2>{roomAssignment.headline}</h2></div>
+              <Tag tone={roomAssignment.canGoUp ? 'positive' : undefined}>{roomAssignment.statusLabel}</Tag>
             </div>
             <p>{roomAssignment.detail}</p>
             {roomAssignment.state !== 'pending' && booking.honouredPreferences?.length ? (
               <p className="guest-home-booking__note">Honoured: {booking.honouredPreferences.join(' · ')}</p>
             ) : null}
-            <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('repeat-review')}>Review stay<ArrowRight aria-hidden="true" /></Button>
+            {roomAssignment.action.tone === 'primary' ? (
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate(roomAssignment.action.screen)}>
+                {roomAssignment.action.label}<ArrowRight aria-hidden="true" />
+              </Button>
+            ) : (
+              <TextButton onClick={() => onNavigate(roomAssignment.action.screen)}>{roomAssignment.action.label}</TextButton>
+            )}
           </>
         )}
       </section>
@@ -2182,7 +2594,6 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
           ))}
         </div>
       </section>
-      <button className="guest-list-row" onClick={() => onNavigate('profile')} type="button"><span><Person /></span><div><b>Guest profile</b><small>{session.guestName} · Account details</small></div><CaretRight /></button>
     </div>
   );
 }

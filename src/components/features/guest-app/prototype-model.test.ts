@@ -89,6 +89,29 @@ describe('guest app prototype model', () => {
       expect(untimed.detail).toBe('Go straight up.');
     });
 
+    it('offers a real action only where the guest has one, and stays quiet otherwise', () => {
+      // Waiting on the property: a full-width button would imply the app can
+      // hurry an allocation it does not control.
+      for (const waiting of [
+        describeRoomAssignment({ ...base, roomAssignment: 'pending', roomNumber: undefined }),
+        describeRoomAssignment({ ...base, roomAssignment: 'assigned', roomNumber: '512' }),
+      ]) {
+        expect(waiting.action.tone).toBe('quiet');
+        expect(waiting.action.screen).toBe('repeat-review');
+      }
+
+      const ready = describeRoomAssignment({ ...base, roomAssignment: 'ready', roomNumber: '512' });
+      expect(ready.action.tone).toBe('primary');
+      expect(ready.action.screen).toBe('arrival-handoff');
+      expect(ready.action.label).toBe('Head to your room');
+    });
+
+    it('labels the status tag from the same place as the headline', () => {
+      expect(describeRoomAssignment({ ...base, roomAssignment: 'pending', roomNumber: undefined }).statusLabel).toBe('Pre-registered');
+      expect(describeRoomAssignment({ ...base, roomAssignment: 'assigned', roomNumber: '512' }).statusLabel).toBe('Assigned');
+      expect(describeRoomAssignment({ ...base, roomAssignment: 'ready', roomNumber: '512' }).statusLabel).toBe('Ready');
+    });
+
     it('infers a state for bookings that carry none, so old fixtures stay valid', () => {
       expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: undefined }).state).toBe('pending');
       expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304' }).state).toBe('assigned');

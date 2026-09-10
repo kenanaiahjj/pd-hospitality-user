@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     // source tree. Without this, a leftover worktree gets linted as part of
     // the repo and its findings drown out real ones.
     ".claude/**",
+    ".worktrees/**",
   ]),
 ]);
 

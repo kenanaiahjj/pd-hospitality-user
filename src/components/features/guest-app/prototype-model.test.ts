@@ -23,6 +23,7 @@ import {
   getCancellationState,
   getNotifications,
   canReportRoomReady,
+  describeStayStatus,
   getStayEntries,
   hasStayStarted,
   summarisePastStay,
@@ -854,5 +855,35 @@ describe('settlement wording', () => {
     const [entry] = getStayEntries(session, stay).upcoming;
 
     expect(entry!.settlement).toBe('Added to room 512 · settles at checkout');
+  });
+});
+
+describe('stay status label', () => {
+  const stay = (overrides: Partial<Booking> = {}): Booking => ({
+    ...UPCOMING_BOOKING_FIXTURE,
+    checkIn: '2026-11-12',
+    checkOut: '2026-11-15',
+    ...overrides,
+  });
+
+  it('says checked in once the guest is inside the window', () => {
+    // `status` stays 'upcoming'; only the clock moves. This is the label that
+    // announced "Upcoming" over a stay its own dates had under way.
+    expect(describeStayStatus(stay(), '2026-11-12').label).toBe('Checked in');
+    expect(describeStayStatus(stay(), '2026-11-14').label).toBe('Checked in');
+  });
+
+  it('says upcoming while the stay is still ahead', () => {
+    expect(describeStayStatus(stay(), '2026-11-10')).toEqual({ status: 'upcoming', label: 'Upcoming' });
+  });
+
+  it('promotes a released room ahead of arrival', () => {
+    const released = stay({ roomNumber: '512', roomAssignment: 'ready' });
+    expect(describeStayStatus(released, '2026-11-10')).toEqual({ status: 'room-ready', label: 'Room ready' });
+  });
+
+  it('says checked out past the window, and for a closed stay', () => {
+    expect(describeStayStatus(stay(), '2026-11-16').label).toBe('Checked out');
+    expect(describeStayStatus(stay({ status: 'completed' }), '2026-11-12').label).toBe('Checked out');
   });
 });

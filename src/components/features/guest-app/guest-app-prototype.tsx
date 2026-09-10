@@ -59,6 +59,7 @@ import {
   connectBooking,
   createAccountWithPassword,
   describeCheckoutCountdown,
+  describeStayStatus,
   formatPesoAmount,
   getHomeVariant,
   getNotifications,
@@ -94,6 +95,7 @@ import {
   RESTAURANTS,
   SERVICES,
   quoteTravel,
+  travelStartingPrice,
   TRAVEL_CATEGORIES,
   POPULAR_ROUTES,
   signInWithPassword,
@@ -1516,15 +1518,78 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           the guest still owes.
         */
         const roomCharges = getRoomCharges(session, displayBooking, contextRoom);
+        const bookingGuests = listBookingGuests(displayBooking, session);
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system.">
             <StayCard booking={displayBooking} />
-            <div className="guest-summary">
+
+            {/*
+              The stay's own facts, before the money. This screen is what the
+              card's "Rate, policies and confirmation" promises, and it named
+              neither the party nor the dates -- so a guest checking that the
+              property knows who is coming had nowhere to look.
+            */}
+            <section>
+              <SectionHeading title="This booking" />
+              <div className="guest-summary">
+                <SummaryRow label="Status" value={describeStayStatus(displayBooking).label} />
+                <SummaryRow label="Dates" value={`${formatStayDateRange(displayBooking)} · ${countNights(displayBooking)}`} />
+                <SummaryRow label="Room" value={displayBooking.roomNumber ? `${displayBooking.roomType} · ${displayBooking.roomNumber}` : `${displayBooking.roomType} · assigned at arrival`} />
+                <SummaryRow label="Party" value={describeParty(displayBooking, session)} />
+                <SummaryRow label="Booked through" value={displayBooking.source} />
+                <SummaryRow label="Confirmation" value={displayBooking.id} />
+              </div>
+            </section>
+
+            <section>
+              <SectionHeading title="Guests" action="Edit" onAction={() => go('additional-guests')} />
+              <div className="guest-guest-list">
+                {bookingGuests.rows.map((guest) => guest.name ? (
+                  <div key={guest.key} className="guest-guest-row">
+                    <span className="guest-guest-row__avatar" aria-hidden="true">{guest.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span>
+                    <span className="guest-guest-row__text">
+                      <b>{guest.name}</b>
+                      <small>{guest.role === 'lead' ? 'Lead booker · ID on file' : 'Additional guest'}</small>
+                    </span>
+                    {guest.role === 'lead' ? <Tag tone="positive">You</Tag> : null}
+                  </div>
+                ) : (
+                  <button key={guest.key} className="guest-guest-row is-pending" type="button" onClick={() => go('guest-details')}>
+                    <span className="guest-guest-row__avatar is-pending" aria-hidden="true"><Person /></span>
+                    <span className="guest-guest-row__text">
+                      <b>Lead booker · name needed</b>
+                      <small>Add the name on the reservation</small>
+                    </span>
+                    <CaretRight />
+                  </button>
+                ))}
+                {/*
+                  A booking reserved for more people than have been named is a
+                  real state, and the property needs the names before arrival.
+                  Saying so beats a silent short list.
+                */}
+                {bookingGuests.unnamed > 0 ? (
+                  <button className="guest-guest-row is-pending" type="button" onClick={() => go('additional-guests')}>
+                    <span className="guest-guest-row__avatar is-pending" aria-hidden="true"><Users /></span>
+                    <span className="guest-guest-row__text">
+                      <b>{bookingGuests.unnamed} {bookingGuests.unnamed === 1 ? 'guest' : 'guests'} not yet named</b>
+                      <small>The property needs their details before arrival</small>
+                    </span>
+                    <CaretRight />
+                  </button>
+                ) : null}
+              </div>
+            </section>
+
+            <section>
+              <SectionHeading title="Rate" />
+              <div className="guest-summary">
               <SummaryRow label={`${displayBooking.checkOut} · ${displayBooking.roomType}`} value="₱18,000" />
               <SummaryRow label="Taxes and fees" value="₱2,160" />
               <SummaryRow label="Booking total" value="₱20,160" strong />
               <SummaryRow label={`Paid through ${displayBooking.source}`} value="₱20,160" />
-            </div>
+              </div>
+            </section>
             <section>
               <SectionHeading title="Additional charges" action="Room charges" onAction={() => go('folio')} />
               {roomCharges.length ? (
@@ -2233,131 +2298,37 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <p>Book the legs between stays — flights, sailings, and the ride to your next hotel.</p>
             </div>
 
-            {/* Flighty Live Journey Radar Hero Card */}
-            <div className="guest-flighty-radar-card" role="region" aria-label="Live Journey Radar">
-              <div className="guest-flighty-radar-card__header">
-                <div className="guest-flighty-radar-live">
-                  <span className="guest-flighty-radar-beacon" aria-hidden="true" />
-                  <span className="guest-flighty-radar-label">LIVE RADAR · FLIGHT TELEMETRY</span>
-                </div>
-                <span className="guest-flighty-status-pill">
-                  <span className="guest-flighty-status-dot" aria-hidden="true" /> ON TIME · 98% RELIABLE
-                </span>
-              </div>
-
-              <div className="guest-flighty-radar-card__body">
-                <div className="guest-flighty-radar-carrier">
-                  <CarrierLogo operator="Cebu Pacific" size={24} />
-                  <div>
-                    <strong className="guest-flighty-radar-flight-num">5J 921 · Airbus A320neo</strong>
-                    <small className="guest-flighty-radar-route-sub">Manila ➔ Cagayan de Oro</small>
-                  </div>
-                </div>
-
-                <div className="guest-flighty-radar-route">
-                  <div className="guest-flighty-radar-node">
-                    <span className="guest-flighty-radar-iata">MNL</span>
-                    <span className="guest-flighty-radar-city">Manila</span>
-                    <span className="guest-flighty-radar-gate">
-                      <NavigationArrow size={10} weight="fill" aria-hidden="true" /> Gate 118
-                    </span>
-                    <span className="guest-flighty-radar-time">09:15</span>
-                  </div>
-
-                  <div className="guest-flighty-radar-path">
-                    <span className="guest-flighty-radar-duration">1h 50m</span>
-                    <div className="guest-flighty-radar-line">
-                      <span className="guest-flighty-radar-dot" aria-hidden="true" />
-                      <div className="guest-flighty-radar-dash">
-                        <AirplaneTilt size={14} weight="fill" className="guest-flighty-radar-plane" aria-hidden="true" />
-                      </div>
-                      <span className="guest-flighty-radar-dot" aria-hidden="true" />
-                    </div>
-                    <span className="guest-flighty-radar-status">Cruising 32,000 ft</span>
-                  </div>
-
-                  <div className="guest-flighty-radar-node is-dest">
-                    <span className="guest-flighty-radar-iata">CGY</span>
-                    <span className="guest-flighty-radar-city">Cagayan de Oro</span>
-                    <span className="guest-flighty-radar-belt">
-                      <SuitcaseRolling size={10} weight="bold" aria-hidden="true" /> Belt 4
-                    </span>
-                    <span className="guest-flighty-radar-time">11:05</span>
-                  </div>
-                </div>
-
-                <div className="guest-flighty-radar-strip">
-                  <div className="guest-flighty-radar-stat">
-                    <span className="guest-flighty-stat-label">Boarding</span>
-                    <span className="guest-flighty-stat-val">08:35 (T3)</span>
-                  </div>
-                  <div className="guest-flighty-radar-stat">
-                    <span className="guest-flighty-stat-label">Aircraft</span>
-                    <span className="guest-flighty-stat-val">RP-C4118</span>
-                  </div>
-                  <div className="guest-flighty-radar-stat">
-                    <span className="guest-flighty-stat-label">Tail Wind</span>
-                    <span className="guest-flighty-stat-val">18 kts ENE</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="guest-flighty-radar-card__footer">
+            {/*
+              One row each, in the same inset grouped list Explore's categories
+              use -- travel is a category now, so it reads like one. The mode
+              codes ("AIR · 01") and tags ("FLAGSHIP & LCC") went with the
+              2x2 cards: numbered scaffolding and tracked-caps eyebrows are
+              decoration, and nothing here is a sequence. What a guest picks on
+              is the mode, what it covers, and what it starts at.
+            */}
+            <div className="guest-category-grid" role="list">
+              {TRAVEL_CATEGORIES.map((category) => (
                 <button
+                  key={category.id}
+                  className="guest-action-tile guest-action-tile--detailed"
                   type="button"
-                  className="guest-flighty-radar-action"
                   onClick={() => {
-                    setSelectedTravel('flights');
+                    setSelectedTravel(category.id);
                     setSelectedFare(null);
-                    setTravelFrom('Manila (MNL)');
-                    setTravelTo('Cagayan de Oro (CGY)');
+                    setTravelFrom('');
+                    setTravelTo('');
                     go('travel-search');
                   }}
                 >
-                  <span>Track & book this leg</span>
-                  <ArrowRight size={14} weight="bold" aria-hidden="true" />
+                  <span>{TRAVEL_ICONS[category.id]}</span>
+                  <span className="guest-action-tile__text">
+                    <b>{category.title}</b>
+                    <small>{category.subtitle}</small>
+                  </span>
+                  <span className="guest-action-tile__from">{travelStartingPrice(category)}</span>
+                  <CaretRight />
                 </button>
-              </div>
-            </div>
-
-            {/* Flighty Transit Modes Grid */}
-            <div className="guest-travel-cat-grid" role="list">
-              {TRAVEL_CATEGORIES.map((category) => {
-                const modeCode = category.id === 'flights' ? 'AIR · 01' : category.id === 'ferries' ? 'SEA · 02' : category.id === 'transfers' ? 'LND · 03' : 'COV · 04';
-                const tag = category.id === 'flights' ? 'Flagship & LCC' : category.id === 'ferries' ? 'Fast Craft' : category.id === 'transfers' ? 'Chauffeur' : 'Instant';
-                const priceText = category.id === 'flights' ? 'From ₱3,620' : category.id === 'ferries' ? 'From ₱980' : category.id === 'transfers' ? 'From ₱480' : 'From ₱390';
-
-                return (
-                  <button
-                    key={category.id}
-                    className="guest-travel-cat-card"
-                    type="button"
-                    onClick={() => {
-                      setSelectedTravel(category.id);
-                      setSelectedFare(null);
-                      setTravelFrom('');
-                      setTravelTo('');
-                      go('travel-search');
-                    }}
-                  >
-                    <div className="guest-travel-cat-card__header">
-                      <span className="guest-flighty-mode-badge">{modeCode}</span>
-                      <span className="guest-travel-cat-card__pill">{tag}</span>
-                    </div>
-                    <div className="guest-travel-cat-card__icon-wrap">
-                      <span className="guest-travel-cat-card__icon">{TRAVEL_ICONS[category.id]}</span>
-                    </div>
-                    <div className="guest-travel-cat-card__content">
-                      <b>{category.title}</b>
-                      <small>{category.subtitle}</small>
-                    </div>
-                    <div className="guest-travel-cat-card__meta">
-                      <span className="guest-travel-cat-card__price">{priceText}</span>
-                      <CaretRight size={14} aria-hidden="true" />
-                    </div>
-                  </button>
-                );
-              })}
+              ))}
             </div>
 
             <section className="guest-travel-section">
@@ -3361,7 +3332,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
           <div className="guest-stay-hero-card__media">
             <PropertyImage property={booking.property} aspectRatio="21/9" decorative />
             <div className="guest-stay-hero-card__badges">
-              <Tag tone="positive">Active stay</Tag>
+              <Tag tone="positive">{describeStayStatus(booking).label}</Tag>
               <span className="guest-tag guest-tag--dark">{roomLabel}</span>
             </div>
           </div>
@@ -3379,6 +3350,8 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
             <div className="guest-stay-hero-card__stats">
               <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
               <div><small>Room</small><b>{booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : booking.roomType}</b></div>
+              <div><small>Guests</small><b>{describeParty(booking, session)}</b></div>
+              <div><small>Nights</small><b>{countNights(booking)}</b></div>
             </div>
           </div>
           <div className="guest-stay-hero-card__actions">
@@ -3454,6 +3427,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
   }
 
   const roomAssignment = describeRoomAssignment(booking);
+  const stayStatus = describeStayStatus(booking);
 
   return (
     <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
@@ -3461,16 +3435,23 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
         <div className="guest-stay-hero-card__media">
           <PropertyImage property={booking.property} aspectRatio="21/9" decorative />
           <div className="guest-stay-hero-card__badges">
-            <Tag tone="warning">Upcoming</Tag>
+            {/* Read off the window, not `status`: the badge said "Upcoming"
+                over a stay the dates had under way. */}
+            <Tag tone={stayStatus.status === 'checked-in' ? 'positive' : 'warning'}>{stayStatus.label}</Tag>
             <span className="guest-tag guest-tag--dark">{booking.city}</span>
           </div>
         </div>
         <div className="guest-stay-hero-card__body">
-          <p className="guest-eyebrow">{greetGuest(session.guestName, 'Your next stay')}</p>
+          <p className="guest-eyebrow">{greetGuest(session.guestName, stayStatus.status === 'checked-in' ? 'Your stay' : 'Your next stay')}</p>
           <h1>{booking.property}</h1>
           <div className="guest-stay-hero-card__stats">
             <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
             <div><small>Room</small><b>{booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : `${booking.roomType} · Assigned at arrival`}</b></div>
+            {/* Who is on the booking, which the card never said -- a guest
+                travelling with someone had to open the booking to check the
+                property knows that. */}
+            <div><small>Guests</small><b>{describeParty(booking, session)}</b></div>
+            <div><small>Nights</small><b>{countNights(booking)}</b></div>
           </div>
         </div>
         {/* No folio row: a stay that has not started cannot have room charges. */}
@@ -3557,6 +3538,53 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
  * for every guest in the building, so they belong on the shared surface rather
  * than in a personal inbox.
  */
+/**
+ * Everyone on the booking, lead booker first.
+ *
+ * The lead's slot always exists; their *name* may not. The booking-lookup
+ * entry path never asks for one, and collapsing the list with `filter(Boolean)`
+ * promoted the first additional guest into the lead's row -- so a booking for
+ * Ana and Marco showed Marco as "Lead booker · ID on file" and then claimed a
+ * guest was missing. The slot is held open and reported as needing a name.
+ *
+ * `guestCount` is what the property reserved for; the rows are who has been
+ * named. The two disagreeing is a real state the property has to resolve
+ * before arrival, so it is stated rather than hidden.
+ */
+type BookingGuest = { key: string; name: string | null; role: 'lead' | 'additional' };
+
+function listBookingGuests(booking: Booking, session: GuestSession) {
+  const lead = session.guestName.trim();
+  const additional = session.additionalGuests.map((name) => name.trim()).filter(Boolean);
+
+  const rows: BookingGuest[] = [
+    { key: 'lead', name: lead || null, role: 'lead' },
+    ...additional.map((name, index) => ({ key: `guest-${index}`, name, role: 'additional' as const })),
+  ];
+
+  return {
+    rows,
+    count: Math.max(booking.guestCount, rows.length),
+    /** Reserved for more people than the booking has rows for. */
+    unnamed: Math.max(0, booking.guestCount - rows.length),
+  };
+}
+
+const describeParty = (booking: Booking, session: GuestSession) => {
+  const { count } = listBookingGuests(booking, session);
+  return `${count} ${count === 1 ? 'guest' : 'guests'}`;
+};
+
+const countNights = (booking: Booking) => {
+  const nights = Math.max(
+    1,
+    Math.round(
+      (Date.parse(`${booking.checkOut}T00:00:00Z`) - Date.parse(`${booking.checkIn}T00:00:00Z`)) / 86_400_000,
+    ),
+  );
+  return `${nights} ${nights === 1 ? 'night' : 'nights'}`;
+};
+
 function greetGuest(guestName: string, fallback: string, roomNumber?: string) {
   const first = guestName.trim().split(/\s+/).filter(Boolean)[0];
   if (!first) return fallback;

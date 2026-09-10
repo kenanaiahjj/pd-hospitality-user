@@ -528,6 +528,43 @@ export function getPrimaryBooking(
     .sort((a, b) => b.checkIn.localeCompare(a.checkIn))[0];
 }
 
+/** Is the guest inside the stay's window right now? */
+export function isStayUnderWay(booking: Booking, today: string = PROTOTYPE_TODAY): boolean {
+  if (booking.status === 'completed') return false;
+  const now = dayIndex(today);
+  return now >= dayIndex(booking.checkIn) && now <= dayIndex(booking.checkOut);
+}
+
+export type StayStatus = 'upcoming' | 'room-ready' | 'checked-in' | 'checked-out';
+
+/**
+ * The badge on a stay, and the one place its wording is decided.
+ *
+ * "Upcoming" was read straight off `Booking.status`, so a stay whose own dates
+ * had it mid-flight still announced itself as upcoming. Three states matter to
+ * a guest and `status` distinguishes none of them: the stay is ahead, the room
+ * is released and waiting, or they are in it.
+ */
+export function describeStayStatus(
+  booking: Booking,
+  today: string = PROTOTYPE_TODAY,
+): { status: StayStatus; label: string } {
+  const now = dayIndex(today);
+
+  if (booking.status === 'completed' || now > dayIndex(booking.checkOut)) {
+    return { status: 'checked-out', label: 'Checked out' };
+  }
+
+  if (isStayUnderWay(booking, today)) {
+    return { status: 'checked-in', label: 'Checked in' };
+  }
+
+  // Still ahead. A released room is the one thing worth saying before arrival.
+  return describeRoomAssignment(booking, today).state === 'ready'
+    ? { status: 'room-ready', label: 'Room ready' }
+    : { status: 'upcoming', label: 'Upcoming' };
+}
+
 export function getHomeVariant(
   bookings: Booking[],
   activeBookingId?: string,
@@ -535,6 +572,15 @@ export function getHomeVariant(
   const selectedBooking = activeBookingId
     ? bookings.find((booking) => booking.id === activeBookingId)
     : undefined;
+  /*
+    Status, not dates, and deliberately so -- unlike the badge, the countdown
+    and the folio block, which all read the window. Which home a guest lands
+    on decides whether they see pre-arrival progress and the room-release
+    card, and the reference stay carries `upcoming` with a window that already
+    contains the prototype clock. Deriving this from dates would take both
+    surfaces off the demo path. `describeStayStatus` resolves the
+    contradiction where a guest can actually see it: in the label.
+  */
   if (
     selectedBooking?.status === 'active' ||
     bookings.some((booking) => booking.status === 'active')
@@ -1781,6 +1827,21 @@ export type TravelQuote = {
   fees: string;
   total: string;
 };
+
+/**
+ * What a mode starts at, read off its own inventory.
+ *
+ * These were four hardcoded strings keyed by category id, which is a second
+ * copy of a price the options already carry -- the kind that goes stale the
+ * first time a fare changes and nobody notices.
+ */
+export function travelStartingPrice(category: TravelCategory): string {
+  const cheapest = category.options.reduce(
+    (low, option) => Math.min(low, parsePesoAmount(option.price)),
+    Number.POSITIVE_INFINITY,
+  );
+  return Number.isFinite(cheapest) ? `From ${formatPesoAmount(cheapest)}` : 'Price on request';
+}
 
 export function quoteTravel(option: TravelOption, travellers: number): TravelQuote {
   const each = parsePesoAmount(option.price);

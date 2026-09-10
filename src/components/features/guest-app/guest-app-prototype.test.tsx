@@ -398,7 +398,10 @@ describe('GuestAppPrototype', () => {
   it('falls back to a stay label when no entry path captured a name', () => {
     // The booking-lookup flow never asks for a name, so the greeting has to
     // survive its absence rather than rendering "Welcome, ".
-    const nameless = sessionFor([makeBooking({ id: 'nameless', status: 'upcoming' })], { guestName: '' });
+    const nameless = sessionFor(
+      [makeBooking({ id: 'nameless', status: 'upcoming', checkIn: '2026-11-14', checkOut: '2026-11-17' })],
+      { guestName: '' },
+    );
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={nameless} />);
 
     expect(screen.getByText('Your next stay')).toBeInTheDocument();
@@ -1000,6 +1003,63 @@ describe('travel destination', () => {
     // Selecting a fare summarises it and opens the way to checkout.
     expect(screen.getByText('Fare each')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Continue to checkout/ })).toBeInTheDocument();
+  });
+});
+
+describe('booking detail', () => {
+  it('names every guest on the booking, and flags those still unnamed', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('button', { name: /Checks out|Checks in/ }));
+
+    expect(screen.getByRole('heading', { name: 'Guests' })).toBeInTheDocument();
+    expect(screen.getByText('Ana Santos')).toBeInTheDocument();
+    expect(screen.getByText('Marco Santos')).toBeInTheDocument();
+    expect(screen.getByText('Lead booker · ID on file')).toBeInTheDocument();
+    // The reference booking reserves two and names two, so nothing is pending.
+    expect(screen.queryByText(/not yet named/)).toBeNull();
+  });
+
+  it('holds the lead slot open rather than promoting an additional guest', () => {
+    // The booking-lookup path never captures a name. Collapsing the list here
+    // showed the first additional guest as "Lead booker · ID on file".
+    const nameless = sessionFor(
+      [makeBooking({ id: 'n', status: 'active', roomNumber: '304', guestCount: 2 })],
+      { guestName: '', additionalGuests: ['Marco Santos'] },
+    );
+    render(<GuestAppPrototype initialScreen="rate-detail" initialSession={nameless} />);
+
+    expect(screen.getByText('Lead booker · name needed')).toBeInTheDocument();
+    expect(screen.getByText('Marco Santos')).toBeInTheDocument();
+    expect(screen.getByText('Additional guest')).toBeInTheDocument();
+    // Two rows for a party of two: nothing is missing, one name is.
+    expect(screen.queryByText(/not yet named/)).toBeNull();
+  });
+
+  it('says how many guests are unnamed when the booking reserves more', () => {
+    const party = sessionFor(
+      [makeBooking({ id: 'party', status: 'active', roomNumber: '304', guestCount: 4 })],
+      { activeBookingId: 'party', additionalGuests: ['Marco Santos'] },
+    );
+    render(<GuestAppPrototype initialScreen="rate-detail" initialSession={party} />);
+
+    expect(screen.getByText('2 guests not yet named')).toBeInTheDocument();
+    expect(screen.getByText('4 guests')).toBeInTheDocument();
+  });
+
+  it('reports the party size on the home stay card', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+
+    expect(screen.getByText('2 guests')).toBeInTheDocument();
+  });
+
+  it('labels a stay under way as checked in, not upcoming', () => {
+    // The reference stay runs 9-12 November against a clock of the 11th.
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+
+    expect(screen.getByText('Checked in')).toBeInTheDocument();
+    expect(screen.queryByText('Upcoming')).toBeNull();
   });
 });
 

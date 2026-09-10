@@ -29,6 +29,8 @@ import {
   QrCode,
   Receipt,
   SignOut,
+  SlidersHorizontal,
+  CaretDown,
   Sparkle,
   SpinnerGap,
   Storefront,
@@ -60,6 +62,7 @@ import {
   getRoomCharges,
   availableDietaryTags,
   availableOperators,
+  availableTypes,
   filterMenu,
   filterServices,
   DIETARY_LABELS,
@@ -642,6 +645,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [menuDietary, setMenuDietary] = useState<DietaryTag[]>([]);
   const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
   const [serviceOperators, setServiceOperators] = useState<string[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
   const [diningMethod, setDiningMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
@@ -1366,12 +1370,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // Venues carry their price as `priceRange`; aliasing it lets the shared
         // filter/sort run over them unchanged.
         const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
-        const venueOperatorFacets = availableOperators(venueRows);
-        const visibleVenues = filterServices(venueRows, { operators: serviceOperators, sort: serviceSort });
-        const operatorFacets = availableOperators(categoryServices);
-        const visibleServices = filterServices(categoryServices, { operators: serviceOperators, sort: serviceSort });
-        const servicesNarrowed = serviceOperators.length > 0 || serviceSort !== 'recommended';
-        const clearServiceControls = () => { setServiceOperators([]); setServiceSort('recommended'); };
+        const listingFilters = { operators: serviceOperators, types: serviceTypes, sort: serviceSort };
+        const visibleVenues = filterServices(venueRows, listingFilters);
+        const visibleServices = filterServices(categoryServices, listingFilters);
+        const servicesNarrowed = serviceOperators.length > 0 || serviceTypes.length > 0 || serviceSort !== 'recommended';
+        const clearServiceControls = () => { setServiceOperators([]); setServiceTypes([]); setServiceSort('recommended'); };
+        const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
+        const buildFacets = (rows: readonly { operator: string; category: string }[]) => [
+          { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [serviceSort], onChange: (next: string[]) => setServiceSort(next[0] as ListingSort) },
+          ...(availableTypes(rows).length ? [{ key: 'type', label: 'Type', options: asOptions(availableTypes(rows)), selected: serviceTypes, onChange: setServiceTypes }] : []),
+          ...(availableOperators(rows).length ? [{ key: 'operator', label: 'Operator', options: asOptions(availableOperators(rows)), selected: serviceOperators, onChange: setServiceOperators }] : []),
+        ];
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
@@ -1387,15 +1396,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {selectedCategory === 'dining' ? (
               <>
               <ListingControls
-                name="venues"
-                sort={serviceSort}
-                onSort={setServiceSort}
-                filters={venueOperatorFacets.map((operator) => ({ value: operator, label: operator }))}
-                selected={serviceOperators}
-                onToggleFilter={(value) => setServiceOperators((current) => (
-                  current.includes(value) ? current.filter((operator) => operator !== value) : [...current, value]
-                ))}
-                filterLabel="Operator"
+                facets={buildFacets(venueRows)}
                 count={visibleVenues.length}
                 nouns={['venue', 'venues']}
                 narrowed={servicesNarrowed}
@@ -1436,15 +1437,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : (
               <>
               <ListingControls
-                name="services"
-                sort={serviceSort}
-                onSort={setServiceSort}
-                filters={operatorFacets.map((operator) => ({ value: operator, label: operator }))}
-                selected={serviceOperators}
-                onToggleFilter={(value) => setServiceOperators((current) => (
-                  current.includes(value) ? current.filter((operator) => operator !== value) : [...current, value]
-                ))}
-                filterLabel="Operator"
+                facets={buildFacets(categoryServices)}
                 count={visibleServices.length}
                 nouns={['service', 'services']}
                 narrowed={servicesNarrowed}
@@ -1532,17 +1525,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </div>
 
             <ListingControls
-              name="menu"
-              sort={menuSort}
-              onSort={setMenuSort}
-              filters={dietaryFacets.map((tag) => ({ value: tag, label: DIETARY_LABELS[tag] }))}
-              selected={menuDietary}
-              onToggleFilter={(value) => setMenuDietary((current) => (
-                current.includes(value as DietaryTag)
-                  ? current.filter((tag) => tag !== value)
-                  : [...current, value as DietaryTag]
-              ))}
-              filterLabel="Dietary"
+              facets={[
+                { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [menuSort], onChange: (next: string[]) => setMenuSort(next[0] as ListingSort) },
+                ...(dietaryFacets.length ? [{
+                  key: 'dietary',
+                  label: 'Dietary',
+                  options: dietaryFacets.map((tag) => ({ value: tag, label: DIETARY_LABELS[tag] })),
+                  selected: menuDietary,
+                  onChange: (next: string[]) => setMenuDietary(next as DietaryTag[]),
+                }] : []),
+              ]}
               count={filteredMenu.length}
               nouns={['dish', 'dishes']}
               narrowed={menuNarrowed}
@@ -3028,83 +3020,6 @@ function TimelineItem({ title, text, done }: { title: string; text: string; done
 }
 
 /**
- * The sort + filter row shared by the menu and the services listing.
- *
- * Pills are labels wrapping real radio and checkbox inputs rather than
- * `role="radio"` buttons: native inputs bring group semantics, arrow-key
- * navigation and focus management with them, and single-select versus
- * multi-select is then carried by the element rather than by an aria
- * attribute that has to be kept honest by hand.
- */
-function ListingControls({
-  name,
-  sort,
-  onSort,
-  filters,
-  selected,
-  onToggleFilter,
-  filterLabel,
-  count,
-  nouns,
-  narrowed,
-  onClear,
-}: {
-  name: string;
-  sort: ListingSort;
-  onSort: (sort: ListingSort) => void;
-  filters: { value: string; label: string }[];
-  selected: string[];
-  onToggleFilter: (value: string) => void;
-  filterLabel: string;
-  count: number;
-  nouns: [string, string];
-  narrowed: boolean;
-  onClear: () => void;
-}) {
-  return (
-    <div className="guest-listing-controls">
-      <fieldset className="guest-filter-pills">
-        <legend className="sr-only">Sort</legend>
-        {LISTING_SORTS.map((option) => (
-          <label key={option.id} className={`guest-filter-pill ${sort === option.id ? 'is-active' : ''}`}>
-            <input
-              className="sr-only"
-              type="radio"
-              name={`${name}-sort`}
-              value={option.id}
-              checked={sort === option.id}
-              onChange={() => onSort(option.id)}
-            />
-            {option.label}
-          </label>
-        ))}
-      </fieldset>
-      {/* Derived facets: an empty list means this listing has nothing to cut by. */}
-      {filters.length ? (
-        <fieldset className="guest-filter-pills">
-          <legend className="sr-only">{filterLabel}</legend>
-          {filters.map((filter) => (
-            <label key={filter.value} className={`guest-filter-pill ${selected.includes(filter.value) ? 'is-active' : ''}`}>
-              <input
-                className="sr-only"
-                type="checkbox"
-                checked={selected.includes(filter.value)}
-                onChange={() => onToggleFilter(filter.value)}
-              />
-              {filter.label}
-            </label>
-          ))}
-        </fieldset>
-      ) : null}
-      <p className="guest-listing-status">
-        <span aria-live="polite">{count} {count === 1 ? nouns[0] : nouns[1]}</span>
-        {narrowed ? <button type="button" className="guest-listing-clear" onClick={onClear}>Clear</button> : null}
-      </p>
-    </div>
-  );
-}
-
-/**
  * Home's discovery rail. A native overflow-scroll list with snap points: no
  * carousel library, no autoplay, no dots. The row bleeds past the screen inset
  * so a card is always visibly cut off at the right edge -- that clipped card is
@@ -3136,6 +3051,198 @@ function FeaturedRail({ onOpenCategory }: { onOpenCategory: (category: MiniAppCa
         </li>
       ))}
     </ul>
+  );
+}
+
+/** One facet on the filter bar: a pill that opens a sheet of choices. */
+type Facet = {
+  key: string;
+  /** Pill label when nothing is chosen. */
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  /** Single-select facets (sort) render radios and always have a value. */
+  single?: boolean;
+};
+
+/**
+ * The filter sheet.
+ *
+ * A native <dialog> opened with showModal(), which puts it in the browser's
+ * top layer: it cannot be clipped by the device frame's overflow, and it is
+ * immune to the ancestor-transform trap that broke the cart's fixed
+ * positioning. Focus trapping, Escape, and inertness of the page behind all
+ * come with it rather than being rebuilt by hand.
+ *
+ * Choices are staged and committed on Apply. Applying each tap live makes the
+ * list jump under the finger while the guest is still choosing.
+ */
+function FilterSheet({
+  title,
+  facets,
+  onClose,
+  onApply,
+}: {
+  title: string;
+  facets: Facet[];
+  onClose: () => void;
+  onApply: (draft: Record<string, string[]>) => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [draft, setDraft] = useState<Record<string, string[]>>(
+    () => Object.fromEntries(facets.map((facet) => [facet.key, facet.selected])),
+  );
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+  }, []);
+
+  const toggle = (facet: Facet, value: string) => {
+    setDraft((current) => {
+      const chosen = current[facet.key] ?? [];
+      if (facet.single) return { ...current, [facet.key]: [value] };
+      return {
+        ...current,
+        [facet.key]: chosen.includes(value) ? chosen.filter((item) => item !== value) : [...chosen, value],
+      };
+    });
+  };
+
+  const cleared = Object.fromEntries(
+    facets.map((facet) => [facet.key, facet.single ? [facet.options[0]!.value] : []]),
+  );
+  const changes = facets.reduce((count, facet) => count + (facet.single ? 0 : (draft[facet.key]?.length ?? 0)), 0);
+
+  return (
+    <dialog
+      ref={ref}
+      className="guest-sheet"
+      onClose={onClose}
+      onClick={(event) => { if (event.target === ref.current) ref.current?.close(); }}
+    >
+      <div className="guest-sheet__panel">
+        <span className="guest-sheet__grip" aria-hidden="true" />
+        <div className="guest-sheet__head">
+          <h2>{title}</h2>
+          <button type="button" className="guest-sheet__clear" onClick={() => setDraft(cleared)} disabled={!changes}>
+            Clear all
+          </button>
+        </div>
+        <div className="guest-sheet__body">
+          {facets.map((facet) => (
+            <fieldset key={facet.key} className="guest-sheet__group">
+              {/* One facet means the sheet title already says this; the legend
+                  stays for the group's accessible name, just not on screen. */}
+              <legend className={facets.length > 1 ? undefined : 'sr-only'}>{facet.label}</legend>
+              {facet.options.map((option) => {
+                const checked = (draft[facet.key] ?? []).includes(option.value);
+                return (
+                  <label key={option.value} className="guest-sheet__option">
+                    <span>{option.label}</span>
+                    <input
+                      type={facet.single ? 'radio' : 'checkbox'}
+                      name={`sheet-${facet.key}`}
+                      checked={checked}
+                      onChange={() => toggle(facet, option.value)}
+                    />
+                  </label>
+                );
+              })}
+            </fieldset>
+          ))}
+        </div>
+        <div className="guest-sheet__foot">
+          <Button
+            className="guest-button guest-button--primary"
+            type="button"
+            onClick={() => { onApply(draft); ref.current?.close(); }}
+          >
+            Apply
+          </Button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+/**
+ * The filter bar: one scrolling row of pills that open the sheet, replacing
+ * the stacked rows of inline pills. Those were fine at three options; the
+ * catalogue now reaches seven types and four operators in one category, which
+ * is four rows of chrome above the content the guest came for.
+ */
+function ListingControls({
+  facets,
+  count,
+  nouns,
+  narrowed,
+  onClear,
+}: {
+  facets: Facet[];
+  count: number;
+  nouns: [string, string];
+  narrowed: boolean;
+  onClear: () => void;
+}) {
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const open = facets.filter((facet) => openKey === 'all' || facet.key === openKey);
+
+  const apply = (draft: Record<string, string[]>) => {
+    for (const facet of facets) {
+      const next = draft[facet.key];
+      if (next) facet.onChange(next);
+    }
+  };
+
+  return (
+    <div className="guest-listing-controls">
+      <div className="guest-filter-bar">
+        <button
+          type="button"
+          className="guest-filter-bar__all"
+          aria-label={`All filters${narrowed ? ' · active' : ''}`}
+          data-active={narrowed || undefined}
+          onClick={() => setOpenKey('all')}
+        >
+          <SlidersHorizontal aria-hidden="true" />
+        </button>
+        {facets.map((facet) => {
+          const chosen = facet.selected;
+          const active = facet.single ? chosen[0] !== facet.options[0]?.value : chosen.length > 0;
+          const label = facet.single
+            ? (facet.options.find((option) => option.value === chosen[0])?.label ?? facet.label)
+            : chosen.length === 1
+              ? facet.options.find((option) => option.value === chosen[0])?.label ?? facet.label
+              : chosen.length > 1 ? `${facet.label} · ${chosen.length}` : facet.label;
+          return (
+            <button
+              key={facet.key}
+              type="button"
+              className={`guest-filter-pill ${active ? 'is-active' : ''}`}
+              onClick={() => setOpenKey(facet.key)}
+            >
+              {label}<CaretDown aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+      <p className="guest-listing-status">
+        <span aria-live="polite">{count} {count === 1 ? nouns[0] : nouns[1]}</span>
+        {narrowed ? <button type="button" className="guest-listing-clear" onClick={onClear}>Clear</button> : null}
+      </p>
+      {openKey ? (
+        <FilterSheet
+          key={openKey}
+          title={openKey === 'all' ? 'Filters' : open[0]!.label}
+          facets={open}
+          onClose={() => setOpenKey(null)}
+          onApply={apply}
+        />
+      ) : null}
+    </div>
   );
 }
 

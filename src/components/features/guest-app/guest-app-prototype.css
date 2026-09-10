@@ -1280,6 +1280,8 @@
    -------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
+  .guest-sheet__panel,
+  .guest-sheet::backdrop { animation-duration: 1ms; }
   .guest-screen { animation: guest-screen-fade var(--duration-fast) ease both; }
   .guest-spin { animation-duration: 1600ms; }
   .guest-welcome__splash { animation: none; opacity: 0; visibility: hidden; }
@@ -2763,6 +2765,130 @@
   border-color: var(--guest-accent);
   color: var(--guest-accent-strong);
 }
+
+.guest-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 calc(var(--app-gutter) * -1);
+  padding: 2px var(--app-gutter);
+  min-width: 0;
+  overflow-x: auto;
+  scroll-padding-inline: var(--app-gutter);
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.guest-filter-bar::-webkit-scrollbar { display: none; }
+.guest-filter-bar > * { flex: 0 0 auto; }
+.guest-filter-bar__all {
+  position: relative;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  cursor: pointer;
+}
+.guest-filter-bar__all svg { width: 17px; height: 17px; }
+.guest-filter-bar__all[data-active] {
+  border-color: var(--guest-accent);
+  background: var(--guest-soft);
+  color: var(--guest-accent-strong);
+}
+.guest-filter-bar .guest-filter-pill { gap: 4px; }
+.guest-filter-bar .guest-filter-pill svg { width: 12px; height: 12px; }
+
+/* --------------------------------------------------------------------------
+   Filter sheet
+
+   A native <dialog>: the top layer means the device frame's overflow cannot
+   clip it, and focus trapping, Escape and page inertness come for free.
+   -------------------------------------------------------------------------- */
+
+.guest-sheet {
+  width: 100%;
+  max-width: none;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+}
+.guest-sheet:not([open]) { display: none; }
+.guest-sheet::backdrop {
+  background: oklch(0 0 0 / 0.42);
+  animation: guest-sheet-fade var(--duration-base) var(--ease-out) both;
+}
+.guest-sheet__panel {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  max-height: 82vh;
+  flex-direction: column;
+  padding: 8px 0 max(14px, env(safe-area-inset-bottom));
+  border-radius: var(--guest-radius-xl) var(--guest-radius-xl) 0 0;
+  background: var(--guest-paper);
+  animation: guest-sheet-rise var(--duration-base) var(--ease-out) both;
+}
+.guest-sheet__grip {
+  width: 38px;
+  height: 4px;
+  margin: 0 auto 6px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-line-strong);
+}
+.guest-sheet__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 20px 10px;
+}
+.guest-sheet__head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.018em; }
+.guest-sheet__clear {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--guest-accent-strong);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.guest-sheet__clear:disabled { color: var(--guest-subtle); cursor: default; }
+.guest-sheet__body { overflow-y: auto; padding: 0 20px 8px; }
+.guest-sheet__group { margin: 0 0 6px; padding: 0; border: 0; }
+.guest-sheet__group legend {
+  padding: 12px 0 2px;
+  color: var(--guest-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+.guest-sheet__option {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: inset 0 -1px 0 var(--guest-line);
+  cursor: pointer;
+}
+.guest-sheet__option:last-of-type { box-shadow: none; }
+.guest-sheet__option span { font-size: 15px; color: var(--guest-ink); }
+.guest-sheet__option input { width: 21px; height: 21px; flex: 0 0 auto; accent-color: var(--guest-accent-strong); }
+.guest-sheet__foot { padding: 10px 20px 0; box-shadow: inset 0 1px 0 var(--guest-line); }
+.guest-sheet__foot .guest-button { width: 100%; }
+
+@keyframes guest-sheet-rise {
+  from { transform: translateY(8%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes guest-sheet-fade { from { opacity: 0; } to { opacity: 1; } }
 
 .guest-listing-controls {
   display: grid;

@@ -8,6 +8,7 @@ import {
   SERVICES,
   availableDietaryTags,
   availableOperators,
+  availableTypes,
   filterMenu,
   filterServices,
   SCENARIOS,
@@ -456,9 +457,26 @@ describe('listing controls', () => {
     }
   });
 
+  it('cuts a category by type, the catalogue answer to a cuisine filter', () => {
+    const spa = SERVICES.filter((service) => service.categoryId === 'spa');
+    const types = availableTypes(spa);
+    expect(types.length).toBeGreaterThan(1);
+
+    const massage = filterServices(spa, { operators: [], types: ['Spa & massage'], sort: 'recommended' });
+    expect(massage.length).toBeGreaterThan(0);
+    for (const service of massage) expect(service.category).toBe('Spa & massage');
+
+    // Within one facet the selections widen; across facets they narrow.
+    const twoTypes = filterServices(spa, { operators: [], types: ['Spa & massage', 'Facial & skin'], sort: 'recommended' });
+    expect(twoTypes.length).toBeGreaterThan(massage.length);
+
+    const crossed = filterServices(spa, { operators: ['Hotel operated'], types: ['Facial & skin'], sort: 'recommended' });
+    expect(crossed).toEqual([]);
+  });
+
   it('sorts service prices across their mixed formats', () => {
     const entertainment = SERVICES.filter((service) => service.categoryId === 'entertainment');
-    const asc = filterServices(entertainment, { operators: [], sort: 'price-asc' });
+    const asc = filterServices(entertainment, { operators: [], types: [], sort: 'price-asc' });
     // "Complimentary" has no digits and must read as free, landing first.
     expect(asc[0]!.price).toBe('Complimentary');
     expect(asc.map((s) => parsePesoAmount(s.price))).toEqual([...asc.map((s) => parsePesoAmount(s.price))].sort((a, b) => a - b));
@@ -466,10 +484,10 @@ describe('listing controls', () => {
 
   it('filters services by operator', () => {
     const spa = SERVICES.filter((service) => service.categoryId === 'spa');
-    const hotel = filterServices(spa, { operators: ['Hotel operated'], sort: 'recommended' });
+    const hotel = filterServices(spa, { operators: ['Hotel operated'], types: [], sort: 'recommended' });
     expect(hotel.length).toBeGreaterThan(0);
     for (const service of hotel) expect(service.operator).toBe('Hotel operated');
     // No selection means no narrowing.
-    expect(filterServices(spa, { operators: [], sort: 'recommended' })).toHaveLength(spa.length);
+    expect(filterServices(spa, { operators: [], types: [], sort: 'recommended' })).toHaveLength(spa.length);
   });
 });

@@ -1816,6 +1816,16 @@ export function availableOperators(services: readonly { operator: string }[]): s
   return seen.length > 1 ? seen : [];
 }
 
+/**
+ * Distinct types -- "Spa & massage", "Transfers", "Fine Dining". This is the
+ * catalogue's answer to a food app's cuisine filter, and the same
+ * fewer-than-two rule applies.
+ */
+export function availableTypes(rows: readonly { category: string }[]): string[] {
+  const seen = [...new Set(rows.map((row) => row.category))].sort((a, b) => a.localeCompare(b));
+  return seen.length > 1 ? seen : [];
+}
+
 function bySort<T extends { price: string }>(rows: T[], sort: ListingSort): T[] {
   if (sort === 'recommended') return rows;
   // A stable copy: `recommended` is the authored order, and sorting in place
@@ -1836,11 +1846,16 @@ export function filterMenu(
   return bySort(rows, sort);
 }
 
-export function filterServices<T extends { operator: string; price: string }>(
+export function filterServices<T extends { operator: string; category: string; price: string }>(
   services: readonly T[],
-  { operators, sort }: { operators: string[]; sort: ListingSort },
+  { operators, types, sort }: { operators: string[]; types: string[]; sort: ListingSort },
 ): T[] {
-  const rows = services.filter((service) => !operators.length || operators.includes(service.operator));
+  const rows = services.filter((service) => (
+    (!operators.length || operators.includes(service.operator))
+    // Within one facet the selections widen; across facets they narrow. Two
+    // spa types means "either type", but a type plus an operator means both.
+    && (!types.length || types.includes(service.category))
+  ));
   return bySort(rows, sort);
 }
 

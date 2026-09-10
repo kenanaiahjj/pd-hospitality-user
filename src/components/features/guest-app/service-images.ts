@@ -45,8 +45,12 @@ export const SERVICE_IMAGES: Record<ServiceImageKey, ServiceImageDefinition> = {
   },
 };
 
-/** Services whose subject is a vehicle, whatever category they sit in. */
-const TRANSPORT_SERVICE_IDS = new Set(['transfer', 'private-car', 'rental', 'scooter']);
+/**
+ * Services the passenger-vehicle photo actually depicts. Bike and scooter hire
+ * sit in the same category but are not cars, and a bicycle illustrated by a
+ * sedan is the failure this whole helper exists to stop.
+ */
+const CAR_SERVICE_IDS = new Set(['transfer', 'private-car']);
 
 /**
  * The photo for a service. Keyed on category rather than on a list of ids, so
@@ -58,7 +62,7 @@ const TRANSPORT_SERVICE_IDS = new Set(['transfer', 'private-car', 'rental', 'sco
  * a massage a picture of a van.
  */
 export function getServiceImageKey(service: { id: string; categoryId: string }): ServiceImageKey {
-  if (TRANSPORT_SERVICE_IDS.has(service.id)) return 'transfer';
+  if (CAR_SERVICE_IDS.has(service.id)) return 'transfer';
   if (service.categoryId === 'dining') return service.id === 'dining' ? 'dining' : 'restaurant';
   if (service.categoryId === 'spa') return 'spa';
   if (service.categoryId === 'entertainment') return 'tour';

@@ -48,9 +48,13 @@ describe('service image keys', () => {
     expect(getServiceImageKey({ id: 'diving', categoryId: 'entertainment' })).toBe('tour');
   });
 
-  it('gives transport its vehicle photo whatever category it sits in', () => {
-    for (const id of ['transfer', 'private-car', 'rental', 'scooter']) {
+  it('gives car services the vehicle photo, and only car services', () => {
+    for (const id of ['transfer', 'private-car']) {
       expect(getServiceImageKey({ id, categoryId: 'services' })).toBe('transfer');
+    }
+    // Same category, not cars: a bicycle shown as a sedan is worse than generic.
+    for (const id of ['rental', 'scooter']) {
+      expect(getServiceImageKey({ id, categoryId: 'services' })).toBe('amenity');
     }
   });
 

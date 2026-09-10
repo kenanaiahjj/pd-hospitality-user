@@ -802,6 +802,17 @@ describe('room-ready notification', () => {
 });
 
 describe('menu and service listing controls', () => {
+  /** Facets live behind the filter bar now: open the pill, choose, Apply. */
+  const choose = async (
+    user: ReturnType<typeof userEvent.setup>,
+    pill: RegExp | string,
+    option: { role: 'radio' | 'checkbox'; name: string }[],
+  ) => {
+    await user.click(screen.getByRole('button', { name: pill }));
+    for (const item of option) await user.click(screen.getByRole(item.role, { name: item.name }));
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+  };
+
   it('narrows a menu by diet and reports how much is left', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
@@ -810,15 +821,15 @@ describe('menu and service listing controls', () => {
     await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
 
     expect(screen.getByText('13 dishes')).toBeInTheDocument();
-    // Seafood is on this menu, so the pill is offered.
-    await user.click(screen.getByRole('checkbox', { name: 'Seafood' }));
+    // Seafood is on this menu, so the facet offers it.
+    await choose(user, 'Dietary', [{ role: 'checkbox', name: 'Seafood' }]);
 
     expect(screen.getByText('2 dishes')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Crispy Calamari' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Grilled Angus Ribeye' })).toBeNull();
 
     // Two diets narrow rather than widen, and nothing is both.
-    await user.click(screen.getByRole('checkbox', { name: 'Vegetarian' }));
+    await choose(user, /Seafood/, [{ role: 'checkbox', name: 'Vegetarian' }]);
     expect(screen.getByText('0 dishes')).toBeInTheDocument();
     expect(screen.getByText('No dishes match those filters')).toBeInTheDocument();
 
@@ -833,7 +844,7 @@ describe('menu and service listing controls', () => {
     await user.click(screen.getByRole('button', { name: 'Dining' }));
     await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
     await user.click(screen.getByRole('tab', { name: 'Mains' }));
-    await user.click(screen.getByRole('radio', { name: 'Lowest price' }));
+    await choose(user, 'Recommended', [{ role: 'radio', name: 'Lowest price' }]);
 
     const prices = screen.getAllByText(/^₱[\d,]+$/).map((el) => Number(el.textContent!.replace(/[^\d]/g, '')));
     expect(prices).toEqual([...prices].sort((a, b) => a - b));
@@ -850,7 +861,7 @@ describe('menu and service listing controls', () => {
     await user.click(screen.getByRole('button', { name: 'Spa' }));
     expect(screen.getByText(`${spa.length} services`)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('checkbox', { name: 'Hotel operated' }));
+    await choose(user, 'Operator', [{ role: 'checkbox', name: 'Hotel operated' }]);
     // Derived, not pinned: the catalogue will keep growing.
     expect(screen.getByText(`${hotelRun.length} ${hotelRun.length === 1 ? 'service' : 'services'}`)).toBeInTheDocument();
   });
@@ -862,7 +873,7 @@ describe('menu and service listing controls', () => {
     await user.click(screen.getByRole('button', { name: 'Dining' }));
     expect(screen.getByText(`${RESTAURANTS.length} venues`)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('radio', { name: 'Lowest price' }));
+    await choose(user, 'Recommended', [{ role: 'radio', name: 'Lowest price' }]);
     const names = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(names[0]).toBe('Kape Manila Café');
   });

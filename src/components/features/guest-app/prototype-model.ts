@@ -871,8 +871,19 @@ export type StayEntry = {
   parent: string;
   /** Where inside the parent, or the route for a leg. */
   parentDetail?: string;
-  /** How it settles, in the guest's terms. */
-  settlement: string;
+  /**
+   * How it settles, in the guest's terms -- and only when that is news.
+   * Absent while a booking is still ahead: the running total above the list
+   * already says the room is settling at checkout, so repeating it on every
+   * card said nothing per-card.
+   */
+  settlement?: string;
+  /**
+   * Which category sold it, for the card's glyph. `kind` was standing in for
+   * this and could not tell a massage from a food crawl -- both are
+   * `'service'`, so both drew a sparkle.
+   */
+  category: MiniAppCategoryId;
   /** ISO date of the booking, for ordering and for the upcoming/past split. */
   date: string;
   /** Where tapping it goes, when it goes anywhere. */
@@ -905,11 +916,12 @@ export function hasStayStarted(booking: Booking, today: string = PROTOTYPE_TODAY
 const describeServiceSettlement = (
   status: ServiceBooking['status'],
   roomNumber?: string,
-): string => {
+): string | undefined => {
   const room = roomNumber ? `room ${roomNumber}` : 'your room';
   if (status === 'cancelled') return 'Cancelled · not charged';
   if (status === 'completed') return `Completed · charged to ${room}`;
-  return `Added to ${room} · settles at checkout`;
+  // Still ahead: the running total already says where this lands.
+  return undefined;
 };
 
 export function getStayEntries(
@@ -920,6 +932,13 @@ export function getStayEntries(
 
   const venueProperty = (venueName: string) =>
     RESTAURANTS.find((venue) => venue.name === venueName);
+
+  /* The catalogue knows which category a booking came from; its title is the
+     only link back to it, since a `ServiceBooking` records what was booked
+     rather than where it sat. */
+  const categoryOf = (title: string): MiniAppCategoryId =>
+    SERVICES.find((service) => service.name === title)?.categoryId
+      ?? (RESTAURANTS.some((venue) => venue.name === title) ? 'dining' : 'services');
 
   const entries: StayEntry[] = [];
 
@@ -945,6 +964,7 @@ export function getStayEntries(
       parent: booking.property,
       parentDetail: venue?.location,
       settlement: describeServiceSettlement(service.status, booking.roomNumber),
+      category: service.diningOrder ? 'dining' : categoryOf(service.title),
       date: service.scheduledDate,
       screen: service.status === 'confirmed' ? 'cancel-before-cutoff' : undefined,
     });
@@ -963,6 +983,7 @@ export function getStayEntries(
       parent: leg.operator,
       parentDetail: leg.route ?? undefined,
       settlement: `${leg.reference} · paid to the operator`,
+      category: 'travel',
       date: leg.date,
       screen: undefined,
     });

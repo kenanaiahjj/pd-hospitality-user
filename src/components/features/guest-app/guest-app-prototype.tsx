@@ -346,10 +346,7 @@ function PropertyImage({
 }
 
 function CategoryIcon({ id }: { id: MiniAppCategoryId }) {
-  const art = id in CATEGORY_ILLUSTRATIONS
-    ? CATEGORY_ILLUSTRATIONS[id as keyof typeof CATEGORY_ILLUSTRATIONS]
-    : undefined;
-  if (!art) return <AirplaneTilt />;
+  const art = CATEGORY_ILLUSTRATIONS[id];
   return (
     <Image
       src={art.src}
@@ -2083,8 +2080,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
-              <p className="guest-eyebrow">{contextBooking.property} · {contextRoom}</p>
-              <h1>My stay</h1>
+              <p className="guest-eyebrow">My stay</p>
+              <h1>{contextBooking.property}</h1>
+              {/* The property is the subject; the label is the eyebrow. The
+                  line beneath says the guest is in it, which nothing on this
+                  screen said before. */}
+              <p className="guest-checked-in">
+                <span className="guest-checked-in__dot" aria-hidden="true" />
+                {describeStayStatus(contextBooking).status === 'checked-in'
+                  ? `Checked in · ${contextRoom}`
+                  : `${describeStayStatus(contextBooking).label} · ${contextRoom}`}
+              </p>
             </div>
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
@@ -3599,9 +3605,11 @@ function AnnouncementsSection() {
   );
 }
 
-const STAY_ENTRY_ICONS: Record<StayEntry['kind'], ReactNode> = {
-  service: <Sparkle />,
+const STAY_ENTRY_ICONS: Record<MiniAppCategoryId, ReactNode> = {
   dining: <ForkKnife />,
+  spa: <Sparkle />,
+  entertainment: <Ticket />,
+  services: <Storefront />,
   travel: <AirplaneTilt />,
 };
 
@@ -3626,7 +3634,7 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
   const body = (
     <>
       <span className="guest-stay-entry__parent">
-        <span aria-hidden="true">{STAY_ENTRY_ICONS[entry.kind]}</span>
+        <span aria-hidden="true">{STAY_ENTRY_ICONS[entry.category]}</span>
         <span>{entry.parent}{entry.parentDetail ? <em> · {entry.parentDetail}</em> : null}</span>
       </span>
 
@@ -3637,10 +3645,12 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
 
       <span className="guest-stay-entry__when">{entry.detail}</span>
 
-      <span className="guest-stay-entry__meta">
-        <small>{entry.settlement}</small>
-        {onOpen ? <span className="guest-stay-entry__action">Manage<CaretRight /></span> : null}
-      </span>
+      {entry.settlement || onOpen ? (
+        <span className="guest-stay-entry__meta">
+          {entry.settlement ? <small>{entry.settlement}</small> : <span />}
+          {onOpen ? <span className="guest-stay-entry__action">Manage<CaretRight /></span> : null}
+        </span>
+      ) : null}
     </>
   );
 

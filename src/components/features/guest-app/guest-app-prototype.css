@@ -148,7 +148,7 @@
 @media (max-width: 719px) {
   .guest-prototype-toolbar {
     right: 12px;
-    bottom: calc(72px + env(safe-area-inset-bottom));
+    bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom));
     width: min(300px, calc(100% - 24px));
   }
 }
@@ -231,6 +231,14 @@
    -------------------------------------------------------------------------- */
 
 .guest-device {
+  /*
+    The tab bar's height, shared with everything that has to sit on top of it.
+    The dock and the mini cart both hardcoded 72px against a bar that measures
+    64, so a 7px strip of scrolling content showed between them and the nav.
+    One number, referenced by all three.
+  */
+  --guest-nav-h: 64px;
+
   display: flex;
   height: 100svh;
   min-height: 560px;
@@ -324,16 +332,25 @@
      overlay scrollbar does on the device. Keyboard and wheel scrolling are
      untouched. */
   scrollbar-width: none;
-  /* `backwards`, not `both`: a retained transform would make this element the
-     containing block for its fixed children, and .guest-mini-cart would scroll
-     with the menu instead of holding above the nav bar. */
+  /*
+    Opacity only, no transform. `backwards` was chosen to avoid retaining one,
+    on the reasoning that a retained transform would make this element the
+    containing block for its fixed children -- which is right, but `backwards`
+    does not prevent it: the from-state is held whenever the animation is not
+    running, which includes a hidden tab and any headless render. The screen
+    then kept `translateY(6px)`, and the docked bars resolved `bottom` against
+    this box instead of the viewport, landing 58px clear of the tab bar.
+
+    A screen change is legible as a fade, and a fade cannot create a
+    containing block.
+  */
   animation: guest-screen-in var(--duration-base) var(--ease-out) backwards;
 }
 .guest-screen::-webkit-scrollbar { display: none; }
 
 @keyframes guest-screen-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* The frame is three flex rows, so nothing ever scrolls under this bar. A
@@ -344,6 +361,7 @@
   display: grid;
   flex: 0 0 auto;
   grid-template-columns: repeat(4, 1fr);
+  min-height: var(--guest-nav-h);
   padding: 6px var(--app-inset) calc(10px + env(safe-area-inset-bottom));
   border-top: 1px solid color-mix(in oklch, var(--guest-line) 72%, transparent);
   background: var(--guest-paper);
@@ -3398,7 +3416,7 @@
   position: fixed;
   z-index: var(--z-appbar);
   right: max(16px, calc((100vw - var(--app-column)) / 2 + 16px));
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom));
   left: max(16px, calc((100vw - var(--app-column)) / 2 + 16px));
   display: grid;
   min-height: 58px;
@@ -3953,7 +3971,7 @@
   position: fixed;
   z-index: var(--z-appbar);
   right: max(0px, calc((100vw - var(--app-column)) / 2));
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom));
   left: max(0px, calc((100vw - var(--app-column)) / 2));
   display: grid;
   grid-template-columns: auto 1fr;
@@ -4452,4 +4470,32 @@
 
 @media (hover: hover) and (pointer: fine) {
   .guest-guest-row.is-pending:hover { background: var(--guest-surface); }
+}
+
+/* --------------------------------------------------------------------------
+   Checked-in line: where the guest is, right now.
+   -------------------------------------------------------------------------- */
+
+/*
+   Under the property name rather than as a badge beside it. This is the one
+   fact My Stay never stated -- the screen listed a stay's bookings without
+   saying the guest was in it.
+*/
+.guest-checked-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 0;
+  color: var(--guest-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+/* A live dot, not a tick: the state is current rather than completed. */
+.guest-checked-in__dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--guest-positive);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--guest-positive) 16%, transparent);
 }

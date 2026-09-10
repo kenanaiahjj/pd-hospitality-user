@@ -850,11 +850,13 @@ describe('settlement wording', () => {
     expect(entry!.settlement).toBe('Completed · charged to room 512');
   });
 
-  it('says what will happen while the booking is still ahead', () => {
+  it('says nothing while the booking is still ahead', () => {
+    // The running total above the list already says the room settles at
+    // checkout, so repeating it per card carried no per-card information.
     const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [{ ...service('confirmed'), scheduledDate: '2026-11-14' }] };
     const [entry] = getStayEntries(session, stay).upcoming;
 
-    expect(entry!.settlement).toBe('Added to room 512 · settles at checkout');
+    expect(entry!.settlement).toBeUndefined();
   });
 });
 

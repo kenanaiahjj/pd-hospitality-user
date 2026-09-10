@@ -1177,7 +1177,8 @@ describe('my stay', () => {
   it('answers what is booked and what is owed for the whole trip', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
-    expect(screen.getByRole('heading', { name: 'My stay', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'The Henry Manila', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/Checked in · Room/)).toBeInTheDocument();
     expect(screen.getByText('₱3,050')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /room charges/i })).toBeInTheDocument();
     // Upcoming and Past are tabs now, not stacked sections.
@@ -1320,7 +1321,8 @@ describe('travel checkout', () => {
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
     // The leg lands beside the on-property bookings rather than in a Travel
     // section of its own: My Stay is the one place the whole trip is listed.
-    expect(screen.getByRole('heading', { name: 'My stay', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'The Henry Manila', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/Checked in · Room/)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Upcoming/ })).toHaveAttribute('aria-selected', 'true');
     // The carrier is the card's parent, since the carrier is who gets paid.
     expect(screen.getByText('Cebu Pacific')).toBeInTheDocument();

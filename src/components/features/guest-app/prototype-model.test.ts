@@ -5,6 +5,11 @@ import {
   MINI_APP_CATEGORIES,
   MOCK_SESSION,
   RESTAURANTS,
+  SERVICES,
+  availableDietaryTags,
+  availableOperators,
+  filterMenu,
+  filterServices,
   SCENARIOS,
   SCREENS,
   UPCOMING_BOOKING_FIXTURE,
@@ -381,5 +386,78 @@ describe('mini-app categories and restaurant menus', () => {
     expect(MOCK_SESSION.roomPreferences.bed).toBe('King bed');
     // Four steps since room preferences left check-in for the profile.
     expect(UPCOMING_BOOKING_FIXTURE.preArrivalTotal).toBe(4);
+  });
+});
+
+describe('listing controls', () => {
+  const menu = RESTAURANTS[0]!.menu;
+
+  it('derives dietary facets from the menu, so no pill can match nothing', () => {
+    expect(availableDietaryTags(menu)).toEqual(['vegetarian', 'vegan', 'seafood']);
+    // In-Room Dining carries no seafood; offering the pill there would be a lie.
+    const inRoom = RESTAURANTS.find((venue) => venue.id === 'dining')!.menu;
+    expect(availableDietaryTags(inRoom)).not.toContain('seafood');
+    expect(availableDietaryTags([])).toEqual([]);
+  });
+
+  it('treats vegan dishes as vegetarian, so the broader filter catches them', () => {
+    const vegan = menu.filter((item) => item.dietary?.includes('vegan'));
+    expect(vegan.length).toBeGreaterThan(0);
+    for (const dish of vegan) expect(dish.dietary).toContain('vegetarian');
+  });
+
+  it('narrows on every selected diet rather than widening', () => {
+    const both = filterMenu(menu, { category: 'all', dietary: ['vegetarian', 'seafood'], sort: 'recommended' });
+    // Nothing is both, so two pills must return nothing -- not the union.
+    expect(both).toEqual([]);
+  });
+
+  it('combines the category tab with the dietary filter', () => {
+    const rows = filterMenu(menu, { category: 'mains', dietary: ['vegetarian'], sort: 'recommended' });
+    expect(rows.length).toBeGreaterThan(0);
+    for (const dish of rows) {
+      expect(dish.category).toBe('mains');
+      expect(dish.dietary).toContain('vegetarian');
+    }
+  });
+
+  it('sorts by price without disturbing the authored order', () => {
+    const authored = filterMenu(menu, { category: 'all', dietary: [], sort: 'recommended' });
+    expect(authored.map((item) => item.id)).toEqual(menu.map((item) => item.id));
+
+    const asc = filterMenu(menu, { category: 'all', dietary: [], sort: 'price-asc' }).map((i) => parsePesoAmount(i.price));
+    expect(asc).toEqual([...asc].sort((a, b) => a - b));
+
+    const desc = filterMenu(menu, { category: 'all', dietary: [], sort: 'price-desc' }).map((i) => parsePesoAmount(i.price));
+    expect(desc).toEqual([...desc].sort((a, b) => b - a));
+
+    // Sorting must not mutate the source menu.
+    expect(menu.map((item) => item.id)).toEqual(authored.map((item) => item.id));
+  });
+
+  it('offers an operator cut only where a category actually has more than one', () => {
+    const spa = SERVICES.filter((service) => service.categoryId === 'spa');
+    expect(availableOperators(spa).length).toBeGreaterThan(1);
+    // Every dining venue is hotel operated, so a filter there would be one
+    // pill that changes nothing.
+    const dining = SERVICES.filter((service) => service.categoryId === 'dining');
+    expect(availableOperators(dining)).toEqual([]);
+  });
+
+  it('sorts service prices across their mixed formats', () => {
+    const entertainment = SERVICES.filter((service) => service.categoryId === 'entertainment');
+    const asc = filterServices(entertainment, { operators: [], sort: 'price-asc' });
+    // "Complimentary" has no digits and must read as free, landing first.
+    expect(asc[0]!.price).toBe('Complimentary');
+    expect(asc.map((s) => parsePesoAmount(s.price))).toEqual([...asc.map((s) => parsePesoAmount(s.price))].sort((a, b) => a - b));
+  });
+
+  it('filters services by operator', () => {
+    const spa = SERVICES.filter((service) => service.categoryId === 'spa');
+    const hotel = filterServices(spa, { operators: ['Hotel operated'], sort: 'recommended' });
+    expect(hotel.length).toBeGreaterThan(0);
+    for (const service of hotel) expect(service.operator).toBe('Hotel operated');
+    // No selection means no narrowing.
+    expect(filterServices(spa, { operators: [], sort: 'recommended' })).toHaveLength(spa.length);
   });
 });

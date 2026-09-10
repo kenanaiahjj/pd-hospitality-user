@@ -1119,14 +1119,44 @@ export function getTravelCategory(id: TravelCategoryId): TravelCategory {
 
 export type MenuItemCategory = 'all' | 'starters' | 'mains' | 'desserts' | 'drinks';
 
+/**
+ * Diet facts about a dish, kept apart from `tag`.
+ *
+ * `tag` is merchandising ("Popular", "Chef's Special") and dish type
+ * ("Tapas", "Cocktail"); filtering on it mixes three axes in one row. This
+ * field answers one question only: can the guest eat it. `vegan` always
+ * carries `vegetarian` too, so the broader filter catches the narrower dish.
+ *
+ * No nut facet: nothing on any menu contains them, and a filter that can
+ * never match is worse than no filter.
+ */
+export type DietaryTag = 'vegetarian' | 'vegan' | 'seafood';
+
+export const DIETARY_LABELS: Record<DietaryTag, string> = {
+  vegetarian: 'Vegetarian',
+  vegan: 'Vegan',
+  seafood: 'Seafood',
+};
+
 export type MenuItem = {
   id: string;
   name: string;
   description: string;
   price: string;
   category: 'starters' | 'mains' | 'desserts' | 'drinks';
+  /** Merchandising and dish type. Never filtered on -- see DietaryTag. */
   tag?: string;
+  dietary?: DietaryTag[];
 };
+
+/** Shared by both listings, so the two surfaces cannot offer different sorts. */
+export type ListingSort = 'recommended' | 'price-asc' | 'price-desc';
+
+export const LISTING_SORTS: { id: ListingSort; label: string }[] = [
+  { id: 'recommended', label: 'Recommended' },
+  { id: 'price-asc', label: 'Lowest price' },
+  { id: 'price-desc', label: 'Highest price' },
+];
 
 export const parsePesoAmount = (amount: string) => Number(amount.replace(/[^\d]/g, '')) || 0;
 
@@ -1237,6 +1267,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱480',
         category: 'starters',
         tag: 'Popular',
+        dietary: ['seafood'],
       },
       {
         id: 'a1b-ribeye',
@@ -1253,6 +1284,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱380',
         category: 'starters',
         tag: 'Popular',
+        dietary: ['vegetarian'],
       },
       {
         id: 'a1b-2',
@@ -1268,6 +1300,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱360',
         category: 'starters',
         tag: 'Vegetarian',
+        dietary: ['vegetarian'],
       },
       {
         id: 'a1b-4',
@@ -1292,6 +1325,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱680',
         category: 'mains',
         tag: 'Vegetarian',
+        dietary: ['vegetarian'],
       },
       {
         id: 'a1b-7',
@@ -1299,6 +1333,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         description: 'Wild local sea bass, crushed potato purée, caper lemon butter emulsion.',
         price: '₱850',
         category: 'mains',
+        dietary: ['seafood'],
       },
       {
         id: 'a1b-8',
@@ -1307,6 +1342,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱320',
         category: 'desserts',
         tag: 'Signature',
+        dietary: ['vegetarian'],
       },
       {
         id: 'a1b-9',
@@ -1314,6 +1350,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         description: '70% single-origin dark chocolate, molten center, Madagascar vanilla bean gelato.',
         price: '₱380',
         category: 'desserts',
+        dietary: ['vegetarian'],
       },
       {
         id: 'a1b-10',
@@ -1322,6 +1359,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱420',
         category: 'drinks',
         tag: 'Signature Cocktail',
+        dietary: ['vegetarian', 'vegan'],
       },
       {
         id: 'a1b-11',
@@ -1329,6 +1367,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         description: 'Sweet Guimaras mangoes, crushed ice, touch of honey.',
         price: '₱260',
         category: 'drinks',
+        dietary: ['vegetarian'],
       },
     ],
   },
@@ -1359,6 +1398,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱320',
         category: 'starters',
         tag: 'Fresh',
+        dietary: ['vegetarian'],
       },
       {
         id: 'ird-3',
@@ -1388,6 +1428,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         description: 'Layers of sweet mangoes, sweet cream, and crushed graham biscuit.',
         price: '₱280',
         category: 'desserts',
+        dietary: ['vegetarian'],
       },
       {
         id: 'ird-7',
@@ -1395,6 +1436,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         description: 'Chilled whole Philippine coconut with tender coconut meat.',
         price: '₱180',
         category: 'drinks',
+        dietary: ['vegetarian', 'vegan'],
       },
       {
         id: 'ird-8',
@@ -1402,6 +1444,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         description: 'House-brewed Ceylon tea, freshly squeezed calamansi, wildflower honey.',
         price: '₱190',
         category: 'drinks',
+        dietary: ['vegetarian'],
       },
     ],
   },
@@ -1424,6 +1467,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱460',
         category: 'starters',
         tag: 'Tapas',
+        dietary: ['seafood'],
       },
       {
         id: 'bar-2',
@@ -1439,6 +1483,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         price: '₱380',
         category: 'drinks',
         tag: 'Cocktail',
+        dietary: ['vegetarian', 'vegan'],
       },
       {
         id: 'bar-4',
@@ -1446,6 +1491,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
         description: 'Bourbon, fresh mango purée, calamansi, egg white foam, bitters.',
         price: '₱410',
         category: 'drinks',
+        dietary: ['vegetarian'],
       },
     ],
   },
@@ -1465,5 +1511,59 @@ export const SERVICES = [
   { id: 'rental', name: 'City bicycle', category: 'Vehicle & bike rental', categoryId: 'services', operator: 'Hotel operated', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
   { id: 'laundry', name: 'Express laundry & pressing', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'From ₱250', cutoff: 'Same-day service', tone: 'blue' },
 ] as const;
+
+/* --------------------------------------------------------------------------
+   Listing controls
+
+   Both listings sort and filter through here, so the menu and the services
+   list cannot drift into offering different controls for the same job.
+
+   Facets are DERIVED from the rows on screen, never hardcoded. A venue with
+   no seafood shows no Seafood pill, and a category whose services all share
+   one operator shows no operator row at all -- a filter with one option, or
+   with none that match, is noise pretending to be a control.
+   -------------------------------------------------------------------------- */
+
+const DIETARY_ORDER: DietaryTag[] = ['vegetarian', 'vegan', 'seafood'];
+
+/** Only the diets actually present on this menu, in a stable order. */
+export function availableDietaryTags(menu: MenuItem[]): DietaryTag[] {
+  const present = new Set(menu.flatMap((item) => item.dietary ?? []));
+  return DIETARY_ORDER.filter((tag) => present.has(tag));
+}
+
+/** Distinct operators in a service list. Fewer than two means no useful cut. */
+export function availableOperators(services: readonly { operator: string }[]): string[] {
+  const seen = [...new Set(services.map((service) => service.operator))];
+  return seen.length > 1 ? seen : [];
+}
+
+function bySort<T extends { price: string }>(rows: T[], sort: ListingSort): T[] {
+  if (sort === 'recommended') return rows;
+  // A stable copy: `recommended` is the authored order, and sorting in place
+  // would destroy it for every later render.
+  const direction = sort === 'price-asc' ? 1 : -1;
+  return [...rows].sort((a, b) => (parsePesoAmount(a.price) - parsePesoAmount(b.price)) * direction);
+}
+
+export function filterMenu(
+  menu: MenuItem[],
+  { category, dietary, sort }: { category: MenuItemCategory; dietary: DietaryTag[]; sort: ListingSort },
+): MenuItem[] {
+  const rows = menu.filter((item) => {
+    if (category !== 'all' && item.category !== category) return false;
+    // Every selected diet must hold: two pills narrow, they do not widen.
+    return dietary.every((tag) => item.dietary?.includes(tag));
+  });
+  return bySort(rows, sort);
+}
+
+export function filterServices<T extends { operator: string; price: string }>(
+  services: readonly T[],
+  { operators, sort }: { operators: string[]; sort: ListingSort },
+): T[] {
+  const rows = services.filter((service) => !operators.length || operators.includes(service.operator));
+  return bySort(rows, sort);
+}
 
 export const screenTitle = (id: ScreenId) => SCREENS.find((item) => item.id === id)?.title ?? 'Guest app';

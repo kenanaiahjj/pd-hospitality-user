@@ -57,6 +57,14 @@ import {
   getPrimaryBooking,
   getVenueCartSummary,
   getRoomCharges,
+  availableDietaryTags,
+  availableOperators,
+  filterMenu,
+  filterServices,
+  DIETARY_LABELS,
+  LISTING_SORTS,
+  type DietaryTag,
+  type ListingSort,
   sumRoomCharges,
   markRoomReady,
   bookTravel,
@@ -623,6 +631,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [travelPaymentMethod, setTravelPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
   const [selectedMenuTab, setSelectedMenuTab] = useState<MenuItemCategory>('all');
+  const [menuSort, setMenuSort] = useState<ListingSort>('recommended');
+  const [menuDietary, setMenuDietary] = useState<DietaryTag[]>([]);
+  const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
+  const [serviceOperators, setServiceOperators] = useState<string[]>([]);
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
   const [diningMethod, setDiningMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
@@ -1328,6 +1340,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'category-listing': {
         const categoryData = MINI_APP_CATEGORIES.find((cat) => cat.id === selectedCategory) ?? MINI_APP_CATEGORIES[0];
         const categoryServices = SERVICES.filter((s) => s.categoryId === selectedCategory);
+        const operatorFacets = availableOperators(categoryServices);
+        const visibleServices = filterServices(categoryServices, { operators: serviceOperators, sort: serviceSort });
+        const servicesNarrowed = serviceOperators.length > 0 || serviceSort !== 'recommended';
+        const clearServiceControls = () => { setServiceOperators([]); setServiceSort('recommended'); };
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
@@ -1350,6 +1366,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     onClick={() => {
                       setSelectedRestaurantId(res.id);
                       setSelectedMenuTab('all');
+                      setMenuSort('recommended');
+                      setMenuDietary([]);
                       go('restaurant-menu');
                     }}
                   >
@@ -1365,8 +1383,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 ))}
               </div>
             ) : (
+              <>
+              <ListingControls
+                name="services"
+                sort={serviceSort}
+                onSort={setServiceSort}
+                filters={operatorFacets.map((operator) => ({ value: operator, label: operator }))}
+                selected={serviceOperators}
+                onToggleFilter={(value) => setServiceOperators((current) => (
+                  current.includes(value) ? current.filter((operator) => operator !== value) : [...current, value]
+                ))}
+                filterLabel="Operator"
+                count={visibleServices.length}
+                nouns={['service', 'services']}
+                narrowed={servicesNarrowed}
+                onClear={clearServiceControls}
+              />
+              {visibleServices.length ? (
               <div className="guest-stack" style={{ gap: '12px' }}>
-                {categoryServices.map((service) => (
+                {visibleServices.map((service) => (
                   <button
                     key={service.id}
                     className="guest-service-row"
@@ -1389,6 +1424,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   </button>
                 ))}
               </div>
+              ) : (
+                <Notice title="No services match those filters">
+                  Clear a filter to see all {categoryServices.length} services in this category.
+                </Notice>
+              )}
+              </>
             )}
           </div>
         );
@@ -1396,9 +1437,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        const filteredMenu = selectedMenuTab === 'all'
-          ? venue.menu
-          : venue.menu.filter((item) => item.category === selectedMenuTab);
+        const dietaryFacets = availableDietaryTags(venue.menu);
+        const filteredMenu = filterMenu(venue.menu, { category: selectedMenuTab, dietary: menuDietary, sort: menuSort });
+        const menuNarrowed = menuDietary.length > 0 || menuSort !== 'recommended';
+        const clearMenuControls = () => { setMenuDietary([]); setMenuSort('recommended'); };
         const venueCart = restaurantCarts[venue.id] ?? {};
         const cartSummary = getVenueCartSummary(venue.menu, venueCart);
         return (
@@ -1438,6 +1480,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ))}
             </div>
 
+            <ListingControls
+              name="menu"
+              sort={menuSort}
+              onSort={setMenuSort}
+              filters={dietaryFacets.map((tag) => ({ value: tag, label: DIETARY_LABELS[tag] }))}
+              selected={menuDietary}
+              onToggleFilter={(value) => setMenuDietary((current) => (
+                current.includes(value as DietaryTag)
+                  ? current.filter((tag) => tag !== value)
+                  : [...current, value as DietaryTag]
+              ))}
+              filterLabel="Dietary"
+              count={filteredMenu.length}
+              nouns={['dish', 'dishes']}
+              narrowed={menuNarrowed}
+              onClear={clearMenuControls}
+            />
+
+            {filteredMenu.length ? (
             <div className="guest-menu-grid">
               {filteredMenu.map((item) => (
                 <div key={item.id} className="guest-menu-item-card">
@@ -1464,6 +1525,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </div>
               ))}
             </div>
+            ) : (
+              <Notice title="No dishes match those filters">
+                {venue.name} has {venue.menu.length} dishes in total. Clear a filter to see the rest.
+              </Notice>
+            )}
 
             {cartSummary.itemCount > 0 ? (
               <button
@@ -2676,6 +2742,83 @@ function ReviewBlock({ icon, title, lines }: { icon: ReactNode; title: string; l
 
 function TimelineItem({ title, text, done }: { title: string; text: string; done?: boolean }) {
   return <div className={`guest-timeline__item ${done ? 'is-done' : ''}`}><span>{done ? <Check /> : null}</span><div><b>{title}</b><small>{text}</small></div></div>;
+}
+
+/**
+ * The sort + filter row shared by the menu and the services listing.
+ *
+ * Pills are labels wrapping real radio and checkbox inputs rather than
+ * `role="radio"` buttons: native inputs bring group semantics, arrow-key
+ * navigation and focus management with them, and single-select versus
+ * multi-select is then carried by the element rather than by an aria
+ * attribute that has to be kept honest by hand.
+ */
+function ListingControls({
+  name,
+  sort,
+  onSort,
+  filters,
+  selected,
+  onToggleFilter,
+  filterLabel,
+  count,
+  nouns,
+  narrowed,
+  onClear,
+}: {
+  name: string;
+  sort: ListingSort;
+  onSort: (sort: ListingSort) => void;
+  filters: { value: string; label: string }[];
+  selected: string[];
+  onToggleFilter: (value: string) => void;
+  filterLabel: string;
+  count: number;
+  nouns: [string, string];
+  narrowed: boolean;
+  onClear: () => void;
+}) {
+  return (
+    <div className="guest-listing-controls">
+      <fieldset className="guest-filter-pills">
+        <legend className="sr-only">Sort</legend>
+        {LISTING_SORTS.map((option) => (
+          <label key={option.id} className={`guest-filter-pill ${sort === option.id ? 'is-active' : ''}`}>
+            <input
+              className="sr-only"
+              type="radio"
+              name={`${name}-sort`}
+              value={option.id}
+              checked={sort === option.id}
+              onChange={() => onSort(option.id)}
+            />
+            {option.label}
+          </label>
+        ))}
+      </fieldset>
+      {/* Derived facets: an empty list means this listing has nothing to cut by. */}
+      {filters.length ? (
+        <fieldset className="guest-filter-pills">
+          <legend className="sr-only">{filterLabel}</legend>
+          {filters.map((filter) => (
+            <label key={filter.value} className={`guest-filter-pill ${selected.includes(filter.value) ? 'is-active' : ''}`}>
+              <input
+                className="sr-only"
+                type="checkbox"
+                checked={selected.includes(filter.value)}
+                onChange={() => onToggleFilter(filter.value)}
+              />
+              {filter.label}
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
+      <p className="guest-listing-status">
+        <span aria-live="polite">{count} {count === 1 ? nouns[0] : nouns[1]}</span>
+        {narrowed ? <button type="button" className="guest-listing-clear" onClick={onClear}>Clear</button> : null}
+      </p>
+    </div>
+  );
 }
 
 function SectionHeading({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {

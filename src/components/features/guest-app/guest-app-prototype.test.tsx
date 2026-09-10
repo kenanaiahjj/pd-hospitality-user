@@ -799,6 +799,65 @@ describe('room-ready notification', () => {
   });
 });
 
+describe('menu and service listing controls', () => {
+  it('narrows a menu by diet and reports how much is left', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
+
+    expect(screen.getByText('13 dishes')).toBeInTheDocument();
+    // Seafood is on this menu, so the pill is offered.
+    await user.click(screen.getByRole('checkbox', { name: 'Seafood' }));
+
+    expect(screen.getByText('2 dishes')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Crispy Calamari' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Grilled Angus Ribeye' })).toBeNull();
+
+    // Two diets narrow rather than widen, and nothing is both.
+    await user.click(screen.getByRole('checkbox', { name: 'Vegetarian' }));
+    expect(screen.getByText('0 dishes')).toBeInTheDocument();
+    expect(screen.getByText('No dishes match those filters')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByText('13 dishes')).toBeInTheDocument();
+  });
+
+  it('sorts a menu by price without losing the category tab', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
+    await user.click(screen.getByRole('tab', { name: 'Mains' }));
+    await user.click(screen.getByRole('radio', { name: 'Lowest price' }));
+
+    const prices = screen.getAllByText(/^₱[\d,]+$/).map((el) => Number(el.textContent!.replace(/[^\d]/g, '')));
+    expect(prices).toEqual([...prices].sort((a, b) => a - b));
+    expect(screen.getByText('5 dishes')).toBeInTheDocument();
+  });
+
+  it('offers an operator filter only where a category has more than one', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: 'Spa' }));
+    expect(screen.getByRole('checkbox', { name: 'Hotel operated' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Hotel operated' }));
+    expect(screen.getByText('1 service')).toBeInTheDocument();
+
+    cleanup();
+
+    // Every dining venue is hotel operated: one pill would change nothing.
+    const user2 = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+    await user2.click(screen.getByRole('button', { name: 'Dining' }));
+    expect(screen.queryByRole('checkbox', { name: 'Hotel operated' })).toBeNull();
+  });
+});
+
 describe('travel destination', () => {
   it('exposes travel as a fourth peer destination, not a booking category', () => {
     render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);

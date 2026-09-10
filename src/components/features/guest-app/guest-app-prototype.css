@@ -1257,6 +1257,7 @@
   .guest-history-card:hover,
   .guest-booking-card:hover:not(.is-static) { background: var(--guest-surface); box-shadow: var(--shadow-sm); }
   .guest-miniapp-tile:hover { background: var(--guest-soft); }
+  .guest-filter-pill:not(.is-active):hover { background: var(--guest-sunken); color: var(--guest-ink); }
   .guest-stay-hero-card__actions .guest-list-row:hover { background: var(--guest-surface); }
   .guest-list-group .guest-list-row:not(.is-static):hover,
   .guest-category-grid .guest-action-tile:hover { background: var(--guest-surface); }
@@ -2053,31 +2054,95 @@
   gap: 10px;
 }
 
+/* --------------------------------------------------------------------------
+   Listing controls -- sort and filter pills
+
+   One vocabulary for both listings and for travel. Active takes the pink
+   accent, per the design system's rule that pink marks the current selection;
+   this row used to fill with ink, which made it the only selected-state in the
+   flow that was not pink.
+   -------------------------------------------------------------------------- */
+
 .guest-filter-pills {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
+/* Filled, not outlined. The category tabs above are outlined pills of nearly
+   the same size; three bordered rows stacked read as three peer navigations
+   with no hierarchy. Ink-on-surface here says "control", the outline above
+   says "which part of the menu". */
 .guest-filter-pill {
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--guest-line);
-  background: var(--guest-paper);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: var(--guest-radius-pill);
+  border: 1px solid transparent;
+  background: var(--guest-surface);
   font-size: 12px;
+  font-weight: 600;
   color: var(--guest-muted);
+  white-space: nowrap;
   cursor: pointer;
   transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 
-.guest-filter-pill:hover {
-  border-color: #CBD0D6;
-  color: var(--guest-ink);
+/* Compact by design; the tap target is not. This carries the 44px the design
+   system requires without inflating the pill itself. */
+.guest-filter-pill::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 44px;
+  transform: translateY(-50%);
+}
+
+.guest-filter-pill:has(:focus-visible) {
+  outline: 2px solid var(--guest-accent-strong);
+  outline-offset: 2px;
 }
 
 .guest-filter-pill.is-active {
-  background: var(--guest-ink);
-  border-color: var(--guest-ink);
-  color: var(--guest-paper);
+  background: var(--guest-soft);
+  border-color: var(--guest-accent);
+  color: var(--guest-accent-strong);
+}
+
+.guest-listing-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.guest-listing-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--guest-muted);
+}
+
+.guest-listing-clear {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--guest-accent-strong);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.guest-listing-clear:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .guest-travel-options {

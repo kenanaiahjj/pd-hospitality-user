@@ -856,6 +856,16 @@ export function hasStayStarted(booking: Booking, today: string = PROTOTYPE_TODAY
  * section of their own: on this screen the question is "what have I booked",
  * and the answer does not care which system supplied it.
  */
+const describeServiceSettlement = (
+  status: ServiceBooking['status'],
+  roomNumber?: string,
+): string => {
+  const room = roomNumber ? `room ${roomNumber}` : 'your room';
+  if (status === 'cancelled') return 'Cancelled · not charged';
+  if (status === 'completed') return `Charged to ${room} · settles at checkout`;
+  return `Added to ${room} · settles at checkout`;
+};
+
 export function getStayEntries(
   session: GuestSession,
   booking?: Booking,
@@ -888,7 +898,7 @@ export function getStayEntries(
       // an on-property booking belongs to the property it was made at.
       parent: booking.property,
       parentDetail: venue?.location,
-      settlement: `Added to ${booking.roomNumber ? `room ${booking.roomNumber}` : 'your room'} · settles at checkout`,
+      settlement: describeServiceSettlement(service.status, booking.roomNumber),
       date: service.scheduledDate,
       screen: service.status === 'confirmed' ? 'cancel-before-cutoff' : undefined,
     });
@@ -1064,9 +1074,18 @@ const WAITING_ACTION = { label: 'Review stay', screen: 'repeat-review', tone: 'q
  * booking that has a number reads as `assigned`, and everything else is
  * `pending`.
  */
-export function describeRoomAssignment(booking: Booking): RoomAssignmentView {
+export function describeRoomAssignment(
+  booking: Booking,
+  today: string = PROTOTYPE_TODAY,
+): RoomAssignmentView {
+  /*
+    Where the middleware told us nothing, the dates answer it: a room the guest
+    is already in has been released, one allocated for a stay that has not
+    begun has not. `status` used to decide this, and it is the one field a
+    fixture or a lagging PMS can assert against the booking's own window.
+  */
   const inferred: RoomAssignmentState = booking.roomAssignment
-    ?? (booking.roomNumber ? (booking.status === 'active' ? 'ready' : 'assigned') : 'pending');
+    ?? (booking.roomNumber ? (hasStayStarted(booking, today) ? 'ready' : 'assigned') : 'pending');
   const reportsReadiness = booking.reportsRoomReadiness ?? true;
   const room = booking.roomNumber;
 
@@ -1107,16 +1126,33 @@ export function describeRoomAssignment(booking: Booking): RoomAssignmentView {
   };
 }
 
-/** Applies a PMS room-release event only when this booking can report one. */
-export function markRoomReady(booking: Booking, roomReadyAt: string): Booking {
-  const assignment = describeRoomAssignment(booking);
+/**
+ * Whether a room-release event could still arrive for this booking.
+ *
+ * Housekeeping releases a room around arrival, so the window runs until
+ * check-out -- after that there is nothing left to release. Read off the
+ * dates rather than `status`, so a booking whose status lags its own window
+ * does not silently drop out of the flow.
+ */
+export function canReportRoomReady(booking: Booking, today: string = PROTOTYPE_TODAY): boolean {
+  // A stay the guest has checked out of has no room left to release, and
+  // checkout can happen before the date says -- so this one status is taken on
+  // trust where the rest are not.
+  if (booking.status === 'completed') return false;
 
-  if (
-    booking.status !== 'upcoming'
-    || assignment.state !== 'assigned'
-    || !booking.roomNumber
-    || booking.reportsRoomReadiness === false
-  ) {
+  return Boolean(booking.roomNumber)
+    && booking.reportsRoomReadiness !== false
+    && describeRoomAssignment(booking, today).state === 'assigned'
+    && dayIndex(today) <= dayIndex(booking.checkOut);
+}
+
+/** Applies a PMS room-release event only when this booking can report one. */
+export function markRoomReady(
+  booking: Booking,
+  roomReadyAt: string,
+  today: string = PROTOTYPE_TODAY,
+): Booking {
+  if (!canReportRoomReady(booking, today)) {
     return booking;
   }
 

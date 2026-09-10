@@ -78,6 +78,7 @@ import {
   type DietaryTag,
   type ListingSort,
   sumRoomCharges,
+  canReportRoomReady,
   markRoomReady,
   bookTravel,
   describeRoomAssignment,
@@ -1023,13 +1024,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
-  const eligibleRoomReadyBooking = primaryBooking
-    && primaryBooking.status === 'upcoming'
-    && describeRoomAssignment(primaryBooking).state === 'assigned'
-    && primaryBooking.roomNumber
-    && primaryBooking.reportsRoomReadiness !== false
-      ? primaryBooking
-      : undefined;
+  const eligibleRoomReadyBooking = primaryBooking && canReportRoomReady(primaryBooking)
+    ? primaryBooking
+    : undefined;
   const roomReadyNotificationBooking = roomReadyNotificationBookingId
     ? session.bookings.find((booking) => booking.id === roomReadyNotificationBookingId)
     : undefined;
@@ -2065,10 +2062,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </button>
 
             {started || travelLegs.length ? (
-              <section>
-                <SectionHeading title="Running total" />
+              <div className="guest-running-total">
                 <div className="guest-total-card">
-                  <span>This trip so far</span>
+                  <span>This stay so far</span>
                   <strong>{tripTotal}</strong>
                   <small>
                     {started && travelLegs.length
@@ -2079,9 +2075,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   </small>
                 </div>
                 {started ? (
-                  <button className="guest-list-row" onClick={() => go('folio')} type="button"><span><Receipt /></span><div><b>Room charges</b><small>{stayCharges.length} {stayCharges.length === 1 ? 'line' : 'lines'} · full folio</small></div><CaretRight /></button>
+                  <button className="guest-running-total__action" onClick={() => go('folio')} type="button">
+                    <span aria-hidden="true"><Receipt /></span>
+                    <span>Room charges<small>{stayCharges.length} {stayCharges.length === 1 ? 'line' : 'lines'}</small></span>
+                    <CaretRight />
+                  </button>
                 ) : null}
-              </section>
+              </div>
             ) : null}
 
             {/*
@@ -2107,7 +2107,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
 
               {visibleStayEntries.length ? (
-                <div className="guest-stay-entries">
+                <div className="guest-stay-entries" key={stayTab}>
                   {visibleStayEntries.map((entry) => (
                     <StayEntryCard key={entry.id} entry={entry} onOpen={entry.screen ? () => go(entry.screen!) : undefined} />
                   ))}
@@ -2129,14 +2129,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               )}
             </section>
 
-            <section>
-              <SectionHeading title="Help" />
-              <button className="guest-list-row" onClick={() => go('chat')} type="button">
-                <span><ChatCircleDots /></span>
-                <div><b>Front desk</b><small>{online ? 'Usually replies in a few minutes' : 'Messages send when you reconnect'}</small></div>
+            {/*
+              Docked. Reaching the front desk was the last row on a screen that
+              scrolls -- so the one action a guest wants when something is
+              wrong was the hardest thing here to reach. It now holds above the
+              tab bar, and the spacer keeps the last booking card clear of it.
+            */}
+            <div className="guest-dock-spacer" aria-hidden="true" />
+            <div className="guest-dock guest-dock--single">
+              <button className="guest-dock__action" onClick={() => go('chat')} type="button">
+                <span className="guest-dock__glyph" aria-hidden="true"><ChatCircleDots /></span>
+                <span className="guest-dock__label">
+                  <b>Message the front desk</b>
+                  <small>{online ? 'Usually replies in a few minutes' : 'Sends when you reconnect'}</small>
+                </span>
                 <CaretRight />
               </button>
-            </section>
+            </div>
           </div>
         );
       }
@@ -3146,17 +3155,17 @@ const fare = category.options.find((option) => option.id === selectedFare);
                 <div className="guest-stay-entries">
                   {group.charges.map((charge) => (
                     <div key={charge.id} className="guest-stay-entry is-static">
-                      <div className="guest-stay-entry__parent">
-                        <span aria-hidden="true"><Storefront /></span>
-                        <div><b>{charge.parent}</b></div>
-                      </div>
-                      <div className="guest-stay-entry__body">
+                      <span className="guest-stay-entry__caption">
+                        <span className="guest-stay-entry__parent">
+                          <span aria-hidden="true"><Storefront /></span>
+                          <span>{charge.parent}</span>
+                        </span>
+                      </span>
+                      <span className="guest-stay-entry__headline">
                         <h2>{charge.title}</h2>
-                        <p>{charge.detail}</p>
-                      </div>
-                      <div className="guest-stay-entry__footer">
                         <strong>{charge.amount}</strong>
-                      </div>
+                      </span>
+                      <span className="guest-stay-entry__when">{charge.detail}</span>
                     </div>
                   ))}
                 </div>
@@ -3600,33 +3609,42 @@ const STAY_ENTRY_ICONS: Record<StayEntry['kind'], ReactNode> = {
  * the card honest about who is being paid.
  */
 function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => void }) {
+  const status = entry.status === 'confirmed' ? 'Confirmed' : entry.status === 'cancelled' ? 'Cancelled' : 'Completed';
+  /*
+    One surface, four lines. This card used to be three stacked bands -- a
+    tinted parent header, a body, a bordered footer -- which put twelve
+    horizontal rules down a screen of four bookings and buried the two things
+    a guest scans for. Title and amount now share a line, because "what is it"
+    and "what did it cost" are read together; the parent is a caption above
+    them, and the status sits opposite it where it does not compete.
+  */
   const body = (
     <>
-      <div className="guest-stay-entry__parent">
-        <span aria-hidden="true">{STAY_ENTRY_ICONS[entry.kind]}</span>
-        <div>
-          <b>{entry.parent}</b>
-          {entry.parentDetail ? <small>{entry.parentDetail}</small> : null}
-        </div>
-      </div>
-      <div className="guest-stay-entry__body">
-        <Tag tone={entry.status === 'confirmed' ? 'positive' : entry.status === 'cancelled' ? 'neutral' : 'positive'}>
-          {entry.status === 'confirmed' ? 'Confirmed' : entry.status === 'cancelled' ? 'Cancelled' : 'Completed'}
-        </Tag>
+      <span className="guest-stay-entry__caption">
+        <span className="guest-stay-entry__parent">
+          <span aria-hidden="true">{STAY_ENTRY_ICONS[entry.kind]}</span>
+          <span>{entry.parent}{entry.parentDetail ? <em> · {entry.parentDetail}</em> : null}</span>
+        </span>
+        <Tag tone={entry.status === 'cancelled' ? 'neutral' : 'positive'}>{status}</Tag>
+      </span>
+
+      <span className="guest-stay-entry__headline">
         <h2>{entry.title}</h2>
-        <p>{entry.detail}</p>
-        <small>{entry.settlement}</small>
-      </div>
-      <div className="guest-stay-entry__footer">
         <strong>{entry.amount}</strong>
+      </span>
+
+      <span className="guest-stay-entry__when">{entry.detail}</span>
+
+      <span className="guest-stay-entry__meta">
+        <small>{entry.settlement}</small>
         {onOpen ? <span className="guest-stay-entry__action">Manage<CaretRight /></span> : null}
-      </div>
+      </span>
     </>
   );
 
-  if (!onOpen) return <div className="guest-stay-entry is-static">{body}</div>;
+  if (!onOpen) return <div className="guest-stay-entry is-static" data-status={entry.status}>{body}</div>;
 
-  return <button className="guest-stay-entry" type="button" onClick={onOpen}>{body}</button>;
+  return <button className="guest-stay-entry" type="button" data-status={entry.status} onClick={onOpen}>{body}</button>;
 }
 
 function UpcomingBookingCard({ booking, primary = false, onNavigate }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void }) {

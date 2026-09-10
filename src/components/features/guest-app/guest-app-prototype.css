@@ -4328,27 +4328,32 @@
    My Stay entries: one card per booking, parent named first.
    -------------------------------------------------------------------------- */
 
-/* A count belongs on the tab, so "Past" does not have to be opened to learn
-   it is empty. Inherits colour from the tab so the active state carries it. */
-.guest-menu-tab__count {
-  margin-left: 6px;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  opacity: 0.62;
-}
-
 .guest-stay-entries {
   display: grid;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 8px;
+  margin-top: 14px;
+  animation: guest-tab-in var(--duration-base) var(--ease-out) both;
 }
 
+/* A tab change is a state change, so the list says so -- a short rise, not a
+   choreographed reveal. The content is visible by default; this only plays on
+   the remount a tab switch causes. */
+@keyframes guest-tab-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/*
+   One surface per booking. This was three stacked bands -- tinted parent
+   header, body, bordered footer -- which put twelve horizontal rules down a
+   screen of four bookings. The bands are gone; the rhythm now comes from
+   type weight and one gap scale.
+*/
 .guest-stay-entry {
   display: grid;
   width: 100%;
-  gap: 0;
-  padding: 0;
+  gap: 7px;
+  padding: 14px;
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
@@ -4357,71 +4362,145 @@
   text-align: left;
   transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease;
 }
-.guest-stay-entry:active { transform: scale(0.99); }
+.guest-stay-entry:not(.is-static):active { transform: scale(0.99); }
 .guest-stay-entry.is-static { cursor: default; }
 
-/*
-   The parent header sits on the sunken tone, separated by a hairline: it is
-   the card's provenance rather than its content, and reading as a header
-   stops it competing with the booking title below.
-*/
-.guest-stay-entry__parent {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--guest-line);
-  border-radius: calc(var(--guest-radius-md) - 1px) calc(var(--guest-radius-md) - 1px) 0 0;
-  background: var(--guest-sunken);
-}
-.guest-stay-entry__parent > span {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  color: var(--guest-brand);
-}
-.guest-stay-entry__parent svg { width: 16px; height: 16px; }
-.guest-stay-entry__parent div { display: grid; gap: 1px; min-width: 0; }
-.guest-stay-entry__parent b { font-size: 13px; font-weight: 700; letter-spacing: -0.006em; }
-.guest-stay-entry__parent small { color: var(--guest-muted); font-size: 11.5px; }
-
-.guest-stay-entry__body { display: grid; justify-items: start; gap: 4px; padding: 13px 14px 12px; }
-.guest-stay-entry__body h2 { margin: 2px 0 0; font-size: 16px; font-weight: 650; letter-spacing: -0.012em; }
-.guest-stay-entry__body p { margin: 0; color: var(--guest-muted); font-size: 13.5px; }
-.guest-stay-entry__body small { color: var(--guest-subtle); font-size: 12px; }
-
-.guest-stay-entry__footer {
+.guest-stay-entry__caption {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 11px 14px;
-  border-top: 1px solid var(--guest-line);
+  gap: 10px;
+  min-width: 0;
 }
-.guest-stay-entry__footer strong {
+
+/* The parent, as a caption. `em` carries the sub-location without a second
+   font size -- one step lighter in colour is enough separation. */
+.guest-stay-entry__parent {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--guest-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.guest-stay-entry__parent > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guest-stay-entry__parent em { color: var(--guest-subtle); font-style: normal; font-weight: 500; }
+.guest-stay-entry__parent svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--guest-brand); }
+
+/* Title and amount read together, so they share a line. `baseline` rather than
+   `center`, so the 16px title and the 17px figure sit on one line of type
+   instead of floating against each other. */
+.guest-stay-entry__headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.guest-stay-entry__headline h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.014em;
+  text-wrap: balance;
+}
+.guest-stay-entry__headline strong {
+  flex: 0 0 auto;
   font-size: 17px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+
+.guest-stay-entry__when { color: var(--guest-muted); font-size: 13.5px; }
+
+.guest-stay-entry__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.guest-stay-entry__meta small { color: var(--guest-subtle); font-size: 12px; }
+
 .guest-stay-entry__action {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   color: var(--guest-accent-strong);
   font-size: 13px;
   font-weight: 650;
 }
 .guest-stay-entry__action svg { width: 14px; height: 14px; }
 
-/* A cancelled booking is history, not an offer: the card recedes rather than
-   being removed, so the guest can still see what happened to it. */
-.guest-stay-entry:has(.guest-tag--neutral) .guest-stay-entry__body h2 { color: var(--guest-muted); }
+/* Cancelled is history: the card recedes rather than disappearing, so a guest
+   can still see what happened to it. */
+.guest-stay-entry[data-status='cancelled'] { background: var(--guest-surface); box-shadow: none; }
+.guest-stay-entry[data-status='cancelled'] .guest-stay-entry__headline h2,
+.guest-stay-entry[data-status='cancelled'] .guest-stay-entry__headline strong { color: var(--guest-muted); }
 
 @media (hover: hover) and (pointer: fine) {
   .guest-stay-entry:not(.is-static):hover { border-color: var(--guest-line-strong); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the fade, drop the movement. */
+  .guest-stay-entries { animation-name: guest-tab-fade; }
+  @keyframes guest-tab-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Running total: one card, with its folio action attached.
+   -------------------------------------------------------------------------- */
+
+/*
+   The heading above this duplicated the card's own label, and the folio row
+   floated beneath as a second surface. Attaching the action to the card makes
+   it one object: the figure, and the way into the lines behind it.
+*/
+.guest-running-total { display: grid; }
+.guest-running-total .guest-total-card {
+  border-radius: var(--guest-radius-xl) var(--guest-radius-xl) 0 0;
+  box-shadow: none;
+}
+.guest-running-total__action {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 0 0 var(--guest-radius-xl) var(--guest-radius-xl);
+  /* One step off the total's ink, so the two read as one object lit from
+     above rather than a card with a white row stuck to it. */
+  background: color-mix(in oklch, var(--guest-invert) 92%, var(--guest-paper));
+  color: var(--guest-on-invert);
+  text-align: left;
+  transition: background-color var(--duration-fast) ease;
+}
+.guest-running-total__action > span:first-child {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--guest-on-invert-muted);
+}
+.guest-running-total__action svg { width: 18px; height: 18px; }
+.guest-running-total__action > span:nth-child(2) { display: grid; gap: 1px; font-size: 14px; font-weight: 650; }
+.guest-running-total__action small { color: var(--guest-on-invert-muted); font-size: 12px; font-weight: 500; }
+.guest-running-total__action > svg { width: 16px; height: 16px; color: var(--guest-on-invert-muted); }
+.guest-running-total__action:active { background: var(--guest-invert); }
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-running-total__action:hover { background: color-mix(in oklch, var(--guest-invert) 84%, var(--guest-paper)); }
 }
 
 /* --------------------------------------------------------------------------
@@ -4438,7 +4517,7 @@
 .guest-tabs {
   display: flex;
   gap: 22px;
-  margin: 0 0 4px;
+  margin: 4px 0 0;
   padding: 0;
   border: 0;
   border-bottom: 1px solid var(--guest-line);
@@ -4448,7 +4527,7 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-height: 44px;
   padding: 0 1px 10px;
   border: 0;
@@ -4608,4 +4687,53 @@
 
 @media (hover: hover) and (pointer: fine) {
   .guest-stay-context:hover { border-color: var(--guest-line-strong); }
+}
+
+/* --------------------------------------------------------------------------
+   Single-action dock: one persistent way out of a screen.
+   -------------------------------------------------------------------------- */
+
+.guest-dock--single { grid-template-columns: 1fr; padding: 8px var(--app-gutter) 10px; }
+
+.guest-dock__action {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-surface);
+  color: var(--guest-ink);
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
+}
+.guest-dock__action:active { transform: scale(0.99); background: var(--guest-sunken); }
+
+/*
+   A tinted glyph, not a pink pill. There is no primary action on this screen
+   -- nothing here is the thing the guest came to do -- and a filled button
+   above the tab bar would read as one, competing with the nav directly beneath
+   it. Quiet and always present is the right weight for a way to ask for help.
+*/
+.guest-dock__glyph {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--guest-soft);
+  color: var(--guest-accent-strong);
+}
+.guest-dock__glyph svg { width: 18px; height: 18px; }
+
+.guest-dock__label { display: grid; gap: 1px; min-width: 0; }
+.guest-dock__label b { font-size: 14.5px; font-weight: 650; letter-spacing: -0.008em; }
+.guest-dock__label small { color: var(--guest-muted); font-size: 12.5px; }
+.guest-dock__action > svg { width: 16px; height: 16px; color: var(--guest-subtle); }
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-dock__action:hover { background: var(--guest-sunken); }
 }

@@ -22,6 +22,7 @@ import {
   describeCheckoutCountdown,
   getCancellationState,
   getNotifications,
+  canReportRoomReady,
   getStayEntries,
   hasStayStarted,
   summarisePastStay,
@@ -136,9 +137,11 @@ describe('guest app prototype model', () => {
 
     it('infers a state for bookings that carry none, so old fixtures stay valid', () => {
       expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: undefined }).state).toBe('pending');
-      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304' }).state).toBe('assigned');
+      // Allocated for a stay that has not begun: assigned, not released. The
+      // dates decide this now, so the reference window is stated explicitly.
+      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304' }, '2026-11-08').state).toBe('assigned');
       // Already in the room is the definition of released.
-      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304', status: 'active' }).state).toBe('ready');
+      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304' }, '2026-11-11').state).toBe('ready');
     });
 
     it('never reports a room as ready without a number to report', () => {
@@ -762,5 +765,77 @@ describe('has the stay started', () => {
   it('treats a completed stay as started whatever the clock says', () => {
     const done: Booking = { ...UPCOMING_BOOKING_FIXTURE, status: 'completed' };
     expect(hasStayStarted(done, '2020-01-01')).toBe(true);
+  });
+});
+
+describe('room release eligibility', () => {
+  const assigned: Booking = {
+    ...UPCOMING_BOOKING_FIXTURE,
+    roomNumber: '512',
+    roomAssignment: 'assigned',
+    checkIn: '2026-11-12',
+    checkOut: '2026-11-15',
+  };
+
+  it('accepts a release up to check-out, regardless of an asserted status', () => {
+    // `status` stays 'upcoming' throughout; only the clock moves.
+    expect(canReportRoomReady(assigned, '2026-11-11')).toBe(true);
+    expect(canReportRoomReady(assigned, '2026-11-12')).toBe(true);
+    expect(canReportRoomReady(assigned, '2026-11-15')).toBe(true);
+    // Past check-out there is no room left to release.
+    expect(canReportRoomReady(assigned, '2026-11-16')).toBe(false);
+  });
+
+  it('refuses a stay already checked out of, since checkout can come early', () => {
+    expect(canReportRoomReady({ ...assigned, status: 'completed' }, '2026-11-12')).toBe(false);
+  });
+
+  it('refuses a property that does not report housekeeping, and a room-less booking', () => {
+    expect(canReportRoomReady({ ...assigned, reportsRoomReadiness: false }, '2026-11-12')).toBe(false);
+    expect(canReportRoomReady({ ...assigned, roomNumber: undefined, roomAssignment: 'pending' }, '2026-11-12')).toBe(false);
+  });
+
+  it('refuses a room already released', () => {
+    expect(canReportRoomReady({ ...assigned, roomAssignment: 'ready' }, '2026-11-12')).toBe(false);
+  });
+
+  it('only writes a release where one could arrive', () => {
+    expect(markRoomReady(assigned, '2:15 PM', '2026-11-12').roomAssignment).toBe('ready');
+    const late = markRoomReady(assigned, '2:15 PM', '2026-11-16');
+    expect(late).toBe(assigned);
+  });
+});
+
+describe('settlement wording', () => {
+  const stay: Booking = { ...UPCOMING_BOOKING_FIXTURE, status: 'active', roomNumber: '512' };
+  const service = (status: 'confirmed' | 'cancelled' | 'completed') => ({
+    id: status,
+    bookingId: stay.id,
+    title: status,
+    scheduledFor: 'x',
+    scheduledDate: '2026-11-10',
+    amount: '₱480',
+    status,
+  });
+
+  it('never tells a guest a cancelled booking will be charged', () => {
+    const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [service('cancelled')] };
+    const [entry] = getStayEntries(session, stay).past;
+
+    expect(entry!.settlement).toBe('Cancelled · not charged');
+  });
+
+  it('uses past tense once the booking has happened', () => {
+    const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [service('completed')] };
+    const [entry] = getStayEntries(session, stay).past;
+
+    expect(entry!.settlement).toBe('Charged to room 512 · settles at checkout');
+  });
+
+  it('says what will happen while the booking is still ahead', () => {
+    const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [{ ...service('confirmed'), scheduledDate: '2026-11-14' }] };
+    const [entry] = getStayEntries(session, stay).upcoming;
+
+    expect(entry!.settlement).toBe('Added to room 512 · settles at checkout');
   });
 });

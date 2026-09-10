@@ -695,7 +695,15 @@ describe('pre-arrival progress card', () => {
     cleanup();
 
     const assigned = sessionFor([
-      makeBooking({ id: 'a', status: 'upcoming', preArrivalCompleted: 4, preArrivalTotal: 4, roomNumber: '512' }),
+      makeBooking({
+        id: 'a',
+        status: 'upcoming',
+        checkIn: '2026-11-14',
+        checkOut: '2026-11-17',
+        preArrivalCompleted: 4,
+        preArrivalTotal: 4,
+        roomNumber: '512',
+      }),
     ]);
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assigned} />);
     expect(screen.getByText('Room 512 is yours')).toBeInTheDocument();
@@ -1155,11 +1163,16 @@ describe('my stay', () => {
     expect(screen.getByText('Checks in in 3 days')).toBeInTheDocument();
   });
 
-  it('keeps the front desk one tap away now that it is not a tab', async () => {
+  it('docks the front desk above the tab bar rather than burying it', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: /Front desk/ }));
+    // It was the last row on a scrolling screen, so the one action a guest
+    // wants when something is wrong was the hardest thing here to reach.
+    const desk = screen.getByRole('button', { name: /Message the front desk/ });
+    expect(desk.closest('.guest-dock')).not.toBeNull();
+
+    await user.click(desk);
 
     expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
   });

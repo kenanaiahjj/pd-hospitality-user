@@ -44,6 +44,7 @@ export type ScreenId =
   | 'profile'
   | 'stay-history'
   | 'stay-detail'
+  | 'stay-entry'
   | 'travel'
   | 'travel-search'
   | 'travel-checkout'
@@ -113,6 +114,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(46, 'Travel', 'travel-confirmation', 'Travel confirmed'),
   screen(47, 'Stay', 'notifications', 'Notifications'),
   screen(48, 'Account', 'stay-detail', 'Stay detail'),
+  screen(49, 'Stay', 'stay-entry', 'Booking receipt'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -859,6 +861,15 @@ export function summarisePastStay(stay: PastStay) {
  */
 export type StayEntryKind = 'service' | 'dining' | 'travel';
 
+/** One priced line on a booking's receipt. */
+export type StayReceiptLine = {
+  id: string;
+  label: string;
+  /** Unit price and quantity, where there is more than one of something. */
+  detail?: string;
+  amount: string;
+};
+
 export type StayEntry = {
   id: string;
   kind: StayEntryKind;
@@ -886,6 +897,14 @@ export type StayEntry = {
   category: MiniAppCategoryId;
   /** ISO date of the booking, for ordering and for the upcoming/past split. */
   date: string;
+  /**
+   * What was actually bought, itemised. The card can only say "3 items", which
+   * is a count rather than an answer -- a guest checking what a ₱2,850 line on
+   * their room was for has to be able to open it and read the order back.
+   */
+  lines: StayReceiptLine[];
+  /** Whether the guest can still cancel this themselves. */
+  canCancel: boolean;
   /** Where tapping it goes, when it goes anywhere. */
   screen?: ScreenId;
 };
@@ -950,9 +969,22 @@ export function getStayEntries(
       ? service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)
       : 0;
 
+    const lines: StayReceiptLine[] = service.diningOrder
+      ? service.diningOrder.items.map((item) => ({
+          id: item.id,
+          label: item.name,
+          detail: item.quantity > 1 ? `${item.quantity} × ${item.unitPrice}` : undefined,
+          amount: formatPesoAmount(parsePesoAmount(item.unitPrice) * item.quantity),
+        }))
+      // A service is one thing at one price; the receipt still shows a line so
+      // every booking reads the same way when opened.
+      : [{ id: service.id, label: service.title, amount: service.amount }];
+
     entries.push({
       id: service.id,
       kind: service.diningOrder ? 'dining' : 'service',
+      lines,
+      canCancel: service.status === 'confirmed' && !service.diningOrder,
       title: service.title,
       detail: service.diningOrder
         ? `${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${service.scheduledFor}`
@@ -966,7 +998,12 @@ export function getStayEntries(
       settlement: describeServiceSettlement(service.status, booking.roomNumber),
       category: service.diningOrder ? 'dining' : categoryOf(service.title),
       date: service.scheduledDate,
-      screen: service.status === 'confirmed' ? 'cancel-before-cutoff' : undefined,
+      /*
+        Every entry opens its receipt, past ones included. Confirmed bookings
+        used to jump straight into the cancel flow, which made "what was this?"
+        unanswerable and put a destructive screen behind an ordinary tap.
+      */
+      screen: 'stay-entry',
     });
   }
 
@@ -974,6 +1011,14 @@ export function getStayEntries(
     entries.push({
       id: leg.id,
       kind: 'travel',
+      lines: [{
+        id: leg.id,
+        label: `${leg.operator} · ${leg.detail}`,
+        detail: leg.travellers > 1 ? `${leg.travellers} travellers` : undefined,
+        amount: leg.amount,
+      }],
+      // Travel is settled with the carrier, so Cabana cannot cancel it.
+      canCancel: false,
       title: leg.detail,
       detail: leg.meta,
       amount: leg.amount,
@@ -984,8 +1029,8 @@ export function getStayEntries(
       parentDetail: leg.route ?? undefined,
       settlement: `${leg.reference} · paid to the operator`,
       category: 'travel',
+      screen: 'stay-entry',
       date: leg.date,
-      screen: undefined,
     });
   }
 

@@ -43,9 +43,10 @@ import {
 } from './prototype-model';
 
 describe('guest app prototype model', () => {
-  it('contains the complete 48-screen inventory including travel checkout', () => {
-    expect(SCREENS).toHaveLength(48);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(48);
+  it('contains the complete 49-screen inventory including travel checkout', () => {
+    expect(SCREENS).toHaveLength(49);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(49);
+    expect(SCREENS.find((s) => s.id === 'stay-entry')?.title).toBe('Booking receipt');
     expect(SCREENS.find((s) => s.id === 'stay-detail')?.group).toBe('Account');
     // My Stay subsumed the old `my-bookings` screen rather than sitting beside
     // it -- two screens listing the same service bookings was the duplication

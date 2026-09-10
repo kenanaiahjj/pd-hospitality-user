@@ -386,6 +386,7 @@ describe('GuestAppPrototype', () => {
     // My Trip names the room in its eyebrow and again in each booking's note.
     expect(screen.getAllByText(/room 512/i).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: /hilom signature massage/i }));
+    await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
     await user.click(screen.getByRole('button', { name: /cancel service/i }));
     // Cancelling moves the booking out of Upcoming and into Past, where the
     // settlement line reports the state now that the chip is gone.
@@ -1094,6 +1095,57 @@ describe('travel as a category', () => {
     for (const category of TRAVEL_CATEGORIES) {
       expect(screen.getByText(category.title)).toBeInTheDocument();
     }
+  });
+});
+
+describe('booking receipt', () => {
+  it('itemises a dining order rather than only counting it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
+
+    // The card can only say "3 items"; a guest checking what a charge was for
+    // needs the order read back.
+    await user.click(screen.getByRole('button', { name: /Azotea Rooftop/ }));
+
+    expect(screen.getByRole('heading', { name: 'Azotea Rooftop', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/Chef.s tasting menu · 2 × ₱1,200/)).toBeInTheDocument();
+    expect(screen.getByText('Wine pairing')).toBeInTheDocument();
+    expect(screen.getByText('₱2,400')).toBeInTheDocument();
+    expect(screen.getByText('Total')).toBeInTheDocument();
+  });
+
+  it('opens past entries too, which used not to be tappable', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('tab', { name: /Past/ }));
+    await user.click(screen.getByRole('button', { name: /Kape Manila Caf/ }));
+
+    expect(screen.getByRole('heading', { name: /Kape Manila Caf/, level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('Cancelled · not charged')).toBeInTheDocument();
+    // Nothing to cancel on a cancelled booking.
+    expect(screen.queryByRole('button', { name: /Change or cancel/ })).toBeNull();
+  });
+
+  it('does not put the cancel flow behind an ordinary tap', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('button', { name: /Hilom signature massage/ }));
+
+    // The receipt, not the destructive screen.
+    expect(screen.queryByRole('heading', { name: /Cancel this booking/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Change or cancel/ })).toBeInTheDocument();
+  });
+
+  it('shows a travel leg as paid to the operator, with no cancel action', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('button', { name: /Cebu Pacific/ }));
+
+    expect(screen.getByText(/paid to the operator/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Change or cancel/ })).toBeNull();
   });
 });
 

@@ -18,8 +18,9 @@
 Make the Hospitality guest app start with the confirmed-booking onboarding
 journey instead of opening directly on an active stay. After the guest connects
 the reservation, the home screen becomes a stay-aware control center that shows
-upcoming bookings, active-stay access, service bookings, room charges, and
-front-desk support.
+upcoming bookings, active-stay access, service discovery, and front-desk
+support. My Stay owns the running bill, room charges, service bookings, and
+the detailed folio.
 
 The prototype remains self-contained and uses realistic in-memory data. The
 booking experience keeps the product rule explicit: approved on-property
@@ -67,8 +68,8 @@ discovery, trip or booking grouping, support, and clear confirmation states.
 - [ ] The home screen derives its content from mock booking data and renders
       upcoming, active, multiple-upcoming, completed-only, and empty states.
 - [ ] Home exposes the necessary next actions: pre-arrival completion, booking
-      details, Stay QR, services, My bookings, room charges, front-desk chat,
-      and profile.
+      details, Stay QR, services, front-desk chat, and profile. My Stay exposes
+      My bookings, the running bill, and room charges.
 - [ ] The service journey ends with `Confirm and charge to room`, identifies
       the active room and guest, and states that the charge is added to the
       folio and settled at checkout.
@@ -340,7 +341,9 @@ Component tests must cover:
 - onboarding completion reaches the upcoming home state;
 - returning-guest and room-QR entry points reach their shortcuts;
 - upcoming home exposes pre-arrival progress and booking details;
-- active home exposes Stay QR, services, folio, and front-desk actions;
+- active home exposes room context, services, and front-desk actions;
+- My Stay exposes the running total, service bookings, and the room-charge
+  entry point to the folio;
 - empty home returns to booking connection;
 - service booking uses `Confirm and charge to room` and no payment method;
 - confirmed service appears under My bookings and in the folio context;
@@ -375,6 +378,7 @@ Component tests must cover:
 | 2026-09-09 | Use booking-link or room/Wi-Fi QR onboarding for first-time guests. | Hospitality begins after a booking and does not need a public booking engine. | A later direct-booking product would need an additional discovery entry flow. |
 | 2026-09-09 | Keep one state-driven home screen with derived booking variants. | It models upcoming and active stays without duplicating the shell. | A production API integration will need to preserve these contracts behind a data boundary. |
 | 2026-09-09 | Charge approved services to the room folio and settle at checkout. | This is the core Hospitality commerce rule and differentiates the app from Expedia. | External services that require prepayment need an explicit future settlement exception. |
+| 2026-09-10 | Keep room charges under My Stay instead of duplicating the folio entry point on Home. | My Stay already owns the running bill and detailed folio; Home stays focused on orientation, service discovery, and next actions. | A new charge may need a notification or other transient signal if it requires immediate attention. |
 | 2026-09-09 | Stay on `main` and commit only the spec now. | The user explicitly chose to commit on the current branch. | Unrelated dirty changes must remain unstaged and uncommitted. |
 
 ## Before marking this spec In Review

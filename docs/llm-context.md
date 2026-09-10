@@ -87,8 +87,9 @@ scope and current visual system:
   Manila stay into every branch.
 - An upcoming booking can show a room type and `Assigned at arrival`; do not
   fabricate a room number before arrival.
-- An active booking can show its room, services, room charges, and front-desk
-  support.
+- An active booking can show its room, services, and front-desk support. Room
+  charges and the running bill live under My Stay, which links to the detailed
+  folio.
 - Services are on-property only. Live availability and price are required
   before a service can be confirmed.
 - A service confirmation is a reservation and a folio mutation, not a payment

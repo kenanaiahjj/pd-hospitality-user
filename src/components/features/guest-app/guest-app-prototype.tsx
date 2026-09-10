@@ -160,6 +160,7 @@ const MY_STAY_SCREENS: ActiveScreen[] = [
   'cancel-after-cutoff',
   'room-qr-midstay',
   'notifications',
+  'stay-entry',
 ];
 
 type FieldProps = {
@@ -981,6 +982,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const [stayTab, setStayTab] = useState<'upcoming' | 'past'>('upcoming');
   const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
+  const [selectedStayEntryId, setSelectedStayEntryId] = useState<string | null>(null);
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
@@ -1022,7 +1024,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 850);
   };
 
-  const showNav = ['stay-overview', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history', 'travel', 'travel-search'].includes(activeScreen);
+  const showNav = ['stay-overview', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history', 'travel', 'travel-search'].includes(activeScreen);
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -2161,7 +2163,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               {visibleStayEntries.length ? (
                 <div className="guest-stay-entries" key={stayTab}>
                   {visibleStayEntries.map((entry) => (
-                    <StayEntryCard key={entry.id} entry={entry} onOpen={entry.screen ? () => go(entry.screen!) : undefined} />
+                    <StayEntryCard
+                      key={entry.id}
+                      entry={entry}
+                      onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }}
+                    />
                   ))}
                 </div>
               ) : (
@@ -2198,6 +2204,70 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <CaretRight />
               </button>
             </div>
+          </div>
+        );
+      }
+
+      case 'stay-entry': {
+        const allEntries = [...stayEntries.upcoming, ...stayEntries.past];
+        const entry = allEntries.find((item) => item.id === selectedStayEntryId) ?? allEntries[0];
+        if (!entry) return <EmptyStayHome onNavigate={go} />;
+
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">{entry.parent}{entry.parentDetail ? ` · ${entry.parentDetail}` : ''}</p>
+              <h1>{entry.title}</h1>
+              <p>{entry.detail}</p>
+            </div>
+
+            {/*
+              The itemisation is the reason to open this. The card can only say
+              "3 items", which is a count rather than an answer -- a guest
+              checking what a charge on their room was for needs the order read
+              back to them.
+            */}
+            <section>
+              {entry.lines.length > 1 ? <SectionHeading title="Items" /> : null}
+              <div className="guest-summary">
+                {entry.lines.length > 1
+                  ? entry.lines.map((line) => (
+                      <SummaryRow
+                        key={line.id}
+                        label={line.detail ? `${line.label} · ${line.detail}` : line.label}
+                        value={line.amount}
+                      />
+                    ))
+                  : entry.lines[0]?.detail
+                    ? <SummaryRow label={entry.lines[0].detail} value={entry.lines[0].amount} />
+                    : null}
+                <SummaryRow label="Total" value={entry.amount} strong />
+              </div>
+            </section>
+
+            <Notice
+              tone={entry.status === 'cancelled' ? 'neutral' : 'positive'}
+              title={entry.status === 'cancelled' ? 'Cancelled' : entry.kind === 'travel' ? 'Paid to the operator' : 'Charged to your room'}
+            >
+              {entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
+            </Notice>
+
+            {/*
+              Cancelling is an action on the booking, reached from the booking
+              -- not the thing an ordinary tap does.
+            */}
+            {entry.canCancel ? (
+              <>
+                {primary('Change or cancel', 'cancel-before-cutoff')}
+                <TextButton onClick={() => go('chat')}>Ask the front desk</TextButton>
+              </>
+            ) : (
+              <button className="guest-list-row" onClick={() => go('chat')} type="button">
+                <span><ChatCircleDots /></span>
+                <div><b>Ask the front desk</b><small>{entry.status === 'confirmed' ? 'To change or cancel this' : 'About this charge'}</small></div>
+                <CaretRight />
+              </button>
+            )}
           </div>
         );
       }
@@ -3666,7 +3736,7 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
       {entry.settlement || onOpen ? (
         <span className="guest-stay-entry__meta">
           {entry.settlement ? <small>{entry.settlement}</small> : <span />}
-          {onOpen ? <span className="guest-stay-entry__action">Manage<CaretRight /></span> : null}
+          {onOpen ? <span className="guest-stay-entry__action">View<CaretRight /></span> : null}
         </span>
       ) : null}
     </>

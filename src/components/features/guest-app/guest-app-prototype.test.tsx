@@ -145,7 +145,7 @@ describe('GuestAppPrototype', () => {
   it('connects a booking and reaches the matched-stay confirmation', () => {
     render(<GuestAppPrototype initialScreen="connect-booking" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Booking email' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmation number' }));
     fireEvent.change(screen.getByLabelText(/Booking or confirmation number/), {
       target: { value: 'HEN-241109' },
     });
@@ -157,6 +157,9 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
     expect(screen.getByText('The Henry Manila')).toBeInTheDocument();
     expect(screen.getByText('Booking HEN-241109')).toBeInTheDocument();
+    expect(screen.getByText('Booked through')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use this booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use a different booking' })).toBeInTheDocument();
   });
 
   it('opens the active stay home as soon as a room QR links the stay', async () => {
@@ -185,7 +188,7 @@ describe('GuestAppPrototype', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Yes, this is my stay' }));
+    await user.click(screen.getByRole('button', { name: 'Use this booking' }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
   });
@@ -205,10 +208,35 @@ describe('GuestAppPrototype', () => {
   it('uses the booking-first voice when no stay is attached', () => {
     render(<GuestAppPrototype initialScreen="no-booking" />);
 
-    expect(screen.getByRole('heading', { name: 'You’ll need a booking first' })).toBeInTheDocument();
-    expect(screen.getByText(
-      'Cabana looks after your stay once your hotel booking is confirmed. It isn’t a place to search for or compare hotels.',
-    )).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Connect a hotel booking' })).toBeInTheDocument();
+    expect(screen.getByText('Cabana connects to confirmed hotel bookings.')).toBeInTheDocument();
+    expect(screen.getByText('Try your confirmation number or ask the front desk for a link.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Contact front desk' })).toBeInTheDocument();
+  });
+
+  it('keeps the booking connection copy concise and destination-specific', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<GuestAppPrototype initialScreen="connect-booking" />);
+
+    expect(screen.getByText('Choose how to connect your stay.')).toBeInTheDocument();
+    expect(screen.queryByText(/You’ll need a booking first/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Confirmation number' }));
+
+    expect(screen.getByText('Enter the number from your booking confirmation.')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('HEN-241109')).toBeInTheDocument();
+    expect(screen.getByText('Hotel, Agoda, or Booking.com reference')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Find another way' })).toBeInTheDocument();
+
+    unmount();
+    render(<GuestAppPrototype initialScreen="lookup-fallback" />);
+    expect(screen.getByRole('heading', { name: 'Use more booking details' })).toBeInTheDocument();
+    expect(screen.getByText('Enter the details from your booking.')).toBeInTheDocument();
+    expect(screen.queryByText('No match yet')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Continue to front desk' }));
+
+    expect(screen.getByRole('heading', { name: 'Let the front desk connect you' })).toBeInTheDocument();
+    expect(screen.getByText('Ask for a secure link or a 6-digit code.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Call front desk' })).toBeInTheDocument();
   });
 
   it('returns a pre-arrival guest to the upcoming home after registration', async () => {
@@ -544,11 +572,11 @@ describe('guest account and entry flows', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="connect-booking" />);
 
-    await user.click(screen.getByRole('button', { name: 'Booking email' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmation number' }));
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-241109');
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
-    await user.click(screen.getByRole('button', { name: 'Yes, this is my stay' }));
+    await user.click(screen.getByRole('button', { name: 'Use this booking' }));
 
     // Directly reaches pre-arrival Step 1 of 4 without an account creation gate
     expect(screen.getByRole('heading', { name: 'Your details' })).toBeInTheDocument();

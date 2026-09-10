@@ -2230,7 +2230,7 @@
 }
 
 .guest-travel-cat-card:hover {
-  border-color: #CBD0D6;
+  border-color: var(--guest-line-strong);
   box-shadow: var(--shadow-sm);
 }
 
@@ -2352,7 +2352,7 @@
 }
 
 .guest-flighty-booking-card:hover {
-  border-color: #CBD0D6;
+  border-color: var(--guest-line-strong);
   box-shadow: var(--shadow-sm);
 }
 
@@ -2969,7 +2969,7 @@
 }
 
 .guest-travel-option:hover {
-  border-color: #CBD0D6;
+  border-color: var(--guest-line-strong);
   box-shadow: var(--shadow-sm);
 }
 
@@ -2978,9 +2978,9 @@
 }
 
 .guest-travel-option[aria-pressed='true'] {
-  border-color: var(--guest-brand);
-  background: #FFFFFF;
-  box-shadow: 0 0 0 1px var(--guest-brand), var(--shadow-sm);
+  border-color: var(--guest-accent);
+  background: var(--guest-soft);
+  box-shadow: 0 0 0 1px var(--guest-accent-strong), var(--shadow-sm);
 }
 
 .guest-travel-option__header {
@@ -3192,7 +3192,7 @@
   gap: 5px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--guest-brand);
+  color: var(--guest-accent-strong);
 }
 
 .guest-flighty-select-prompt {
@@ -3287,7 +3287,7 @@
   text-align: right;
 }
 
-.guest-travel-ticket-point span {
+.guest-travel-ticket-point > span:not(.guest-flighty-ticket-sub) {
   font-size: 24px;
   font-weight: 800;
   color: var(--guest-ink);
@@ -3389,13 +3389,13 @@
 }
 
 .guest-payment-chip:hover {
-  border-color: #CBD0D6;
+  border-color: var(--guest-line-strong);
 }
 
 .guest-payment-chip.is-selected {
-  border-color: var(--guest-ink);
-  background: var(--guest-surface);
-  box-shadow: 0 0 0 1px var(--guest-ink);
+  border-color: var(--guest-accent);
+  background: var(--guest-soft);
+  box-shadow: 0 0 0 1px var(--guest-accent-strong);
 }
 
 .guest-travel-confirmation-pass {
@@ -4295,4 +4295,56 @@
 @media (hover: hover) and (pointer: fine) {
   .guest-notification:hover { background: var(--guest-surface); }
   .guest-notification[data-unread='false']:hover { background: var(--guest-sunken); }
+}
+
+/* --------------------------------------------------------------------------
+   Docked action bar: a commit button that stays reachable while the guest
+   scrolls the thing they are committing to.
+   -------------------------------------------------------------------------- */
+
+/*
+   Fixed, and clamped to the reading column the same way `.guest-mini-cart` is
+   -- `position: fixed` resolves against the viewport, so on a wide screen a
+   bar left at `left: 0` would span the whole window while the app it belongs
+   to sits in a 480px column. Sits above the tab bar rather than over it: the
+   nav is 72px plus the home-indicator inset.
+*/
+.guest-dock {
+  position: fixed;
+  z-index: var(--z-appbar);
+  right: max(0px, calc((100vw - var(--app-column)) / 2));
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  left: max(0px, calc((100vw - var(--app-column)) / 2));
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 12px var(--app-gutter) 14px;
+  border-top: 1px solid var(--guest-line);
+  background: var(--guest-paper);
+  /* Upward only: the shadow exists to lift the bar off content scrolling
+     under it, and the tab bar sits directly beneath. */
+  box-shadow: 0 -8px 24px oklch(0 0 0 / 0.06);
+}
+
+.guest-dock__summary { display: grid; gap: 1px; min-width: 0; }
+.guest-dock__summary span { color: var(--guest-muted); font-size: 11px; font-weight: 600; }
+.guest-dock__summary strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* The dock leaves the flow, so the scroll content has nothing to push against
+   and its last card would sit under the bar. This reserves the height instead
+   of hard-coding padding onto `.guest-screen`, which every other screen
+   shares. */
+.guest-dock-spacer { height: 84px; }
+
+.guest-dock .guest-button { margin: 0; min-height: 48px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-dock { transition: none; }
 }

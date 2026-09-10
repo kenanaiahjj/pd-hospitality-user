@@ -402,16 +402,16 @@ function withActiveRoom(current: GuestSession): GuestSession {
 const BOOKING_ENTRY_OPTIONS = [
   {
     screen: 'identify' as const,
-    label: 'Booking email',
-    title: 'Booking email',
-    detail: 'The confirmation email from your hotel',
+    label: 'Confirmation number',
+    title: 'Confirmation number',
+    detail: 'From your hotel or booking site',
     art: ENTRY_ILLUSTRATIONS.bookingEmail,
   },
   {
     screen: 'room-qr-landing' as const,
-    label: 'Continue with room QR',
+    label: 'Room QR',
     title: 'Room QR',
-    detail: 'You’re already in your room',
+    detail: 'Scan the code in your room',
     art: ENTRY_ILLUSTRATIONS.roomQr,
   },
 ];
@@ -1312,10 +1312,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <ScreenIntro
             eyebrow="Connect your stay"
             title="Find your booking"
-            text="Pick whichever matches where you are right now — any of them will find your stay."
+            text="Choose how to connect your stay."
           >
             <BookingEntryOptions onNavigate={go} />
-            <Notice title="You’ll need a booking first">Cabana looks after your stay once your hotel booking is confirmed. It isn’t a place to search for or compare hotels.</Notice>
           </ScreenIntro>
         );
 
@@ -1326,19 +1325,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your itinerary and stay details remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
 
       case 'identify':
-        return <ScreenIntro eyebrow="Connect your stay" title="Find your booking" text="Use the details from your confirmation email. OTA references from Agoda and Booking.com work too."><form className="guest-form" onSubmit={(event) => { event.preventDefault(); go('booking-found'); }}><Field label="Booking or confirmation number" name="booking-number" placeholder="Any format" helper="We’ll match hotel and OTA references." required /><Field label="Last name" name="last-name" placeholder="As shown on the booking" required /><Button className="guest-button guest-button--primary" type="submit">Find booking<ArrowRight /></Button></form><TextButton onClick={() => go('lookup-fallback')}>I can’t find my booking</TextButton></ScreenIntro>;
+        return <ScreenIntro eyebrow="Connect your stay" title="Find your booking" text="Enter the number from your booking confirmation."><form className="guest-form" onSubmit={(event) => { event.preventDefault(); go('booking-found'); }}><Field label="Booking or confirmation number" name="booking-number" placeholder="HEN-241109" helper="Hotel, Agoda, or Booking.com reference" required /><Field label="Last name" name="last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Find booking<ArrowRight /></Button></form><TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton></ScreenIntro>;
 
       case 'lookup-fallback':
-        return <ScreenIntro eyebrow="We couldn’t match that number" title="Try another way" text="Legacy hotel systems can use a different reference. These stay details give us another way to look."><Notice tone="warning" title="No match yet">Your booking is not lost. We won’t ask you to reformat the reference.</Notice><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Dumaguete</option></SelectField>{primary('Search again', 'front-desk-assist')}</div></ScreenIntro>;
+        return <ScreenIntro eyebrow="Try another way" title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Dumaguete</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
 
       case 'front-desk-assist':
-        return <ScreenIntro icon={<ChatCircleDots size={30} />} eyebrow="Human fallback" title="The front desk can connect you" text="Ask the front desk to send a secure link or give you a short code. You don’t need to understand the hotel’s booking system."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call the front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<ChatCircleDots size={30} />} eyebrow="Front desk help" title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
 
       case 'no-booking':
-        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No stay attached" title="You’ll need a booking first" text="Cabana looks after your stay once your hotel booking is confirmed. It isn’t a place to search for or compare hotels."><Notice title="Already booked?">Try your OTA reference or ask the property to send you a secure link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('front-desk-assist')}>Contact the front desk</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try your confirmation number or ask the front desk for a link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('front-desk-assist')}>Contact front desk</TextButton></ScreenIntro>;
 
       case 'booking-found':
-        return <ScreenIntro eyebrow="Match found" title="Is this your stay?" text="Confirm the details before continuing to pre-arrival check-in."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label="Guest" value={session.guestName || MOCK_SESSION.guestName} /><SummaryRow label="Guests" value={`${displayBooking.guestCount} guests`} /><SummaryRow label="Source" value={displayBooking.source} /></div><Button className="guest-button guest-button--primary" type="button" onClick={claimBooking}>Yes, this is my stay<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('identify')}>This isn’t my booking</TextButton></ScreenIntro>;
+        return <ScreenIntro eyebrow="Booking found" title="Is this your stay?" text="Check the details, then continue."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label="Guest" value={session.guestName || MOCK_SESSION.guestName} /><SummaryRow label="Guests" value={`${displayBooking.guestCount} guests`} /><SummaryRow label="Booked through" value={displayBooking.source} /></div><Button className="guest-button guest-button--primary" type="button" onClick={claimBooking}>Use this booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('identify')}>Use a different booking</TextButton></ScreenIntro>;
 
       case 'create-account':
         return (
@@ -2542,7 +2541,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
        */
       case 'travel-search': {
         const category = getTravelCategory(selectedTravel);
-        const fare = category.options.find((option) => option.id === selectedFare);
+const fare = category.options.find((option) => option.id === selectedFare);
+        const travelQuote = quoteTravel(fare ?? category.options[0]!, Number(travelParty));
 
         const currentFrom = (category.route && travelFrom && category.route.places.includes(travelFrom))
           ? travelFrom
@@ -2779,7 +2779,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <SummaryRow label={category.partyLabel} value={travelParty} />
                   <SummaryRow label="Fare each" value={fare.price} />
                 </div>
-                {primary('Continue to checkout', 'travel-checkout')}
+                {/*
+                  Docked, not inline. The fare list is long enough to scroll
+                  the button off screen, which left the guest scrolling back
+                  down to commit to a choice they had already made. The dock
+                  carries the party total the summary above does not.
+                */}
+                <div className="guest-dock-spacer" aria-hidden="true" />
+                <div className="guest-dock">
+                  <div className="guest-dock__summary">
+                    <span>{travelQuote.travellers} {travelQuote.travellers === 1 ? category.partyLabel.replace(/s$/, '').toLowerCase() : category.partyLabel.toLowerCase()}</span>
+                    <strong>{travelQuote.fareTotal}</strong>
+                  </div>
+                  <Button className="guest-button guest-button--primary" type="button" onClick={() => go('travel-checkout')}>
+                    Continue to checkout<ArrowRight aria-hidden="true" />
+                  </Button>
+                </div>
               </>
             ) : null}
           </div>

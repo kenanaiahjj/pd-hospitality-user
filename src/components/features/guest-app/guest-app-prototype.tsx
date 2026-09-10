@@ -2047,19 +2047,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
-            <section className="guest-stay-summary">
-              <div className="guest-stay-summary__countdown">
-                <span aria-hidden="true"><ClockCountdown /></span>
+            {/*
+              One line, not a stat grid. Home's hero already carries the
+              property, the dates, the room and a "View booking" row, so
+              repeating them here said nothing new and pushed the running total
+              -- the thing this screen exists to answer -- below the fold. What
+              is left is what Home does not say: where the stay sits in time,
+              and the reference details, behind one tap.
+            */}
+            <button className="guest-stay-context" type="button" onClick={() => go('rate-detail')}>
+              <span className="guest-stay-context__clock" aria-hidden="true"><ClockCountdown /></span>
+              <span className="guest-stay-context__text">
                 <b>{describeCheckoutCountdown(contextBooking)}</b>
-              </div>
-              <div className="guest-stay-summary__stats">
-                <div><small>Dates</small><b>{formatStayDateRange(contextBooking)}</b></div>
-                <div><small>Room</small><b>{contextBooking.roomNumber ? `${contextBooking.roomType} · ${contextBooking.roomNumber}` : contextBooking.roomType}</b></div>
-                <div><small>Guests</small><b>{contextBooking.guestCount}</b></div>
-                <div><small>Booked via</small><b>{contextBooking.source}</b></div>
-              </div>
-              <button className="guest-list-row" onClick={() => go('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
-            </section>
+                <small>{formatStayDateRange(contextBooking)} · {contextBooking.guestCount} {contextBooking.guestCount === 1 ? 'guest' : 'guests'} · {contextBooking.source}</small>
+              </span>
+              <CaretRight />
+            </button>
 
             {started || travelLegs.length ? (
               <section>

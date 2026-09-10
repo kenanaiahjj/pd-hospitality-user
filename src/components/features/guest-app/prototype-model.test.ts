@@ -534,6 +534,21 @@ describe('check-out countdown', () => {
     expect(describeCheckoutCountdown(stay({ status: 'upcoming', checkIn: '2026-11-11' }), '2026-11-11')).toBe(`Checks in today from ${CHECK_IN_FROM}`);
   });
 
+  it('ignores a status that its own dates contradict', () => {
+    // The reference stay runs 9-12 November and asserts `upcoming`. Branching
+    // on status announced "Checks in today from 3:00 PM" directly above the
+    // dates saying the stay began two days earlier.
+    const midStay = stay({ status: 'upcoming', checkIn: '2026-11-09', checkOut: '2026-11-12' });
+
+    expect(describeCheckoutCountdown(midStay, '2026-11-11')).toBe('Checks out tomorrow');
+  });
+
+  it('still names arrival day for a stay checking in today', () => {
+    const arriving = stay({ status: 'upcoming', checkIn: '2026-11-11', checkOut: '2026-11-14' });
+
+    expect(describeCheckoutCountdown(arriving, '2026-11-11')).toBe(`Checks in today from ${CHECK_IN_FROM}`);
+  });
+
   it('reports a finished stay rather than a negative countdown', () => {
     expect(describeCheckoutCountdown(stay({ status: 'completed', checkOut: '2026-06-18' }), '2026-11-11')).toBe('Checked out');
   });

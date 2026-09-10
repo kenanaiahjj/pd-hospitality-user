@@ -4224,22 +4224,6 @@
   box-shadow: var(--shadow-xs);
 }
 
-/* The countdown is the one line that changes daily, so it leads -- a chip on
-   the sunken surface rather than more body text above the grid. */
-.guest-stay-summary__countdown {
-  display: inline-flex;
-  align-items: center;
-  justify-self: start;
-  gap: 8px;
-  min-height: 32px;
-  padding: 0 14px;
-  border-radius: var(--guest-radius-pill);
-  background: var(--guest-sunken);
-  color: var(--guest-ink);
-}
-.guest-stay-summary__countdown svg { width: 16px; height: 16px; color: var(--guest-brand); }
-.guest-stay-summary__countdown b { font-size: 13px; font-weight: 650; }
-
 .guest-stay-summary__stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4248,15 +4232,6 @@
 .guest-stay-summary__stats > div { display: grid; gap: 3px; min-width: 0; }
 .guest-stay-summary__stats small { color: var(--guest-muted); font-size: 12px; }
 .guest-stay-summary__stats b { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.006em; }
-
-/* The summary owns the card, so the row inside it drops its own surface and
-   keeps only the separator -- concentric shapes, one elevation. */
-.guest-stay-summary .guest-list-row {
-  margin: 0 -16px -16px;
-  border-radius: 0 0 var(--guest-radius-md) var(--guest-radius-md);
-  border-top: 1px solid var(--guest-line);
-  box-shadow: none;
-}
 
 /* --------------------------------------------------------------------------
    Property announcements: one broadcast for the whole building.
@@ -4584,4 +4559,53 @@
 
 @media (hover: hover) and (pointer: fine) {
   .guest-history-card:hover { border-color: var(--guest-line-strong); }
+}
+
+/* --------------------------------------------------------------------------
+   Stay context: one line saying where the stay sits in time.
+   -------------------------------------------------------------------------- */
+
+/*
+   Replaces a four-stat grid. Home's hero already carries the property, dates,
+   room and a "View booking" row; repeating them on My Stay said nothing new
+   and pushed the running total below the fold. This keeps only what Home does
+   not say and puts the rest one tap away.
+*/
+.guest-stay-context {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+  color: var(--guest-ink);
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease;
+}
+.guest-stay-context:active { transform: scale(0.99); }
+
+/* Tinted, because the countdown is the only thing on this row that changes
+   day to day and the glyph is what the eye lands on first. */
+.guest-stay-context__clock {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--guest-soft);
+  color: var(--guest-accent-strong);
+}
+.guest-stay-context__clock svg { width: 18px; height: 18px; }
+
+.guest-stay-context__text { display: grid; gap: 2px; min-width: 0; }
+.guest-stay-context__text b { font-size: 14.5px; font-weight: 700; letter-spacing: -0.008em; }
+.guest-stay-context__text small { color: var(--guest-muted); font-size: 12.5px; }
+.guest-stay-context > svg { width: 16px; height: 16px; color: var(--guest-subtle); }
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-stay-context:hover { border-color: var(--guest-line-strong); }
 }

@@ -611,33 +611,31 @@ const countdown = (days: number, today: string, tomorrow: string, future: (days:
  * check-in instead, since a guest who has not arrived cannot leave.
  */
 export function describeCheckoutCountdown(booking: Booking, today: string = PROTOTYPE_TODAY): string {
+  /*
+    Dates only. This used to branch on `booking.status === 'upcoming'`, which
+    the reference stay asserts while its own dates put it mid-stay -- so a stay
+    that began two days ago announced "Checks in today from 3:00 PM" directly
+    above the dates that contradicted it. `status` is whoever built the
+    booking's claim; the window is the booking's own account of itself. Only
+    `completed` is taken on trust, because a stay can be closed early.
+  */
   if (booking.status === 'completed') return 'Checked out';
 
   const now = dayIndex(today);
+  const untilCheckIn = dayIndex(booking.checkIn) - now;
 
-  if (booking.status === 'upcoming') {
-    /*
-      The clock is clamped into the stay's own window. One fixed `today` has to
-      serve fixtures describing different moments -- the reference stay is used
-      both mid-stay and pre-arrival -- and an unclamped subtraction would tell a
-      guest who has not arrived that their check-in was two days ago. Clamping
-      to the check-in date makes the worst case "arrival day" instead of a
-      contradiction.
-    */
-    const checkIn = dayIndex(booking.checkIn);
-    const days = checkIn - Math.min(now, checkIn);
-    return countdown(
-      days,
-      `Checks in today from ${CHECK_IN_FROM}`,
-      'Checks in tomorrow',
-      (n) => `Checks in in ${n} days`,
-    );
+  if (untilCheckIn > 0) {
+    return untilCheckIn === 1
+      ? 'Checks in tomorrow'
+      : `Checks in in ${untilCheckIn} days`;
   }
 
-  const days = dayIndex(booking.checkOut) - now;
-  if (days < 0) return 'Checked out';
+  if (untilCheckIn === 0) return `Checks in today from ${CHECK_IN_FROM}`;
+
+  const untilCheckOut = dayIndex(booking.checkOut) - now;
+  if (untilCheckOut < 0) return 'Checked out';
   return countdown(
-    days,
+    untilCheckOut,
     `Checks out today at ${CHECK_OUT_BY}`,
     'Checks out tomorrow',
     (n) => `Checks out in ${n} days`,

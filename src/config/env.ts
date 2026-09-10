@@ -32,11 +32,32 @@ function parse<T extends z.ZodTypeAny>(schema: T, input: unknown, label: string)
   return result.data;
 }
 
-export const clientEnv = parse(
-  clientSchema,
-  { NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL },
-  'client',
-);
+/**
+ * Origin used for absolute internal fetches during SSR.
+ *
+ * An explicit `NEXT_PUBLIC_APP_URL` always wins — that is how production
+ * pins itself to its alias rather than to a deployment hash. Failing that, a
+ * Vercel deployment describes itself through `VERCEL_URL` (host only, no
+ * protocol), which is the only correct answer on a preview: that host is
+ * minted per deployment, so it cannot be baked into a stored env var the way
+ * the production alias can. Returning `undefined` lets the schema fall back
+ * to localhost for local dev.
+ *
+ * `VERCEL_URL` is consulted for its server value only, which is sound here:
+ * `internalApi` reads this origin solely on the server (the browser uses
+ * relative URLs), and Next never inlines a non-`NEXT_PUBLIC_` var into the
+ * client bundle.
+ */
+function resolveAppUrl(): string | undefined {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  const deploymentHost = process.env.VERCEL_URL;
+  return deploymentHost ? `https://${deploymentHost}` : undefined;
+}
+
+export const clientEnv = parse(clientSchema, { NEXT_PUBLIC_APP_URL: resolveAppUrl() }, 'client');
 
 /**
  * Lazily parsed: importing this module from a Client Component must not

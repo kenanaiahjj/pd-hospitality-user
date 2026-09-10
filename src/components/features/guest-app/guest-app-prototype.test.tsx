@@ -300,7 +300,8 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
     expect(screen.getByText(/Welcome, Ana · Room 304/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /room charges/i })).toBeInTheDocument();
+    // Room charges belong to My Stay; Home should not duplicate the folio entry point.
+    expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
     // The front desk moved off the tab bar and into My Trip.
     expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull();
   });
@@ -392,6 +393,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('Cancelled · not charged')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Home' }));
+    await user.click(screen.getByRole('button', { name: 'My Stay' }));
     await user.click(screen.getByRole('button', { name: /room charges/i }));
     expect(screen.getByText('₱3,050')).toBeInTheDocument();
   });
@@ -979,16 +981,12 @@ describe('travel destination', () => {
     expect(screen.queryByText('Cebu Pacific')).toBeNull();
   });
 
-  it('omits the route block for insurance, which is not a journey', async () => {
-    const user = userEvent.setup();
+  it('offers only the three ways of travelling, cover no longer among them', () => {
     render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
 
-    await user.click(screen.getByText('Travel insurance'));
-
-    expect(screen.getByRole('heading', { name: 'Cover your trip' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Travellers')).toBeInTheDocument();
-    expect(screen.queryByLabelText(/^From$/)).toBeNull();
-    expect(screen.queryByLabelText('Departure port')).toBeNull();
+    // Cover has no route, departure or seat, so it stopped being a mode.
+    expect(TRAVEL_CATEGORIES.map((category) => category.id)).toEqual(['flights', 'ferries', 'transfers']);
+    expect(screen.queryByText('Travel insurance')).toBeNull();
   });
 
   it('marks one fare as selected and totals it against the operator', async () => {
@@ -1307,6 +1305,22 @@ describe('travel checkout', () => {
     expect(screen.getByText('Ana Santos')).toBeInTheDocument();
     expect(screen.getByText('ID on file from check-in')).toBeInTheDocument();
     expect(screen.getByText('Marco Santos')).toBeInTheDocument();
+  });
+
+  it('adds cover on the leg being paid for, off by default', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
+    await pickFlight(user);
+
+    // ₱4,150 fare x2 + ₱210 fee x2 = ₱8,720 before cover.
+    const before = screen.getByRole('button', { name: /^Pay / }).textContent;
+    expect(screen.queryByText(/Trip cover ×/)).toBeNull();
+
+    await user.click(screen.getByRole('checkbox'));
+
+    expect(screen.getByText('Trip cover × 2')).toBeInTheDocument();
+    // ₱720 each, so the total moves by ₱1,440.
+    expect(screen.getByRole('button', { name: /^Pay / }).textContent).not.toBe(before);
   });
 
   it('books the leg and lands it in my stay', async () => {

@@ -1325,7 +1325,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
    See docs/superpowers/specs/2026-09-09-travel-booking-destination-design.md.
    -------------------------------------------------------------------------- */
 
-export type TravelCategoryId = 'flights' | 'ferries' | 'transfers' | 'insurance';
+export type TravelCategoryId = 'flights' | 'ferries' | 'transfers';
 
 export type TravelOption = {
   id: string;
@@ -1770,49 +1770,6 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
       },
     ],
   },
-  {
-    id: 'insurance',
-    title: 'Travel insurance',
-    singular: 'policy',
-    subtitle: 'Cover for the whole trip',
-    partyLabel: 'Travellers',
-    route: null,
-    options: [
-      {
-        id: 'in-1',
-        operator: 'Pioneer',
-        detail: 'Domestic Essential',
-        meta: 'Medical ₱250,000 · Baggage ₱10,000',
-        price: '₱390',
-        carrierCode: 'Policy PE-26',
-        vesselOrVehicle: 'Comprehensive Domestic',
-        badge: 'Essential',
-        inclusions: ['₱250,000 emergency medical', '₱10,000 baggage protection', '24/7 hotline'],
-      },
-      {
-        id: 'in-2',
-        operator: 'Pioneer',
-        detail: 'Domestic Plus',
-        meta: 'Medical ₱500,000 · Trip cancellation',
-        price: '₱720',
-        carrierCode: 'Policy PP-26',
-        vesselOrVehicle: 'Enhanced Domestic Plus',
-        badge: 'Most popular',
-        inclusions: ['₱500,000 medical', 'Trip cancellation refund', 'Flight delay compensation'],
-      },
-      {
-        id: 'in-3',
-        operator: 'Malayan',
-        detail: 'Island Hopper',
-        meta: 'Adds watercraft and diving cover',
-        price: '₱1,150',
-        carrierCode: 'Policy MI-26',
-        vesselOrVehicle: 'Island Adventure Plan',
-        badge: 'Water sports',
-        inclusions: ['₱1,000,000 medical', 'Scuba diving & watercraft cover', 'Medical evacuation'],
-      },
-    ],
-  },
 ];
 
 /**
@@ -1841,11 +1798,37 @@ export type TravelBooking = {
  */
 export const TRAVEL_FEE_PER_TRAVELLER = 210;
 
+/**
+ * Optional cover, offered on the leg rather than sold as its own mode.
+ *
+ * It used to be a fourth travel category, which put "book a flight" and "buy
+ * a policy" on one row as peers -- but cover has no route, no departure and no
+ * seat, and a guest shopping for it has already chosen the thing it covers.
+ * It belongs on the checkout for that thing.
+ */
+export type TravelCover = {
+  id: string;
+  operator: string;
+  name: string;
+  detail: string;
+  pricePerTraveller: number;
+};
+
+export const TRAVEL_COVER: TravelCover = {
+  id: 'cover-domestic-plus',
+  operator: 'Pioneer',
+  name: 'Trip cover',
+  detail: '₱500,000 medical · cancellation · delay',
+  pricePerTraveller: 720,
+};
+
 export type TravelQuote = {
   fareEach: string;
   travellers: number;
   fareTotal: string;
   fees: string;
+  /** Present only when the guest added cover. */
+  cover?: string;
   total: string;
 };
 
@@ -1864,16 +1847,22 @@ export function travelStartingPrice(category: TravelCategory): string {
   return Number.isFinite(cheapest) ? `From ${formatPesoAmount(cheapest)}` : 'Price on request';
 }
 
-export function quoteTravel(option: TravelOption, travellers: number): TravelQuote {
+export function quoteTravel(
+  option: TravelOption,
+  travellers: number,
+  withCover = false,
+): TravelQuote {
   const each = parsePesoAmount(option.price);
   const fareTotal = each * travellers;
   const fees = TRAVEL_FEE_PER_TRAVELLER * travellers;
+  const cover = withCover ? TRAVEL_COVER.pricePerTraveller * travellers : 0;
   return {
     fareEach: formatPesoAmount(each),
     travellers,
     fareTotal: formatPesoAmount(fareTotal),
     fees: formatPesoAmount(fees),
-    total: formatPesoAmount(fareTotal + fees),
+    cover: cover > 0 ? formatPesoAmount(cover) : undefined,
+    total: formatPesoAmount(fareTotal + fees + cover),
   };
 }
 

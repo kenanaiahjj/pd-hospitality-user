@@ -4499,3 +4499,47 @@
   background: var(--guest-positive);
   box-shadow: 0 0 0 3px color-mix(in oklch, var(--guest-positive) 16%, transparent);
 }
+
+/* --------------------------------------------------------------------------
+   Trip cover: an add-on on the leg, not a mode of its own.
+   -------------------------------------------------------------------------- */
+
+.guest-cover-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+}
+/* Checked is a real state change, so the row carries it rather than leaving
+   the box to say it alone. */
+.guest-cover-option:has(input:checked) {
+  border-color: var(--guest-accent);
+  background: var(--guest-soft);
+}
+.guest-cover-option:has(input:focus-visible) {
+  outline: 2px solid var(--guest-accent-strong);
+  outline-offset: 2px;
+}
+
+.guest-cover-option input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--guest-accent-strong);
+}
+
+.guest-cover-option__text { display: grid; gap: 2px; min-width: 0; }
+.guest-cover-option__text b { font-size: 14.5px; font-weight: 650; letter-spacing: -0.008em; }
+.guest-cover-option__text small { color: var(--guest-muted); font-size: 12.5px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-cover-option:hover { border-color: var(--guest-line-strong); }
+  .guest-cover-option:has(input:checked):hover { border-color: var(--guest-accent-strong); }
+}

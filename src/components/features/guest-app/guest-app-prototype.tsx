@@ -95,6 +95,7 @@ import {
   RESTAURANTS,
   SERVICES,
   quoteTravel,
+  TRAVEL_COVER,
   travelStartingPrice,
   TRAVEL_CATEGORIES,
   POPULAR_ROUTES,
@@ -654,7 +655,6 @@ const TRAVEL_ICONS: Record<TravelCategoryId, ReactNode> = {
   flights: <AirplaneTilt />,
   ferries: <Boat />,
   transfers: <Van />,
-  insurance: <ShieldCheck />,
 };
 
 function extractLocationCode(place: string): string {
@@ -958,6 +958,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [travelTo, setTravelTo] = useState<string>('');
   const [travelFilter, setTravelFilter] = useState<'all' | 'earliest' | 'cheapest'>('all');
   const [travelPaymentMethod, setTravelPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
+  const [travelCover, setTravelCover] = useState(false);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
   const [selectedMenuTab, setSelectedMenuTab] = useState<MenuItemCategory>('all');
   const [menuSort, setMenuSort] = useState<ListingSort>('recommended');
@@ -2771,7 +2772,7 @@ const fare = category.options.find((option) => option.id === selectedFare);
         if (!fare) return <ScreenIntro eyebrow="Travel" title="Choose a fare first" text="Pick an option to continue to checkout.">{primary('Back to search', 'travel-search')}</ScreenIntro>;
 
         const partySize = Number(travelParty);
-        const quote = quoteTravel(fare, partySize);
+        const quote = quoteTravel(fare, partySize, travelCover);
         const routeLabel = category.route
           ? `${category.route.defaultFrom} → ${category.route.defaultTo}`
           : null;
@@ -2780,8 +2781,8 @@ const fare = category.options.find((option) => option.id === selectedFare);
          * match passenger names to government ID, and Cabana captured the
          * guest's during pre-arrival -- so this confirms rather than asks.
          */
-        const travellers = [session.guestName, ...session.additionalGuests]
-          .filter(Boolean)
+        const travellers = listBookingGuests({ ...contextBooking, guestCount: partySize }, session)
+          .rows
           .slice(0, partySize);
         const idOnFile = contextBooking.preArrivalCompleted >= 2;
         /** Live fares cannot be queued: the price moves while you are offline. */
@@ -2846,16 +2847,20 @@ const fare = category.options.find((option) => option.id === selectedFare);
 
             <SectionHeading title={category.partyLabel} />
             <div className="guest-list-group">
-              {travellers.map((name, index) => (
-                <div className="guest-list-row is-static" key={name}>
-                  <span><Person /></span>
-                  <div>
-                    <b>{name}</b>
-                    <small>{index === 0 && idOnFile ? 'ID on file from check-in' : 'ID needed before travel'}</small>
+              {travellers.map((traveller) => {
+                const lead = traveller.role === 'lead';
+                const verified = lead && idOnFile && traveller.name;
+                return (
+                  <div className="guest-list-row is-static" key={traveller.key}>
+                    <span><Person /></span>
+                    <div>
+                      <b>{traveller.name ?? 'Lead traveller · name needed'}</b>
+                      <small>{verified ? 'ID on file from check-in' : 'ID needed before travel'}</small>
+                    </div>
+                    {verified ? <Check /> : null}
                   </div>
-                  {index === 0 && idOnFile ? <Check /> : null}
-                </div>
-              ))}
+                );
+              })}
               {travellers.length < partySize ? (
                 <div className="guest-list-row is-static">
                   <span><Users /></span>
@@ -2867,10 +2872,29 @@ const fare = category.options.find((option) => option.id === selectedFare);
               ) : null}
             </div>
 
+            {/*
+              Cover is offered on the leg, not sold as its own mode. It has no
+              route, no departure and no seat, and a guest shopping for it has
+              already chosen the thing it covers -- so it belongs here, beside
+              the price of that thing, off by default.
+            */}
+            <label className="guest-cover-option">
+              <input
+                type="checkbox"
+                checked={travelCover}
+                onChange={(event) => setTravelCover(event.currentTarget.checked)}
+              />
+              <span className="guest-cover-option__text">
+                <b>Add {TRAVEL_COVER.name.toLowerCase()} · {formatPesoAmount(TRAVEL_COVER.pricePerTraveller)} each</b>
+                <small>{TRAVEL_COVER.operator} · {TRAVEL_COVER.detail}</small>
+              </span>
+            </label>
+
             <div className="guest-summary">
               <SummaryRow label={fare.operator} value={fare.detail} />
               <SummaryRow label={`Fare × ${partySize}`} value={quote.fareTotal} />
               <SummaryRow label="Booking fee" value={quote.fees} />
+              {quote.cover ? <SummaryRow label={`${TRAVEL_COVER.name} × ${partySize}`} value={quote.cover} /> : null}
               <SummaryRow label={`Paid to ${fare.operator}`} value={quote.total} strong />
             </div>
 
@@ -3042,10 +3066,6 @@ const fare = category.options.find((option) => option.id === selectedFare);
               <div><b>Stay history</b><small>3 stays across 2 properties</small></div>
               <CaretRight />
             </button>
-            <div className="guest-list-row is-muted">
-              <span><Sparkle /></span>
-              <div><b>Loyalty</b><small>Coming soon</small></div>
-            </div>
             <button className="guest-list-row" type="button" aria-label="Sign out" onClick={signOut}>
               <span><SignOut /></span>
               <div><b>Sign out</b><small>Return to the welcome screen</small></div>
@@ -3216,7 +3236,7 @@ const fare = category.options.find((option) => option.id === selectedFare);
               />
               <NavButton
                 label="My Stay"
-                icon={<Receipt />}
+                icon={<Bed />}
                 active={MY_STAY_SCREENS.includes(activeScreen)}
                 onClick={() => go('my-stay')}
               />
@@ -3323,7 +3343,6 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
       (service) => service.status === 'confirmed' && service.bookingId === booking.id,
     );
     const roomLabel = booking.roomNumber ? `Room ${booking.roomNumber}` : 'Active room';
-    const folioTotal = session.folioTotal || booking.folioTotal || '₱0';
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
         <section className="guest-stay-hero-card">
@@ -3353,7 +3372,6 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
             </div>
           </div>
           <div className="guest-stay-hero-card__actions">
-            <button className="guest-list-row" onClick={() => onNavigate('folio')} type="button"><span><Receipt /></span><div><b>Room charges</b><small>Current folio · {folioTotal}</small></div><CaretRight /></button>
             <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
           </div>
         </section>

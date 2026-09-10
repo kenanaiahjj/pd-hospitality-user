@@ -4135,3 +4135,164 @@
   justify-content: center;
   gap: 8px;
 }
+
+/* --------------------------------------------------------------------------
+   Notifications: the bell in the app bar, and the inbox behind it.
+   -------------------------------------------------------------------------- */
+
+/* The dot is the whole affordance, so it is positioned against the glyph
+   rather than the 40px target -- centred on the bell's top-right corner, it
+   reads as part of the icon instead of floating in the padding. */
+.guest-bell { position: relative; }
+.guest-bell__dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--guest-accent-strong);
+  /* A ring in the bar's own colour, so the dot stays legible where it overlaps
+     the glyph's stroke. */
+  box-shadow: 0 0 0 2px var(--guest-canvas);
+}
+
+.guest-notifications {
+  display: grid;
+  gap: 8px;
+}
+
+.guest-notification {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
+}
+.guest-notification:active { transform: scale(0.99); }
+/* Unread is carried by weight and a dot, not by a tinted row: a coloured
+   background here would compete with the tone discs beside it. */
+.guest-notification[data-unread='true'] b { font-weight: 700; }
+.guest-notification[data-unread='false'] { background: var(--guest-surface); box-shadow: none; }
+
+.guest-notification__icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--guest-sunken);
+  color: var(--guest-ink);
+}
+.guest-notification__icon svg { width: 18px; height: 18px; }
+.guest-notification__icon--room { background: var(--guest-positive-soft); color: var(--guest-positive); }
+.guest-notification__icon--booking { background: var(--guest-soft); color: var(--guest-accent-strong); }
+.guest-notification__icon--folio { background: var(--guest-warning-soft); color: var(--guest-warning); }
+.guest-notification__icon--desk { background: var(--guest-sunken); color: var(--guest-brand); }
+.guest-notification__icon--travel { background: var(--guest-sunken); color: var(--guest-brand); }
+
+.guest-notification__body { display: grid; gap: 3px; min-width: 0; }
+.guest-notification__body b { font-size: 15px; font-weight: 650; letter-spacing: -0.008em; }
+.guest-notification__body p { margin: 0; color: var(--guest-muted); font-size: 13px; line-height: 1.45; }
+.guest-notification__body small { color: var(--guest-subtle); font-size: 12px; }
+
+.guest-notification__dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--guest-accent-strong);
+}
+
+/* --------------------------------------------------------------------------
+   My Trip: the reservation summary and its countdown.
+   -------------------------------------------------------------------------- */
+
+.guest-stay-summary {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+}
+
+/* The countdown is the one line that changes daily, so it leads -- a chip on
+   the sunken surface rather than more body text above the grid. */
+.guest-stay-summary__countdown {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-sunken);
+  color: var(--guest-ink);
+}
+.guest-stay-summary__countdown svg { width: 16px; height: 16px; color: var(--guest-brand); }
+.guest-stay-summary__countdown b { font-size: 13px; font-weight: 650; }
+
+.guest-stay-summary__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.guest-stay-summary__stats > div { display: grid; gap: 3px; min-width: 0; }
+.guest-stay-summary__stats small { color: var(--guest-muted); font-size: 12px; }
+.guest-stay-summary__stats b { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.006em; }
+
+/* The summary owns the card, so the row inside it drops its own surface and
+   keeps only the separator -- concentric shapes, one elevation. */
+.guest-stay-summary .guest-list-row {
+  margin: 0 -16px -16px;
+  border-radius: 0 0 var(--guest-radius-md) var(--guest-radius-md);
+  border-top: 1px solid var(--guest-line);
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   Property announcements: one broadcast for the whole building.
+   -------------------------------------------------------------------------- */
+
+.guest-announcements { display: grid; gap: 8px; }
+
+.guest-announcement {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 13px 15px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-surface);
+  border: 1px solid var(--guest-line);
+}
+.guest-announcement > span { display: grid; place-items: center; width: 22px; height: 22px; color: var(--guest-brand); }
+.guest-announcement svg { width: 18px; height: 18px; }
+.guest-announcement div { display: grid; gap: 2px; min-width: 0; }
+.guest-announcement b { font-size: 14px; font-weight: 650; letter-spacing: -0.006em; }
+.guest-announcement p { margin: 0; color: var(--guest-muted); font-size: 13px; line-height: 1.45; }
+.guest-announcement--warning { background: var(--guest-warning-soft); border-color: transparent; }
+.guest-announcement--warning > span { color: var(--guest-warning); }
+.guest-announcement--positive { background: var(--guest-positive-soft); border-color: transparent; }
+.guest-announcement--positive > span { color: var(--guest-positive); }
+
+/* A section's own caveat, under its heading and above its content. */
+.guest-section-note {
+  margin: -2px 0 10px;
+  color: var(--guest-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-notification:hover { background: var(--guest-surface); }
+  .guest-notification[data-unread='false']:hover { background: var(--guest-sunken); }
+}

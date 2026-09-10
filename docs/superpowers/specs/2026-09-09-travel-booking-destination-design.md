@@ -8,10 +8,23 @@
 | **Owner** | <human partner> |
 | **Plan** | direct increment — no separate plan file for this pass |
 | **Supersedes** | `n/a` |
-| **Superseded by** | `n/a` |
+| **Superseded by** | `2026-09-10-nav-information-architecture-design.md` (tab-bar placement only) |
 
 This spec is the binding authority during execution: when a plan and this
 document disagree, this document wins.
+
+> **Amended 2026-09-10.** Travel is no longer a tab-bar destination. The nav
+> pass in
+> [`2026-09-10-nav-information-architecture-design.md`](2026-09-10-nav-information-architecture-design.md)
+> cut the bar to four destinations — Home, Explore, My Trip, Profile — and moved
+> travel inventory into **Explore**, under its own `Onward travel` heading, with
+> the booked legs surfacing in **My Trip** beside the on-property bookings.
+> Everything else here still holds, and the separation this document argues for
+> is preserved rather than abandoned: travel keeps its own screens, its own
+> checkout, its own heading, and the copy that says it is paid to the operator
+> rather than added to a room folio. What changed is that the separation is now
+> carried by a section boundary instead of a tab. The reasoning below — source,
+> timing and settlement — is why that heading exists at all.
 
 ---
 
@@ -41,7 +54,8 @@ Folding these into the on-property grid would put "book a massage" and "book an
 inter-island flight" on one screen as peers, and would collide with Hotel
 Services, which already advertises airport transfers. A separate destination
 also takes the tab bar to the four stable destinations `DESIGN.md` specifies;
-it currently ships three.
+it currently ships three. *(Superseded: `DESIGN.md`'s four destinations are now
+Home, Explore, My Trip and Profile — see the amendment above.)*
 
 ## Scope of this pass
 

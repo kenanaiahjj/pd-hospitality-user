@@ -93,5 +93,10 @@ Primary actions are pink pills with ink labels. Secondary actions are white pill
 with a hairline. Tertiary actions are accent-coloured text buttons. Every
 interactive element clears a 44px target and ships default, hover, focus, active,
 and disabled. Selection — a date, a time slot, a tile — is the accent fill with
-ink on top. The tab bar is flat and full-width with four stable destinations, and
-marks the current one with the accent, not with a coloured pill.
+ink on top. The tab bar is flat and full-width with four stable destinations —
+Home, Explore, My Trip, Profile — and marks the current one with the accent, not
+with a coloured pill. Each destination answers one question: what is happening
+now, what can I book, what have I booked and what do I owe, who am I. Anything
+that is an action rather than a place stays off the bar: the front desk is a row
+inside My Trip, and notifications are the bell in the navigation bar's right
+slot.

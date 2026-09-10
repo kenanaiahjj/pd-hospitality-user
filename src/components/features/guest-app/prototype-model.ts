@@ -34,7 +34,7 @@ export type ScreenId =
   | 'service-booking'
   | 'booking-confirmation'
   | 'booking-blocked'
-  | 'my-bookings'
+  | 'my-trip'
   | 'cancel-before-cutoff'
   | 'cancel-after-cutoff'
   | 'folio'
@@ -46,7 +46,8 @@ export type ScreenId =
   | 'travel'
   | 'travel-search'
   | 'travel-checkout'
-  | 'travel-confirmation';
+  | 'travel-confirmation'
+  | 'notifications';
 
 export type PrototypeScreen = {
   id: ScreenId;
@@ -86,7 +87,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(21, 'Pre-arrival', 'arrival-handoff', 'Arrival handoff'),
   screen(22, 'Pre-arrival', 'prereg-complete', 'Pre-registration complete'),
   screen(23, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
-  screen(24, 'Stay', 'marketplace', 'Bookings Hub'),
+  screen(24, 'Stay', 'marketplace', 'Explore'),
   screen(25, 'Stay', 'category-listing', 'Explore services'),
   screen(26, 'Stay', 'hotel-service', 'In-room dining'),
   screen(27, 'Stay', 'vendor-service', 'Hilom signature massage'),
@@ -94,7 +95,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(29, 'Stay', 'service-booking', 'Choose a time'),
   screen(30, 'Stay', 'booking-confirmation', 'Service confirmed'),
   screen(31, 'Stay', 'booking-blocked', 'Connect to book'),
-  screen(32, 'Stay', 'my-bookings', 'My bookings'),
+  screen(32, 'Stay', 'my-trip', 'My trip'),
   screen(33, 'Stay', 'cancel-before-cutoff', 'Cancel service'),
   screen(34, 'Stay', 'cancel-after-cutoff', 'Contact front desk'),
   screen(35, 'Stay', 'folio', 'Room charges'),
@@ -109,6 +110,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(44, 'Travel', 'travel-search', 'Travel search'),
   screen(45, 'Travel', 'travel-checkout', 'Travel checkout'),
   screen(46, 'Travel', 'travel-confirmation', 'Travel confirmed'),
+  screen(47, 'Stay', 'notifications', 'Notifications'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -471,6 +473,190 @@ export function getOfflineAction(capability: OfflineCapability): OfflineAction {
 
 /** Standard check-in across the estate. */
 export const CHECK_IN_FROM = '3:00 PM';
+
+/** Standard check-out across the estate. */
+export const CHECK_OUT_BY = '12:00 PM';
+
+/**
+ * The prototype's notion of "now". Every date in this file is fixed -- the
+ * folio posts on `NOV 11`, the reference stay runs 9-12 November -- so a
+ * countdown read off the wall clock would drift away from the copy around it
+ * within a day of writing. Anchoring to the mid-stay date keeps the whole
+ * demo internally consistent, and makes every derivation here a pure function
+ * of its arguments.
+ */
+export const PROTOTYPE_TODAY = '2026-11-11';
+
+const dayIndex = (isoDate: string) => Math.floor(Date.parse(`${isoDate}T00:00:00Z`) / 86_400_000);
+
+const countdown = (days: number, today: string, tomorrow: string, future: (days: number) => string) => {
+  if (days === 0) return today;
+  if (days === 1) return tomorrow;
+  return future(days);
+};
+
+/**
+ * The one line that says where a stay sits in time. Named for check-out
+ * because that is the question during a stay; before arrival it counts to
+ * check-in instead, since a guest who has not arrived cannot leave.
+ */
+export function describeCheckoutCountdown(booking: Booking, today: string = PROTOTYPE_TODAY): string {
+  if (booking.status === 'completed') return 'Checked out';
+
+  const now = dayIndex(today);
+
+  if (booking.status === 'upcoming') {
+    /*
+      The clock is clamped into the stay's own window. One fixed `today` has to
+      serve fixtures describing different moments -- the reference stay is used
+      both mid-stay and pre-arrival -- and an unclamped subtraction would tell a
+      guest who has not arrived that their check-in was two days ago. Clamping
+      to the check-in date makes the worst case "arrival day" instead of a
+      contradiction.
+    */
+    const checkIn = dayIndex(booking.checkIn);
+    const days = checkIn - Math.min(now, checkIn);
+    return countdown(
+      days,
+      `Checks in today from ${CHECK_IN_FROM}`,
+      'Checks in tomorrow',
+      (n) => `Checks in in ${n} days`,
+    );
+  }
+
+  const days = dayIndex(booking.checkOut) - now;
+  if (days < 0) return 'Checked out';
+  return countdown(
+    days,
+    `Checks out today at ${CHECK_OUT_BY}`,
+    'Checks out tomorrow',
+    (n) => `Checks out in ${n} days`,
+  );
+}
+
+/**
+ * Property-wide broadcasts. Static on purpose: these are the same for every
+ * guest in the building, which is exactly what separates them from a
+ * notification.
+ */
+export type PropertyAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  tone: 'neutral' | 'positive' | 'warning';
+};
+
+export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
+  {
+    id: 'announcement-pool',
+    title: 'Rooftop pool closed until 11:00 AM',
+    body: 'Weekly maintenance. Azotea Rooftop stays open for drinks throughout.',
+    tone: 'warning',
+  },
+  {
+    id: 'announcement-breakfast',
+    title: 'Kape Manila Café now opens at 6:00 AM',
+    body: 'Earlier breakfast service for guests with morning departures.',
+    tone: 'neutral',
+  },
+];
+
+/**
+ * What the bell has to say. Derived rather than stored: every fact here
+ * already lives in the session, and a second copy would be a second thing to
+ * keep in sync. Read state is the one part that cannot be derived, so it lives
+ * with the component instead.
+ */
+export type NotificationTone = 'room' | 'booking' | 'folio' | 'desk' | 'travel';
+
+export type GuestNotification = {
+  id: string;
+  tone: NotificationTone;
+  title: string;
+  body: string;
+  /** Display-only relative time. The prototype has no clock to compute one. */
+  time: string;
+  /** Where tapping the notification takes the guest. */
+  screen: ScreenId;
+};
+
+export function getNotifications(session: GuestSession, booking?: Booking): GuestNotification[] {
+  if (!booking) return [];
+
+  const notifications: GuestNotification[] = [];
+  const room = booking.roomNumber ? `Room ${booking.roomNumber}` : 'your room';
+
+  if (describeRoomAssignment(booking).state === 'ready') {
+    notifications.push({
+      id: `notification-room-${booking.id}`,
+      tone: 'room',
+      title: `Room ${booking.roomNumber} is ready`,
+      body: 'Collect your key at the front desk and go straight up.',
+      time: 'Just now',
+      screen: 'stay-overview',
+    });
+  }
+
+  for (const service of session.serviceBookings) {
+    if (service.bookingId !== booking.id || service.status !== 'confirmed') continue;
+
+    notifications.push(service.diningOrder ? {
+      id: `notification-order-${service.id}`,
+      tone: 'booking',
+      title: 'Your order is being prepared',
+      body: `${service.diningOrder.venueName} · ${service.diningOrder.fulfillment.scheduledFor}`,
+      time: '10m ago',
+      screen: 'my-trip',
+    } : {
+      id: `notification-service-${service.id}`,
+      tone: 'booking',
+      title: `${service.title} confirmed`,
+      body: `${service.scheduledFor} · added to ${room.toLowerCase()}`,
+      time: '1h ago',
+      screen: 'my-trip',
+    });
+  }
+
+  // A stay that has not started cannot have run anything up, and a zero total
+  // is not news.
+  if (booking.status !== 'upcoming' && parsePesoAmount(session.folioTotal || booking.folioTotal || '₱0') > 0) {
+    notifications.push({
+      id: `notification-folio-${booking.id}`,
+      tone: 'folio',
+      title: 'New charge on your room',
+      body: `${room} now stands at ${session.folioTotal || booking.folioTotal}. It settles at checkout.`,
+      time: '2h ago',
+      screen: 'folio',
+    });
+  }
+
+  for (const leg of session.travelBookings) {
+    if (leg.status !== 'confirmed') continue;
+    notifications.push({
+      id: `notification-travel-${leg.id}`,
+      tone: 'travel',
+      title: `${leg.operator} booking confirmed`,
+      body: `${leg.route ?? leg.detail} · ${leg.meta} · ${leg.reference}`,
+      time: 'Yesterday',
+      screen: 'travel',
+    });
+  }
+
+  // Mirrors the message the front desk seeds into every chat, so tapping
+  // through lands on the message the notification is about.
+  if (booking.status === 'active') {
+    notifications.push({
+      id: `notification-desk-${booking.id}`,
+      tone: 'desk',
+      title: 'Front desk',
+      body: `Good afternoon, ${session.guestName.split(' ')[0] || 'there'}. How can we help with your stay?`,
+      time: 'Yesterday',
+      screen: 'chat',
+    });
+  }
+
+  return notifications;
+}
 
 export type RoomAssignmentView = {
   state: RoomAssignmentState;

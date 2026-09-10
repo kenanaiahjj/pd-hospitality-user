@@ -223,6 +223,7 @@ describe('guest app prototype model', () => {
 
 const makeBooking = (overrides: Partial<Booking> = {}): Booking => ({
   id: 'booking-default',
+  guestName: 'Ana Santos',
   property: 'The Henry Manila',
   city: 'Manila',
   status: 'upcoming',
@@ -888,5 +889,25 @@ describe('stay status label', () => {
   it('says checked out past the window, and for a closed stay', () => {
     expect(describeStayStatus(stay(), '2026-11-16').label).toBe('Checked out');
     expect(describeStayStatus(stay({ status: 'completed' }), '2026-11-12').label).toBe('Checked out');
+  });
+});
+
+describe('connecting a booking', () => {
+  it('takes the guest name from the reservation', () => {
+    // The lookup path asks for a surname to match on and never stored it, so
+    // the session came away with no name at all.
+    expect(ANONYMOUS_SESSION.guestName).toBe('');
+    expect(connectBooking(ANONYMOUS_SESSION).guestName).toBe('Ana Santos');
+  });
+
+  it('keeps a name the session already had', () => {
+    // The room-QR path collects a surname before it connects anything.
+    const typed = { ...ANONYMOUS_SESSION, guestName: 'Reyes' };
+    expect(connectBooking(typed).guestName).toBe('Reyes');
+  });
+
+  it('is idempotent, so reconnecting does not duplicate the stay', () => {
+    const once = connectBooking(ANONYMOUS_SESSION);
+    expect(connectBooking(once)).toBe(once);
   });
 });

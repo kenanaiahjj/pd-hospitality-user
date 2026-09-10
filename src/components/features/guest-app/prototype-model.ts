@@ -121,6 +121,17 @@ export type BookingStatus = 'upcoming' | 'active' | 'completed';
 
 export type Booking = {
   id: string;
+  /**
+   * The name on the reservation, as the property holds it.
+   *
+   * A lookup is a match, not a form: the guest offers a surname to prove the
+   * booking is theirs and the middleware returns the reservation, name
+   * included. Without this the booking-lookup path had no name to carry into
+   * the session at all, so the app showed an empty greeting, promoted an
+   * additional guest into the lead booker's row, and attributed a passport to
+   * the wrong person on the travel checkout.
+   */
+  guestName: string;
   property: string;
   city: string;
   status: BookingStatus;
@@ -256,6 +267,7 @@ export type HomeVariant =
  */
 export const UPCOMING_BOOKING_FIXTURE: Booking = {
   id: 'HEN-241109',
+  guestName: 'Ana Santos',
   property: 'The Henry Manila',
   city: 'Manila',
   status: 'upcoming',
@@ -319,6 +331,7 @@ export const MOCK_SESSION: GuestSession = {
     UPCOMING_BOOKING_FIXTURE,
     {
       id: 'HEN-CEBU-240615',
+      guestName: 'Ana Santos',
       property: 'The Henry Cebu',
       city: 'Cebu',
       status: 'completed',
@@ -485,6 +498,12 @@ export function connectBooking(session: GuestSession): GuestSession {
   */
   return {
     ...session,
+    /*
+      The reservation supplies the name. A session that already has one keeps
+      it -- the room-QR path collects a surname before it ever connects a
+      booking, and what the guest typed should win over the record.
+    */
+    guestName: session.guestName || UPCOMING_BOOKING_FIXTURE.guestName,
     bookings: [...session.bookings, UPCOMING_BOOKING_FIXTURE],
     serviceBookings: [...session.serviceBookings, ...MOCK_SESSION.serviceBookings],
     travelBookings: [...session.travelBookings, ...MOCK_SESSION.travelBookings],

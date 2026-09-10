@@ -12,6 +12,7 @@ import {
   createAccountSession,
   verifyPendingSession,
 } from './prototype-model';
+import { ANONYMOUS_SESSION, connectBooking } from './prototype-model';
 import type { Booking, GuestSession } from './prototype-model';
 
 const globalStyles = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
@@ -19,6 +20,7 @@ const guestStyles = readFileSync(resolve(process.cwd(), 'src/components/features
 
 const makeBooking = (overrides: Partial<Booking> = {}): Booking => ({
   id: 'booking-default',
+  guestName: 'Ana Santos',
   property: 'The Henry Manila',
   city: 'Manila',
   status: 'upcoming',
@@ -170,7 +172,9 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: 'Link my stay' }));
 
     expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
-    expect(screen.getByText(/Welcome, Santos · Room 304/)).toBeInTheDocument();
+    // The surname is the match key; the reservation supplies the name, so the
+    // greeting uses what the property holds rather than what was typed.
+    expect(screen.getByText(/Welcome, Ana · Room 304/)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'You’re checked in' })).toBeNull();
   });
 
@@ -442,7 +446,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('heading', { name: 'Explore', level: 1 })).toBeInTheDocument();
   });
 
-  it('carries the room QR last name into the stay greeting', async () => {
+  it('greets with the name on the reservation the QR matched', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="room-qr-landing" />);
 
@@ -450,7 +454,7 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: 'Link my stay' }));
 
     expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
-    expect(screen.getByText(/Welcome, Santos/)).toBeInTheDocument();
+    expect(screen.getByText(/Welcome, Ana/)).toBeInTheDocument();
   });
 
   it('labels the booking state and the notification bell for assistive technology', () => {
@@ -1133,6 +1137,40 @@ describe('travel as a category', () => {
     for (const category of TRAVEL_CATEGORIES) {
       expect(screen.getByText(category.title)).toBeInTheDocument();
     }
+  });
+});
+
+describe('booking lookup', () => {
+  it('shows the name the lookup returned, not a borrowed default', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="identify" />);
+
+    await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-241109');
+    await user.type(screen.getByLabelText(/Last name/), 'Santos');
+    await user.click(screen.getByRole('button', { name: 'Find booking' }));
+
+    // This screen used to fall back to MOCK_SESSION's name because the lookup
+    // path captured none of its own.
+    expect(screen.getByText('Ana Santos')).toBeInTheDocument();
+  });
+
+  it('names the lead booker after a lookup, rather than promoting a companion', () => {
+    // A session as the lookup path builds one: no name typed anywhere, the
+    // reservation supplying it.
+    const connected = connectBooking(ANONYMOUS_SESSION);
+    render(<GuestAppPrototype initialScreen="rate-detail" initialSession={connected} />);
+
+    expect(screen.getByText('Ana Santos')).toBeInTheDocument();
+    expect(screen.getByText('Lead booker · ID on file')).toBeInTheDocument();
+    expect(screen.queryByText('Lead booker · name needed')).toBeNull();
+  });
+
+  it('greets a looked-up guest by the reservation name', () => {
+    const connected = connectBooking(ANONYMOUS_SESSION);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={connected} />);
+
+    // Before this the greeting rendered "Welcome, " with nothing after it.
+    expect(screen.getByText(/Welcome, Ana/)).toBeInTheDocument();
   });
 });
 

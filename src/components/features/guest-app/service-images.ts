@@ -45,6 +45,20 @@ export const SERVICE_IMAGES: Record<ServiceImageKey, ServiceImageDefinition> = {
   },
 };
 
+/**
+ * The photo for a service id. The category listing carried this as an inline
+ * ternary; the Home rail needed the same mapping, and two copies of it is how
+ * one surface ends up showing a massage a picture of a van.
+ */
+export function getServiceImageKey(serviceId: string): ServiceImageKey {
+  if (serviceId === 'restaurant' || serviceId === 'poolside-bar') return 'restaurant';
+  if (serviceId === 'dining') return 'dining';
+  if (serviceId === 'spa' || serviceId === 'scrub' || serviceId === 'reflexology') return 'spa';
+  if (serviceId === 'tour' || serviceId === 'music' || serviceId === 'heritage-walk') return 'tour';
+  if (serviceId === 'transfer') return 'transfer';
+  return 'amenity';
+}
+
 export function getServiceImage(key: ServiceImageKey) {
   return SERVICE_IMAGES[key];
 }

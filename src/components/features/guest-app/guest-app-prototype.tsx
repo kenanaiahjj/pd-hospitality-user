@@ -2,10 +2,14 @@
 
 import {
   AirplaneTilt,
+  AirplaneTakeoff,
+  AirplaneLanding,
   ArrowLeft,
   Boat,
+  Broadcast,
   ArrowRight,
   ArrowsDownUp,
+  NavigationArrow,
   Bed,
   BellRinging,
   CalendarBlank,
@@ -71,6 +75,7 @@ import {
   describeRoomAssignment,
   getTravelCategory,
   MINI_APP_CATEGORIES,
+  getFeaturedServices,
   MOCK_SESSION,
   RESTAURANTS,
   SERVICES,
@@ -93,6 +98,7 @@ import {
 import {
   getServiceImage,
   getPropertyImage,
+  getServiceImageKey,
   type ServiceImageKey,
 } from './service-images';
 import './guest-app-prototype.css';
@@ -582,6 +588,10 @@ function extractLocationCode(place: string): string {
   if (lower.includes('caticlan') || lower.includes('boracay')) return 'MPH';
   if (lower.includes('manila')) return 'MNL';
   return place.slice(0, 3).toUpperCase();
+}
+
+function extractLocationName(place: string): string {
+  return place.replace(/\s*\([A-Z0-9]{3}\)/, '').trim();
 }
 
 function getGuestInitials(name: string) {
@@ -1430,7 +1440,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       }
                     }}
                   >
-                    <ServiceImage imageKey={service.id === 'spa' || service.id === 'scrub' || service.id === 'reflexology' ? 'spa' : service.id === 'tour' || service.id === 'music' || service.id === 'heritage-walk' ? 'tour' : service.id === 'transfer' ? 'transfer' : 'amenity'} tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <AirplaneTilt /> : <Storefront />} decorative />
+                    <ServiceImage imageKey={getServiceImageKey(service.id)} tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <AirplaneTilt /> : <Storefront />} decorative />
                     <div>
                       <Tag>{service.operator}</Tag>
                       <h2>{service.name}</h2>
@@ -2497,7 +2507,7 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
         <section className="guest-stay-hero-card">
           <div className="guest-stay-hero-card__media">
-            <PropertyImage property={booking.property} aspectRatio="16/9" decorative />
+            <PropertyImage property={booking.property} aspectRatio="21/9" decorative />
             <div className="guest-stay-hero-card__badges">
               <Tag tone="positive">Active stay</Tag>
               <span className="guest-tag guest-tag--dark">{roomLabel}</span>
@@ -2547,6 +2557,7 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
               </button>
             ))}
           </div>
+          <FeaturedRail onOpenCategory={(category) => { onSelectCategory(category); onNavigate('category-listing'); }} />
         </section>
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="Bookings Hub" onAction={() => onNavigate('marketplace')} /><div className="guest-booking-card is-static"><div><Tag tone="positive">Confirmed</Tag><h2>{confirmedServices[0].title}</h2><p>{confirmedServices[0].scheduledFor} · {confirmedServices[0].amount}</p><small>Added to {roomLabel.toLowerCase()} · settles at checkout</small></div></div></section> : null}
       </div>
@@ -2598,7 +2609,7 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
     <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
       <div className="guest-stay-hero-card">
         <div className="guest-stay-hero-card__media">
-          <PropertyImage property={booking.property} aspectRatio="16/9" decorative />
+          <PropertyImage property={booking.property} aspectRatio="21/9" decorative />
           <div className="guest-stay-hero-card__badges">
             <Tag tone="warning">Upcoming</Tag>
             <span className="guest-tag guest-tag--dark">{booking.city}</span>
@@ -2675,6 +2686,7 @@ function StayOverviewHome({ session, booking, online, onNavigate, onSelectCatego
             </button>
           ))}
         </div>
+        <FeaturedRail onOpenCategory={(category) => { onSelectCategory(category); onNavigate('category-listing'); }} />
       </section>
     </div>
   );
@@ -2834,6 +2846,41 @@ function ListingControls({
         {narrowed ? <button type="button" className="guest-listing-clear" onClick={onClear}>Clear</button> : null}
       </p>
     </div>
+  );
+}
+
+/**
+ * Home's discovery rail. A native overflow-scroll list with snap points: no
+ * carousel library, no autoplay, no dots. The row bleeds past the screen inset
+ * so a card is always visibly cut off at the right edge -- that clipped card is
+ * what tells the guest the row scrolls, more honestly than any affordance
+ * drawn on top of the content.
+ */
+function FeaturedRail({ onOpenCategory }: { onOpenCategory: (category: MiniAppCategoryId) => void }) {
+  return (
+    <ul className="guest-featured-rail">
+      {getFeaturedServices().map((service) => (
+        <li key={service.id}>
+          <button
+            type="button"
+            className="guest-featured-card"
+            onClick={() => onOpenCategory(service.categoryId)}
+          >
+            <ServiceImage
+              imageKey={getServiceImageKey(service.id)}
+              tone={service.tone}
+              icon={<CategoryIcon id={service.categoryId} />}
+              decorative
+            />
+            <span className="guest-featured-card__body">
+              <small>{service.category}</small>
+              <b>{service.name}</b>
+              <span>{service.price}</span>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 

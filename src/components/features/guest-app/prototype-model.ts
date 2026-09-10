@@ -655,6 +655,10 @@ export type TravelOption = {
   vesselOrVehicle?: string;
   badge?: string;
   inclusions?: string[];
+  terminal?: string;
+  gate?: string;
+  baggageBelt?: string;
+  onTimeRate?: string;
 };
 
 /**
@@ -802,8 +806,12 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
         arrivalTime: '07:35',
         duration: '1h 45m',
         carrierCode: 'PR 2971',
-        vesselOrVehicle: 'Airbus A321',
+        vesselOrVehicle: 'Airbus A321-200',
         badge: 'Fastest',
+        terminal: 'Terminal 2',
+        gate: 'Gate 44',
+        baggageBelt: 'Belt 3',
+        onTimeRate: '98% on-time',
         inclusions: ['20kg checked baggage', 'Cabin carry-on 7kg', 'Complimentary snack'],
       },
       {
@@ -816,8 +824,12 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
         arrivalTime: '11:05',
         duration: '1h 50m',
         carrierCode: '5J 921',
-        vesselOrVehicle: 'Airbus A320',
+        vesselOrVehicle: 'Airbus A320neo',
         badge: 'Popular',
+        terminal: 'Terminal 3',
+        gate: 'Gate 118',
+        baggageBelt: 'Belt 4',
+        onTimeRate: '95% on-time',
         inclusions: ['Cabin carry-on 7kg', 'Direct connection', 'Web check-in ready'],
       },
       {
@@ -830,8 +842,12 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
         arrivalTime: '15:30',
         duration: '1h 50m',
         carrierCode: 'Z2 837',
-        vesselOrVehicle: 'Airbus A320',
+        vesselOrVehicle: 'Airbus A320-200',
         badge: 'Best value',
+        terminal: 'Terminal 2',
+        gate: 'Gate 22',
+        baggageBelt: 'Belt 1',
+        onTimeRate: '92% on-time',
         inclusions: ['Cabin carry-on 7kg', 'Direct connection'],
       },
       {
@@ -844,8 +860,12 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
         arrivalTime: '19:55',
         duration: '1h 50m',
         carrierCode: 'PR 2975',
-        vesselOrVehicle: 'Airbus A321',
+        vesselOrVehicle: 'Airbus A321-200',
         badge: 'Evening flight',
+        terminal: 'Terminal 2',
+        gate: 'Gate 46',
+        baggageBelt: 'Belt 5',
+        onTimeRate: '96% on-time',
         inclusions: ['20kg checked baggage', 'Cabin carry-on 7kg', 'Complimentary snack'],
       },
     ],
@@ -876,6 +896,10 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
         carrierCode: '2GO Express',
         vesselOrVehicle: 'Tourist class aircon',
         badge: 'Early sailing',
+        terminal: 'Pier 1',
+        gate: 'Berth 3',
+        baggageBelt: 'Luggage Deck',
+        onTimeRate: '99% on-schedule',
         inclusions: ['Aircon cabin', 'Standard seat', '15kg luggage check-in'],
       },
       {
@@ -890,6 +914,10 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
         carrierCode: 'OceanJet 88',
         vesselOrVehicle: 'Business class upper deck',
         badge: 'Recommended',
+        terminal: 'Pier 1',
+        gate: 'Gate 2A',
+        baggageBelt: 'Fast Claim',
+        onTimeRate: '97% on-schedule',
         inclusions: ['Reclining leather seats', 'Priority boarding', '20kg baggage'],
       },
       {
@@ -904,6 +932,10 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
         carrierCode: 'Lite Cat 1',
         vesselOrVehicle: 'Aircon berth',
         badge: 'Vehicle & RoRo',
+        terminal: 'Pier 3',
+        gate: 'Vehicle Ramp 1',
+        baggageBelt: 'Vehicle Deck',
+        onTimeRate: '94% on-schedule',
         inclusions: ['Berth access', 'Vehicle deck transport available'],
       },
       {
@@ -918,6 +950,10 @@ export const TRAVEL_CATEGORIES: TravelCategory[] = [
         carrierCode: 'OceanJet 15',
         vesselOrVehicle: 'Tourist class aircon',
         badge: 'Sunset trip',
+        terminal: 'Pier 1',
+        gate: 'Gate 2B',
+        baggageBelt: 'Fast Claim',
+        onTimeRate: '96% on-schedule',
         inclusions: ['Aircon cabin', '15kg baggage allowance'],
       },
     ],
@@ -1565,5 +1601,15 @@ export function filterServices<T extends { operator: string; price: string }>(
   const rows = services.filter((service) => !operators.length || operators.includes(service.operator));
   return bySort(rows, sort);
 }
+
+/**
+ * The Home discovery rail: one pick from each category, curated by id and
+ * resolved against SERVICES so a featured card can never name or price a
+ * service differently from its own listing.
+ */
+export const FEATURED_SERVICE_IDS = ['spa', 'restaurant', 'tour', 'transfer'] as const;
+
+export const getFeaturedServices = () =>
+  FEATURED_SERVICE_IDS.map((id) => SERVICES.find((service) => service.id === id)!);
 
 export const screenTitle = (id: ScreenId) => SCREENS.find((item) => item.id === id)?.title ?? 'Guest app';

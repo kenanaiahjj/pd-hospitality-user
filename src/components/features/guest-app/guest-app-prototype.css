@@ -402,7 +402,10 @@
 }
 
 
-.guest-stack { display: grid; align-content: start; gap: 24px; }
+/* minmax(0, 1fr), not the implicit 1fr: grid items default to min-width: auto,
+   so any child with wide content -- a scrolling rail, a long unbroken string --
+   stretches the track and drags every sibling wider than the screen with it. */
+.guest-stack { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 24px; }
 .guest-stack--intro { min-height: 100%; }
 .guest-stack--intro > .guest-button:first-of-type { margin-top: auto; }
 .guest-page-title { display: grid; align-content: start; }
@@ -1257,6 +1260,7 @@
   .guest-history-card:hover,
   .guest-booking-card:hover:not(.is-static) { background: var(--guest-surface); box-shadow: var(--shadow-sm); }
   .guest-miniapp-tile:hover { background: var(--guest-soft); }
+  .guest-featured-card:hover { border-color: var(--guest-line-strong); }
   .guest-filter-pill:not(.is-active):hover { background: var(--guest-sunken); color: var(--guest-ink); }
   .guest-stay-hero-card__actions .guest-list-row:hover { background: var(--guest-surface); }
   .guest-list-group .guest-list-row:not(.is-static):hover,
@@ -1445,6 +1449,79 @@
   background: var(--ds-pink-soft);
   color: var(--ds-pink-strong);
 }
+/* --------------------------------------------------------------------------
+   Featured rail
+   -------------------------------------------------------------------------- */
+
+.guest-featured-rail {
+  display: flex;
+  gap: 10px;
+  /* --app-gutter, never --app-inset: the inset is percentage-based, so a
+     negative margin of it re-resolves against each nested box and runs away.
+     min-width guards the grid track, whose items default to min-width: auto. */
+  margin: 12px calc(var(--app-gutter) * -1) 0;
+  padding: 2px var(--app-gutter);
+  min-width: 0;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  /* Snap points sit at the scrollport's border edge by default, which pulls
+     the first card out under the bleed and leaves it misaligned with the
+     launcher tiles above. scroll-padding moves them inside the padding. */
+  scroll-padding-inline: var(--app-gutter);
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.guest-featured-rail::-webkit-scrollbar { display: none; }
+.guest-featured-rail > li {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+.guest-featured-card {
+  display: grid;
+  width: 168px;
+  padding: 0;
+  overflow: hidden;
+  /* Hairline, no shadow -- the design system allows one or the other. */
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease;
+}
+.guest-featured-card:active { transform: scale(0.98); }
+.guest-featured-card:focus-visible {
+  outline: 2px solid var(--guest-accent-strong);
+  outline-offset: 2px;
+}
+/* The shared service image is 180px tall, which would dwarf a 168px card. */
+.guest-featured-card .guest-service-image { height: 96px; }
+.guest-featured-card__body {
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px 11px;
+  min-width: 0;
+}
+.guest-featured-card__body small {
+  font-size: 11px;
+  color: var(--guest-muted);
+}
+.guest-featured-card__body b {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--guest-ink);
+  letter-spacing: -0.008em;
+  text-wrap: pretty;
+}
+.guest-featured-card__body > span {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--guest-accent-strong);
+}
+
 .guest-miniapp-tile__label {
   font-size: 12px;
   font-weight: 600;
@@ -1480,14 +1557,14 @@
 }
 .guest-stay-hero-card__body {
   display: grid;
-  gap: 4px;
-  padding: 16px;
+  gap: 3px;
+  padding: 13px 14px 14px;
 }
 .guest-stay-hero-card__body h1 {
-  margin: 2px 0 0;
-  font-size: 23px;
+  margin: 1px 0 0;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.018em;
 }
 .guest-stay-hero-card__chips {
   display: flex;
@@ -1506,8 +1583,8 @@
 .guest-stay-hero-card__stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 10px;
+  margin-top: 11px;
 }
 .guest-stay-hero-card__stats > div {
   display: grid;
@@ -1527,6 +1604,8 @@
 /* Footer rows sit flush inside the card, so they drop their own chrome and
    take a hairline instead -- same treatment as .guest-list-group. */
 .guest-stay-hero-card__actions .guest-list-row {
+  min-height: 56px;
+  padding: 9px 14px;
   border-radius: 0;
   box-shadow: inset 0 1px 0 var(--guest-line);
 }

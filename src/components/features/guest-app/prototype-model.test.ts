@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   describeRoomAssignment,
   ANONYMOUS_SESSION,
+  CHECK_IN_FROM,
+  CHECK_OUT_BY,
   MINI_APP_CATEGORIES,
   MOCK_SESSION,
   RESTAURANTS,
@@ -16,7 +18,9 @@ import {
   UPCOMING_BOOKING_FIXTURE,
   connectBooking,
   createAccountSession,
+  describeCheckoutCountdown,
   getCancellationState,
+  getNotifications,
   getOfflineAction,
   getPostAuthScreen,
   getVenueCartSummary,
@@ -33,9 +37,16 @@ import {
 } from './prototype-model';
 
 describe('guest app prototype model', () => {
-  it('contains the complete 46-screen inventory including travel checkout', () => {
-    expect(SCREENS).toHaveLength(46);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(46);
+  it('contains the complete 47-screen inventory including travel checkout', () => {
+    expect(SCREENS).toHaveLength(47);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(47);
+    // My Stay subsumed the old `my-bookings` screen rather than sitting beside
+    // it -- two screens listing the same service bookings was the duplication
+    // the nav pass exists to remove.
+    expect(SCREENS.find((s) => s.id === 'my-trip')?.title).toBe('My trip');
+    expect(SCREENS.some((s) => (s.id as string) === 'my-bookings')).toBe(false);
+    expect(SCREENS.find((s) => s.id === 'notifications')?.group).toBe('Stay');
+    expect(SCREENS.find((s) => s.id === 'marketplace')?.title).toBe('Explore');
     expect(SCREENS.find((s) => s.id === 'travel')?.group).toBe('Travel');
     expect(SCREENS.find((s) => s.id === 'travel-search')?.group).toBe('Travel');
     expect(SCREENS.find((s) => s.id === 'travel-checkout')?.group).toBe('Travel');
@@ -489,5 +500,140 @@ describe('listing controls', () => {
     for (const service of hotel) expect(service.operator).toBe('Hotel operated');
     // No selection means no narrowing.
     expect(filterServices(spa, { operators: [], types: [], sort: 'recommended' })).toHaveLength(spa.length);
+  });
+});
+
+describe('check-out countdown', () => {
+  const stay = (overrides: Partial<Booking>): Booking => ({
+    ...UPCOMING_BOOKING_FIXTURE,
+    status: 'active',
+    roomNumber: '304',
+    ...overrides,
+  });
+
+  it('counts the nights left in an active stay', () => {
+    expect(describeCheckoutCountdown(stay({ checkOut: '2026-11-14' }), '2026-11-11')).toBe('Checks out in 3 days');
+  });
+
+  it('names tomorrow rather than counting to one', () => {
+    expect(describeCheckoutCountdown(stay({ checkOut: '2026-11-12' }), '2026-11-11')).toBe('Checks out tomorrow');
+  });
+
+  it('gives the hour once check-out is today', () => {
+    expect(describeCheckoutCountdown(stay({ checkOut: '2026-11-11' }), '2026-11-11')).toBe(`Checks out today at ${CHECK_OUT_BY}`);
+  });
+
+  it('counts down to arrival for a stay that has not started', () => {
+    expect(describeCheckoutCountdown(stay({ status: 'upcoming', checkIn: '2026-11-14' }), '2026-11-11')).toBe('Checks in in 3 days');
+    expect(describeCheckoutCountdown(stay({ status: 'upcoming', checkIn: '2026-11-12' }), '2026-11-11')).toBe('Checks in tomorrow');
+    expect(describeCheckoutCountdown(stay({ status: 'upcoming', checkIn: '2026-11-11' }), '2026-11-11')).toBe(`Checks in today from ${CHECK_IN_FROM}`);
+  });
+
+  it('reports a finished stay rather than a negative countdown', () => {
+    expect(describeCheckoutCountdown(stay({ status: 'completed', checkOut: '2026-06-18' }), '2026-11-11')).toBe('Checked out');
+  });
+});
+
+describe('notifications', () => {
+  const confirmedMassage = {
+    id: 'service-hilom-1',
+    bookingId: 'HEN-241109',
+    title: 'Hilom signature massage',
+    scheduledFor: 'Tuesday · November 11 · 1:30 PM',
+    amount: '₱2,400',
+    status: 'confirmed' as const,
+  };
+
+  it('announces a ready room, and only once it is ready', () => {
+    const assigned = { ...UPCOMING_BOOKING_FIXTURE, roomNumber: '304', roomAssignment: 'assigned' as const };
+    const ready = { ...assigned, roomAssignment: 'ready' as const };
+
+    expect(getNotifications(MOCK_SESSION, assigned).some((n) => n.tone === 'room')).toBe(false);
+
+    const roomReady = getNotifications(MOCK_SESSION, ready).find((n) => n.tone === 'room');
+    expect(roomReady).toMatchObject({ title: 'Room 304 is ready', screen: 'stay-overview' });
+  });
+
+  it('raises one entry per confirmed service and none for a cancelled one', () => {
+    const session = {
+      ...MOCK_SESSION,
+      serviceBookings: [
+        confirmedMassage,
+        { ...confirmedMassage, id: 'service-tour-1', title: 'Intramuros walking tour', status: 'cancelled' as const },
+      ],
+    };
+
+    const bookings = getNotifications(session, UPCOMING_BOOKING_FIXTURE).filter((n) => n.tone === 'booking');
+    expect(bookings).toHaveLength(1);
+    expect(bookings[0]).toMatchObject({ title: 'Hilom signature massage confirmed', screen: 'my-trip' });
+  });
+
+  it('reports a dining order as in preparation rather than as a booking', () => {
+    const session = {
+      ...MOCK_SESSION,
+      serviceBookings: [{
+        ...confirmedMassage,
+        id: 'service-dining-1',
+        title: 'Apartment 1B',
+        diningOrder: {
+          venueId: 'apartment-1b',
+          venueName: 'Apartment 1B',
+          items: [{ id: 'ribeye', name: 'Grilled Angus Ribeye', unitPrice: '₱1,850', quantity: 1 }],
+          fulfillment: { method: 'delivery' as const, timing: 'asap' as const, scheduledFor: 'As soon as possible' },
+        },
+      }],
+    };
+
+    const order = getNotifications(session, UPCOMING_BOOKING_FIXTURE).find((n) => n.title === 'Your order is being prepared');
+    expect(order).toMatchObject({ tone: 'booking', screen: 'my-trip' });
+  });
+
+  it('raises a folio charge only for a stay that has started', () => {
+    const charged = { ...MOCK_SESSION, folioTotal: '₱3,050' };
+    const active = { ...UPCOMING_BOOKING_FIXTURE, status: 'active' as const, roomNumber: '304' };
+
+    expect(getNotifications(charged, active).some((n) => n.tone === 'folio')).toBe(true);
+    expect(getNotifications(charged, UPCOMING_BOOKING_FIXTURE).some((n) => n.tone === 'folio')).toBe(false);
+    expect(getNotifications(MOCK_SESSION, active).some((n) => n.tone === 'folio')).toBe(false);
+  });
+
+  it('carries travel confirmations, which belong to the trip rather than the stay', () => {
+    const session = {
+      ...MOCK_SESSION,
+      travelBookings: [{
+        id: 'travel-1',
+        reference: 'CBP-8842',
+        categoryId: 'flights' as const,
+        operator: 'Cebu Pacific',
+        detail: '5J 561',
+        meta: 'Mon, Nov 16 · 7:05 AM',
+        route: 'Manila (MNL) → Cebu (CEB)',
+        date: '2026-11-16',
+        travellers: 2,
+        amount: '₱4,280',
+        status: 'confirmed' as const,
+      }],
+    };
+
+    expect(getNotifications(session, UPCOMING_BOOKING_FIXTURE).find((n) => n.tone === 'travel')).toMatchObject({
+      title: 'Cebu Pacific booking confirmed',
+      screen: 'travel',
+    });
+  });
+
+  it('gives every entry a unique id so read state cannot collide', () => {
+    const session = {
+      ...MOCK_SESSION,
+      folioTotal: '₱3,050',
+      serviceBookings: [confirmedMassage, { ...confirmedMassage, id: 'service-tour-1', title: 'Intramuros walking tour' }],
+    };
+    const active = { ...UPCOMING_BOOKING_FIXTURE, status: 'active' as const, roomNumber: '304', roomAssignment: 'ready' as const };
+
+    const ids = getNotifications(session, active).map((n) => n.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('has nothing to show before a booking is connected', () => {
+    expect(getNotifications(ANONYMOUS_SESSION, undefined)).toEqual([]);
   });
 });

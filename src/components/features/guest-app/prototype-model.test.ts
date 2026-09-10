@@ -43,7 +43,7 @@ describe('guest app prototype model', () => {
     // My Stay subsumed the old `my-bookings` screen rather than sitting beside
     // it -- two screens listing the same service bookings was the duplication
     // the nav pass exists to remove.
-    expect(SCREENS.find((s) => s.id === 'my-trip')?.title).toBe('My trip');
+    expect(SCREENS.find((s) => s.id === 'my-stay')?.title).toBe('My stay');
     expect(SCREENS.some((s) => (s.id as string) === 'my-bookings')).toBe(false);
     expect(SCREENS.find((s) => s.id === 'notifications')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'marketplace')?.title).toBe('Explore');
@@ -565,7 +565,7 @@ describe('notifications', () => {
 
     const bookings = getNotifications(session, UPCOMING_BOOKING_FIXTURE).filter((n) => n.tone === 'booking');
     expect(bookings).toHaveLength(1);
-    expect(bookings[0]).toMatchObject({ title: 'Hilom signature massage confirmed', screen: 'my-trip' });
+    expect(bookings[0]).toMatchObject({ title: 'Hilom signature massage confirmed', screen: 'my-stay' });
   });
 
   it('reports a dining order as in preparation rather than as a booking', () => {
@@ -585,7 +585,7 @@ describe('notifications', () => {
     };
 
     const order = getNotifications(session, UPCOMING_BOOKING_FIXTURE).find((n) => n.title === 'Your order is being prepared');
-    expect(order).toMatchObject({ tone: 'booking', screen: 'my-trip' });
+    expect(order).toMatchObject({ tone: 'booking', screen: 'my-stay' });
   });
 
   it('raises a folio charge only for a stay that has started', () => {

@@ -335,7 +335,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText(/added to room 512/i)).toBeInTheDocument();
     expect(screen.getByText(/hotel folio at checkout/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'View my trip' }));
+    await user.click(screen.getByRole('button', { name: 'View my stay' }));
     await user.click(screen.getByRole('button', { name: /room charges/i }));
     expect(screen.getByText('₱5,450')).toBeInTheDocument();
   });
@@ -365,7 +365,7 @@ describe('GuestAppPrototype', () => {
     });
     render(
       <GuestAppPrototype
-        initialScreen="my-trip"
+        initialScreen="my-stay"
         initialSession={sessionFor([active], {
           activeBookingId: 'active',
           folioTotal: '₱5,450',
@@ -385,6 +385,8 @@ describe('GuestAppPrototype', () => {
     expect(screen.getAllByText(/room 512/i).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: /hilom signature massage/i }));
     await user.click(screen.getByRole('button', { name: /cancel service/i }));
+    // Cancelling moves the booking out of Upcoming and into Past.
+    await user.click(screen.getByRole('tab', { name: /Past/ }));
     expect(screen.getByText('Cancelled')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Home' }));
@@ -413,7 +415,7 @@ describe('GuestAppPrototype', () => {
     // than a destination, and the front desk is a row inside My Trip.
     expect(navigation.querySelectorAll('button')).toHaveLength(4);
     expect(within(navigation).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['Home', 'Explore', 'My Trip', 'Profile']);
+      .toEqual(['Home', 'Explore', 'My Stay', 'Profile']);
     expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Wallet' })).toBeNull();
   });
@@ -935,7 +937,7 @@ describe('travel destination', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     const destinations = within(nav).getAllByRole('button').map((b) => b.textContent);
-    expect(destinations).toEqual(['Home', 'Explore', 'My Trip', 'Profile']);
+    expect(destinations).toEqual(['Home', 'Explore', 'My Stay', 'Profile']);
     // A travel screen still lights Explore: that is where the guest found it.
     expect(screen.getByRole('button', { name: 'Explore' })).toHaveAttribute('aria-current', 'page');
   });
@@ -1038,18 +1040,74 @@ describe('notifications', () => {
   });
 });
 
-describe('my trip', () => {
+describe('my stay', () => {
   it('answers what is booked and what is owed for the whole trip', () => {
-    render(<GuestAppPrototype initialScreen="my-trip" initialSession={activeSession} />);
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
-    expect(screen.getByRole('heading', { name: 'My trip', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'My stay', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('₱3,050')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /room charges/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+    // Upcoming and Past are tabs now, not stacked sections.
+    expect(screen.getByRole('tab', { name: /Upcoming/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Past/ })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('names the parent property on each booking card', () => {
+    const session = sessionFor(
+      [makeBooking({ id: 'active', property: 'The Henry Manila', status: 'active', roomNumber: '304', folioTotal: '₱3,050' })],
+      {
+        activeBookingId: 'active',
+        folioTotal: '₱3,050',
+        serviceBookings: [{
+          id: 'service-dining-1',
+          bookingId: 'active',
+          title: 'Azotea Rooftop',
+          scheduledFor: 'Tonight · 7:30 PM',
+          amount: '₱2,400',
+          status: 'confirmed',
+          diningOrder: {
+            venueId: 'rooftop',
+            venueName: 'Azotea Rooftop',
+            items: [{ id: 'x', name: 'Tasting menu', unitPrice: '₱2,400', quantity: 1 }],
+            fulfillment: { method: 'pickup', timing: 'scheduled', scheduledFor: '7:30 PM' },
+          },
+        }],
+      },
+    );
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={session} />);
+
+    // A guest moving between properties cannot be asked to remember which
+    // building a venue was in, so the card says so before they ask.
+    const card = document.querySelector('.guest-stay-entry__parent');
+    expect(card?.textContent).toContain('The Henry Manila');
+    expect(card?.textContent).toContain('Ninth floor terrace');
+  });
+
+  it('switches between upcoming and past without losing either', async () => {
+    const user = userEvent.setup();
+    const session = sessionFor(
+      [makeBooking({ id: 'active', status: 'active', roomNumber: '304' })],
+      {
+        activeBookingId: 'active',
+        serviceBookings: [
+          { id: 'a', bookingId: 'active', title: 'Hilom signature massage', scheduledFor: 'Tue · 1:30 PM', amount: '₱2,400', status: 'confirmed' },
+          { id: 'b', bookingId: 'active', title: 'Island day tour', scheduledFor: 'Mon · 8:00 AM', amount: '₱3,800', status: 'completed' },
+        ],
+      },
+    );
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={session} />);
+
+    expect(screen.getByRole('heading', { name: 'Hilom signature massage' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Island day tour' })).toBeNull();
+
+    await user.click(screen.getByRole('tab', { name: /Past/ }));
+
+    expect(screen.getByRole('heading', { name: 'Island day tour' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Hilom signature massage' })).toBeNull();
   });
 
   it('leads with where the stay sits in time', () => {
-    render(<GuestAppPrototype initialScreen="my-trip" initialSession={activeSession} />);
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
     // The reference stay runs 9-12 November against a fixed prototype today.
     expect(screen.getByText('Checks out tomorrow')).toBeInTheDocument();
@@ -1060,7 +1118,7 @@ describe('my trip', () => {
       [makeBooking({ id: 'soon', status: 'upcoming', checkIn: '2026-11-14', checkOut: '2026-11-17' })],
       { activeBookingId: 'soon' },
     );
-    render(<GuestAppPrototype initialScreen="my-trip" initialSession={upcoming} />);
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={upcoming} />);
 
     // No folio can exist yet, so the block is absent rather than showing zero.
     expect(screen.queryByRole('heading', { name: 'Running total' })).toBeNull();
@@ -1069,7 +1127,7 @@ describe('my trip', () => {
 
   it('keeps the front desk one tap away now that it is not a tab', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="my-trip" initialSession={activeSession} />);
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
     await user.click(screen.getByRole('button', { name: /Front desk/ }));
 
@@ -1111,7 +1169,7 @@ describe('travel checkout', () => {
     expect(screen.getByText('Marco Santos')).toBeInTheDocument();
   });
 
-  it('books the leg and lands it in my trip', async () => {
+  it('books the leg and lands it in my stay', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
     await pickFlight(user);
@@ -1120,12 +1178,13 @@ describe('travel checkout', () => {
     expect(screen.getByRole('heading', { name: 'Your flight is booked' })).toBeInTheDocument();
     expect(screen.getByText(/Bring government ID/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'View my trip' }));
+    await user.click(screen.getByRole('button', { name: 'View my stay' }));
     // The leg lands beside the on-property bookings rather than in a Travel
-    // section of its own: My Trip is the one place the whole trip is listed.
-    expect(screen.getByRole('heading', { name: 'My trip', level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Upcoming' })).toBeInTheDocument();
-    expect(screen.getByText(/Cebu Pacific · 09:15 → 11:05/)).toBeInTheDocument();
+    // section of its own: My Stay is the one place the whole trip is listed.
+    expect(screen.getByRole('heading', { name: 'My stay', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Upcoming/ })).toHaveAttribute('aria-selected', 'true');
+    // The carrier is the card's parent, since the carrier is who gets paid.
+    expect(screen.getByText('Cebu Pacific')).toBeInTheDocument();
     expect(screen.getByText(/paid to the operator/)).toBeInTheDocument();
   });
 

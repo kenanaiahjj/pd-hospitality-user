@@ -34,7 +34,7 @@ export type ScreenId =
   | 'service-booking'
   | 'booking-confirmation'
   | 'booking-blocked'
-  | 'my-trip'
+  | 'my-stay'
   | 'cancel-before-cutoff'
   | 'cancel-after-cutoff'
   | 'folio'
@@ -95,7 +95,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(29, 'Stay', 'service-booking', 'Choose a time'),
   screen(30, 'Stay', 'booking-confirmation', 'Service confirmed'),
   screen(31, 'Stay', 'booking-blocked', 'Connect to book'),
-  screen(32, 'Stay', 'my-trip', 'My trip'),
+  screen(32, 'Stay', 'my-stay', 'My stay'),
   screen(33, 'Stay', 'cancel-before-cutoff', 'Cancel service'),
   screen(34, 'Stay', 'cancel-after-cutoff', 'Contact front desk'),
   screen(35, 'Stay', 'folio', 'Room charges'),
@@ -562,6 +562,103 @@ export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
 ];
 
 /**
+ * One row of My Stay, whatever it started life as -- a spa booking, a dining
+ * order, a ferry.
+ *
+ * The `parent` pair is the point. Every bookable thing in Cabana belongs to
+ * something larger: a restaurant belongs to a hotel, a massage belongs to a
+ * spa inside a hotel, a sailing belongs to an operator. A card that names only
+ * the thing ("Azotea Rooftop") makes the guest remember which building it was
+ * in -- and across a multi-property trip they cannot. So the card leads with
+ * the parent and treats the booking as the child.
+ */
+export type StayEntryKind = 'service' | 'dining' | 'travel';
+
+export type StayEntry = {
+  id: string;
+  kind: StayEntryKind;
+  title: string;
+  /** When it happens, and what it costs. */
+  detail: string;
+  amount: string;
+  status: 'confirmed' | 'cancelled' | 'completed';
+  /** What this belongs to: the hotel, or the carrier for a leg. */
+  parent: string;
+  /** Where inside the parent, or the route for a leg. */
+  parentDetail?: string;
+  /** How it settles, in the guest's terms. */
+  settlement: string;
+  /** Where tapping it goes, when it goes anywhere. */
+  screen?: ScreenId;
+};
+
+/**
+ * Splits everything the guest has booked into what is still ahead and what is
+ * behind. Travel legs sit alongside on-property bookings rather than in a
+ * section of their own: on this screen the question is "what have I booked",
+ * and the answer does not care which system supplied it.
+ */
+export function getStayEntries(
+  session: GuestSession,
+  booking?: Booking,
+): { upcoming: StayEntry[]; past: StayEntry[] } {
+  if (!booking) return { upcoming: [], past: [] };
+
+  const venueProperty = (venueName: string) =>
+    RESTAURANTS.find((venue) => venue.name === venueName);
+
+  const entries: StayEntry[] = [];
+
+  for (const service of session.serviceBookings) {
+    if (service.bookingId !== booking.id) continue;
+
+    const venue = service.diningOrder ? venueProperty(service.diningOrder.venueName) : undefined;
+    const itemCount = service.diningOrder
+      ? service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)
+      : 0;
+
+    entries.push({
+      id: service.id,
+      kind: service.diningOrder ? 'dining' : 'service',
+      title: service.title,
+      detail: service.diningOrder
+        ? `${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${service.scheduledFor}`
+        : service.scheduledFor,
+      amount: service.amount,
+      status: service.status,
+      // The hotel is the parent whether or not the venue is in the catalogue:
+      // an on-property booking belongs to the property it was made at.
+      parent: booking.property,
+      parentDetail: venue?.location,
+      settlement: `Added to ${booking.roomNumber ? `room ${booking.roomNumber}` : 'your room'} · settles at checkout`,
+      screen: service.status === 'confirmed' ? 'cancel-before-cutoff' : undefined,
+    });
+  }
+
+  for (const leg of session.travelBookings) {
+    entries.push({
+      id: leg.id,
+      kind: 'travel',
+      title: leg.detail,
+      detail: leg.meta,
+      amount: leg.amount,
+      status: leg.status,
+      // A carrier, not a hotel. Travel is the one thing here whose parent is
+      // outside the estate, and the card should not imply the hotel sold it.
+      parent: leg.operator,
+      parentDetail: leg.route ?? undefined,
+      settlement: `${leg.reference} · paid to the operator`,
+      screen: undefined,
+    });
+  }
+
+  return {
+    upcoming: entries.filter((entry) => entry.status === 'confirmed'),
+    past: entries.filter((entry) => entry.status !== 'confirmed'),
+  };
+}
+
+/**
  * What the bell has to say. Derived rather than stored: every fact here
  * already lives in the session, and a second copy would be a second thing to
  * keep in sync. Read state is the one part that cannot be derived, so it lives
@@ -606,14 +703,14 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
       title: 'Your order is being prepared',
       body: `${service.diningOrder.venueName} · ${service.diningOrder.fulfillment.scheduledFor}`,
       time: '10m ago',
-      screen: 'my-trip',
+      screen: 'my-stay',
     } : {
       id: `notification-service-${service.id}`,
       tone: 'booking',
       title: `${service.title} confirmed`,
       body: `${service.scheduledFor} · added to ${room.toLowerCase()}`,
       time: '1h ago',
-      screen: 'my-trip',
+      screen: 'my-stay',
     });
   }
 
@@ -1522,6 +1619,9 @@ export type RestaurantVenue = {
   operator: string;
   priceRange: string;
   hours: string;
+  /** The hotel this venue sits inside. Its parent in the estate. */
+  property: string;
+  /** Where inside that hotel -- "Ninth floor terrace". Not a substitute. */
   location: string;
   description: string;
   cutoff: string;
@@ -1537,6 +1637,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     operator: 'Hotel operated',
     priceRange: 'From ₱550',
     hours: '6:30 AM – 11:00 PM',
+    property: 'The Henry Manila',
     location: 'Ground floor courtyard',
     description: 'Gourmet comfort food, artisan breakfast, and hand-crafted cocktails in a lush garden setting.',
     cutoff: 'Table reservation or walk-in',
@@ -1660,6 +1761,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     operator: 'Hotel operated',
     priceRange: 'From ₱450',
     hours: '24 hours daily',
+    property: 'The Henry Manila',
     location: 'Delivered to your room',
     description: 'Comforting Filipino favorites, breakfast sets, and late-night cravings brought directly to your door.',
     cutoff: '2-hour cancellation cutoff',
@@ -1737,6 +1839,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     operator: 'Hotel operated',
     priceRange: 'From ₱350',
     hours: '11:00 AM – 12:00 MN',
+    property: 'The Henry Manila',
     location: 'Second floor pool deck',
     description: 'Tropical cocktails, artisanal spirits, local craft brews, and savory tapas by the pool.',
     cutoff: 'Walk-in or call front desk',
@@ -1784,6 +1887,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     operator: 'Hotel operated',
     priceRange: 'From ₱180',
     hours: '6:00 AM – 8:00 PM',
+    property: 'The Henry Manila',
     location: 'Lobby, beside reception',
     description: 'Single-origin Philippine coffee, morning pastries, and all-day light plates by the lobby garden.',
     cutoff: 'Walk-in & takeaway',
@@ -1857,6 +1961,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     operator: 'Hotel operated',
     priceRange: 'From ₱1,200',
     hours: '5:30 PM – 12:00 MN',
+    property: 'The Henry Manila',
     location: 'Ninth floor terrace',
     description: 'A tasting-led rooftop kitchen working Philippine produce over live fire, with the bay on three sides.',
     cutoff: '24-hour cancellation cutoff',

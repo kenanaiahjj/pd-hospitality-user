@@ -62,6 +62,7 @@ import {
   formatPesoAmount,
   getHomeVariant,
   getNotifications,
+  getStayEntries,
   getPostAuthScreen,
   getPrimaryBooking,
   getVenueCartSummary,
@@ -96,6 +97,7 @@ import {
   type Booking,
   type GuestNotification,
   type GuestSession,
+  type StayEntry,
   type NotificationTone,
   type DiningFulfillment,
   type MenuItemCategory,
@@ -120,7 +122,7 @@ type ActiveScreen = ScreenId | 'entry-hub';
 /**
  * Which screens light which tab. Explore owns the whole catalogue -- the
  * property's own services and the onward legs alike -- and everything reached
- * by booking from it; My Trip owns the reservations, the running bill, and the
+ * by booking from it; My Stay owns the reservations, the running bill, and the
  * front desk. Both are declared once here so the tab bar cannot disagree with
  * itself.
  */
@@ -139,8 +141,8 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
   'booking-blocked',
 ];
 
-const MY_TRIP_SCREENS: ActiveScreen[] = [
-  'my-trip',
+const MY_STAY_SCREENS: ActiveScreen[] = [
+  'my-stay',
   'folio',
   'chat',
   'chat-after-hours',
@@ -968,6 +970,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     what clears the dot on the bell; a row keeps its own dot until it is
     actually opened.
   */
+  const [stayTab, setStayTab] = useState<'upcoming' | 'past'>('upcoming');
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
@@ -1009,7 +1012,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 850);
   };
 
-  const showNav = ['stay-overview', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-trip', 'notifications', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history', 'travel', 'travel-search'].includes(activeScreen);
+  const showNav = ['stay-overview', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history', 'travel', 'travel-search'].includes(activeScreen);
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1032,6 +1035,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const contextService = session.serviceBookings.find(
     (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
   );
+
+  const stayEntries = getStayEntries(session, primaryBooking);
+  const visibleStayEntries = stayTab === 'upcoming' ? stayEntries.upcoming : stayEntries.past;
 
   const notifications = getNotifications(session, primaryBooking);
   const unreadNotifications = notifications.filter((item) => !seenNotificationIds.includes(item.id)).length;
@@ -1998,17 +2004,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <FormScreen step="Charged to room" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Hilom signature massage" value="₱2,400" /><SummaryRow label="Property" value={contextBooking.property} /><SummaryRow label="Guest" value={session.guestName} /><SummaryRow label={contextRoom} value="Charge at checkout" /><SummaryRow label="Total added to folio" value="₱2,400" strong /></div><Button className="guest-button guest-button--primary" type="button" onClick={confirmService}>Confirm and charge to room<ArrowRight aria-hidden="true" /></Button></FormScreen>;
 
       case 'booking-confirmation':
-        return <ScreenIntro icon={<Check size={30} />} eyebrow="Booking confirmed" title="Your massage is booked" text={`The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The folio line remains.</Notice>{primary('View my trip', 'my-trip')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Check size={30} />} eyebrow="Booking confirmed" title="Your massage is booked" text={`The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The folio line remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
 
       case 'booking-blocked':
         return <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Connection required" title="We can’t hold a time while offline" text="Live services are not queued because the slot or price could change before you reconnect."><Notice tone="offline" title="Nothing was booked">Connect to hotel Wi-Fi and try again. You can still message the front desk; the message will wait on this device.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => { setOnline(true); go('vendor-service'); }}>Try again</TextButton></ScreenIntro>;
 
-      case 'my-trip': {
+      case 'my-stay': {
         if (!primaryBooking) return <EmptyStayHome onNavigate={go} />;
 
-        const stayServices = session.serviceBookings.filter((service) => service.bookingId === contextBooking.id);
-        const upcomingServices = stayServices.filter((service) => service.status === 'confirmed');
-        const pastServices = stayServices.filter((service) => service.status !== 'confirmed');
         // A stay that has not started cannot have run anything up, so the folio
         // block is absent rather than showing a confident zero.
         const started = contextBooking.status !== 'upcoming';
@@ -2029,7 +2032,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <div className="guest-stack">
             <div className="guest-page-title">
               <p className="guest-eyebrow">{contextBooking.property} · {contextRoom}</p>
-              <h1>My trip</h1>
+              <h1>My stay</h1>
             </div>
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
@@ -2068,73 +2071,49 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </section>
             ) : null}
 
+            {/*
+              Tabbed, not two stacked sections. Past bookings are reference
+              material a guest consults occasionally; stacking them under the
+              live ones meant scrolling past history to reach what is next.
+            */}
             <section>
-              <SectionHeading title="Upcoming" />
-              {upcomingServices.length || travelLegs.length ? (
-                <div className="guest-stack" style={{ gap: '10px' }}>
-                  {travelLegs.map((leg) => (
-                    <div key={leg.id} className="guest-booking-card is-static">
-                      <div>
-                        <Tag tone="positive">Confirmed</Tag>
-                        <h2>{leg.operator} · {leg.detail}</h2>
-                        <p>{leg.route ?? leg.meta} · {leg.amount}</p>
-                        <small>{leg.reference} · paid to the operator</small>
-                      </div>
-                    </div>
-                  ))}
-                  {upcomingServices.map((service) => (
-                    <button key={service.id} className="guest-booking-card" onClick={() => go('cancel-before-cutoff')} type="button">
-                      <div>
-                        <Tag tone="positive">Confirmed</Tag>
-                        <h2>{service.title}</h2>
-                        <p>{service.scheduledFor} · {service.amount}</p>
-                        <small>On property · added to {contextRoom.toLowerCase()} · settles at checkout</small>
-                      </div>
-                      <CaretRight />
-                    </button>
+              <div className="guest-menu-tabs" role="tablist" aria-label="Bookings">
+                {(['upcoming', 'past'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    role="tab"
+                    aria-selected={stayTab === tab}
+                    className={`guest-menu-tab ${stayTab === tab ? 'is-active' : ''}`}
+                    onClick={() => setStayTab(tab)}
+                    type="button"
+                  >
+                    {tab === 'upcoming' ? 'Upcoming' : 'Past'}
+                    <span className="guest-menu-tab__count">{tab === 'upcoming' ? stayEntries.upcoming.length : stayEntries.past.length}</span>
+                  </button>
+                ))}
+              </div>
+
+              {visibleStayEntries.length ? (
+                <div className="guest-stay-entries">
+                  {visibleStayEntries.map((entry) => (
+                    <StayEntryCard key={entry.id} entry={entry} onOpen={entry.screen ? () => go(entry.screen!) : undefined} />
                   ))}
                 </div>
               ) : (
                 <div className="guest-hub-empty">
-                  <h2>Nothing booked yet</h2>
-                  <p>Dining, spa, tours and onward travel are in Explore. On-property bookings are added to {contextRoom.toLowerCase()} and settle at checkout.</p>
-                  <Button className="guest-button guest-button--primary" type="button" onClick={() => go('marketplace')}>
-                    Explore on-property<ArrowRight aria-hidden="true" />
-                  </Button>
+                  <h2>{stayTab === 'upcoming' ? 'Nothing booked yet' : 'Nothing here yet'}</h2>
+                  <p>
+                    {stayTab === 'upcoming'
+                      ? `Dining, spa, tours and onward travel are in Explore. On-property bookings are added to ${contextRoom.toLowerCase()} and settle at checkout.`
+                      : 'Bookings move here once they are done or cancelled.'}
+                  </p>
+                  {stayTab === 'upcoming' ? (
+                    <Button className="guest-button guest-button--primary" type="button" onClick={() => go('marketplace')}>
+                      Explore on-property<ArrowRight aria-hidden="true" />
+                    </Button>
+                  ) : null}
                 </div>
               )}
-            </section>
-
-            {/*
-              Activity, not a second bookings list: these are the same objects
-              as the folio lines above, once they have stopped being upcoming.
-            */}
-            <section>
-              <SectionHeading title="Activity" />
-              <div className="guest-stack" style={{ gap: '10px' }}>
-                {pastServices.map((service) => (
-                  <div key={service.id} className="guest-booking-card is-static">
-                    <div>
-                      <Tag tone={service.status === 'cancelled' ? 'neutral' : 'positive'}>
-                        {service.status === 'cancelled' ? 'Cancelled' : 'Completed'}
-                      </Tag>
-                      <h2>{service.title}</h2>
-                      <p>{service.scheduledFor} · {service.amount}</p>
-                      <small>On property · settled with the room folio</small>
-                    </div>
-                  </div>
-                ))}
-                {!pastServices.length ? (
-                  <div className="guest-booking-card is-static">
-                    <div>
-                      <Tag>Completed</Tag>
-                      <h2>Airport transfer</h2>
-                      <p>Sun, Nov 9 · 9:00 AM · ₱1,200</p>
-                      <small>Hotel arranged · settled at checkout</small>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
             </section>
 
             <section>
@@ -2208,13 +2187,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             serviceBookings: current.serviceBookings.map((service) => service.id === cancellableService.id ? { ...service, status: 'cancelled' } : service),
             folioTotal: contextBooking.folioTotal ?? current.folioTotal,
           }));
-          go('my-trip');
+          go('my-stay');
         };
-        return <ScreenIntro eyebrow="30 hours before service" title="Cancel this booking?" text="This is before the provider’s 24-hour cutoff, so you can cancel it yourself."><div className="guest-ticket"><div><small>{cancellableService.scheduledFor}</small><h2>1:30 PM</h2><p>{cancellableService.title} · {cancellableService.amount} · {contextRoom}</p></div></div><Notice tone="positive" title="The folio line will be removed">This service has not settled. No money moves when you cancel.</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">Cancel service</button><TextButton onClick={() => go('my-trip')}>Keep booking</TextButton><div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div></ScreenIntro>;
+        return <ScreenIntro eyebrow="30 hours before service" title="Cancel this booking?" text="This is before the provider’s 24-hour cutoff, so you can cancel it yourself."><div className="guest-ticket"><div><small>{cancellableService.scheduledFor}</small><h2>1:30 PM</h2><p>{cancellableService.title} · {cancellableService.amount} · {contextRoom}</p></div></div><Notice tone="positive" title="The folio line will be removed">This service has not settled. No money moves when you cancel.</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">Cancel service</button><TextButton onClick={() => go('my-stay')}>Keep booking</TextButton><div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div></ScreenIntro>;
       }
 
       case 'cancel-after-cutoff':
-        return <ScreenIntro eyebrow="4 hours before service" title="Contact the front desk to change this" text="The provider’s 24-hour self-service cutoff has passed. The charge stays on your room folio."><Notice tone="warning" title="Front desk help required">Send a message and the team will check what the provider can do.</Notice>{primary('Chat with front desk', 'chat')}<TextButton onClick={() => go('my-trip')}>Keep booking</TextButton><div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div></ScreenIntro>;
+        return <ScreenIntro eyebrow="4 hours before service" title="Contact the front desk to change this" text="The provider’s 24-hour self-service cutoff has passed. The charge stays on your room folio."><Notice tone="warning" title="Front desk help required">Send a message and the team will check what the provider can do.</Notice>{primary('Chat with front desk', 'chat')}<TextButton onClick={() => go('my-stay')}>Keep booking</TextButton><div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div></ScreenIntro>;
 
       case 'folio': {
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom);
@@ -3055,7 +3034,7 @@ const fare = category.options.find((option) => option.id === selectedFare);
             <Notice title="Bring government ID">
               Philippine carriers check passenger names against ID at the gate. The name on this booking must match the ID each traveller brings.
             </Notice>
-            {primary('View my trip', 'my-trip')}
+            {primary('View my stay', 'my-stay')}
             <TextButton onClick={() => go('travel')}>Book another leg</TextButton>
           </ScreenIntro>
         );
@@ -3178,10 +3157,10 @@ const fare = category.options.find((option) => option.id === selectedFare);
                 onClick={() => go('marketplace')}
               />
               <NavButton
-                label="My Trip"
+                label="My Stay"
                 icon={<Receipt />}
-                active={MY_TRIP_SCREENS.includes(activeScreen)}
-                onClick={() => go('my-trip')}
+                active={MY_STAY_SCREENS.includes(activeScreen)}
+                onClick={() => go('my-stay')}
               />
               <NavButton
                 label="Profile"
@@ -3509,6 +3488,51 @@ function AnnouncementsSection() {
       </div>
     </section>
   );
+}
+
+const STAY_ENTRY_ICONS: Record<StayEntry['kind'], ReactNode> = {
+  service: <Sparkle />,
+  dining: <ForkKnife />,
+  travel: <AirplaneTilt />,
+};
+
+/**
+ * One booking, as a card that names its parent first.
+ *
+ * The parent line is not decoration. A guest island-hopping through three
+ * properties sees "Azotea Rooftop · 7:30 PM" and has to remember which hotel
+ * that was; "The Henry Manila · Ninth floor terrace" answers it before they
+ * ask. For a travel leg the parent is the carrier instead, which also keeps
+ * the card honest about who is being paid.
+ */
+function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => void }) {
+  const body = (
+    <>
+      <div className="guest-stay-entry__parent">
+        <span aria-hidden="true">{STAY_ENTRY_ICONS[entry.kind]}</span>
+        <div>
+          <b>{entry.parent}</b>
+          {entry.parentDetail ? <small>{entry.parentDetail}</small> : null}
+        </div>
+      </div>
+      <div className="guest-stay-entry__body">
+        <Tag tone={entry.status === 'confirmed' ? 'positive' : entry.status === 'cancelled' ? 'neutral' : 'positive'}>
+          {entry.status === 'confirmed' ? 'Confirmed' : entry.status === 'cancelled' ? 'Cancelled' : 'Completed'}
+        </Tag>
+        <h2>{entry.title}</h2>
+        <p>{entry.detail}</p>
+        <small>{entry.settlement}</small>
+      </div>
+      <div className="guest-stay-entry__footer">
+        <strong>{entry.amount}</strong>
+        {onOpen ? <span className="guest-stay-entry__action">Manage<CaretRight /></span> : null}
+      </div>
+    </>
+  );
+
+  if (!onOpen) return <div className="guest-stay-entry is-static">{body}</div>;
+
+  return <button className="guest-stay-entry" type="button" onClick={onOpen}>{body}</button>;
 }
 
 function UpcomingBookingCard({ booking, primary = false, onNavigate }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void }) {

@@ -531,7 +531,13 @@
   z-index: var(--z-nav);
   display: grid;
   flex: 0 0 auto;
-  grid-template-columns: repeat(4, 1fr);
+  /*
+    However many slots there are, not four. The count is not fixed: a guest
+    with no booking has no Explore and no My Stay, and `repeat(4, 1fr)` left
+    those two columns empty, so a two-slot bar bunched against the left edge.
+  */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   min-height: var(--guest-nav-h);
   padding: 6px var(--app-inset) calc(10px + env(safe-area-inset-bottom));
   border-top: 1px solid color-mix(in oklch, var(--guest-line) 72%, transparent);

@@ -37,6 +37,7 @@ import {
   ShieldCheck,
   SuitcaseRolling,
   Lock,
+  Car,
   UserCircle,
   Users,
   Wrench,
@@ -56,6 +57,7 @@ import {
   canUseOnPropertyServices,
   connectBooking,
   describeBookingSlot,
+  describeGuestGate,
   describePostStayWindow,
   isPreArrivalService,
   requestFrontDeskUnlock,
@@ -172,6 +174,14 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
  * cover a guest three days out and a guest standing in their room, and the two
  * need opposite things said to them -- one is waiting, the other can act now.
  */
+/** One glyph per arrival service, so the column reads as four things. */
+const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
+  transfer: <Car />,
+  'private-car': <Person />,
+  luggage: <SuitcaseRolling />,
+  celebration: <Sparkle />,
+};
+
 type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out';
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
@@ -1578,7 +1588,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               title="Confirm you’re in the room"
               text="Scanning the desk card tells the property you have arrived. It is what opens dining, spa, tours and charging to your room."
             >
-              <StayMiniCard booking={contextBooking} status={describeStayStatus(contextBooking).label} />
+              <StayMiniCard booking={contextBooking} status={describeGuestGate(contextBooking).label} />
               <Button className="guest-button guest-button--primary" type="button" onClick={scanRoomCode}>
                 Scan the code<ArrowRight aria-hidden="true" />
               </Button>
@@ -2361,10 +2371,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     type="button"
                     onClick={() => go('service-booking')}
                   >
-                    <span><CategoryIcon id={service.categoryId} /></span>
+                    {/*
+                      A bare glyph per row, not four copies of the category
+                      chip. DESIGN.md's rule exists because a column of
+                      identical tinted discs is the loudest thing on a screen
+                      while marking nothing -- and four rows with four
+                      different meanings deserve four glyphs.
+                    */}
+                    <span>{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
                     <div>
                       <b>{service.name}</b>
-                      <small>{service.price} · Paid by card</small>
+                      {/* A complimentary thing is not paid by anything.
+                          Saying "Paid by card" under it reads as a charge the
+                          guest cannot find. */}
+                      <small>{service.price === 'Complimentary' ? 'Complimentary' : `${service.price} · Paid by card`}</small>
                     </div>
                     <CaretRight />
                   </button>
@@ -2389,7 +2409,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </section>
 
             <Notice title="The rest opens in your room">
-              Dining, spa, tours and hotel services are charged to {contextRoom.toLowerCase()}, so they open once you scan the code in it.
+              Dining, spa, tours and hotel services are charged to your room, so they open once you scan the code in it.
             </Notice>
           </div>
         );
@@ -2447,7 +2467,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               title="Scan the code in your room"
               text="It is on the desk card. Scanning confirms you are in the room, which is what opens dining, spa, tours and charging to your room."
             >
-              <StayMiniCard booking={contextBooking} status={describeStayStatus(contextBooking).label} />
+              {/*
+                The gate's label, not the stay badge. `describeStayStatus`
+                says "Checked in" for any open stay window, which on this
+                screen flatly contradicts the thing being asked for.
+              */}
+              <StayMiniCard booking={contextBooking} status={describeGuestGate(contextBooking).label} />
               <Button className="guest-button guest-button--primary" type="button" onClick={() => go('room-qr-landing')}>
                 Scan room code<ArrowRight aria-hidden="true" />
               </Button>
@@ -3065,12 +3090,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ) : (
                 <div className="guest-hub-empty">
                   <h2>{stayTab === 'upcoming' ? 'Nothing booked yet' : 'Nothing here yet'}</h2>
+                  {/*
+                    A stay that is over cannot be sold anything. This block
+                    was inviting a checked-out guest to charge to a room they
+                    had left, and pointing at an Explore tab their bar no
+                    longer carries.
+                  */}
                   <p>
-                    {stayTab === 'upcoming'
-                      ? `Dining, spa, tours, and hotel services are in Explore. Bookings are added to ${contextRoom.toLowerCase()} and settle at checkout.`
-                      : 'Bookings move here once they are done or cancelled.'}
+                    {stayTab !== 'upcoming'
+                      ? 'Bookings move here once they are done or cancelled.'
+                      : checkedOut
+                        ? 'Nothing was left open when you checked out.'
+                        : `Dining, spa, tours, and hotel services are in Explore. Bookings are added to ${contextRoom.toLowerCase()} and settle at checkout.`}
                   </p>
-                  {stayTab === 'upcoming' ? (
+                  {stayTab === 'upcoming' && !checkedOut ? (
                     <Button className="guest-button guest-button--primary" type="button" onClick={() => go('marketplace')}>
                       Explore on-property<ArrowRight aria-hidden="true" />
                     </Button>

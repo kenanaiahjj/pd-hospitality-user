@@ -19,6 +19,38 @@ straight to the booking lookup form for a reference number and last name. A
 room QR action appears on the active-stay Home only after arrival. It is not a
 hotel-discovery, flight, package, transport, or rewards product.
 
+### The four lifecycle gates
+
+Every question about what a screen may offer is a question about which gate
+the guest is in. All four resolve through `describeGuestGate`, and the third
+is the one that carries state.
+
+| Gate | Opened by | What it gives |
+|---|---|---|
+| Entry | SSO, then a booking reference and last name | the app itself |
+| Pre-arrival | a connected booking | transfers, private car, luggage, celebration setup, early check-in — paid by card — and the front desk |
+| In-stay | the guest scans the in-room QR | the full on-property catalogue and charge-to-room |
+| Post-stay | checkout | the settled receipt; the desk for 24 hours, then a private stay rating |
+
+The in-stay gate is `canUseOnPropertyServices(booking)` — the stay window is
+open, a room is allocated, and `booking.roomVerification` is set. Dates alone
+do not open anything: a guest whose calendar covers today could otherwise book
+a massage from an airport lounge in another city.
+
+**Cabana never checks anyone in.** The front desk does that, against the
+property's own PMS. The scan records only that the guest is in the room, which
+is all the app needs before it will charge to it. Copy must never say
+otherwise.
+
+**The scan has no self-serve bypass.** `I can't scan` calls
+`requestFrontDeskUnlock`, which files a request and deliberately does not set
+`roomVerification`; only the desk's reply grants it. A test asserts exactly
+that, and it is the test to leave alone.
+
+The verification lives on the `Booking`, never the session: a session holds
+several bookings across properties, and a scan in Manila says nothing about
+Cebu.
+
 The core commerce rule is non-negotiable:
 
 - Approved on-property services are added to the active room folio.
@@ -134,6 +166,16 @@ evidence that the requested app is covered.
   form, which asks for a reference number and last name.
 - Room QR is an arrived-stay action on the active Home. It is not an account
   or pre-arrival choice.
+- On-property booking and charge-to-room are gated on
+  `canUseOnPropertyServices`, never on dates alone. Do not re-derive the gate
+  at a call site.
+- The second tab slot is resolved by `describeBookingSlot`: Arrival before the
+  stay window opens, Explore once it does, Book again after checkout. Four
+  slots always, in fixed order. Explore is locked only for a guest who has
+  arrived and not scanned.
+- The front desk is reachable in every gate except a stay whose 24-hour
+  post-checkout window has closed.
+- Reviews are private to the property. Nothing publishes a score.
 - Bottom navigation is hidden during onboarding and appears only after a
   booking is connected.
 - A connected guest can reach Stay, Services, Chat, and Profile.
@@ -257,6 +299,15 @@ The Room QR action is shown on Home only when the stay is active, after the
 guest has arrived. The room QR path links the active booking and uses the
 current prototype fixture's Room 304. The linking mutation keeps the booking
 `active` and initializes the room folio at `₱3,050` when needed.
+
+A guest who already holds the booking sees a shorter screen — `Scan the code`,
+which calls `verifyRoomPresence(… 'scan')` and lands on `room-qr-midstay`.
+Asking for their surname again would be a form for its own sake. A stranger
+scanning the same code still has to identify which booking is theirs.
+
+`I can't scan` files a desk request and opens the thread. The prototype stands
+in for the desk's own tool with a marked control inside the chat; in
+production that grant happens on the property's side.
 
 ### Active stay services
 

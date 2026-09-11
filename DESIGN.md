@@ -93,10 +93,22 @@ Primary actions are pink pills with ink labels. Secondary actions are white pill
 with a hairline. Tertiary actions are accent-coloured text buttons. Every
 interactive element clears a 44px target and ships default, hover, focus, active,
 and disabled. Selection — a date, a time slot, a tile — is the accent fill with
-ink on top. The tab bar is flat and full-width with four stable destinations —
-Home, Explore, My Trip, Profile — and marks the current one with the accent, not
-with a coloured pill. Each destination answers one question: what is happening
-now, what can I book, what have I booked and what do I owe, who am I. Anything
-that is an action rather than a place stays off the bar: the front desk is a row
-inside My Trip, and notifications are the bell in the navigation bar's right
-slot.
+ink on top. The tab bar is flat and full-width with four stable slots, in fixed
+order, and marks the current one with the accent rather than with a coloured
+pill. A slot is defined by the question it answers, not by a fixed label: what
+is happening now, what can I book, what have I booked and what do I owe, who am
+I. Three of the four therefore read Home, My Stay and Profile throughout.
+
+The second slot is the exception, because the honest answer to *what can I book
+right now* changes with where the guest is in their stay: **Arrival** before the
+stay window opens, offering transfers and the things that should be waiting in
+the room; **Explore**, the full on-property catalogue, once it does; **Book
+again** once the stay is over. No slot is ever removed or reordered — the bar
+must not reflow, and a destination must not vanish. Explore is locked in exactly
+one state, the guest who has arrived and not yet scanned their room code, and
+there its primary action is that scan: a lock is only fair where the guest can
+open it on the spot.
+
+Anything that is an action rather than a place stays off the bar: the front desk
+is a row inside My Stay, and notifications are the bell in the navigation bar's
+right slot.

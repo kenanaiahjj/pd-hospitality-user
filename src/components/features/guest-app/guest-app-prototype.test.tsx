@@ -2351,3 +2351,12 @@ describe('post-stay front desk window', () => {
     expect(screen.getByText(/You rated this stay 5/)).toBeInTheDocument();
   });
 });
+
+describe('checked-out My Stay copy', () => {
+  it('does not invite a checked-out guest to charge to a room they have left', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('closed')} />);
+
+    expect(screen.queryByText(/settle at checkout\.$/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Explore on-property/ })).toBeNull();
+  });
+});

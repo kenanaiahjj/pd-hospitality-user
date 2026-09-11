@@ -2685,3 +2685,12 @@ describe('navigation without a booking', () => {
     expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
   });
 });
+
+describe('tab bar spacing', () => {
+  it('spreads however many slots it has, rather than assuming four', () => {
+    // `repeat(4, 1fr)` left two columns empty when the bar has two slots, so
+    // Home and Profile bunched against the left edge.
+    expect(guestStyles).toMatch(/\.guest-bottom-nav\s*\{[^}]*grid-auto-columns:\s*1fr/);
+    expect(guestStyles).not.toMatch(/\.guest-bottom-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4/);
+  });
+});

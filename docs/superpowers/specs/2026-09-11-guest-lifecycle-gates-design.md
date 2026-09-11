@@ -30,11 +30,16 @@ The guest app becomes an explicit four-gate lifecycle — **Entry**,
 **Pre-arrival**, **In-stay**, **Post-stay** — where each gate decides what the
 app will let a guest do, and one fact opens each one. The gate that does not
 exist today is the one that matters most: scanning the QR code in the room is
-what proves a guest is physically on property, and only that scan unlocks the
-Explore catalogue and charge-to-room. Before it, the app offers a narrow arrival
-surface — transfers, early check-in, luggage, celebration setup — paid by card.
-After checkout, the front desk stays reachable for 24 hours, then the stay
-closes into a settled summary with a review.
+how a guest proves to the property that they are in it, and only that proof
+unlocks the on-property catalogue and charge-to-room. Before arrival the same
+tab slot offers a narrower surface — transfers, early check-in, luggage,
+celebration setup — paid by card. After checkout, the front desk stays
+reachable for 24 hours, then the stay closes into a settled summary with a
+review.
+
+The second tab is one slot with three contents, never a locked dead end except
+at the single moment a guest can act on it: **Arrival** before the stay window
+opens, **Explore** once it does, **Book again** once the stay is over.
 
 ## Context
 
@@ -61,7 +66,7 @@ What each gate looks like now:
 | Gate | State today |
 |---|---|
 | 1 · Entry | **Done.** `Get started` → SSO sheet → `identify` (reference + last name). Shipped in `8a54f2b`, `9281648`. |
-| 2 · Pre-arrival | **Partial.** Screens exist. No pre-arrival booking of any kind; `openServiceBooking` blocks with `not-checked-in`. Chat is classified Stay-only in `MY_STAY_SCREENS`. |
+| 2 · Pre-arrival | **Partial.** Screens exist. No pre-arrival booking of any kind; `openServiceBooking` blocks with `not-checked-in`. Chat is classified Stay-only in `MY_STAY_SCREENS`. No Arrival surface. |
 | 3 · In-stay | **Missing.** Gated on dates, not on presence. Nothing records that a scan happened. |
 | 4 · Post-stay | **Partial.** The settled-stay summary landed 2026-09-11. No 24-hour chat window, no review. |
 
@@ -79,6 +84,15 @@ in, and the app currently cannot answer it.
 - **No real QR camera.** The prototype simulates the scan with a button, as
   `room-qr-landing` does today. Camera access, deep links, and QR payload
   signing are out of scope.
+- **No rotating per-stay code.** A code printed in a room can be photographed
+  and used off-property, so the scan is a presence ritual and a room binding,
+  not an authentication boundary. Hardening it means the PMS issuing a token
+  per stay and invalidating it at checkout — middleware and property ops, not
+  app work. Recorded here as the upgrade path so it is not mistaken for a gap.
+- **No live 24-hour countdown.** The post-stay window is computed from a
+  timestamp and stated as a label, but the prototype reaches the closed state
+  through the switcher rather than by elapsing. Nothing expires while a
+  stakeholder is looking at it.
 - **No public reviews.** The review is private to the property. There is no
   rating aggregation, no score on a property card, no discovery surface — that
   would contradict the zero-CAC positioning, where the app is only reachable at
@@ -101,12 +115,14 @@ in, and the app currently cannot answer it.
       storage, celebration setup, or early check-in, paying by card.
 - [ ] Scanning the in-room QR unlocks the full Explore catalogue and
       charge-to-room, and the unlock survives a page reload.
-- [ ] A guest who taps "Can't scan?" reaches the front desk, and a front-desk
-      unlock opens the same surfaces the scan would have.
+- [ ] Tapping "Can't scan?" unlocks nothing by itself: it files a request in
+      the front-desk thread, and only the desk's reply grants access. No
+      guest-side control sets the verification fact.
 - [ ] Front-desk chat is reachable in every gate except a stay closed more than
       24 hours.
-- [ ] The Explore tab is present in the tab bar in all four gates; pre-arrival
-      it renders a locked state naming the scan as the key.
+- [ ] The second tab holds a usable destination in every gate — Arrival,
+      Explore, or Book again — and is locked only when the stay window is open
+      and unverified, where its primary action is the scan.
 - [ ] Within 24 hours of checkout, My Stay shows the settled summary and an open
       front-desk thread with time remaining.
 - [ ] After 24 hours, the thread is replaced by the stay summary — all
@@ -178,14 +194,39 @@ that no screen re-derives it. This follows the pattern `describeStayStatus`
 already established, and for the same stated reason: the badge and the surfaces
 must not be able to disagree.
 
+#### The second tab: one slot, three contents
+
+The tab bar's second slot answers one stable question — *what can I book right
+now* — and the honest answer differs by gate. It is never a dead tap, and it is
+locked in exactly one situation.
+
+| Gate | Label | Opens | Locked |
+|---|---|---|---|
+| Pre-arrival (window not open) | **Arrival** | `pre-arrival-services` | no |
+| Window open, unverified | **Explore** | `marketplace`, behind the scan | **yes** |
+| Window open, verified | **Explore** | `marketplace` | no |
+| Post-stay | **Book again** | `book-stay` | no |
+
+The locked row is placed deliberately. A wall shown to a guest three days out
+teaches them the app is closed; the same wall shown to a guest standing in
+their room, with the code on the desk in front of them, is the one moment the
+prompt is actionable. So the lock lives there and nowhere else. Post-stay the
+slot reaches the estate rebooking flow that already exists (`book-stay`,
+screens 47–51), which is the only thing a checked-out guest can still buy.
+
 Against the `CLAUDE.md` invariants: this work is entirely inside
 `src/components/features/guest-app/`. `prototype-model.ts` stays pure — the
 gate predicates are functions of a `Booking` and a clock, with no React and no
 browser API. Persistence stays in `session-storage.ts`. No new HTTP client, no
-new route handler, no new dependency. The one invariant this touches is
-DESIGN.md's "four stable destinations" rule, and it upholds it: the Explore tab
-stays in the bar in every gate and renders a locked state rather than
-disappearing.
+new route handler, no new dependency.
+
+DESIGN.md's "four stable destinations" rule is the one this bends, and
+deliberately. Four slots remain, in fixed order, each owning one question; what
+changes is slot two's label and content as the gate changes. The rule's purpose
+— that the bar never reflows and a destination never vanishes — is upheld. Its
+current wording names the four by fixed label and also says "My Trip" where the
+code says "My Stay", so DESIGN.md's Components section is updated in the same
+work to describe slots by question rather than by label.
 
 ### Components
 
@@ -232,10 +273,23 @@ room-qr-landing  ──Simulate scan──►  verifyRoomPresence(session, booki
    Explore unlocks      charge-to-room        my-stay folio block      room-qr-midstay
 ```
 
-The front-desk unlock is the same call with `method: 'front-desk'`, reached from
-the "Can't scan?" row on the locked Explore state and on `room-qr-landing`. The
-two methods differ only in what the confirmation screen says; every downstream
-gate reads the presence of the fact, not its method.
+The desk path reaches the same call, but never directly from the guest:
+
+```
+"Can't scan?"  ──►  requestFrontDeskUnlock  ──►  session.unlockRequest set
+                                                        │
+                                          chat opens, request seeded in thread
+                                                        │
+                                      scripted desk reply grants it (prototype:
+                                      the reply's action, or the controls panel)
+                                                        │
+                             verifyRoomPresence(… 'front-desk')  ──►  unlocked
+```
+
+The two methods differ only in what the confirmation says; every downstream
+gate reads the presence of the fact, not its method. What matters is that no
+control the guest can press writes it — that is the whole reason the desk path
+is a request rather than a button.
 
 ### Interfaces and contracts
 
@@ -269,13 +323,44 @@ export function canUseOnPropertyServices(
   today?: string,
 ): boolean;
 
-/** Records presence against one booking. Returns a new session. */
+/**
+ * The only path that sets the verification fact, whichever way presence was
+ * proven. `'front-desk'` is reachable solely from the scripted desk reply --
+ * never from a control the guest can press -- so that the gate keeps meaning
+ * "the property confirmed this guest is in this room".
+ */
 export function verifyRoomPresence(
   session: GuestSession,
   bookingId: string,
   method: RoomVerification['method'],
   today?: string,
 ): GuestSession;
+
+/**
+ * A guest saying "I can't scan". It unlocks nothing on its own: it files a
+ * structured request in the front-desk thread and waits for the desk to
+ * grant it, which is what keeps the QR from having a self-serve bypass.
+ */
+export type UnlockRequest = { bookingId: string; requestedAt: string };
+
+export function requestFrontDeskUnlock(
+  session: GuestSession,
+  bookingId: string,
+  today?: string,
+): GuestSession;
+
+/** What the second tab is in this gate. Read by the bar and by the screen. */
+export type BookingSlot = {
+  label: 'Arrival' | 'Explore' | 'Book again';
+  screen: 'pre-arrival-services' | 'marketplace' | 'book-stay';
+  /** True only when the stay window is open and presence is unproven. */
+  locked: boolean;
+};
+
+export function describeBookingSlot(
+  booking: Booking | undefined,
+  today?: string,
+): BookingSlot;
 
 /**
  * The catalogue entries a guest can book before they are in the room, because
@@ -306,10 +391,15 @@ export type StayReview = {
 };
 ```
 
-`GuestSession` gains `reviews: StayReview[]`. `Booking` gains
-`roomVerification?: RoomVerification` and `checkedOutAt?: string` — the latter
-because the 24-hour window needs a timestamp and `checkOut` is a date with no
-time of day.
+`GuestSession` gains `reviews: StayReview[]` and `unlockRequest?:
+UnlockRequest`. `Booking` gains `roomVerification?: RoomVerification` and
+`checkedOutAt?: string` — the latter because the 24-hour window needs a
+timestamp and `checkOut` is a date with no time of day.
+
+One new screen id, `pre-arrival-services` (screen 52, group `Pre-arrival`),
+holds the Arrival surface. No other screen ids are added; the locked Explore
+state is a branch inside `marketplace`, not a screen of its own, so the tab
+does not change destination when it locks.
 
 No HTTP boundary is crossed, so the `{ data }` / `{ error }` envelope in
 `src/types/api.ts` does not apply. Everything here is in-memory prototype state.
@@ -322,8 +412,9 @@ from three reasons to five:
 | Failure | Reason | Surfaced as |
 |---|---|---|
 | Offline | `offline` | existing screen, unchanged |
-| Stay has not started | `not-arrived` | "Your stay starts <date>" + the arrival services that *are* available + message the desk |
-| Arrived, not verified | `not-verified` | "Scan the code in your room" + `room-qr-landing` + "Can't scan?" → front desk |
+| Stay has not started | `not-arrived` | "Your stay starts on <date>" + a link to the Arrival services that *are* available + message the desk |
+| Arrived, not verified | `not-verified` | "Scan the code in your room" + `room-qr-landing` + "Can't scan?" → files a desk request |
+| Desk request pending | `unlock-pending` | "The front desk has your request" + the thread; no retry loop, nothing to press |
 | Stay is over | `checked-out` | existing screen, unchanged |
 | Desk window closed | `desk-closed` | stay summary + review, no composer |
 
@@ -348,19 +439,26 @@ Model tests in `prototype-model.test.ts`:
    and `dining`.
 5. `describePostStayWindow` reports the desk open inside 24 hours and closed
    outside it.
+6. `describeBookingSlot` returns each of the four rows in the slot table, and
+   `locked` is true in exactly one of them.
+7. `requestFrontDeskUnlock` leaves `roomVerification` unset. This is the test
+   that holds the gate: it fails the moment someone wires the "Can't scan?"
+   control straight to `verifyRoomPresence`.
 
 Component tests in `guest-app-prototype.test.tsx`:
 
-6. An arrived-unverified guest tapping a spa service lands on `booking-blocked`
+8. An arrived-unverified guest tapping a spa service lands on `booking-blocked`
    with the scan prompt, not the offline or the not-yet copy.
-7. The same guest tapping Airport transfer reaches a booking form that settles
-   by card and never offers charge-to-room.
-8. The Explore tab is present pre-arrival and renders the locked state.
-9. Simulating a scan unlocks Explore, and the unlock survives a re-render from
-   stored session.
-10. "Can't scan?" → front-desk unlock reaches the same unlocked surface.
-11. Chat is reachable pre-arrival.
-12. A stay closed more than 24 hours shows the summary and the review form, and
+9. A pre-arrival guest tapping Airport transfer reaches a booking form that
+   settles by card and never offers charge-to-room.
+10. The second tab reads Arrival pre-arrival, Explore once the window opens,
+    and Book again after checkout, and is present in all three.
+11. Simulating a scan unlocks Explore, and the unlock survives a re-render from
+    stored session.
+12. "Can't scan?" seeds the request in the thread and leaves Explore locked;
+    the scripted desk grant then opens the same surface the scan would have.
+13. Chat is reachable pre-arrival.
+14. A stay closed more than 24 hours shows the summary and the review form, and
     no message composer.
 
 ---
@@ -376,7 +474,8 @@ Component tests in `guest-app-prototype.test.tsx`:
   strings built by hand in the component.
 - Cabana never writes check-in to the PMS. Copy must never claim the app
   checked the guest in; the desk does that.
-- The tab bar keeps four stable destinations in every gate (DESIGN.md).
+- The tab bar keeps four slots in fixed order in every gate. Slot two's
+  label and content change by gate; no slot is ever removed or reordered.
 - Pink stays restrained: primary action, current selection, live state. A
   locked state is not an error state and takes no red.
 - `SESSION_STORAGE_KEY` bumps to `cabana.guest-session.v4`.
@@ -392,10 +491,13 @@ recorded below.
 | Date | Decision | Why | Cost if wrong |
 |---|---|---|---|
 | 2026-09-11 | QR proves presence only; the front desk still checks in | The estate is a mixed legacy/cloud PMS behind middleware; a check-in write cannot be assumed available, and Cabana's role is to read | If properties want true digital check-in, a new spec and a middleware write path — the gate itself survives |
-| 2026-09-11 | Pre-arrival is arrival services only; Explore stays locked | Makes the scan mean something. A guest who can book everything before arriving has no reason to scan | If pre-arrival booking is under-served, widen `PRE_ARRIVAL_SERVICE_IDS` — a one-line change by design |
+| 2026-09-11 | Pre-arrival offers arrival services only; the on-property catalogue waits for the scan | Makes the scan mean something. A guest who can book everything before arriving has no reason to scan | If pre-arrival booking is under-served, widen `PRE_ARRIVAL_SERVICE_IDS` — a one-line change by design |
 | 2026-09-11 | Roster: transfer, private car, luggage, celebration, early check-in | Each is either about getting to the property or about something waiting in the room | Same as above — the roster is one constant |
-| 2026-09-11 | "Can't scan?" routes to a front-desk unlock | A damaged QR or a guest already checked in at the desk must not be stranded, and the desk is the authority on who is in which room | If unlocks are abused, the method is recorded on the fact and can be audited or rate-limited later |
-| 2026-09-11 | Explore tab visible but locked, never hidden | DESIGN.md's four stable destinations; and a locked tab teaches the mechanic before arrival, where a missing tab teaches nothing | If the dead tab frustrates, the fallback is the "becomes Arrival" variant — same slot, different content |
+| 2026-09-11 | "Can't scan?" files a desk request; it never unlocks by itself | A damaged QR must not strand anyone, but a guest-side unlock button makes the gate decorative. Routing it through the desk keeps the gate meaning "the property confirmed presence" — two ways to satisfy it, neither self-serve | If desk requests swamp the front desk, the answer is triage in their tooling, not a guest-side bypass |
+| 2026-09-11 | The QR is a presence ritual and room binding, not an authentication boundary | A printed code can be photographed. The protection on charge-to-room is the folio settling at checkout against a card on file, with desk visibility | If stakeholders need a real boundary, the lever is a per-stay PMS-issued token invalidated at checkout — middleware work, named in Non-goals |
+| 2026-09-11 | Second tab is one slot with three contents; locked only when arrived-unverified | A wall shown three days out teaches the app is closed; the same wall shown to a guest holding the code is the one place the prompt is actionable | If the changing label disorients, revert to a fixed "Explore" label with the same three contents |
+| 2026-09-11 | Post-stay the slot becomes Book again, reaching `book-stay` | It is the only thing a checked-out guest can still buy, and it keeps the slot alive in the fourth gate rather than reintroducing the dead tab elsewhere | Extends the owner's choice by one gate; if unwanted, the slot hides post-stay and the bar carries three destinations there |
+| 2026-09-11 | The 24-hour window is computed but does not elapse in the prototype | Demoability: a stakeholder must be able to see both sides of the boundary without waiting a day | A real product needs the timer; the arithmetic is already there, only the switcher stands in for the clock |
 | 2026-09-11 | Front desk open 24h post-checkout, then summary + stay-level review | A guest disputing a charge needs the desk; past that, the stay is a receipt | Per-line vendor reviews would need a new shape on `StayReview` and a per-service surface |
 | 2026-09-11 | Review is private to the property, never published | Zero-CAC: the app has no discovery surface for a public rating to influence | A public rating would need a property-card surface that does not exist |
 | 2026-09-11 | Verification is a fact on `Booking`, not a flag on `GuestSession` | A session holds multiple bookings across properties; a scan in Manila says nothing about Cebu | A session flag would unlock room charging against a room the guest has never seen |

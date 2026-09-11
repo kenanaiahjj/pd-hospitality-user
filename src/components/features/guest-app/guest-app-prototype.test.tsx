@@ -100,9 +100,13 @@ describe('GuestAppPrototype', () => {
     render(<GuestAppPrototype />);
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
+    expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
+    expect(screen.queryByText('Choose how to connect your stay.')).toBeNull();
   });
 
   it('uses Google SSO from Get started to find a booking', async () => {
@@ -110,9 +114,26 @@ describe('GuestAppPrototype', () => {
     render(<GuestAppPrototype />);
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
+    expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
+  });
+
+  it('closes the SSO sheet with Escape and restores focus to Get started', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    const trigger = screen.getByRole('button', { name: 'Get started' });
+    await user.click(trigger);
+    expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull();
+    expect(trigger).toHaveFocus();
   });
 
   it('pages the welcome steps one at a time from the dots', async () => {
@@ -145,15 +166,18 @@ describe('GuestAppPrototype', () => {
     expect(stepOf('Skip the front desk paperwork')).toHaveAttribute('aria-hidden', 'false');
   });
 
-  it('opens the unified SSO screen from the welcome action', async () => {
+  it('opens the unified SSO bottom sheet from the welcome action', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
 
-    expect(screen.getByRole('heading', { name: 'Get started' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    const sheet = screen.getByRole('dialog', { name: 'Get started' });
+    expect(sheet).toBeInTheDocument();
+    expect(within(sheet).getByRole('heading', { name: 'Get started' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
     expect(screen.queryByText(/Create your account|Already have an account|Don't have an account|Log in/)).toBeNull();
   });
 
@@ -163,7 +187,8 @@ describe('GuestAppPrototype', () => {
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
 
-    expect(screen.getByText('Getting started needs a connection')).toBeInTheDocument();
+    const sheet = screen.getByRole('dialog', { name: 'Get started' });
+    expect(within(sheet).getByText('Getting started needs a connection')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeDisabled();
   });
@@ -171,7 +196,6 @@ describe('GuestAppPrototype', () => {
   it('connects a booking and reaches the matched-stay confirmation', () => {
     render(<GuestAppPrototype initialScreen="connect-booking" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmation number' }));
     fireEvent.change(screen.getByLabelText(/Booking or confirmation number/), {
       target: { value: 'HEN-241109' },
     });
@@ -246,10 +270,10 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     const { unmount } = render(<GuestAppPrototype initialScreen="connect-booking" />);
 
-    expect(screen.getByText('Choose how to connect your stay.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
     expect(screen.queryByText(/You’ll need a booking first/)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Confirmation number' }));
-
     expect(screen.getByText('Enter the number from your booking confirmation.')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('HEN-241109')).toBeInTheDocument();
     expect(screen.getByText('Hotel, Agoda, or Booking.com reference')).toBeInTheDocument();
@@ -330,8 +354,18 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText(/Welcome, Ana · Room 304/)).toBeInTheDocument();
     // Room charges belong to My Stay; Home should not duplicate the folio entry point.
     expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /Room QR/ })).toBeInTheDocument();
     // The front desk moved off the tab bar and into My Trip.
     expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull();
+  });
+
+  it('keeps the room QR action on the arrived guest home', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: /Room QR/ }));
+
+    expect(screen.getByRole('heading', { name: 'Let’s link this room to you' })).toBeInTheDocument();
   });
 
   it('shows room settlement and confirms a service without a payment method', async () => {
@@ -581,30 +615,35 @@ describe('GuestAppPrototype', () => {
 });
 
 describe('guest account and entry flows', () => {
-  it('routes Apple SSO from the unified screen to booking connection', async () => {
+  it('routes Apple SSO from the unified screen to direct booking lookup', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="get-started" />);
+    render(<GuestAppPrototype />);
 
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
     expect(screen.queryByTestId('guest-home-active')).toBeNull();
   });
 
-  it('routes Google SSO from the unified screen to booking connection', async () => {
+  it('routes Google SSO from the unified screen to direct booking lookup', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="get-started" />);
+    render(<GuestAppPrototype />);
 
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
   });
 
   it('routes a booking-first arrival directly to pre-arrival onboarding without account registration', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="connect-booking" />);
 
-    await user.click(screen.getByRole('button', { name: 'Confirmation number' }));
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-241109');
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
@@ -639,17 +678,16 @@ describe('guest account and entry flows', () => {
     expect(screen.queryByRole('button', { name: /open profile/i })).toBeNull();
   });
 
-  it('keeps the welcome focused and opens the unified SSO screen first', async () => {
+  it('keeps the welcome focused and opens the unified SSO sheet first', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     expect(screen.queryByText(/Offline mode active/i)).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Get started' }));
 
-    expect(screen.getByRole('heading', { name: 'Get started' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Confirmation number' }));
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
   });
 
@@ -1777,6 +1815,7 @@ describe('session persistence', () => {
 
 describe('booking-reference re-entry', () => {
   const enterReference = async (user: ReturnType<typeof userEvent.setup>, reference: string) => {
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Use a booking reference instead' }));
     await user.type(screen.getByLabelText(/Booking or confirmation number/), reference);
     await user.click(screen.getByRole('button', { name: /^Continue/ }));
@@ -1789,7 +1828,7 @@ describe('booking-reference re-entry', () => {
   */
   it('accepts a reference from a stay that is long settled', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'HEN-CEBU-250508');
 
@@ -1800,7 +1839,7 @@ describe('booking-reference re-entry', () => {
 
   it('masks the contact it offers to send a code to', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'HEN-CEBU-250508');
 
@@ -1814,7 +1853,7 @@ describe('booking-reference re-entry', () => {
 
   it('refuses to verify until a full code is entered', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'HEN-CEBU-250508');
     expect(screen.getByRole('button', { name: /Verify and open my account/ })).toBeDisabled();
@@ -1829,7 +1868,7 @@ describe('booking-reference re-entry', () => {
   */
   it('opens the whole profile once the code is verified', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'HEN-CEBU-250508');
     await user.type(screen.getByLabelText(/6-digit verification code/), '123456');
@@ -1875,7 +1914,7 @@ describe('booking-reference re-entry', () => {
 
   it('sends an unknown reference to the no-booking screen', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'ZZZZ-000000');
 

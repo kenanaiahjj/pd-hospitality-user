@@ -14,10 +14,10 @@ Local preview: `http://localhost:3001/`
 
 Hospitality is a stay companion for guests with a confirmed hotel booking. The
 first step is an account gate with one `Get started` action. That action opens
-Apple or Google SSO; both providers continue to the same booking-connection
-step in the prototype. After SSO, a guest can connect a booking, scan a room QR
-code, or use hotel Wi-Fi. It is not a hotel-discovery, flight, package,
-transport, or rewards product.
+an Apple or Google SSO bottom sheet. After SSO, both providers take the guest
+straight to the booking lookup form for a reference number and last name. A
+room QR action appears on the active-stay Home only after arrival. It is not a
+hotel-discovery, flight, package, transport, or rewards product.
 
 The core commerce rule is non-negotiable:
 
@@ -129,9 +129,11 @@ evidence that the requested app is covered.
 ## Non-negotiable UX rules
 
 - First render at `/` is an account gate, not an active-stay home.
-- The account gate offers one `Get started` action. Apple and Google SSO both
-  lead to the same booking-connection step; booking confirmation, room QR, and
-  hotel Wi-Fi paths follow account connection.
+- The account gate offers one `Get started` action. It opens an accessible SSO
+  bottom sheet; Apple and Google both lead directly to the booking lookup
+  form, which asks for a reference number and last name.
+- Room QR is an arrived-stay action on the active Home. It is not an account
+  or pre-arrival choice.
 - Bottom navigation is hidden during onboarding and appears only after a
   booking is connected.
 - A connected guest can reach Stay, Services, Chat, and Profile.
@@ -159,10 +161,9 @@ evidence that the requested app is covered.
 
 ```text
 entry-hub
-  -> get-started
+  -> Get started bottom sheet
   -> Apple or Google SSO
-  -> connect-booking
-  -> identify / room-qr-landing / wifi-landing
+  -> identify (booking reference + last name)
   -> booking-found
   -> guest-details
   -> id-capture
@@ -175,15 +176,11 @@ entry-hub
 
 The root screen has one visible account action:
 
-- `Get started` opens the provider-neutral SSO screen. Apple and Google both
-  create an authenticated identity and continue to `connect-booking`; the
-  identity service determines whether that identity is new or returning.
-
-After SSO, the guest can choose among these booking actions:
-
-- `Open confirmation link` / `Booking email` goes to `identify`.
-- `Continue with room QR` goes to `room-qr-landing`.
-- `Open hotel Wi-Fi entry` goes to `wifi-landing`.
+- `Get started` opens the provider-neutral SSO bottom sheet. Apple and Google
+  both create an authenticated identity and continue directly to `identify`;
+  the identity service determines whether that identity is new or returning.
+- `Use a booking reference instead` in the sheet opens the returning-guest
+  verification path without creating a second account screen.
 
 The booking lookup takes a booking or confirmation number and last name, and
 matches on the reference alone. The surname is a confirming field, not a key:
@@ -214,7 +211,7 @@ provider-neutral Google or Apple SSO entry, or use a booking reference when
 re-entering a stay from a confirmation.
 
 ```text
-entry-hub -> get-started -> Google or Apple SSO -> connect-booking (new or unlinked stay)
+entry-hub -> Get started bottom sheet -> Google or Apple SSO -> identify (new or unlinked stay)
 entry-hub -> identify-returning -> verify-contact -> stay-overview (past reference)
 entry-hub -> identify -> booking-found -> ...                     (live reservation)
 ```
@@ -223,7 +220,7 @@ entry-hub -> identify -> booking-found -> ...                     (live reservat
 reservation then goes to `findProfileByLookup` before falling through to
 `no-booking`, which itself offers `Stayed with us before? Use a booking
 reference`. The dedicated `identify-returning` screen is the same thing
-reached deliberately from the SSO screen's `Use a booking reference instead`
+reached deliberately from the SSO sheet's `Use a booking reference instead`
 action.
 
 `findProfileByLookup` matches against the whole profile — the live reservations
@@ -250,16 +247,16 @@ which is a step in *creating* an account, and this guest already has one.
 the profile, room preferences, and additional guest before returning to the
 stay flow.
 
-### Room QR arrival
+### Room QR from the arrived-stay Home
 
 ```text
-entry-hub -> room-qr-landing -> Link my stay -> room-qr-midstay -> stay-overview
+stay-overview (active) -> Room QR -> room-qr-landing -> Link my stay -> room-qr-midstay -> stay-overview
 ```
 
-The room QR path links the active booking, or the nearest upcoming booking if
-there is no active booking. The current prototype fixture uses Room 304. The
-linking mutation marks the booking `active` and initializes the room folio at
-`₱3,050` when needed.
+The Room QR action is shown on Home only when the stay is active, after the
+guest has arrived. The room QR path links the active booking and uses the
+current prototype fixture's Room 304. The linking mutation keeps the booking
+`active` and initializes the room folio at `₱3,050` when needed.
 
 ### Active stay services
 

@@ -2,16 +2,18 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the guest app's separate account-creation and login entry points with one `Get started` SSO flow that sends both providers to booking connection.
+**Goal:** Replace the guest app's separate account-creation and login entry points with one `Get started` SSO flow that opens as a bottom sheet and sends both providers directly to the booking lookup form.
 
-**Architecture:** Keep the existing `GuestAppPrototype` state machine and booking routing. Replace the two entry screen IDs with one `get-started` ID, add a provider-neutral authenticated session factory, and route both SSO callbacks through the existing `completeAuth`/`getPostAuthScreen` path. Keep booking-reference re-entry as a separate recovery path.
+**Architecture:** Keep the existing `GuestAppPrototype` state machine and booking routing. Render provider-neutral SSO as local state on the welcome screen, route both callbacks through the existing `completeAuth`/`getPostAuthScreen` path, and make an account without a booking land directly on `identify`. Keep booking-reference re-entry as a separate recovery path and expose Room QR from active-stay Home only.
 
 **Tech Stack:** Next.js 16.3.4, React 19, TypeScript, Vitest, Testing Library, ESLint.
 
 ## Global Constraints
 
 - The welcome screen has one primary `Get started` action.
-- Apple and Google SSO both navigate to `Find your booking` in the prototype.
+- Apple and Google SSO both navigate directly to `Find your booking` in the prototype.
+- `Get started` opens a native bottom sheet instead of a full page.
+- Room QR is an arrived-stay Home action, not a pre-arrival booking option.
 - The screen contains no `Create account`, `Log in`, or account-switch link.
 - Existing booking matching, session persistence, navigation history, and authenticated stay screens remain unchanged.
 - Preserve existing minimum hit targets, focus behavior, `.guest-*` contracts, and offline behavior.
@@ -28,7 +30,7 @@
 
 **Interfaces:**
 - Consumes: Existing `GuestAppPrototype`, `HomePage`, `ANONYMOUS_SESSION`, and Testing Library helpers.
-- Produces: Failing assertions for the `get-started` screen, one welcome action, provider-neutral SSO routing, and a 50-screen inventory.
+- Produces: Failing assertions for the SSO bottom sheet, one welcome action, direct lookup routing, the active-Home Room QR action, and a 49-screen inventory.
 
 - [ ] **Step 1: Update the root and welcome assertions.**
 
@@ -70,15 +72,15 @@
   });
   ```
 
-  Update account-gate helpers and re-entry tests that start at `initialScreen="sign-in"` to use `initialScreen="get-started"`. Change the booking-reference action query to the provider-neutral label `Use a booking reference instead`.
+  Update account-gate helpers and re-entry tests to open the sheet from the welcome action. Change the booking-reference action query to the provider-neutral label `Use a booking reference instead`.
 
 - [ ] **Step 3: Update the model inventory assertion.**
 
-  Change the screen inventory expectation from 51 to 50 and add an assertion that `get-started` is present while `sign-in` and `create-account` are absent:
+  Change the screen inventory expectation from 50 to 49 and add an assertion that `get-started`, `sign-in`, and `create-account` are absent:
 
   ```ts
-  expect(SCREENS).toHaveLength(50);
-  expect(SCREENS.find((screen) => screen.id === 'get-started')?.title).toBe('Get started');
+  expect(SCREENS).toHaveLength(49);
+  expect(SCREENS.some((screen) => (screen.id as string) === 'get-started')).toBe(false);
   expect(SCREENS.some((screen) => (screen.id as string) === 'sign-in')).toBe(false);
   expect(SCREENS.some((screen) => (screen.id as string) === 'create-account')).toBe(false);
   ```
@@ -91,7 +93,7 @@
   npm test src/app/'(marketing)'/page.test.tsx src/components/features/guest-app/guest-app-prototype.test.tsx src/components/features/guest-app/prototype-model.test.ts
   ```
 
-  Expected: FAIL because `Get started` and `get-started` are not implemented yet, with no TypeScript or test-collection errors.
+  Expected: FAIL because the bottom-sheet and direct-lookup behavior are not implemented yet, with no TypeScript or test-collection errors.
 
 ### Task 2: Implement one provider-neutral SSO entry screen
 
@@ -101,7 +103,7 @@
 
 **Interfaces:**
 - Consumes: Failing tests from Task 1, existing `AuthMethod`, `GuestSession`, `getPostAuthScreen`, and `completeAuth`.
-- Produces: `get-started` screen routing and `ssoSession(method: AuthMethod)` returning an authenticated, booking-free session.
+- Produces: local SSO sheet routing and `ssoSession(method: AuthMethod)` returning an authenticated, booking-free session.
 
 - [ ] **Step 1: Add the provider-neutral session factory.**
 
@@ -131,15 +133,16 @@
 
   ```ts
   export type ScreenId =
-    | 'get-started'
-    // remove `sign-in` and `create-account`
+    | 'connect-booking'
+    | 'identify'
+    // ...the remaining navigable guest screens
   ```
 
-  Replace the two first `SCREENS` entries with `screen(1, 'Entry', 'get-started', 'Get started')`, then keep the existing remaining numbers to avoid changing the prototype's established screen references.
+  Remove the former `get-started` entry; keep the existing remaining numbers to avoid changing the prototype's established screen references.
 
 - [ ] **Step 3: Collapse the welcome actions.**
 
-  Change `WelcomeScreen`'s props and replace its two-button action block with one primary button:
+  Change `WelcomeScreen`'s props and replace its two-button action block with one primary button that opens local sheet state:
 
   ```tsx
   function WelcomeScreen({ onGetStarted }: { onGetStarted: () => void }) {
@@ -158,11 +161,11 @@
   }
   ```
 
-  Route `entry-hub` with `onGetStarted={() => go('get-started')}`.
+  Route `entry-hub` with `onGetStarted={() => setSsoOpen(true)}` and render the native bottom sheet beside the welcome content.
 
-- [ ] **Step 4: Replace the two account cases with `get-started`.**
+- [ ] **Step 4: Add the SSO bottom sheet and direct lookup destination.**
 
-  Add one `case 'get-started'` containing the existing account header and SSO button styling, with this copy and behavior:
+  Add a native `<dialog>` bottom sheet containing the existing account header and SSO button styling, with this copy and behavior:
 
   ```tsx
   <div className="guest-page-title">
@@ -186,7 +189,7 @@
 
 - [ ] **Step 5: Retarget remaining entry links and comments.**
 
-  Update `identify-returning`'s back link to `go('get-started')`. Update any path that previously opened `create-account` or `sign-in` to open `get-started`. Change `no-booking`'s returning action copy to `Stayed with us before? Use a booking reference` while keeping its `identify-returning` destination.
+  Update the `identify-returning` back link to `go('entry-hub')`. Route an account without a booking to `identify`, and update all other booking-entry links to the same direct form. Keep the `Stayed with us before? Use a booking reference` recovery action. Add a Room QR row to active Home and remove it from pre-arrival booking choices.
 
 - [ ] **Step 6: Run focused tests and confirm GREEN.**
 
@@ -204,7 +207,7 @@
 
 - [ ] **Step 1: Update the durable guest journey copy.**
 
-  In `docs/llm-context.md`, replace the root account-gate description with `Get started`, describe the single Apple/Google SSO screen, and update both first-time and returning journey diagrams so SSO leads to `connect-booking`. Keep the existing booking-reference re-entry path and its security explanation.
+  In `docs/llm-context.md`, replace the root account-gate description with `Get started`, describe the SSO bottom sheet, update both first-time and returning journey diagrams so SSO leads directly to `identify`, and document Room QR as an active-Home action. Keep the existing booking-reference re-entry path and its security explanation.
 
 - [ ] **Step 2: Run the complete test suite.**
 

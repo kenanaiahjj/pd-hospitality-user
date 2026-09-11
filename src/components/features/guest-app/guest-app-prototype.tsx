@@ -47,7 +47,7 @@ import {
 import Image from 'next/image';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
-import { CATEGORY_ILLUSTRATIONS, ENTRY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
+import { CATEGORY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
@@ -123,6 +123,7 @@ import {
   type MiniAppCategoryId,
   type ServiceBooking,
   type ScreenId,
+  type AuthMethod,
 } from './prototype-model';
 import {
   getServiceImage,
@@ -384,65 +385,6 @@ function withActiveRoom(current: GuestSession): GuestSession {
 }
 
 /**
- * The ways a guest can arrive, each with its own illustration.
- *
- * `aria-label` is kept distinct from the visible title where the two differ --
- * the existing labels are what the tests and screen readers address.
- */
-const BOOKING_ENTRY_OPTIONS = [
-  {
-    screen: 'identify' as const,
-    label: 'Confirmation number',
-    title: 'Confirmation number',
-    detail: 'From your hotel or booking site',
-    art: ENTRY_ILLUSTRATIONS.bookingEmail,
-  },
-  {
-    screen: 'room-qr-landing' as const,
-    label: 'Room QR',
-    title: 'Room QR',
-    detail: 'Scan the code in your room',
-    art: ENTRY_ILLUSTRATIONS.roomQr,
-  },
-];
-
-/** Rendered by both `entry-hub` and `connect-booking`, so they cannot drift. */
-function BookingEntryOptions({ onNavigate }: { onNavigate: (screen: ActiveScreen) => void }) {
-  return (
-    <div className="guest-entry-options">
-      {BOOKING_ENTRY_OPTIONS.map((option) => (
-        <button
-          key={option.screen}
-          className="guest-entry-card"
-          type="button"
-          aria-label={option.label}
-          onClick={() => onNavigate(option.screen)}
-        >
-          {/* Decorative: the title beside it already carries the meaning. */}
-          <span className="guest-entry-card__art">
-            <Image
-              src={option.art.src}
-              alt=""
-              width={option.art.width}
-              height={option.art.height}
-              sizes="116px"
-              /* These mount only when this screen opens, so there is nothing
-                 to defer -- lazy loading would just pop them in late. */
-              loading="eager"
-            />
-          </span>
-          <div>
-            <b>{option.title}</b>
-            <small>{option.detail}</small>
-          </div>
-          <CaretRight />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/**
  * The three things a booking unlocks, shown one at a time as an onboarding
  * pager. Array order is the reading order and the paging order.
  */
@@ -595,35 +537,136 @@ function WelcomeStepCopy({ index }: Pick<PagerHandle, 'index'>) {
   );
 }
 
-function WelcomeScreen({ onGetStarted }: { onGetStarted: () => void }) {
-  const pager = useWelcomePager();
+function SsoSheet({
+  online,
+  onClose,
+  onSso,
+  onBookingReference,
+}: {
+  online: boolean;
+  onClose: () => void;
+  onSso: (method: AuthMethod) => void;
+  onBookingReference: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+  }, []);
+
+  const close = () => ref.current?.close();
 
   return (
-    <section className="guest-welcome" aria-labelledby="guest-welcome-title">
-      <div className="guest-welcome__splash" aria-hidden="true">
-        <CabanaFullLockup className="guest-welcome__splash-brand" markWidth={92} />
-      </div>
-      <div className="guest-welcome__content" onFocus={pager.engage}>
-        <CabanaFullLockup className="guest-welcome__brand" markWidth={44} />
-        {/*
-          The rotating step copy took this slot, so the heading goes to screen
-          readers only. It stays in the tree because the screen still needs one
-          stable accessible name -- a heading that changed every 4.5s would not
-          be one.
-        */}
-        <h1 id="guest-welcome-title" className="sr-only">Welcome to your stay</h1>
-        <WelcomeArt index={pager.index} swipe={pager.swipe} />
-        <div className="guest-welcome__message">
-          <WelcomeDots index={pager.index} show={pager.show} />
-          <WelcomeStepCopy index={pager.index} />
-          <div className="guest-welcome__actions">
-            <Button className="guest-button guest-button--primary guest-welcome__action" type="button" onClick={onGetStarted}>
-              Get started<ArrowRight aria-hidden="true" />
+    <dialog
+      ref={ref}
+      id="guest-sso-sheet"
+      className="guest-sheet guest-sso-sheet"
+      aria-labelledby="guest-sso-sheet-title"
+      onClose={onClose}
+      onKeyDown={(event) => {
+        // Browsers close a modal dialog on Escape. Keep this explicit so the
+        // prototype's lightweight test shim behaves the same way.
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          close();
+        }
+      }}
+      onClick={(event) => { if (event.target === ref.current) close(); }}
+    >
+      <div className="guest-sheet__panel">
+        <span className="guest-sheet__grip" aria-hidden="true" />
+        <div className="guest-sheet__head guest-sso-sheet__head">
+          <div>
+            <p className="guest-eyebrow">Your stay, all in one place</p>
+            <h2 id="guest-sso-sheet-title">Get started</h2>
+          </div>
+          <button type="button" className="guest-sso-sheet__close" aria-label="Close" onClick={close}>
+            <X aria-hidden="true" />
+          </button>
+        </div>
+        <div className="guest-sheet__body guest-sso-sheet__body">
+          <p className="guest-sso-sheet__lede">Use Apple or Google to access your stay and room services.</p>
+          {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Getting started needs a connection">A connection is required to continue.</Notice> : null}
+          <div className="guest-auth-actions">
+            <Button
+              autoFocus
+              className="guest-button guest-button--secondary guest-sso-button"
+              type="button"
+              disabled={!online}
+              onClick={() => onSso('apple')}
+            >
+              <AppleLogo size={20} aria-hidden="true" /> Continue with Apple
+            </Button>
+            <Button
+              className="guest-button guest-button--secondary guest-sso-button"
+              type="button"
+              disabled={!online}
+              onClick={() => onSso('google')}
+            >
+              <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
             </Button>
           </div>
+          <TextButton onClick={() => { close(); onBookingReference(); }}>Use a booking reference instead</TextButton>
         </div>
       </div>
-    </section>
+    </dialog>
+  );
+}
+
+function WelcomeScreen({
+  online,
+  onSso,
+  onBookingReference,
+}: {
+  online: boolean;
+  onSso: (method: AuthMethod) => void;
+  onBookingReference: () => void;
+}) {
+  const pager = useWelcomePager();
+  const [ssoOpen, setSsoOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const closeSso = () => {
+    setSsoOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  return (
+    <>
+      <section className="guest-welcome" aria-labelledby="guest-welcome-title">
+        <div className="guest-welcome__splash" aria-hidden="true">
+          <CabanaFullLockup className="guest-welcome__splash-brand" markWidth={92} />
+        </div>
+        <div className="guest-welcome__content" onFocus={pager.engage}>
+          <CabanaFullLockup className="guest-welcome__brand" markWidth={44} />
+          {/*
+            The rotating step copy took this slot, so the heading goes to screen
+            readers only. It stays in the tree because the screen still needs one
+            stable accessible name -- a heading that changed every 4.5s would not
+            be one.
+          */}
+          <h1 id="guest-welcome-title" className="sr-only">Welcome to your stay</h1>
+          <WelcomeArt index={pager.index} swipe={pager.swipe} />
+          <div className="guest-welcome__message">
+            <WelcomeDots index={pager.index} show={pager.show} />
+            <WelcomeStepCopy index={pager.index} />
+            <div className="guest-welcome__actions">
+              <Button
+                ref={triggerRef}
+                className="guest-button guest-button--primary guest-welcome__action"
+                type="button"
+                onClick={() => setSsoOpen(true)}
+              >
+                Get started<ArrowRight aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onBookingReference={onBookingReference} /> : null}
+    </>
   );
 }
 
@@ -1373,45 +1416,66 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setScrolled(false);
   };
 
+  const renderBookingLookup = () => (
+    <ScreenIntro
+      eyebrow="Connect your stay"
+      title="Find your booking"
+      text="Enter the number from your booking confirmation."
+    >
+      <form
+        className="guest-form"
+        onSubmit={(event: FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          const reference = String(data.get('booking-number') ?? '');
+          const match = findBookingByLookup(reference);
+          if (match) {
+            go('booking-found');
+            return;
+          }
+          /* Not a live reservation. Before giving up, see whether it is a stay
+             this guest has already finished -- a returning guest has no live
+             booking to find, only an old reference. */
+          const profile = findProfileByLookup(reference);
+          if (profile) {
+            setProfileMatch(profile);
+            setCode('');
+            setCodeNotice(null);
+            go('verify-contact');
+            return;
+          }
+          go('no-booking');
+        }}
+      >
+        <Field
+          label="Booking or confirmation number"
+          name="booking-number"
+          placeholder="HEN-241109"
+          helper="Hotel, Agoda, or Booking.com reference"
+          required
+        />
+        <Field label="Last name" name="last-name" placeholder="Santos" required />
+        <Button className="guest-button guest-button--primary" type="submit">
+          Find booking<ArrowRight aria-hidden="true" />
+        </Button>
+      </form>
+      <TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton>
+    </ScreenIntro>
+  );
+
   const renderScreen = () => {
     switch (activeScreen) {
       case 'entry-hub':
-        return <WelcomeScreen onGetStarted={() => go('get-started')} />;
-
-      case 'get-started':
         return (
-          <div className="guest-stack guest-stack--intro">
-            <div className="guest-auth-header">
-              <CabanaFullLockup markWidth={48} tagline="Your Home Away From Home" />
-            </div>
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">Your stay, all in one place</p>
-              <h1>Get started</h1>
-              <p>Use Apple or Google to access your stay and room services.</p>
-            </div>
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Getting started needs a connection">A connection is required to continue.</Notice> : null}
-            <div className="guest-auth-actions">
-              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(ssoSession('apple'))}>
-                <AppleLogo size={20} aria-hidden="true" /> Continue with Apple
-              </Button>
-              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(ssoSession('google'))}>
-                <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
-              </Button>
-            </div>
-            <TextButton onClick={() => go('identify-returning')}>Use a booking reference instead</TextButton>
-          </div>
+          <WelcomeScreen
+            online={online}
+            onSso={(method) => completeAuth(ssoSession(method))}
+            onBookingReference={() => go('identify-returning')}
+          />
         );
 
       case 'connect-booking':
-        return (
-          <ScreenIntro
-            eyebrow="Connect your stay"
-            title="Find your booking"
-            text="Choose how to connect your stay."
-          >
-            <BookingEntryOptions onNavigate={go} />
-          </ScreenIntro>
-        );
+        return renderBookingLookup();
 
       case 'room-qr-landing':
         return <ScreenIntro icon={<QrCode size={30} />} eyebrow="Room QR detected" title="Let’s link this room to you" text="This permanent room code opens the guest app. Your last name confirms which live booking is yours."><StayMiniCard booking={contextBooking} status={`Room ${contextBooking.roomNumber ?? '304'} detected`} /><form className="guest-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); linkRoomStay(String(data.get('qr-last-name') ?? '').trim()); }}><Field label="Last name" name="qr-last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Link my stay<ArrowRight aria-hidden="true" /></Button></form><TextButton onClick={() => go('front-desk-assist')}>I need help</TextButton></ScreenIntro>;
@@ -1420,7 +1484,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your itinerary and stay details remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
 
       case 'identify':
-        return <ScreenIntro eyebrow="Connect your stay" title="Find your booking" text="Enter the number from your booking confirmation."><form className="guest-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const reference = String(data.get('booking-number') ?? ''); const match = findBookingByLookup(reference); if (match) { go('booking-found'); return; } /* Not a live reservation. Before giving up, see whether it is a stay this guest has already finished -- a returning guest has no live booking to find, only an old reference, and sending them to `no-booking` would be a dead end for the one case the app most wants to serve. */ const profile = findProfileByLookup(reference); if (profile) { setProfileMatch(profile); setCode(''); setCodeNotice(null); go('verify-contact'); return; } go('no-booking'); }}><Field label="Booking or confirmation number" name="booking-number" placeholder="HEN-241109" helper="Hotel, Agoda, or Booking.com reference" required /><Field label="Last name" name="last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Find booking<ArrowRight /></Button></form><TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton></ScreenIntro>;
+        return renderBookingLookup();
 
       case 'book-stay':
         return (
@@ -1720,7 +1784,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <Notice icon={<ShieldCheck />} title="Confirm your booking reference">
               Anyone can hold a booking number. We send a code to the contact on that reservation before opening the account.
             </Notice>
-            <TextButton onClick={() => go('get-started')}>Back to Get started</TextButton>
+            <TextButton onClick={() => go('entry-hub')}>Back to welcome</TextButton>
           </ScreenIntro>
         );
 
@@ -3266,6 +3330,13 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
             <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
           </div>
         </section>
+        <section className="guest-home-room-qr" aria-label="Room access">
+          <button className="guest-list-row" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('room-qr-landing')}>
+            <span><QrCode aria-hidden="true" /></span>
+            <div><b>Room QR</b><small>Scan the code in your room</small></div>
+            <CaretRight aria-hidden="true" />
+          </button>
+        </section>
         <AnnouncementsSection />
         <section>
           <SectionHeading title="Categories" action="See all" onAction={() => onNavigate('marketplace')} />
@@ -3327,7 +3398,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
           </div>
         </div>
         <Notice tone="positive" icon={<CheckCircle />} title="Stay complete">Your previous room charges were settled at checkout.</Notice>
-        <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('connect-booking')}>Connect another stay<ArrowRight aria-hidden="true" /></Button>
+        <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('identify')}>Connect another stay<ArrowRight aria-hidden="true" /></Button>
         <TextButton onClick={() => onNavigate('stay-history')}>View stay history</TextButton>
       </div>
     );
@@ -3585,7 +3656,7 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate }: { booking
 }
 
 function EmptyStayHome({ onNavigate }: { onNavigate: (screen: ActiveScreen) => void }) {
-  return <div className="guest-stack guest-stack--intro guest-home-empty" data-testid="guest-home-empty"><HeroIcon tone="dark"><Receipt size={30} /></HeroIcon><div className="guest-page-title"><p className="guest-eyebrow">No connected stay</p><h1>Connect your booking</h1><p>Link a confirmed reservation to see arrival details, on-property services, room charges, and front-desk help in one place.</p></div><Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('connect-booking')}>Connect a booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => onNavigate('front-desk-assist')}>Ask the front desk for help</TextButton></div>;
+  return <div className="guest-stack guest-stack--intro guest-home-empty" data-testid="guest-home-empty"><HeroIcon tone="dark"><Receipt size={30} /></HeroIcon><div className="guest-page-title"><p className="guest-eyebrow">No connected stay</p><h1>Connect your booking</h1><p>Link a confirmed reservation to see arrival details, on-property services, room charges, and front-desk help in one place.</p></div><Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('identify')}>Connect a booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => onNavigate('front-desk-assist')}>Ask the front desk for help</TextButton></div>;
 }
 
 /** The same range, from two loose dates -- the rebooking funnel has no booking

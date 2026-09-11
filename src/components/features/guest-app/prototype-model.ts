@@ -1,7 +1,6 @@
 export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
 
 export type ScreenId =
-  | 'get-started'
   | 'connect-booking'
   | 'room-qr-landing'
   | 'wifi-landing'
@@ -67,8 +66,7 @@ const screen = (number: number, group: ScreenGroup, id: ScreenId, title: string)
 });
 
 export const SCREENS: PrototypeScreen[] = [
-  screen(1, 'Entry', 'get-started', 'Get started'),
-  screen(3, 'Entry', 'connect-booking', 'Add your booking'),
+  screen(3, 'Entry', 'connect-booking', 'Find your booking'),
   screen(4, 'Entry', 'room-qr-landing', 'Room QR detected'),
   screen(5, 'Entry', 'wifi-landing', 'Hotel Wi-Fi'),
   screen(6, 'Entry', 'identify', 'Find your booking'),
@@ -514,7 +512,9 @@ export function connectBooking(session: GuestSession): GuestSession {
  */
 export function getPostAuthScreen(session: GuestSession): ScreenId {
   const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
-  if (!booking) return 'connect-booking';
+  // SSO has already established identity. Ask for the one missing piece—the
+  // reservation reference and surname—without an intermediate action hub.
+  if (!booking) return 'identify';
 
   const preArrivalIncomplete = booking.preArrivalCompleted < booking.preArrivalTotal;
   if (!preArrivalIncomplete) return 'stay-overview';

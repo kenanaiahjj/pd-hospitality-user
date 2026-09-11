@@ -61,9 +61,11 @@ import {
 
 describe('guest app prototype model', () => {
   it('contains the complete stay-only screen inventory', () => {
-    expect(SCREENS).toHaveLength(50);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(50);
-    expect(SCREENS.find((screen) => screen.id === 'get-started')?.title).toBe('Get started');
+    expect(SCREENS).toHaveLength(49);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(49);
+    // Get started is the welcome-screen trigger and SSO bottom sheet, not a
+    // navigable page in the guest app.
+    expect(SCREENS.some((screen) => (screen.id as string) === 'get-started')).toBe(false);
     expect(SCREENS.some((screen) => (screen.id as string) === 'sign-in')).toBe(false);
     expect(SCREENS.some((screen) => (screen.id as string) === 'create-account')).toBe(false);
     expect(SCREENS.find((s) => s.id === 'stay-entry')?.title).toBe('Booking receipt');
@@ -364,7 +366,7 @@ describe('getPostAuthScreen', () => {
     createAccountSession('Mara Cruz', 'mara@example.com', 'apple');
 
   it('asks for a booking when the account has none', () => {
-    expect(getPostAuthScreen(newAccount())).toBe('connect-booking');
+    expect(getPostAuthScreen(newAccount())).toBe('identify');
   });
 
   it('welcomes a returning account back when pre-arrival is incomplete', () => {

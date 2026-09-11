@@ -170,6 +170,9 @@ evidence that the requested app is covered.
   genuinely first-time account is reached from the prototype controls.
 - No scan is offered to a guest with no booking — not on Home, not in the app
   bar. No booking means no allocated room and therefore no code to scan.
+- A signed-in guest with no booking sees a two-slot tab bar: Home and Profile.
+  Explore and My Stay both describe a stay, so without one they are doors onto
+  nothing; they return permanently once a booking is connected.
 - Stay history is `session.pastStays`, not a global. A new account has none;
   `PAST_STAYS` is the seed for the demo profile only.
 - Home shows at most three previous stays and links to `stay-history` for the

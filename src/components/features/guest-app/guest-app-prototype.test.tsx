@@ -2649,3 +2649,39 @@ describe('design tokens', () => {
     expect(undefinedTokens).toEqual([]);
   });
 });
+
+describe('navigation without a booking', () => {
+  const noBooking = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
+
+  it('offers only the destinations that exist', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={noBooking} />);
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+
+    /*
+      Explore sells things charged to a room this guest has not got, and My
+      Stay has no stay to show. Both were doors onto a dead end that told the
+      guest their room was "still being assigned" -- of a booking they had
+      never made.
+    */
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Profile']);
+  });
+
+  it('restores them once a booking exists', () => {
+    // The two slots are hidden only while there is nothing behind them; a
+    // connected booking brings the full bar back and it stays.
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={connectBooking(noBooking)} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['Home', 'Explore', 'My Stay', 'Profile']);
+  });
+
+  it('never answers a guest with no booking with a room-allocation wall', () => {
+    // marketplace is still reachable by history or a deep link; it must not
+    // claim a room is being assigned for a stay that does not exist.
+    render(<GuestAppPrototype initialScreen="marketplace" initialSession={noBooking} />);
+
+    expect(screen.queryByRole('heading', { name: 'Your room is still being assigned' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
+  });
+});

@@ -93,11 +93,17 @@ Primary actions are pink pills with ink labels. Secondary actions are white pill
 with a hairline. Tertiary actions are accent-coloured text buttons. Every
 interactive element clears a 44px target and ships default, hover, focus, active,
 and disabled. Selection — a date, a time slot, a tile — is the accent fill with
-ink on top. The tab bar is flat and full-width with four stable slots, in fixed
-order, and marks the current one with the accent rather than with a coloured
-pill. A slot is defined by the question it answers, not by a fixed label: what
-is happening now, what can I book, what have I booked and what do I owe, who am
-I. Three of the four therefore read Home, My Stay and Profile throughout.
+ink on top. The tab bar is flat and full-width, in fixed order, and marks the
+current one with the accent rather than with a coloured pill. A slot is defined
+by the question it answers, not by a fixed label: what is happening now, what
+can I book, what have I booked and what do I owe, who am I. Three of the four
+therefore read Home, My Stay and Profile throughout.
+
+The middle two describe a stay, so a signed-in guest with no booking sees only
+Home and Profile. Both of the others would be doors onto nothing — Explore
+sells what is charged to a room they have not got, and My Stay has no stay —
+and a bar that offers a destination which cannot answer is worse than a shorter
+bar. They appear the moment a booking is connected, and do not leave again.
 
 The second slot is the exception, because the honest answer to *what can I book
 right now* changes with where the guest is in their stay: **Arrival** before the

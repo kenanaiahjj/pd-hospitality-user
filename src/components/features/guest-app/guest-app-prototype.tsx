@@ -2498,6 +2498,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           highlight both fork.
         */
         if (bookingSlot.locked) {
+          if (!primaryBooking) {
+            // No booking at all. Not a room-allocation story -- there is
+            // nothing to allocate against, so this is Home's job, not a wall.
+            return (
+              <EmptyStayHome
+                guestName={session.guestName}
+                pastStays={pastStays}
+                onNavigate={go}
+                onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }}
+              />
+            );
+          }
+
           if (!contextBooking.roomNumber) {
             /*
               Nothing to scan. The property has not allocated a room yet, so
@@ -3634,23 +3647,36 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 onClick={() => go('stay-overview')}
               />
               {/*
-                One slot, three contents. The question is stable -- what can I
-                book right now -- and the honest answer changes with the gate.
+                Both of these describe a stay, so without one they are two
+                doors onto nothing: Explore sells things charged to a room the
+                guest has not got, and My Stay has no stay to show. Leaving
+                them in place sent a guest with no booking to a dead end that
+                told them their room was "still being assigned".
+
+                This is the one place the four-slot rule yields. The rule
+                exists so the bar never reflows mid-journey and a destination
+                never vanishes from under a guest -- and here the destinations
+                genuinely do not exist yet. They appear, permanently, the
+                moment a booking is added.
               */}
-              <NavButton
-                label={bookingSlot.label}
-                icon={bookingSlot.label === 'Arrival'
-                  ? <SuitcaseRolling />
-                  : bookingSlot.label === 'Book again' ? <Plus /> : <Compass />}
-                active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen}
-                onClick={() => go(bookingSlot.screen)}
-              />
-              <NavButton
-                label="My Stay"
-                icon={<Bed />}
-                active={MY_STAY_SCREENS.includes(activeScreen)}
-                onClick={() => go('my-stay')}
-              />
+              {primaryBooking ? (
+                <>
+                  <NavButton
+                    label={bookingSlot.label}
+                    icon={bookingSlot.label === 'Arrival'
+                      ? <SuitcaseRolling />
+                      : bookingSlot.label === 'Book again' ? <Plus /> : <Compass />}
+                    active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen}
+                    onClick={() => go(bookingSlot.screen)}
+                  />
+                  <NavButton
+                    label="My Stay"
+                    icon={<Bed />}
+                    active={MY_STAY_SCREENS.includes(activeScreen)}
+                    onClick={() => go('my-stay')}
+                  />
+                </>
+              ) : null}
               <NavButton
                 label="Profile"
                 icon={<UserCircle />}

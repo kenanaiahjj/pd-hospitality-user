@@ -51,7 +51,6 @@ import {
   parsePesoAmount,
   signInSession,
   signOutSession,
-  verifyPendingSession,
 } from './prototype-model';
 import type { Booking } from './prototype-model';
 import {
@@ -60,9 +59,9 @@ import {
 } from './prototype-model';
 
 describe('guest app prototype model', () => {
-  it('contains the complete 49-screen inventory including travel checkout', () => {
-    expect(SCREENS).toHaveLength(56);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(56);
+  it('contains the complete stay-only screen inventory', () => {
+    expect(SCREENS).toHaveLength(51);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(51);
     expect(SCREENS.find((s) => s.id === 'stay-entry')?.title).toBe('Booking receipt');
     expect(SCREENS.find((s) => s.id === 'stay-detail')?.group).toBe('Account');
     // My Stay subsumed the old `my-bookings` screen rather than sitting beside
@@ -72,15 +71,11 @@ describe('guest app prototype model', () => {
     expect(SCREENS.some((s) => (s.id as string) === 'my-bookings')).toBe(false);
     expect(SCREENS.find((s) => s.id === 'notifications')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'marketplace')?.title).toBe('Explore');
-    expect(SCREENS.find((s) => s.id === 'travel')?.group).toBe('Travel');
-    expect(SCREENS.find((s) => s.id === 'travel-search')?.group).toBe('Travel');
-    expect(SCREENS.find((s) => s.id === 'travel-checkout')?.group).toBe('Travel');
-    expect(SCREENS.find((s) => s.id === 'travel-confirmation')?.group).toBe('Travel');
     expect(SCREENS.find((s) => s.id === 'restaurant-menu')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'restaurant-cart')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'dining-order-confirmation')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'room-preferences')?.group).toBe('Account');
-    expect(SCREENS.find((s) => s.number === 21)).toMatchObject({
+    expect(SCREENS.find((s) => s.number === 20)).toMatchObject({
       id: 'arrival-handoff',
       title: 'Arrival handoff',
     });
@@ -318,31 +313,23 @@ describe('account sessions', () => {
     expect(MOCK_SESSION.accountStatus).toBe('returning');
   });
 
-  it('creates a new account pending verification and with no bookings', () => {
-    const session = createAccountSession('Mara Cruz', 'mara@example.com', 'email-code');
+  it('creates an authenticated new account with Apple SSO and no bookings', () => {
+    const session = createAccountSession('Mara Cruz', 'mara@example.com', 'apple');
 
-    expect(session.auth).toBe('pending-verification');
+    expect(session.auth).toBe('authenticated');
     expect(session.accountStatus).toBe('new');
     expect(session.bookings).toHaveLength(0);
     expect(session.guestName).toBe('Mara Cruz');
     expect(session.email).toBe('mara@example.com');
-    expect(session.authMethod).toBe('email-code');
+    expect(session.authMethod).toBe('apple');
   });
 
-  it('signs a returning account in with its saved bookings', () => {
-    const session = signInSession('email-code');
+  it('signs a returning account in with Google SSO and saved bookings', () => {
+    const session = signInSession('google');
 
-    expect(session.auth).toBe('pending-verification');
+    expect(session.auth).toBe('authenticated');
     expect(session.accountStatus).toBe('returning');
     expect(session.bookings.length).toBeGreaterThan(0);
-  });
-
-  it('promotes only a pending session, and is a no-op once authenticated', () => {
-    const pending = createAccountSession('Mara Cruz', 'mara@example.com', 'apple');
-
-    expect(verifyPendingSession(pending).auth).toBe('authenticated');
-    expect(verifyPendingSession(ANONYMOUS_SESSION).auth).toBe('anonymous');
-    expect(verifyPendingSession(verifyPendingSession(pending)).auth).toBe('authenticated');
   });
 
   it('signs out back to the anonymous shape', () => {
@@ -360,14 +347,14 @@ describe('account sessions', () => {
 
 describe('getPostAuthScreen', () => {
   const newAccount = () =>
-    verifyPendingSession(createAccountSession('Mara Cruz', 'mara@example.com', 'email-code'));
+    createAccountSession('Mara Cruz', 'mara@example.com', 'apple');
 
   it('asks for a booking when the account has none', () => {
     expect(getPostAuthScreen(newAccount())).toBe('connect-booking');
   });
 
   it('welcomes a returning account back when pre-arrival is incomplete', () => {
-    expect(getPostAuthScreen(verifyPendingSession(signInSession('email-code')))).toBe('welcome-back');
+    expect(getPostAuthScreen(signInSession('google'))).toBe('welcome-back');
   });
 
   it('sends a new account into pre-arrival once a booking is connected', () => {
@@ -389,30 +376,21 @@ describe('getPostAuthScreen', () => {
 });
 
 describe('mini-app categories and restaurant menus', () => {
-  it('exposes the 5 bookable categories, travel among them', () => {
+  it('exposes only on-property bookable categories', () => {
     expect(MINI_APP_CATEGORIES.map((c) => c.id)).toEqual([
       'dining',
       'spa',
       'entertainment',
       'services',
-      'travel',
     ]);
   });
 
-  it('sends travel to its own screen, not the on-property listing', () => {
-    // `category-listing` filters SERVICES by categoryId; travel's inventory is
-    // carriers and sailings in TRAVEL_CATEGORIES, with its own search flow.
+  it('sends every category to the on-property listing', () => {
     const byId = new Map(MINI_APP_CATEGORIES.map((c) => [c.id, c.screen]));
 
-    expect(byId.get('travel')).toBe('travel');
     for (const id of ['dining', 'spa', 'entertainment', 'services'] as const) {
       expect(byId.get(id)).toBe('category-listing');
     }
-  });
-
-  it('keeps travel out of the on-property service catalogue', () => {
-    // The grid treats it as a peer; the data still knows it is not on-property.
-    expect(SERVICES.some((service) => (service.categoryId as string) === 'travel')).toBe(false);
   });
 
   it('provides browsable restaurant menus with structured items and pricing', () => {
@@ -659,30 +637,6 @@ describe('notifications', () => {
     expect(getNotifications(unspent, { ...active, folioTotal: undefined }).some((n) => n.tone === 'folio')).toBe(false);
   });
 
-  it('carries travel confirmations, which belong to the trip rather than the stay', () => {
-    const session = {
-      ...MOCK_SESSION,
-      travelBookings: [{
-        id: 'travel-1',
-        reference: 'CBP-8842',
-        categoryId: 'flights' as const,
-        operator: 'Cebu Pacific',
-        detail: '5J 561',
-        meta: 'Mon, Nov 16 · 7:05 AM',
-        route: 'Manila (MNL) → Cebu (CEB)',
-        date: '2026-11-16',
-        travellers: 2,
-        amount: '₱4,280',
-        status: 'confirmed' as const,
-      }],
-    };
-
-    expect(getNotifications(session, UPCOMING_BOOKING_FIXTURE).find((n) => n.tone === 'travel')).toMatchObject({
-      title: 'Cebu Pacific booking confirmed',
-      screen: 'travel',
-    });
-  });
-
   it('gives every entry a unique id so read state cannot collide', () => {
     const session = {
       ...MOCK_SESSION,
@@ -716,7 +670,7 @@ describe('upcoming and past', () => {
   it('puts a confirmed booking whose date has passed into past', () => {
     // PROTOTYPE_TODAY is 2026-11-11. Status alone would have left this in
     // Upcoming forever, above bookings that had not happened yet.
-    const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [service('yesterday', '2026-11-10', 'confirmed')] };
+    const session = { ...MOCK_SESSION, serviceBookings: [service('yesterday', '2026-11-10', 'confirmed')] };
     const { upcoming, past } = getStayEntries(session, stay);
 
     expect(upcoming).toHaveLength(0);
@@ -726,7 +680,6 @@ describe('upcoming and past', () => {
   it('keeps today and later in upcoming', () => {
     const session = {
       ...MOCK_SESSION,
-      travelBookings: [],
       serviceBookings: [service('today', '2026-11-11', 'confirmed'), service('later', '2026-11-14', 'confirmed')],
     };
 
@@ -736,7 +689,6 @@ describe('upcoming and past', () => {
   it('treats cancelled and completed as past whatever their date says', () => {
     const session = {
       ...MOCK_SESSION,
-      travelBookings: [],
       serviceBookings: [service('scrapped', '2026-11-20', 'cancelled'), service('done', '2026-11-20', 'completed')],
     };
     const { upcoming, past } = getStayEntries(session, stay);
@@ -748,7 +700,6 @@ describe('upcoming and past', () => {
   it('orders upcoming soonest first and past most recent first', () => {
     const session = {
       ...MOCK_SESSION,
-      travelBookings: [],
       serviceBookings: [
         service('far', '2026-11-20', 'confirmed'),
         service('near', '2026-11-12', 'confirmed'),
@@ -856,14 +807,14 @@ describe('settlement wording', () => {
   });
 
   it('never tells a guest a cancelled booking will be charged', () => {
-    const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [service('cancelled')] };
+    const session = { ...MOCK_SESSION, serviceBookings: [service('cancelled')] };
     const [entry] = getStayEntries(session, stay).past;
 
     expect(entry!.settlement).toBe('Cancelled · not charged');
   });
 
   it('uses past tense once the booking has happened', () => {
-    const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [service('completed')] };
+    const session = { ...MOCK_SESSION, serviceBookings: [service('completed')] };
     const [entry] = getStayEntries(session, stay).past;
 
     expect(entry!.settlement).toBe('Completed · charged to room 512');
@@ -872,7 +823,7 @@ describe('settlement wording', () => {
   it('says nothing while the booking is still ahead', () => {
     // The running total above the list already says the room settles at
     // checkout, so repeating it per card carried no per-card information.
-    const session = { ...MOCK_SESSION, travelBookings: [], serviceBookings: [{ ...service('confirmed'), scheduledDate: '2026-11-14' }] };
+    const session = { ...MOCK_SESSION, serviceBookings: [{ ...service('confirmed'), scheduledDate: '2026-11-14' }] };
     const [entry] = getStayEntries(session, stay).upcoming;
 
     expect(entry!.settlement).toBeUndefined();

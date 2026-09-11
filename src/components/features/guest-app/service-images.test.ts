@@ -8,7 +8,6 @@ import {
   getCategoryCoverImage,
   getItemThumbnail,
   getItemCardImage,
-  getRouteDestinationImage,
 } from './service-images';
 
 describe('service images', () => {
@@ -107,12 +106,4 @@ describe('service image keys', () => {
     expect(cafeCard.src).not.toBe(cafeThumb.src);
   });
 
-  it('provides scenic destination images for popular travel routes', () => {
-    const boracay = getRouteDestinationImage('pr-1');
-    const bohol = getRouteDestinationImage('pr-2');
-    expect(boracay.src).not.toBe(bohol.src);
-    expect(boracay.alt).toContain('Boracay');
-    expect(bohol.alt).toContain('Bohol');
-  });
 });
-

@@ -31,6 +31,12 @@ describe('session storage', () => {
     expect(readStoredSession()).toBeUndefined();
   });
 
+  it('ignores records written by the previous session shape', () => {
+    window.localStorage.setItem('cabana.guest-session.v2', JSON.stringify(MOCK_SESSION));
+
+    expect(readStoredSession()).toBeUndefined();
+  });
+
   it('discards a record that is not JSON', () => {
     window.localStorage.setItem(SESSION_STORAGE_KEY, 'not-json{');
 

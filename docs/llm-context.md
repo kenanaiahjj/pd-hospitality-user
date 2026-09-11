@@ -4,7 +4,7 @@
 > Use the current source code as the authority when this document and the
 > implementation disagree.
 
-Last verified: 2026-09-09
+Last verified: 2026-09-11
 Last Mobbin reference review: 2026-09-11
 Base implementation commit: `0eac181` on `main`; later uncommitted guest-app
 refinements are present in the working tree
@@ -12,10 +12,11 @@ Local preview: `http://localhost:3001/`
 
 ## Product definition
 
-Hospitality is a guest companion for people who already have a hotel booking.
-It starts when a guest opens a booking link, scans a room QR code, or connects
-through hotel Wi-Fi. It is not a hotel-discovery, hotel-search, flights,
-packages, or rewards product.
+Hospitality is a stay companion for guests with a confirmed hotel booking. The
+first step is an account gate with `Create account` and `Log in`; both actions
+use Apple or Google SSO in the prototype. After SSO, a guest can connect a
+booking, scan a room QR code, or use hotel Wi-Fi. It is not a hotel-discovery,
+flight, package, transport, or rewards product.
 
 The core commerce rule is non-negotiable:
 
@@ -27,8 +28,9 @@ The core commerce rule is non-negotiable:
   `Charge at checkout` settlement timing.
 
 The prototype is intentionally self-contained. It uses typed in-memory data,
-local screen state, realistic mock content, and no real authentication,
-booking API, payment gateway, document upload, or QR validation.
+local screen state, realistic mock content, and deterministic SSO fixtures. It
+does not connect to Apple or Google OAuth, a booking API, a payment gateway,
+document upload, or QR validation.
 
 ## Reference context
 
@@ -125,8 +127,10 @@ evidence that the requested app is covered.
 
 ## Non-negotiable UX rules
 
-- First render at `/` is `entry-hub`, not an active-stay home.
-- Entry offers booking confirmation, room QR, and hotel Wi-Fi paths.
+- First render at `/` is an account gate, not an active-stay home.
+- The account gate offers `Create account` and `Log in` with Apple and Google
+  SSO. Booking confirmation, room QR, and hotel Wi-Fi paths follow account
+  connection.
 - Bottom navigation is hidden during onboarding and appears only after a
   booking is connected.
 - A connected guest can reach Stay, Services, Chat, and Profile.
@@ -150,10 +154,12 @@ evidence that the requested app is covered.
 
 ## Current user journeys
 
-### First-time guest: booking-linked onboarding
+### First-time guest: SSO, then booking-linked onboarding
 
 ```text
 entry-hub
+  -> create-account
+  -> Apple or Google SSO
   -> identify
   -> booking-found
   -> create-account or welcome-back
@@ -166,7 +172,14 @@ entry-hub
   -> stay-overview
 ```
 
-The root screen uses these visible entry actions:
+The root screen uses these visible account actions:
+
+- `Create account` goes to `create-account`, where Apple or Google SSO creates
+  the deterministic new-account fixture.
+- `Log in` goes to `sign-in`, where Apple or Google SSO opens the returning
+  account fixture.
+
+After SSO, the new-account path uses these booking actions:
 
 - `Open confirmation link` / `Booking email` goes to `identify`.
 - `Continue with room QR` goes to `room-qr-landing`.
@@ -194,17 +207,15 @@ When pre-arrival is complete for an upcoming booking, the primary action is
 `View my stay`, which returns to the upcoming home. Identity is verified at the
 front desk against an original ID; the app issues no credential of its own.
 
-### Returning guest: re-entry by booking reference
+### Returning guest: SSO or booking-reference re-entry
 
-The main door is the ordinary lookup, not a login screen. The welcome screen
-stays booking-first — no `Log in`, no `Create account`, asserted by tests in
-`page.test.tsx` and `guest-app-prototype.test.tsx` — so a returning guest
-arrives at the same `identify` form as everyone else and simply types the
-reference they hold.
+The main door is the account gate. A returning guest can use Google or Apple
+SSO, or use a booking reference when re-entering a stay from a confirmation.
 
 ```text
-entry-hub -> identify -> verify-contact -> stay-overview        (past reference)
-entry-hub -> identify -> booking-found -> ...                   (live reservation)
+entry-hub -> sign-in -> Google or Apple SSO -> welcome-back       (saved stay)
+entry-hub -> identify-returning -> verify-contact -> stay-overview (past reference)
+entry-hub -> identify -> booking-found -> ...                     (live reservation)
 ```
 
 `identify` tries `findBookingByLookup` first; a reference that names no live
@@ -219,9 +230,10 @@ receipt. It is deliberately separate from `findBookingByLookup`, which answers
 the different question "is there a stay to attach".
 
 `verify-contact` is the reason the reference is not itself a login. A booking
-number travels in confirmation emails and on printouts, so it proves nothing on
-its own; the code goes to the contact the property holds for that reservation,
-shown masked (`a•••@example.com`, `+63 917 ••• 0142`) until it is entered.
+number appears in confirmation emails and on printouts, so it proves nothing
+on its own; the code goes to the contact the property holds for that
+reservation, shown masked (`a•••@example.com`, `+63 917 ••• 0142`) until it is
+entered.
 
 Verifying calls `restoreProfileSession()`, which returns the **whole profile**,
 not the single stay whose reference opened the door — otherwise a guest would
@@ -410,7 +422,7 @@ The current guest app uses:
   live status messaging, 44px minimum interactive targets, responsive card
   containment, and reduced-motion handling.
 
-Do not replace the existing visual system with a generic travel landing page,
+Do not replace the existing visual system with a generic discovery landing page,
 new icon set, new route structure, or card-payment checkout.
 
 ## Offline behavior
@@ -423,7 +435,7 @@ new icon set, new route structure, or card-payment checkout.
 | `chat` / `pre-registration` / `preferences` | `queued` | Keep edits or messages on device and explain delivery status |
 | `service-booking` / `payment` / `live-rates` | `blocked` | Do not reserve or imply current price/capacity; offer reconnection or chat |
 
-Offline, the app can still display the cached itinerary, booking details,
+Offline, the app can still display cached stay details,
 last-known folio, and chat history. It must say plainly which actions are
 waiting to send and which are unavailable.
 
@@ -482,7 +494,7 @@ and inspect `git status --short` before and after any commit.
 ## Known follow-up notes
 
 - The session now survives a reload: `session-storage.ts` keeps a versioned
-  `localStorage` record (`cabana.guest-session.v1`) behind `GuestSession`.
+  `localStorage` record (`cabana.guest-session.v3`) behind `GuestSession`.
   Everything else is still in-memory, and production work will need a data
   boundary for bookings, services, folio entries, identity, and connectivity.
   Hydration runs from a deferred effect, never during render — reading storage
@@ -491,16 +503,15 @@ and inspect `git status --short` before and after any commit.
   `initialSession` disables persistence at both ends, which is what keeps the
   test suite deterministic.
 - QR linking, booking lookup, ID capture, and hotel availability are simulated.
-  So is the verification code on `verify-code` and `verify-contact`: any six
-  digits pass.
+  So is the verification code on `verify-contact`: any six digits pass.
 ### Finished stay: receipt, and booking another
 
 My Stay branches on `describeStayStatus(...).status === 'checked-out'`. A stay
 that is over is a receipt, not a running total: the live dot goes, "This stay so
 far" is replaced by the settled summary, and the docked action becomes `Book
 another stay` with the front desk demoted to a quiet row beneath it. The
-Upcoming/Past tabs stay — travel booked during a stay outlives it, and the
-reference stay's Nov 14 flight is after its own checkout.
+Upcoming/Past tabs stay so guests can distinguish future services from
+completed or cancelled bookings.
 
 `toFinishedStay(session, booking)` renders the finished `Booking` as the
 `PastStay` it has become, so the receipt on My Stay and the one on `stay-detail`

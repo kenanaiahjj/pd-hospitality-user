@@ -11,10 +11,9 @@ import type { GuestSession } from './prototype-model';
  * a record written by an older shape is not worth migrating for a demo -- bump
  * the suffix and every stale record is silently discarded on read.
  *
- * v2: `Booking.roomRate`. A v1 record has no room rate on its bookings, so a
- * finished stay restored from one rendered a receipt with a room of zero.
+ * v3: SSO replaces legacy credential entry and the session shape is reset.
  */
-export const SESSION_STORAGE_KEY = 'cabana.guest-session.v2';
+export const SESSION_STORAGE_KEY = 'cabana.guest-session.v3';
 
 /**
  * Every entry point is wrapped, because `localStorage` is not merely absent on
@@ -46,7 +45,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 function isStoredSession(value: unknown): value is GuestSession {
   if (!isObject(value)) return false;
 
-  const authStates = ['anonymous', 'pending-verification', 'authenticated'];
+  const authStates = ['anonymous', 'authenticated'];
   const accountStates = ['none', 'new', 'returning'];
 
   return (
@@ -59,7 +58,6 @@ function isStoredSession(value: unknown): value is GuestSession {
     && accountStates.includes(value.accountStatus)
     && Array.isArray(value.bookings)
     && Array.isArray(value.serviceBookings)
-    && Array.isArray(value.travelBookings)
     && Array.isArray(value.additionalGuests)
     && isObject(value.roomPreferences)
     && Array.isArray((value.roomPreferences as Record<string, unknown>).accessibility)

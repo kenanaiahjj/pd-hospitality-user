@@ -8,9 +8,7 @@ import {
   MOCK_SESSION,
   RESTAURANTS,
   SERVICES,
-  TRAVEL_CATEGORIES,
   createAccountSession,
-  verifyPendingSession,
 } from './prototype-model';
 import { ANONYMOUS_SESSION, connectBooking, applyPrototypeStayState } from './prototype-model';
 import type { Booking, GuestSession } from './prototype-model';
@@ -51,7 +49,6 @@ const sessionFor = (
     bed: 'King bed',
     accessibility: [],
   },
-  travelBookings: [],
   additionalGuests: ['Marco Santos'],
   ...overrides,
 });
@@ -84,24 +81,38 @@ beforeAll(() => {
 });
 
 describe('GuestAppPrototype', () => {
-  it('opens on a focused booking-first welcome screen without app chrome', () => {
+  it('opens on an account gate without app chrome or travel', () => {
     render(<GuestAppPrototype />);
 
     expect(screen.getAllByText('Cabana', { exact: true })).toHaveLength(2);
     expect(screen.getAllByText('Your Home Away From Home')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
-    expect(screen.getByText('Check in before arrival')).toBeInTheDocument();
-    expect(screen.getByText('Skip the front desk paperwork')).toBeInTheDocument();
-    expect(screen.getByText('View charges and hotel services')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /create account/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /log in/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /room qr/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /hotel wi-fi/i })).toBeNull();
-    expect(screen.queryByText(/13 destinations/i)).toBeNull();
-    expect(screen.queryByRole('region', { name: /experience showcase/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull();
+    expect(screen.queryByText(/travel|flights/i)).toBeNull();
     expect(screen.queryByRole('banner')).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+  });
+
+  it('uses Apple SSO to start a new account', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
+
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+  });
+
+  it('uses Google SSO to open a returning account', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+
+    expect(screen.getByRole('heading', { name: /Welcome back/ })).toBeInTheDocument();
   });
 
   it('pages the welcome steps one at a time from the dots', async () => {
@@ -116,8 +127,8 @@ describe('GuestAppPrototype', () => {
 
     expect(dots[2]).toHaveAttribute('aria-current', 'step');
     expect(dots[0]).not.toHaveAttribute('aria-current');
-    // Get started is never gated behind reaching the last step.
-    expect(screen.getByRole('button', { name: 'Get started' })).toBeEnabled();
+    // Account creation is available from every welcome step.
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeEnabled();
   });
 
   it('exposes only the current welcome step to assistive tech', async () => {
@@ -134,15 +145,14 @@ describe('GuestAppPrototype', () => {
     expect(stepOf('Skip the front desk paperwork')).toHaveAttribute('aria-hidden', 'false');
   });
 
-  it('opens booking identification directly from the welcome action', async () => {
+  it('opens account creation from the welcome action', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
 
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
   });
 
   it('connects a booking and reaches the matched-stay confirmation', () => {
@@ -424,8 +434,7 @@ describe('GuestAppPrototype', () => {
     // group left to hold -- the profile is a destination of its own now.
     expect(screen.queryByRole('group', { name: 'Your account' })).toBeNull();
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
-    // Four, as DESIGN.md specifies. Travel is inventory inside Explore rather
-    // than a destination, and the front desk is a row inside My Trip.
+    // Four, as DESIGN.md specifies. The front desk is a row inside My Stay.
     expect(navigation.querySelectorAll('button')).toHaveLength(4);
     expect(within(navigation).getAllByRole('button').map((b) => b.textContent))
       .toEqual(['Home', 'Explore', 'My Stay', 'Profile']);
@@ -559,26 +568,21 @@ describe('GuestAppPrototype', () => {
 });
 
 describe('guest account and entry flows', () => {
-  it('allows optional account creation with no stay invented', async () => {
+  it('creates an account with Apple SSO and keeps the guest ready to connect a stay', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="create-account" />);
 
-    await user.type(screen.getByLabelText(/Full name/), 'Mara Cruz');
-    await user.type(screen.getByLabelText(/Email/), 'mara@example.com');
-    await user.type(screen.getByLabelText(/Password/), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     expect(screen.queryByTestId('guest-home-active')).toBeNull();
   });
 
-  it('routes a returning account to its saved stay', async () => {
+  it('routes a returning guest through Google SSO to its saved stay', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="sign-in" />);
 
-    await user.type(screen.getByLabelText(/Email/), 'ana@example.com');
-    await user.type(screen.getByLabelText(/Password/), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
     expect(screen.getByRole('heading', { name: /Welcome back/ })).toBeInTheDocument();
   });
@@ -599,9 +603,7 @@ describe('guest account and entry flows', () => {
   });
 
   it('opens the shell and the empty home for an account with no bookings', () => {
-    const session = verifyPendingSession(
-      createAccountSession('Mara Cruz', 'mara@example.com', 'email-code'),
-    );
+    const session = createAccountSession('Mara Cruz', 'mara@example.com', 'apple');
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={session} />);
 
     expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
@@ -614,7 +616,7 @@ describe('guest account and entry flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -624,46 +626,26 @@ describe('guest account and entry flows', () => {
     expect(screen.queryByRole('button', { name: /open profile/i })).toBeNull();
   });
 
-  it('keeps the welcome focused and navigates straight to booking lookup', async () => {
+  it('keeps the welcome focused and opens account creation first', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialOnline={false} />);
+    render(<GuestAppPrototype />);
 
     expect(screen.queryByText(/Offline mode active/i)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
 
+    expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Confirmation number' }));
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
   });
 
-  it('labels the code field for assistive technology and autofill', () => {
-    render(<GuestAppPrototype initialScreen="verify-code" />);
-
-    const code = screen.getByLabelText(/verification code/i);
-    expect(code).toHaveAttribute('autocomplete', 'one-time-code');
-    expect(code).toHaveAttribute('inputmode', 'numeric');
-    expect(screen.getByRole('button', { name: 'Verify' })).toBeDisabled();
-  });
-
-  it('toggles password visibility with accessible labeling', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="sign-in" />);
-
-    const passwordInput = screen.getByLabelText(/Password/);
-    expect(passwordInput).toHaveAttribute('type', 'password');
-
-    const toggleBtn = screen.getByRole('button', { name: 'Show password' });
-    await user.click(toggleBtn);
-    expect(passwordInput).toHaveAttribute('type', 'text');
-    expect(screen.getByRole('button', { name: 'Hide password' })).toBeInTheDocument();
-  });
-
-  it('ships styles for the auth screens and password fields', () => {
+  it('ships styles for the welcome and SSO screens', () => {
     expect(guestStyles).toContain('.guest-welcome__splash');
     expect(guestStyles).toContain('.guest-welcome__art-track');
     expect(guestStyles).toContain('.guest-welcome__dots');
     expect(guestStyles).toMatch(/\.guest-welcome[^}]*background: #fff/);
-    expect(guestStyles).toContain('.guest-password-wrapper');
-    expect(guestStyles).toContain('.guest-password-toggle');
+    expect(guestStyles).toContain('.guest-sso-button');
     expect(guestStyles).toContain('.guest-code-field');
     expect(guestStyles).toMatch(/\.guest-code-field[^}]*letter-spacing/);
   });
@@ -1027,65 +1009,6 @@ describe('menu and service listing controls', () => {
   });
 });
 
-describe('travel destination', () => {
-  it('keeps travel inside Explore rather than giving it a destination', () => {
-    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
-
-    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    const destinations = within(nav).getAllByRole('button').map((b) => b.textContent);
-    expect(destinations).toEqual(['Home', 'Explore', 'My Stay', 'Profile']);
-    // A travel screen still lights Explore: that is where the guest found it.
-    expect(screen.getByRole('button', { name: 'Explore' })).toHaveAttribute('aria-current', 'page');
-  });
-
-  it('lists every travel category on the hub', () => {
-    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
-
-    expect(screen.getByRole('heading', { name: 'Get there, and onward' })).toBeInTheDocument();
-    for (const category of TRAVEL_CATEGORIES) {
-      expect(screen.getByText(category.title)).toBeInTheDocument();
-    }
-  });
-
-  it('opens a category with its own route labels, party label and inventory', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
-
-    await user.click(screen.getByText('Ferries'));
-
-    expect(screen.getByLabelText('Departure port')).toBeInTheDocument();
-    expect(screen.getByLabelText('Arrival port')).toBeInTheDocument();
-    expect(screen.getByLabelText('Passengers')).toBeInTheDocument();
-    expect(screen.getByText('2GO Travel')).toBeInTheDocument();
-    expect(screen.getAllByText('OceanJet')).toHaveLength(2);
-    // Flight inventory must not leak into the ferry category.
-    expect(screen.queryByText('Cebu Pacific')).toBeNull();
-  });
-
-  it('offers only the three ways of travelling, cover no longer among them', () => {
-    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
-
-    // Cover has no route, departure or seat, so it stopped being a mode.
-    expect(TRAVEL_CATEGORIES.map((category) => category.id)).toEqual(['flights', 'ferries', 'transfers']);
-    expect(screen.queryByText('Travel insurance')).toBeNull();
-  });
-
-  it('marks one fare as selected and totals it against the operator', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
-
-    await user.click(screen.getByText('Flights'));
-    const fares = screen.getAllByRole('button', { pressed: false });
-    await user.click(screen.getByText('₱3,940').closest('button') as HTMLElement);
-
-    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1);
-    expect(fares.length).toBeGreaterThan(1);
-    // Selecting a fare summarises it and opens the way to checkout.
-    expect(screen.getByText('Fare each')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Continue to checkout/ })).toBeInTheDocument();
-  });
-});
-
 describe('booking detail', () => {
   it('names every guest on the booking, and flags those still unnamed', async () => {
     const user = userEvent.setup();
@@ -1140,41 +1063,6 @@ describe('booking detail', () => {
 
     expect(screen.getByText('Checked in')).toBeInTheDocument();
     expect(screen.queryByText('Upcoming')).toBeNull();
-  });
-});
-
-describe('travel as a category', () => {
-  it('opens the travel hub from the Explore grid', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="marketplace" initialSession={MOCK_SESSION} />);
-
-    await user.click(screen.getByRole('button', { name: 'Travel' }));
-
-    // Its own hub, not the on-property listing.
-    expect(screen.getByRole('heading', { name: 'Get there, and onward' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Explore' })).toHaveAttribute('aria-current', 'page');
-  });
-
-  it('opens the travel hub from the Home category row too', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
-
-    // Home's row is driven by the same list, so it must route the same way --
-    // this tile used to send every category to `category-listing`.
-    await user.click(screen.getByRole('button', { name: 'Travel' }));
-
-    expect(screen.getByRole('heading', { name: 'Get there, and onward' })).toBeInTheDocument();
-  });
-
-  it('reaches flights, ferries, transfers and cover inside it', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="marketplace" initialSession={MOCK_SESSION} />);
-
-    await user.click(screen.getByRole('button', { name: 'Travel' }));
-
-    for (const category of TRAVEL_CATEGORIES) {
-      expect(screen.getByText(category.title)).toBeInTheDocument();
-    }
   });
 });
 
@@ -1252,7 +1140,7 @@ describe('folio accumulation', () => {
 
     // The seeded folio is ₱12,730; the massage is ₱2,400. It used to be
     // overwritten with a hardcoded ₱5,450.
-    expect(screen.getByText(/₱15,130 on your room/)).toBeInTheDocument();
+    expect(screen.getByText('₱15,130')).toBeInTheDocument();
   });
 
   it('charges a re-booked service once', async () => {
@@ -1263,7 +1151,7 @@ describe('folio accumulation', () => {
     await user.click(screen.getByRole('button', { name: 'My Stay' }));
 
     // The booking replaces the previous one, so the charge must not stack.
-    expect(screen.getByText(/₱15,130 on your room/)).toBeInTheDocument();
+    expect(screen.getByText('₱15,130')).toBeInTheDocument();
   });
 });
 
@@ -1307,15 +1195,6 @@ describe('booking receipt', () => {
     expect(screen.getByRole('button', { name: /Change or cancel/ })).toBeInTheDocument();
   });
 
-  it('shows a travel leg as paid to the operator, with no cancel action', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
-
-    await user.click(screen.getByRole('button', { name: /Cebu Pacific/ }));
-
-    expect(screen.getByText(/paid to the operator/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Change or cancel/ })).toBeNull();
-  });
 });
 
 describe('stay history', () => {
@@ -1494,129 +1373,6 @@ describe('my stay', () => {
   });
 });
 
-describe('travel checkout', () => {
-  const travelSession = { ...MOCK_SESSION, activeBookingId: MOCK_SESSION.bookings[0]!.id };
-
-  async function pickFlight(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(screen.getByText('Flights'));
-    await user.click(screen.getByText('₱3,940').closest('button') as HTMLElement);
-    await user.click(screen.getByRole('button', { name: /Continue to checkout/ }));
-  }
-
-  it('totals the fare per traveller and charges the operator, not the folio', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
-    await pickFlight(user);
-
-    expect(screen.getByRole('heading', { name: 'Confirm and pay' })).toBeInTheDocument();
-    // 3,940 x 2 fare, plus a 210 per-traveller fee.
-    expect(screen.getByText('Fare × 2')).toBeInTheDocument();
-    expect(screen.getByText('₱7,880')).toBeInTheDocument();
-    expect(screen.getByText('₱420')).toBeInTheDocument();
-    expect(screen.getByText('₱8,300')).toBeInTheDocument();
-    expect(screen.getByText(/Not charged to your room/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Pay ₱8,300/ })).toBeInTheDocument();
-  });
-
-  it('confirms the traveller Cabana already holds ID for', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
-    await pickFlight(user);
-
-    expect(screen.getByText('Ana Santos')).toBeInTheDocument();
-    expect(screen.getByText('ID on file from check-in')).toBeInTheDocument();
-    expect(screen.getByText('Marco Santos')).toBeInTheDocument();
-  });
-
-  it('adds cover on the leg being paid for, off by default', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={MOCK_SESSION} />);
-    await pickFlight(user);
-
-    // ₱4,150 fare x2 + ₱210 fee x2 = ₱8,720 before cover.
-    const before = screen.getByRole('button', { name: /^Pay / }).textContent;
-    expect(screen.queryByText(/Trip cover ×/)).toBeNull();
-
-    await user.click(screen.getByRole('checkbox'));
-
-    expect(screen.getByText('Trip cover × 2')).toBeInTheDocument();
-    // ₱720 each, so the total moves by ₱1,440.
-    expect(screen.getByRole('button', { name: /^Pay / }).textContent).not.toBe(before);
-  });
-
-  it('books the leg and lands it in my stay', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
-    await pickFlight(user);
-    await user.click(screen.getByRole('button', { name: /Pay ₱8,300/ }));
-
-    expect(screen.getByRole('heading', { name: 'Your flight is booked' })).toBeInTheDocument();
-    expect(screen.getByText(/Bring government ID/)).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
-    // The leg lands beside the on-property bookings rather than in a Travel
-    // section of its own: My Stay is the one place the whole trip is listed.
-    expect(screen.getByRole('heading', { name: 'The Henry Manila', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/Checked in · Room/)).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Upcoming/ })).toHaveAttribute('aria-selected', 'true');
-    // The carrier is the card's parent, since the carrier is who gets paid.
-    // Two now: the seeded leg and the one just booked. The leg used to be
-    // dated to the hotel stay's check-in, so it filed itself as history.
-    expect(screen.getAllByText('Cebu Pacific').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/paid to the operator/).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('files a booked leg as upcoming, not as history', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
-    await pickFlight(user);
-    await user.click(screen.getByRole('button', { name: /^Pay / }));
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
-
-    // The date picker's value is used now. It was ignored, and every leg took
-    // the stay's check-in date -- behind the clock mid-stay.
-    const upcoming = screen.getByRole('tab', { name: /Upcoming/ });
-    expect(upcoming).toHaveAttribute('aria-selected', 'true');
-    expect(within(upcoming).getByText('5')).toBeInTheDocument();
-  });
-
-  it('does not let a paid fare be paid for twice', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
-    await pickFlight(user);
-    await user.click(screen.getByRole('button', { name: /^Pay / }));
-
-    // Back from the confirmation returned to a live checkout with the Pay
-    // button still armed, and pressing it booked a second identical leg.
-    await user.click(screen.getByRole('button', { name: 'Go back' }));
-
-    expect(screen.queryByRole('button', { name: /^Pay / })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Choose a fare first' })).toBeInTheDocument();
-  });
-
-  it('names the booked leg correctly for an irregular plural', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
-
-    await user.click(screen.getByText('Ferries'));
-    // Two sailings share the ₱1,250 fare, so pick by the unique operator.
-    await user.click(screen.getByText('2GO Travel').closest('button') as HTMLElement);
-    await user.click(screen.getByRole('button', { name: /Continue to checkout/ }));
-    await user.click(screen.getByRole('button', { name: /^Pay / }));
-
-    // "Ferries" must not become "ferrie".
-    expect(screen.getByRole('heading', { name: 'Your ferry is booked' })).toBeInTheDocument();
-  });
-
-  it('refuses to hold a fare while offline instead of queueing it', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} initialOnline={false} />);
-    await pickFlight(user);
-
-    expect(screen.getByText(/Nothing was booked/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Pay / })).toBeNull();
-  });
-});
 
 describe('pre-arrival onboarding flow', () => {
   it('collects details, ID, additional guests, and early check-in across 4 steps', async () => {
@@ -1935,9 +1691,7 @@ describe('home mini-apps and browsable restaurant menu', () => {
     expect(screen.queryByRole('heading', { name: 'Upcoming & Confirmed' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Past & Completed' })).toBeNull();
 
-    // Travel is a category in the grid now, not a section of its own.
-    expect(screen.queryByRole('heading', { name: 'Onward travel' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Travel' })).toBeInTheDocument();
+    expect(screen.queryByText(/travel|flights/i)).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Food & Drink' }));
     expect(screen.getByRole('heading', { name: 'Food & Drink', level: 1 })).toBeInTheDocument();
@@ -1960,10 +1714,10 @@ describe('session persistence', () => {
       two-pass behaviour explicit rather than something a future reader has to
       infer from a `findBy` that happens to wait.
     */
-    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create account/ })).toBeInTheDocument();
 
     expect(await screen.findByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Get started/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Create account/ })).toBeNull();
   });
 
   it('keeps a signed-out record from landing anywhere but the entry hub', async () => {
@@ -1972,7 +1726,7 @@ describe('session persistence', () => {
     render(<GuestAppPrototype />);
     await act(async () => { await Promise.resolve(); });
 
-    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create account/ })).toBeInTheDocument();
   });
 
   it('ignores storage entirely when a session is supplied', async () => {
@@ -1981,7 +1735,7 @@ describe('session persistence', () => {
     render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
     await act(async () => { await Promise.resolve(); });
 
-    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create account/ })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -2201,7 +1955,7 @@ describe('a finished stay on My Stay', () => {
     expect(screen.getByRole('button', { name: 'Message the front desk' })).toBeInTheDocument();
   });
 
-  it('keeps the tabs, because travel booked during the stay outlives it', () => {
+  it('keeps the tabs so upcoming and past services stay distinct', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
 
     expect(screen.getByRole('tab', { name: /Upcoming/ })).toBeInTheDocument();

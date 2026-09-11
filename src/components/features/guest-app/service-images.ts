@@ -304,7 +304,7 @@ export const ITEM_THUMBNAIL_IMAGES: Record<string, ServiceImageDefinition> = {
   },
   scooter: {
     src: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=600&q=80',
-    alt: 'Modern electric scooter available for city travel',
+    alt: 'Modern electric scooter available for local exploration',
     focalPoint: '50% 50%',
   },
   laundry: {
@@ -314,7 +314,7 @@ export const ITEM_THUMBNAIL_IMAGES: Record<string, ServiceImageDefinition> = {
   },
   luggage: {
     src: 'https://images.unsplash.com/photo-1581553680321-4fffae59fccd?auto=format&fit=crop&w=600&q=80',
-    alt: 'Polished hotel brass luggage trolley with leather travel bags',
+    alt: 'Polished hotel brass luggage trolley with leather bags',
     focalPoint: '50% 50%',
   },
   celebration: {
@@ -468,32 +468,6 @@ export const ITEM_CARD_IMAGES: Record<string, ServiceImageDefinition> = {
   },
 };
 
-/**
- * Route-specific scenic destination imagery for Travel cards and route thumbnails.
- */
-export const ROUTE_DESTINATION_IMAGES: Record<string, ServiceImageDefinition> = {
-  'pr-1': {
-    src: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-    alt: 'Turquoise ocean water and white sand beach in Boracay Caticlan',
-    focalPoint: '50% 50%',
-  },
-  'pr-2': {
-    src: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=600&q=80',
-    alt: 'Tropical emerald waters and coastline in Bohol Tagbilaran',
-    focalPoint: '50% 50%',
-  },
-  'pr-3': {
-    src: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-    alt: 'Coastal panorama and skyline of Cebu City',
-    focalPoint: '50% 50%',
-  },
-  'pr-4': {
-    src: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=600&q=80',
-    alt: 'Executive private chauffeur transfer to Manila NAIA Terminal 3',
-    focalPoint: '50% 50%',
-  },
-};
-
 export function getItemThumbnail(id: string, categoryId?: string): ServiceImageDefinition {
   if (ITEM_THUMBNAIL_IMAGES[id]) {
     return ITEM_THUMBNAIL_IMAGES[id];
@@ -511,12 +485,4 @@ export function getItemCardImage(id: string, categoryId?: string): ServiceImageD
   }
   const key = getServiceImageKey({ id, categoryId: categoryId ?? 'services' });
   return SERVICE_IMAGES[key];
-}
-
-export function getRouteDestinationImage(routeId: string): ServiceImageDefinition {
-  return ROUTE_DESTINATION_IMAGES[routeId] ?? {
-    src: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-    alt: 'Scenic Philippine destination',
-    focalPoint: '50% 50%',
-  };
 }

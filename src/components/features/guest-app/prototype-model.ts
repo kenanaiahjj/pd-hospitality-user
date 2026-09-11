@@ -1,8 +1,7 @@
-export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Travel' | 'Account';
+export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
 
 export type ScreenId =
   | 'sign-in'
-  | 'verify-code'
   | 'connect-booking'
   | 'room-qr-landing'
   | 'wifi-landing'
@@ -52,10 +51,6 @@ export type ScreenId =
   | 'stay-history'
   | 'stay-detail'
   | 'stay-entry'
-  | 'travel'
-  | 'travel-search'
-  | 'travel-checkout'
-  | 'travel-confirmation'
   | 'notifications';
 
 export type PrototypeScreen = {
@@ -75,60 +70,55 @@ const screen = (number: number, group: ScreenGroup, id: ScreenId, title: string)
 export const SCREENS: PrototypeScreen[] = [
   screen(1, 'Entry', 'sign-in', 'Log in'),
   screen(2, 'Entry', 'create-account', 'Create your account'),
-  screen(3, 'Entry', 'verify-code', 'Check your email'),
-  screen(4, 'Entry', 'connect-booking', 'Add your booking'),
-  screen(5, 'Entry', 'room-qr-landing', 'Room QR detected'),
-  screen(6, 'Entry', 'wifi-landing', 'Hotel Wi-Fi'),
-  screen(7, 'Entry', 'identify', 'Find your booking'),
-  screen(8, 'Entry', 'lookup-fallback', 'Try another way'),
-  screen(9, 'Entry', 'front-desk-assist', 'Front desk assist'),
-  screen(10, 'Entry', 'no-booking', 'No booking found'),
-  screen(11, 'Entry', 'booking-found', 'Booking found'),
-  screen(12, 'Entry', 'welcome-back', 'Welcome back'),
-  screen(13, 'Pre-arrival', 'stay-overview', 'Your stay'),
-  screen(14, 'Pre-arrival', 'guest-details', 'Guest details'),
-  screen(15, 'Pre-arrival', 'id-capture', 'ID or passport'),
-  screen(16, 'Account', 'room-preferences', 'Room preferences'),
-  screen(17, 'Pre-arrival', 'additional-guests', 'Additional guests'),
-  screen(18, 'Pre-arrival', 'repeat-review', 'Review your details'),
-  screen(19, 'Pre-arrival', 'rate-detail', 'Room and rate'),
-  screen(20, 'Pre-arrival', 'early-check-in', 'Early check-in'),
-  screen(21, 'Pre-arrival', 'arrival-handoff', 'Arrival handoff'),
-  screen(22, 'Pre-arrival', 'prereg-complete', 'Pre-registration complete'),
-  screen(23, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
-  screen(24, 'Stay', 'marketplace', 'Explore'),
-  screen(25, 'Stay', 'category-listing', 'Explore services'),
-  screen(26, 'Stay', 'hotel-service', 'In-room dining'),
-  screen(27, 'Stay', 'vendor-service', 'Hilom signature massage'),
-  screen(28, 'Stay', 'restaurant-menu', 'Menu & Dining'),
-  screen(29, 'Stay', 'service-booking', 'Choose a time'),
-  screen(30, 'Stay', 'booking-confirmation', 'Service confirmed'),
-  screen(31, 'Stay', 'booking-blocked', 'Connect to book'),
-  screen(32, 'Stay', 'my-stay', 'My stay'),
-  screen(33, 'Stay', 'cancel-before-cutoff', 'Cancel service'),
-  screen(34, 'Stay', 'cancel-after-cutoff', 'Contact front desk'),
-  screen(35, 'Stay', 'folio', 'Room charges'),
-  screen(36, 'Stay', 'chat', 'Front desk chat'),
-  screen(37, 'Stay', 'chat-after-hours', 'Chat after hours'),
-  screen(38, 'Stay', 'room-qr-midstay', 'You are checked in'),
-  screen(39, 'Account', 'profile', 'Guest profile'),
-  screen(40, 'Account', 'stay-history', 'Stay history'),
-  screen(41, 'Stay', 'restaurant-cart', 'Review dining order'),
-  screen(42, 'Stay', 'dining-order-confirmation', 'Dining order confirmed'),
-  screen(43, 'Travel', 'travel', 'Travel'),
-  screen(44, 'Travel', 'travel-search', 'Travel search'),
-  screen(45, 'Travel', 'travel-checkout', 'Travel checkout'),
-  screen(46, 'Travel', 'travel-confirmation', 'Travel confirmed'),
-  screen(47, 'Stay', 'notifications', 'Notifications'),
-  screen(48, 'Account', 'stay-detail', 'Stay detail'),
-  screen(49, 'Stay', 'stay-entry', 'Booking receipt'),
-  screen(50, 'Entry', 'identify-returning', 'Log in with a booking'),
-  screen(51, 'Entry', 'verify-contact', 'Verify it is you'),
-  screen(52, 'Stay', 'book-stay', 'Book another stay'),
-  screen(53, 'Stay', 'book-stay-dates', 'Dates and guests'),
-  screen(54, 'Stay', 'book-stay-rooms', 'Choose a room'),
-  screen(55, 'Stay', 'book-stay-checkout', 'Confirm and pay'),
-  screen(56, 'Stay', 'book-stay-confirmation', 'Stay booked'),
+  screen(3, 'Entry', 'connect-booking', 'Add your booking'),
+  screen(4, 'Entry', 'room-qr-landing', 'Room QR detected'),
+  screen(5, 'Entry', 'wifi-landing', 'Hotel Wi-Fi'),
+  screen(6, 'Entry', 'identify', 'Find your booking'),
+  screen(7, 'Entry', 'lookup-fallback', 'Try another way'),
+  screen(8, 'Entry', 'front-desk-assist', 'Front desk assist'),
+  screen(9, 'Entry', 'no-booking', 'No booking found'),
+  screen(10, 'Entry', 'booking-found', 'Booking found'),
+  screen(11, 'Entry', 'welcome-back', 'Welcome back'),
+  screen(12, 'Pre-arrival', 'stay-overview', 'Your stay'),
+  screen(13, 'Pre-arrival', 'guest-details', 'Guest details'),
+  screen(14, 'Pre-arrival', 'id-capture', 'ID or passport'),
+  screen(15, 'Account', 'room-preferences', 'Room preferences'),
+  screen(16, 'Pre-arrival', 'additional-guests', 'Additional guests'),
+  screen(17, 'Pre-arrival', 'repeat-review', 'Review your details'),
+  screen(18, 'Pre-arrival', 'rate-detail', 'Room and rate'),
+  screen(19, 'Pre-arrival', 'early-check-in', 'Early check-in'),
+  screen(20, 'Pre-arrival', 'arrival-handoff', 'Arrival handoff'),
+  screen(21, 'Pre-arrival', 'prereg-complete', 'Pre-registration complete'),
+  screen(22, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
+  screen(23, 'Stay', 'marketplace', 'Explore'),
+  screen(24, 'Stay', 'category-listing', 'Explore services'),
+  screen(25, 'Stay', 'hotel-service', 'In-room dining'),
+  screen(26, 'Stay', 'vendor-service', 'Hilom signature massage'),
+  screen(27, 'Stay', 'restaurant-menu', 'Menu & Dining'),
+  screen(28, 'Stay', 'service-booking', 'Choose a time'),
+  screen(29, 'Stay', 'booking-confirmation', 'Service confirmed'),
+  screen(30, 'Stay', 'booking-blocked', 'Connect to book'),
+  screen(31, 'Stay', 'my-stay', 'My stay'),
+  screen(32, 'Stay', 'cancel-before-cutoff', 'Cancel service'),
+  screen(33, 'Stay', 'cancel-after-cutoff', 'Contact front desk'),
+  screen(34, 'Stay', 'folio', 'Room charges'),
+  screen(35, 'Stay', 'chat', 'Front desk chat'),
+  screen(36, 'Stay', 'chat-after-hours', 'Chat after hours'),
+  screen(37, 'Stay', 'room-qr-midstay', 'You are checked in'),
+  screen(38, 'Account', 'profile', 'Guest profile'),
+  screen(39, 'Account', 'stay-history', 'Stay history'),
+  screen(40, 'Stay', 'restaurant-cart', 'Review dining order'),
+  screen(41, 'Stay', 'dining-order-confirmation', 'Dining order confirmed'),
+  screen(42, 'Stay', 'notifications', 'Notifications'),
+  screen(43, 'Account', 'stay-detail', 'Stay detail'),
+  screen(44, 'Stay', 'stay-entry', 'Booking receipt'),
+  screen(45, 'Entry', 'identify-returning', 'Log in with a booking'),
+  screen(46, 'Entry', 'verify-contact', 'Verify it is you'),
+  screen(47, 'Stay', 'book-stay', 'Book another stay'),
+  screen(48, 'Stay', 'book-stay-dates', 'Dates and guests'),
+  screen(49, 'Stay', 'book-stay-rooms', 'Choose a room'),
+  screen(50, 'Stay', 'book-stay-checkout', 'Confirm and pay'),
+  screen(51, 'Stay', 'book-stay-confirmation', 'Stay booked'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -143,7 +133,7 @@ export type Booking = {
    * included. Without this the booking-lookup path had no name to carry into
    * the session at all, so the app showed an empty greeting, promoted an
    * additional guest into the lead booker's row, and attributed a passport to
-   * the wrong person on the travel checkout.
+   * the wrong person on the account.
    */
   guestName: string;
   property: string;
@@ -233,17 +223,12 @@ export type ServiceBooking = {
   diningOrder?: DiningOrderDetails;
 };
 
-/**
- * Authentication is a three-state affair rather than a boolean because the
- * one-time code screen is a real place the guest can sit, back out of, or
- * abandon. A boolean would make that screen indistinguishable from being in.
- */
-export type AuthState = 'anonymous' | 'pending-verification' | 'authenticated';
+export type AuthState = 'anonymous' | 'authenticated';
 
 /** Drives the "onboarding if new" branch. `none` is the signed-out shape. */
 export type AccountStatus = 'none' | 'new' | 'returning';
 
-export type AuthMethod = 'password' | 'email-code' | 'apple' | 'google';
+export type AuthMethod = 'apple' | 'google';
 
 export type RoomPreferences = {
   floor: string;
@@ -262,17 +247,7 @@ export type GuestSession = {
   accountStatus: AccountStatus;
   authMethod?: AuthMethod;
   roomPreferences: RoomPreferences;
-  /**
-   * Travel is not stay-scoped the way `serviceBookings` are -- a ferry between
-   * two properties belongs to the trip, not to either stay -- so it has no
-   * `bookingId` and lives in its own list.
-   */
-  travelBookings: TravelBooking[];
-  /**
-   * Companion names, persisted from the additional-guests step. Travel
-   * checkout needs real traveller names; inventing them there would be a lie,
-   * and Philippine carriers match passenger names against government ID.
-   */
+  /** Companion names are persisted from the additional-guests step. */
   additionalGuests: string[];
 };
 
@@ -318,7 +293,6 @@ export const ANONYMOUS_SESSION: GuestSession = {
     bed: 'King bed',
     accessibility: [],
   },
-  travelBookings: [],
   additionalGuests: [],
 };
 
@@ -327,27 +301,12 @@ export const MOCK_SESSION: GuestSession = {
   email: 'ana@example.com',
   auth: 'authenticated',
   accountStatus: 'returning',
-  authMethod: 'email-code',
+  authMethod: 'google',
   roomPreferences: {
     floor: 'Higher floor',
     bed: 'King bed',
     accessibility: [],
   },
-  travelBookings: [
-    {
-      id: 'travel-seed-1',
-      reference: 'CBP-8842',
-      categoryId: 'flights',
-      operator: 'Cebu Pacific',
-      detail: '09:15 → 11:05',
-      meta: '5J 561 · Direct · Airbus A320',
-      route: 'Manila (MNL) → Cebu (CEB)',
-      date: '2026-11-14',
-      travellers: 2,
-      amount: '₱8,560',
-      status: 'confirmed',
-    },
-  ],
   additionalGuests: ['Marco Santos'],
   bookings: [
     UPCOMING_BOOKING_FIXTURE,
@@ -370,9 +329,8 @@ export const MOCK_SESSION: GuestSession = {
   /*
     A populated stay, so the relationships are visible without having to book
     five things by hand first. Read as a set these say: two venues and a spa
-    inside The Henry Manila, one tour the hotel arranged, one leg from a
-    carrier that is not the hotel's, and one order already delivered. Every
-    on-property line settles on room 512's folio; the flight never touches it.
+    inside The Henry Manila, one hotel-arranged activity, and one order already
+    delivered. Every line settles on room 512's folio at hotel checkout.
 
     Dates straddle PROTOTYPE_TODAY (2026-11-11) on purpose, so Upcoming and
     Past both have something in them.
@@ -443,37 +401,14 @@ export const MOCK_SESSION: GuestSession = {
 };
 
 /**
- * Creating an account and signing in both land on the code screen. They differ
- * only in what they carry: a new account has no stays, a returning one arrives
- * with everything already on file.
+ * Creating an account and signing in both complete immediately in the
+ * prototype. They differ only in what they carry: a new account has no stays,
+ * and a returning one arrives with everything already on file.
  */
 export function createAccountSession(
   guestName: string,
   email: string,
-  method: AuthMethod = 'password',
-): GuestSession {
-  return {
-    ...ANONYMOUS_SESSION,
-    guestName,
-    email,
-    auth: 'pending-verification',
-    accountStatus: 'new',
-    authMethod: method,
-  };
-}
-
-export function signInSession(method: AuthMethod = 'password'): GuestSession {
-  return {
-    ...MOCK_SESSION,
-    auth: 'pending-verification',
-    accountStatus: 'returning',
-    authMethod: method,
-  };
-}
-
-export function createAccountWithPassword(
-  guestName: string,
-  email: string,
+  method: AuthMethod = 'apple',
 ): GuestSession {
   return {
     ...ANONYMOUS_SESSION,
@@ -481,24 +416,17 @@ export function createAccountWithPassword(
     email,
     auth: 'authenticated',
     accountStatus: 'new',
-    authMethod: 'password',
+    authMethod: method,
   };
 }
 
-export function signInWithPassword(email?: string): GuestSession {
+export function signInSession(method: AuthMethod = 'google'): GuestSession {
   return {
     ...MOCK_SESSION,
-    ...(email ? { email } : {}),
     auth: 'authenticated',
     accountStatus: 'returning',
-    authMethod: 'password',
+    authMethod: method,
   };
-}
-
-/** Only a pending session can be promoted; every other state passes through. */
-export function verifyPendingSession(session: GuestSession): GuestSession {
-  if (session.auth !== 'pending-verification') return session;
-  return { ...session, auth: 'authenticated' };
 }
 
 export function signOutSession(): GuestSession {
@@ -557,7 +485,6 @@ export function connectBooking(session: GuestSession): GuestSession {
     guestName: session.guestName || UPCOMING_BOOKING_FIXTURE.guestName,
     bookings: [...session.bookings, UPCOMING_BOOKING_FIXTURE],
     serviceBookings: [...session.serviceBookings, ...MOCK_SESSION.serviceBookings],
-    travelBookings: [...session.travelBookings, ...MOCK_SESSION.travelBookings],
     folioTotal: parsePesoAmount(session.folioTotal) > 0 ? session.folioTotal : MOCK_SESSION.folioTotal,
     additionalGuests: session.additionalGuests.length ? session.additionalGuests : MOCK_SESSION.additionalGuests,
   };
@@ -613,7 +540,7 @@ export type StayStatus = 'upcoming' | 'room-ready' | 'checked-in' | 'checked-out
  * The badge on a stay, and the one place its wording is decided.
  *
  * "Upcoming" was read straight off `Booking.status`, so a stay whose own dates
- * had it mid-flight still announced itself as upcoming. Three states matter to
+ * had it already under way still announced itself as upcoming. Three states matter to
  * a guest and `status` distinguishes none of them: the stay is ahead, the room
  * is released and waiting, or they are in it.
  */
@@ -722,15 +649,6 @@ export const PROTOTYPE_TODAY = '2026-11-11';
 export const DEFAULT_REBOOK_CHECK_IN = '2026-12-11';
 export const DEFAULT_REBOOK_CHECK_OUT = '2026-12-14';
 
-/**
- * What the travel date picker opens on: the day after this stay ends.
- *
- * The checkout used to date every leg to the hotel stay's *check-in*, which is
- * behind the clock mid-stay -- so a flight booked today was filed as history
- * the moment it was paid for.
- */
-export const DEFAULT_TRAVEL_DATE = '2026-11-13';
-
 const dayIndex = (isoDate: string) => Math.floor(Date.parse(`${isoDate}T00:00:00Z`) / 86_400_000);
 
 const countdown = (days: number, today: string, tomorrow: string, future: (days: number) => string) => {
@@ -820,7 +738,7 @@ export type PastStayCharge = {
   title: string;
   detail: string;
   amount: string;
-  category: 'Dining' | 'Spa & wellness' | 'Tours' | 'Hotel services' | 'Travel';
+  category: 'Dining' | 'Spa & wellness' | 'Tours' | 'Hotel services';
 };
 
 export type PastStay = {
@@ -1003,7 +921,7 @@ export function restoreProfileSession(): GuestSession {
     ...MOCK_SESSION,
     auth: 'authenticated',
     accountStatus: 'returning',
-    authMethod: 'email-code',
+    authMethod: 'google',
   };
 }
 
@@ -1283,11 +1201,6 @@ function categoryLabelFor(title: string): PastStayCharge['category'] {
   if (categoryId === 'dining') return 'Dining';
   if (categoryId === 'spa') return 'Spa & wellness';
   if (categoryId === 'entertainment') return 'Tours';
-  /*
-    No `Travel` branch: travel is not stay-scoped and never reaches a folio, so
-    it cannot arrive here. `serviceBookings` are on-property by definition --
-    the compiler agrees, and rejected the unreachable check.
-  */
   return 'Hotel services';
 }
 
@@ -1420,17 +1333,16 @@ export function summarisePastStay(stay: PastStay) {
 }
 
 /**
- * One row of My Stay, whatever it started life as -- a spa booking, a dining
- * order, a ferry.
+ * One row of My Stay, whether it began as a spa booking or a dining order.
  *
  * The `parent` pair is the point. Every bookable thing in Cabana belongs to
  * something larger: a restaurant belongs to a hotel, a massage belongs to a
- * spa inside a hotel, a sailing belongs to an operator. A card that names only
- * the thing ("Azotea Rooftop") makes the guest remember which building it was
+ * spa inside a hotel. A card that names only the thing ("Azotea Rooftop")
+ * makes the guest remember which building it was
  * in -- and across a multi-property trip they cannot. So the card leads with
  * the parent and treats the booking as the child.
  */
-export type StayEntryKind = 'service' | 'dining' | 'travel';
+export type StayEntryKind = 'service' | 'dining';
 
 /** One priced line on a booking's receipt. */
 export type StayReceiptLine = {
@@ -1449,9 +1361,9 @@ export type StayEntry = {
   detail: string;
   amount: string;
   status: 'confirmed' | 'cancelled' | 'completed';
-  /** What this belongs to: the hotel, or the carrier for a leg. */
+  /** The hotel this on-property booking belongs to. */
   parent: string;
-  /** Where inside the parent, or the route for a leg. */
+  /** Where inside the property the booking takes place. */
   parentDetail?: string;
   /**
    * How it settles, in the guest's terms -- and only when that is news.
@@ -1488,7 +1400,7 @@ export type StayEntry = {
  * a fixture, or a PMS that has not caught up -- while the dates are the
  * booking's own account of when it happens. The reference stay runs 9-12
  * November against a prototype clock of the 11th and still calls itself
- * `upcoming`, which had My Stay reporting a trip total of travel only while a
+ * `upcoming`, which had My Stay reporting no activity while a
  * populated room folio sat one screen away. Where the question is "can this
  * stay have charges yet", the dates answer it.
  */
@@ -1498,10 +1410,7 @@ export function hasStayStarted(booking: Booking, today: string = PROTOTYPE_TODAY
 }
 
 /**
- * Splits everything the guest has booked into what is still ahead and what is
- * behind. Travel legs sit alongside on-property bookings rather than in a
- * section of their own: on this screen the question is "what have I booked",
- * and the answer does not care which system supplied it.
+ * Splits on-property bookings into what is still ahead and what is behind.
  */
 const describeServiceSettlement = (
   status: ServiceBooking['status'],
@@ -1578,37 +1487,10 @@ export function getStayEntries(
     });
   }
 
-  for (const leg of session.travelBookings) {
-    entries.push({
-      id: leg.id,
-      kind: 'travel',
-      lines: [{
-        id: leg.id,
-        label: `${leg.operator} · ${leg.detail}`,
-        detail: leg.travellers > 1 ? `${leg.travellers} travellers` : undefined,
-        amount: leg.amount,
-      }],
-      // Travel is settled with the carrier, so Cabana cannot cancel it.
-      canCancel: false,
-      title: leg.detail,
-      detail: leg.meta,
-      amount: leg.amount,
-      status: leg.status,
-      // A carrier, not a hotel. Travel is the one thing here whose parent is
-      // outside the estate, and the card should not imply the hotel sold it.
-      parent: leg.operator,
-      parentDetail: leg.route ?? undefined,
-      settlement: `${leg.reference} · paid to the operator`,
-      category: 'travel',
-      screen: 'stay-entry',
-      date: leg.date,
-    });
-  }
-
   /*
     Time decides this, not status. A confirmed booking whose slot has already
     passed is history the guest cannot act on -- leaving it in Upcoming meant
-    yesterday's massage sat above tomorrow's flight, and the tab stopped
+    yesterday's massage sat above a later service, and the tab stopped
     meaning "what is still ahead". Cancelled and completed are past whatever
     their date says.
   */
@@ -1631,7 +1513,7 @@ export function getStayEntries(
  * keep in sync. Read state is the one part that cannot be derived, so it lives
  * with the component instead.
  */
-export type NotificationTone = 'room' | 'booking' | 'folio' | 'desk' | 'travel';
+export type NotificationTone = 'room' | 'booking' | 'folio' | 'desk';
 
 export type GuestNotification = {
   id: string;
@@ -1691,18 +1573,6 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
       body: `${room} now stands at ${session.folioTotal || booking.folioTotal}. It settles at checkout.`,
       time: '2h ago',
       screen: 'folio',
-    });
-  }
-
-  for (const leg of session.travelBookings) {
-    if (leg.status !== 'confirmed') continue;
-    notifications.push({
-      id: `notification-travel-${leg.id}`,
-      tone: 'travel',
-      title: `${leg.operator} booking confirmed`,
-      body: `${leg.route ?? leg.detail} · ${leg.meta} · ${leg.reference}`,
-      time: 'Yesterday',
-      screen: 'travel',
     });
   }
 
@@ -1854,7 +1724,7 @@ export function getCancellationState(hoursUntilService: number, cutoffHours: num
   return hoursUntilService >= cutoffHours ? 'self-service' : 'front-desk';
 }
 
-export type MiniAppCategoryId = 'dining' | 'spa' | 'entertainment' | 'services' | 'travel';
+export type MiniAppCategoryId = 'dining' | 'spa' | 'entertainment' | 'services';
 
 export type MiniAppCategory = {
   id: MiniAppCategoryId;
@@ -1868,12 +1738,7 @@ export type MiniAppCategory = {
   subtitle: string;
   badge: string;
   tone: 'sand' | 'sage' | 'sun' | 'blue';
-  /**
-   * Where the tile goes. Declared per category rather than assumed, because
-   * travel does not land on `category-listing`: that screen filters `SERVICES`
-   * by `categoryId`, and travel's inventory is carriers and sailings held in
-   * `TRAVEL_CATEGORIES`, with its own search and its own checkout.
-   */
+  /** Where the tile goes. */
   screen: ScreenId;
 };
 
@@ -1914,614 +1779,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
     badge: 'Front desk',
     tone: 'blue',
   },
-  /*
-    Travel sits in the grid as a peer, but it is not on-property and the rest
-    of this file still knows that: its inventory comes from carriers rather
-    than the property's PMS, and it is paid to the operator at booking instead
-    of joining a room folio. The guest gets one place to look for everything
-    bookable; the model keeps the boundary. See
-    docs/superpowers/specs/2026-09-09-travel-booking-destination-design.md.
-  */
-  {
-    id: 'travel',
-    screen: 'travel',
-    title: 'Travel',
-    shortTitle: 'Travel',
-    subtitle: 'Flights, ferries, transfers & cover',
-    badge: 'Onward',
-    tone: 'blue',
-  },
 ];
-
-/* --------------------------------------------------------------------------
-   Travel: the bookings that move a guest between places.
-
-   Kept apart from MINI_APP_CATEGORIES on purpose. Those are on-property --
-   sourced from the hotel through the PMS middleware, consumed during one stay,
-   settled on that stay's folio. These come from airlines, ferry operators and
-   transport vendors, happen between stays, and cannot land on a room folio.
-   See docs/superpowers/specs/2026-09-09-travel-booking-destination-design.md.
-   -------------------------------------------------------------------------- */
-
-export type TravelCategoryId = 'flights' | 'ferries' | 'transfers';
-
-export type TravelOption = {
-  id: string;
-  /** Airline, ferry line, transport vendor or insurer. */
-  operator: string;
-  /** The headline of the option: times, vehicle class, or cover tier. */
-  detail: string;
-  /** Supporting specifics -- flight number, hull, capacity, excess. */
-  meta: string;
-  price: string;
-  departureTime?: string;
-  arrivalTime?: string;
-  duration?: string;
-  carrierCode?: string;
-  vesselOrVehicle?: string;
-  badge?: string;
-  inclusions?: string[];
-  terminal?: string;
-  gate?: string;
-  baggageBelt?: string;
-  onTimeRate?: string;
-};
-
-/**
- * A journey has two endpoints; insurance does not. `route: null` is what keeps
- * the shared search screen from inventing a from/to for a category that has
- * none.
- */
-export type TravelRoute = {
-  fromLabel: string;
-  toLabel: string;
-  places: string[];
-  defaultFrom: string;
-  defaultTo: string;
-};
-
-export type TravelCategory = {
-  id: TravelCategoryId;
-  title: string;
-  /** Declared, not derived: stripping the "s" off "Ferries" gives "ferrie". */
-  singular: string;
-  subtitle: string;
-  /** What this category calls the people travelling. */
-  partyLabel: string;
-  route: TravelRoute | null;
-  options: TravelOption[];
-};
-
-export type PopularRoute = {
-  id: string;
-  category: TravelCategoryId;
-  title: string;
-  origin: string;
-  destination: string;
-  originCode: string;
-  destCode: string;
-  duration: string;
-  startingPrice: string;
-  operators: string[];
-  tag: string;
-  flightNumber?: string;
-  departureTime?: string;
-  arrivalTime?: string;
-  originCity?: string;
-  destCity?: string;
-  originTerminal?: string;
-  destTerminal?: string;
-  gate?: string;
-  aircraft?: string;
-  cabinClass?: string;
-  onTimeRate?: string;
-  inclusions?: string[];
-};
-
-export const POPULAR_ROUTES: PopularRoute[] = [
-  {
-    id: 'pr-1',
-    category: 'flights',
-    title: 'Manila ⇄ Boracay (Caticlan)',
-    origin: 'Manila (MNL)',
-    destination: 'Caticlan (MPH)',
-    originCode: 'MNL',
-    destCode: 'MPH',
-    duration: '1h 05m',
-    startingPrice: '₱3,620',
-    operators: ['AirAsia Philippines', 'Cebu Pacific', 'Philippine Airlines'],
-    tag: 'Top island hop',
-    flightNumber: 'Z2 837',
-    departureTime: '07:15',
-    arrivalTime: '08:20',
-    originCity: 'Manila',
-    destCity: 'Boracay (Caticlan)',
-    originTerminal: 'Terminal 2',
-    destTerminal: 'MPH Main',
-    gate: 'Gate 22',
-    aircraft: 'Airbus A320neo',
-    cabinClass: 'Economy Lite',
-    onTimeRate: '98% on-time',
-    inclusions: ['7kg carry-on', 'Web check-in', 'Instant confirmation'],
-  },
-  {
-    id: 'pr-2',
-    category: 'ferries',
-    title: 'Cebu Pier 1 ⇄ Bohol (Tagbilaran)',
-    origin: 'Cebu Pier 1',
-    destination: 'Tagbilaran',
-    originCode: 'CEB',
-    destCode: 'TAG',
-    duration: '1h 50m',
-    startingPrice: '₱1,250',
-    operators: ['OceanJet', '2GO Travel'],
-    tag: 'Daily fastcraft',
-    flightNumber: 'OJ 702',
-    departureTime: '08:20',
-    arrivalTime: '10:10',
-    originCity: 'Cebu Pier 1',
-    destCity: 'Tagbilaran (Bohol)',
-    originTerminal: 'Pier 1',
-    destTerminal: 'Tagbilaran Port',
-    gate: 'Berth 3',
-    aircraft: 'Twin-Hull Fastcraft',
-    cabinClass: 'Tourist Aircon',
-    onTimeRate: '97% on-schedule',
-    inclusions: ['Aircon cabin', '15kg luggage check', 'Instant boarding pass'],
-  },
-  {
-    id: 'pr-3',
-    category: 'flights',
-    title: 'Manila ⇄ Cebu City',
-    origin: 'Manila (MNL)',
-    destination: 'Cebu (CEB)',
-    originCode: 'MNL',
-    destCode: 'CEB',
-    duration: '1h 25m',
-    startingPrice: '₱2,850',
-    operators: ['Cebu Pacific', 'Philippine Airlines'],
-    tag: 'Most frequent',
-    flightNumber: '5J 563',
-    departureTime: '10:45',
-    arrivalTime: '12:10',
-    originCity: 'Manila',
-    destCity: 'Cebu City',
-    originTerminal: 'Terminal 3',
-    destTerminal: 'Terminal 2',
-    gate: 'Gate 118',
-    aircraft: 'Airbus A321neo',
-    cabinClass: 'Economy Flex',
-    onTimeRate: '96% on-time',
-    inclusions: ['7kg carry-on', 'Complimentary snack', 'In-flight Wi-Fi'],
-  },
-  {
-    id: 'pr-4',
-    category: 'transfers',
-    title: 'The Henry Manila ⇄ NAIA Terminal 3',
-    origin: 'The Henry Manila',
-    destination: 'Manila (MNL) Terminal 3',
-    originCode: 'HEN',
-    destCode: 'MNL',
-    duration: '25–40m',
-    startingPrice: '₱1,450',
-    operators: ['Henry Fleet'],
-    tag: 'Private chauffeur',
-    flightNumber: 'HF 101',
-    departureTime: '13:30',
-    arrivalTime: '14:10',
-    originCity: 'The Henry Manila',
-    destCity: 'NAIA Terminal 3',
-    originTerminal: 'Hotel Front Lobby',
-    destTerminal: 'Departure Curbside',
-    gate: 'Chauffeur Placed',
-    aircraft: 'Camry / Grandia',
-    cabinClass: 'Executive Chauffeur',
-    onTimeRate: '100% on-schedule',
-    inclusions: ['Flight tracking', 'Meet & greet', 'Chilled water & towels'],
-  },
-];
-
-const PH_AIRPORTS = [
-  'Manila (MNL)',
-  'Cebu (CEB)',
-  'Davao (DVO)',
-  'Cagayan de Oro (CGY)',
-  'Dumaguete (DGT)',
-  'Puerto Princesa (PPS)',
-];
-
-const PH_PORTS = [
-  'Manila North Harbor',
-  'Batangas',
-  'Cebu Pier 1',
-  'Tagbilaran',
-  'Dumaguete',
-  'Ozamiz',
-];
-
-const TRANSFER_POINTS = [
-  'The Henry Manila',
-  'The Henry Cebu',
-  'The Henry Dumaguete',
-  'Manila (MNL) Terminal 3',
-  'Cebu (CEB) Terminal 2',
-];
-
-export const TRAVEL_CATEGORIES: TravelCategory[] = [
-  {
-    id: 'flights',
-    title: 'Flights',
-    singular: 'flight',
-    subtitle: 'Domestic and inter-island',
-    partyLabel: 'Passengers',
-    route: {
-      fromLabel: 'From',
-      toLabel: 'To',
-      places: PH_AIRPORTS,
-      defaultFrom: 'Manila (MNL)',
-      defaultTo: 'Cagayan de Oro (CGY)',
-    },
-    options: [
-      {
-        id: 'fl-1',
-        operator: 'Philippine Airlines',
-        detail: '05:50 → 07:35',
-        meta: 'PR 2971 · Direct · Airbus A321',
-        price: '₱4,780',
-        departureTime: '05:50',
-        arrivalTime: '07:35',
-        duration: '1h 45m',
-        carrierCode: 'PR 2971',
-        vesselOrVehicle: 'Airbus A321-200',
-        badge: 'Fastest',
-        terminal: 'Terminal 2',
-        gate: 'Gate 44',
-        baggageBelt: 'Belt 3',
-        onTimeRate: '98% on-time',
-        inclusions: ['20kg checked baggage', 'Cabin carry-on 7kg', 'Complimentary snack'],
-      },
-      {
-        id: 'fl-2',
-        operator: 'Cebu Pacific',
-        detail: '09:15 → 11:05',
-        meta: '5J 921 · Direct · Airbus A320',
-        price: '₱3,940',
-        departureTime: '09:15',
-        arrivalTime: '11:05',
-        duration: '1h 50m',
-        carrierCode: '5J 921',
-        vesselOrVehicle: 'Airbus A320neo',
-        badge: 'Popular',
-        terminal: 'Terminal 3',
-        gate: 'Gate 118',
-        baggageBelt: 'Belt 4',
-        onTimeRate: '95% on-time',
-        inclusions: ['Cabin carry-on 7kg', 'Direct connection', 'Web check-in ready'],
-      },
-      {
-        id: 'fl-3',
-        operator: 'AirAsia Philippines',
-        detail: '13:40 → 15:30',
-        meta: 'Z2 837 · Direct · Airbus A320',
-        price: '₱3,620',
-        departureTime: '13:40',
-        arrivalTime: '15:30',
-        duration: '1h 50m',
-        carrierCode: 'Z2 837',
-        vesselOrVehicle: 'Airbus A320-200',
-        badge: 'Best value',
-        terminal: 'Terminal 2',
-        gate: 'Gate 22',
-        baggageBelt: 'Belt 1',
-        onTimeRate: '92% on-time',
-        inclusions: ['Cabin carry-on 7kg', 'Direct connection'],
-      },
-      {
-        id: 'fl-4',
-        operator: 'Philippine Airlines',
-        detail: '18:05 → 19:55',
-        meta: 'PR 2975 · Direct · Airbus A321',
-        price: '₱5,310',
-        departureTime: '18:05',
-        arrivalTime: '19:55',
-        duration: '1h 50m',
-        carrierCode: 'PR 2975',
-        vesselOrVehicle: 'Airbus A321-200',
-        badge: 'Evening flight',
-        terminal: 'Terminal 2',
-        gate: 'Gate 46',
-        baggageBelt: 'Belt 5',
-        onTimeRate: '96% on-time',
-        inclusions: ['20kg checked baggage', 'Cabin carry-on 7kg', 'Complimentary snack'],
-      },
-    ],
-  },
-  {
-    id: 'ferries',
-    title: 'Ferries',
-    singular: 'ferry',
-    subtitle: 'Fast craft and RoRo sailings',
-    partyLabel: 'Passengers',
-    route: {
-      fromLabel: 'Departure port',
-      toLabel: 'Arrival port',
-      places: PH_PORTS,
-      defaultFrom: 'Cebu Pier 1',
-      defaultTo: 'Tagbilaran',
-    },
-    options: [
-      {
-        id: 'fe-1',
-        operator: '2GO Travel',
-        detail: '06:00 → 08:00',
-        meta: 'Fast craft · Tourist class',
-        price: '₱1,250',
-        departureTime: '06:00',
-        arrivalTime: '08:00',
-        duration: '2h 00m',
-        carrierCode: '2GO Express',
-        vesselOrVehicle: 'Tourist class aircon',
-        badge: 'Early sailing',
-        terminal: 'Pier 1',
-        gate: 'Berth 3',
-        baggageBelt: 'Luggage Deck',
-        onTimeRate: '99% on-schedule',
-        inclusions: ['Aircon cabin', 'Standard seat', '15kg luggage check-in'],
-      },
-      {
-        id: 'fe-2',
-        operator: 'OceanJet',
-        detail: '08:20 → 10:10',
-        meta: 'Fast craft · Business class',
-        price: '₱1,690',
-        departureTime: '08:20',
-        arrivalTime: '10:10',
-        duration: '1h 50m',
-        carrierCode: 'OceanJet 88',
-        vesselOrVehicle: 'Business class upper deck',
-        badge: 'Recommended',
-        terminal: 'Pier 1',
-        gate: 'Gate 2A',
-        baggageBelt: 'Fast Claim',
-        onTimeRate: '97% on-schedule',
-        inclusions: ['Reclining leather seats', 'Priority boarding', '20kg baggage'],
-      },
-      {
-        id: 'fe-3',
-        operator: 'Lite Ferries',
-        detail: '12:00 → 15:30',
-        meta: 'RoRo · Aircon berth',
-        price: '₱980',
-        departureTime: '12:00',
-        arrivalTime: '15:30',
-        duration: '3h 30m',
-        carrierCode: 'Lite Cat 1',
-        vesselOrVehicle: 'Aircon berth',
-        badge: 'Vehicle & RoRo',
-        terminal: 'Pier 3',
-        gate: 'Vehicle Ramp 1',
-        baggageBelt: 'Vehicle Deck',
-        onTimeRate: '94% on-schedule',
-        inclusions: ['Berth access', 'Vehicle deck transport available'],
-      },
-      {
-        id: 'fe-4',
-        operator: 'OceanJet',
-        detail: '16:40 → 18:30',
-        meta: 'Fast craft · Tourist class',
-        price: '₱1,250',
-        departureTime: '16:40',
-        arrivalTime: '18:30',
-        duration: '1h 50m',
-        carrierCode: 'OceanJet 15',
-        vesselOrVehicle: 'Tourist class aircon',
-        badge: 'Sunset trip',
-        terminal: 'Pier 1',
-        gate: 'Gate 2B',
-        baggageBelt: 'Fast Claim',
-        onTimeRate: '96% on-schedule',
-        inclusions: ['Aircon cabin', '15kg baggage allowance'],
-      },
-    ],
-  },
-  {
-    id: 'transfers',
-    title: 'Transfers',
-    singular: 'transfer',
-    subtitle: 'Airports and hotel to hotel',
-    partyLabel: 'Passengers',
-    route: {
-      fromLabel: 'Pick-up',
-      toLabel: 'Drop-off',
-      places: TRANSFER_POINTS,
-      defaultFrom: 'The Henry Manila',
-      defaultTo: 'Manila (MNL) Terminal 3',
-    },
-    options: [
-      {
-        id: 'tr-1',
-        operator: 'Henry Fleet',
-        detail: 'Sedan',
-        meta: 'Up to 3 · 2 bags · Meet and greet',
-        price: '₱1,450',
-        duration: '35m',
-        carrierCode: 'Executive Sedan',
-        vesselOrVehicle: 'Toyota Camry / Corolla Altis',
-        badge: 'Private',
-        inclusions: ['Up to 3 guests', '2 suitcases', 'Flight tracking', 'Meet & greet with placard'],
-      },
-      {
-        id: 'tr-2',
-        operator: 'Henry Fleet',
-        detail: 'Premium van',
-        meta: 'Up to 6 · 6 bags · Meet and greet',
-        price: '₱2,300',
-        duration: '35m',
-        carrierCode: 'Luxury Van',
-        vesselOrVehicle: 'Toyota HiAce Super Grandia',
-        badge: 'Family & Group',
-        inclusions: ['Up to 6 guests', '6 suitcases', 'Chilled water & cold towels', 'Captain chairs'],
-      },
-      {
-        id: 'tr-3',
-        operator: 'Island Coach',
-        detail: 'Shared shuttle',
-        meta: 'Per seat · Departs hourly',
-        price: '₱480',
-        duration: '50m',
-        carrierCode: 'Hourly Express',
-        vesselOrVehicle: 'Shared AC Minibus',
-        badge: 'Best value',
-        inclusions: ['Guaranteed departure', '1 bag + 1 personal item'],
-      },
-      {
-        id: 'tr-4',
-        operator: 'Henry Fleet',
-        detail: 'Coaster',
-        meta: 'Up to 18 · Group transfer',
-        price: '₱5,900',
-        duration: '40m',
-        carrierCode: 'Executive Coaster',
-        vesselOrVehicle: 'Toyota Coaster Deluxe',
-        badge: 'Large party',
-        inclusions: ['Up to 18 guests', 'Dedicated luggage compartment', 'Private coordinator'],
-      },
-    ],
-  },
-];
-
-/**
- * A booked leg. No `bookingId`: travel spans stays, so tying it to one would
- * hide a ferry between two properties from both of them.
- */
-export type TravelBooking = {
-  id: string;
-  reference: string;
-  categoryId: TravelCategoryId;
-  operator: string;
-  detail: string;
-  meta: string;
-  /** "Manila (MNL) → Cagayan de Oro (CGY)", or null where there is no journey. */
-  route: string | null;
-  date: string;
-  travellers: number;
-  amount: string;
-  status: 'confirmed' | 'cancelled' | 'completed';
-};
-
-/**
- * Per-traveller booking fee. Real carriers vary this by fare class and
- * channel; a single rate keeps the prototype honest that a fee exists without
- * pretending to model fare rules it does not have.
- */
-export const TRAVEL_FEE_PER_TRAVELLER = 210;
-
-/**
- * Optional cover, offered on the leg rather than sold as its own mode.
- *
- * It used to be a fourth travel category, which put "book a flight" and "buy
- * a policy" on one row as peers -- but cover has no route, no departure and no
- * seat, and a guest shopping for it has already chosen the thing it covers.
- * It belongs on the checkout for that thing.
- */
-export type TravelCover = {
-  id: string;
-  operator: string;
-  name: string;
-  detail: string;
-  pricePerTraveller: number;
-};
-
-export const TRAVEL_COVER: TravelCover = {
-  id: 'cover-domestic-plus',
-  operator: 'Pioneer',
-  name: 'Trip cover',
-  detail: '₱500,000 medical · cancellation · delay',
-  pricePerTraveller: 720,
-};
-
-export type TravelQuote = {
-  fareEach: string;
-  travellers: number;
-  fareTotal: string;
-  fees: string;
-  /** Present only when the guest added cover. */
-  cover?: string;
-  total: string;
-};
-
-/**
- * What a mode starts at, read off its own inventory.
- *
- * These were four hardcoded strings keyed by category id, which is a second
- * copy of a price the options already carry -- the kind that goes stale the
- * first time a fare changes and nobody notices.
- */
-export function travelStartingPrice(category: TravelCategory): string {
-  const cheapest = category.options.reduce(
-    (low, option) => Math.min(low, parsePesoAmount(option.price)),
-    Number.POSITIVE_INFINITY,
-  );
-  return Number.isFinite(cheapest) ? `From ${formatPesoAmount(cheapest)}` : 'Price on request';
-}
-
-export function quoteTravel(
-  option: TravelOption,
-  travellers: number,
-  withCover = false,
-): TravelQuote {
-  const each = parsePesoAmount(option.price);
-  const fareTotal = each * travellers;
-  const fees = TRAVEL_FEE_PER_TRAVELLER * travellers;
-  const cover = withCover ? TRAVEL_COVER.pricePerTraveller * travellers : 0;
-  return {
-    fareEach: formatPesoAmount(each),
-    travellers,
-    fareTotal: formatPesoAmount(fareTotal),
-    fees: formatPesoAmount(fees),
-    cover: cover > 0 ? formatPesoAmount(cover) : undefined,
-    total: formatPesoAmount(fareTotal + fees + cover),
-  };
-}
-
-/**
- * Books a leg and returns the next session. Travel is paid to the operator at
- * booking, so unlike a service booking this never touches `folioTotal` -- a
- * flight is not the hotel's to bill, and the guest may book it when no folio
- * is even open.
- */
-export function bookTravel(
-  session: GuestSession,
-  input: {
-    category: TravelCategory;
-    option: TravelOption;
-    travellers: number;
-    route: string | null;
-    date: string;
-  },
-): GuestSession {
-  const sequence = session.travelBookings.length + 1;
-  const booking: TravelBooking = {
-    id: `travel-${input.option.id}-${sequence}`,
-    reference: `CBN-${input.option.id.toUpperCase().replace('-', '')}-${1000 + sequence}`,
-    categoryId: input.category.id,
-    operator: input.option.operator,
-    detail: input.option.detail,
-    meta: input.option.meta,
-    route: input.route,
-    date: input.date,
-    travellers: input.travellers,
-    amount: quoteTravel(input.option, input.travellers).total,
-    status: 'confirmed',
-  };
-  return { ...session, travelBookings: [...session.travelBookings, booking] };
-}
-
-export function getTravelCategory(id: TravelCategoryId): TravelCategory {
-  const found = TRAVEL_CATEGORIES.find((category) => category.id === id);
-  if (!found) throw new Error(`Unknown travel category: ${id}`);
-  return found;
-}
 
 export type MenuItemCategory = 'all' | 'starters' | 'mains' | 'desserts' | 'drinks';
 
@@ -2601,8 +1859,7 @@ const POSTED_ROOM_CHARGES: RoomCharge[] = [
 
 /**
  * Every charge sitting on one booking's room: what the property posted, then
- * what the guest booked in the app. Travel is deliberately absent -- it is
- * paid to the operator and never reaches a folio.
+ * what the guest booked in the app.
  */
 export function getRoomCharges(
   session: GuestSession,

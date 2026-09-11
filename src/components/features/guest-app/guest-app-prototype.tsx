@@ -1,12 +1,9 @@
 'use client';
 
 import {
-  AirplaneTilt,
+  AppleLogo,
   ArrowLeft,
-  Boat,
   ArrowRight,
-  ArrowsDownUp,
-  NavigationArrow,
   Bed,
   Bell,
   BellRinging,
@@ -19,9 +16,8 @@ import {
   Compass,
   CreditCard,
   EnvelopeSimple,
-  Eye,
-  EyeSlash,
   ForkKnife,
+  GoogleLogo,
   House,
   IdentificationCard,
   MapPin,
@@ -42,7 +38,6 @@ import {
   SuitcaseRolling,
   UserCircle,
   Users,
-  Van,
   Wrench,
   DeviceMobile,
   WifiHigh,
@@ -52,14 +47,13 @@ import {
 import Image from 'next/image';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
-import { CarrierLogo } from './company-logos';
 import { CATEGORY_ILLUSTRATIONS, ENTRY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
   ANONYMOUS_SESSION,
   connectBooking,
-  createAccountWithPassword,
+  createAccountSession,
   findBookingByLookup,
   describeCheckoutCountdown,
   describeStayStatus,
@@ -85,13 +79,10 @@ import {
   sumRoomCharges,
   canReportRoomReady,
   markRoomReady,
-  bookTravel,
   describeRoomAssignment,
-  getTravelCategory,
   MINI_APP_CATEGORIES,
   PAST_STAYS,
   PROPERTY_ANNOUNCEMENTS,
-  DEFAULT_TRAVEL_DATE,
   PROTOTYPE_TODAY,
   findPastStay,
   summarisePastStay,
@@ -99,12 +90,7 @@ import {
   MOCK_SESSION,
   RESTAURANTS,
   SERVICES,
-  quoteTravel,
-  TRAVEL_COVER,
-  travelStartingPrice,
-  TRAVEL_CATEGORIES,
-  POPULAR_ROUTES,
-  signInWithPassword,
+  signInSession,
   signOutSession,
   findProfileByLookup,
   restoreProfileSession,
@@ -124,7 +110,6 @@ import {
   applyPrototypeStayState,
   getPrototypeStayState,
   PROTOTYPE_STAY_STATES,
-  verifyPendingSession,
   parsePesoAmount,
   type Booking,
   type ProfileMatch,
@@ -137,7 +122,6 @@ import {
   type DiningFulfillment,
   type MenuItemCategory,
   type MiniAppCategoryId,
-  type TravelCategoryId,
   type ServiceBooking,
   type ScreenId,
 } from './prototype-model';
@@ -147,7 +131,6 @@ import {
   getServiceImageKey,
   getItemThumbnail,
   getItemCardImage,
-  getRouteDestinationImage,
   type ServiceImageKey,
 } from './service-images';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
@@ -164,8 +147,6 @@ type ActiveScreen = ScreenId | 'entry-hub';
  */
 const EXPLORE_SCREENS: ActiveScreen[] = [
   'marketplace',
-  'travel',
-  'travel-search',
   'category-listing',
   'hotel-service',
   'vendor-service',
@@ -221,49 +202,6 @@ function Field({ label, name, type = 'text', placeholder, defaultValue, helper, 
         aria-describedby={helperId}
         required={required}
       />
-      {helper ? <small id={helperId}>{helper}</small> : null}
-    </label>
-  );
-}
-
-function PasswordField({
-  label,
-  name,
-  placeholder = '••••••••',
-  helper,
-  required,
-}: {
-  label: string;
-  name: string;
-  placeholder?: string;
-  helper?: string;
-  required?: boolean;
-}) {
-  const [showPassword, setShowPassword] = useState(false);
-  const helperId = helper ? `${name}-helper` : undefined;
-  return (
-    <label className="guest-field" htmlFor={name}>
-      <span>{label}{required ? ' *' : ''}</span>
-      <div className="guest-password-wrapper">
-        <Input
-          id={name}
-          name={name}
-          type={showPassword ? 'text' : 'password'}
-          placeholder={placeholder}
-          aria-describedby={helperId}
-          required={required}
-          minLength={8}
-          autoComplete={name.includes('create') || name.includes('account') ? 'new-password' : 'current-password'}
-        />
-        <button
-          type="button"
-          className="guest-password-toggle"
-          onClick={() => setShowPassword((prev) => !prev)}
-          aria-label={showPassword ? 'Hide password' : 'Show password'}
-        >
-          {showPassword ? <EyeSlash size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
-        </button>
-      </div>
       {helper ? <small id={helperId}>{helper}</small> : null}
     </label>
   );
@@ -415,7 +353,6 @@ const NOTIFICATION_ICONS: Record<NotificationTone, ReactNode> = {
   booking: <CheckCircle />,
   folio: <Receipt />,
   desk: <ChatCircleDots />,
-  travel: <AirplaneTilt />,
 };
 
 function NotificationIcon({ tone }: { tone: NotificationTone }) {
@@ -585,9 +522,9 @@ function useWelcomePager() {
         const origin = dragOrigin.current;
         dragOrigin.current = null;
         if (origin === null) return;
-        const travel = event.clientX - origin;
-        if (Math.abs(travel) < SWIPE_THRESHOLD_PX) return;
-        show(index + (travel < 0 ? 1 : -1));
+        const deltaX = event.clientX - origin;
+        if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+        show(index + (deltaX < 0 ? 1 : -1));
       },
       onPointerCancel: () => { dragOrigin.current = null; },
     },
@@ -659,7 +596,7 @@ function WelcomeStepCopy({ index }: Pick<PagerHandle, 'index'>) {
   );
 }
 
-function WelcomeScreen({ onFindBooking }: { onFindBooking: () => void }) {
+function WelcomeScreen({ onCreateAccount, onSignIn }: { onCreateAccount: () => void; onSignIn: () => void }) {
   const pager = useWelcomePager();
 
   return (
@@ -680,42 +617,19 @@ function WelcomeScreen({ onFindBooking }: { onFindBooking: () => void }) {
         <div className="guest-welcome__message">
           <WelcomeDots index={pager.index} show={pager.show} />
           <WelcomeStepCopy index={pager.index} />
-          <Button
-            className="guest-button guest-button--primary guest-welcome__action"
-            type="button"
-            onClick={onFindBooking}
-          >
-            Get started<ArrowRight aria-hidden="true" />
-          </Button>
+          <div className="guest-welcome__actions">
+            <Button className="guest-button guest-button--primary guest-welcome__action" type="button" onClick={onCreateAccount}>
+              Create account<ArrowRight aria-hidden="true" />
+            </Button>
+            <Button className="guest-button guest-button--secondary guest-welcome__action" type="button" onClick={onSignIn}>
+              Log in
+            </Button>
+          </div>
         </div>
       </div>
     </section>
   );
 }
-
-/** Repeated rows take a bare glyph, so these are drawn without a chip. */
-const TRAVEL_ICONS: Record<TravelCategoryId, ReactNode> = {
-  flights: <AirplaneTilt />,
-  ferries: <Boat />,
-  transfers: <Van />,
-};
-
-function extractLocationCode(place: string): string {
-  const match = place.match(/\(([A-Z0-9]{3})\)/);
-  if (match && match[1]) return match[1];
-  const lower = place.toLowerCase();
-  if (lower.includes('tagbilaran')) return 'TAG';
-  if (lower.includes('pier 1') || lower.includes('cebu')) return 'CEB';
-  if (lower.includes('dumaguete')) return 'DGT';
-  if (lower.includes('caticlan') || lower.includes('boracay')) return 'MPH';
-  if (lower.includes('manila')) return 'MNL';
-  return place.slice(0, 3).toUpperCase();
-}
-
-function extractLocationName(place: string): string {
-  return place.replace(/\s*\([A-Z0-9]{3}\)/, '').trim();
-}
-
 
 type GuestAppPrototypeProps = {
   initialSession?: GuestSession;
@@ -916,7 +830,7 @@ function AdditionalGuestsScreen({
 
         {companions.length === 0 ? (
           <div className="guest-companions-empty">
-            <p>No additional guests added yet. Traveling alone? You can continue directly.</p>
+            <p>No additional guests added yet. You can continue directly.</p>
           </div>
         ) : (
           <div className="guest-companions-list">
@@ -994,15 +908,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   ]);
   const [sending, setSending] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<MiniAppCategoryId>('dining');
-  const [selectedTravel, setSelectedTravel] = useState<TravelCategoryId>('flights');
-  const [selectedFare, setSelectedFare] = useState<string | null>(null);
-  const [travelParty, setTravelParty] = useState('2');
-  const [travelFrom, setTravelFrom] = useState<string>('');
-  const [travelTo, setTravelTo] = useState<string>('');
-  const [travelFilter, setTravelFilter] = useState<'all' | 'earliest' | 'cheapest'>('all');
-  const [travelPaymentMethod, setTravelPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
-  const [travelCover, setTravelCover] = useState(false);
-  const [travelDate, setTravelDate] = useState(DEFAULT_TRAVEL_DATE);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
   const [selectedMenuTab, setSelectedMenuTab] = useState<MenuItemCategory>('all');
   const [menuSort, setMenuSort] = useState<ListingSort>('recommended');
@@ -1169,7 +1074,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 850);
   };
 
-  const showNav = ['stay-overview', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history', 'travel', 'travel-search'].includes(activeScreen);
+  const showNav = ['stay-overview', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history'].includes(activeScreen);
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1389,13 +1294,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
    * The one place identity becomes real. Applies whatever the guest was in the
    * middle of, then asks the model where they belong.
    */
-  const completeAuth = (pending: GuestSession) => {
-    const verified = verifyPendingSession(pending);
+  const completeAuth = (authenticated: GuestSession) => {
     const next = pendingIntent === 'link-room'
-      ? withActiveRoom(verified)
+      ? withActiveRoom(authenticated)
       : pendingIntent === 'connect-booking'
-        ? connectBooking(verified)
-        : verified;
+        ? connectBooking(authenticated)
+        : authenticated;
 
     const destination: ActiveScreen = pendingIntent === 'link-room'
       ? 'room-qr-midstay'
@@ -1476,7 +1380,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const renderScreen = () => {
     switch (activeScreen) {
       case 'entry-hub':
-        return <WelcomeScreen onFindBooking={() => go('identify')} />;
+        return <WelcomeScreen onCreateAccount={() => go('create-account')} onSignIn={() => go('sign-in')} />;
 
       case 'sign-in':
         return (
@@ -1487,59 +1391,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-page-title">
               <p className="guest-eyebrow">Welcome back</p>
               <h1>Log in</h1>
-              <p>Enter your account email and password to continue.</p>
+              <p>Use the account you already trust to open your stays.</p>
             </div>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Logging in needs a connection">A connection is required to sign in.</Notice> : null}
-            <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
-              event.preventDefault();
-              const data = new FormData(event.currentTarget);
-              const email = String(data.get('sign-in-email') ?? '').trim();
-              completeAuth(signInWithPassword(email));
-            }}>
-              <Field label="Email" name="sign-in-email" type="email" placeholder="you@example.com" required />
-              <PasswordField label="Password" name="sign-in-password" placeholder="Enter your password" required />
-              <div className="guest-auth-actions">
-                <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
-                  Log in<ArrowRight aria-hidden="true" />
-                </Button>
-              </div>
-            </form>
+            <div className="guest-auth-actions">
+              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(signInSession('apple'))}>
+                <AppleLogo size={20} aria-hidden="true" /> Continue with Apple
+              </Button>
+              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(signInSession('google'))}>
+                <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
+              </Button>
+            </div>
             <TextButton onClick={() => go('identify-returning')}>Log in with a booking reference instead</TextButton>
             <TextButton onClick={() => go('create-account')}>Don&apos;t have an account? Create an account</TextButton>
           </div>
         );
-
-      case 'verify-code': {
-        const backToEmail: ScreenId = session.accountStatus === 'returning' ? 'sign-in' : 'create-account';
-        return (
-          <div className="guest-stack guest-stack--intro">
-            <HeroIcon tone="dark"><EnvelopeSimple size={30} /></HeroIcon>
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">Step 2 of 2</p>
-              <h1>Check your email</h1>
-              <p>We sent a 6-digit code to <b>{session.email}</b>. It expires in 10 minutes.</p>
-            </div>
-            {codeNotice ? <Notice tone="warning" title={codeNotice}>Codes expire quickly, so the newest one is the only one that works.</Notice> : null}
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Verification needs a connection">We cannot check a code offline. Nothing has been created yet.</Notice> : null}
-            <label className="guest-field guest-code-field" htmlFor="verification-code">
-              <span>6-digit verification code</span>
-              <Input
-                id="verification-code"
-                name="verification-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="123456"
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, ''))}
-              />
-            </label>
-            <Button className="guest-button guest-button--primary" type="button" disabled={code.length !== 6 || !online} onClick={() => completeAuth(session)}>Verify<ArrowRight aria-hidden="true" /></Button>
-            <TextButton disabled={!online} onClick={() => setCodeNotice(`A new code is on its way to ${session.email}`)}>Resend the code</TextButton>
-            <TextButton onClick={() => go(backToEmail)}>Use a different email</TextButton>
-          </div>
-        );
-      }
 
       case 'connect-booking':
         return (
@@ -1856,10 +1722,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 Continue<ArrowRight aria-hidden="true" />
               </Button>
             </form>
-            <Notice icon={<ShieldCheck />} title="The reference is not the password">
-              Anyone can hold a booking number — it travels in confirmation emails and on printouts. We send a code to the contact on that reservation before opening the account.
+            <Notice icon={<ShieldCheck />} title="Confirm your booking reference">
+              Anyone can hold a booking number. We send a code to the contact on that reservation before opening the account.
             </Notice>
-            <TextButton onClick={() => go('sign-in')}>Log in with an email and password instead</TextButton>
+            <TextButton onClick={() => go('sign-in')}>Back to sign in</TextButton>
           </ScreenIntro>
         );
 
@@ -1975,25 +1841,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-page-title">
               <p className="guest-eyebrow">One account, 13 properties</p>
               <h1>Create your account</h1>
-              <p>{pendingIntent === 'none' ? 'Set up your email and password to access your stay and room services.' : 'Your stay is matched. Create an account with your email and password to hold it.'}</p>
+              <p>{pendingIntent === 'none' ? 'Use Apple or Google to access your stay and room services.' : 'Your stay is matched. Use Apple or Google to hold it.'}</p>
             </div>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Creating an account needs a connection">A connection is required to create an account.</Notice> : null}
-            <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
-              event.preventDefault();
-              const data = new FormData(event.currentTarget);
-              const name = String(data.get('account-name') ?? '').trim();
-              const email = String(data.get('account-email') ?? '').trim();
-              completeAuth(createAccountWithPassword(name, email));
-            }}>
-              <Field label="Full name" name="account-name" placeholder="As shown on your ID" required />
-              <Field label="Email" name="account-email" type="email" placeholder="you@example.com" required />
-              <PasswordField label="Password" name="account-password" placeholder="Create a password" helper="At least 8 characters" required />
-              <div className="guest-auth-actions">
-                <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
-                  Create account<ArrowRight aria-hidden="true" />
-                </Button>
-              </div>
-            </form>
+            <div className="guest-auth-actions">
+              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(createAccountSession('Apple Guest', 'guest@privaterelay.appleid.com', 'apple'))}>
+                <AppleLogo size={20} aria-hidden="true" /> Continue with Apple
+              </Button>
+              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(createAccountSession('Google Guest', 'guest@gmail.com', 'google'))}>
+                <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
+              </Button>
+            </div>
             <TextButton onClick={() => go('sign-in')}>Already have an account? Log in</TextButton>
           </div>
         );
@@ -2270,7 +2128,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-page-title">
               <p className="guest-eyebrow">{contextBooking.property} · {contextRoom}</p>
               <h1>Explore</h1>
-              <p>Everything you can book — on property, and onward to your next destination.</p>
+              <p>Everything you can book during your stay.</p>
             </div>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
 
@@ -2279,14 +2137,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               booked lives in My Stay -- one screen answering both questions was
               what made the old hub send people back to Home to browse.
             */}
-            {/*
-              One grid, driven by the category list. Travel used to sit below
-              in a section of its own -- which put the thing a guest wants when
-              they are leaving beneath the featured massage, and made "what can
-              I book" two questions instead of one. Each category declares
-              where it goes, so travel keeps its own screens without needing a
-              branch here.
-            */}
+            {/* One grid, driven by the on-property category list. */}
             <section>
               <SectionHeading title="Categories" />
               <div className="guest-category-grid">
@@ -2408,7 +2259,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       }
                     }}
                   >
-                    <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="thumbnail" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <AirplaneTilt /> : <Storefront />} decorative />
+                    <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="thumbnail" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <Compass /> : <Storefront />} decorative />
                     <div>
                       <h2>{service.name}</h2>
                       <p>{service.price} · {service.category}</p>
@@ -2707,22 +2558,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const started = hasStayStarted(contextBooking);
         const stayFolioTotal = session.folioTotal || contextBooking.folioTotal || '₱0';
         const stayCharges = getRoomCharges(session, contextBooking, contextRoom);
-        const travelLegs = session.travelBookings.filter((leg) => leg.status === 'confirmed');
-        /*
-          One trip total, two settlements. Room charges settle with the hotel at
-          checkout; travel is already paid to the operator. Adding them without
-          saying so would misstate what the guest still owes, so the breakdown
-          rides under the figure rather than being folded into it.
-        */
         const roomSoFar = started ? parsePesoAmount(stayFolioTotal) : 0;
-        const travelSoFar = travelLegs.reduce((sum, leg) => sum + parsePesoAmount(leg.amount), 0);
-        const tripTotal = formatPesoAmount(roomSoFar + travelSoFar);
+        const tripTotal = formatPesoAmount(roomSoFar);
 
         /*
           A stay that is over is a receipt, not a running total. "This stay so
           far" is present tense about something finished, and it counted only
           what was charged against the room -- so a settled stay reported a
-          room of ₱0 and a total made entirely of travel.
+          room of ₱0 while still presenting a running total.
         */
         const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
         const finishedStay = checkedOut ? toFinishedStay(session, contextBooking) : undefined;
@@ -2788,17 +2631,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   See every charge
                 </TextButton>
               </section>
-            ) : started || travelLegs.length ? (
+            ) : started ? (
               <div className="guest-running-total">
                 <div className="guest-total-card">
                   <span>This stay so far</span>
                   <strong>{tripTotal}</strong>
                   <small>
-                    {started && travelLegs.length
-                      ? `${stayFolioTotal} on your room · ${formatPesoAmount(travelSoFar)} paid to operators`
-                      : started
-                        ? 'Settles with the hotel at checkout'
-                        : 'Paid to the operators at booking'}
+                    Settles with the hotel at checkout
                   </small>
                 </div>
                 {started ? (
@@ -2848,7 +2687,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <h2>{stayTab === 'upcoming' ? 'Nothing booked yet' : 'Nothing here yet'}</h2>
                   <p>
                     {stayTab === 'upcoming'
-                      ? `Dining, spa, tours and onward travel are in Explore. On-property bookings are added to ${contextRoom.toLowerCase()} and settle at checkout.`
+                      ? `Dining, spa, tours, and hotel services are in Explore. Bookings are added to ${contextRoom.toLowerCase()} and settle at checkout.`
                       : 'Bookings move here once they are done or cancelled.'}
                   </p>
                   {stayTab === 'upcoming' ? (
@@ -2936,7 +2775,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
             <Notice
               tone={entry.status === 'cancelled' ? 'neutral' : 'positive'}
-              title={entry.status === 'cancelled' ? 'Cancelled' : entry.kind === 'travel' ? 'Paid to the operator' : 'Charged to your room'}
+              title={entry.status === 'cancelled' ? 'Cancelled' : 'Charged to your room'}
             >
               {entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
             </Notice>
@@ -3042,768 +2881,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-qr-midstay':
         return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={`${contextRoom} linked`} title="You’re checked in" text="Pre-arrival steps are no longer relevant. Go straight to services, your room charges, or the front desk."><StayMiniCard booking={contextBooking} status={`Active until ${contextBooking.checkOut}`} />{primary('Explore services', 'marketplace')}<button className="guest-button guest-button--secondary" onClick={() => go('stay-overview')}>Open stay overview</button></ScreenIntro>;
-
-      /**
-       * Travel is a peer of Bookings, not a category inside it: this inventory
-       * comes from carriers and transport vendors rather than the hotel's PMS,
-       * happens between stays, and cannot settle on a room folio. See
-       * docs/superpowers/specs/2026-09-09-travel-booking-destination-design.md.
-       */
-      case 'travel':
-        return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">Travel</p>
-              <h1>Get there, and onward</h1>
-              <p>Book the legs between stays — flights, sailings, and the ride to your next hotel.</p>
-            </div>
-
-            {/*
-              One row each, in the same inset grouped list Explore's categories
-              use -- travel is a category now, so it reads like one. The mode
-              codes ("AIR · 01") and tags ("FLAGSHIP & LCC") went with the
-              2x2 cards: numbered scaffolding and tracked-caps eyebrows are
-              decoration, and nothing here is a sequence. What a guest picks on
-              is the mode, what it covers, and what it starts at.
-            */}
-            <div className="guest-category-grid" role="list">
-              {TRAVEL_CATEGORIES.map((category) => (
-                <button
-                  key={category.id}
-                  className="guest-action-tile guest-action-tile--detailed"
-                  type="button"
-                  onClick={() => {
-                    setSelectedTravel(category.id);
-                    setSelectedFare(null);
-                    setTravelFrom('');
-                    setTravelTo('');
-                    go('travel-search');
-                  }}
-                >
-                  <span>{TRAVEL_ICONS[category.id]}</span>
-                  <span className="guest-action-tile__text">
-                    <b>{category.title}</b>
-                    <small>{category.subtitle}</small>
-                  </span>
-                  <span className="guest-action-tile__from">{travelStartingPrice(category)}</span>
-                  <CaretRight />
-                </button>
-              ))}
-            </div>
-
-            <section className="guest-travel-section">
-              <div className="guest-section-heading">
-                <h2>Popular island routes</h2>
-              </div>
-              <div className="guest-flighty-booking-cards" role="list">
-                {POPULAR_ROUTES.map((route) => {
-                  const actionLabel = route.category === 'flights' ? 'Book flight' : route.category === 'ferries' ? 'Book ferry' : 'Book ride';
-                  const destImage = getRouteDestinationImage(route.id);
-
-                  return (
-                    <button
-                      key={route.id}
-                      type="button"
-                      className="guest-flighty-booking-card"
-                      onClick={() => {
-                        setSelectedTravel(route.category);
-                        setSelectedFare(null);
-                        setTravelFrom(route.origin);
-                        setTravelTo(route.destination);
-                        go('travel-search');
-                      }}
-                    >
-                      {/* Top Header: Airline logo, flight number, aircraft, and status badge */}
-                      <div className="guest-flighty-booking-card__top">
-                        <div className="guest-flighty-booking-card__carrier">
-                          <CarrierLogo operator={route.operators[0] ?? ''} size={30} />
-                          <div>
-                            <div className="guest-flighty-booking-card__carrier-title">
-                              <strong>{route.operators[0]}</strong>
-                              {route.flightNumber ? (
-                                <span className="guest-flighty-booking-card__flight-code">{route.flightNumber}</span>
-                              ) : null}
-                            </div>
-                            <div className="guest-flighty-booking-card__aircraft-meta">
-                              <span>{route.aircraft ?? 'Scheduled Craft'}</span>
-                              <span className="guest-flighty-dot-sep">·</span>
-                              <span>{route.cabinClass ?? 'Standard'}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="guest-flighty-booking-card__header-right">
-                          <div className="guest-flighty-booking-card__badges">
-                            <span className="guest-flighty-status-pill is-sm">
-                              <span className="guest-flighty-status-dot" aria-hidden="true" /> {route.onTimeRate ?? 'ON TIME'}
-                            </span>
-                            <span className="guest-flighty-tag-pill">{route.tag}</span>
-                          </div>
-                          <div className="guest-flighty-dest-thumb" aria-hidden="true">
-                            <Image
-                              src={destImage.src}
-                              alt=""
-                              fill
-                              sizes="44px"
-                              style={{ objectPosition: destImage.focalPoint, objectFit: 'cover' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Flight Route & Dual Node Telemetry */}
-                      <div className="guest-flighty-booking-card__route-telemetry">
-                        {/* Origin Node */}
-                        <div className="guest-flighty-booking-card__node">
-                          <span className="guest-flighty-booking-card__time">{route.departureTime ?? '07:15'}</span>
-                          <span className="guest-flighty-booking-card__iata">{route.originCode}</span>
-                          <span className="guest-flighty-booking-card__city">{route.originCity ?? route.origin}</span>
-                          {route.gate ? (
-                            <span className="guest-flighty-gate-tag">
-                              <NavigationArrow size={10} weight="fill" aria-hidden="true" /> {route.gate}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        {/* Flight Track */}
-                        <div className="guest-flighty-booking-card__track">
-                          <span className="guest-flighty-booking-card__duration">
-                            <Clock size={11} weight="bold" aria-hidden="true" /> {route.duration}
-                          </span>
-                          <div className="guest-flighty-booking-card__flight-line">
-                            <span className="guest-flighty-booking-card__line-dot" aria-hidden="true" />
-                            <div className="guest-flighty-booking-card__glyph-wrap">
-                              {route.category === 'flights' ? (
-                                <AirplaneTilt size={14} weight="fill" className="guest-flighty-booking-card__glyph" aria-hidden="true" />
-                              ) : route.category === 'ferries' ? (
-                                <Boat size={14} weight="fill" className="guest-flighty-booking-card__glyph" aria-hidden="true" />
-                              ) : (
-                                <Van size={14} weight="fill" className="guest-flighty-booking-card__glyph" aria-hidden="true" />
-                              )}
-                            </div>
-                            <span className="guest-flighty-booking-card__line-dot" aria-hidden="true" />
-                          </div>
-                          <span className="guest-flighty-booking-card__type">Non-stop Direct</span>
-                        </div>
-
-                        {/* Destination Node */}
-                        <div className="guest-flighty-booking-card__node is-dest">
-                          <span className="guest-flighty-booking-card__time">{route.arrivalTime ?? '08:20'}</span>
-                          <span className="guest-flighty-booking-card__iata">{route.destCode}</span>
-                          <span className="guest-flighty-booking-card__city">{route.destCity ?? route.destination}</span>
-                          {route.destTerminal ? (
-                            <span className="guest-flighty-terminal">{route.destTerminal}</span>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {/* Inclusions Chips */}
-                      {route.inclusions && route.inclusions.length > 0 ? (
-                        <div className="guest-flighty-booking-card__inclusions">
-                          {route.inclusions.map((inc) => (
-                            <span key={inc} className="guest-flighty-booking-card__inc-pill">
-                              <Check size={11} weight="bold" aria-hidden="true" /> {inc}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-
-                      {/* Card Footer: Starting Price + Airline Booking Button */}
-                      <div className="guest-flighty-booking-card__bottom">
-                        <div className="guest-flighty-booking-card__fare-lockup">
-                          <span className="guest-flighty-booking-card__fare-label">Starting fare per guest</span>
-                          <strong className="guest-flighty-booking-card__fare-price">From {route.startingPrice}</strong>
-                        </div>
-
-                        <span className="guest-flighty-booking-card__cta">
-                          <span>{actionLabel}</span>
-                          <ArrowRight size={14} weight="bold" aria-hidden="true" />
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="guest-travel-section">
-              <div className="guest-travel-carrier-banner">
-                <div className="guest-travel-carrier-banner__head">
-                  <span className="guest-carrier-trust-badge">
-                    <ShieldCheck size={14} weight="fill" aria-hidden="true" /> Verified Partner Network
-                  </span>
-                  <p>Direct inventory from Philippine flagships, fast craft, and trusted underwriters.</p>
-                </div>
-                <div className="guest-travel-carrier-pills">
-                  <div className="guest-carrier-pill"><CarrierLogo operator="Philippine Airlines" size={20} /><span>Philippine Airlines</span></div>
-                  <div className="guest-carrier-pill"><CarrierLogo operator="Cebu Pacific" size={20} /><span>Cebu Pacific</span></div>
-                  <div className="guest-carrier-pill"><CarrierLogo operator="AirAsia" size={20} /><span>AirAsia</span></div>
-                  <div className="guest-carrier-pill"><CarrierLogo operator="OceanJet" size={20} /><span>OceanJet</span></div>
-                  <div className="guest-carrier-pill"><CarrierLogo operator="2GO Travel" size={20} /><span>2GO Travel</span></div>
-                  <div className="guest-carrier-pill"><CarrierLogo operator="Lite Ferries" size={20} /><span>Lite Ferries</span></div>
-                  <div className="guest-carrier-pill"><CarrierLogo operator="The Henry Fleet" size={20} /><span>The Henry Fleet</span></div>
-                  <div className="guest-carrier-pill"><CarrierLogo operator="Pioneer Insurance" size={20} /><span>Pioneer</span></div>
-                </div>
-              </div>
-            </section>
-
-            <Notice title="Paid to the operator">
-              Travel is settled with the carrier or vendor. Only on-property charges reach your room folio.
-            </Notice>
-          </div>
-        );
-
-      /**
-       * One screen for all four categories. They differ only in their labels
-       * and their inventory, which is data -- four bespoke screens would drift.
-       */
-      case 'travel-search': {
-        const category = getTravelCategory(selectedTravel);
-const fare = category.options.find((option) => option.id === selectedFare);
-        const travelQuote = quoteTravel(fare ?? category.options[0]!, Number(travelParty));
-
-        const currentFrom = (category.route && travelFrom && category.route.places.includes(travelFrom))
-          ? travelFrom
-          : category.route?.defaultFrom ?? '';
-        const currentTo = (category.route && travelTo && category.route.places.includes(travelTo))
-          ? travelTo
-          : category.route?.defaultTo ?? '';
-
-        const displayedOptions = [...category.options];
-        if (travelFilter === 'earliest') {
-          displayedOptions.sort((a, b) => (a.departureTime || '').localeCompare(b.departureTime || ''));
-        } else if (travelFilter === 'cheapest') {
-          displayedOptions.sort((a, b) => parsePesoAmount(a.price) - parsePesoAmount(b.price));
-        }
-
-        return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">Travel · {category.title}</p>
-              <h1>{category.route ? 'Choose your leg' : 'Cover your trip'}</h1>
-              <p>{category.subtitle}</p>
-            </div>
-            <div className="guest-form">
-              {category.route ? (
-                <div className="guest-travel-search-box">
-                  <div className="guest-travel-route-pair">
-                    <SelectField
-                      label={category.route.fromLabel}
-                      name="travel-from"
-                      value={currentFrom}
-                      onValueChange={setTravelFrom}
-                    >
-                      {category.route.places.map((place) => <option key={place} value={place}>{place}</option>)}
-                    </SelectField>
-                    <button
-                      type="button"
-                      className="guest-travel-swap-button"
-                      aria-label="Swap departure and arrival"
-                      title="Swap departure and arrival"
-                      onClick={() => {
-                        const fromVal = currentFrom;
-                        const toVal = currentTo;
-                        setTravelFrom(toVal);
-                        setTravelTo(fromVal);
-                      }}
-                    >
-                      <ArrowsDownUp size={16} />
-                    </button>
-                    <SelectField
-                      label={category.route.toLabel}
-                      name="travel-to"
-                      value={currentTo}
-                      onValueChange={setTravelTo}
-                    >
-                      {category.route.places.map((place) => <option key={place} value={place}>{place}</option>)}
-                    </SelectField>
-                  </div>
-                </div>
-              ) : null}
-              <div className="guest-travel-dates-row">
-                <Field
-                  label={category.route ? 'Date' : 'Trip starts'}
-                  name="travel-date"
-                  type="date"
-                  value={travelDate}
-                  onValueChange={setTravelDate}
-                  min={PROTOTYPE_TODAY}
-                />
-                <SelectField
-                  label={category.partyLabel}
-                  name="travel-party"
-                  value={travelParty}
-                  onValueChange={setTravelParty}
-                >
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                </SelectField>
-              </div>
-            </div>
-            <div className="guest-section-heading">
-              <h2>{category.route ? 'Available departures' : 'Available plans'}</h2>
-              {category.route ? (
-                <div className="guest-filter-pills" role="tablist" aria-label="Sort options">
-                  <button
-                    type="button"
-                    className={`guest-filter-pill ${travelFilter === 'all' ? 'is-active' : ''}`}
-                    onClick={() => setTravelFilter('all')}
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    className={`guest-filter-pill ${travelFilter === 'earliest' ? 'is-active' : ''}`}
-                    onClick={() => setTravelFilter('earliest')}
-                  >
-                    Earliest
-                  </button>
-                  <button
-                    type="button"
-                    className={`guest-filter-pill ${travelFilter === 'cheapest' ? 'is-active' : ''}`}
-                    onClick={() => setTravelFilter('cheapest')}
-                  >
-                    Cheapest
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <div className="guest-travel-options" role="group" aria-label={`${category.title} options`}>
-              {displayedOptions.map((option) => {
-                const isSelected = option.id === selectedFare;
-                const originCode = category.route ? extractLocationCode(currentFrom) : null;
-                const destCode = category.route ? extractLocationCode(currentTo) : null;
-                const originCity = category.route ? extractLocationName(currentFrom) : null;
-                const destCity = category.route ? extractLocationName(currentTo) : null;
-
-                return (
-                  <button
-                    key={option.id}
-                    className={`guest-travel-option ${isSelected ? 'is-selected' : ''}`}
-                    type="button"
-                    aria-pressed={isSelected}
-                    onClick={() => setSelectedFare(option.id)}
-                  >
-                    <div className="guest-travel-option__header">
-                      <div className="guest-travel-option__brand">
-                        <CarrierLogo operator={option.operator} size={32} />
-                        <div>
-                          <b>{option.operator}</b>
-                          <div className="guest-travel-carrier-sub">
-                            {option.carrierCode ? (
-                              <span className="guest-travel-carrier-code">{option.carrierCode}</span>
-                            ) : null}
-                            {option.vesselOrVehicle ? (
-                              <span className="guest-flighty-vessel-badge">{option.vesselOrVehicle}</span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="guest-travel-option__badges">
-                        {option.onTimeRate ? (
-                          <span className="guest-flighty-status-pill is-sm">
-                            <span className="guest-flighty-status-dot" aria-hidden="true" /> {option.onTimeRate}
-                          </span>
-                        ) : null}
-                        {option.badge ? (
-                          <span className="guest-travel-badge-pill">{option.badge}</span>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {option.departureTime && option.arrivalTime ? (
-                      <div className="guest-travel-timeline">
-                        <div className="guest-travel-time-point">
-                          <span className="guest-travel-time-main">{option.departureTime}</span>
-                          <span className="guest-travel-code">{originCode} · {originCity}</span>
-                          {option.gate ? (
-                            <span className="guest-flighty-gate-tag">
-                              <NavigationArrow size={10} weight="fill" aria-hidden="true" /> {option.gate}
-                            </span>
-                          ) : null}
-                          {option.terminal ? (
-                            <span className="guest-flighty-terminal">{option.terminal}</span>
-                          ) : null}
-                        </div>
-
-                        <div className="guest-travel-flight-path">
-                          <span className="guest-travel-duration">{option.duration ?? 'Direct'}</span>
-                          <div className="guest-travel-flight-line">
-                            <span className="guest-travel-line-dot" aria-hidden="true" />
-                            <span className="guest-travel-line-glyph">
-                              {category.id === 'flights' ? (
-                                <AirplaneTilt size={14} weight="fill" aria-hidden="true" />
-                              ) : category.id === 'ferries' ? (
-                                <Boat size={14} weight="fill" aria-hidden="true" />
-                              ) : (
-                                <Van size={14} weight="fill" aria-hidden="true" />
-                              )}
-                            </span>
-                            <span className="guest-travel-line-dot" aria-hidden="true" />
-                          </div>
-                          <span className="guest-travel-path-sub">Non-stop</span>
-                        </div>
-
-                        <div className="guest-travel-time-point is-destination">
-                          <span className="guest-travel-time-main">{option.arrivalTime}</span>
-                          <span className="guest-travel-code">{destCode} · {destCity}</span>
-                          {option.baggageBelt ? (
-                            <span className="guest-flighty-baggage-tag">
-                              <SuitcaseRolling size={10} weight="bold" aria-hidden="true" /> {option.baggageBelt}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="guest-travel-option__meta">
-                      <small>{option.detail} · {option.meta}</small>
-                    </div>
-
-                    {option.inclusions && option.inclusions.length > 0 ? (
-                      <div className="guest-travel-inclusions">
-                        {option.inclusions.map((tag) => (
-                          <span key={tag} className="guest-travel-tag">
-                            <Check size={11} weight="bold" aria-hidden="true" />
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    <div className="guest-travel-option__footer">
-                      <div>
-                        <span className="guest-travel-price-caption">
-                          {category.partyLabel === 'Passengers' ? 'Per passenger' : 'Per policy'}
-                        </span>
-                        <strong className="guest-travel-price-val">{option.price}</strong>
-                      </div>
-                      {isSelected ? (
-                        <span className="guest-flighty-selected-indicator">
-                          <CheckCircle size={16} weight="fill" aria-hidden="true" /> Selected
-                        </span>
-                      ) : (
-                        <span className="guest-flighty-select-prompt">Select fare <CaretRight size={12} aria-hidden="true" /></span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {fare ? (
-              <>
-                <div className="guest-summary">
-                  <SummaryRow label={fare.operator} value={fare.detail} />
-                  <SummaryRow label={category.partyLabel} value={travelParty} />
-                  <SummaryRow label="Fare each" value={fare.price} />
-                </div>
-                {/*
-                  Docked, not inline. The fare list is long enough to scroll
-                  the button off screen, which left the guest scrolling back
-                  down to commit to a choice they had already made. The dock
-                  carries the party total the summary above does not.
-                */}
-                <div className="guest-dock-spacer" aria-hidden="true" />
-                <div className="guest-dock">
-                  <div className="guest-dock__summary">
-                    <span>{travelQuote.travellers} {travelQuote.travellers === 1 ? category.partyLabel.replace(/s$/, '').toLowerCase() : category.partyLabel.toLowerCase()}</span>
-                    <strong>{travelQuote.fareTotal}</strong>
-                  </div>
-                  <Button className="guest-button guest-button--primary" type="button" onClick={() => go('travel-checkout')}>
-                    Continue to checkout<ArrowRight aria-hidden="true" />
-                  </Button>
-                </div>
-              </>
-            ) : null}
-          </div>
-        );
-      }
-
-      /**
-       * Travel is paid to the operator at booking, never to the room folio: a
-       * flight is not the hotel's to bill, and a guest may book one before
-       * arrival or after checkout when no folio is open. That is why this is
-       * its own checkout rather than the service flow's folio confirmation.
-       */
-      case 'travel-checkout': {
-        const category = getTravelCategory(selectedTravel);
-        const fare = category.options.find((option) => option.id === selectedFare);
-        if (!fare) return <ScreenIntro eyebrow="Travel" title="Choose a fare first" text="Pick an option to continue to checkout.">{primary('Back to search', 'travel-search')}</ScreenIntro>;
-
-        const partySize = Number(travelParty);
-        const quote = quoteTravel(fare, partySize, travelCover);
-        const routeLabel = category.route
-          ? `${category.route.defaultFrom} → ${category.route.defaultTo}`
-          : null;
-        /**
-         * Travellers come from what the app already holds. Philippine carriers
-         * match passenger names to government ID, and Cabana captured the
-         * guest's during pre-arrival -- so this confirms rather than asks.
-         */
-        const travellers = listBookingGuests({ ...contextBooking, guestCount: partySize }, session)
-          .rows
-          .slice(0, partySize);
-        const idOnFile = contextBooking.preArrivalCompleted >= 2;
-        /** Live fares cannot be queued: the price moves while you are offline. */
-        const canPay = online;
-
-        return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">Travel · {category.title}</p>
-              <h1>Confirm and pay</h1>
-              <p>{routeLabel ?? 'Cover for the whole trip'}</p>
-            </div>
-
-            {/* Itinerary / Flighty Passbook Ticket preview */}
-            <div className="guest-travel-ticket-preview">
-              <div className="guest-travel-ticket-preview__notch-left" aria-hidden="true" />
-              <div className="guest-travel-ticket-preview__notch-right" aria-hidden="true" />
-
-              <div className="guest-travel-ticket-preview__top">
-                <div className="guest-travel-ticket-preview__carrier">
-                  <CarrierLogo operator={fare.operator} size={28} />
-                  <div>
-                    <strong>{fare.operator}</strong>
-                    <small>{fare.carrierCode ?? fare.detail}</small>
-                  </div>
-                </div>
-                <span className="guest-flighty-status-pill is-sm">
-                  <span className="guest-flighty-status-dot" aria-hidden="true" /> ON SCHEDULE
-                </span>
-              </div>
-
-              {routeLabel ? (
-                <div className="guest-travel-ticket-preview__route">
-                  <div className="guest-travel-ticket-point">
-                    <span>{category.route ? extractLocationCode(category.route.defaultFrom) : 'DEP'}</span>
-                    <small>{fare.departureTime ?? 'Depart'}</small>
-                    {fare.terminal ? <span className="guest-flighty-ticket-sub">{fare.terminal}</span> : null}
-                  </div>
-                  <div className="guest-travel-ticket-line">
-                    <span>{fare.duration ?? ''}</span>
-                    <div className="guest-travel-ticket-dash" />
-                    <span className="guest-flighty-ticket-nonstop">Non-stop</span>
-                  </div>
-                  <div className="guest-travel-ticket-point is-end">
-                    <span>{category.route ? extractLocationCode(category.route.defaultTo) : 'ARR'}</span>
-                    <small>{fare.arrivalTime ?? 'Arrive'}</small>
-                    {fare.gate ? <span className="guest-flighty-ticket-sub">{fare.gate}</span> : null}
-                  </div>
-                </div>
-              ) : (
-                <div className="guest-travel-ticket-preview__policy">
-                  <strong>{fare.detail}</strong>
-                  <small>{fare.meta}</small>
-                </div>
-              )}
-
-              <div className="guest-travel-ticket-preview__footer">
-                <span>Date: {travelDate}</span>
-                <span>{partySize} {category.partyLabel.toLowerCase()}</span>
-              </div>
-            </div>
-
-            <SectionHeading title={category.partyLabel} />
-            <div className="guest-list-group">
-              {travellers.map((traveller) => {
-                const lead = traveller.role === 'lead';
-                const verified = lead && idOnFile && traveller.name;
-                return (
-                  <div className="guest-list-row is-static" key={traveller.key}>
-                    <span><Person /></span>
-                    <div>
-                      <b>{traveller.name ?? 'Lead traveller · name needed'}</b>
-                      <small>{verified ? 'ID on file from check-in' : 'ID needed before travel'}</small>
-                    </div>
-                    {verified ? <Check /> : null}
-                  </div>
-                );
-              })}
-              {travellers.length < partySize ? (
-                <div className="guest-list-row is-static">
-                  <span><Users /></span>
-                  <div>
-                    <b>{partySize - travellers.length} more traveller{partySize - travellers.length > 1 ? 's' : ''}</b>
-                    <small>Names needed before travel</small>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {/*
-              Cover is offered on the leg, not sold as its own mode. It has no
-              route, no departure and no seat, and a guest shopping for it has
-              already chosen the thing it covers -- so it belongs here, beside
-              the price of that thing, off by default.
-            */}
-            <label className="guest-cover-option">
-              <input
-                type="checkbox"
-                checked={travelCover}
-                onChange={(event) => setTravelCover(event.currentTarget.checked)}
-              />
-              <span className="guest-cover-option__text">
-                <b>Add {TRAVEL_COVER.name.toLowerCase()} · {formatPesoAmount(TRAVEL_COVER.pricePerTraveller)} each</b>
-                <small>{TRAVEL_COVER.operator} · {TRAVEL_COVER.detail}</small>
-              </span>
-            </label>
-
-            <div className="guest-summary">
-              <SummaryRow label={fare.operator} value={fare.detail} />
-              <SummaryRow label={`Fare × ${partySize}`} value={quote.fareTotal} />
-              <SummaryRow label="Booking fee" value={quote.fees} />
-              {quote.cover ? <SummaryRow label={`${TRAVEL_COVER.name} × ${partySize}`} value={quote.cover} /> : null}
-              <SummaryRow label={`Paid to ${fare.operator}`} value={quote.total} strong />
-            </div>
-
-            {canPay ? (
-              <>
-                <div className="guest-travel-payment-methods">
-                  <span className="guest-travel-payment-label">Payment method</span>
-                  <div className="guest-travel-payment-pills" role="radiogroup" aria-label="Payment method">
-                    <button
-                      type="button"
-                      className={`guest-payment-chip ${travelPaymentMethod === 'card' ? 'is-selected' : ''}`}
-                      onClick={() => setTravelPaymentMethod('card')}
-                    >
-                      <CreditCard size={15} /> Card
-                    </button>
-                    <button
-                      type="button"
-                      className={`guest-payment-chip ${travelPaymentMethod === 'gcash' ? 'is-selected' : ''}`}
-                      onClick={() => setTravelPaymentMethod('gcash')}
-                    >
-                      GCash
-                    </button>
-                    <button
-                      type="button"
-                      className={`guest-payment-chip ${travelPaymentMethod === 'maya' ? 'is-selected' : ''}`}
-                      onClick={() => setTravelPaymentMethod('maya')}
-                    >
-                      Maya
-                    </button>
-                  </div>
-                </div>
-
-                <Notice title="Not charged to your room">
-                  Travel is paid now to the operator. Only on-property charges reach your room folio.
-                </Notice>
-                <Button
-                  className="guest-button guest-button--primary"
-                  type="button"
-                  onClick={() => {
-                    setSession((cur) => bookTravel(cur, {
-                      category,
-                      option: fare,
-                      travellers: partySize,
-                      route: routeLabel,
-                      date: travelDate,
-                    }));
-                    setSelectedFare(null);
-                    go('travel-confirmation');
-                  }}
-                >
-                  Pay {quote.total}<ArrowRight aria-hidden="true" />
-                </Button>
-              </>
-            ) : (
-              <>
-                <Notice tone="offline" title="Nothing was booked">
-                  Fares and seats change while you are offline, so this one is not held. Reconnect and the price is re-checked before you pay.
-                </Notice>
-                <TextButton onClick={() => { setOnline(true); }}>Reconnect and try again</TextButton>
-              </>
-            )}
-          </div>
-        );
-      }
-
-      case 'travel-confirmation': {
-        const category = getTravelCategory(selectedTravel);
-        const booked = session.travelBookings[session.travelBookings.length - 1];
-        if (!booked) return <ScreenIntro eyebrow="Travel" title="Nothing booked yet" text="Choose a fare to get started.">{primary('Back to travel', 'travel')}</ScreenIntro>;
-        return (
-          <ScreenIntro
-            icon={<Check size={30} />}
-            eyebrow="Paid to the operator"
-            title={`Your ${category.singular} is booked`}
-            text={`${booked.operator} has your booking. Nothing was added to your room folio.`}
-          >
-            <div className="guest-travel-confirmation-pass">
-              <div className="guest-travel-confirmation-pass__notch-left" aria-hidden="true" />
-              <div className="guest-travel-confirmation-pass__notch-right" aria-hidden="true" />
-
-              <div className="guest-travel-confirmation-pass__header">
-                <CarrierLogo operator={booked.operator} size={28} />
-                <div className="guest-travel-confirmation-pass__operator">
-                  <strong>{booked.operator}</strong>
-                  <small>{booked.route ?? booked.meta}</small>
-                </div>
-                <Tag tone="positive">Confirmed</Tag>
-              </div>
-
-              <div className="guest-travel-confirmation-pass__body">
-                <div className="guest-travel-pass-row">
-                  <div>
-                    <span className="guest-pass-label">Reference</span>
-                    <strong className="guest-pass-value">{booked.reference}</strong>
-                  </div>
-                  <div>
-                    <span className="guest-pass-label">Schedule</span>
-                    <strong className="guest-pass-value">{booked.detail}</strong>
-                  </div>
-                </div>
-                <div className="guest-travel-pass-row">
-                  <div>
-                    <span className="guest-pass-label">Travellers</span>
-                    <strong className="guest-pass-value">{booked.travellers} guest{booked.travellers > 1 ? 's' : ''}</strong>
-                  </div>
-                  <div>
-                    <span className="guest-pass-label">Total Paid</span>
-                    <strong className="guest-pass-value">{booked.amount}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="guest-travel-pass-barcode" aria-hidden="true">
-                <div className="guest-travel-barcode-lines">
-                  <span style={{ width: 2 }} />
-                  <span style={{ width: 4 }} />
-                  <span style={{ width: 1 }} />
-                  <span style={{ width: 3 }} />
-                  <span style={{ width: 2 }} />
-                  <span style={{ width: 5 }} />
-                  <span style={{ width: 1 }} />
-                  <span style={{ width: 4 }} />
-                  <span style={{ width: 2 }} />
-                  <span style={{ width: 3 }} />
-                  <span style={{ width: 1 }} />
-                  <span style={{ width: 4 }} />
-                  <span style={{ width: 3 }} />
-                  <span style={{ width: 1 }} />
-                  <span style={{ width: 2 }} />
-                  <span style={{ width: 4 }} />
-                </div>
-                <span className="guest-travel-barcode-code">{booked.reference} · E-TICKET ISSUED</span>
-              </div>
-
-              <div className="guest-flighty-wallet-action">
-                <button type="button" className="guest-flighty-wallet-button">
-                  <Ticket size={15} weight="bold" aria-hidden="true" /> Add to Apple Wallet
-                </button>
-              </div>
-            </div>
-            <Notice title="Bring government ID">
-              Philippine carriers check passenger names against ID at the gate. The name on this booking must match the ID each traveller brings.
-            </Notice>
-            {primary('View my stay', 'my-stay')}
-            <TextButton onClick={() => go('travel')}>Book another leg</TextButton>
-          </ScreenIntro>
-        );
-      }
 
       case 'profile':
         return (
@@ -4047,8 +3124,8 @@ function PrototypeControls({
   /*
     Collapsed by default. This is scaffolding, not part of the product, and as
     an always-open panel it sat on top of whatever the screen had docked above
-    the tab bar -- the front desk bar on My Stay, the travel CTA, the dining
-    mini cart. A demo should show the app, not the rig it runs on.
+    the tab bar -- the front desk bar on My Stay and the dining mini cart. A
+    demo should show the app, not the rig it runs on.
   */
   const [open, setOpen] = useState(false);
 
@@ -4306,9 +3383,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
           <div className="guest-stay-hero-card__stats">
             <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
             <div><small>Room</small><b>{booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : `${booking.roomType} · Assigned at arrival`}</b></div>
-            {/* Who is on the booking, which the card never said -- a guest
-                travelling with someone had to open the booking to check the
-                property knows that. */}
+            {/* The booking shows who is on the stay, without an extra drill-in. */}
             <div><small>Guests</small><b>{describeParty(booking, session)}</b></div>
             <div><small>Nights</small><b>{countNights(booking)}</b></div>
           </div>
@@ -4471,7 +3546,6 @@ const STAY_ENTRY_ICONS: Record<MiniAppCategoryId, ReactNode> = {
   spa: <Sparkle />,
   entertainment: <Ticket />,
   services: <Storefront />,
-  travel: <AirplaneTilt />,
 };
 
 /**
@@ -4480,8 +3554,7 @@ const STAY_ENTRY_ICONS: Record<MiniAppCategoryId, ReactNode> = {
  * The parent line is not decoration. A guest island-hopping through three
  * properties sees "Azotea Rooftop · 7:30 PM" and has to remember which hotel
  * that was; "The Henry Manila · Ninth floor terrace" answers it before they
- * ask. For a travel leg the parent is the carrier instead, which also keeps
- * the card honest about who is being paid.
+ * ask.
  */
 function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => void }) {
   /*

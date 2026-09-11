@@ -36,6 +36,4 @@ export const CATEGORY_ILLUSTRATIONS = {
   spa: { src: '/illustrations/category-spa-pink.png', width: 196, height: 196 },
   entertainment: { src: '/illustrations/category-tours-pink.png', width: 196, height: 196 },
   services: { src: '/illustrations/category-services-pink.png', width: 196, height: 196 },
-  travel: { src: '/illustrations/category-travel-pink.png', width: 196, height: 196 },
 } satisfies Record<string, GuestIllustration>;
-

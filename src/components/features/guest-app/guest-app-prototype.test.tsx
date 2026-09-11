@@ -81,38 +81,38 @@ beforeAll(() => {
 });
 
 describe('GuestAppPrototype', () => {
-  it('opens on an account gate without app chrome or travel', () => {
+  it('opens on a unified SSO account gate without app chrome or travel', () => {
     render(<GuestAppPrototype />);
 
     expect(screen.getAllByText('Cabana', { exact: true })).toHaveLength(2);
     expect(screen.getAllByText('Your Home Away From Home')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Log in' })).toBeNull();
     expect(screen.queryByText(/travel|flights/i)).toBeNull();
     expect(screen.queryByRole('banner')).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
-  it('uses Apple SSO to start a new account', async () => {
+  it('uses Apple SSO from Get started to find a booking', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
   });
 
-  it('uses Google SSO to open a returning account', async () => {
+  it('uses Google SSO from Get started to find a booking', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
-    expect(screen.getByRole('heading', { name: /Welcome back/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
   });
 
   it('pages the welcome steps one at a time from the dots', async () => {
@@ -127,8 +127,8 @@ describe('GuestAppPrototype', () => {
 
     expect(dots[2]).toHaveAttribute('aria-current', 'step');
     expect(dots[0]).not.toHaveAttribute('aria-current');
-    // Account creation is available from every welcome step.
-    expect(screen.getByRole('button', { name: 'Create account' })).toBeEnabled();
+    // Account access is available from every welcome step.
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeEnabled();
   });
 
   it('exposes only the current welcome step to assistive tech', async () => {
@@ -145,14 +145,27 @@ describe('GuestAppPrototype', () => {
     expect(stepOf('Skip the front desk paperwork')).toHaveAttribute('aria-hidden', 'false');
   });
 
-  it('opens account creation from the welcome action', async () => {
+  it('opens the unified SSO screen from the welcome action', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
 
-    expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Get started' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    expect(screen.queryByText(/Create your account|Already have an account|Don't have an account|Log in/)).toBeNull();
+  });
+
+  it('disables both SSO providers when the connection is offline', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialOnline={false} />);
+
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+
+    expect(screen.getByText('Getting started needs a connection')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeDisabled();
   });
 
   it('connects a booking and reaches the matched-stay confirmation', () => {
@@ -568,9 +581,9 @@ describe('GuestAppPrototype', () => {
 });
 
 describe('guest account and entry flows', () => {
-  it('creates an account with Apple SSO and keeps the guest ready to connect a stay', async () => {
+  it('routes Apple SSO from the unified screen to booking connection', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="create-account" />);
+    render(<GuestAppPrototype initialScreen="get-started" />);
 
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
@@ -578,13 +591,13 @@ describe('guest account and entry flows', () => {
     expect(screen.queryByTestId('guest-home-active')).toBeNull();
   });
 
-  it('routes a returning guest through Google SSO to its saved stay', async () => {
+  it('routes Google SSO from the unified screen to booking connection', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="sign-in" />);
+    render(<GuestAppPrototype initialScreen="get-started" />);
 
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
-    expect(screen.getByRole('heading', { name: /Welcome back/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
   });
 
   it('routes a booking-first arrival directly to pre-arrival onboarding without account registration', async () => {
@@ -616,7 +629,7 @@ describe('guest account and entry flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    expect(screen.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -626,14 +639,14 @@ describe('guest account and entry flows', () => {
     expect(screen.queryByRole('button', { name: /open profile/i })).toBeNull();
   });
 
-  it('keeps the welcome focused and opens account creation first', async () => {
+  it('keeps the welcome focused and opens the unified SSO screen first', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     expect(screen.queryByText(/Offline mode active/i)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
 
-    expect(screen.getByRole('heading', { name: 'Create your account' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Get started' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Confirmation number' }));
@@ -1714,10 +1727,10 @@ describe('session persistence', () => {
       two-pass behaviour explicit rather than something a future reader has to
       infer from a `findBy` that happens to wait.
     */
-    expect(screen.getByRole('button', { name: /Create account/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
 
     expect(await screen.findByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Create account/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Get started/ })).toBeNull();
   });
 
   it('keeps a signed-out record from landing anywhere but the entry hub', async () => {
@@ -1726,7 +1739,7 @@ describe('session persistence', () => {
     render(<GuestAppPrototype />);
     await act(async () => { await Promise.resolve(); });
 
-    expect(screen.getByRole('button', { name: /Create account/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
   });
 
   it('ignores storage entirely when a session is supplied', async () => {
@@ -1735,7 +1748,7 @@ describe('session persistence', () => {
     render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
     await act(async () => { await Promise.resolve(); });
 
-    expect(screen.getByRole('button', { name: /Create account/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -1764,7 +1777,7 @@ describe('session persistence', () => {
 
 describe('booking-reference re-entry', () => {
   const enterReference = async (user: ReturnType<typeof userEvent.setup>, reference: string) => {
-    await user.click(screen.getByRole('button', { name: /Log in with a booking reference/ }));
+    await user.click(screen.getByRole('button', { name: 'Use a booking reference instead' }));
     await user.type(screen.getByLabelText(/Booking or confirmation number/), reference);
     await user.click(screen.getByRole('button', { name: /^Continue/ }));
   };
@@ -1776,7 +1789,7 @@ describe('booking-reference re-entry', () => {
   */
   it('accepts a reference from a stay that is long settled', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'HEN-CEBU-250508');
 
@@ -1787,7 +1800,7 @@ describe('booking-reference re-entry', () => {
 
   it('masks the contact it offers to send a code to', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'HEN-CEBU-250508');
 
@@ -1801,7 +1814,7 @@ describe('booking-reference re-entry', () => {
 
   it('refuses to verify until a full code is entered', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'HEN-CEBU-250508');
     expect(screen.getByRole('button', { name: /Verify and open my account/ })).toBeDisabled();
@@ -1816,7 +1829,7 @@ describe('booking-reference re-entry', () => {
   */
   it('opens the whole profile once the code is verified', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'HEN-CEBU-250508');
     await user.type(screen.getByLabelText(/6-digit verification code/), '123456');
@@ -1862,7 +1875,7 @@ describe('booking-reference re-entry', () => {
 
   it('sends an unknown reference to the no-booking screen', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialScreen="get-started" initialSession={ANONYMOUS_SESSION} />);
 
     await enterReference(user, 'ZZZZ-000000');
 

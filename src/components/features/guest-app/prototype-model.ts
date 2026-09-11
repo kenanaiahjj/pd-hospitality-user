@@ -1,7 +1,7 @@
 export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
 
 export type ScreenId =
-  | 'sign-in'
+  | 'get-started'
   | 'connect-booking'
   | 'room-qr-landing'
   | 'wifi-landing'
@@ -17,7 +17,6 @@ export type ScreenId =
   | 'front-desk-assist'
   | 'no-booking'
   | 'booking-found'
-  | 'create-account'
   | 'welcome-back'
   | 'stay-overview'
   | 'guest-details'
@@ -68,8 +67,7 @@ const screen = (number: number, group: ScreenGroup, id: ScreenId, title: string)
 });
 
 export const SCREENS: PrototypeScreen[] = [
-  screen(1, 'Entry', 'sign-in', 'Log in'),
-  screen(2, 'Entry', 'create-account', 'Create your account'),
+  screen(1, 'Entry', 'get-started', 'Get started'),
   screen(3, 'Entry', 'connect-booking', 'Add your booking'),
   screen(4, 'Entry', 'room-qr-landing', 'Room QR detected'),
   screen(5, 'Entry', 'wifi-landing', 'Hotel Wi-Fi'),
@@ -414,6 +412,25 @@ export function createAccountSession(
     ...ANONYMOUS_SESSION,
     guestName,
     email,
+    auth: 'authenticated',
+    accountStatus: 'new',
+    authMethod: method,
+  };
+}
+
+/**
+ * Both SSO providers enter through the same prototype account state. The
+ * identity service decides whether the account is new or returning; this
+ * fixture represents the unlinked state that needs a booking next.
+ */
+export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
+  const identity = method === 'apple'
+    ? { guestName: 'Apple Guest', email: 'guest@privaterelay.appleid.com' }
+    : { guestName: 'Google Guest', email: 'guest@gmail.com' };
+
+  return {
+    ...ANONYMOUS_SESSION,
+    ...identity,
     auth: 'authenticated',
     accountStatus: 'new',
     authMethod: method,

@@ -13,10 +13,11 @@ Local preview: `http://localhost:3001/`
 ## Product definition
 
 Hospitality is a stay companion for guests with a confirmed hotel booking. The
-first step is an account gate with `Create account` and `Log in`; both actions
-use Apple or Google SSO in the prototype. After SSO, a guest can connect a
-booking, scan a room QR code, or use hotel Wi-Fi. It is not a hotel-discovery,
-flight, package, transport, or rewards product.
+first step is an account gate with one `Get started` action. That action opens
+Apple or Google SSO; both providers continue to the same booking-connection
+step in the prototype. After SSO, a guest can connect a booking, scan a room QR
+code, or use hotel Wi-Fi. It is not a hotel-discovery, flight, package,
+transport, or rewards product.
 
 The core commerce rule is non-negotiable:
 
@@ -128,9 +129,9 @@ evidence that the requested app is covered.
 ## Non-negotiable UX rules
 
 - First render at `/` is an account gate, not an active-stay home.
-- The account gate offers `Create account` and `Log in` with Apple and Google
-  SSO. Booking confirmation, room QR, and hotel Wi-Fi paths follow account
-  connection.
+- The account gate offers one `Get started` action. Apple and Google SSO both
+  lead to the same booking-connection step; booking confirmation, room QR, and
+  hotel Wi-Fi paths follow account connection.
 - Bottom navigation is hidden during onboarding and appears only after a
   booking is connected.
 - A connected guest can reach Stay, Services, Chat, and Profile.
@@ -158,11 +159,11 @@ evidence that the requested app is covered.
 
 ```text
 entry-hub
-  -> create-account
+  -> get-started
   -> Apple or Google SSO
-  -> identify
+  -> connect-booking
+  -> identify / room-qr-landing / wifi-landing
   -> booking-found
-  -> create-account or welcome-back
   -> guest-details
   -> id-capture
   -> room-preferences
@@ -172,14 +173,13 @@ entry-hub
   -> stay-overview
 ```
 
-The root screen uses these visible account actions:
+The root screen has one visible account action:
 
-- `Create account` goes to `create-account`, where Apple or Google SSO creates
-  the deterministic new-account fixture.
-- `Log in` goes to `sign-in`, where Apple or Google SSO opens the returning
-  account fixture.
+- `Get started` opens the provider-neutral SSO screen. Apple and Google both
+  create an authenticated identity and continue to `connect-booking`; the
+  identity service determines whether that identity is new or returning.
 
-After SSO, the new-account path uses these booking actions:
+After SSO, the guest can choose among these booking actions:
 
 - `Open confirmation link` / `Booking email` goes to `identify`.
 - `Continue with room QR` goes to `room-qr-landing`.
@@ -209,20 +209,22 @@ front desk against an original ID; the app issues no credential of its own.
 
 ### Returning guest: SSO or booking-reference re-entry
 
-The main door is the account gate. A returning guest can use Google or Apple
-SSO, or use a booking reference when re-entering a stay from a confirmation.
+The main door is the account gate. A returning guest can use the same
+provider-neutral Google or Apple SSO entry, or use a booking reference when
+re-entering a stay from a confirmation.
 
 ```text
-entry-hub -> sign-in -> Google or Apple SSO -> welcome-back       (saved stay)
+entry-hub -> get-started -> Google or Apple SSO -> connect-booking (new or unlinked stay)
 entry-hub -> identify-returning -> verify-contact -> stay-overview (past reference)
 entry-hub -> identify -> booking-found -> ...                     (live reservation)
 ```
 
 `identify` tries `findBookingByLookup` first; a reference that names no live
 reservation then goes to `findProfileByLookup` before falling through to
-`no-booking`, which itself offers `Stayed with us before? Log in`. The
-dedicated `identify-returning` screen is the same thing reached deliberately,
-from `sign-in`.
+`no-booking`, which itself offers `Stayed with us before? Use a booking
+reference`. The dedicated `identify-returning` screen is the same thing
+reached deliberately from the SSO screen's `Use a booking reference instead`
+action.
 
 `findProfileByLookup` matches against the whole profile — the live reservations
 *and* `PAST_STAYS` — so a guest whose last stay ended long ago can get in on a

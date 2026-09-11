@@ -50,6 +50,7 @@ import {
   markRoomReady,
   parsePesoAmount,
   signInSession,
+  ssoSession,
   signOutSession,
 } from './prototype-model';
 import type { Booking } from './prototype-model';
@@ -60,8 +61,11 @@ import {
 
 describe('guest app prototype model', () => {
   it('contains the complete stay-only screen inventory', () => {
-    expect(SCREENS).toHaveLength(51);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(51);
+    expect(SCREENS).toHaveLength(50);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(50);
+    expect(SCREENS.find((screen) => screen.id === 'get-started')?.title).toBe('Get started');
+    expect(SCREENS.some((screen) => (screen.id as string) === 'sign-in')).toBe(false);
+    expect(SCREENS.some((screen) => (screen.id as string) === 'create-account')).toBe(false);
     expect(SCREENS.find((s) => s.id === 'stay-entry')?.title).toBe('Booking receipt');
     expect(SCREENS.find((s) => s.id === 'stay-detail')?.group).toBe('Account');
     // My Stay subsumed the old `my-bookings` screen rather than sitting beside
@@ -311,6 +315,16 @@ describe('account sessions', () => {
   it('treats the mock session as an authenticated returning account', () => {
     expect(MOCK_SESSION.auth).toBe('authenticated');
     expect(MOCK_SESSION.accountStatus).toBe('returning');
+  });
+
+  it('creates one provider-neutral authenticated SSO session without a booking', () => {
+    const apple = ssoSession('apple');
+    const google = ssoSession('google');
+
+    expect(apple).toMatchObject({ auth: 'authenticated', accountStatus: 'new', authMethod: 'apple' });
+    expect(google).toMatchObject({ auth: 'authenticated', accountStatus: 'new', authMethod: 'google' });
+    expect(apple.bookings).toHaveLength(0);
+    expect(google.bookings).toHaveLength(0);
   });
 
   it('creates an authenticated new account with Apple SSO and no bookings', () => {

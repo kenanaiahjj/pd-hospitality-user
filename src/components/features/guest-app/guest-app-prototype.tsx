@@ -53,7 +53,6 @@ import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
   ANONYMOUS_SESSION,
   connectBooking,
-  createAccountSession,
   findBookingByLookup,
   describeCheckoutCountdown,
   describeStayStatus,
@@ -90,7 +89,7 @@ import {
   MOCK_SESSION,
   RESTAURANTS,
   SERVICES,
-  signInSession,
+  ssoSession,
   signOutSession,
   findProfileByLookup,
   restoreProfileSession,
@@ -596,7 +595,7 @@ function WelcomeStepCopy({ index }: Pick<PagerHandle, 'index'>) {
   );
 }
 
-function WelcomeScreen({ onCreateAccount, onSignIn }: { onCreateAccount: () => void; onSignIn: () => void }) {
+function WelcomeScreen({ onGetStarted }: { onGetStarted: () => void }) {
   const pager = useWelcomePager();
 
   return (
@@ -618,11 +617,8 @@ function WelcomeScreen({ onCreateAccount, onSignIn }: { onCreateAccount: () => v
           <WelcomeDots index={pager.index} show={pager.show} />
           <WelcomeStepCopy index={pager.index} />
           <div className="guest-welcome__actions">
-            <Button className="guest-button guest-button--primary guest-welcome__action" type="button" onClick={onCreateAccount}>
-              Create account<ArrowRight aria-hidden="true" />
-            </Button>
-            <Button className="guest-button guest-button--secondary guest-welcome__action" type="button" onClick={onSignIn}>
-              Log in
+            <Button className="guest-button guest-button--primary guest-welcome__action" type="button" onClick={onGetStarted}>
+              Get started<ArrowRight aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -1380,30 +1376,29 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const renderScreen = () => {
     switch (activeScreen) {
       case 'entry-hub':
-        return <WelcomeScreen onCreateAccount={() => go('create-account')} onSignIn={() => go('sign-in')} />;
+        return <WelcomeScreen onGetStarted={() => go('get-started')} />;
 
-      case 'sign-in':
+      case 'get-started':
         return (
           <div className="guest-stack guest-stack--intro">
             <div className="guest-auth-header">
               <CabanaFullLockup markWidth={48} tagline="Your Home Away From Home" />
             </div>
             <div className="guest-page-title">
-              <p className="guest-eyebrow">Welcome back</p>
-              <h1>Log in</h1>
-              <p>Use the account you already trust to open your stays.</p>
+              <p className="guest-eyebrow">Your stay, all in one place</p>
+              <h1>Get started</h1>
+              <p>Use Apple or Google to access your stay and room services.</p>
             </div>
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Logging in needs a connection">A connection is required to sign in.</Notice> : null}
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Getting started needs a connection">A connection is required to continue.</Notice> : null}
             <div className="guest-auth-actions">
-              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(signInSession('apple'))}>
+              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(ssoSession('apple'))}>
                 <AppleLogo size={20} aria-hidden="true" /> Continue with Apple
               </Button>
-              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(signInSession('google'))}>
+              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(ssoSession('google'))}>
                 <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
               </Button>
             </div>
-            <TextButton onClick={() => go('identify-returning')}>Log in with a booking reference instead</TextButton>
-            <TextButton onClick={() => go('create-account')}>Don&apos;t have an account? Create an account</TextButton>
+            <TextButton onClick={() => go('identify-returning')}>Use a booking reference instead</TextButton>
           </div>
         );
 
@@ -1725,7 +1720,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <Notice icon={<ShieldCheck />} title="Confirm your booking reference">
               Anyone can hold a booking number. We send a code to the contact on that reservation before opening the account.
             </Notice>
-            <TextButton onClick={() => go('sign-in')}>Back to sign in</TextButton>
+            <TextButton onClick={() => go('get-started')}>Back to Get started</TextButton>
           </ScreenIntro>
         );
 
@@ -1827,34 +1822,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<ChatCircleDots size={30} />} eyebrow="Front desk help" title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
 
       case 'no-booking':
-        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try your confirmation number or ask the front desk for a link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Log in</TextButton><TextButton onClick={() => go('front-desk-assist')}>Contact front desk</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try your confirmation number or ask the front desk for a link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('front-desk-assist')}>Contact front desk</TextButton></ScreenIntro>;
 
       case 'booking-found':
         return <ScreenIntro eyebrow="Booking found" title="Is this your stay?" text="Check the details, then continue."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label="Guest" value={displayBooking.guestName} /><SummaryRow label="Guests" value={`${displayBooking.guestCount} guests`} /><SummaryRow label="Booked through" value={displayBooking.source} /></div><Button className="guest-button guest-button--primary" type="button" onClick={claimBooking}>Use this booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('identify')}>Use a different booking</TextButton></ScreenIntro>;
-
-      case 'create-account':
-        return (
-          <div className="guest-stack guest-stack--intro">
-            <div className="guest-auth-header">
-              <CabanaFullLockup markWidth={48} tagline="Your Home Away From Home" />
-            </div>
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">One account, 13 properties</p>
-              <h1>Create your account</h1>
-              <p>{pendingIntent === 'none' ? 'Use Apple or Google to access your stay and room services.' : 'Your stay is matched. Use Apple or Google to hold it.'}</p>
-            </div>
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Creating an account needs a connection">A connection is required to create an account.</Notice> : null}
-            <div className="guest-auth-actions">
-              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(createAccountSession('Apple Guest', 'guest@privaterelay.appleid.com', 'apple'))}>
-                <AppleLogo size={20} aria-hidden="true" /> Continue with Apple
-              </Button>
-              <Button className="guest-button guest-button--secondary guest-sso-button" type="button" disabled={!online} onClick={() => completeAuth(createAccountSession('Google Guest', 'guest@gmail.com', 'google'))}>
-                <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
-              </Button>
-            </div>
-            <TextButton onClick={() => go('sign-in')}>Already have an account? Log in</TextButton>
-          </div>
-        );
 
       case 'welcome-back':
         return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Returning guest recognized" title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;

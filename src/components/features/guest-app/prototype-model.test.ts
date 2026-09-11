@@ -1011,7 +1011,7 @@ describe('profile lookup and re-entry', () => {
 
 
 describe('prototype stay-state switch', () => {
-  const states = ['signed-out', 'pre-arrival', 'live', 'finished'] as const;
+  const states = ['signed-out', 'pre-arrival', 'arrived-unverified', 'live', 'just-checked-out', 'closed'] as const;
 
   it('round-trips every state it can build', () => {
     for (const state of states) {
@@ -1043,7 +1043,7 @@ describe('prototype stay-state switch', () => {
     has left is closed, while the stay itself stays readable.
   */
   it('closes the live surface on a finished stay', () => {
-    const session = applyPrototypeStayState('finished');
+    const session = applyPrototypeStayState('closed');
     const booking = session.bookings[0]!;
 
     expect(isStayUnderWay(booking)).toBe(false);
@@ -1053,7 +1053,7 @@ describe('prototype stay-state switch', () => {
   });
 
   it('keeps a finished stay legible rather than hiding it', () => {
-    const session = applyPrototypeStayState('finished');
+    const session = applyPrototypeStayState('closed');
 
     expect(getHomeVariant(session.bookings)).toBe('completed');
     expect(session.bookings[0]!.property).toBe('The Henry Manila');
@@ -1133,7 +1133,7 @@ describe('the estate and booking another stay', () => {
       guests: 2,
       guestName: 'Ana Santos',
     });
-    const session = addStayBooking(applyPrototypeStayState('finished'), booking);
+    const session = addStayBooking(applyPrototypeStayState('closed'), booking);
 
     expect(session.activeBookingId).toBe(booking.id);
     expect(getPrimaryBooking(session.bookings, session.activeBookingId)?.id).toBe(booking.id);
@@ -1141,7 +1141,7 @@ describe('the estate and booking another stay', () => {
 });
 
 describe('a finished stay read as a receipt', () => {
-  const session = applyPrototypeStayState('finished');
+  const session = applyPrototypeStayState('closed');
   const booking = session.bookings[0]!;
 
   it('counts the room itself, not only what was charged against it', () => {

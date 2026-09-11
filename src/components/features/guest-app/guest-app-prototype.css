@@ -3563,3 +3563,25 @@
 
 /* The tab bar already clears it, and a pseudo here would sit over the labels. */
 .guest-bottom-nav button::after { content: none; }
+
+/* --------------------------------------------------------------------------
+   Front desk grant
+
+   The desk's own side of an unlock request, standing in for a tool that lives
+   outside this app. Marked as scaffolding rather than styled as a guest
+   control, so nobody reads it as something a guest is meant to press.
+   -------------------------------------------------------------------------- */
+.guest-desk-grant {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px dashed var(--guest-line);
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-surface);
+}
+.guest-desk-grant small {
+  color: var(--guest-subtle);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}

@@ -61,7 +61,8 @@ describe('session storage', () => {
     // The shape v4 exists for: a record written before lifecycle gates has no
     // `reviews` to map over, and restoring one would also drop a guest who
     // had already scanned back behind the gate.
-    const { reviews: _reviews, ...v3Shape } = MOCK_SESSION;
+    const v3Shape: Record<string, unknown> = { ...MOCK_SESSION };
+    delete v3Shape.reviews;
     window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(v3Shape));
 
     expect(readStoredSession()).toBeUndefined();

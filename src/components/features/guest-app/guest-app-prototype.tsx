@@ -36,6 +36,7 @@ import {
   Ticket,
   ShieldCheck,
   SuitcaseRolling,
+  Lock,
   UserCircle,
   Users,
   Wrench,
@@ -52,7 +53,13 @@ import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
   ANONYMOUS_SESSION,
+  canUseOnPropertyServices,
   connectBooking,
+  describeBookingSlot,
+  describePostStayWindow,
+  isPreArrivalService,
+  requestFrontDeskUnlock,
+  verifyRoomPresence,
   findBookingByLookup,
   describeCheckoutCountdown,
   describeStayStatus,
@@ -146,6 +153,7 @@ type ActiveScreen = ScreenId | 'entry-hub';
  * itself.
  */
 const EXPLORE_SCREENS: ActiveScreen[] = [
+  'pre-arrival-services',
   'marketplace',
   'category-listing',
   'hotel-service',
@@ -157,6 +165,13 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
   'booking-confirmation',
   'booking-blocked',
 ];
+
+/**
+ * Why a booking could not proceed. Five, not three: `not-checked-in` used to
+ * cover a guest three days out and a guest standing in their room, and the two
+ * need opposite things said to them -- one is waiting, the other can act now.
+ */
+type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out';
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
   'my-stay',
@@ -959,7 +974,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
   const [diningTime, setDiningTime] = useState('7:00 PM');
   const [diningOrderError, setDiningOrderError] = useState<string | null>(null);
-  const [bookingBlockedReason, setBookingBlockedReason] = useState<'offline' | 'not-checked-in' | 'checked-out'>('offline');
+  const [bookingBlockedReason, setBookingBlockedReason] = useState<BlockedReason>('offline');
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
   /*
@@ -1113,7 +1128,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 850);
   };
 
-  const showNav = ['stay-overview', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history'].includes(activeScreen);
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history'].includes(activeScreen);
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1235,6 +1250,54 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('dining-order-confirmation');
   };
 
+  /*
+    The gate, resolved once per render. Every surface that asks "can this
+    guest book, charge, or order" reads this rather than re-deriving it, so
+    the tab bar and the buttons inside it cannot disagree.
+  */
+  const bookingSlot = describeBookingSlot(contextBooking);
+  const unlockPending = session.unlockRequest?.bookingId === contextBooking.id;
+
+  /** Why this guest cannot reach on-property services right now. */
+  const blockedReasonFor = (booking: Booking): BlockedReason => {
+    if (booking.status === 'completed') return 'checked-out';
+    if (!isStayUnderWay(booking)) return 'not-arrived';
+    return session.unlockRequest?.bookingId === booking.id ? 'unlock-pending' : 'not-verified';
+  };
+
+  /** The scan. The only thing a guest can do that opens the gate themselves. */
+  const scanRoomCode = () => {
+    setSession((current) => verifyRoomPresence(current, contextBooking.id, 'scan'));
+    go('room-qr-midstay');
+  };
+
+  /*
+    "I can't scan" files a request and nothing more. A guest-side unlock would
+    make the code decorative -- the gate means the property confirmed this
+    guest is in this room, so only the desk can answer it.
+  */
+  const askFrontDeskToUnlock = () => {
+    setSession((current) => requestFrontDeskUnlock(current, contextBooking.id));
+    setChatMessages((messages) => [
+      ...messages,
+      {
+        from: 'guest',
+        body: `I can't scan the code in room ${contextBooking.roomNumber ?? ''}`.trim() + '. Could you unlock services for me?',
+        state: online ? 'Sent' : 'Will send when connected',
+      },
+    ]);
+    go('chat');
+  };
+
+  /** The desk's side of that request. Scripted here; a real desk tool elsewhere. */
+  const grantFrontDeskUnlock = () => {
+    setSession((current) => verifyRoomPresence(current, contextBooking.id, 'front-desk'));
+    setChatMessages((messages) => [
+      ...messages,
+      { from: 'desk', body: `Confirmed — we can see you in room ${contextBooking.roomNumber ?? ''}`.trim() + '. Services are open on your app now.', state: 'Seen' },
+    ]);
+  };
+
   const primary = (label: string, next: ActiveScreen, options?: { disabled?: boolean }) => (
     <Button className="guest-button guest-button--primary" type="button" onClick={() => go(next)} disabled={options?.disabled}>{label}<ArrowRight aria-hidden="true" /></Button>
   );
@@ -1242,8 +1305,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** Decide before the guest fills a form in, not after. */
   const openServiceBooking = () => {
     if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; }
-    if (!isStayUnderWay(contextBooking) || !contextBooking.roomNumber) {
-      setBookingBlockedReason(contextBooking.status === 'completed' ? 'checked-out' : 'not-checked-in');
+    if (!canUseOnPropertyServices(contextBooking)) {
+      setBookingBlockedReason(blockedReasonFor(contextBooking));
       go('booking-blocked');
       return;
     }
@@ -1257,9 +1320,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
-    if (!booking || !isStayUnderWay(booking) || !booking.roomNumber) {
+    if (!booking || !canUseOnPropertyServices(booking)) {
       // Not a network problem, and it must not claim to be one.
-      setBookingBlockedReason(booking?.status === 'completed' ? 'checked-out' : 'not-checked-in');
+      setBookingBlockedReason(booking ? blockedReasonFor(booking) : 'not-arrived');
       go('booking-blocked');
       return;
     }
@@ -1477,8 +1540,32 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'connect-booking':
         return renderBookingLookup();
 
-      case 'room-qr-landing':
+      case 'room-qr-landing': {
+        /*
+          Two arrivals at the same code. A guest who already has this booking
+          on their phone is only proving they are in the room, so asking for a
+          surname again is a form for the sake of a form. A stranger scanning
+          it still has to say which booking is theirs.
+        */
+        if (session.auth === 'authenticated' && session.bookings.length > 0) {
+          return (
+            <ScreenIntro
+              icon={<QrCode size={30} />}
+              eyebrow={contextRoom}
+              title="Confirm you’re in the room"
+              text="Scanning the desk card tells the property you have arrived. It is what opens dining, spa, tours and charging to your room."
+            >
+              <StayMiniCard booking={contextBooking} status={describeStayStatus(contextBooking).label} />
+              <Button className="guest-button guest-button--primary" type="button" onClick={scanRoomCode}>
+                Scan the code<ArrowRight aria-hidden="true" />
+              </Button>
+              <TextButton onClick={askFrontDeskToUnlock}>I can&rsquo;t scan</TextButton>
+            </ScreenIntro>
+          );
+        }
+
         return <ScreenIntro icon={<QrCode size={30} />} eyebrow="Room QR detected" title="Let’s link this room to you" text="This permanent room code opens the guest app. Your last name confirms which live booking is yours."><StayMiniCard booking={contextBooking} status={`Room ${contextBooking.roomNumber ?? '304'} detected`} /><form className="guest-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); linkRoomStay(String(data.get('qr-last-name') ?? '').trim()); }}><Field label="Last name" name="qr-last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Link my stay<ArrowRight aria-hidden="true" /></Button></form><TextButton onClick={() => go('front-desk-assist')}>I need help</TextButton></ScreenIntro>;
+      }
 
       case 'wifi-landing':
         return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your itinerary and stay details remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
@@ -2156,7 +2243,129 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'prereg-queued':
         return <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Saved on this device" title="Ready to send when connected" text="Your pre-registration is safely queued. It will send automatically when a connection returns."><Notice tone="offline" title="No action needed">Your edits remain on this device. The hotel has not received them yet.</Notice>{primary('Open cached stay', 'stay-overview')}</ScreenIntro>;
 
+      case 'pre-arrival-services': {
+        /*
+          What a guest can arrange before they are in the room: getting there,
+          and what should be waiting when they arrive. Everything else on the
+          property needs a room to charge to and a guest standing in it, which
+          is what the scan proves.
+        */
+        const arrivalServices = SERVICES.filter((service) => isPreArrivalService(service.id));
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">{contextBooking.property} · {formatStayDateRange(contextBooking)}</p>
+              <h1>Arrange your arrival</h1>
+              <p>Booked ahead and paid by card. On-property services open once you scan the code in your room.</p>
+            </div>
+
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
+
+            <section>
+              <SectionHeading title="Getting here and settling in" />
+              <div className="guest-list-group">
+                {arrivalServices.map((service) => (
+                  <button
+                    key={service.id}
+                    className="guest-list-row"
+                    type="button"
+                    onClick={() => go('service-booking')}
+                  >
+                    <span><CategoryIcon id={service.categoryId} /></span>
+                    <div>
+                      <b>{service.name}</b>
+                      <small>{service.price} · Paid by card</small>
+                    </div>
+                    <CaretRight />
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <SectionHeading title="Before you check in" />
+              <div className="guest-list-group">
+                <button className="guest-list-row" type="button" onClick={() => go('early-check-in')}>
+                  <span><ClockCountdown /></span>
+                  <div><b>Early check-in</b><small>Request an earlier room · Paid by card if charged</small></div>
+                  <CaretRight />
+                </button>
+                <button className="guest-list-row" type="button" onClick={() => go('chat')}>
+                  <span><ChatCircleDots /></span>
+                  <div><b>Ask the front desk</b><small>Anything else you need arranged ahead</small></div>
+                  <CaretRight />
+                </button>
+              </div>
+            </section>
+
+            <Notice title="The rest opens in your room">
+              Dining, spa, tours and hotel services are charged to {contextRoom.toLowerCase()}, so they open once you scan the code in it.
+            </Notice>
+          </div>
+        );
+      }
+
       case 'marketplace': {
+        /*
+          The one place the slot locks, and deliberately the only one. A wall
+          shown to a guest three days out teaches them the app is closed; the
+          same wall shown to a guest standing in their room, with the code in
+          front of them, is the single moment the prompt can be acted on.
+
+          A branch rather than a screen of its own: the tab must not change
+          destination when it locks, or back-navigation and the active-tab
+          highlight both fork.
+        */
+        if (bookingSlot.locked) {
+          if (!contextBooking.roomNumber) {
+            /*
+              Nothing to scan. The property has not allocated a room yet, so
+              telling this guest to find a code on a desk card sends them
+              looking for something that does not exist.
+            */
+            return (
+              <ScreenIntro
+                icon={<ClockCountdown size={30} />}
+                eyebrow={contextBooking.property}
+                title="Your room is still being assigned"
+                text="On-property services are charged to a room, so they open as soon as the property allocates yours."
+              >
+                <Notice title="Nothing is needed from you">The front desk is working through arrivals. This opens on its own.</Notice>
+                {primary('Message the front desk', 'chat')}
+                <TextButton onClick={() => go('pre-arrival-services')}>Arrange a transfer meanwhile</TextButton>
+              </ScreenIntro>
+            );
+          }
+
+          return unlockPending ? (
+            <ScreenIntro
+              icon={<ChatCircleDots size={30} />}
+              eyebrow={contextRoom}
+              title="The front desk has your request"
+              text="They will confirm you are in the room and open services from their side. Nothing else is needed from you."
+            >
+              <Notice title="Why the desk and not the app">
+                Cabana does not check anyone in. The property confirms who is in which room, and that confirmation is what opens charging to it.
+              </Notice>
+              {primary('Open the conversation', 'chat')}
+              <TextButton onClick={() => go('room-qr-landing')}>I found the code after all</TextButton>
+            </ScreenIntro>
+          ) : (
+            <ScreenIntro
+              icon={<Lock size={30} />}
+              eyebrow={contextRoom}
+              title="Scan the code in your room"
+              text="It is on the desk card. Scanning confirms you are in the room, which is what opens dining, spa, tours and charging to your room."
+            >
+              <StayMiniCard booking={contextBooking} status={describeStayStatus(contextBooking).label} />
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('room-qr-landing')}>
+                Scan room code<ArrowRight aria-hidden="true" />
+              </Button>
+              <TextButton onClick={askFrontDeskToUnlock}>I can&rsquo;t scan</TextButton>
+            </ScreenIntro>
+          );
+        }
+
         const featured = SERVICES.find((service) => service.id === 'spa')!;
         return (
           <div className="guest-stack guest-bookings-hub">
@@ -2565,6 +2774,38 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           stay, so a guest who had checked out was told their stay "starts" on
           a date already behind them -- and pointed at a room they had left.
         */
+        if (bookingBlockedReason === 'not-verified' || bookingBlockedReason === 'unlock-pending') {
+          /*
+            The split that matters. `not-checked-in` used to cover a guest
+            three days out and a guest standing in their room, and the two
+            need opposite things said: one is waiting, the other can act now.
+          */
+          return bookingBlockedReason === 'unlock-pending' ? (
+            <ScreenIntro
+              icon={<ChatCircleDots size={30} />}
+              eyebrow={contextRoom}
+              title="The front desk has your request"
+              text="They will confirm you are in the room and open services from their side."
+            >
+              <Notice title="Nothing was booked">Your selection is not held. Try again once the desk confirms.</Notice>
+              {primary('Open the conversation', 'chat')}
+            </ScreenIntro>
+          ) : (
+            <ScreenIntro
+              icon={<Lock size={30} />}
+              eyebrow={contextRoom}
+              title="Scan the code in your room"
+              text="On-property services are charged to your room, so the property confirms you are in it first. The code is on the desk card."
+            >
+              <Notice title="Nothing was booked">Scanning takes a moment and opens everything at once.</Notice>
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('room-qr-landing')}>
+                Scan room code<ArrowRight aria-hidden="true" />
+              </Button>
+              <TextButton onClick={askFrontDeskToUnlock}>I can&rsquo;t scan</TextButton>
+            </ScreenIntro>
+          );
+        }
+
         if (bookingBlockedReason === 'checked-out') {
           return (
             <ScreenIntro
@@ -2582,7 +2823,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return bookingBlockedReason === 'offline'
           ? <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Connection required" title="We can’t hold a time while offline" text="Live services are not queued because the slot or price could change before you reconnect."><Notice tone="offline" title="Nothing was booked">Connect to hotel Wi-Fi and try again. You can still message the front desk; the message will wait on this device.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => { setOnline(true); go('vendor-service'); }}>Try again</TextButton></ScreenIntro>
-          : <ScreenIntro icon={<Clock size={30} />} eyebrow="Not yet" title="On-property services open when you check in" text={`Your stay at ${contextBooking.property} starts ${formatStayDateRange(contextBooking).split('–')[0]}. Browse now and book once you arrive.`}><Notice title="Nothing was booked">The front desk can arrange something ahead of your arrival if you need it sooner.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => go('marketplace')}>Keep browsing</TextButton></ScreenIntro>;
+          : <ScreenIntro icon={<Clock size={30} />} eyebrow="Not yet" title="On-property services open when you check in" text={`Your stay at ${contextBooking.property} starts ${formatStayDateRange(contextBooking).split('–')[0]}. Transfers and arrival services you can book now.`}><Notice title="Nothing was booked">On-property services are charged to a room, so they open once you are in it.</Notice>{primary('Arrange your arrival', 'pre-arrival-services')}<TextButton onClick={() => go('chat')}>Message the front desk</TextButton></ScreenIntro>;
 
       case 'my-stay': {
         if (!primaryBooking) return <EmptyStayHome onNavigate={go} />;
@@ -2757,7 +2998,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
             ) : (
               <div className="guest-dock guest-dock--single">
-                <button className="guest-dock__action" onClick={() => go('chat')} type="button">
+                <button className="guest-dock__action" data-testid="guest-front-desk-action" onClick={() => go('chat')} type="button">
                   <span className="guest-dock__glyph" aria-hidden="true"><ChatCircleDots /></span>
                   <span className="guest-dock__label">
                     <b>Message the front desk</b>
@@ -2911,11 +3152,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'chat':
       case 'chat-after-hours': {
         const afterHours = activeScreen === 'chat-after-hours';
-        return <div className="guest-chat"><div className="guest-chat__intro"><div><Tag tone={afterHours ? 'warning' : 'positive'}>{afterHours ? 'Outside staffed hours' : 'Front desk online'}</Tag><h1>Front desk</h1><p>{afterHours ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.` : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}</p></div></div>{!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}<div className="guest-quick-actions" aria-label="Quick requests"><button onClick={() => sendQuickMessage('Could we get two fresh towels, please?')}>Towels</button><button onClick={() => sendQuickMessage(`Please arrange housekeeping for ${contextRoom.toLowerCase()}.`)}>Housekeeping</button><button onClick={() => sendQuickMessage('Can we request a late checkout?')}>Late checkout</button><button onClick={() => sendQuickMessage('We need help arranging a transfer.')}>Transfers</button></div><div className="guest-messages" aria-live="polite">{chatMessages.map((message, index) => <div key={`${message.body}-${index}`} className={`guest-message guest-message--${message.from}`}><p>{message.body}</p>{message.state ? <small>{message.state}</small> : null}</div>)}{sending ? <div className="guest-message guest-message--desk guest-message--typing"><SpinnerGap className="guest-spin" /><span>Front desk is replying</span></div> : null}</div><form className="guest-composer" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); const body = String(form.get('message') ?? '').trim(); if (body) sendQuickMessage(body); event.currentTarget.reset(); }}><label className="sr-only" htmlFor="message">Message the front desk</label><input id="message" name="message" placeholder="Ask the front desk" /><button aria-label="Send message" type="submit"><ArrowRight /></button></form></div>;
+        return <div className="guest-chat"><div className="guest-chat__intro"><div><Tag tone={afterHours ? 'warning' : 'positive'}>{afterHours ? 'Outside staffed hours' : 'Front desk online'}</Tag><h1>Front desk</h1><p>{afterHours ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.` : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}</p></div></div>{!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}<div className="guest-quick-actions" aria-label="Quick requests"><button onClick={() => sendQuickMessage('Could we get two fresh towels, please?')}>Towels</button><button onClick={() => sendQuickMessage(`Please arrange housekeeping for ${contextRoom.toLowerCase()}.`)}>Housekeeping</button><button onClick={() => sendQuickMessage('Can we request a late checkout?')}>Late checkout</button><button onClick={() => sendQuickMessage('We need help arranging a transfer.')}>Transfers</button></div><div className="guest-messages" aria-live="polite">{chatMessages.map((message, index) => <div key={`${message.body}-${index}`} className={`guest-message guest-message--${message.from}`}><p>{message.body}</p>{message.state ? <small>{message.state}</small> : null}</div>)}{sending ? <div className="guest-message guest-message--desk guest-message--typing"><SpinnerGap className="guest-spin" /><span>Front desk is replying</span></div> : null}</div>{unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}<form className="guest-composer" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); const body = String(form.get('message') ?? '').trim(); if (body) sendQuickMessage(body); event.currentTarget.reset(); }}><label className="sr-only" htmlFor="message">Message the front desk</label><input id="message" name="message" placeholder="Ask the front desk" /><button aria-label="Send message" type="submit"><ArrowRight /></button></form></div>;
       }
 
       case 'room-qr-midstay':
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={`${contextRoom} linked`} title="You’re checked in" text="Pre-arrival steps are no longer relevant. Go straight to services, your room charges, or the front desk."><StayMiniCard booking={contextBooking} status={`Active until ${contextBooking.checkOut}`} />{primary('Explore services', 'marketplace')}<button className="guest-button guest-button--secondary" onClick={() => go('stay-overview')}>Open stay overview</button></ScreenIntro>;
+        /*
+          "You're checked in" was the old title and it was a claim the app has
+          no standing to make -- the front desk checks a guest in, against the
+          property's own PMS. What the app knows is narrower and is the whole
+          basis of the gate: this guest is in this room.
+        */
+        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={`${contextRoom} confirmed`} title="Your room is linked" text="Dining, spa, tours and charging to your room are open. The front desk still handles check-in itself."><StayMiniCard booking={contextBooking} status={`Active until ${contextBooking.checkOut}`} />{primary('Explore services', 'marketplace')}<button className="guest-button guest-button--secondary" onClick={() => go('stay-overview')}>Open stay overview</button></ScreenIntro>;
 
       case 'profile':
         return (
@@ -3115,11 +3362,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 active={activeScreen === 'stay-overview'}
                 onClick={() => go('stay-overview')}
               />
+              {/*
+                One slot, three contents. The question is stable -- what can I
+                book right now -- and the honest answer changes with the gate.
+              */}
               <NavButton
-                label="Explore"
-                icon={<Compass />}
-                active={EXPLORE_SCREENS.includes(activeScreen)}
-                onClick={() => go('marketplace')}
+                label={bookingSlot.label}
+                icon={bookingSlot.label === 'Arrival'
+                  ? <SuitcaseRolling />
+                  : bookingSlot.label === 'Book again' ? <Plus /> : <Compass />}
+                active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen}
+                onClick={() => go(bookingSlot.screen)}
               />
               <NavButton
                 label="My Stay"

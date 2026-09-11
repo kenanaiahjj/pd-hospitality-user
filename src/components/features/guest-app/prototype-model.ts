@@ -1182,7 +1182,13 @@ export function restoreProfileSession(): GuestSession {
  * is no checkout to perform -- so without a switch the post-checkout app is
  * unreachable and effectively undesigned.
  */
-export type PrototypeStayState = 'signed-out' | 'pre-arrival' | 'live' | 'finished';
+export type PrototypeStayState =
+  | 'signed-out'
+  | 'pre-arrival'
+  | 'arrived-unverified'
+  | 'live'
+  | 'just-checked-out'
+  | 'closed';
 
 /**
  * Read through `describeStayStatus`, which is the badge the guest is looking at
@@ -1199,8 +1205,14 @@ export function getPrototypeStayState(session: GuestSession): PrototypeStayState
   if (!booking) return 'signed-out';
 
   const { status } = describeStayStatus(booking);
-  if (status === 'checked-out') return 'finished';
-  if (status === 'checked-in') return 'live';
+  if (status === 'checked-out') {
+    // Which side of the front-desk window, since the two post-stay screens
+    // are different surfaces rather than one screen with a banner.
+    return describePostStayWindow(booking).deskOpen ? 'just-checked-out' : 'closed';
+  }
+  if (status === 'checked-in') {
+    return canUseOnPropertyServices(booking) ? 'live' : 'arrived-unverified';
+  }
   return 'pre-arrival';
 }
 
@@ -1461,9 +1473,11 @@ export const PROTOTYPE_STAY_STATES: Array<{
   detail: string;
 }> = [
   { id: 'signed-out', label: 'Signed out', detail: 'Welcome screen, nothing connected' },
-  { id: 'pre-arrival', label: 'Pre-arrival', detail: 'Booked, not yet checked in' },
-  { id: 'live', label: 'Live stay', detail: 'In the room, charging to the folio' },
-  { id: 'finished', label: 'Finished stay', detail: 'Checked out, room charging closed' },
+  { id: 'pre-arrival', label: 'Pre-arrival', detail: 'Booked, arrival services only' },
+  { id: 'arrived-unverified', label: 'Arrived, not scanned', detail: 'In the room, catalogue still shut' },
+  { id: 'live', label: 'Live stay', detail: 'Scanned, charging to the folio' },
+  { id: 'just-checked-out', label: 'Just checked out', detail: 'Settled, front desk open 24 hours' },
+  { id: 'closed', label: 'Stay closed', detail: 'Desk window over, summary and review' },
 ];
 
 export function applyPrototypeStayState(state: PrototypeStayState): GuestSession {
@@ -1495,6 +1509,33 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
     };
   }
 
+  if (state === 'arrived-unverified') {
+    /*
+      On property, in the room, and nothing scanned yet. The one state the
+      old switcher could not reach, and the only one where the catalogue is
+      shut to a guest whose dates say the stay is under way.
+    */
+    const booking: Booking = {
+      ...UPCOMING_BOOKING_FIXTURE,
+      status: 'active',
+      roomNumber: '304',
+      roomAssignment: 'ready',
+      roomReadyAt: '2:15 PM',
+      preArrivalCompleted: 4,
+      preArrivalTotal: 4,
+      nextPreArrivalStep: undefined,
+      folioTotal: undefined,
+    };
+
+    return {
+      ...profile,
+      bookings: [booking],
+      activeBookingId: booking.id,
+      serviceBookings: [],
+      folioTotal: '₱0',
+    };
+  }
+
   if (state === 'live') {
     const booking: Booking = {
       ...UPCOMING_BOOKING_FIXTURE,
@@ -1502,6 +1543,7 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
       roomNumber: '304',
       roomAssignment: 'ready',
       roomReadyAt: '2:15 PM',
+      roomVerification: { method: 'scan', at: PROTOTYPE_TODAY },
       preArrivalCompleted: 4,
       preArrivalTotal: 4,
       nextPreArrivalStep: undefined,
@@ -1525,13 +1567,24 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
     through `isStayUnderWay`, which reads completed as false. The stay stays
     legible; only the things that post to a room the guest has left go away.
   */
+  /*
+    Both post-stay states share one settled booking and differ only in when
+    checkout happened, because that is the only thing the 24-hour front-desk
+    window reads. `just-checked-out` puts it an hour ago, `closed` two days
+    -- the window is real arithmetic, it simply never has to elapse in front
+    of anyone watching a demo.
+  */
   const booking: Booking = {
     ...UPCOMING_BOOKING_FIXTURE,
     status: 'completed',
     checkIn: '2026-11-02',
     checkOut: '2026-11-05',
+    checkedOutAt: state === 'just-checked-out'
+      ? `${PROTOTYPE_TODAY}T11:00:00Z`
+      : '2026-11-05T11:00:00Z',
     roomNumber: '304',
     roomAssignment: 'ready',
+    roomVerification: { method: 'scan', at: '2026-11-05' },
     preArrivalCompleted: 4,
     preArrivalTotal: 4,
     nextPreArrivalStep: undefined,

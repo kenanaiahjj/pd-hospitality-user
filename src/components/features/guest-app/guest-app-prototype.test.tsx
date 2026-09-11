@@ -2694,3 +2694,33 @@ describe('tab bar spacing', () => {
     expect(guestStyles).not.toMatch(/\.guest-bottom-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4/);
   });
 });
+
+describe('eyebrows', () => {
+  it('never restates the heading it sits above', () => {
+    /*
+      An eyebrow earns its place by carrying what the title cannot -- which
+      property, which room, which step of how many, how long until a cutoff.
+      "Updates" over "Notifications" is a second heading the eye reads and
+      discards, and there were sixteen of those.
+    */
+    const source = readFileSync(
+      resolve(process.cwd(), 'src/components/features/guest-app/guest-app-prototype.tsx'),
+      'utf8',
+    );
+    const statics = [...source.matchAll(/eyebrow="([^"]*)"/g)].map((m) => m[1]);
+
+    const carriesSomething = (eyebrow: string) =>
+      /\d/.test(eyebrow)                    // a step, a count, a countdown
+      || eyebrow.includes('·')              // a compound of real details
+      || /found|detected|Saved|Connected|Book another/i.test(eyebrow);
+
+    expect(statics.filter((e) => !carriesSomething(e))).toEqual([]);
+  });
+
+  it('drops the eyebrow element entirely when there is nothing to say', () => {
+    render(<GuestAppPrototype initialScreen="notifications" initialSession={applyPrototypeStayState('live')} />);
+
+    expect(screen.getByRole('heading', { name: 'Notifications', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByText('Updates')).toBeNull();
+  });
+});

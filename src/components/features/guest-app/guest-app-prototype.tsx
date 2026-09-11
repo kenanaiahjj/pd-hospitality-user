@@ -1574,7 +1574,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const renderBookingLookup = () => (
     <ScreenIntro
-      eyebrow="Connect your stay"
       title="Find your booking"
       text="Enter the number from your booking confirmation."
     >
@@ -1908,7 +1907,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <ScreenIntro
             icon={<CheckCircle size={30} />}
-            eyebrow="Stay booked"
             title={`You\u2019re going back to ${booked.city}`}
             text={`${booked.property} has your reservation. Pre-arrival opens now so the property has your details before you land.`}
           >
@@ -1930,7 +1928,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'identify-returning':
         return (
           <ScreenIntro
-            eyebrow="Returning guest"
             title="Log in with a booking"
             text="Any reference from a stay with us works — the one you are on now, or one from years ago."
           >
@@ -1976,8 +1973,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         if (!profileMatch) {
           return (
             <ScreenIntro
-              eyebrow="Returning guest"
-              title="Start again"
+                title="Start again"
               text="We no longer have the booking you matched. Enter the reference once more."
             >
               {primary('Enter a booking reference', 'identify-returning')}
@@ -2060,10 +2056,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'lookup-fallback':
-        return <ScreenIntro eyebrow="Try another way" title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Dumaguete</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
+        return <ScreenIntro title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Dumaguete</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
 
       case 'front-desk-assist':
-        return <ScreenIntro icon={<ChatCircleDots size={30} />} eyebrow="Front desk help" title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<ChatCircleDots size={30} />} title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
 
       case 'no-booking':
         return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try your confirmation number or ask the front desk for a link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('front-desk-assist')}>Contact front desk</TextButton></ScreenIntro>;
@@ -2072,7 +2068,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro eyebrow="Booking found" title="Is this your stay?" text="Check the details, then continue."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label="Guest" value={displayBooking.guestName} /><SummaryRow label="Guests" value={`${displayBooking.guestCount} guests`} /><SummaryRow label="Booked through" value={displayBooking.source} /></div><Button className="guest-button guest-button--primary" type="button" onClick={claimBooking}>Use this booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('identify')}>Use a different booking</TextButton></ScreenIntro>;
 
       case 'welcome-back':
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Returning guest recognized" title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
         return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
@@ -2094,7 +2090,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
-              <p className="guest-eyebrow">Profile preferences</p>
               <h1>Room preferences</h1>
               <p>We’ll save these above the property level and use them the next time you book.</p>
             </div>
@@ -2326,11 +2321,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'arrival-handoff':
-        return <ScreenIntro eyebrow="Pre-arrival" title="You’re ready for arrival" text="Continue to the hotel handoff. Your room and on-property charges are settled with the hotel at checkout.">{primary('Continue to arrival', 'prereg-complete')}</ScreenIntro>;
+        return <ScreenIntro title="You’re ready for arrival" text="Continue to the hotel handoff. Your room and on-property charges are settled with the hotel at checkout.">{primary('Continue to arrival', 'prereg-complete')}</ScreenIntro>;
 
       case 'prereg-complete': {
         const arrived = contextBooking.status === 'active';
-        return <ScreenIntro icon={<Check size={30} />} eyebrow="Pre-registered" title="You’re ready for arrival" text={arrived ? 'Stop by the front desk. A team member will verify your identity and complete check-in.' : 'Your pre-arrival details are saved. Review your stay before you arrive.'}><div className="guest-timeline"><TimelineItem title="Before arrival" text="Details received by the hotel" done /><TimelineItem title="At the front desk" text="Present your original ID" /><TimelineItem title="After verification" text={`${contextRoom} becomes active in the app`} /></div>{primary('View my stay', 'stay-overview')}<TextButton onClick={() => go('stay-overview')}>View stay overview</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Check size={30} />} title="You’re ready for arrival" text={arrived ? 'Stop by the front desk. A team member will verify your identity and complete check-in.' : 'Your pre-arrival details are saved. Review your stay before you arrive.'}><div className="guest-timeline"><TimelineItem title="Before arrival" text="Details received by the hotel" done /><TimelineItem title="At the front desk" text="Present your original ID" /><TimelineItem title="After verification" text={`${contextRoom} becomes active in the app`} /></div>{primary('View my stay', 'stay-overview')}<TextButton onClick={() => go('stay-overview')}>View stay overview</TextButton></ScreenIntro>;
       }
 
       case 'prereg-queued':
@@ -2960,7 +2955,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <FormScreen step="Charged to room" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Hilom signature massage" value="₱2,400" /><SummaryRow label="Property" value={contextBooking.property} /><SummaryRow label="Guest" value={session.guestName} /><SummaryRow label={contextRoom} value="Charge at checkout" /><SummaryRow label="Total added to folio" value="₱2,400" strong /></div><Button className="guest-button guest-button--primary" type="button" onClick={confirmService}>Confirm and charge to room<ArrowRight aria-hidden="true" /></Button></FormScreen>;
 
       case 'booking-confirmation':
-        return <ScreenIntro icon={<Check size={30} />} eyebrow="Booking confirmed" title="Your massage is booked" text={`The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The folio line remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Check size={30} />} title="Your massage is booked" text={`The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The folio line remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
 
       /*
         Two different reasons a booking cannot go through, and they used to
@@ -3009,7 +3004,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           return (
             <ScreenIntro
               icon={<CheckCircle size={30} />}
-              eyebrow="Stay complete"
               title="This stay is settled"
               text={`Your stay at ${contextBooking.property} ended ${formatStayDateRange(contextBooking).split('–').pop()?.trim()}. On-property services are charged to a room, so they close when you check out.`}
             >
@@ -3021,8 +3015,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         }
 
         return bookingBlockedReason === 'offline'
-          ? <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Connection required" title="We can’t hold a time while offline" text="Live services are not queued because the slot or price could change before you reconnect."><Notice tone="offline" title="Nothing was booked">Connect to hotel Wi-Fi and try again. You can still message the front desk; the message will wait on this device.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => { setOnline(true); go('vendor-service'); }}>Try again</TextButton></ScreenIntro>
-          : <ScreenIntro icon={<Clock size={30} />} eyebrow="Not yet" title="On-property services open when you check in" text={`Your stay at ${contextBooking.property} starts ${formatStayDateRange(contextBooking).split('–')[0]}. Transfers and arrival services you can book now.`}><Notice title="Nothing was booked">On-property services are charged to a room, so they open once you are in it.</Notice>{primary('Arrange your arrival', 'pre-arrival-services')}<TextButton onClick={() => go('chat')}>Message the front desk</TextButton></ScreenIntro>;
+          ? <ScreenIntro icon={<WifiSlash size={30} />} title="We can’t hold a time while offline" text="Live services are not queued because the slot or price could change before you reconnect."><Notice tone="offline" title="Nothing was booked">Connect to hotel Wi-Fi and try again. You can still message the front desk; the message will wait on this device.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => { setOnline(true); go('vendor-service'); }}>Try again</TextButton></ScreenIntro>
+          : <ScreenIntro icon={<Clock size={30} />} title="On-property services open when you check in" text={`Your stay at ${contextBooking.property} starts ${formatStayDateRange(contextBooking).split('–')[0]}. Transfers and arrival services you can book now.`}><Notice title="Nothing was booked">On-property services are charged to a room, so they open once you are in it.</Notice>{primary('Arrange your arrival', 'pre-arrival-services')}<TextButton onClick={() => go('chat')}>Message the front desk</TextButton></ScreenIntro>;
 
       case 'my-stay': {
         if (!primaryBooking) {
@@ -3058,7 +3052,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
-              <p className="guest-eyebrow">My stay</p>
               <h1>{contextBooking.property}</h1>
               {/* The property is the subject; the label is the eyebrow. The
                   line beneath says the guest is in it, which nothing on this
@@ -3327,7 +3320,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         if (!notifications.length) {
           return (
             <div className="guest-stack">
-              <div className="guest-page-title"><p className="guest-eyebrow">Updates</p><h1>Notifications</h1></div>
+              <div className="guest-page-title"><h1>Notifications</h1></div>
               <div className="guest-hub-empty">
                 <h2>You’re all caught up</h2>
                 <p>Room updates, booking confirmations and new room charges appear here.</p>
@@ -3338,7 +3331,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <div className="guest-stack">
-            <div className="guest-page-title"><p className="guest-eyebrow">Updates</p><h1>Notifications</h1></div>
+            <div className="guest-page-title"><h1>Notifications</h1></div>
             <div className="guest-notifications">
               {notifications.map((item) => {
                 const unread = !readNotificationIds.includes(item.id);
@@ -3415,7 +3408,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
-              <p className="guest-eyebrow">Guest identity</p>
               <h1>{session.guestName || 'Profile'}</h1>
               <p>Recognized across all 13 participating properties.</p>
             </div>
@@ -3448,7 +3440,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
-              <p className="guest-eyebrow">Across properties</p>
               <h1>Stay history</h1>
               <p>{pastStays.length} completed stays · {nights} nights · {lifetime} spent</p>
             </div>
@@ -3994,7 +3985,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
   if (variant === 'multiple-upcoming') {
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--multiple" data-testid="guest-home-multiple-upcoming">
-        <div className="guest-page-title"><p className="guest-eyebrow">Your trips</p><h1>Upcoming stays</h1><p>Keep every reservation in one place. Your nearest arrival is shown first.</p></div>
+        <div className="guest-page-title"><h1>Upcoming stays</h1><p>Keep every reservation in one place. Your nearest arrival is shown first.</p></div>
         <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} />
         <section>
           <SectionHeading title="More upcoming stays" />
@@ -4388,7 +4379,6 @@ function EmptyStayHome({
   return (
     <div className="guest-stack" data-testid="guest-home-empty">
       <div className="guest-page-title">
-        <p className="guest-eyebrow">{pastStays.length > 0 ? 'Signed in' : 'Welcome'}</p>
         {/* "Welcome back" to someone who has never stayed is a small lie the
             greeting does not need to tell. */}
         <h1>
@@ -4469,8 +4459,17 @@ function formatStayDateRange(booking: Booking) {
   return `${start}–${end}, ${booking.checkIn.slice(0, 4)}`;
 }
 
-function ScreenIntro({ icon, eyebrow, title, text, children }: { icon?: ReactNode; eyebrow: string; title: string; text: string; children: ReactNode }) {
-  return <div className="guest-stack guest-stack--intro">{icon ? <HeroIcon>{icon}</HeroIcon> : null}<div className="guest-page-title"><p className="guest-eyebrow">{eyebrow}</p><h1>{title}</h1><p>{text}</p></div>{children}</div>;
+/**
+ * `eyebrow` is optional, and most screens should not pass one.
+ *
+ * An eyebrow earns its place by saying something the title cannot: which
+ * property, which room, which step of how many, how long until a cutoff. A
+ * label that restates the heading in other words -- "Updates" over
+ * "Notifications", "Stay complete" over "This stay is settled" -- is a second
+ * heading the eye has to read and discard.
+ */
+function ScreenIntro({ icon, eyebrow, title, text, children }: { icon?: ReactNode; eyebrow?: string; title: string; text: string; children: ReactNode }) {
+  return <div className="guest-stack guest-stack--intro">{icon ? <HeroIcon>{icon}</HeroIcon> : null}<div className="guest-page-title">{eyebrow ? <p className="guest-eyebrow">{eyebrow}</p> : null}<h1>{title}</h1><p>{text}</p></div>{children}</div>;
 }
 
 function FormScreen({ step, title, text, children }: { step: string; title: string; text: string; children: ReactNode }) {

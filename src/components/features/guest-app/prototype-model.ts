@@ -484,6 +484,33 @@ export function signOutSession(): GuestSession {
 }
 
 /** Idempotent: connecting an already-connected booking is not a second stay. */
+/**
+ * Match what the guest typed against the reservations Cabana can see.
+ *
+ * The lookup used to succeed unconditionally, so any reference at all returned
+ * the reference stay -- `ZZZZ-000000` / `Nobody` was answered with Ana
+ * Santos's name, dates, room and booking source. That is somebody else's
+ * reservation shown to a stranger, and it left the `no-booking` screen
+ * unreachable from the only flow that should produce it.
+ *
+ * Either field alone is accepted: a guest with the confirmation number should
+ * not be stopped by a surname spelt differently from the booking, and one
+ * without it should still get in on their name.
+ */
+const normalise = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+export function findBookingByLookup(reference: string, lastName: string): Booking | undefined {
+  const ref = normalise(reference);
+  const name = normalise(lastName);
+  if (!ref && !name) return undefined;
+
+  return [UPCOMING_BOOKING_FIXTURE].find((booking) => {
+    const surname = normalise(booking.guestName.split(' ').slice(-1)[0] ?? '');
+    return (ref.length > 0 && normalise(booking.id) === ref)
+      || (name.length > 0 && surname === name);
+  });
+}
+
 export function connectBooking(session: GuestSession): GuestSession {
   if (session.bookings.some((booking) => booking.id === UPCOMING_BOOKING_FIXTURE.id)) {
     return session;
@@ -663,6 +690,15 @@ export const CHECK_OUT_BY = '12:00 PM';
  * of its arguments.
  */
 export const PROTOTYPE_TODAY = '2026-11-11';
+
+/**
+ * What the travel date picker opens on: the day after this stay ends.
+ *
+ * The checkout used to date every leg to the hotel stay's *check-in*, which is
+ * behind the clock mid-stay -- so a flight booked today was filed as history
+ * the moment it was paid for.
+ */
+export const DEFAULT_TRAVEL_DATE = '2026-11-13';
 
 const dayIndex = (isoDate: string) => Math.floor(Date.parse(`${isoDate}T00:00:00Z`) / 86_400_000);
 
@@ -1236,9 +1272,11 @@ export function describeRoomAssignment(
       state: 'assigned',
       roomNumber: room,
       headline: `Room ${room} is yours`,
-      detail: reportsReadiness
-        ? `Housekeeping releases it before check-in, and we'll tell you the moment it is ready.`
-        : `Collect your key at the desk from ${CHECK_IN_FROM}. This property does not report room readiness to the app.`,
+      detail: hasStayStarted(booking, today)
+        ? `Collect your key at the front desk if you have not already.`
+        : reportsReadiness
+          ? `Housekeeping releases it before check-in, and we'll tell you the moment it is ready.`
+          : `Collect your key at the desk from ${CHECK_IN_FROM}. This property does not report room readiness to the app.`,
       canGoUp: false,
       statusLabel: 'Assigned',
       action: WAITING_ACTION,

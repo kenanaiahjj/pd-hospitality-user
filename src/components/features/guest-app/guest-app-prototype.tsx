@@ -58,6 +58,7 @@ import {
   ANONYMOUS_SESSION,
   connectBooking,
   createAccountWithPassword,
+  findBookingByLookup,
   describeCheckoutCountdown,
   describeStayStatus,
   formatPesoAmount,
@@ -65,6 +66,7 @@ import {
   getNotifications,
   getStayEntries,
   hasStayStarted,
+  isStayUnderWay,
   getPostAuthScreen,
   getPrimaryBooking,
   getVenueCartSummary,
@@ -87,6 +89,7 @@ import {
   MINI_APP_CATEGORIES,
   PAST_STAYS,
   PROPERTY_ANNOUNCEMENTS,
+  DEFAULT_TRAVEL_DATE,
   PROTOTYPE_TODAY,
   findPastStay,
   summarisePastStay,
@@ -171,14 +174,30 @@ type FieldProps = {
   defaultValue?: string;
   helper?: string;
   required?: boolean;
+  /** Controlled value. Pass with `onValueChange` where the value is read back. */
+  value?: string;
+  onValueChange?: (next: string) => void;
+  min?: string;
 };
 
-function Field({ label, name, type = 'text', placeholder, defaultValue, helper, required }: FieldProps) {
+function Field({ label, name, type = 'text', placeholder, defaultValue, helper, required, value, onValueChange, min }: FieldProps) {
   const helperId = helper ? `${name}-helper` : undefined;
+  const controlled = value !== undefined;
   return (
     <label className="guest-field" htmlFor={name}>
       <span>{label}{required ? ' *' : ''}</span>
-      <Input id={name} name={name} type={type} placeholder={placeholder} defaultValue={defaultValue} aria-describedby={helperId} required={required} />
+      <Input
+        id={name}
+        name={name}
+        type={type}
+        placeholder={placeholder}
+        min={min}
+        {...(controlled
+          ? { value, onChange: (event: FormEvent<HTMLInputElement>) => onValueChange?.(event.currentTarget.value) }
+          : { defaultValue })}
+        aria-describedby={helperId}
+        required={required}
+      />
       {helper ? <small id={helperId}>{helper}</small> : null}
     </label>
   );
@@ -960,6 +979,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [travelFilter, setTravelFilter] = useState<'all' | 'earliest' | 'cheapest'>('all');
   const [travelPaymentMethod, setTravelPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
   const [travelCover, setTravelCover] = useState(false);
+  const [travelDate, setTravelDate] = useState(DEFAULT_TRAVEL_DATE);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
   const [selectedMenuTab, setSelectedMenuTab] = useState<MenuItemCategory>('all');
   const [menuSort, setMenuSort] = useState<ListingSort>('recommended');
@@ -972,6 +992,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
   const [diningTime, setDiningTime] = useState('7:00 PM');
   const [diningOrderError, setDiningOrderError] = useState<string | null>(null);
+  const [bookingBlockedReason, setBookingBlockedReason] = useState<'offline' | 'not-checked-in'>('offline');
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
   /*
@@ -1098,8 +1119,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setDiningOrderError('Connect to place this order');
       return;
     }
-    if (!booking || booking.status !== 'active') {
-      setDiningOrderError('An active stay is required to place this order');
+    if (!booking || !isStayUnderWay(booking)) {
+      setDiningOrderError('Room orders open when your stay starts');
       return;
     }
     if (diningMethod === 'delivery' && !booking.roomNumber) {
@@ -1150,9 +1171,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     <Button className="guest-button guest-button--primary" type="button" onClick={() => go(next)} disabled={options?.disabled}>{label}<ArrowRight aria-hidden="true" /></Button>
   );
 
+  /** Decide before the guest fills a form in, not after. */
+  const openServiceBooking = () => {
+    if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; }
+    if (!isStayUnderWay(contextBooking) || !contextBooking.roomNumber) {
+      setBookingBlockedReason('not-checked-in');
+      go('booking-blocked');
+      return;
+    }
+    go('service-booking');
+  };
+
   const confirmService = () => {
     const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
-    if (!booking || booking.status !== 'active' || !booking.roomNumber) {
+    if (!online) {
+      setBookingBlockedReason('offline');
+      go('booking-blocked');
+      return;
+    }
+    if (!booking || !isStayUnderWay(booking) || !booking.roomNumber) {
+      // Not a network problem, and it must not claim to be one.
+      setBookingBlockedReason('not-checked-in');
       go('booking-blocked');
       return;
     }
@@ -1167,14 +1206,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       status: 'confirmed',
     };
 
-    setSession((current) => ({
-      ...current,
-      serviceBookings: [
-        ...current.serviceBookings.filter((service) => service.id !== serviceBooking.id),
-        serviceBooking,
-      ],
-      folioTotal: '₱5,450',
-    }));
+    setSession((current) => {
+      const alreadyBooked = current.serviceBookings.some((service) => service.id === serviceBooking.id);
+      return {
+        ...current,
+        serviceBookings: [
+          ...current.serviceBookings.filter((service) => service.id !== serviceBooking.id),
+          serviceBooking,
+        ],
+        folioTotal: alreadyBooked
+          ? current.folioTotal
+          : formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(serviceBooking.amount)),
+      };
+    });
     go('booking-confirmation');
   };
 
@@ -1341,7 +1385,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your itinerary and stay details remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
 
       case 'identify':
-        return <ScreenIntro eyebrow="Connect your stay" title="Find your booking" text="Enter the number from your booking confirmation."><form className="guest-form" onSubmit={(event) => { event.preventDefault(); go('booking-found'); }}><Field label="Booking or confirmation number" name="booking-number" placeholder="HEN-241109" helper="Hotel, Agoda, or Booking.com reference" required /><Field label="Last name" name="last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Find booking<ArrowRight /></Button></form><TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton></ScreenIntro>;
+        return <ScreenIntro eyebrow="Connect your stay" title="Find your booking" text="Enter the number from your booking confirmation."><form className="guest-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const match = findBookingByLookup(String(data.get('booking-number') ?? ''), String(data.get('last-name') ?? '')); go(match ? 'booking-found' : 'no-booking'); }}><Field label="Booking or confirmation number" name="booking-number" placeholder="HEN-241109" helper="Hotel, Agoda, or Booking.com reference" required /><Field label="Last name" name="last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Find booking<ArrowRight /></Button></form><TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton></ScreenIntro>;
 
       case 'lookup-fallback':
         return <ScreenIntro eyebrow="Try another way" title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Dumaguete</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
@@ -1793,7 +1837,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       if (service.id === 'spa' || service.id === 'scrub') {
                         go('vendor-service');
                       } else {
-                        go(online ? 'service-booking' : 'booking-blocked');
+                        openServiceBooking();
                       }
                     }}
                   >
@@ -2046,10 +2090,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'hotel-service':
-        return <ServiceDetail kind="hotel" booking={contextBooking} online={online} onBook={() => go(online ? 'service-booking' : 'booking-blocked')} onChat={() => go('chat')} />;
+        return <ServiceDetail kind="hotel" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
 
       case 'vendor-service':
-        return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => go(online ? 'service-booking' : 'booking-blocked')} onChat={() => go('chat')} />;
+        return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
 
       case 'service-booking':
         return <FormScreen step="Charged to room" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Hilom signature massage" value="₱2,400" /><SummaryRow label="Property" value={contextBooking.property} /><SummaryRow label="Guest" value={session.guestName} /><SummaryRow label={contextRoom} value="Charge at checkout" /><SummaryRow label="Total added to folio" value="₱2,400" strong /></div><Button className="guest-button guest-button--primary" type="button" onClick={confirmService}>Confirm and charge to room<ArrowRight aria-hidden="true" /></Button></FormScreen>;
@@ -2057,8 +2101,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'booking-confirmation':
         return <ScreenIntro icon={<Check size={30} />} eyebrow="Booking confirmed" title="Your massage is booked" text={`The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The folio line remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
 
+      /*
+        Two different reasons a booking cannot go through, and they used to
+        share one screen that blamed the network for both -- so a guest whose
+        stay had not started was told to connect to Wi-Fi they were already on.
+      */
       case 'booking-blocked':
-        return <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Connection required" title="We can’t hold a time while offline" text="Live services are not queued because the slot or price could change before you reconnect."><Notice tone="offline" title="Nothing was booked">Connect to hotel Wi-Fi and try again. You can still message the front desk; the message will wait on this device.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => { setOnline(true); go('vendor-service'); }}>Try again</TextButton></ScreenIntro>;
+        return bookingBlockedReason === 'offline'
+          ? <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Connection required" title="We can’t hold a time while offline" text="Live services are not queued because the slot or price could change before you reconnect."><Notice tone="offline" title="Nothing was booked">Connect to hotel Wi-Fi and try again. You can still message the front desk; the message will wait on this device.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => { setOnline(true); go('vendor-service'); }}>Try again</TextButton></ScreenIntro>
+          : <ScreenIntro icon={<Clock size={30} />} eyebrow="Not yet" title="On-property services open when you check in" text={`Your stay at ${contextBooking.property} starts ${formatStayDateRange(contextBooking).split('–')[0]}. Browse now and book once you arrive.`}><Notice title="Nothing was booked">The front desk can arrange something ahead of your arrival if you need it sooner.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => go('marketplace')}>Keep browsing</TextButton></ScreenIntro>;
 
       case 'my-stay': {
         if (!primaryBooking) return <EmptyStayHome onNavigate={go} />;
@@ -2636,7 +2687,9 @@ const fare = category.options.find((option) => option.id === selectedFare);
                   label={category.route ? 'Date' : 'Trip starts'}
                   name="travel-date"
                   type="date"
-                  defaultValue={contextBooking.checkIn}
+                  value={travelDate}
+                  onValueChange={setTravelDate}
+                  min={PROTOTYPE_TODAY}
                 />
                 <SelectField
                   label={category.partyLabel}
@@ -2910,7 +2963,7 @@ const fare = category.options.find((option) => option.id === selectedFare);
               )}
 
               <div className="guest-travel-ticket-preview__footer">
-                <span>Date: {contextBooking.checkIn}</span>
+                <span>Date: {travelDate}</span>
                 <span>{partySize} {category.partyLabel.toLowerCase()}</span>
               </div>
             </div>
@@ -3009,8 +3062,9 @@ const fare = category.options.find((option) => option.id === selectedFare);
                       option: fare,
                       travellers: partySize,
                       route: routeLabel,
-                      date: contextBooking.checkIn,
+                      date: travelDate,
                     }));
+                    setSelectedFare(null);
                     go('travel-confirmation');
                   }}
                 >

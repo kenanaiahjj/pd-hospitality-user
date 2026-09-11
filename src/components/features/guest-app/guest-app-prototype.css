@@ -2502,15 +2502,6 @@
   color: var(--guest-ink);
   cursor: pointer;
 }
-.guest-filter-bar__all::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: 0;
-  left: 0;
-  height: 44px;
-  transform: translateY(-50%);
-}
 .guest-filter-bar__all svg { width: 17px; height: 17px; }
 .guest-filter-bar__all[data-active] {
   border-color: var(--guest-accent);
@@ -4547,3 +4538,51 @@
   .guest-cover-option:hover { border-color: var(--guest-line-strong); }
   .guest-cover-option:has(input:checked):hover { border-color: var(--guest-accent-strong); }
 }
+
+/* --------------------------------------------------------------------------
+   Touch targets.
+
+   DESIGN.md requires every interactive element to clear 44px. Measured in the
+   browser, the small controls were 32-40px: menu tabs 36, filter pills 34,
+   icon buttons 40, payment pills 38, the pager dots 30 wide, the swap and
+   remove-guest buttons 34-36. Each is visually correct at its size -- a 44px
+   filter pill would be a slab -- so the target is grown with a centred
+   pseudo-element instead of the box, which leaves every layout untouched.
+   -------------------------------------------------------------------------- */
+
+.guest-featured-service button,
+.guest-icon-button,
+.guest-menu-tab,
+.guest-filter-pill,
+.guest-travel-payment-pills button,
+.guest-travel-swap-button,
+.guest-welcome__dots button,
+.guest-companion-remove,
+.guest-section-heading button,
+.guest-flighty-wallet-button,
+.guest-filter-bar__all { position: relative; }
+
+.guest-featured-service button::after,
+.guest-icon-button::after,
+.guest-menu-tab::after,
+.guest-filter-pill::after,
+.guest-travel-payment-pills button::after,
+.guest-travel-swap-button::after,
+.guest-welcome__dots button::after,
+.guest-companion-remove::after,
+.guest-section-heading button::after,
+.guest-flighty-wallet-button::after,
+.guest-filter-bar__all::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 44px;
+  min-height: 44px;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  content: '';
+}
+
+/* The tab bar already clears it, and a pseudo here would sit over the labels. */
+.guest-bottom-nav button::after { content: none; }

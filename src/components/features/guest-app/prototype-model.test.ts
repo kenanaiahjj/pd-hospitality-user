@@ -23,6 +23,7 @@ import {
   getCancellationState,
   getNotifications,
   canReportRoomReady,
+  findBookingByLookup,
   describeStayStatus,
   getStayEntries,
   hasStayStarted,
@@ -87,7 +88,7 @@ describe('guest app prototype model', () => {
     });
 
     it('promises a readiness moment only where the PMS reports one', () => {
-      const capable = describeRoomAssignment({ ...base, roomAssignment: 'assigned', roomNumber: '512' });
+      const capable = describeRoomAssignment({ ...base, roomAssignment: 'assigned', roomNumber: '512' }, '2026-11-08');
       expect(capable.headline).toBe('Room 512 is yours');
       expect(capable.detail).toMatch(/we'll tell you the moment it is ready/i);
       expect(capable.canGoUp).toBe(false);
@@ -96,7 +97,7 @@ describe('guest app prototype model', () => {
       // guest is sent to the desk instead of waiting on a signal never sent.
       const legacy = describeRoomAssignment({
         ...base, roomAssignment: 'assigned', roomNumber: '512', reportsRoomReadiness: false,
-      });
+      }, '2026-11-08');
       expect(legacy.detail).toMatch(/Collect your key at the desk/);
       expect(legacy.detail).not.toMatch(/we'll tell you/i);
       expect(legacy.canGoUp).toBe(false);
@@ -909,5 +910,38 @@ describe('connecting a booking', () => {
   it('is idempotent, so reconnecting does not duplicate the stay', () => {
     const once = connectBooking(ANONYMOUS_SESSION);
     expect(connectBooking(once)).toBe(once);
+  });
+});
+
+describe('room card copy once the stay has started', () => {
+  it('stops promising a pre-arrival release to a guest already in the building', () => {
+    // The card sat directly under a "Checked in" badge telling the guest
+    // housekeeping would release the room "before check-in".
+    const midStay: Booking = { ...UPCOMING_BOOKING_FIXTURE, roomAssignment: 'assigned', roomNumber: '512' };
+
+    expect(describeRoomAssignment(midStay, '2026-11-11').detail).toMatch(/Collect your key/i);
+    expect(describeRoomAssignment(midStay, '2026-11-11').detail).not.toMatch(/before check-in/i);
+    // Before arrival it still promises the signal.
+    expect(describeRoomAssignment(midStay, '2026-11-08').detail).toMatch(/before check-in/i);
+  });
+});
+
+describe('booking lookup matching', () => {
+  it('refuses details that match no reservation', () => {
+    // It used to answer anything, so a stranger's reference returned Ana
+    // Santos's name, dates, room and booking source.
+    expect(findBookingByLookup('ZZZZ-000000', 'Nobody')).toBeUndefined();
+    expect(findBookingByLookup('', '')).toBeUndefined();
+  });
+
+  it('accepts the confirmation number, however it is punctuated', () => {
+    expect(findBookingByLookup('HEN-241109', '')?.id).toBe('HEN-241109');
+    expect(findBookingByLookup('hen 241109', '')?.id).toBe('HEN-241109');
+    expect(findBookingByLookup('HEN241109', 'Nobody')?.id).toBe('HEN-241109');
+  });
+
+  it('accepts the surname alone, for a guest without the reference', () => {
+    expect(findBookingByLookup('', 'Santos')?.id).toBe('HEN-241109');
+    expect(findBookingByLookup('unknown-ref', 'santos')?.id).toBe('HEN-241109');
   });
 });

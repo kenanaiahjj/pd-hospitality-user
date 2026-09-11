@@ -787,6 +787,8 @@ describe('room-ready notification', () => {
       makeBooking({
         id: 'legacy',
         status: 'upcoming',
+        checkIn: '2026-11-14',
+        checkOut: '2026-11-17',
         preArrivalCompleted: 4,
         preArrivalTotal: 4,
         roomAssignment: 'assigned',
@@ -1154,6 +1156,19 @@ describe('booking lookup', () => {
     expect(screen.getByText('Ana Santos')).toBeInTheDocument();
   });
 
+  it('sends an unmatched lookup to the no-booking screen', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="identify" />);
+
+    await user.type(screen.getByLabelText(/Booking or confirmation number/), 'ZZZZ-000000');
+    await user.type(screen.getByLabelText(/Last name/), 'Nobody');
+    await user.click(screen.getByRole('button', { name: 'Find booking' }));
+
+    // It used to show a stranger someone else's reservation in full.
+    expect(screen.getByRole('heading', { name: 'Connect a hotel booking' })).toBeInTheDocument();
+    expect(screen.queryByText('Ana Santos')).toBeNull();
+  });
+
   it('names the lead booker after a lookup, rather than promoting a companion', () => {
     // A session as the lookup path builds one: no name typed anywhere, the
     // reservation supplying it.
@@ -1171,6 +1186,48 @@ describe('booking lookup', () => {
 
     // Before this the greeting rendered "Welcome, " with nothing after it.
     expect(screen.getByText(/Welcome, Ana/)).toBeInTheDocument();
+  });
+});
+
+describe('folio accumulation', () => {
+  // Services need an assigned room, so the reference booking gets one. The
+  // seeded massage is dropped: it is the very booking these tests make.
+  const roomedSession: GuestSession = {
+    ...MOCK_SESSION,
+    serviceBookings: MOCK_SESSION.serviceBookings.filter((service) => service.id !== 'service-hilom-1'),
+    folioTotal: '₱12,730',
+    bookings: MOCK_SESSION.bookings.map((booking, index) =>
+      index === 0 ? { ...booking, roomNumber: '512', roomAssignment: 'assigned' as const } : booking),
+  };
+
+  const bookMassage = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('button', { name: 'Explore' }));
+    await user.click(screen.getByRole('button', { name: 'Spa & Wellness' }));
+    await user.click(screen.getByRole('button', { name: /Hilom signature massage/ }));
+    await user.click(screen.getByRole('button', { name: /Choose a time/ }));
+    await user.click(screen.getByRole('button', { name: /Confirm and charge to room/ }));
+  };
+
+  it('adds a service to the running folio instead of replacing it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={roomedSession} />);
+    await bookMassage(user);
+    await user.click(screen.getByRole('button', { name: 'My Stay' }));
+
+    // The seeded folio is ₱12,730; the massage is ₱2,400. It used to be
+    // overwritten with a hardcoded ₱5,450.
+    expect(screen.getByText(/₱15,130 on your room/)).toBeInTheDocument();
+  });
+
+  it('charges a re-booked service once', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={roomedSession} />);
+    await bookMassage(user);
+    await bookMassage(user);
+    await user.click(screen.getByRole('button', { name: 'My Stay' }));
+
+    // The booking replaces the previous one, so the charge must not stack.
+    expect(screen.getByText(/₱15,130 on your room/)).toBeInTheDocument();
   });
 });
 
@@ -1467,8 +1524,38 @@ describe('travel checkout', () => {
     expect(screen.getByText(/Checked in · Room/)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Upcoming/ })).toHaveAttribute('aria-selected', 'true');
     // The carrier is the card's parent, since the carrier is who gets paid.
-    expect(screen.getByText('Cebu Pacific')).toBeInTheDocument();
-    expect(screen.getByText(/paid to the operator/)).toBeInTheDocument();
+    // Two now: the seeded leg and the one just booked. The leg used to be
+    // dated to the hotel stay's check-in, so it filed itself as history.
+    expect(screen.getAllByText('Cebu Pacific').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/paid to the operator/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('files a booked leg as upcoming, not as history', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
+    await pickFlight(user);
+    await user.click(screen.getByRole('button', { name: /^Pay / }));
+    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+
+    // The date picker's value is used now. It was ignored, and every leg took
+    // the stay's check-in date -- behind the clock mid-stay.
+    const upcoming = screen.getByRole('tab', { name: /Upcoming/ });
+    expect(upcoming).toHaveAttribute('aria-selected', 'true');
+    expect(within(upcoming).getByText('5')).toBeInTheDocument();
+  });
+
+  it('does not let a paid fare be paid for twice', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="travel" initialSession={travelSession} />);
+    await pickFlight(user);
+    await user.click(screen.getByRole('button', { name: /^Pay / }));
+
+    // Back from the confirmation returned to a live checkout with the Pay
+    // button still armed, and pressing it booked a second identical leg.
+    await user.click(screen.getByRole('button', { name: 'Go back' }));
+
+    expect(screen.queryByRole('button', { name: /^Pay / })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Choose a fare first' })).toBeInTheDocument();
   });
 
   it('names the booked leg correctly for an irregular plural', async () => {

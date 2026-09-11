@@ -5,6 +5,7 @@
 > implementation disagree.
 
 Last verified: 2026-09-09
+Last Mobbin reference review: 2026-09-11
 Base implementation commit: `0eac181` on `main`; later uncommitted guest-app
 refinements are present in the working tree
 Local preview: `http://localhost:3001/`
@@ -75,6 +76,52 @@ scope and current visual system:
   search, guest count, special rates, and filtering/sorting. These are useful
   patterns to remember for a future booking product, but they must not leak
   into the current guest-companion flow.
+
+### Travel marketplace and activity references to carry forward
+
+Mobbin MCP was connected and reviewed on 2026-09-11. Use these references for
+source-backed structure and interaction patterns, not for importing their
+branding, public marketplace scope, loyalty programs, or consumer checkout:
+
+- Trip.com has [My trips](https://mobbin.com/flows/db91a094-bea5-4355-9abd-d36d36ac4358),
+  [Adding a stay](https://mobbin.com/flows/366ecb8b-24cb-4b5a-a0a6-9c13f7047f0b),
+  and [Plan an entire trip](https://mobbin.com/flows/94014eb5-84cb-436c-882c-8cc2c3ac4a2e)
+  flows. Its trip hub groups bookings into a timeline, exposes confirmation and
+  property-contact actions, supports manually adding an external stay, and
+  separates booking, exploration, and packing progress. Hospitality can adapt
+  that structure to Stay, service bookings, folio details, and pre-arrival
+  tasks without adding a public trip planner.
+- Agoda has [Hotels](https://mobbin.com/flows/8a1bd2a1-0e47-4abf-87a3-3c7714d5962a),
+  [Booking detail (hotel)](https://mobbin.com/flows/75bce5b9-9c34-4318-a2b5-70a993229015),
+  and [Home](https://mobbin.com/flows/e611310b-e1bc-4f46-add0-81c5d51eafbd)
+  flows. Useful patterns include explicit overnight/day-use search states,
+  upcoming/completed/cancelled booking groups, property/room/guest detail
+  sections, and contextual support. Hospitality should adapt those patterns to
+  the connected stay and service detail; deals, coupons, VIP status, card
+  payment, and transport upsells remain out of scope.
+- Klook has [Activity detail](https://mobbin.com/flows/7c0268ab-7a42-4604-b05c-2848ac3433ad),
+  [Adding an activity to cart](https://mobbin.com/flows/be206518-a4e5-48ad-98be-3e3034f805c8),
+  and [Trips](https://mobbin.com/flows/7a17eda1-cfed-4b78-bbf2-f24af6369d7d)
+  flows. Useful patterns include category-led discovery, package and date
+  selection, reviews, redemption and arrival guidance, FAQs, and a persistent
+  booking action. Hospitality can adapt that detail-page hierarchy to an
+  on-property service with live availability, a time slot, location, cutoff,
+  and room-folio settlement; public activities, carts, and consumer checkout
+  do not belong in the guest companion.
+- Traveloka is a requested future reference. The Mobbin MCP searches on
+  2026-09-11 did not return an exact Traveloka iOS or web catalog result, so it
+  is not a verified source in this context. Keep it on the watchlist until a
+  canonical Mobbin reference is available.
+- Adjacent references available for future comparison include [Booking.com —
+  Booking a property](https://mobbin.com/flows/4b416fa8-669a-410e-a2d5-f76b3e588874)
+  and [Viator — Booking an activity](https://mobbin.com/flows/61f6fd86-acdc-4fec-ae44-7e649633afa0).
+  Review them only when a task needs an additional OTA or activity-marketplace
+  comparison.
+
+For future source review, use the connected Mobbin MCP flow or screen search,
+name the exact app and one journey, and inspect the returned previews before
+recording a pattern. A search result that matches a neighboring app is not
+evidence that the requested app is covered.
 
 ## Non-negotiable UX rules
 

@@ -370,7 +370,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText(/Welcome, Ana · Room 304/)).toBeInTheDocument();
     // Room charges belong to My Stay; Home should not duplicate the folio entry point.
     expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
-    expect(screen.getByRole('button', { name: /Room QR/ })).toBeInTheDocument();
+    expect(screen.getByTestId('guest-scan-action')).toBeInTheDocument();
     // The front desk moved off the tab bar and into My Trip.
     expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull();
   });
@@ -379,9 +379,11 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByTestId('guest-room-qr-action'));
+    // The row is gone for a verified stay -- the app bar carries the scan
+    // from every screen, which is what made it findable.
+    expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
+    await user.click(screen.getByTestId('guest-scan-action'));
 
-    // It opens a viewfinder now, not a page of text about scanning.
     expect(screen.getByRole('heading', { name: 'Scan the room code' })).toBeInTheDocument();
   });
 
@@ -2234,7 +2236,7 @@ describe('lifecycle gates', () => {
     await user.click(secondTab());
 
     expect(screen.getByRole('heading', { name: 'Scan the code in your room' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Scan room code/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Scan room code$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /I can.{1,3}t scan/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Categories' })).toBeNull();
   });
@@ -2254,7 +2256,7 @@ describe('lifecycle gates', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
 
     await user.click(secondTab());
-    await user.click(screen.getByRole('button', { name: /Scan room code/ }));
+    await user.click(screen.getByRole('button', { name: /^Scan room code$/ }));
     await user.click(screen.getByRole('button', { name: /Simulate a successful scan/ }));
 
     // The app confirms presence. It never says it checked anyone in -- the
@@ -2419,7 +2421,7 @@ describe('signed-in home with no booking', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
-    await user.click(screen.getByRole('button', { name: /Scan room code/ }));
+    await user.click(screen.getByRole('button', { name: 'Scan a room code' }));
     expect(screen.getByRole('heading', { name: 'Scan the room code' })).toBeInTheDocument();
   });
 });
@@ -2564,5 +2566,56 @@ describe('prototype controls layout', () => {
     expect(guestStyles).toMatch(/\.guest-prototype-toolbar__body\s*\{[^}]*overflow-y:\s*auto/);
     // min-height:0 is the line that actually lets the grid item scroll.
     expect(guestStyles).toMatch(/\.guest-prototype-toolbar__body\s*\{[^}]*min-height:\s*0/);
+  });
+});
+
+describe('scan discoverability', () => {
+  const verified = sessionFor(
+    [makeBooking({
+      id: 'live',
+      status: 'active',
+      roomNumber: '304',
+      roomVerification: { method: 'scan', at: '2026-11-11' },
+    })],
+    { activeBookingId: 'live' },
+  );
+  const unverified = sessionFor(
+    [makeBooking({ id: 'live', status: 'active', roomNumber: '304' })],
+    { activeBookingId: 'live' },
+  );
+
+  it('puts the scan in the app bar, reachable from every screen', async () => {
+    const user = userEvent.setup();
+    /*
+      The bug this covers: as a list row on Home the scan sat below the stay
+      card and the booking row, so a guest holding the code could not find
+      the one thing they were trying to do.
+    */
+    for (const start of ['stay-overview', 'my-stay', 'marketplace', 'folio'] as const) {
+      render(<GuestAppPrototype initialScreen={start} initialSession={verified} />);
+      expect(screen.getByTestId('guest-scan-action')).toBeInTheDocument();
+      cleanup();
+    }
+
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={verified} />);
+    await user.click(screen.getByTestId('guest-scan-action'));
+    expect(screen.getByRole('heading', { name: 'Scan the room code' })).toBeInTheDocument();
+  });
+
+  it('marks the scan while the room is still unverified', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={unverified} />);
+    expect(screen.getByRole('button', { name: /Scan room code, room not yet verified/ })).toBeInTheDocument();
+    cleanup();
+
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+    expect(screen.getByRole('button', { name: 'Scan room code' })).toBeInTheDocument();
+  });
+
+  it('drops the home row once the room is verified, keeping one scan affordance', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+
+    // Repeating it on Home is what buried it; the app bar carries it now.
+    expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
+    expect(screen.getByTestId('guest-scan-action')).toBeInTheDocument();
   });
 });

@@ -170,10 +170,13 @@ evidence that the requested app is covered.
   `PAST_STAYS` is the seed for the demo profile only.
 - Home shows at most three recent stays and links to `stay-history` for the
   full list. Do not duplicate the full list on Home.
+- The scan lives in the app bar's end slot, beside the bell, on every
+  authenticated screen — actions go there, places go in the tab bar. It carries
+  a dot while the room is unverified. As a list row on Home it was unfindable:
+  a guest holding the code had to scroll past the stay card to reach it.
+  Home repeats it as a primary button only while the room is still unverified.
 - Scanning opens the `scan-room-code` viewfinder, which auto-detects after
-  `SCAN_DETECT_MS` and carries a marked prototype trigger. Room QR is an
-  arrived-stay action on the active Home, promoted to the primary action while
-  the stay is unverified. It is not a pre-arrival choice.
+  `SCAN_DETECT_MS` and carries a marked prototype trigger.
 - The prototype controls panel grows with every feature that has a state worth
   reaching directly. Add a row rather than making a tester replay a journey.
 - On-property booking and charge-to-room are gated on

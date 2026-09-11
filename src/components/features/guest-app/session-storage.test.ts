@@ -57,15 +57,16 @@ describe('session storage', () => {
     expect(readStoredSession()).toBeUndefined();
   });
 
-  it('discards a v3 record, which carries no reviews collection', () => {
-    // The shape v4 exists for: a record written before lifecycle gates has no
-    // `reviews` to map over, and restoring one would also drop a guest who
-    // had already scanned back behind the gate.
-    const v3Shape: Record<string, unknown> = { ...MOCK_SESSION };
-    delete v3Shape.reviews;
-    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(v3Shape));
+  it('discards a record missing a collection a later version added', () => {
+    // Each bump exists because a screen now maps over something the old
+    // shape does not carry -- reviews at v4, stay history at v5.
+    for (const field of ['reviews', 'pastStays']) {
+      const stale: Record<string, unknown> = { ...MOCK_SESSION };
+      delete stale[field];
+      window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(stale));
 
-    expect(readStoredSession()).toBeUndefined();
+      expect(readStoredSession()).toBeUndefined();
+    }
   });
 
   it('round-trips a room verification, so an unlock survives a reload', () => {

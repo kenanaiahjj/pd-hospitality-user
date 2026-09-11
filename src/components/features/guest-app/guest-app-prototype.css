@@ -34,6 +34,24 @@
   background: oklch(1 0 0 / 0.96);
   box-shadow: var(--shadow-sm);
   font-family: inherit;
+  /*
+    The rig grows as features land, and on a phone it outgrew the viewport --
+    taking its own close button off the top of the screen with it. The head is
+    a fixed row now and everything under it scrolls.
+  */
+  max-height: calc(100dvh - 32px);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.guest-prototype-toolbar__body {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  /* min-height:0 is what actually lets a grid item shrink below its content
+     and therefore scroll at all. */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .guest-prototype-toolbar__head {
@@ -41,6 +59,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: 10px;
+  padding-bottom: 10px;
 }
 .guest-prototype-toolbar__head > div { display: grid; gap: 2px; min-width: 0; }
 
@@ -3652,4 +3671,125 @@
   color: var(--guest-ink);
   font: inherit;
   resize: vertical;
+}
+
+/* --------------------------------------------------------------------------
+   Signed-in home with no booking
+   -------------------------------------------------------------------------- */
+
+.guest-home-entry-actions { display: grid; gap: 10px; }
+
+/* Heading and its "see all" share a baseline rather than stacking, so the
+   section reads as one row of scaffolding instead of two. */
+.guest-section-heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.guest-section-heading-row > :first-child { margin-bottom: 0; }
+
+.guest-text-link {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--guest-accent-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+.guest-text-link:active { transform: scale(0.98); }
+
+/* --------------------------------------------------------------------------
+   Mock camera
+
+   The one inverted full-bleed surface in the app. A viewfinder that is not
+   dark does not read as a camera, and the illusion is the entire point of
+   the screen.
+   -------------------------------------------------------------------------- */
+.guest-scanner {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  justify-items: center;
+  margin: -20px -20px 0;
+  padding: 28px 20px 24px;
+  min-height: 100%;
+  background: oklch(0.19 0.01 275);
+  color: var(--guest-paper);
+  text-align: center;
+}
+
+.guest-scanner__frame {
+  position: relative;
+  width: min(240px, 68vw);
+  aspect-ratio: 1;
+  border-radius: var(--guest-radius-lg);
+  background: oklch(0.24 0.01 275);
+  overflow: hidden;
+}
+
+/* Corner brackets, not a full border: the frame should read as a target the
+   code goes inside, not as a box drawn on the screen. */
+.guest-scanner__corner {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--guest-primary);
+}
+.guest-scanner__corner--tl { top: 14px; left: 14px; border-right: 0; border-bottom: 0; border-top-left-radius: 10px; }
+.guest-scanner__corner--tr { top: 14px; right: 14px; border-left: 0; border-bottom: 0; border-top-right-radius: 10px; }
+.guest-scanner__corner--bl { bottom: 14px; left: 14px; border-right: 0; border-top: 0; border-bottom-left-radius: 10px; }
+.guest-scanner__corner--br { bottom: 14px; right: 14px; border-left: 0; border-top: 0; border-bottom-right-radius: 10px; }
+
+.guest-scanner__sweep {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  height: 2px;
+  background: var(--guest-primary);
+  box-shadow: 0 0 12px 2px oklch(0.79 0.18 345 / 0.55);
+  animation: guest-scanner-sweep 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes guest-scanner-sweep {
+  0%, 100% { transform: translateY(16px); }
+  50% { transform: translateY(206px); }
+}
+
+.guest-scanner__copy { display: grid; gap: 8px; max-width: 34ch; }
+.guest-scanner__copy h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.guest-scanner__copy p { color: oklch(0.82 0.008 275); font-size: 14px; }
+
+.guest-scanner__status {
+  margin: 0;
+  color: oklch(0.72 0.008 275);
+  font-size: 13px;
+}
+
+.guest-scanner__actions { display: grid; width: 100%; }
+.guest-scanner__cancel {
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--guest-paper);
+  font-size: 15px;
+  font-weight: 650;
+}
+.guest-scanner__cancel:active { transform: scale(0.98); }
+
+/* The prototype rig, legible against the dark ground but still obviously
+   scaffolding rather than a control the guest is meant to use. */
+.guest-scanner__rig {
+  width: 100%;
+  margin-top: auto;
+  border-color: oklch(0.38 0.01 275);
+  background: oklch(0.24 0.01 275);
+  text-align: left;
+}
+.guest-scanner__rig small { color: oklch(0.7 0.008 275); }
+
+/* Reduced motion drops the sweep entirely; the status line still says the
+   screen is working. */
+@media (prefers-reduced-motion: reduce) {
+  .guest-scanner__sweep { animation: none; }
 }

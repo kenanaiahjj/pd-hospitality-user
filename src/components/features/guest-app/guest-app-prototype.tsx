@@ -89,7 +89,6 @@ import {
   markRoomReady,
   describeRoomAssignment,
   MINI_APP_CATEGORIES,
-  PAST_STAYS,
   PROPERTY_ANNOUNCEMENTS,
   PROTOTYPE_TODAY,
   findPastStay,
@@ -119,6 +118,7 @@ import {
   getPrototypeStayState,
   PROTOTYPE_STAY_STATES,
   parsePesoAmount,
+  PAST_STAYS,
   type Booking,
   type ProfileMatch,
   type PrototypeStayState,
@@ -174,6 +174,13 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
  * cover a guest three days out and a guest standing in their room, and the two
  * need opposite things said to them -- one is waiting, the other can act now.
  */
+/**
+ * How long the mock viewfinder waits before it "finds" the code. Long enough
+ * to read as a scan rather than a button press, short enough that nobody
+ * watching a demo thinks it has hung.
+ */
+const SCAN_DETECT_MS = 2000;
+
 /** One glyph per arrival service, so the column reads as four things. */
 const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
   transfer: <Car />,
@@ -1278,6 +1285,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     at it.
   */
   const postStayWindow = describePostStayWindow(contextBooking);
+  /** This guest's own history. Empty for an account that has not stayed yet. */
+  const pastStays = session.pastStays;
+  const scannerReducedMotion = usePrefersReducedMotion();
+  const [autoDetectScans, setAutoDetectScans] = useState(true);
   const stayReview = session.reviews.find((review) => review.bookingId === contextBooking.id);
 
   const submitStayReview = (rating: StayReview['rating'], comment: string) => {
@@ -1300,7 +1311,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   /** The scan. The only thing a guest can do that opens the gate themselves. */
   const scanRoomCode = () => {
-    setSession((current) => verifyRoomPresence(current, contextBooking.id, 'scan'));
+    /*
+      Two outcomes from one code. A guest whose booking is already attached
+      is proving presence, so the gate opens. A guest with no booking is
+      using the code as a way *in* -- the property still has to match them to
+      a reservation, which is the surname step on `room-qr-landing`.
+    */
+    if (!primaryBooking) {
+      go('room-qr-landing');
+      return;
+    }
+    setSession((current) => verifyRoomPresence(current, primaryBooking.id, 'scan'));
     go('room-qr-midstay');
   };
 
@@ -1490,6 +1511,41 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setActiveScreen(state === 'signed-out' ? 'entry-hub' : 'stay-overview');
   };
 
+  /*
+    Debug affordances. Each one flips a single fact the product normally sets
+    through a flow, so a corner inside a stay state can be reached without
+    replaying the journey that produces it.
+  */
+  const toggleRoomVerified = () => {
+    if (!primaryBooking) return;
+    setSession((current) => (
+      primaryBooking.roomVerification
+        ? {
+            ...current,
+            bookings: current.bookings.map((booking) => (
+              booking.id === primaryBooking.id
+                ? { ...booking, roomVerification: undefined }
+                : booking
+            )),
+          }
+        : verifyRoomPresence(current, primaryBooking.id, 'front-desk')
+    ));
+  };
+
+  const toggleHistory = () => {
+    setSession((current) => ({
+      ...current,
+      pastStays: current.pastStays.length > 0 ? [] : PAST_STAYS,
+    }));
+  };
+
+  const clearReview = () => {
+    setSession((current) => ({
+      ...current,
+      reviews: current.reviews.filter((review) => review.bookingId !== contextBooking.id),
+    }));
+  };
+
   const resetPrototype = () => {
     clearStoredSession();
     applyStayState('signed-out');
@@ -1589,7 +1645,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               text="Scanning the desk card tells the property you have arrived. It is what opens dining, spa, tours and charging to your room."
             >
               <StayMiniCard booking={contextBooking} status={describeGuestGate(contextBooking).label} />
-              <Button className="guest-button guest-button--primary" type="button" onClick={scanRoomCode}>
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('scan-room-code')}>
                 Scan the code<ArrowRight aria-hidden="true" />
               </Button>
               <TextButton onClick={askFrontDeskToUnlock}>I can&rsquo;t scan</TextButton>
@@ -2015,7 +2071,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Returning guest recognized" title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
 
       case 'guest-details':
         return <FormScreen step="1 of 4" title="Your details" text="These details are sent securely to the property for registration."><Field label="Full name" name="guest-name" defaultValue="Ana Santos" required /><Field label="Nationality" name="nationality" defaultValue="Filipino" /><Field label="Email" name="guest-email" type="email" defaultValue="ana@example.com" /><Field label="Mobile" name="guest-mobile" type="tel" defaultValue="+63 917 555 0142" />{primary('Continue to ID', 'id-capture')}</FormScreen>;
@@ -2276,6 +2332,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'prereg-queued':
         return <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Saved on this device" title="Ready to send when connected" text="Your pre-registration is safely queued. It will send automatically when a connection returns."><Notice tone="offline" title="No action needed">Your edits remain on this device. The hotel has not received them yet.</Notice>{primary('Open cached stay', 'stay-overview')}</ScreenIntro>;
 
+      case 'scan-room-code':
+        return (
+          <RoomCodeScanner
+            roomNumber={primaryBooking?.roomNumber}
+            onDetected={scanRoomCode}
+            onCancel={back}
+            reducedMotion={scannerReducedMotion}
+            autoDetect={autoDetectScans}
+          />
+        );
+
       case 'stay-review': {
         /*
           One rating for the stay as a whole, and it goes to the property.
@@ -2473,7 +2540,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 screen flatly contradicts the thing being asked for.
               */}
               <StayMiniCard booking={contextBooking} status={describeGuestGate(contextBooking).label} />
-              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('room-qr-landing')}>
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('scan-room-code')}>
                 Scan room code<ArrowRight aria-hidden="true" />
               </Button>
               <TextButton onClick={askFrontDeskToUnlock}>I can&rsquo;t scan</TextButton>
@@ -2913,7 +2980,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               text="On-property services are charged to your room, so the property confirms you are in it first. The code is on the desk card."
             >
               <Notice title="Nothing was booked">Scanning takes a moment and opens everything at once.</Notice>
-              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('room-qr-landing')}>
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('scan-room-code')}>
                 Scan room code<ArrowRight aria-hidden="true" />
               </Button>
               <TextButton onClick={askFrontDeskToUnlock}>I can&rsquo;t scan</TextButton>
@@ -2941,7 +3008,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           : <ScreenIntro icon={<Clock size={30} />} eyebrow="Not yet" title="On-property services open when you check in" text={`Your stay at ${contextBooking.property} starts ${formatStayDateRange(contextBooking).split('–')[0]}. Transfers and arrival services you can book now.`}><Notice title="Nothing was booked">On-property services are charged to a room, so they open once you are in it.</Notice>{primary('Arrange your arrival', 'pre-arrival-services')}<TextButton onClick={() => go('chat')}>Message the front desk</TextButton></ScreenIntro>;
 
       case 'my-stay': {
-        if (!primaryBooking) return <EmptyStayHome onNavigate={go} />;
+        if (!primaryBooking) {
+          return (
+            <EmptyStayHome
+              guestName={session.guestName}
+              pastStays={pastStays}
+              onNavigate={go}
+              onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }}
+            />
+          );
+        }
 
         // A stay that has not started cannot have run anything up, so the folio
         // block is absent rather than showing a confident zero. Read off the
@@ -3160,7 +3236,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'stay-entry': {
         const allEntries = [...stayEntries.upcoming, ...stayEntries.past];
         const entry = allEntries.find((item) => item.id === selectedStayEntryId) ?? allEntries[0];
-        if (!entry) return <EmptyStayHome onNavigate={go} />;
+        if (!entry) {
+          return (
+            <EmptyStayHome
+              guestName={session.guestName}
+              pastStays={pastStays}
+              onNavigate={go}
+              onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }}
+            />
+          );
+        }
 
         return (
           <div className="guest-stack">
@@ -3341,16 +3426,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'stay-history': {
-        const lifetime = formatPesoAmount(PAST_STAYS.reduce((sum, stay) => sum + parsePesoAmount(stay.total), 0));
-        const nights = PAST_STAYS.reduce((sum, stay) => sum + stay.nights, 0);
+        const lifetime = formatPesoAmount(pastStays.reduce((sum, stay) => sum + parsePesoAmount(stay.total), 0));
+        const nights = pastStays.reduce((sum, stay) => sum + stay.nights, 0);
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
               <p className="guest-eyebrow">Across properties</p>
               <h1>Stay history</h1>
-              <p>{PAST_STAYS.length} completed stays · {nights} nights · {lifetime} spent</p>
+              <p>{pastStays.length} completed stays · {nights} nights · {lifetime} spent</p>
             </div>
-            {PAST_STAYS.map((stay) => (
+            {pastStays.map((stay) => (
               <HistoryItem
                 key={stay.id}
                 stay={stay}
@@ -3370,7 +3455,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const currentAsFinished = primaryBooking && selectedPastStayId === primaryBooking.id
           ? toFinishedStay(session, primaryBooking)
           : undefined;
-        const stay = findPastStay(selectedPastStayId ?? '') ?? currentAsFinished ?? PAST_STAYS[0]!;
+        const stay = findPastStay(pastStays, selectedPastStayId ?? '') ?? currentAsFinished ?? pastStays[0];
         const summary = summarisePastStay(stay);
         return (
           <div className="guest-stack">
@@ -3444,6 +3529,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onStayStateChange={applyStayState}
         onSimulateRoomReady={simulateRoomReady}
         canSimulateRoomReady={Boolean(eligibleRoomReadyBooking)}
+        roomVerified={Boolean(primaryBooking?.roomVerification)}
+        onToggleRoomVerified={toggleRoomVerified}
+        canToggleRoomVerified={Boolean(primaryBooking)}
+        hasHistory={pastStays.length > 0}
+        onToggleHistory={toggleHistory}
+        hasReview={session.reviews.some((review) => review.bookingId === contextBooking.id)}
+        onClearReview={clearReview}
+        autoDetectScans={autoDetectScans}
+        onToggleAutoDetectScans={() => setAutoDetectScans((on) => !on)}
         onReset={resetPrototype}
       />
 
@@ -3545,6 +3639,15 @@ function PrototypeControls({
   onStayStateChange,
   onSimulateRoomReady,
   canSimulateRoomReady,
+  roomVerified,
+  onToggleRoomVerified,
+  canToggleRoomVerified,
+  hasHistory,
+  onToggleHistory,
+  hasReview,
+  onClearReview,
+  autoDetectScans,
+  onToggleAutoDetectScans,
   onReset,
 }: {
   online: boolean;
@@ -3552,6 +3655,15 @@ function PrototypeControls({
   onStayStateChange: (state: PrototypeStayState) => void;
   onSimulateRoomReady: () => void;
   canSimulateRoomReady: boolean;
+  roomVerified: boolean;
+  onToggleRoomVerified: () => void;
+  canToggleRoomVerified: boolean;
+  hasHistory: boolean;
+  onToggleHistory: () => void;
+  hasReview: boolean;
+  onClearReview: () => void;
+  autoDetectScans: boolean;
+  onToggleAutoDetectScans: () => void;
   onReset: () => void;
 }) {
   /*
@@ -3592,38 +3704,82 @@ function PrototypeControls({
           <X aria-hidden="true" />
         </button>
       </div>
-      <fieldset className="guest-prototype-states">
-        <legend>Stay state</legend>
-        {PROTOTYPE_STAY_STATES.map((state) => (
-          <label key={state.id} className="guest-prototype-states__option">
-            <input
-              type="radio"
-              name="prototype-stay-state"
-              value={state.id}
-              checked={stayState === state.id}
-              onChange={() => onStayStateChange(state.id)}
-            />
-            <span>
-              <b>{state.label}</b>
-              <small>{state.detail}</small>
-            </span>
-          </label>
-        ))}
-      </fieldset>
-
       {/*
-        Was the panel's only control, and the panel only rendered when it was
-        usable -- which hid the switcher in exactly the states worth switching
-        away from. It is a disabled row now, not a reason to hide the rig.
+        Everything but the head scrolls. The panel gains rows with every
+        feature, and on a phone it had grown past the viewport -- carrying
+        its own close button off the top of the screen. Sticky on the head
+        does not work here: it is a grid item, so its containing block is
+        its own track and it has nowhere to stick to.
       */}
-      <button type="button" onClick={onSimulateRoomReady} disabled={!online || !canSimulateRoomReady}>
-        <BellRinging aria-hidden="true" />
-        Simulate room ready
-      </button>
+      <div className="guest-prototype-toolbar__body">
+        <fieldset className="guest-prototype-states">
+          <legend>Stay state</legend>
+          {PROTOTYPE_STAY_STATES.map((state) => (
+            <label key={state.id} className="guest-prototype-states__option">
+              <input
+                type="radio"
+                name="prototype-stay-state"
+                value={state.id}
+                checked={stayState === state.id}
+                onChange={() => onStayStateChange(state.id)}
+              />
+              <span>
+                <b>{state.label}</b>
+                <small>{state.detail}</small>
+              </span>
+            </label>
+          ))}
+        </fieldset>
 
-      <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
-        Reset saved session
-      </button>
+        {/*
+          Was the panel's only control, and the panel only rendered when it was
+          usable -- which hid the switcher in exactly the states worth switching
+          away from. It is a disabled row now, not a reason to hide the rig.
+        */}
+        <button type="button" onClick={onSimulateRoomReady} disabled={!online || !canSimulateRoomReady}>
+          <BellRinging aria-hidden="true" />
+          Simulate room ready
+        </button>
+
+        {/*
+          Everything below flips one fact directly, without walking the flow
+          that normally sets it. Six stay states cover the common shapes; these
+          cover the corners inside them -- re-running a scan, checking what a
+          guest with no history sees, taking a rating twice.
+        */}
+        <fieldset className="guest-prototype-states">
+          <legend>Gates and state</legend>
+
+          <button type="button" onClick={onToggleRoomVerified} disabled={!canToggleRoomVerified}>
+            <QrCode aria-hidden="true" />
+            {roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)'}
+          </button>
+
+          <button type="button" onClick={onToggleHistory}>
+            <Receipt aria-hidden="true" />
+            {hasHistory ? 'Clear stay history' : 'Seed stay history'}
+          </button>
+
+          <button type="button" onClick={onClearReview} disabled={!hasReview}>
+            <Sparkle aria-hidden="true" />
+            Clear stay review
+          </button>
+
+          {/*
+            A presenter holding on the viewfinder to talk about it needs the
+            countdown to stop, or the screen scans itself out from under them.
+          */}
+          <button type="button" onClick={onToggleAutoDetectScans}>
+            <ClockCountdown aria-hidden="true" />
+            {autoDetectScans ? 'Scanner: auto-detects after 2s' : 'Scanner: waits for the button'}
+          </button>
+        </fieldset>
+
+        <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
+          Reset saved session
+        </button>
+      </div>
+
     </aside>
   );
 }
@@ -3678,9 +3834,10 @@ type StayOverviewHomeProps = {
   online?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
   onSelectCategory: (cat: MiniAppCategoryId) => void;
+  onOpenStay: (id: string) => void;
 };
 
-function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOpenStay }: StayOverviewHomeProps) {
   const [roomReadyDismissed, setRoomReadyDismissed] = useState(false);
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
@@ -3688,7 +3845,14 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
     .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
 
   if (variant === 'empty' || !booking) {
-    return <EmptyStayHome onNavigate={onNavigate} />;
+    return (
+      <EmptyStayHome
+        guestName={session.guestName}
+        pastStays={session.pastStays}
+        onNavigate={onNavigate}
+        onOpenStay={onOpenStay}
+      />
+    );
   }
 
   if (variant === 'active') {
@@ -3728,12 +3892,24 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory }: St
             <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
           </div>
         </section>
+        {/*
+          Promoted when it is the only thing in the way. For a guest who has
+          arrived and not scanned, this is not one option among several --
+          it is the single action that opens the rest of the app, and a quiet
+          row was the wrong weight for it.
+        */}
         <section className="guest-home-room-qr" aria-label="Room access">
-          <button className="guest-list-row" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('room-qr-landing')}>
-            <span><QrCode aria-hidden="true" /></span>
-            <div><b>Room QR</b><small>Scan the code in your room</small></div>
-            <CaretRight aria-hidden="true" />
-          </button>
+          {canUseOnPropertyServices(booking) ? (
+            <button className="guest-list-row" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
+              <span><QrCode aria-hidden="true" /></span>
+              <div><b>Room QR</b><small>Scan the code in your room</small></div>
+              <CaretRight aria-hidden="true" />
+            </button>
+          ) : (
+            <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
+              <QrCode aria-hidden="true" />Scan your room code<ArrowRight aria-hidden="true" />
+            </Button>
+          )}
         </section>
         <AnnouncementsSection />
         <section>
@@ -4053,8 +4229,168 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate }: { booking
   );
 }
 
-function EmptyStayHome({ onNavigate }: { onNavigate: (screen: ActiveScreen) => void }) {
-  return <div className="guest-stack guest-stack--intro guest-home-empty" data-testid="guest-home-empty"><HeroIcon tone="dark"><Receipt size={30} /></HeroIcon><div className="guest-page-title"><p className="guest-eyebrow">No connected stay</p><h1>Connect your booking</h1><p>Link a confirmed reservation to see arrival details, on-property services, room charges, and front-desk help in one place.</p></div><Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('identify')}>Connect a booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => onNavigate('front-desk-assist')}>Ask the front desk for help</TextButton></div>;
+/**
+ * A stand-in for a camera, because the prototype has no camera.
+ *
+ * The point is fidelity of *timing*, not of optics: a real scan is a short
+ * wait that resolves itself, and a screen with only a button on it teaches
+ * a stakeholder the wrong thing about how the moment feels. So the
+ * viewfinder finds the code on its own after a beat, and carries a clearly
+ * marked control for firing it immediately when someone is presenting and
+ * wants to talk over the wait.
+ */
+function RoomCodeScanner({
+  roomNumber,
+  onDetected,
+  onCancel,
+  reducedMotion,
+  autoDetect,
+}: {
+  roomNumber?: string;
+  onDetected: () => void;
+  onCancel: () => void;
+  reducedMotion: boolean;
+  autoDetect: boolean;
+}) {
+  /*
+    Through a ref, and armed once. `onDetected` is rebuilt on every parent
+    render, so depending on it directly would clear and restart the countdown
+    forever and the scan would never fire. The ref is written in an effect,
+    never during render -- the React Compiler rules here make the latter an
+    error, and `use-debounce.ts` is the reference for the shape.
+  */
+  const onDetectedRef = useRef(onDetected);
+  useEffect(() => {
+    onDetectedRef.current = onDetected;
+  }, [onDetected]);
+
+  useEffect(() => {
+    if (!autoDetect) return;
+    const timer = window.setTimeout(() => onDetectedRef.current(), SCAN_DETECT_MS);
+    return () => window.clearTimeout(timer);
+  }, [autoDetect]);
+
+  return (
+    <div className="guest-scanner" data-testid="guest-viewfinder">
+      <div className="guest-scanner__frame" aria-hidden="true">
+        <span className="guest-scanner__corner guest-scanner__corner--tl" />
+        <span className="guest-scanner__corner guest-scanner__corner--tr" />
+        <span className="guest-scanner__corner guest-scanner__corner--bl" />
+        <span className="guest-scanner__corner guest-scanner__corner--br" />
+        {reducedMotion ? null : <span className="guest-scanner__sweep" />}
+      </div>
+
+      <div className="guest-scanner__copy">
+        <h1>Scan the room code</h1>
+        <p>
+          Point your camera at the code on the desk card
+          {roomNumber ? ` in room ${roomNumber}` : ''}. It confirms you are in the room.
+        </p>
+      </div>
+
+      <p className="guest-scanner__status" role="status">
+        {autoDetect ? 'Looking for a code…' : 'Auto-detect is off for this demo'}
+      </p>
+
+      <div className="guest-scanner__actions">
+        <button className="guest-scanner__cancel" type="button" onClick={onCancel}>Cancel</button>
+      </div>
+
+      <div className="guest-desk-grant guest-scanner__rig">
+        <small>Prototype — there is no real camera here</small>
+        <Button className="guest-button guest-button--secondary" type="button" onClick={onDetected}>
+          Simulate a successful scan
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Home for a signed-in guest with no live booking.
+ *
+ * This used to be the dead end of the entry flow -- one sentence and a
+ * "Connect a booking" button -- and post-auth routing sent a guest with no
+ * reservation straight past it into the lookup form. Both assumed the only
+ * reason to open the app was to attach a booking. A guest also opens it to
+ * look at what last March cost, or because they are standing in a room and
+ * have the code in front of them, so the home carries all three: history,
+ * the lookup, and the scan.
+ */
+function EmptyStayHome({
+  guestName,
+  pastStays,
+  onNavigate,
+  onOpenStay,
+}: {
+  guestName: string;
+  pastStays: PastStay[];
+  onNavigate: (screen: ActiveScreen) => void;
+  onOpenStay: (id: string) => void;
+}) {
+  const firstName = guestName.trim().split(' ')[0];
+  // Three is the most a home can show before it stops being a summary. The
+  // rest live on `stay-history`, which is still the one full list.
+  const recent = pastStays.slice(0, 3);
+
+  return (
+    <div className="guest-stack" data-testid="guest-home-empty">
+      <div className="guest-page-title">
+        <p className="guest-eyebrow">{pastStays.length > 0 ? 'Signed in' : 'Welcome'}</p>
+        {/* "Welcome back" to someone who has never stayed is a small lie the
+            greeting does not need to tell. */}
+        <h1>
+          {!firstName
+            ? 'Welcome to Cabana'
+            : pastStays.length > 0
+              ? `Welcome back, ${firstName}`
+              : `Hello, ${firstName}`}
+        </h1>
+        <p>
+          {pastStays.length > 0
+            ? 'No stay is connected right now. Add a booking to open arrival details, on-property services and room charges.'
+            : 'Add your booking to open arrival details, on-property services, room charges and front-desk help in one place.'}
+        </p>
+      </div>
+
+      <div className="guest-home-entry-actions">
+        <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('identify')}>
+          Add a booking<ArrowRight aria-hidden="true" />
+        </Button>
+        {/*
+          The second front door. A guest can be on property, in the room,
+          with no reference in hand -- the code on the desk card identifies
+          the reservation for them.
+        */}
+        <button className="guest-button guest-button--secondary" type="button" onClick={() => onNavigate('scan-room-code')}>
+          <QrCode aria-hidden="true" />Scan room code
+        </button>
+      </div>
+
+      {recent.length > 0 ? (
+        <section>
+          <div className="guest-section-heading-row">
+            <SectionHeading title="Recent stays" />
+            {pastStays.length > recent.length ? (
+              <button className="guest-text-link" type="button" onClick={() => onNavigate('stay-history')}>
+                See all {pastStays.length} stays
+              </button>
+            ) : null}
+          </div>
+          {recent.map((stay) => (
+            <HistoryItem key={stay.id} stay={stay} onOpen={() => onOpenStay(stay.id)} />
+          ))}
+          {pastStays.length === recent.length ? (
+            <button className="guest-text-link" type="button" onClick={() => onNavigate('stay-history')}>
+              See all {pastStays.length} stays
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
+      <TextButton onClick={() => onNavigate('front-desk-assist')}>Ask the front desk for help</TextButton>
+    </div>
+  );
 }
 
 /** The same range, from two loose dates -- the rebooking funnel has no booking

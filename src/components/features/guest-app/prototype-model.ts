@@ -51,6 +51,7 @@ export type ScreenId =
   | 'stay-entry'
   | 'pre-arrival-services'
   | 'stay-review'
+  | 'scan-room-code'
   | 'stay-review-sent'
   | 'notifications';
 
@@ -121,6 +122,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(52, 'Pre-arrival', 'pre-arrival-services', 'Arrange your arrival'),
   screen(53, 'Stay', 'stay-review', 'Rate your stay'),
   screen(54, 'Stay', 'stay-review-sent', 'Review sent'),
+  screen(55, 'Entry', 'scan-room-code', 'Scan the room code'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -264,6 +266,8 @@ export type GuestSession = {
   roomPreferences: RoomPreferences;
   /** Companion names are persisted from the additional-guests step. */
   additionalGuests: string[];
+  /** Stays this guest has actually completed. Empty for a new account. */
+  pastStays: PastStay[];
   /** Stay-level ratings the guest has submitted. Private to the property. */
   reviews: StayReview[];
   /**
@@ -317,8 +321,78 @@ export const ANONYMOUS_SESSION: GuestSession = {
     accessibility: [],
   },
   additionalGuests: [],
+  pastStays: [],
   reviews: [],
 };
+
+/**
+ * The demo guest's history, and only theirs.
+ *
+ * This used to be read directly by every screen, which meant a brand-new
+ * account logged in and was shown three stays it had never taken. It is a
+ * seed for `restoreProfileSession` now; the live list is `session.pastStays`,
+ * so an account with no history genuinely has none.
+ */
+export const PAST_STAYS: PastStay[] = [
+  {
+    id: 'HEN-CEBU-260314',
+    property: 'The Henry Cebu',
+    city: 'Cebu',
+    checkIn: '2026-03-14',
+    checkOut: '2026-03-17',
+    nights: 3,
+    roomType: 'Garden suite',
+    roomNumber: '211',
+    guestCount: 2,
+    source: 'Direct booking',
+    roomRate: '₱18,600',
+    charges: [
+      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness' },
+      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining' },
+      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours' },
+      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining' },
+      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services' },
+    ],
+    total: '₱37,390',
+  },
+  {
+    id: 'HEN-MNL-251002',
+    property: 'The Henry Manila',
+    city: 'Manila',
+    checkIn: '2025-10-02',
+    checkOut: '2025-10-04',
+    nights: 2,
+    roomType: 'King room',
+    roomNumber: '406',
+    guestCount: 1,
+    source: 'Agoda',
+    roomRate: '₱9,800',
+    charges: [
+      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining' },
+      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services' },
+      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours' },
+    ],
+    total: '₱14,150',
+  },
+  {
+    id: 'HEN-CEBU-250508',
+    property: 'The Henry Cebu',
+    city: 'Cebu',
+    checkIn: '2025-05-08',
+    checkOut: '2025-05-10',
+    nights: 2,
+    roomType: 'Deluxe room',
+    roomNumber: '108',
+    guestCount: 2,
+    source: 'Booking.com',
+    roomRate: '₱11,200',
+    charges: [
+      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining' },
+      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness' },
+    ],
+    total: '₱13,820',
+  },
+];
 
 export const MOCK_SESSION: GuestSession = {
   guestName: 'Ana Santos',
@@ -332,6 +406,7 @@ export const MOCK_SESSION: GuestSession = {
     accessibility: [],
   },
   additionalGuests: ['Marco Santos'],
+  pastStays: PAST_STAYS,
   reviews: [],
   bookings: [
     UPCOMING_BOOKING_FIXTURE,
@@ -451,9 +526,16 @@ export function createAccountSession(
  * fixture represents the unlinked state that needs a booking next.
  */
 export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
+  /*
+    A person's own name, not the provider's. "Apple Guest" and "Google Guest"
+    were invisible while the app only ever used the name on a booking; the
+    moment home greets by first name they read as "Welcome back, Google".
+    SSO returns the account holder either way -- the same human, signing in
+    two different ways -- so only the address differs.
+  */
   const identity = method === 'apple'
-    ? { guestName: 'Apple Guest', email: 'guest@privaterelay.appleid.com' }
-    : { guestName: 'Google Guest', email: 'guest@gmail.com' };
+    ? { guestName: 'Ana Santos', email: 'ana.santos@privaterelay.appleid.com' }
+    : { guestName: 'Ana Santos', email: 'ana.santos@gmail.com' };
 
   return {
     ...ANONYMOUS_SESSION,
@@ -541,9 +623,14 @@ export function connectBooking(session: GuestSession): GuestSession {
  */
 export function getPostAuthScreen(session: GuestSession): ScreenId {
   const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
-  // SSO has already established identity. Ask for the one missing piece—the
-  // reservation reference and surname—without an intermediate action hub.
-  if (!booking) return 'identify';
+  /*
+    Home, not the lookup form. SSO establishes identity, and sending that
+    guest straight to a reference-and-surname field assumed they had the
+    reference to hand -- a guest who signed in to look at what they spent
+    last March hit a wall with nothing else on it. Home carries their stays,
+    the lookup as a clear action, and the room scan as a second way in.
+  */
+  if (!booking) return 'stay-overview';
 
   const preArrivalIncomplete = booking.preArrivalCompleted < booking.preArrivalTotal;
   if (!preArrivalIncomplete) return 'stay-overview';
@@ -1014,68 +1101,7 @@ export type PastStay = {
   total: string;
 };
 
-export const PAST_STAYS: PastStay[] = [
-  {
-    id: 'HEN-CEBU-260314',
-    property: 'The Henry Cebu',
-    city: 'Cebu',
-    checkIn: '2026-03-14',
-    checkOut: '2026-03-17',
-    nights: 3,
-    roomType: 'Garden suite',
-    roomNumber: '211',
-    guestCount: 2,
-    source: 'Direct booking',
-    roomRate: '₱18,600',
-    charges: [
-      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness' },
-      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining' },
-      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours' },
-      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining' },
-      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services' },
-    ],
-    total: '₱37,390',
-  },
-  {
-    id: 'HEN-MNL-251002',
-    property: 'The Henry Manila',
-    city: 'Manila',
-    checkIn: '2025-10-02',
-    checkOut: '2025-10-04',
-    nights: 2,
-    roomType: 'King room',
-    roomNumber: '406',
-    guestCount: 1,
-    source: 'Agoda',
-    roomRate: '₱9,800',
-    charges: [
-      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining' },
-      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services' },
-      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours' },
-    ],
-    total: '₱14,150',
-  },
-  {
-    id: 'HEN-CEBU-250508',
-    property: 'The Henry Cebu',
-    city: 'Cebu',
-    checkIn: '2025-05-08',
-    checkOut: '2025-05-10',
-    nights: 2,
-    roomType: 'Deluxe room',
-    roomNumber: '108',
-    guestCount: 2,
-    source: 'Booking.com',
-    roomRate: '₱11,200',
-    charges: [
-      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining' },
-      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness' },
-    ],
-    total: '₱13,820',
-  },
-];
-
-export const findPastStay = (id: string) => PAST_STAYS.find((stay) => stay.id === id);
+export const findPastStay = (stays: PastStay[], id: string) => stays.find((stay) => stay.id === id);
 
 /**
  * The contact the estate holds for this guest, in one place.
@@ -1148,6 +1174,11 @@ export function findProfileByLookup(reference: string): ProfileMatch | undefined
     };
   }
 
+  /*
+    PAST_STAYS, deliberately, not a session: this runs before anyone is signed
+    in. It is the estate recognising an old reference, which is exactly the
+    record a guest with no session yet cannot supply.
+  */
   const pastStay = PAST_STAYS.find((stay) => normalise(stay.id) === ref);
   if (pastStay) {
     return {

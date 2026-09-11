@@ -49,6 +49,7 @@ export type ScreenId =
   | 'stay-history'
   | 'stay-detail'
   | 'stay-entry'
+  | 'pre-arrival-services'
   | 'notifications';
 
 export type PrototypeScreen = {
@@ -115,6 +116,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(49, 'Stay', 'book-stay-rooms', 'Choose a room'),
   screen(50, 'Stay', 'book-stay-checkout', 'Confirm and pay'),
   screen(51, 'Stay', 'book-stay-confirmation', 'Stay booked'),
+  screen(52, 'Pre-arrival', 'pre-arrival-services', 'Arrange your arrival'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -164,6 +166,19 @@ export type Booking = {
   preArrivalTotal: number;
   nextPreArrivalStep?: string;
   folioTotal?: string;
+  /**
+   * That the guest proved they are in the room. Absent until they scan the
+   * in-room code or the desk grants their request -- and it is this, not the
+   * calendar, that opens on-property services. See `canUseOnPropertyServices`.
+   */
+  roomVerification?: RoomVerification;
+  /**
+   * When checkout completed, as a full timestamp.
+   *
+   * `checkOut` is a date, and the post-checkout front-desk window is measured
+   * in hours, so the window has nothing to count from without this.
+   */
+  checkedOutAt?: string;
   /**
    * What the room itself came to, before anything charged against it.
    *
@@ -245,6 +260,14 @@ export type GuestSession = {
   roomPreferences: RoomPreferences;
   /** Companion names are persisted from the additional-guests step. */
   additionalGuests: string[];
+  /** Stay-level ratings the guest has submitted. Private to the property. */
+  reviews: StayReview[];
+  /**
+   * A pending "I can't scan" request awaiting the front desk. At most one:
+   * a guest is in one room at a time, and a second request would be the same
+   * request again.
+   */
+  unlockRequest?: UnlockRequest;
 };
 
 export type HomeVariant =
@@ -290,6 +313,7 @@ export const ANONYMOUS_SESSION: GuestSession = {
     accessibility: [],
   },
   additionalGuests: [],
+  reviews: [],
 };
 
 export const MOCK_SESSION: GuestSession = {
@@ -304,6 +328,7 @@ export const MOCK_SESSION: GuestSession = {
     accessibility: [],
   },
   additionalGuests: ['Marco Santos'],
+  reviews: [],
   bookings: [
     UPCOMING_BOOKING_FIXTURE,
     {
@@ -580,6 +605,214 @@ export function describeStayStatus(
     ? { status: 'room-ready', label: 'Room ready' }
     : { status: 'upcoming', label: 'Upcoming' };
 }
+
+/* --------------------------------------------------------------------------
+   Lifecycle gates
+
+   Four gates, each opened by one fact, all read through the predicates below
+   so the tab bar, the booking buttons and the folio cannot disagree about
+   what a guest is allowed to do. This is the same discipline
+   `describeStayStatus` applies to the badge, for the same reason.
+   -------------------------------------------------------------------------- */
+
+export type GuestGate = 'entry' | 'pre-arrival' | 'in-stay' | 'post-stay';
+
+/**
+ * How the guest proved to the property that they are in the room, and when.
+ *
+ * Cabana never checks anyone in -- that is the property's own operation
+ * against its own PMS, and the estate runs a mix of legacy and cloud systems
+ * that cannot all accept the write. This records only the presence, which is
+ * all the app needs before it will charge anything to a room.
+ *
+ * `'front-desk'` is reachable solely from the desk granting a request. No
+ * control the guest can press writes this, or the QR would be decorative.
+ */
+export type RoomVerification = {
+  method: 'scan' | 'front-desk';
+  /** ISO date. The prototype clock has no time of day. */
+  at: string;
+};
+
+/** A guest saying "I can't scan". It unlocks nothing; the desk grants it. */
+export type UnlockRequest = { bookingId: string; requestedAt: string };
+
+/**
+ * The gate a booking sits in, which is the question every screen is really
+ * asking when it decides what to render.
+ */
+export function describeGuestGate(
+  booking: Booking | undefined,
+  today: string = PROTOTYPE_TODAY,
+): { gate: GuestGate; label: string } {
+  if (!booking) return { gate: 'entry', label: 'No booking connected' };
+
+  const { status } = describeStayStatus(booking, today);
+  if (status === 'checked-out') return { gate: 'post-stay', label: 'Stay complete' };
+  if (status === 'checked-in') {
+    return canUseOnPropertyServices(booking, today)
+      ? { gate: 'in-stay', label: 'In your room' }
+      : { gate: 'in-stay', label: 'Scan to unlock' };
+  }
+
+  return { gate: 'pre-arrival', label: 'Before you arrive' };
+}
+
+/**
+ * The single gate every on-property booking and every room charge reads.
+ *
+ * Three conditions, and the third is the new one. Dates alone let a guest
+ * book a massage from an airport lounge in another city on a day their
+ * calendar happens to cover; a room number alone says the property allocated
+ * something, not that anyone is standing in it.
+ */
+export function canUseOnPropertyServices(
+  booking: Booking,
+  today: string = PROTOTYPE_TODAY,
+): boolean {
+  return isStayUnderWay(booking, today)
+    && Boolean(booking.roomNumber)
+    && Boolean(booking.roomVerification);
+}
+
+/**
+ * The only path that writes the verification fact.
+ *
+ * Maps one booking, never the session. A session holds several bookings
+ * across properties -- `MOCK_SESSION` carries Manila and Cebu -- and a scan
+ * in one says nothing about the other. A session-level flag here would unlock
+ * room charging against a room the guest has never seen.
+ */
+export function verifyRoomPresence(
+  session: GuestSession,
+  bookingId: string,
+  method: RoomVerification['method'],
+  today: string = PROTOTYPE_TODAY,
+): GuestSession {
+  return {
+    ...session,
+    bookings: session.bookings.map((booking) => (
+      booking.id === bookingId
+        ? { ...booking, roomVerification: { method, at: today } }
+        : booking
+    )),
+    // The request, if there was one, has been answered.
+    unlockRequest: session.unlockRequest?.bookingId === bookingId
+      ? undefined
+      : session.unlockRequest,
+  };
+}
+
+/**
+ * Files a request the front desk has to grant. Deliberately does not touch
+ * `roomVerification`: a guest-side unlock button would make the gate
+ * decorative, and the point of the gate is that the property confirmed it.
+ */
+export function requestFrontDeskUnlock(
+  session: GuestSession,
+  bookingId: string,
+  today: string = PROTOTYPE_TODAY,
+): GuestSession {
+  return { ...session, unlockRequest: { bookingId, requestedAt: today } };
+}
+
+/**
+ * The second tab: one slot, three contents.
+ *
+ * The slot always answers the same question -- what can I book right now --
+ * and the honest answer differs by gate. It is locked in exactly one
+ * situation, and the placement is the whole point: a wall shown to a guest
+ * three days out teaches them the app is closed, where the same wall shown to
+ * a guest standing in their room with the code in front of them is the one
+ * moment the prompt can be acted on.
+ */
+export type BookingSlot = {
+  label: 'Arrival' | 'Explore' | 'Book again';
+  screen: Extract<ScreenId, 'pre-arrival-services' | 'marketplace' | 'book-stay'>;
+  locked: boolean;
+};
+
+export function describeBookingSlot(
+  booking: Booking | undefined,
+  today: string = PROTOTYPE_TODAY,
+): BookingSlot {
+  const { gate } = describeGuestGate(booking, today);
+
+  if (gate === 'post-stay') {
+    return { label: 'Book again', screen: 'book-stay', locked: false };
+  }
+
+  if (gate === 'in-stay' && booking) {
+    return {
+      label: 'Explore',
+      screen: 'marketplace',
+      locked: !canUseOnPropertyServices(booking, today),
+    };
+  }
+
+  // Pre-arrival, and the signed-out case, which never renders the bar anyway.
+  return { label: 'Arrival', screen: 'pre-arrival-services', locked: false };
+}
+
+/**
+ * What a guest can book before they are in the room: getting there, and what
+ * should be waiting when they arrive. Everything else on the property needs a
+ * room to charge to and a guest standing in it.
+ *
+ * Early check-in is the fifth arrival affordance but is not a catalogue item;
+ * it keeps its own `early-check-in` screen.
+ */
+export const PRE_ARRIVAL_SERVICE_IDS = [
+  'transfer',
+  'private-car',
+  'luggage',
+  'celebration',
+] as const;
+
+export function isPreArrivalService(miniAppId: string): boolean {
+  return (PRE_ARRIVAL_SERVICE_IDS as readonly string[]).includes(miniAppId);
+}
+
+/**
+ * Where a finished stay sits against the 24-hour front-desk window.
+ *
+ * Reads `checkedOutAt` rather than `checkOut`, because the window is measured
+ * in hours and `checkOut` is a date with no time of day. A stay with no
+ * timestamp reports closed: nothing to count from is a reason to say so, not
+ * a reason to leave a window open forever.
+ */
+export function describePostStayWindow(
+  booking: Booking,
+  now: string = `${PROTOTYPE_TODAY}T12:00:00Z`,
+): { deskOpen: boolean; hoursRemaining: number; label: string } {
+  const closed = { deskOpen: false, hoursRemaining: 0, label: 'Front desk chat closed' };
+  if (!booking.checkedOutAt) return closed;
+
+  const elapsed = Date.parse(now) - Date.parse(booking.checkedOutAt);
+  if (!Number.isFinite(elapsed)) return closed;
+
+  const hoursRemaining = Math.ceil((POST_STAY_DESK_HOURS * 3_600_000 - elapsed) / 3_600_000);
+  if (hoursRemaining <= 0) return closed;
+
+  return {
+    deskOpen: true,
+    hoursRemaining,
+    label: hoursRemaining === 1
+      ? 'Front desk open for another hour'
+      : `Front desk open for another ${hoursRemaining} hours`,
+  };
+}
+
+/** How long the desk stays reachable after checkout. */
+export const POST_STAY_DESK_HOURS = 24;
+
+/** One rating for the stay as a whole, private to the property. */
+export type StayReview = {
+  bookingId: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  comment: string;
+  submittedAt: string;
+};
 
 export function getHomeVariant(
   bookings: Booking[],

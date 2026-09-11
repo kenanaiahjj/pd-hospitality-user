@@ -12,8 +12,11 @@ import type { GuestSession } from './prototype-model';
  * the suffix and every stale record is silently discarded on read.
  *
  * v3: SSO replaces legacy credential entry and the session shape is reset.
+ * v4: lifecycle gates. A v3 record carries no room verification and no
+ * reviews, so restoring one would drop a guest who had scanned back behind
+ * the gate -- worse than starting them fresh.
  */
-export const SESSION_STORAGE_KEY = 'cabana.guest-session.v3';
+export const SESSION_STORAGE_KEY = 'cabana.guest-session.v4';
 
 /**
  * Every entry point is wrapped, because `localStorage` is not merely absent on
@@ -59,6 +62,7 @@ function isStoredSession(value: unknown): value is GuestSession {
     && Array.isArray(value.bookings)
     && Array.isArray(value.serviceBookings)
     && Array.isArray(value.additionalGuests)
+    && Array.isArray(value.reviews)
     && isObject(value.roomPreferences)
     && Array.isArray((value.roomPreferences as Record<string, unknown>).accessibility)
   );

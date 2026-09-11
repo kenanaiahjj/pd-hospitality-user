@@ -50,6 +50,7 @@ const sessionFor = (
     accessibility: [],
   },
   additionalGuests: ['Marco Santos'],
+  reviews: [],
   ...overrides,
 });
 

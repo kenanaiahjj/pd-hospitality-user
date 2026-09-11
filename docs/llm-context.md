@@ -164,8 +164,18 @@ evidence that the requested app is covered.
 - The account gate offers one `Get started` action. It opens an accessible SSO
   bottom sheet; Apple and Google both lead directly to the booking lookup
   form, which asks for a reference number and last name.
-- Room QR is an arrived-stay action on the active Home. It is not an account
-  or pre-arrival choice.
+- Signing in lands on Home, never on a bare lookup form. Home carries the
+  greeting, `Add a booking`, the room scan, and the guest's recent stays.
+- Stay history is `session.pastStays`, not a global. A new account has none;
+  `PAST_STAYS` is the seed for the demo profile only.
+- Home shows at most three recent stays and links to `stay-history` for the
+  full list. Do not duplicate the full list on Home.
+- Scanning opens the `scan-room-code` viewfinder, which auto-detects after
+  `SCAN_DETECT_MS` and carries a marked prototype trigger. Room QR is an
+  arrived-stay action on the active Home, promoted to the primary action while
+  the stay is unverified. It is not a pre-arrival choice.
+- The prototype controls panel grows with every feature that has a state worth
+  reaching directly. Add a row rather than making a tester replay a journey.
 - On-property booking and charge-to-room are gated on
   `canUseOnPropertyServices`, never on dates alone. Do not re-derive the gate
   at a call site.

@@ -6,11 +6,11 @@
 
 | | |
 |---|---|
-| **Status** | `In Review` |
+| **Status** | `Approved` |
 | **Created** | 2026-09-11 |
 | **Updated** | 2026-09-11 |
 | **Owner** | Kenanaiah Jo |
-| **Plan** | `docs/superpowers/plans/YYYY-MM-DD-<feature>.md` (once written) |
+| **Plan** | `docs/superpowers/plans/2026-09-11-guest-lifecycle-gates.md` |
 | **Supersedes** | `n/a` |
 | **Superseded by** | `n/a` |
 

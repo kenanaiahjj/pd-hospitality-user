@@ -57,6 +57,12 @@ weight 700 and -0.022em, 17px section titles, 15px body, 13–14px supporting te
 Headings balance, prose wraps pretty, and any number that can change is set in
 tabular figures so rows never shift.
 
+An eyebrow above a screen title is not decoration and not a category label. It
+earns its place only by carrying what the title cannot — which property, which
+room, which step of how many, how long until a cutoff. A label that restates
+the heading in other words is a second heading the eye has to read and discard,
+so most screens have none.
+
 ## Layout
 
 One mobile reading column, capped at 480px and centred on wider screens. The

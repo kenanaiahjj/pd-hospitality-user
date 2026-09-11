@@ -43,6 +43,7 @@ import {
   UserCircle,
   Users,
   Van,
+  Wrench,
   WifiHigh,
   WifiSlash,
   X,
@@ -3385,11 +3386,43 @@ function PrototypeControls({
   online: boolean;
   onSimulateRoomReady: () => void;
 }) {
+  /*
+    Collapsed by default. This is scaffolding, not part of the product, and as
+    an always-open panel it sat on top of whatever the screen had docked above
+    the tab bar -- the front desk bar on My Stay, the travel CTA, the dining
+    mini cart. A demo should show the app, not the rig it runs on.
+  */
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        className="guest-prototype-trigger"
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-expanded={false}
+        aria-label="Open prototype controls"
+      >
+        <Wrench aria-hidden="true" />
+      </button>
+    );
+  }
+
   return (
     <aside className="guest-prototype-toolbar" role="region" aria-label="Prototype controls">
-      <div>
-        <span>Prototype controls</span>
-        <small>{online ? 'Assigned room · PMS event available' : 'Reconnect to receive a new PMS event.'}</small>
+      <div className="guest-prototype-toolbar__head">
+        <div>
+          <span>Prototype controls</span>
+          <small>{online ? 'Assigned room · PMS event available' : 'Reconnect to receive a new PMS event.'}</small>
+        </div>
+        <button
+          className="guest-prototype-toolbar__close"
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Close prototype controls"
+        >
+          <X aria-hidden="true" />
+        </button>
       </div>
       <button type="button" onClick={onSimulateRoomReady} disabled={!online}>
         <BellRinging aria-hidden="true" />

@@ -742,12 +742,33 @@ describe('room assignment through the flow', () => {
 });
 
 describe('room-ready notification', () => {
+  it('keeps the rig out of the way until it is asked for', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
+
+    // Open, it sat on top of whatever the screen docked above the tab bar.
+    expect(screen.queryByRole('region', { name: 'Prototype controls' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open prototype controls' })).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    expect(screen.getByRole('region', { name: 'Prototype controls' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+    expect(screen.queryByRole('region', { name: 'Prototype controls' })).toBeNull();
+  });
+
+  /** The prototype rig is collapsed by default; open it before driving it. */
+  const openPrototypeControls = () => {
+    const trigger = screen.queryByRole('button', { name: 'Open prototype controls' });
+    if (trigger) fireEvent.click(trigger);
+  };
+
   it('simulates a room-ready push outside the guest app and opens the updated stay', async () => {
     const user = userEvent.setup();
     const { container } = render(
       <GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />,
     );
 
+    openPrototypeControls();
     const toolbar = screen.getByRole('region', { name: 'Prototype controls' });
     expect(container.querySelector('.guest-app')?.contains(toolbar)).toBe(false);
 
@@ -756,6 +777,7 @@ describe('room-ready notification', () => {
     const notification = screen.getByRole('region', { name: 'Room-ready notification' });
     expect(within(notification).getByText('Room 512 is ready')).toBeInTheDocument();
     expect(within(notification).getByText('Released at 2:15 PM. Go straight up.')).toBeInTheDocument();
+    openPrototypeControls();
     expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
 
     await user.click(within(notification).getByRole('button', { name: 'View stay' }));
@@ -778,6 +800,7 @@ describe('room-ready notification', () => {
       />,
     );
 
+    openPrototypeControls();
     expect(screen.getByRole('button', { name: 'Simulate room ready' })).toBeDisabled();
     expect(screen.getByText('Reconnect to receive a new PMS event.')).toBeInTheDocument();
   });
@@ -799,6 +822,7 @@ describe('room-ready notification', () => {
 
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={legacy} />);
 
+    openPrototypeControls();
     expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
     expect(screen.getByText(/does not report room readiness/i)).toBeInTheDocument();
   });
@@ -816,6 +840,7 @@ describe('room-ready notification', () => {
       />,
     );
 
+    openPrototypeControls();
     expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
   });
 
@@ -823,7 +848,9 @@ describe('room-ready notification', () => {
     vi.useFakeTimers();
     try {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
+    openPrototypeControls();
+      openPrototypeControls();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
 
       expect(screen.getByRole('region', { name: 'Room-ready notification' })).toBeInTheDocument();
       act(() => vi.advanceTimersByTime(8_000));
@@ -837,6 +864,7 @@ describe('room-ready notification', () => {
 
   it('dismisses the push on request without reverting the room', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
+    openPrototypeControls();
     fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
@@ -849,7 +877,9 @@ describe('room-ready notification', () => {
     vi.useFakeTimers();
     try {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
+    openPrototypeControls();
+      openPrototypeControls();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
 
       const notification = screen.getByRole('region', { name: 'Room-ready notification' });
       const viewStay = within(notification).getByRole('button', { name: 'View stay' });

@@ -5,6 +5,14 @@
    ========================================================================== */
 
 .guest-prototype-stage {
+  /*
+    The tab bar's height, shared by everything that sits on top of it -- the
+    docked bars and the mini cart inside the device, and the prototype toolbar
+    beside it. Declared here because that is the nearest ancestor of all of
+    them.
+  */
+  --guest-nav-h: 64px;
+
   min-height: 100dvh;
   background: var(--ds-background);
   color: var(--ds-ink);
@@ -26,6 +34,59 @@
   background: oklch(1 0 0 / 0.96);
   box-shadow: var(--shadow-sm);
   font-family: inherit;
+}
+
+.guest-prototype-toolbar__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+.guest-prototype-toolbar__head > div { display: grid; gap: 2px; min-width: 0; }
+
+/* Overrides the panel's own dark pill button: this closes the rig, it is not
+   an action in it. */
+.guest-prototype-toolbar__close {
+  display: grid;
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--ds-surface);
+  color: var(--ds-ink-muted);
+}
+.guest-prototype-toolbar__close svg { width: 15px; height: 15px; }
+
+/*
+   The collapsed state: a single dev affordance small enough to sit in a corner
+   without covering the interface it is there to exercise.
+*/
+.guest-prototype-trigger {
+  position: fixed;
+  right: 12px;
+  bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 94px);
+  z-index: 40;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  border: 1px dashed var(--ds-line-strong);
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.96);
+  color: var(--ds-ink-muted);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out), color var(--duration-fast) ease;
+}
+.guest-prototype-trigger svg { width: 18px; height: 18px; }
+.guest-prototype-trigger:active { transform: scale(0.94); }
+.guest-prototype-trigger:focus-visible { outline: 2px solid var(--ds-pink-strong); outline-offset: 2px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-prototype-trigger:hover { color: var(--ds-ink); }
 }
 
 .guest-prototype-toolbar > div { display: grid; gap: 2px; }
@@ -231,14 +292,6 @@
    -------------------------------------------------------------------------- */
 
 .guest-device {
-  /*
-    The tab bar's height, shared with everything that has to sit on top of it.
-    The dock and the mini cart both hardcoded 72px against a bar that measures
-    64, so a 7px strip of scrolling content showed between them and the nav.
-    One number, referenced by all three.
-  */
-  --guest-nav-h: 64px;
-
   display: flex;
   height: 100svh;
   min-height: 560px;

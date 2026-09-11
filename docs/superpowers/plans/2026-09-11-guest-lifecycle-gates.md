@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Progress` |
+| **Status** | `Complete` |
 | **Created** | 2026-09-11 |
 | **Updated** | 2026-09-11 |
 | **Owner** | Kenanaiah Jo |
@@ -30,12 +30,12 @@ a request the desk grants; no guest control writes the fact.
 
 | # | Task | Status | Started | Completed | Commit |
 |---|---|---|---|---|---|
-| 1 | Model: gate vocabulary, predicates, fixtures | ⬜ Not started | — | — | — |
-| 2 | Session storage v4 | ⬜ Not started | — | — | — |
-| 3 | Tab slot + Arrival surface + locked Explore | ⬜ Not started | — | — | — |
-| 4 | Scan, desk request, and the gate at every call site | ⬜ Not started | — | — | — |
-| 5 | Post-stay: 24-hour desk window, summary, review | ⬜ Not started | — | — | — |
-| 6 | Switcher states, DESIGN.md, docs, full verification | ⬜ Not started | — | — | — |
+| 1 | Model: gate vocabulary, predicates, fixtures| ✅ Complete | 2026-09-11 | 2026-09-11 | see branch |
+| 2 | Session storage v4| ✅ Complete | 2026-09-11 | 2026-09-11 | see branch |
+| 3 | Tab slot + Arrival surface + locked Explore| ✅ Complete | 2026-09-11 | 2026-09-11 | see branch |
+| 4 | Scan, desk request, and the gate at every call site| ✅ Complete | 2026-09-11 | 2026-09-11 | see branch |
+| 5 | Post-stay: 24-hour desk window, summary, review| ✅ Complete | 2026-09-11 | 2026-09-11 | see branch |
+| 6 | Switcher states, DESIGN.md, docs, full verification| ✅ Complete | 2026-09-11 | 2026-09-11 | see branch |
 
 Legend: ⬜ Not started · 🔄 In progress · 🔁 Fix round *R*/5 · ✅ Complete · ⛔ Blocked · ⏭️ Descoped
 
@@ -91,90 +91,90 @@ Copied verbatim from the spec's Global Constraints.
 
 ## Task 1: Model — gate vocabulary, predicates, fixtures
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 **Produces:** `GuestGate`, `RoomVerification`, `UnlockRequest`, `BookingSlot`,
 `StayReview`, `describeGuestGate`, `canUseOnPropertyServices`,
 `verifyRoomPresence`, `requestFrontDeskUnlock`, `describeBookingSlot`,
 `PRE_ARRIVAL_SERVICE_IDS`, `isPreArrivalService`, `describePostStayWindow`.
 
-- [ ] Write model tests 1–7 from the spec; run and watch them fail.
-- [ ] Add `roomVerification?` and `checkedOutAt?` to `Booking`; `reviews` and
+- [x] Write model tests 1–7 from the spec; run and watch them fail.
+- [x] Add `roomVerification?` and `checkedOutAt?` to `Booking`; `reviews` and
       `unlockRequest?` to `GuestSession`; `pre-arrival-services` to `ScreenId`
       as screen 52.
-- [ ] Implement the predicates. `canUseOnPropertyServices` =
+- [x] Implement the predicates. `canUseOnPropertyServices` =
       `isStayUnderWay && roomNumber && roomVerification`.
-- [ ] `verifyRoomPresence` maps only the named booking — the two-property test
+- [x] `verifyRoomPresence` maps only the named booking — the two-property test
       is the one that matters.
-- [ ] `requestFrontDeskUnlock` sets `unlockRequest` and nothing else.
-- [ ] Run tests: PASS.
+- [x] `requestFrontDeskUnlock` sets `unlockRequest` and nothing else.
+- [x] Run tests: PASS.
 
 ## Task 2: Session storage v4
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
-- [ ] Bump `SESSION_STORAGE_KEY` to `cabana.guest-session.v4` with a version
+- [x] Bump `SESSION_STORAGE_KEY` to `cabana.guest-session.v4` with a version
       note saying why (gates add facts older records cannot carry).
-- [ ] `isStoredSession` gains an `Array.isArray(value.reviews)` check, matching
+- [x] `isStoredSession` gains an `Array.isArray(value.reviews)` check, matching
       its existing "guard the collections we map over" contract.
-- [ ] Update `session-storage.test.ts`; run.
+- [x] Update `session-storage.test.ts`; run.
 
 ## Task 3: Tab slot, Arrival surface, locked Explore
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 **Consumes:** `describeBookingSlot`, `PRE_ARRIVAL_SERVICE_IDS`.
 
-- [ ] Write component tests 10 and 8 (slot label per gate; blocked copy).
-- [ ] Tab bar slot two reads `describeBookingSlot` for label, destination and
+- [x] Write component tests 10 and 8 (slot label per gate; blocked copy).
+- [x] Tab bar slot two reads `describeBookingSlot` for label, destination and
       icon (Compass for Explore, a Car/Suitcase for Arrival, Plus for Book
       again).
-- [ ] New `pre-arrival-services` screen: the four roster mini-apps plus an
+- [x] New `pre-arrival-services` screen: the four roster mini-apps plus an
       early check-in row, each stating card payment.
-- [ ] `marketplace` gains a locked branch when `slot.locked`: the scan as
+- [x] `marketplace` gains a locked branch when `slot.locked`: the scan as
       primary action, "Can't scan?" as the secondary.
-- [ ] Run tests: PASS.
+- [x] Run tests: PASS.
 
 ## Task 4: The gate at every call site
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
-- [ ] Write component tests 9, 11, 12.
-- [ ] Replace the two ad-hoc checks in `openServiceBooking` and
+- [x] Write component tests 9, 11, 12.
+- [x] Replace the two ad-hoc checks in `openServiceBooking` and
       `confirmService` with `canUseOnPropertyServices`, plus
       `isPreArrivalService` for the pre-arrival exception.
-- [ ] Widen `bookingBlockedReason` to the five reasons; write the two new
+- [x] Widen `bookingBlockedReason` to the five reasons; write the two new
       screens.
-- [ ] `room-qr-landing` scan calls `verifyRoomPresence(… 'scan')`.
-- [ ] "Can't scan?" calls `requestFrontDeskUnlock` and opens chat with the
+- [x] `room-qr-landing` scan calls `verifyRoomPresence(… 'scan')`.
+- [x] "Can't scan?" calls `requestFrontDeskUnlock` and opens chat with the
       request seeded; the scripted desk reply grants it.
-- [ ] Chat reachable pre-arrival: add `chat` to the pre-arrival surfaces.
-- [ ] Dining order and charge-to-room read the same predicate.
-- [ ] Run tests: PASS.
+- [x] Chat reachable pre-arrival: add `chat` to the pre-arrival surfaces.
+- [x] Dining order and charge-to-room read the same predicate.
+- [x] Run tests: PASS.
 
 ## Task 5: Post-stay — 24-hour window, summary, review
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
-- [ ] Write component test 14 and model test 5.
-- [ ] `checkedOutAt` on the finished fixture; `describePostStayWindow` renders
+- [x] Write component test 14 and model test 5.
+- [x] `checkedOutAt` on the finished fixture; `describePostStayWindow` renders
       the remaining-hours label.
-- [ ] Within the window: existing settled summary plus an open thread.
-- [ ] Outside it: summary of all activities and charges, plus a stay-level
+- [x] Within the window: existing settled summary plus an open thread.
+- [x] Outside it: summary of all activities and charges, plus a stay-level
       review (1–5 plus comment) writing to `session.reviews`. No composer.
-- [ ] Run tests: PASS.
+- [x] Run tests: PASS.
 
 ## Task 6: Switcher, docs, full verification
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
-- [ ] `PrototypeStayState` gains `arrived-unverified`; `finished` splits into
+- [x] `PrototypeStayState` gains `arrived-unverified`; `finished` splits into
       `just-checked-out` and `closed`. Six rows in `PROTOTYPE_STAY_STATES`.
-- [ ] `getPrototypeStayState` resolves all six.
-- [ ] DESIGN.md: describe the four slots by the question each answers; fix the
+- [x] `getPrototypeStayState` resolves all six.
+- [x] DESIGN.md: describe the four slots by the question each answers; fix the
       existing "My Trip" / "My Stay" drift.
-- [ ] `docs/llm-context.md`: the four gates.
-- [ ] Run the full gate: `npm run typecheck && npm run lint && npm run build && npm test`.
+- [x] `docs/llm-context.md`: the four gates.
+- [x] Run the full gate: `npm run typecheck && npm run lint && npm run build && npm test`.
 
 ---
 

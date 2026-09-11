@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { MOCK_SESSION } from './prototype-model';
+import { MOCK_SESSION, verifyRoomPresence } from './prototype-model';
 import {
   SESSION_STORAGE_KEY,
   clearStoredSession,
@@ -55,6 +55,27 @@ describe('session storage', () => {
     );
 
     expect(readStoredSession()).toBeUndefined();
+  });
+
+  it('discards a v3 record, which carries no reviews collection', () => {
+    // The shape v4 exists for: a record written before lifecycle gates has no
+    // `reviews` to map over, and restoring one would also drop a guest who
+    // had already scanned back behind the gate.
+    const v3Shape: Record<string, unknown> = { ...MOCK_SESSION };
+    delete v3Shape.reviews;
+    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(v3Shape));
+
+    expect(readStoredSession()).toBeUndefined();
+  });
+
+  it('round-trips a room verification, so an unlock survives a reload', () => {
+    const scanned = verifyRoomPresence(MOCK_SESSION, 'HEN-241109', 'scan', '2026-11-11');
+    writeStoredSession(scanned);
+
+    const restored = readStoredSession();
+
+    expect(restored?.bookings.find((booking) => booking.id === 'HEN-241109')?.roomVerification)
+      .toEqual({ method: 'scan', at: '2026-11-11' });
   });
 
   it('discards a record whose auth state is not one the app branches on', () => {

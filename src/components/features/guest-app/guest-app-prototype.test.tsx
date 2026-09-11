@@ -50,15 +50,24 @@ const sessionFor = (
     accessibility: [],
   },
   additionalGuests: ['Marco Santos'],
+  reviews: [],
   ...overrides,
 });
 
+/*
+  A guest mid-stay who has scanned. The verification is not decoration: since
+  lifecycle gates, dates and a room number alone do not open on-property
+  services, and every test below that books, orders or charges depends on the
+  guest having proved they are in the room. The unverified variant lives in
+  the `lifecycle gates` block, which is where that state is the subject.
+*/
 const activeSession = sessionFor(
   [
     makeBooking({
       id: 'active',
       status: 'active',
       roomNumber: '304',
+      roomVerification: { method: 'scan', at: '2026-11-11' },
       folioTotal: '₱3,050',
     }),
   ],
@@ -365,7 +374,9 @@ describe('GuestAppPrototype', () => {
 
     await user.click(screen.getByRole('button', { name: /Room QR/ }));
 
-    expect(screen.getByRole('heading', { name: 'Let’s link this room to you' })).toBeInTheDocument();
+    // A guest who already holds this booking is only proving they are in the
+    // room; asking for their surname again would be a form for its own sake.
+    expect(screen.getByRole('heading', { name: 'Confirm you’re in the room' })).toBeInTheDocument();
   });
 
   it('shows room settlement and confirms a service without a payment method', async () => {
@@ -376,6 +387,7 @@ describe('GuestAppPrototype', () => {
       city: 'Cebu',
       status: 'active',
       roomNumber: '512',
+      roomVerification: { method: 'scan', at: '2026-11-11' },
       folioTotal: '₱3,050',
     });
     render(
@@ -497,7 +509,7 @@ describe('GuestAppPrototype', () => {
   });
 
   it('navigates from home to the explore catalogue', () => {
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Explore' }));
     expect(screen.getByRole('heading', { name: 'Explore', level: 1 })).toBeInTheDocument();
@@ -548,7 +560,7 @@ describe('GuestAppPrototype', () => {
   });
 
   it('renders a contextual spa image with a resilient fallback', () => {
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Explore' }));
     const image = screen.getByRole('img', { name: /spa treatment/i });
@@ -1172,7 +1184,15 @@ describe('folio accumulation', () => {
     serviceBookings: MOCK_SESSION.serviceBookings.filter((service) => service.id !== 'service-hilom-1'),
     folioTotal: '₱12,730',
     bookings: MOCK_SESSION.bookings.map((booking, index) =>
-      index === 0 ? { ...booking, roomNumber: '512', roomAssignment: 'assigned' as const } : booking),
+      index === 0
+        ? {
+            ...booking,
+            roomNumber: '512',
+            roomAssignment: 'assigned' as const,
+            // Booking anything on property means the guest is in the room.
+            roomVerification: { method: 'scan' as const, at: '2026-11-11' },
+          }
+        : booking),
   };
 
   const bookMassage = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -1936,7 +1956,7 @@ describe('finished-stay prototype switch', () => {
   it('switches a live stay into its finished state', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    switchTo('Finished stay');
+    switchTo('Stay closed');
 
     expect(screen.getByTestId('guest-home-completed')).toBeInTheDocument();
     expect(screen.getByText(/settled at checkout/i)).toBeInTheDocument();
@@ -1948,18 +1968,37 @@ describe('finished-stay prototype switch', () => {
   */
   it('closes room charging on a finished stay', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+    /*
+      Straight to the service. Since lifecycle gates the second tab reads
+      `Book again` on a finished stay, so the catalogue is deliberately no
+      longer one tap away -- but the charge itself still has to refuse, and
+      that is what this covers.
+    */
+    // The switcher always lands on Home, so the finished session is handed in
+    // directly rather than switched into from a service screen.
+    render(
+      <GuestAppPrototype
+        initialScreen="vendor-service"
+        initialSession={applyPrototypeStayState('closed')}
+      />,
+    );
 
-    switchTo('Finished stay');
-
-    await user.click(screen.getByRole('button', { name: 'Explore' }));
-    await user.click(screen.getByRole('button', { name: 'Spa & Wellness' }));
-    await user.click(screen.getAllByRole('button', { name: /Hilom signature massage/ })[0]!);
     await user.click(screen.getByRole('button', { name: /Choose a time/ }));
 
     expect(screen.getByRole('heading', { name: 'This stay is settled' })).toBeInTheDocument();
     // It must not claim the stay is still ahead of the guest.
     expect(screen.queryByText(/open when you check in/i)).toBeNull();
+  });
+
+  it('replaces the catalogue tab with rebooking once the stay is over', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    switchTo('Stay closed');
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    await user.click(within(nav).getAllByRole('button')[1]);
+
+    expect(screen.getByRole('heading', { name: 'Where to next?' })).toBeInTheDocument();
   });
 
   it('reports the state it is actually in', () => {
@@ -1976,7 +2015,7 @@ describe('finished-stay prototype switch', () => {
 
 
 describe('a finished stay on My Stay', () => {
-  const finished = applyPrototypeStayState('finished');
+  const finished = applyPrototypeStayState('closed');
 
   it('reads as a settled receipt, not a running total', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
@@ -2000,10 +2039,17 @@ describe('a finished stay on My Stay', () => {
     expect(screen.getByText('Total settled')).toBeInTheDocument();
   });
 
-  it('leads with booking another stay and keeps the front desk reachable', () => {
+  it('leads with booking another stay', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
 
     expect(screen.getByRole('button', { name: /Book another stay/ })).toBeInTheDocument();
+  });
+
+  it('keeps the front desk reachable for the 24 hours after checkout', () => {
+    // Reachability is now a property of the window, not of being checked out:
+    // `finished` above is a stay whose desk window has already closed.
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('just-checked-out')} />);
+
     expect(screen.getByRole('button', { name: 'Message the front desk' })).toBeInTheDocument();
   });
 
@@ -2023,7 +2069,7 @@ describe('a finished stay on My Stay', () => {
 });
 
 describe('booking another stay', () => {
-  const finished = applyPrototypeStayState('finished');
+  const finished = applyPrototypeStayState('closed');
 
   it('offers the estate, priced from its cheapest room', async () => {
     render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
@@ -2091,5 +2137,226 @@ describe('booking another stay', () => {
 
     expect(screen.getByRole('button', { name: /Pay ₱18,816/ })).toBeDisabled();
     expect(screen.getByText(/Booking needs a connection/)).toBeInTheDocument();
+  });
+});
+
+/* --------------------------------------------------------------------------
+   Lifecycle gates
+   -------------------------------------------------------------------------- */
+
+describe('lifecycle gates', () => {
+  const arrivedUnverified = sessionFor(
+    [makeBooking({ id: 'live', status: 'active', roomNumber: '304', roomAssignment: 'ready' })],
+    { activeBookingId: 'live' },
+  );
+
+  const verified = sessionFor(
+    [makeBooking({
+      id: 'live',
+      status: 'active',
+      roomNumber: '304',
+      roomAssignment: 'ready',
+      roomVerification: { method: 'scan', at: '2026-11-11' },
+    })],
+    { activeBookingId: 'live' },
+  );
+
+  const beforeArrival = sessionFor(
+    [makeBooking({ id: 'soon', checkIn: '2026-11-20', checkOut: '2026-11-23' })],
+    { activeBookingId: 'soon' },
+  );
+
+  const settled = sessionFor(
+    [makeBooking({
+      id: 'done',
+      status: 'completed',
+      checkIn: '2026-11-02',
+      checkOut: '2026-11-05',
+      roomNumber: '304',
+    })],
+    { activeBookingId: 'done' },
+  );
+
+  const secondTab = () =>
+    within(screen.getByRole('navigation', { name: 'Primary navigation' }))
+      .getAllByRole('button')[1];
+
+  it('names the second tab for the gate the guest is in', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
+    expect(secondTab()).toHaveAccessibleName('Arrival');
+    cleanup();
+
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+    expect(secondTab()).toHaveAccessibleName('Explore');
+    cleanup();
+
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={settled} />);
+    expect(secondTab()).toHaveAccessibleName('Book again');
+  });
+
+  it('keeps four destinations in the bar in every gate', () => {
+    for (const session of [beforeArrival, arrivedUnverified, verified, settled]) {
+      render(<GuestAppPrototype initialScreen="stay-overview" initialSession={session} />);
+      const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+      expect(within(nav).getAllByRole('button')).toHaveLength(4);
+      cleanup();
+    }
+  });
+
+  it('offers arrival services before the stay opens, settling by card', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
+
+    await user.click(secondTab());
+
+    expect(screen.getByRole('heading', { name: 'Arrange your arrival' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Airport transfer/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Private car & driver/ })).toBeInTheDocument();
+    // The gate's whole point: nothing here can reach a room that has no guest in it.
+    expect(screen.queryByText(/Charge to room/i)).toBeNull();
+    expect(screen.getAllByText(/Paid by card/i).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Hilom signature massage/ })).toBeNull();
+  });
+
+  it('locks the catalogue for a guest who has arrived and not scanned', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+
+    await user.click(secondTab());
+
+    expect(screen.getByRole('heading', { name: 'Scan the code in your room' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Scan room code/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /I can.{1,3}t scan/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Categories' })).toBeNull();
+  });
+
+  it('opens the catalogue once the room is scanned', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+
+    await user.click(secondTab());
+
+    expect(screen.getByRole('heading', { name: 'Explore' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Scan the code in your room' })).toBeNull();
+  });
+
+  it('opens the catalogue by scanning, and says so without claiming a check-in', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+
+    await user.click(secondTab());
+    await user.click(screen.getByRole('button', { name: /Scan room code/ }));
+    await user.click(screen.getByRole('button', { name: /^Scan the code$/ }));
+
+    // The app confirms presence. It never says it checked anyone in -- the
+    // front desk does that, against the property's own PMS.
+    expect(screen.getByRole('heading', { name: 'Your room is linked' })).toBeInTheDocument();
+    expect(screen.queryByText(/you.{0,3}re checked in/i)).toBeNull();
+
+    await user.click(secondTab());
+    expect(screen.getByRole('heading', { name: 'Explore' })).toBeInTheDocument();
+  });
+
+  it("files a desk request for 'I can't scan' and unlocks nothing until the desk answers", async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+
+    await user.click(secondTab());
+    await user.click(screen.getByRole('button', { name: /I can.{1,3}t scan/ }));
+
+    // Lands in the thread with the request stated, and the catalogue stays shut.
+    expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
+    expect(screen.getByText(/can't scan the code in room 304/i)).toBeInTheDocument();
+
+    await user.click(secondTab());
+    expect(screen.getByRole('heading', { name: 'The front desk has your request' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Categories' })).toBeNull();
+  });
+
+  it('opens the catalogue when the front desk grants the request', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+
+    await user.click(secondTab());
+    await user.click(screen.getByRole('button', { name: /I can.{1,3}t scan/ }));
+    await user.click(screen.getByRole('button', { name: /Confirm .* in room 304/i }));
+
+    await user.click(secondTab());
+    expect(screen.getByRole('heading', { name: 'Explore' })).toBeInTheDocument();
+  });
+
+  it('reaches the front desk before arrival', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
+
+    await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getAllByRole('button')[2]);
+    await user.click(screen.getByTestId('guest-front-desk-action'));
+
+    expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
+  });
+});
+
+describe('post-stay front desk window', () => {
+  const justCheckedOut = applyPrototypeStayState('just-checked-out');
+  const closed = applyPrototypeStayState('closed');
+
+  it('keeps the desk reachable for 24 hours, and says how long is left', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={justCheckedOut} />);
+
+    expect(screen.getByText(/Front desk open for another \d+ hours?/)).toBeInTheDocument();
+    expect(screen.getByTestId('guest-front-desk-action')).toBeInTheDocument();
+  });
+
+  it('closes the desk once the window is over and offers a review instead', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
+
+    expect(screen.queryByTestId('guest-front-desk-action')).toBeNull();
+    expect(screen.getByText('Front desk chat closed')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rate your stay' })).toBeInTheDocument();
+  });
+
+  it('still shows every activity and charge after the desk closes', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
+
+    // The receipt is the point of the screen once the conversation is over.
+    expect(screen.getByText('This stay')).toBeInTheDocument();
+    expect(screen.getByText(/King room · 3 nights/)).toBeInTheDocument();
+    expect(screen.getByText('Spa & wellness')).toBeInTheDocument();
+  });
+
+  it('takes a stay-level rating and keeps it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
+
+    await user.click(screen.getByRole('button', { name: 'Rate your stay' }));
+    await user.click(screen.getByRole('radio', { name: '4 stars' }));
+    await user.type(screen.getByLabelText(/Anything you.{1,3}d like the property to know/), 'Lovely room, slow breakfast.');
+    await user.click(screen.getByRole('button', { name: 'Send to the property' }));
+
+    expect(screen.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
+    // Private to the property: nothing here publishes or scores a listing.
+    expect(screen.getByText(/only the property sees this/i)).toBeInTheDocument();
+  });
+
+  it('does not ask twice once a stay has been rated', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
+
+    await user.click(screen.getByRole('button', { name: 'Rate your stay' }));
+    await user.click(screen.getByRole('radio', { name: '5 stars' }));
+    await user.click(screen.getByRole('button', { name: 'Send to the property' }));
+    await user.click(screen.getByRole('button', { name: /Back to my stay/ }));
+
+    expect(screen.queryByRole('button', { name: 'Rate your stay' })).toBeNull();
+    expect(screen.getByText(/You rated this stay 5/)).toBeInTheDocument();
+  });
+});
+
+describe('checked-out My Stay copy', () => {
+  it('does not invite a checked-out guest to charge to a room they have left', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('closed')} />);
+
+    expect(screen.queryByText(/settle at checkout\.$/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Explore on-property/ })).toBeNull();
   });
 });

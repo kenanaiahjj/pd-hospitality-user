@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canUseOnPropertyServices,
+  verifyRoomPresence,
+  requestFrontDeskUnlock,
+  describeGuestGate,
+  describeBookingSlot,
+  isPreArrivalService,
+  PRE_ARRIVAL_SERVICE_IDS,
+  describePostStayWindow,
   describeRoomAssignment,
   ANONYMOUS_SESSION,
   CHECK_IN_FROM,
@@ -53,7 +61,7 @@ import {
   ssoSession,
   signOutSession,
 } from './prototype-model';
-import type { Booking } from './prototype-model';
+import type { Booking, RoomVerification } from './prototype-model';
 import {
   getHomeVariant,
   getPrimaryBooking,
@@ -61,8 +69,10 @@ import {
 
 describe('guest app prototype model', () => {
   it('contains the complete stay-only screen inventory', () => {
-    expect(SCREENS).toHaveLength(49);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(49);
+    expect(SCREENS).toHaveLength(52);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(52);
+    // The Arrival surface: what a guest can book before they are in the room.
+    expect(SCREENS.find((s) => s.id === 'pre-arrival-services')?.group).toBe('Pre-arrival');
     // Get started is the welcome-screen trigger and SSO bottom sheet, not a
     // navigable page in the guest app.
     expect(SCREENS.some((screen) => (screen.id as string) === 'get-started')).toBe(false);
@@ -1001,7 +1011,7 @@ describe('profile lookup and re-entry', () => {
 
 
 describe('prototype stay-state switch', () => {
-  const states = ['signed-out', 'pre-arrival', 'live', 'finished'] as const;
+  const states = ['signed-out', 'pre-arrival', 'arrived-unverified', 'live', 'just-checked-out', 'closed'] as const;
 
   it('round-trips every state it can build', () => {
     for (const state of states) {
@@ -1033,7 +1043,7 @@ describe('prototype stay-state switch', () => {
     has left is closed, while the stay itself stays readable.
   */
   it('closes the live surface on a finished stay', () => {
-    const session = applyPrototypeStayState('finished');
+    const session = applyPrototypeStayState('closed');
     const booking = session.bookings[0]!;
 
     expect(isStayUnderWay(booking)).toBe(false);
@@ -1043,7 +1053,7 @@ describe('prototype stay-state switch', () => {
   });
 
   it('keeps a finished stay legible rather than hiding it', () => {
-    const session = applyPrototypeStayState('finished');
+    const session = applyPrototypeStayState('closed');
 
     expect(getHomeVariant(session.bookings)).toBe('completed');
     expect(session.bookings[0]!.property).toBe('The Henry Manila');
@@ -1123,7 +1133,7 @@ describe('the estate and booking another stay', () => {
       guests: 2,
       guestName: 'Ana Santos',
     });
-    const session = addStayBooking(applyPrototypeStayState('finished'), booking);
+    const session = addStayBooking(applyPrototypeStayState('closed'), booking);
 
     expect(session.activeBookingId).toBe(booking.id);
     expect(getPrimaryBooking(session.bookings, session.activeBookingId)?.id).toBe(booking.id);
@@ -1131,7 +1141,7 @@ describe('the estate and booking another stay', () => {
 });
 
 describe('a finished stay read as a receipt', () => {
-  const session = applyPrototypeStayState('finished');
+  const session = applyPrototypeStayState('closed');
   const booking = session.bookings[0]!;
 
   it('counts the room itself, not only what was charged against it', () => {
@@ -1193,5 +1203,198 @@ describe('a finished stay read as a receipt', () => {
 
     expect(summary.groups.map((group) => group.category)).toContain('Hotel services');
     expect(summary.extras).toBe('₱14,550');
+  });
+});
+
+/* --------------------------------------------------------------------------
+   Lifecycle gates
+
+   Four gates -- entry, pre-arrival, in-stay, post-stay -- and one fact that
+   opens the third: the guest proved to the property that they are in the room.
+   -------------------------------------------------------------------------- */
+
+const liveBooking = (overrides: Partial<Booking> = {}): Booking => ({
+  ...UPCOMING_BOOKING_FIXTURE,
+  status: 'active',
+  roomNumber: '304',
+  roomAssignment: 'ready',
+  ...overrides,
+});
+
+const verification: RoomVerification = { method: 'scan', at: '2026-11-11' };
+
+describe('canUseOnPropertyServices', () => {
+  it('is false for a live stay nobody has verified', () => {
+    expect(canUseOnPropertyServices(liveBooking())).toBe(false);
+  });
+
+  it('is true once presence is recorded', () => {
+    expect(canUseOnPropertyServices(liveBooking({ roomVerification: verification }))).toBe(true);
+  });
+
+  it('is false again once the stay completes', () => {
+    const done = liveBooking({ roomVerification: verification, status: 'completed' });
+    expect(canUseOnPropertyServices(done)).toBe(false);
+  });
+
+  it('is false before the stay window opens, verified or not', () => {
+    const early = { ...UPCOMING_BOOKING_FIXTURE, roomNumber: '304', roomVerification: verification };
+    expect(canUseOnPropertyServices(early, '2026-11-01')).toBe(false);
+  });
+});
+
+describe('verifyRoomPresence', () => {
+  it('marks only the booking that was scanned', () => {
+    /*
+      The failure this exists to catch: a session-level flag would let a scan
+      in Manila unlock room charging against a Cebu room the guest has never
+      seen. MOCK_SESSION carries both.
+    */
+    const session = {
+      ...MOCK_SESSION,
+      bookings: MOCK_SESSION.bookings.map((booking) => ({ ...booking, status: 'active' as const, roomNumber: '304' })),
+    };
+    const next = verifyRoomPresence(session, 'HEN-241109', 'scan', '2026-11-11');
+
+    const manila = next.bookings.find((booking) => booking.id === 'HEN-241109');
+    const cebu = next.bookings.find((booking) => booking.id === 'HEN-CEBU-240615');
+
+    expect(manila?.roomVerification?.method).toBe('scan');
+    expect(cebu?.roomVerification).toBeUndefined();
+  });
+
+  it('clears any pending unlock request once presence is proven', () => {
+    const requested = requestFrontDeskUnlock(MOCK_SESSION, 'HEN-241109', '2026-11-11');
+    expect(requested.unlockRequest?.bookingId).toBe('HEN-241109');
+
+    const granted = verifyRoomPresence(requested, 'HEN-241109', 'front-desk', '2026-11-11');
+    expect(granted.unlockRequest).toBeUndefined();
+  });
+});
+
+describe('requestFrontDeskUnlock', () => {
+  it('unlocks nothing by itself', () => {
+    /*
+      The test that holds the gate. It fails the moment someone wires the
+      "Can't scan?" control straight through to verifyRoomPresence, which is
+      the regression that would quietly make the QR decorative again.
+    */
+    const next = requestFrontDeskUnlock(MOCK_SESSION, 'HEN-241109', '2026-11-11');
+    const booking = next.bookings.find((entry) => entry.id === 'HEN-241109');
+
+    expect(booking?.roomVerification).toBeUndefined();
+    expect(next.unlockRequest).toEqual({ bookingId: 'HEN-241109', requestedAt: '2026-11-11' });
+  });
+});
+
+describe('describeGuestGate', () => {
+  it('reports entry with no booking at all', () => {
+    expect(describeGuestGate(undefined).gate).toBe('entry');
+  });
+
+  it('reports pre-arrival before the window opens', () => {
+    expect(describeGuestGate(UPCOMING_BOOKING_FIXTURE, '2026-11-01').gate).toBe('pre-arrival');
+  });
+
+  it('reports in-stay inside the window, verified or not', () => {
+    expect(describeGuestGate(liveBooking()).gate).toBe('in-stay');
+    expect(describeGuestGate(liveBooking({ roomVerification: verification })).gate).toBe('in-stay');
+  });
+
+  it('reports post-stay once the stay is over', () => {
+    expect(describeGuestGate(liveBooking({ status: 'completed' })).gate).toBe('post-stay');
+  });
+
+  it('agrees with describeStayStatus where the two overlap', () => {
+    const booking = liveBooking();
+    expect(describeStayStatus(booking).status).toBe('checked-in');
+    expect(describeGuestGate(booking).gate).toBe('in-stay');
+  });
+});
+
+describe('describeBookingSlot', () => {
+  it('offers Arrival before the window opens', () => {
+    const slot = describeBookingSlot(UPCOMING_BOOKING_FIXTURE, '2026-11-01');
+    expect(slot).toMatchObject({ label: 'Arrival', screen: 'pre-arrival-services', locked: false });
+  });
+
+  it('locks Explore for a guest who has arrived and not scanned', () => {
+    const slot = describeBookingSlot(liveBooking());
+    expect(slot).toMatchObject({ label: 'Explore', screen: 'marketplace', locked: true });
+  });
+
+  it('opens Explore once presence is proven', () => {
+    const slot = describeBookingSlot(liveBooking({ roomVerification: verification }));
+    expect(slot).toMatchObject({ label: 'Explore', screen: 'marketplace', locked: false });
+  });
+
+  it('becomes Book again after checkout', () => {
+    const slot = describeBookingSlot(liveBooking({ status: 'completed' }));
+    expect(slot).toMatchObject({ label: 'Book again', screen: 'book-stay', locked: false });
+  });
+
+  it('is locked in exactly one of the four gates', () => {
+    const slots = [
+      describeBookingSlot(UPCOMING_BOOKING_FIXTURE, '2026-11-01'),
+      describeBookingSlot(liveBooking()),
+      describeBookingSlot(liveBooking({ roomVerification: verification })),
+      describeBookingSlot(liveBooking({ status: 'completed' })),
+    ];
+    expect(slots.filter((slot) => slot.locked)).toHaveLength(1);
+  });
+});
+
+describe('isPreArrivalService', () => {
+  it('admits the arrival roster', () => {
+    for (const id of PRE_ARRIVAL_SERVICE_IDS) {
+      expect(isPreArrivalService(id)).toBe(true);
+    }
+  });
+
+  it('rejects everything that needs a room to charge to', () => {
+    expect(isPreArrivalService('spa')).toBe(false);
+    expect(isPreArrivalService('dining')).toBe(false);
+    expect(isPreArrivalService('rooftop')).toBe(false);
+  });
+
+  it('names services that exist in the catalogue', () => {
+    for (const id of PRE_ARRIVAL_SERVICE_IDS) {
+      expect(SERVICES.some((service) => service.id === id)).toBe(true);
+    }
+  });
+});
+
+describe('describePostStayWindow', () => {
+  const settled = (checkedOutAt?: string): Booking => ({
+    ...UPCOMING_BOOKING_FIXTURE,
+    status: 'completed',
+    checkIn: '2026-11-08',
+    checkOut: '2026-11-11',
+    checkedOutAt,
+  });
+
+  it('keeps the desk open inside 24 hours', () => {
+    const window = describePostStayWindow(settled('2026-11-11T11:00:00Z'), '2026-11-11T20:00:00Z');
+    expect(window.deskOpen).toBe(true);
+    expect(window.hoursRemaining).toBe(15);
+    expect(window.label).toBe('Front desk open for another 15 hours');
+  });
+
+  it('closes it outside 24 hours', () => {
+    const window = describePostStayWindow(settled('2026-11-11T11:00:00Z'), '2026-11-13T11:00:00Z');
+    expect(window.deskOpen).toBe(false);
+    expect(window.hoursRemaining).toBe(0);
+    expect(window.label).toBe('Front desk chat closed');
+  });
+
+  it('reads the last hour in singular', () => {
+    const window = describePostStayWindow(settled('2026-11-11T11:00:00Z'), '2026-11-12T10:30:00Z');
+    expect(window.label).toBe('Front desk open for another hour');
+  });
+
+  it('treats a stay with no checkout timestamp as closed', () => {
+    // Nothing to count from, so the honest answer is closed rather than a
+    // window that silently never expires.
+    expect(describePostStayWindow(settled()).deskOpen).toBe(false);
   });
 });

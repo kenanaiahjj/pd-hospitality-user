@@ -69,8 +69,8 @@ import {
 
 describe('guest app prototype model', () => {
   it('contains the complete stay-only screen inventory', () => {
-    expect(SCREENS).toHaveLength(52);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(52);
+    expect(SCREENS).toHaveLength(53);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(53);
     // The Arrival surface: what a guest can book before they are in the room.
     expect(SCREENS.find((s) => s.id === 'pre-arrival-services')?.group).toBe('Pre-arrival');
     // Get started is the welcome-screen trigger and SSO bottom sheet, not a
@@ -375,8 +375,11 @@ describe('getPostAuthScreen', () => {
   const newAccount = () =>
     createAccountSession('Mara Cruz', 'mara@example.com', 'apple');
 
-  it('asks for a booking when the account has none', () => {
-    expect(getPostAuthScreen(newAccount())).toBe('identify');
+  it('sends an account with no booking to home, not to a bare lookup form', () => {
+    // Home carries the lookup, the guest's own stay history, and the room
+    // scan. The form on its own assumed the only reason to sign in was to
+    // attach a reference the guest already had.
+    expect(getPostAuthScreen(newAccount())).toBe('stay-overview');
   });
 
   it('welcomes a returning account back when pre-arrival is incomplete', () => {

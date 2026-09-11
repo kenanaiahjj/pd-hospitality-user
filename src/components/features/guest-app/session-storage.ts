@@ -15,8 +15,10 @@ import type { GuestSession } from './prototype-model';
  * v4: lifecycle gates. A v3 record carries no room verification and no
  * reviews, so restoring one would drop a guest who had scanned back behind
  * the gate -- worse than starting them fresh.
+ * v5: stay history moves onto the session, so a v4 record has no `pastStays`
+ * for the home screen to map over.
  */
-export const SESSION_STORAGE_KEY = 'cabana.guest-session.v4';
+export const SESSION_STORAGE_KEY = 'cabana.guest-session.v5';
 
 /**
  * Every entry point is wrapped, because `localStorage` is not merely absent on
@@ -63,6 +65,7 @@ function isStoredSession(value: unknown): value is GuestSession {
     && Array.isArray(value.serviceBookings)
     && Array.isArray(value.additionalGuests)
     && Array.isArray(value.reviews)
+    && Array.isArray(value.pastStays)
     && isObject(value.roomPreferences)
     && Array.isArray((value.roomPreferences as Record<string, unknown>).accessibility)
   );

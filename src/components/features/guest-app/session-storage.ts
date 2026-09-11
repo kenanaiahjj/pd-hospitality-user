@@ -10,8 +10,11 @@ import type { GuestSession } from './prototype-model';
  * Versioned on purpose. `GuestSession` gains fields as the prototype grows, and
  * a record written by an older shape is not worth migrating for a demo -- bump
  * the suffix and every stale record is silently discarded on read.
+ *
+ * v2: `Booking.roomRate`. A v1 record has no room rate on its bookings, so a
+ * finished stay restored from one rendered a receipt with a room of zero.
  */
-export const SESSION_STORAGE_KEY = 'cabana.guest-session.v1';
+export const SESSION_STORAGE_KEY = 'cabana.guest-session.v2';
 
 /**
  * Every entry point is wrapped, because `localStorage` is not merely absent on

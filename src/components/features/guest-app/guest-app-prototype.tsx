@@ -44,6 +44,7 @@ import {
   Users,
   Van,
   Wrench,
+  DeviceMobile,
   WifiHigh,
   WifiSlash,
   X,
@@ -105,9 +106,29 @@ import {
   POPULAR_ROUTES,
   signInWithPassword,
   signOutSession,
+  findProfileByLookup,
+  restoreProfileSession,
+  toFinishedStay,
+  createStayBooking,
+  addStayBooking,
+  quoteStay,
+  countNightsBetween,
+  propertyFromRate,
+  findEstateProperty,
+  ESTATE_PROPERTIES,
+  DEFAULT_REBOOK_CHECK_IN,
+  DEFAULT_REBOOK_CHECK_OUT,
+  maskEmail,
+  maskMobile,
+  GUEST_PROFILE,
+  applyPrototypeStayState,
+  getPrototypeStayState,
+  PROTOTYPE_STAY_STATES,
   verifyPendingSession,
   parsePesoAmount,
   type Booking,
+  type ProfileMatch,
+  type PrototypeStayState,
   type GuestNotification,
   type GuestSession,
   type PastStay,
@@ -129,6 +150,7 @@ import {
   getRouteDestinationImage,
   type ServiceImageKey,
 } from './service-images';
+import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
 import './guest-app-prototype.css';
 
 type ActiveScreen = ScreenId | 'entry-hub';
@@ -993,7 +1015,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
   const [diningTime, setDiningTime] = useState('7:00 PM');
   const [diningOrderError, setDiningOrderError] = useState<string | null>(null);
-  const [bookingBlockedReason, setBookingBlockedReason] = useState<'offline' | 'not-checked-in'>('offline');
+  const [bookingBlockedReason, setBookingBlockedReason] = useState<'offline' | 'not-checked-in' | 'checked-out'>('offline');
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
   /*
@@ -1005,8 +1027,109 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [stayTab, setStayTab] = useState<'upcoming' | 'past'>('upcoming');
   const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
   const [selectedStayEntryId, setSelectedStayEntryId] = useState<string | null>(null);
+  /*
+    The reference a returning guest matched, held between the lookup and the
+    code screen. Cleared the moment it is spent, so a later visit to the verify
+    screen cannot verify a stale match.
+  */
+  /* What the rebooking funnel has collected so far. One object, because every
+     step of it is a partial answer to the same question. */
+  const [stayDraft, setStayDraft] = useState({
+    propertyId: '',
+    checkIn: DEFAULT_REBOOK_CHECK_IN,
+    checkOut: DEFAULT_REBOOK_CHECK_OUT,
+    guests: '2',
+    roomTypeId: '',
+  });
+  const [stayPaymentMethod, setStayPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
+  const [bookedStayId, setBookedStayId] = useState<string | null>(null);
+  const [profileMatch, setProfileMatch] = useState<ProfileMatch | null>(null);
+  const [verifyChannel, setVerifyChannel] = useState<'email' | 'mobile'>('email');
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
+
+  /*
+    Tests drive the prototype by handing it a session outright. When they do,
+    persistence is off at both ends -- no read that could contradict the
+    fixture, no write that could leak one test's state into the next.
+  */
+  const persistent = !initialSession;
+
+  /*
+    Hydration runs in an effect rather than in the `useState` initialiser
+    because this route is prerendered: reading storage during render gives the
+    server one tree and the client another. The cost is that the first paint is
+    the signed-out screen even for a returning guest, which is the same
+    trade-off the app already makes for its client-only query sections.
+  */
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (!persistent || hydratedRef.current) return;
+
+    const stored = readStoredSession();
+    if (!stored) return;
+
+    /*
+      Applied from a timer rather than straight from the effect body, which is
+      the shape `src/lib/hooks/use-debounce.ts` uses and the one the
+      `react-hooks/set-state-in-effect` rule accepts -- a synchronous setState
+      here is a lint error, not a style note.
+
+      The flag is raised inside the callback, not above it. Raising it in the
+      effect body looks tidier and breaks StrictMode: the dev double-invoke
+      runs the effect, cleans it up, and runs it again, so a flag set on the
+      first pass makes the second pass return early and the session is never
+      restored at all.
+    */
+    const timer = window.setTimeout(() => {
+      hydratedRef.current = true;
+      setSession(stored);
+      /*
+        Home, and never a stored screen id. A persisted screen goes stale the
+        moment the session it belonged to changes and strands the guest on
+        something that can no longer render; home always can.
+
+        Not `getPostAuthScreen` either -- that answers "where does a guest go
+        once they have just signed in", which for an incomplete pre-arrival is
+        `welcome-back`, a step in *creating* the account. Someone who reloaded
+        the page is not being onboarded.
+
+        An anonymous record has nowhere to land, so it keeps the entry hub.
+      */
+      if (stored.auth === 'authenticated' || stored.bookings.length > 0) {
+        setActiveScreen('stay-overview');
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [persistent]);
+
+  /*
+    Skips its own first run: on mount this fires with the anonymous default,
+    which would overwrite the very record the hydration effect above is about
+    to restore.
+  */
+  const pristineRef = useRef(true);
+  useEffect(() => {
+    if (!persistent) return;
+    if (pristineRef.current) {
+      pristineRef.current = false;
+      return;
+    }
+
+    /*
+      A session with nobody in it is removed rather than written. Signing out
+      calls `clearStoredSession()` and then sets the anonymous session, which
+      would land right back here and persist an empty record -- so the clear
+      only sticks if this agrees that empty means absent.
+    */
+    if (session.auth === 'anonymous' && session.bookings.length === 0) {
+      clearStoredSession();
+      return;
+    }
+
+    writeStoredSession(session);
+  }, [persistent, session]);
 
   useEffect(() => {
     if (!roomReadyNotificationBookingId || roomReadyNotificationFocused) return;
@@ -1176,7 +1299,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const openServiceBooking = () => {
     if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; }
     if (!isStayUnderWay(contextBooking) || !contextBooking.roomNumber) {
-      setBookingBlockedReason('not-checked-in');
+      setBookingBlockedReason(contextBooking.status === 'completed' ? 'checked-out' : 'not-checked-in');
       go('booking-blocked');
       return;
     }
@@ -1192,7 +1315,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     if (!booking || !isStayUnderWay(booking) || !booking.roomNumber) {
       // Not a network problem, and it must not claim to be one.
-      setBookingBlockedReason('not-checked-in');
+      setBookingBlockedReason(booking?.status === 'completed' ? 'checked-out' : 'not-checked-in');
       go('booking-blocked');
       return;
     }
@@ -1291,7 +1414,56 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go(getPostAuthScreen(next));
   };
 
+  /*
+    What a verified code buys: the profile, not the single stay whose reference
+    opened the door. Restoring only the matched reservation would make a guest
+    enter a reference per stay to reassemble their own history.
+  */
+  const completeReentry = () => {
+    const restored = restoreProfileSession();
+    setSession(restored);
+    setProfileMatch(null);
+    setCode('');
+    setCodeNotice(null);
+    /*
+      Home, not `getPostAuthScreen`. That routes through `welcome-back`, which
+      is a step in *creating* the account -- "review the details we already
+      hold before this stay". A guest logging back in with an old reference is
+      not being onboarded; they came for the account they already have.
+    */
+    go('stay-overview');
+  };
+
+  /*
+    The rig, not the product. Jumps straight to the steady state of whichever
+    stay is chosen -- the demo question is "what does the app look like once
+    checked out", not "replay the onboarding that gets there".
+  */
+  const applyStayState = (state: PrototypeStayState) => {
+    const next = applyPrototypeStayState(state);
+    setSession(next);
+    setHistory([]);
+    setProfileMatch(null);
+    setPendingIntent('none');
+    setCode('');
+    setCodeNotice(null);
+    setScrolled(false);
+    setActiveScreen(state === 'signed-out' ? 'entry-hub' : 'stay-overview');
+  };
+
+  const resetPrototype = () => {
+    clearStoredSession();
+    applyStayState('signed-out');
+  };
+
   const signOut = () => {
+    /*
+      Clearing here as well as letting the write effect persist the anonymous
+      session: the effect would store a signed-out record, this removes it
+      outright. A demo device left on a desk should not carry the last guest's
+      folio in storage, even an empty-looking one.
+    */
+    clearStoredSession();
     setSession(signOutSession());
     setPendingIntent('none');
     setCode('');
@@ -1332,6 +1504,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </Button>
               </div>
             </form>
+            <TextButton onClick={() => go('identify-returning')}>Log in with a booking reference instead</TextButton>
             <TextButton onClick={() => go('create-account')}>Don&apos;t have an account? Create an account</TextButton>
           </div>
         );
@@ -1386,7 +1559,400 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your itinerary and stay details remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
 
       case 'identify':
-        return <ScreenIntro eyebrow="Connect your stay" title="Find your booking" text="Enter the number from your booking confirmation."><form className="guest-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const match = findBookingByLookup(String(data.get('booking-number') ?? ''), String(data.get('last-name') ?? '')); go(match ? 'booking-found' : 'no-booking'); }}><Field label="Booking or confirmation number" name="booking-number" placeholder="HEN-241109" helper="Hotel, Agoda, or Booking.com reference" required /><Field label="Last name" name="last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Find booking<ArrowRight /></Button></form><TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton></ScreenIntro>;
+        return <ScreenIntro eyebrow="Connect your stay" title="Find your booking" text="Enter the number from your booking confirmation."><form className="guest-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const reference = String(data.get('booking-number') ?? ''); const match = findBookingByLookup(reference); if (match) { go('booking-found'); return; } /* Not a live reservation. Before giving up, see whether it is a stay this guest has already finished -- a returning guest has no live booking to find, only an old reference, and sending them to `no-booking` would be a dead end for the one case the app most wants to serve. */ const profile = findProfileByLookup(reference); if (profile) { setProfileMatch(profile); setCode(''); setCodeNotice(null); go('verify-contact'); return; } go('no-booking'); }}><Field label="Booking or confirmation number" name="booking-number" placeholder="HEN-241109" helper="Hotel, Agoda, or Booking.com reference" required /><Field label="Last name" name="last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Find booking<ArrowRight /></Button></form><TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton></ScreenIntro>;
+
+      case 'book-stay':
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">Book another stay</p>
+              <h1>Where to next?</h1>
+              <p>Three properties in the estate. Booking here is direct with the hotel, with no agency in between.</p>
+            </div>
+
+            {ESTATE_PROPERTIES.map((property) => (
+              <button
+                key={property.id}
+                className="guest-property-card"
+                type="button"
+                onClick={() => {
+                  setStayDraft((draft) => ({ ...draft, propertyId: property.id, roomTypeId: '' }));
+                  go('book-stay-dates');
+                }}
+              >
+                <PropertyImage property={property.name} aspectRatio="16/8" decorative />
+                <span className="guest-property-card__body">
+                  <b>{property.name}</b>
+                  <small>{property.tagline}</small>
+                  <span className="guest-property-card__rate">
+                    From {propertyFromRate(property)} a night
+                    <CaretRight aria-hidden="true" />
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        );
+
+      case 'book-stay-dates': {
+        const property = findEstateProperty(stayDraft.propertyId);
+        if (!property) {
+          return (
+            <ScreenIntro eyebrow="Book another stay" title="Pick a property first" text="Choose where you are going and we will take the dates next.">
+              {primary('Choose a property', 'book-stay')}
+            </ScreenIntro>
+          );
+        }
+
+        const nights = countNightsBetween(stayDraft.checkIn, stayDraft.checkOut);
+
+        return (
+          <FormScreen step="1 of 3" title="Dates and guests" text={`Your stay at ${property.name}.`}>
+            <Field
+              label="Check in"
+              name="rebook-check-in"
+              type="date"
+              value={stayDraft.checkIn}
+              onValueChange={(next) => setStayDraft((draft) => ({ ...draft, checkIn: next }))}
+            />
+            <Field
+              label="Check out"
+              name="rebook-check-out"
+              type="date"
+              value={stayDraft.checkOut}
+              onValueChange={(next) => setStayDraft((draft) => ({ ...draft, checkOut: next }))}
+            />
+            <SelectField
+              label="Guests"
+              name="rebook-guests"
+              value={stayDraft.guests}
+              onValueChange={(next) => setStayDraft((draft) => ({ ...draft, guests: next, roomTypeId: '' }))}
+            >
+              <option value="1">1 guest</option>
+              <option value="2">2 guests</option>
+              <option value="3">3 guests</option>
+              <option value="4">4 guests</option>
+              <option value="5">5 guests</option>
+            </SelectField>
+
+            {/* Said before the guest reaches the room list, not after they
+                wonder why it is empty. */}
+            {nights === 0
+              ? <Notice tone="warning" title="Check out is not after check in">Pick a later checkout date to see rooms.</Notice>
+              : <Notice title={`${nights} ${nights === 1 ? 'night' : 'nights'}`}>Rates are per night and shown before tax on the next screen.</Notice>}
+
+            {primary('See rooms', 'book-stay-rooms', { disabled: nights === 0 })}
+          </FormScreen>
+        );
+      }
+
+      case 'book-stay-rooms': {
+        const property = findEstateProperty(stayDraft.propertyId);
+        if (!property) {
+          return (
+            <ScreenIntro eyebrow="Book another stay" title="Pick a property first" text="Choose where you are going and we will take the dates next.">
+              {primary('Choose a property', 'book-stay')}
+            </ScreenIntro>
+          );
+        }
+
+        const nights = countNightsBetween(stayDraft.checkIn, stayDraft.checkOut);
+        const guests = Number(stayDraft.guests);
+        /* A room that cannot hold the party is not an option, and offering it
+           only to refuse at checkout wastes the guest's time. */
+        const roomsThatFit = property.roomTypes.filter((room) => room.maxGuests >= guests);
+
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">Step 2 of 3 · {property.name}</p>
+              <h1>Choose a room</h1>
+              <p>{formatRebookDates(stayDraft.checkIn, stayDraft.checkOut)} · {nights} {nights === 1 ? 'night' : 'nights'} · {guests} {guests === 1 ? 'guest' : 'guests'}</p>
+            </div>
+
+            {roomsThatFit.length ? roomsThatFit.map((room) => {
+              const quote = quoteStay(room, nights);
+              return (
+                <button
+                  key={room.id}
+                  className={`guest-room-option ${stayDraft.roomTypeId === room.id ? 'is-selected' : ''}`}
+                  type="button"
+                  aria-pressed={stayDraft.roomTypeId === room.id}
+                  onClick={() => setStayDraft((draft) => ({ ...draft, roomTypeId: room.id }))}
+                >
+                  <span className="guest-room-option__text">
+                    <b>{room.name}</b>
+                    <small>{room.detail}</small>
+                  </span>
+                  <span className="guest-room-option__price">
+                    <b>{quote.roomTotal}</b>
+                    <small>{room.nightlyRate} a night</small>
+                  </span>
+                </button>
+              );
+            }) : (
+              <Notice tone="warning" title="No room here sleeps that many">
+                {property.name} tops out at {Math.max(...property.roomTypes.map((room) => room.maxGuests))} guests. Try another property, or split the party across two rooms with the front desk.
+              </Notice>
+            )}
+
+            {primary('Continue to payment', 'book-stay-checkout', { disabled: !stayDraft.roomTypeId })}
+          </div>
+        );
+      }
+
+      case 'book-stay-checkout': {
+        const property = findEstateProperty(stayDraft.propertyId);
+        const room = property?.roomTypes.find((option) => option.id === stayDraft.roomTypeId);
+        if (!property || !room) {
+          return (
+            <ScreenIntro eyebrow="Book another stay" title="Choose a room first" text="Pick the room you want and we will take payment next.">
+              {primary('Back to rooms', 'book-stay-rooms')}
+            </ScreenIntro>
+          );
+        }
+
+        const nights = countNightsBetween(stayDraft.checkIn, stayDraft.checkOut);
+        const quote = quoteStay(room, nights);
+        const guests = Number(stayDraft.guests);
+
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">Step 3 of 3 · {property.name}</p>
+              <h1>Confirm and pay</h1>
+              <p>{room.name} · {formatRebookDates(stayDraft.checkIn, stayDraft.checkOut)}</p>
+            </div>
+
+            <div className="guest-summary">
+              <SummaryRow label="Property" value={property.name} />
+              <SummaryRow label="Dates" value={`${formatRebookDates(stayDraft.checkIn, stayDraft.checkOut)} · ${nights} ${nights === 1 ? 'night' : 'nights'}`} />
+              <SummaryRow label="Room" value={room.name} />
+              <SummaryRow label="Guests" value={`${guests} ${guests === 1 ? 'guest' : 'guests'}`} />
+              <SummaryRow label="Lead booker" value={session.guestName || GUEST_PROFILE.name} />
+            </div>
+
+            <section>
+              <SectionHeading title="Rate" />
+              <div className="guest-summary">
+                <SummaryRow label={`${room.nightlyRate} × ${nights} ${nights === 1 ? 'night' : 'nights'}`} value={quote.roomTotal} />
+                <SummaryRow label="Taxes and fees" value={quote.taxes} />
+                <SummaryRow label="Total" value={quote.total} strong />
+              </div>
+            </section>
+
+            <div className="guest-payment-choice">
+              <span className="guest-payment-choice__label">Pay with</span>
+              <div className="guest-payment-chips">
+                <button type="button" className={`guest-payment-chip ${stayPaymentMethod === 'card' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('card')}>
+                  <CreditCard size={15} /> Card
+                </button>
+                <button type="button" className={`guest-payment-chip ${stayPaymentMethod === 'gcash' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('gcash')}>
+                  GCash
+                </button>
+                <button type="button" className={`guest-payment-chip ${stayPaymentMethod === 'maya' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('maya')}>
+                  Maya
+                </button>
+              </div>
+            </div>
+
+            {!online ? (
+              <Notice tone="offline" icon={<WifiSlash />} title="Booking needs a connection">
+                Rates and availability move while you are offline, so nothing is held. Nothing has been charged.
+              </Notice>
+            ) : (
+              <Notice title="Paid now, direct to the hotel">
+                This is a direct booking, not an agency one. On-property extras still settle at checkout.
+              </Notice>
+            )}
+
+            <Button
+              className="guest-button guest-button--primary"
+              type="button"
+              disabled={!online}
+              onClick={() => {
+                const booking = createStayBooking({
+                  property,
+                  roomType: room,
+                  checkIn: stayDraft.checkIn,
+                  checkOut: stayDraft.checkOut,
+                  guests,
+                  guestName: session.guestName || GUEST_PROFILE.name,
+                });
+                setSession((current) => addStayBooking(current, booking));
+                setBookedStayId(booking.id);
+                go('book-stay-confirmation');
+              }}
+            >
+              Pay {quote.total}<ArrowRight aria-hidden="true" />
+            </Button>
+          </div>
+        );
+      }
+
+      case 'book-stay-confirmation': {
+        const booked = session.bookings.find((entry) => entry.id === bookedStayId);
+        if (!booked) {
+          return (
+            <ScreenIntro eyebrow="Book another stay" title="Nothing booked yet" text="Pick a property to start a new stay.">
+              {primary('Choose a property', 'book-stay')}
+            </ScreenIntro>
+          );
+        }
+
+        return (
+          <ScreenIntro
+            icon={<CheckCircle size={30} />}
+            eyebrow="Stay booked"
+            title={`You\u2019re going back to ${booked.city}`}
+            text={`${booked.property} has your reservation. Pre-arrival opens now so the property has your details before you land.`}
+          >
+            <StayCard booking={booked} />
+            <div className="guest-summary">
+              <SummaryRow label="Confirmation" value={booked.id} />
+              <SummaryRow label="Booked through" value={booked.source} />
+              <SummaryRow label="Paid" value={`${booked.roomRate ?? ''} + taxes · ${stayPaymentMethod === 'card' ? 'Card' : stayPaymentMethod === 'gcash' ? 'GCash' : 'Maya'}`} />
+            </div>
+            <Notice tone="positive" icon={<Sparkle />} title="Your details carry over">
+              What the estate already holds is reused; the new property still needs its own registration before arrival.
+            </Notice>
+            {primary('Start pre-arrival', 'guest-details')}
+            <TextButton onClick={() => go('stay-overview')}>Later, take me home</TextButton>
+          </ScreenIntro>
+        );
+      }
+
+      case 'identify-returning':
+        return (
+          <ScreenIntro
+            eyebrow="Returning guest"
+            title="Log in with a booking"
+            text="Any reference from a stay with us works — the one you are on now, or one from years ago."
+          >
+            <form
+              className="guest-form"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                const data = new FormData(event.currentTarget);
+                const match = findProfileByLookup(String(data.get('reentry-reference') ?? ''));
+                if (!match) {
+                  go('no-booking');
+                  return;
+                }
+                setProfileMatch(match);
+                setCode('');
+                setCodeNotice(null);
+                go('verify-contact');
+              }}
+            >
+              <Field
+                label="Booking or confirmation number"
+                name="reentry-reference"
+                placeholder="HEN-CEBU-250508"
+                helper="From a confirmation email, or the receipt for a stay you have finished"
+                required
+              />
+              <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
+                Continue<ArrowRight aria-hidden="true" />
+              </Button>
+            </form>
+            <Notice icon={<ShieldCheck />} title="The reference is not the password">
+              Anyone can hold a booking number — it travels in confirmation emails and on printouts. We send a code to the contact on that reservation before opening the account.
+            </Notice>
+            <TextButton onClick={() => go('sign-in')}>Log in with an email and password instead</TextButton>
+          </ScreenIntro>
+        );
+
+      case 'verify-contact': {
+        /*
+          Only reachable with a match in hand. A reload lands here without one,
+          so it offers the way back rather than verifying nothing.
+        */
+        if (!profileMatch) {
+          return (
+            <ScreenIntro
+              eyebrow="Returning guest"
+              title="Start again"
+              text="We no longer have the booking you matched. Enter the reference once more."
+            >
+              {primary('Enter a booking reference', 'identify-returning')}
+            </ScreenIntro>
+          );
+        }
+
+        const maskedEmail = maskEmail(GUEST_PROFILE.email);
+        const maskedMobile = maskMobile(GUEST_PROFILE.mobile);
+        const destination = verifyChannel === 'email' ? maskedEmail : maskedMobile;
+        const channels = [
+          { id: 'email' as const, label: 'Email', value: maskedEmail, icon: <EnvelopeSimple /> },
+          { id: 'mobile' as const, label: 'Mobile', value: maskedMobile, icon: <DeviceMobile /> },
+        ];
+
+        return (
+          <div className="guest-stack guest-stack--intro">
+            <HeroIcon tone="dark"><ShieldCheck size={30} /></HeroIcon>
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">Step 2 of 2</p>
+              <h1>Verify it&rsquo;s you</h1>
+              <p>We found a stay under that reference. We will send a code to the contact the property holds for it.</p>
+            </div>
+
+            <div className="guest-summary">
+              <SummaryRow label="Booking" value={profileMatch.reference} />
+              <SummaryRow label="Property" value={profileMatch.property} />
+              <SummaryRow label="Guest" value={profileMatch.guestName} />
+            </div>
+
+            <fieldset className="guest-channel-choice">
+              <legend>Where should the code go?</legend>
+              {channels.map((channel) => (
+                <label key={channel.id} className="guest-channel-choice__option">
+                  <input
+                    type="radio"
+                    name="verify-channel"
+                    value={channel.id}
+                    checked={verifyChannel === channel.id}
+                    onChange={() => setVerifyChannel(channel.id)}
+                  />
+                  <span className="guest-channel-choice__icon" aria-hidden="true">{channel.icon}</span>
+                  <span className="guest-channel-choice__text">
+                    <b>{channel.label}</b>
+                    <small>{channel.value}</small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+
+            {codeNotice ? <Notice tone="warning" title={codeNotice}>Codes expire quickly, so the newest one is the only one that works.</Notice> : null}
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Verification needs a connection">We cannot check a code offline. Nothing has been opened yet.</Notice> : null}
+
+            <label className="guest-field guest-code-field" htmlFor="reentry-code">
+              <span>6-digit verification code</span>
+              <Input
+                id="reentry-code"
+                name="reentry-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                value={code}
+                onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, ''))}
+              />
+            </label>
+
+            <Button
+              className="guest-button guest-button--primary"
+              type="button"
+              disabled={code.length !== 6 || !online}
+              onClick={completeReentry}
+            >
+              Verify and open my account<ArrowRight aria-hidden="true" />
+            </Button>
+            <TextButton disabled={!online} onClick={() => setCodeNotice(`A new code is on its way to ${destination}`)}>Resend the code</TextButton>
+            <TextButton onClick={() => go('identify-returning')}>Use a different booking</TextButton>
+          </div>
+        );
+      }
 
       case 'lookup-fallback':
         return <ScreenIntro eyebrow="Try another way" title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Dumaguete</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
@@ -1395,7 +1961,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<ChatCircleDots size={30} />} eyebrow="Front desk help" title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
 
       case 'no-booking':
-        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try your confirmation number or ask the front desk for a link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('front-desk-assist')}>Contact front desk</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try your confirmation number or ask the front desk for a link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Log in</TextButton><TextButton onClick={() => go('front-desk-assist')}>Contact front desk</TextButton></ScreenIntro>;
 
       case 'booking-found':
         return <ScreenIntro eyebrow="Booking found" title="Is this your stay?" text="Check the details, then continue."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label="Guest" value={displayBooking.guestName} /><SummaryRow label="Guests" value={`${displayBooking.guestCount} guests`} /><SummaryRow label="Booked through" value={displayBooking.source} /></div><Button className="guest-button guest-button--primary" type="button" onClick={claimBooking}>Use this booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('identify')}>Use a different booking</TextButton></ScreenIntro>;
@@ -2108,6 +2674,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         stay had not started was told to connect to Wi-Fi they were already on.
       */
       case 'booking-blocked':
+        /*
+          Three reasons, not two. `not-checked-in` used to cover both ends of a
+          stay, so a guest who had checked out was told their stay "starts" on
+          a date already behind them -- and pointed at a room they had left.
+        */
+        if (bookingBlockedReason === 'checked-out') {
+          return (
+            <ScreenIntro
+              icon={<CheckCircle size={30} />}
+              eyebrow="Stay complete"
+              title="This stay is settled"
+              text={`Your stay at ${contextBooking.property} ended ${formatStayDateRange(contextBooking).split('–').pop()?.trim()}. On-property services are charged to a room, so they close when you check out.`}
+            >
+              <Notice title="Nothing was booked">Your receipts stay in My Stay for as long as you want them.</Notice>
+              {primary('View stay history', 'stay-history')}
+              <TextButton onClick={() => go('marketplace')}>Keep browsing</TextButton>
+            </ScreenIntro>
+          );
+        }
+
         return bookingBlockedReason === 'offline'
           ? <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Connection required" title="We can’t hold a time while offline" text="Live services are not queued because the slot or price could change before you reconnect."><Notice tone="offline" title="Nothing was booked">Connect to hotel Wi-Fi and try again. You can still message the front desk; the message will wait on this device.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => { setOnline(true); go('vendor-service'); }}>Try again</TextButton></ScreenIntro>
           : <ScreenIntro icon={<Clock size={30} />} eyebrow="Not yet" title="On-property services open when you check in" text={`Your stay at ${contextBooking.property} starts ${formatStayDateRange(contextBooking).split('–')[0]}. Browse now and book once you arrive.`}><Notice title="Nothing was booked">The front desk can arrange something ahead of your arrival if you need it sooner.</Notice>{primary('Message the front desk', 'chat')}<TextButton onClick={() => go('marketplace')}>Keep browsing</TextButton></ScreenIntro>;
@@ -2132,6 +2718,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const travelSoFar = travelLegs.reduce((sum, leg) => sum + parsePesoAmount(leg.amount), 0);
         const tripTotal = formatPesoAmount(roomSoFar + travelSoFar);
 
+        /*
+          A stay that is over is a receipt, not a running total. "This stay so
+          far" is present tense about something finished, and it counted only
+          what was charged against the room -- so a settled stay reported a
+          room of ₱0 and a total made entirely of travel.
+        */
+        const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
+        const finishedStay = checkedOut ? toFinishedStay(session, contextBooking) : undefined;
+        const finishedSummary = finishedStay ? summarisePastStay(finishedStay) : undefined;
+
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
@@ -2141,7 +2737,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   line beneath says the guest is in it, which nothing on this
                   screen said before. */}
               <p className="guest-checked-in">
-                <span className="guest-checked-in__dot" aria-hidden="true" />
+                {/* The pulsing dot says "now". It has no business beside
+                    "Checked out". */}
+                {checkedOut ? null : <span className="guest-checked-in__dot" aria-hidden="true" />}
                 {describeStayStatus(contextBooking).status === 'checked-in'
                   ? `Checked in · ${contextRoom}`
                   : `${describeStayStatus(contextBooking).label} · ${contextRoom}`}
@@ -2167,7 +2765,30 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <CaretRight />
             </button>
 
-            {started || travelLegs.length ? (
+            {finishedStay && finishedSummary ? (
+              <section className="guest-stay-receipt">
+                <div className="guest-total-card">
+                  <span>This stay</span>
+                  <strong>{finishedStay.total}</strong>
+                  <small>
+                    {finishedStay.nights} {finishedStay.nights === 1 ? 'night' : 'nights'}
+                    {contextBooking.roomNumber ? ` · Room ${contextBooking.roomNumber}` : ''} · settled at checkout
+                  </small>
+                </div>
+
+                <div className="guest-summary">
+                  <SummaryRow label={`${finishedStay.roomType} · ${finishedStay.nights} ${finishedStay.nights === 1 ? 'night' : 'nights'}`} value={finishedStay.roomRate} />
+                  {finishedSummary.groups.map((group) => (
+                    <SummaryRow key={group.category} label={group.category} value={group.formattedTotal} />
+                  ))}
+                  <SummaryRow label="Total settled" value={finishedStay.total} strong />
+                </div>
+
+                <TextButton onClick={() => { setSelectedPastStayId(finishedStay.id); go('stay-detail'); }}>
+                  See every charge
+                </TextButton>
+              </section>
+            ) : started || travelLegs.length ? (
               <div className="guest-running-total">
                 <div className="guest-total-card">
                   <span>This stay so far</span>
@@ -2246,16 +2867,32 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               tab bar, and the spacer keeps the last booking card clear of it.
             */}
             <div className="guest-dock-spacer" aria-hidden="true" />
-            <div className="guest-dock guest-dock--single">
-              <button className="guest-dock__action" onClick={() => go('chat')} type="button">
-                <span className="guest-dock__glyph" aria-hidden="true"><ChatCircleDots /></span>
-                <span className="guest-dock__label">
-                  <b>Message the front desk</b>
-                  <small>{online ? 'Usually replies in a few minutes' : 'Sends when you reconnect'}</small>
-                </span>
-                <CaretRight />
-              </button>
-            </div>
+            {checkedOut ? (
+              /*
+                The front desk is demoted rather than dropped -- a guest still
+                chases a lost item or a billing query after checkout -- but it
+                is no longer the only thing a finished stay offers.
+              */
+              <div className="guest-dock guest-dock--single guest-dock--stacked">
+                <Button className="guest-button guest-button--primary" type="button" onClick={() => go('book-stay')}>
+                  Book another stay<ArrowRight aria-hidden="true" />
+                </Button>
+                <button className="guest-dock__quiet" onClick={() => go('chat')} type="button">
+                  Message the front desk
+                </button>
+              </div>
+            ) : (
+              <div className="guest-dock guest-dock--single">
+                <button className="guest-dock__action" onClick={() => go('chat')} type="button">
+                  <span className="guest-dock__glyph" aria-hidden="true"><ChatCircleDots /></span>
+                  <span className="guest-dock__label">
+                    <b>Message the front desk</b>
+                    <small>{online ? 'Usually replies in a few minutes' : 'Sends when you reconnect'}</small>
+                  </span>
+                  <CaretRight />
+                </button>
+              </div>
+            )}
           </div>
         );
       }
@@ -3221,7 +3858,15 @@ const fare = category.options.find((option) => option.id === selectedFare);
       }
 
       case 'stay-detail': {
-        const stay = findPastStay(selectedPastStayId ?? '') ?? PAST_STAYS[0]!;
+        /*
+          The stay a guest has just checked out of is not in `PAST_STAYS` -- it
+          is still a live `Booking` in the session -- so "See every charge" on
+          My Stay had nowhere correct to land until this fallback existed.
+        */
+        const currentAsFinished = primaryBooking && selectedPastStayId === primaryBooking.id
+          ? toFinishedStay(session, primaryBooking)
+          : undefined;
+        const stay = findPastStay(selectedPastStayId ?? '') ?? currentAsFinished ?? PAST_STAYS[0]!;
         const summary = summarisePastStay(stay);
         return (
           <div className="guest-stack">
@@ -3289,9 +3934,14 @@ const fare = category.options.find((option) => option.id === selectedFare);
         {roomReadyNotification ? `${roomReadyNotification.headline}. ${roomReadyNotification.detail}` : ''}
       </div>
 
-      {eligibleRoomReadyBooking ? (
-        <PrototypeControls online={online} onSimulateRoomReady={simulateRoomReady} />
-      ) : null}
+      <PrototypeControls
+        online={online}
+        stayState={getPrototypeStayState(session)}
+        onStayStateChange={applyStayState}
+        onSimulateRoomReady={simulateRoomReady}
+        canSimulateRoomReady={Boolean(eligibleRoomReadyBooking)}
+        onReset={resetPrototype}
+      />
 
       {roomReadyNotification ? (
         <RoomReadyNotification
@@ -3381,10 +4031,18 @@ const fare = category.options.find((option) => option.id === selectedFare);
 
 function PrototypeControls({
   online,
+  stayState,
+  onStayStateChange,
   onSimulateRoomReady,
+  canSimulateRoomReady,
+  onReset,
 }: {
   online: boolean;
+  stayState: PrototypeStayState;
+  onStayStateChange: (state: PrototypeStayState) => void;
   onSimulateRoomReady: () => void;
+  canSimulateRoomReady: boolean;
+  onReset: () => void;
 }) {
   /*
     Collapsed by default. This is scaffolding, not part of the product, and as
@@ -3413,7 +4071,7 @@ function PrototypeControls({
       <div className="guest-prototype-toolbar__head">
         <div>
           <span>Prototype controls</span>
-          <small>{online ? 'Assigned room · PMS event available' : 'Reconnect to receive a new PMS event.'}</small>
+          <small>{online ? 'Switch the stay state, or fire a PMS event.' : 'Reconnect to fire a PMS event.'}</small>
         </div>
         <button
           className="guest-prototype-toolbar__close"
@@ -3424,9 +4082,37 @@ function PrototypeControls({
           <X aria-hidden="true" />
         </button>
       </div>
-      <button type="button" onClick={onSimulateRoomReady} disabled={!online}>
+      <fieldset className="guest-prototype-states">
+        <legend>Stay state</legend>
+        {PROTOTYPE_STAY_STATES.map((state) => (
+          <label key={state.id} className="guest-prototype-states__option">
+            <input
+              type="radio"
+              name="prototype-stay-state"
+              value={state.id}
+              checked={stayState === state.id}
+              onChange={() => onStayStateChange(state.id)}
+            />
+            <span>
+              <b>{state.label}</b>
+              <small>{state.detail}</small>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      {/*
+        Was the panel's only control, and the panel only rendered when it was
+        usable -- which hid the switcher in exactly the states worth switching
+        away from. It is a disabled row now, not a reason to hide the rig.
+      */}
+      <button type="button" onClick={onSimulateRoomReady} disabled={!online || !canSimulateRoomReady}>
         <BellRinging aria-hidden="true" />
         Simulate room ready
+      </button>
+
+      <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
+        Reset saved session
       </button>
     </aside>
   );
@@ -3856,6 +4542,16 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate }: { booking
 
 function EmptyStayHome({ onNavigate }: { onNavigate: (screen: ActiveScreen) => void }) {
   return <div className="guest-stack guest-stack--intro guest-home-empty" data-testid="guest-home-empty"><HeroIcon tone="dark"><Receipt size={30} /></HeroIcon><div className="guest-page-title"><p className="guest-eyebrow">No connected stay</p><h1>Connect your booking</h1><p>Link a confirmed reservation to see arrival details, on-property services, room charges, and front-desk help in one place.</p></div><Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('connect-booking')}>Connect a booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => onNavigate('front-desk-assist')}>Ask the front desk for help</TextButton></div>;
+}
+
+/** The same range, from two loose dates -- the rebooking funnel has no booking
+    to read yet. */
+function formatRebookDates(checkIn: string, checkOut: string) {
+  if (!checkIn || !checkOut) return '';
+  const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+  const start = formatter.format(new Date(`${checkIn}T12:00:00`));
+  const end = formatter.format(new Date(`${checkOut}T12:00:00`));
+  return `${start}–${end}, ${checkIn.slice(0, 4)}`;
 }
 
 function formatStayDateRange(booking: Booking) {

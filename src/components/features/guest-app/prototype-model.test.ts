@@ -23,10 +23,26 @@ import {
   getCancellationState,
   getNotifications,
   canReportRoomReady,
+  applyPrototypeStayState,
+  getPrototypeStayState,
+  ESTATE_PROPERTIES,
+  findEstateProperty,
+  propertyFromRate,
+  countNightsBetween,
+  quoteStay,
+  createStayBooking,
+  addStayBooking,
+  toFinishedStay,
   findBookingByLookup,
+  findProfileByLookup,
+  restoreProfileSession,
+  maskEmail,
+  maskMobile,
+  GUEST_PROFILE,
   describeStayStatus,
   getStayEntries,
   hasStayStarted,
+  isStayUnderWay,
   summarisePastStay,
   getOfflineAction,
   getPostAuthScreen,
@@ -45,8 +61,8 @@ import {
 
 describe('guest app prototype model', () => {
   it('contains the complete 49-screen inventory including travel checkout', () => {
-    expect(SCREENS).toHaveLength(49);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(49);
+    expect(SCREENS).toHaveLength(56);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(56);
     expect(SCREENS.find((s) => s.id === 'stay-entry')?.title).toBe('Booking receipt');
     expect(SCREENS.find((s) => s.id === 'stay-detail')?.group).toBe('Account');
     // My Stay subsumed the old `my-bookings` screen rather than sitting beside
@@ -930,18 +946,285 @@ describe('booking lookup matching', () => {
   it('refuses details that match no reservation', () => {
     // It used to answer anything, so a stranger's reference returned Ana
     // Santos's name, dates, room and booking source.
-    expect(findBookingByLookup('ZZZZ-000000', 'Nobody')).toBeUndefined();
-    expect(findBookingByLookup('', '')).toBeUndefined();
+    expect(findBookingByLookup('ZZZZ-000000')).toBeUndefined();
+    expect(findBookingByLookup('')).toBeUndefined();
   });
 
   it('accepts the confirmation number, however it is punctuated', () => {
-    expect(findBookingByLookup('HEN-241109', '')?.id).toBe('HEN-241109');
-    expect(findBookingByLookup('hen 241109', '')?.id).toBe('HEN-241109');
-    expect(findBookingByLookup('HEN241109', 'Nobody')?.id).toBe('HEN-241109');
+    expect(findBookingByLookup('HEN-241109')?.id).toBe('HEN-241109');
+    expect(findBookingByLookup('hen 241109')?.id).toBe('HEN-241109');
+    expect(findBookingByLookup('HEN241109')?.id).toBe('HEN-241109');
   });
 
-  it('accepts the surname alone, for a guest without the reference', () => {
-    expect(findBookingByLookup('', 'Santos')?.id).toBe('HEN-241109');
-    expect(findBookingByLookup('unknown-ref', 'santos')?.id).toBe('HEN-241109');
+  /*
+    Reversed deliberately, and the surname is no longer even an argument. It
+    used to be a key of its own, which made this screen a way for anyone to
+    read a stranger's reservation off a guessed last name. It stays on the form
+    as something the guest recognises, not as something the lookup trusts.
+  */
+  it('has no way in without the reference', () => {
+    expect(findBookingByLookup('')).toBeUndefined();
+    expect(findBookingByLookup('Santos')).toBeUndefined();
+    expect(findBookingByLookup('unknown-ref')).toBeUndefined();
+  });
+});
+
+describe('profile lookup and re-entry', () => {
+  it('matches a reference the guest still has a live reservation for', () => {
+    const match = findProfileByLookup('HEN-241109');
+
+    expect(match?.property).toBe('The Henry Manila');
+    expect(match?.booking?.id).toBe('HEN-241109');
+    expect(match?.pastStay).toBeUndefined();
+  });
+
+  /*
+    The point of the whole feature: a guest whose last stay ended eighteen
+    months ago holds nothing but a receipt, and that reference has to be enough
+    to start the way back in.
+  */
+  it('matches a reference from a stay that is long settled', () => {
+    const match = findProfileByLookup('HEN-CEBU-250508');
+
+    expect(match?.property).toBe('The Henry Cebu');
+    expect(match?.pastStay?.id).toBe('HEN-CEBU-250508');
+    expect(match?.booking).toBeUndefined();
+  });
+
+  it('matches a completed booking the session still carries', () => {
+    expect(findProfileByLookup('HEN-CEBU-240615')?.booking?.status).toBe('completed');
+  });
+
+  it('normalises punctuation the same way the booking lookup does', () => {
+    expect(findProfileByLookup('hen cebu 260314')?.reference).toBe('HEN-CEBU-260314');
+  });
+
+  it('refuses a reference that belongs to nobody', () => {
+    expect(findProfileByLookup('ZZZZ-000000')).toBeUndefined();
+    expect(findProfileByLookup('')).toBeUndefined();
+  });
+
+  it('masks the contact so the screen proves reach without disclosing it', () => {
+    expect(maskEmail(GUEST_PROFILE.email)).toBe('a\u2022\u2022\u2022@example.com');
+    expect(maskMobile(GUEST_PROFILE.mobile)).toBe('+63 917 \u2022\u2022\u2022 0142');
+  });
+
+  it('leaves a contact it cannot parse alone rather than mangling it', () => {
+    expect(maskEmail('not-an-address')).toBe('not-an-address');
+    expect(maskMobile('09175550142')).toBe('09175550142');
+  });
+
+  /*
+    Verifying restores the profile, not the one stay that was looked up --
+    otherwise a returning guest would have to enter a reference per stay to
+    reassemble their own history.
+  */
+  it('restores the whole profile once the code is verified', () => {
+    const session = restoreProfileSession();
+
+    expect(session.auth).toBe('authenticated');
+    expect(session.accountStatus).toBe('returning');
+    expect(session.guestName).toBe('Ana Santos');
+    expect(session.bookings.map((booking) => booking.id)).toEqual([
+      'HEN-241109',
+      'HEN-CEBU-240615',
+    ]);
+  });
+});
+
+
+describe('prototype stay-state switch', () => {
+  const states = ['signed-out', 'pre-arrival', 'live', 'finished'] as const;
+
+  it('round-trips every state it can build', () => {
+    for (const state of states) {
+      expect(getPrototypeStayState(applyPrototypeStayState(state))).toBe(state);
+    }
+  });
+
+  it('puts a pre-arrival stay clear of the prototype clock', () => {
+    const session = applyPrototypeStayState('pre-arrival');
+    const booking = session.bookings[0]!;
+
+    // A stay whose dates straddle today would render as checked in however its
+    // status reads, which is the trap the reference fixture falls into.
+    expect(isStayUnderWay(booking)).toBe(false);
+    expect(getHomeVariant(session.bookings)).toBe('upcoming');
+  });
+
+  it('opens the live surface on a live stay', () => {
+    const session = applyPrototypeStayState('live');
+    const booking = session.bookings[0]!;
+
+    expect(isStayUnderWay(booking)).toBe(true);
+    expect(getHomeVariant(session.bookings)).toBe('active');
+    expect(booking.roomNumber).toBe('304');
+  });
+
+  /*
+    The point of the finished state: everything that posts to a room the guest
+    has left is closed, while the stay itself stays readable.
+  */
+  it('closes the live surface on a finished stay', () => {
+    const session = applyPrototypeStayState('finished');
+    const booking = session.bookings[0]!;
+
+    expect(isStayUnderWay(booking)).toBe(false);
+    expect(canReportRoomReady(booking)).toBe(false);
+    expect(session.folioTotal).toBe('₱0');
+    expect(session.serviceBookings.every((service) => service.status !== 'confirmed')).toBe(true);
+  });
+
+  it('keeps a finished stay legible rather than hiding it', () => {
+    const session = applyPrototypeStayState('finished');
+
+    expect(getHomeVariant(session.bookings)).toBe('completed');
+    expect(session.bookings[0]!.property).toBe('The Henry Manila');
+    expect(session.auth).toBe('authenticated');
+  });
+
+  it('signs the guest out with nothing left behind', () => {
+    const session = applyPrototypeStayState('signed-out');
+
+    expect(session.auth).toBe('anonymous');
+    expect(session.bookings).toEqual([]);
+    expect(session.serviceBookings).toEqual([]);
+  });
+});
+
+
+describe('the estate and booking another stay', () => {
+  const manila = findEstateProperty('manila')!;
+  const king = manila.roomTypes.find((room) => room.id === 'manila-king')!;
+
+  it('offers the three properties a guest can come back to', () => {
+    expect(ESTATE_PROPERTIES.map((property) => property.name)).toEqual([
+      'The Henry Manila',
+      'The Henry Cebu',
+      'The Henry Dumaguete',
+    ]);
+  });
+
+  it('quotes "from" off the cheapest room, not the first listed', () => {
+    expect(propertyFromRate(manila)).toBe('₱6,200');
+  });
+
+  it('counts nights, and refuses to count backwards', () => {
+    expect(countNightsBetween('2026-12-01', '2026-12-04')).toBe(3);
+    expect(countNightsBetween('2026-12-04', '2026-12-01')).toBe(0);
+    expect(countNightsBetween('2026-12-01', '2026-12-01')).toBe(0);
+  });
+
+  /*
+    12% matches the tax already shown on `rate-detail` for an OTA booking. A
+    direct booking that appeared to be taxed differently would read as a bug.
+  */
+  it('quotes room, tax and total at the same rate the app already shows', () => {
+    const quote = quoteStay(king, 3);
+
+    expect(quote.roomTotal).toBe('₱18,600');
+    expect(quote.taxes).toBe('₱2,232');
+    expect(quote.total).toBe('₱20,832');
+  });
+
+  it('mints a direct booking the guest has to pre-register for again', () => {
+    const booking = createStayBooking({
+      property: manila,
+      roomType: king,
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-04',
+      guests: 2,
+      guestName: 'Ana Santos',
+    });
+
+    expect(booking.id).toBe('HEN-MNL-261201');
+    expect(booking.source).toBe('Direct booking');
+    expect(booking.status).toBe('upcoming');
+    expect(booking.roomRate).toBe('₱18,600');
+    // A different property holds its own registration record and has never
+    // seen this guest's ID.
+    expect(booking.preArrivalCompleted).toBe(0);
+    expect(booking.roomNumber).toBeUndefined();
+  });
+
+  it('makes the new booking the one the app is about', () => {
+    const booking = createStayBooking({
+      property: manila,
+      roomType: king,
+      checkIn: '2026-12-01',
+      checkOut: '2026-12-04',
+      guests: 2,
+      guestName: 'Ana Santos',
+    });
+    const session = addStayBooking(applyPrototypeStayState('finished'), booking);
+
+    expect(session.activeBookingId).toBe(booking.id);
+    expect(getPrimaryBooking(session.bookings, session.activeBookingId)?.id).toBe(booking.id);
+  });
+});
+
+describe('a finished stay read as a receipt', () => {
+  const session = applyPrototypeStayState('finished');
+  const booking = session.bookings[0]!;
+
+  it('counts the room itself, not only what was charged against it', () => {
+    const stay = toFinishedStay(session, booking);
+
+    expect(stay.roomRate).toBe('₱18,600');
+    // ₱18,600 room + ₱14,550 charged against it: what the property posted plus
+    // everything the guest booked in the app during the stay.
+    expect(stay.total).toBe('₱33,150');
+    expect(stay.nights).toBe(3);
+  });
+
+  /*
+    `getRoomCharges` drops anything not `confirmed`, which is every service on a
+    stay that is over. A receipt built from it would report a stay with nothing
+    in it.
+  */
+  it('keeps services that have since completed', () => {
+    const withService = {
+      ...session,
+      serviceBookings: [{
+        id: 'svc-1',
+        bookingId: booking.id,
+        title: 'Hilom signature massage',
+        scheduledFor: 'Nov 3 · 2:00 PM',
+        scheduledDate: '2026-11-03',
+        amount: '₱2,400',
+        status: 'completed' as const,
+      }],
+    };
+
+    const stay = toFinishedStay(withService, booking);
+    const titles = stay.charges.map((charge) => charge.title);
+
+    expect(titles).toContain('Hilom signature massage');
+    expect(stay.charges.find((c) => c.id === 'svc-1')?.category).toBe('Spa & wellness');
+    expect(stay.total).toBe('₱24,050');
+  });
+
+  it('leaves a cancelled service off the receipt', () => {
+    const withCancelled = {
+      ...session,
+      serviceBookings: [{
+        id: 'svc-2',
+        bookingId: booking.id,
+        title: 'Hilom signature massage',
+        scheduledFor: 'Nov 3 · 2:00 PM',
+        scheduledDate: '2026-11-03',
+        amount: '₱2,400',
+        status: 'cancelled' as const,
+      }],
+    };
+
+    expect(toFinishedStay(withCancelled, booking).total).toBe('₱21,650');
+  });
+
+  it('groups the way the stay-detail receipt already does', () => {
+    const summary = summarisePastStay(toFinishedStay(session, booking));
+
+    expect(summary.groups.map((group) => group.category)).toContain('Hotel services');
+    expect(summary.extras).toBe('₱14,550');
   });
 });

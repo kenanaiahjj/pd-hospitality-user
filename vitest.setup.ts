@@ -42,4 +42,16 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
 
 afterEach(() => {
   cleanup();
+
+  /*
+    jsdom keeps one `localStorage` for every test in a file, so a component
+    that persists its session hands it to the next test in line -- which is how
+    a signed-out entry flow found itself already signed in. Unmounting is not
+    enough; the store outlives the tree.
+  */
+  try {
+    window.localStorage.clear();
+  } catch {
+    // A test that stubbed storage into throwing has already made its point.
+  }
 });

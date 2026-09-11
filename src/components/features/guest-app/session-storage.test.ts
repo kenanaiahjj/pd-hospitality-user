@@ -68,22 +68,48 @@ describe('session storage', () => {
   });
 
   /*
-    A private window throws on access rather than returning null, so every entry
-    point has to survive the store itself being hostile.
+    Two different hostile stores, because they fail at different depths and only
+    one of them is caught by wrapping the calls.
+
+    A browser with site data blocked throws on the *property* -- `window.
+    localStorage` itself is a SecurityError -- which is why `getStore()` has a
+    try/catch of its own rather than only the call sites.
+
+    Note these stub `Storage.prototype`, not the instance: jsdom's localStorage
+    is a Proxy, so an own-property spy on it is silently never consulted.
   */
-  it('survives a store that throws on every access', () => {
-    vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
-      throw new Error('access denied');
+  it('survives a store whose methods throw', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('quota');
     });
-    vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
-      throw new Error('access denied');
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota');
     });
-    vi.spyOn(window.localStorage, 'removeItem').mockImplementation(() => {
-      throw new Error('access denied');
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('quota');
     });
 
     expect(() => writeStoredSession(MOCK_SESSION)).not.toThrow();
     expect(readStoredSession()).toBeUndefined();
     expect(() => clearStoredSession()).not.toThrow();
+  });
+
+  it('survives a browser that throws on reaching localStorage at all', () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('site data blocked');
+      },
+    });
+
+    try {
+      expect(() => writeStoredSession(MOCK_SESSION)).not.toThrow();
+      expect(readStoredSession()).toBeUndefined();
+      expect(() => clearStoredSession()).not.toThrow();
+    } finally {
+      if (original) Object.defineProperty(window, 'localStorage', original);
+    }
   });
 });

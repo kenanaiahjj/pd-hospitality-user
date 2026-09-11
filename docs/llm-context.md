@@ -172,8 +172,10 @@ The root screen uses these visible entry actions:
 - `Continue with room QR` goes to `room-qr-landing`.
 - `Open hotel Wi-Fi entry` goes to `wifi-landing`.
 
-The booking lookup accepts a booking or confirmation number and last name.
-The current fixture path uses `HEN-241109` and `Santos`, then shows `The Henry
+The booking lookup takes a booking or confirmation number and last name, and
+matches on the reference alone. The surname is a confirming field, not a key:
+matching on it let anyone read a stranger's reservation off a guessed last
+name. The current fixture path uses `HEN-241109`, then shows `The Henry
 Manila`. The lookup fallback offers alternate stay details and front-desk
 help. `no-booking` says `You’ll need a booking first` and explains: `Cabana
 looks after your stay once your hotel booking is confirmed. It isn’t a place
@@ -191,6 +193,41 @@ check-in directly to the pre-registration completion state.
 When pre-arrival is complete for an upcoming booking, the primary action is
 `View my stay`, which returns to the upcoming home. Identity is verified at the
 front desk against an original ID; the app issues no credential of its own.
+
+### Returning guest: re-entry by booking reference
+
+The main door is the ordinary lookup, not a login screen. The welcome screen
+stays booking-first — no `Log in`, no `Create account`, asserted by tests in
+`page.test.tsx` and `guest-app-prototype.test.tsx` — so a returning guest
+arrives at the same `identify` form as everyone else and simply types the
+reference they hold.
+
+```text
+entry-hub -> identify -> verify-contact -> stay-overview        (past reference)
+entry-hub -> identify -> booking-found -> ...                   (live reservation)
+```
+
+`identify` tries `findBookingByLookup` first; a reference that names no live
+reservation then goes to `findProfileByLookup` before falling through to
+`no-booking`, which itself offers `Stayed with us before? Log in`. The
+dedicated `identify-returning` screen is the same thing reached deliberately,
+from `sign-in`.
+
+`findProfileByLookup` matches against the whole profile — the live reservations
+*and* `PAST_STAYS` — so a guest whose last stay ended long ago can get in on a
+receipt. It is deliberately separate from `findBookingByLookup`, which answers
+the different question "is there a stay to attach".
+
+`verify-contact` is the reason the reference is not itself a login. A booking
+number travels in confirmation emails and on printouts, so it proves nothing on
+its own; the code goes to the contact the property holds for that reservation,
+shown masked (`a•••@example.com`, `+63 917 ••• 0142`) until it is entered.
+
+Verifying calls `restoreProfileSession()`, which returns the **whole profile**,
+not the single stay whose reference opened the door — otherwise a guest would
+re-enter a reference per stay to reassemble their own history. It lands on
+`stay-overview`, not `getPostAuthScreen`: that routes through `welcome-back`,
+which is a step in *creating* an account, and this guest already has one.
 
 ### Returning guest
 
@@ -444,9 +481,64 @@ and inspect `git status --short` before and after any commit.
 
 ## Known follow-up notes
 
-- The prototype is intentionally in-memory. Production work will need a data
+- The session now survives a reload: `session-storage.ts` keeps a versioned
+  `localStorage` record (`cabana.guest-session.v1`) behind `GuestSession`.
+  Everything else is still in-memory, and production work will need a data
   boundary for bookings, services, folio entries, identity, and connectivity.
+  Hydration runs from a deferred effect, never during render — reading storage
+  in a `useState` initialiser mismatches the prerendered `/` route, and a
+  synchronous `setState` in an effect is a lint error here. Passing
+  `initialSession` disables persistence at both ends, which is what keeps the
+  test suite deterministic.
 - QR linking, booking lookup, ID capture, and hotel availability are simulated.
+  So is the verification code on `verify-code` and `verify-contact`: any six
+  digits pass.
+### Finished stay: receipt, and booking another
+
+My Stay branches on `describeStayStatus(...).status === 'checked-out'`. A stay
+that is over is a receipt, not a running total: the live dot goes, "This stay so
+far" is replaced by the settled summary, and the docked action becomes `Book
+another stay` with the front desk demoted to a quiet row beneath it. The
+Upcoming/Past tabs stay — travel booked during a stay outlives it, and the
+reference stay's Nov 14 flight is after its own checkout.
+
+`toFinishedStay(session, booking)` renders the finished `Booking` as the
+`PastStay` it has become, so the receipt on My Stay and the one on `stay-detail`
+are the same object. It is deliberately not `getRoomCharges`, which answers
+"what is running up against the room right now" and drops anything not
+`confirmed` — every service on a stay that is over.
+
+`Booking.roomRate` is what the room itself cost. Where a booking has none,
+`deriveRoomRate` prices it off `ESTATE_PROPERTIES`. It must never fall back to
+`folioTotal`: that is the total charged *against* the room, so using it as the
+room's own price understates the room and counts every extra twice.
+
+```text
+my-stay -> book-stay -> book-stay-dates -> book-stay-rooms
+        -> book-stay-checkout -> book-stay-confirmation
+```
+
+`ESTATE_PROPERTIES` holds the three properties with their room types and nightly
+rates. `quoteStay` applies 12% — the same rate `rate-detail` already shows for an
+OTA booking, so a direct booking does not appear to be taxed differently.
+`createStayBooking` mints the reservation with `source: 'Direct booking'` and
+pre-arrival reset to zero: a different property holds its own registration
+record and has not seen this guest's ID.
+
+This is not hotel search, and `no-booking` keeps its line about Cabana not being
+a place to compare hotels. The flow is reachable only from a stay the guest has
+already finished — retention, not acquisition — and a direct booking displaces
+an OTA's commission.
+
+- The floating `PrototypeControls` panel (collapsed behind a wrench, bottom
+  right) switches the stay between `signed-out`, `pre-arrival`, `live` and
+  `finished`, and clears the stored session. It renders on every screen; it
+  used to render only when a room-ready event was available, which hid it in
+  exactly the states worth switching away from. The finished state is otherwise
+  unreachable — there is no checkout to play forward — and it is what closes
+  room charging, dining orders and room-ready reporting through
+  `isStayUnderWay`. `booking-blocked` has a third reason, `checked-out`, so a
+  departed guest is no longer told their stay *starts* on a date behind them.
 - Recheck responsive behavior at the requested mobile viewport before making
   a visual release claim. The last verified browser pass was primarily a
   desktop-width Chrome inspection supplemented by responsive CSS and

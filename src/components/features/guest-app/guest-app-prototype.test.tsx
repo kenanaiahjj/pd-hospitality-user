@@ -12,8 +12,9 @@ import {
   createAccountSession,
   verifyPendingSession,
 } from './prototype-model';
-import { ANONYMOUS_SESSION, connectBooking } from './prototype-model';
+import { ANONYMOUS_SESSION, connectBooking, applyPrototypeStayState } from './prototype-model';
 import type { Booking, GuestSession } from './prototype-model';
+import { readStoredSession, writeStoredSession } from './session-storage';
 
 const globalStyles = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
 const guestStyles = readFileSync(resolve(process.cwd(), 'src/components/features/guest-app/guest-app-prototype.css'), 'utf8');
@@ -778,7 +779,12 @@ describe('room-ready notification', () => {
     expect(within(notification).getByText('Room 512 is ready')).toBeInTheDocument();
     expect(within(notification).getByText('Released at 2:15 PM. Go straight up.')).toBeInTheDocument();
     openPrototypeControls();
-    expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
+    /*
+      Disabled rather than absent. The panel carries the stay-state switcher
+      now, so hiding it once the PMS event is spent would take the switcher
+      with it.
+    */
+    expect(screen.getByRole('button', { name: 'Simulate room ready' })).toBeDisabled();
 
     await user.click(within(notification).getByRole('button', { name: 'View stay' }));
 
@@ -802,7 +808,7 @@ describe('room-ready notification', () => {
 
     openPrototypeControls();
     expect(screen.getByRole('button', { name: 'Simulate room ready' })).toBeDisabled();
-    expect(screen.getByText('Reconnect to receive a new PMS event.')).toBeInTheDocument();
+    expect(screen.getByText('Reconnect to fire a PMS event.')).toBeInTheDocument();
   });
 
   it('does not offer readiness for a property that cannot report it', () => {
@@ -823,7 +829,7 @@ describe('room-ready notification', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={legacy} />);
 
     openPrototypeControls();
-    expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Simulate room ready' })).toBeDisabled();
     expect(screen.getByText(/does not report room readiness/i)).toBeInTheDocument();
   });
 
@@ -841,7 +847,7 @@ describe('room-ready notification', () => {
     );
 
     openPrototypeControls();
-    expect(screen.queryByRole('button', { name: 'Simulate room ready' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Simulate room ready' })).toBeDisabled();
   });
 
   it('dismisses the push after eight seconds without reverting the room', () => {
@@ -1935,5 +1941,349 @@ describe('home mini-apps and browsable restaurant menu', () => {
 
     await user.click(screen.getByRole('button', { name: 'Food & Drink' }));
     expect(screen.getByRole('heading', { name: 'Food & Drink', level: 1 })).toBeInTheDocument();
+  });
+});
+
+describe('session persistence', () => {
+  const settledSession = sessionFor([
+    makeBooking({ id: 'settled', preArrivalCompleted: 4, preArrivalTotal: 4 }),
+  ]);
+
+  it('restores a stored session on mount and lands on home', async () => {
+    writeStoredSession(settledSession);
+
+    render(<GuestAppPrototype />);
+
+    /*
+      Hydration is deferred by a tick, so the first paint is deliberately the
+      signed-out welcome. Asserting it before the restored screen makes the
+      two-pass behaviour explicit rather than something a future reader has to
+      infer from a `findBy` that happens to wait.
+    */
+    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+
+    expect(await screen.findByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Get started/ })).toBeNull();
+  });
+
+  it('keeps a signed-out record from landing anywhere but the entry hub', async () => {
+    writeStoredSession(ANONYMOUS_SESSION);
+
+    render(<GuestAppPrototype />);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+  });
+
+  it('ignores storage entirely when a session is supplied', async () => {
+    writeStoredSession(settledSession);
+
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+  });
+
+  it('writes nothing when the prototype is driven by props', async () => {
+    const { unmount } = render(<GuestAppPrototype initialScreen="stay-overview" initialSession={settledSession} />);
+    await act(async () => { await Promise.resolve(); });
+    unmount();
+
+    expect(readStoredSession()).toBeUndefined();
+  });
+
+  it('clears the stored record on sign out', async () => {
+    const user = userEvent.setup();
+    writeStoredSession(settledSession);
+
+    render(<GuestAppPrototype />);
+    await screen.findByRole('navigation', { name: 'Primary navigation' });
+
+    await user.click(screen.getByRole('button', { name: 'Profile' }));
+    await user.click(screen.getByRole('button', { name: 'Sign out' }));
+
+    expect(readStoredSession()).toBeUndefined();
+  });
+});
+
+
+describe('booking-reference re-entry', () => {
+  const enterReference = async (user: ReturnType<typeof userEvent.setup>, reference: string) => {
+    await user.click(screen.getByRole('button', { name: /Log in with a booking reference/ }));
+    await user.type(screen.getByLabelText(/Booking or confirmation number/), reference);
+    await user.click(screen.getByRole('button', { name: /^Continue/ }));
+  };
+
+  /*
+    The whole point of the feature: a guest whose last stay ended long ago
+    holds nothing but a receipt, and that reference has to be enough to start
+    the way back in.
+  */
+  it('accepts a reference from a stay that is long settled', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+
+    await enterReference(user, 'HEN-CEBU-250508');
+
+    expect(screen.getByRole('heading', { name: /Verify it/ })).toBeInTheDocument();
+    expect(screen.getByText('HEN-CEBU-250508')).toBeInTheDocument();
+    expect(screen.getByText('The Henry Cebu')).toBeInTheDocument();
+  });
+
+  it('masks the contact it offers to send a code to', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+
+    await enterReference(user, 'HEN-CEBU-250508');
+
+    expect(screen.getByText('a•••@example.com')).toBeInTheDocument();
+    expect(screen.getByText('+63 917 ••• 0142')).toBeInTheDocument();
+    // Holding a booking reference is not yet proof of anything, so the address
+    // itself must not be on screen before the code is entered.
+    expect(screen.queryByText('ana@example.com')).toBeNull();
+    expect(screen.queryByText('+63 917 555 0142')).toBeNull();
+  });
+
+  it('refuses to verify until a full code is entered', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+
+    await enterReference(user, 'HEN-CEBU-250508');
+    expect(screen.getByRole('button', { name: /Verify and open my account/ })).toBeDisabled();
+
+    await user.type(screen.getByLabelText(/6-digit verification code/), '123456');
+    expect(screen.getByRole('button', { name: /Verify and open my account/ })).toBeEnabled();
+  });
+
+  /*
+    Verifying restores the profile, not the single stay whose reference opened
+    the door -- otherwise the guest reassembles their own history by hand.
+  */
+  it('opens the whole profile once the code is verified', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+
+    await enterReference(user, 'HEN-CEBU-250508');
+    await user.type(screen.getByLabelText(/6-digit verification code/), '123456');
+    await user.click(screen.getByRole('button', { name: /Verify and open my account/ }));
+
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Profile' }));
+    await user.click(screen.getByRole('button', { name: /Stay history/ }));
+    expect(screen.getByRole('heading', { name: 'Stay history' })).toBeInTheDocument();
+    expect(screen.getByText(/3 completed stays/)).toBeInTheDocument();
+  });
+
+  /*
+    The discovery path that matters. The welcome screen is booking-first by
+    design -- no account chrome -- so a returning guest arrives at the same
+    "find your booking" form as everyone else. Typing an old reference there
+    used to be a dead end at `no-booking`, which is the one case the feature
+    exists to serve.
+  */
+  it('routes a past reference typed into the ordinary lookup into re-entry', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="identify" initialSession={ANONYMOUS_SESSION} />);
+
+    await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-CEBU-250508');
+    await user.type(screen.getByLabelText(/Last name/), 'Santos');
+    await user.click(screen.getByRole('button', { name: 'Find booking' }));
+
+    expect(screen.getByRole('heading', { name: /Verify it/ })).toBeInTheDocument();
+    expect(screen.getByText('The Henry Cebu')).toBeInTheDocument();
+  });
+
+  it('still attaches a live reservation rather than asking it to verify', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="identify" initialSession={ANONYMOUS_SESSION} />);
+
+    await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-241109');
+    await user.type(screen.getByLabelText(/Last name/), 'Santos');
+    await user.click(screen.getByRole('button', { name: 'Find booking' }));
+
+    expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
+  });
+
+  it('sends an unknown reference to the no-booking screen', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="sign-in" initialSession={ANONYMOUS_SESSION} />);
+
+    await enterReference(user, 'ZZZZ-000000');
+
+    expect(screen.getByRole('heading', { name: 'Connect a hotel booking' })).toBeInTheDocument();
+  });
+});
+
+describe('finished-stay prototype switch', () => {
+  const openControls = () => {
+    const trigger = screen.queryByRole('button', { name: 'Open prototype controls' });
+    if (trigger) fireEvent.click(trigger);
+  };
+
+  const switchTo = (label: string) => {
+    openControls();
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(label) }));
+  };
+
+  it('switches a live stay into its finished state', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    switchTo('Finished stay');
+
+    expect(screen.getByTestId('guest-home-completed')).toBeInTheDocument();
+    expect(screen.getByText(/settled at checkout/i)).toBeInTheDocument();
+  });
+
+  /*
+    The reason the switch exists. There is no checkout to play forward, so
+    without it the post-checkout app cannot be reached at all.
+  */
+  it('closes room charging on a finished stay', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    switchTo('Finished stay');
+
+    await user.click(screen.getByRole('button', { name: 'Explore' }));
+    await user.click(screen.getByRole('button', { name: 'Spa & Wellness' }));
+    await user.click(screen.getAllByRole('button', { name: /Hilom signature massage/ })[0]!);
+    await user.click(screen.getByRole('button', { name: /Choose a time/ }));
+
+    expect(screen.getByRole('heading', { name: 'This stay is settled' })).toBeInTheDocument();
+    // It must not claim the stay is still ahead of the guest.
+    expect(screen.queryByText(/open when you check in/i)).toBeNull();
+  });
+
+  it('reports the state it is actually in', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    openControls();
+    expect(screen.getByRole('radio', { name: /Live stay/ })).toBeChecked();
+
+    fireEvent.click(screen.getByRole('radio', { name: /Signed out/ }));
+    openControls();
+    expect(screen.getByRole('radio', { name: /Signed out/ })).toBeChecked();
+  });
+});
+
+
+describe('a finished stay on My Stay', () => {
+  const finished = applyPrototypeStayState('finished');
+
+  it('reads as a settled receipt, not a running total', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
+
+    expect(screen.getByText('This stay')).toBeInTheDocument();
+    // "so far" is present tense about something that is over.
+    expect(screen.queryByText('This stay so far')).toBeNull();
+    expect(screen.getByText(/settled at checkout/)).toBeInTheDocument();
+  });
+
+  /*
+    The room line is the point. Before this the screen could only report what
+    was charged *against* the room, so a stay that cost ₱18,600 to sleep in
+    showed a room of nothing.
+  */
+  it('counts the room itself in the list', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
+
+    expect(screen.getByText('King room · 3 nights')).toBeInTheDocument();
+    expect(screen.getByText('₱18,600')).toBeInTheDocument();
+    expect(screen.getByText('Total settled')).toBeInTheDocument();
+  });
+
+  it('leads with booking another stay and keeps the front desk reachable', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
+
+    expect(screen.getByRole('button', { name: /Book another stay/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Message the front desk' })).toBeInTheDocument();
+  });
+
+  it('keeps the tabs, because travel booked during the stay outlives it', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
+
+    expect(screen.getByRole('tab', { name: /Upcoming/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Past/ })).toBeInTheDocument();
+  });
+
+  it('still shows the running total while the stay is live', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('live')} />);
+
+    expect(screen.getByText('This stay so far')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Book another stay/ })).toBeNull();
+  });
+});
+
+describe('booking another stay', () => {
+  const finished = applyPrototypeStayState('finished');
+
+  it('offers the estate, priced from its cheapest room', async () => {
+    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
+
+    expect(screen.getByRole('heading', { name: 'Where to next?' })).toBeInTheDocument();
+    expect(screen.getByText('The Henry Dumaguete')).toBeInTheDocument();
+    expect(screen.getByText('From ₱4,900 a night')).toBeInTheDocument();
+  });
+
+  /*
+    Offering a room that cannot hold the party and refusing it at checkout
+    wastes the guest's time, so capacity filters the list.
+  */
+  it('hides rooms that cannot hold the party', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
+
+    await user.click(screen.getByText('The Henry Cebu'));
+    await user.selectOptions(screen.getByLabelText(/Guests/), '4');
+    await user.click(screen.getByRole('button', { name: /See rooms/ }));
+
+    expect(screen.getByText(/No room here sleeps that many/)).toBeInTheDocument();
+    expect(screen.queryByText('Deluxe room')).toBeNull();
+  });
+
+  it('refuses a checkout date that is not after check in', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
+
+    await user.click(screen.getByText('The Henry Cebu'));
+    fireEvent.change(screen.getByLabelText(/Check out/), { target: { value: '2026-12-01' } });
+
+    expect(screen.getByText('Check out is not after check in')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /See rooms/ })).toBeDisabled();
+  });
+
+  it('books the stay direct and makes it the one the app is about', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
+
+    await user.click(screen.getByText('The Henry Cebu'));
+    await user.click(screen.getByRole('button', { name: /See rooms/ }));
+    await user.click(screen.getByText('Deluxe room'));
+    await user.click(screen.getByRole('button', { name: /Continue to payment/ }));
+
+    expect(screen.getByText('₱5,600 × 3 nights')).toBeInTheDocument();
+    expect(screen.getByText('₱2,016')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Pay ₱18,816' }));
+
+    expect(screen.getByRole('heading', { name: /going back to Cebu/ })).toBeInTheDocument();
+    expect(screen.getByText('HEN-CEBU-261211')).toBeInTheDocument();
+    // The commercial point: this one is not an OTA's.
+    expect(screen.getByText('Direct booking')).toBeInTheDocument();
+  });
+
+  it('will not take payment offline, because the rate moves', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} initialOnline={false} />);
+
+    await user.click(screen.getByText('The Henry Cebu'));
+    await user.click(screen.getByRole('button', { name: /See rooms/ }));
+    await user.click(screen.getByText('Deluxe room'));
+    await user.click(screen.getByRole('button', { name: /Continue to payment/ }));
+
+    expect(screen.getByRole('button', { name: /Pay ₱18,816/ })).toBeDisabled();
+    expect(screen.getByText(/Booking needs a connection/)).toBeInTheDocument();
   });
 });

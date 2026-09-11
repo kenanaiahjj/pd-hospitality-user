@@ -90,8 +90,10 @@
 }
 
 .guest-prototype-toolbar > div { display: grid; gap: 2px; }
-.guest-prototype-toolbar span { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
-.guest-prototype-toolbar small { color: var(--ds-ink-muted); font-size: 12px; line-height: 1.35; }
+/* Scoped to the head. Unscoped, these caught every span and small added to the
+   panel afterwards and shouted the switcher's option labels in capitals. */
+.guest-prototype-toolbar__head span { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.guest-prototype-toolbar__head small { color: var(--ds-ink-muted); font-size: 12px; line-height: 1.35; }
 
 .guest-prototype-toolbar button {
   display: inline-flex;
@@ -116,6 +118,103 @@
 .guest-prototype-toolbar button:disabled { cursor: not-allowed; opacity: 0.42; }
 .guest-prototype-toolbar button:focus-visible,
 .guest-room-ready-notification button:focus-visible { outline: 2px solid var(--ds-pink-strong); outline-offset: 2px; }
+
+/* Restated after the generic pill above, which otherwise wins on source order
+   and gives this a 44px dark-ink body. */
+.guest-prototype-toolbar button.guest-prototype-toolbar__close {
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--ds-surface);
+  color: var(--ds-ink-muted);
+}
+
+/* The stay-state switcher. Radios rather than a segmented control: four states
+   with a sentence of explanation each do not fit side by side, and the
+   explanation is the part that makes the rig usable by someone who did not
+   build it. */
+.guest-prototype-states {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.guest-prototype-states legend {
+  padding: 0 0 6px;
+  color: var(--ds-ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.guest-prototype-states__option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.guest-prototype-states__option input { margin: 2px 0 0; accent-color: var(--ds-pink-strong); }
+.guest-prototype-states__option span { display: grid; gap: 1px; min-width: 0; }
+.guest-prototype-states__option b { font-size: 13px; font-weight: 650; }
+.guest-prototype-states__option small { color: var(--ds-ink-muted); font-size: 11px; line-height: 1.3; }
+.guest-prototype-states__option:has(input:checked) { background: var(--ds-surface-sunken); }
+.guest-prototype-states__option:focus-within { outline: 2px solid var(--ds-pink-strong); outline-offset: 1px; }
+
+/* Overrides the panel's dark pill: resetting the rig is not an action in the
+   app, and giving it the same weight as "Simulate room ready" invites a
+   mis-click that throws the demo away. */
+.guest-prototype-toolbar__reset {
+  min-height: 36px;
+  background: transparent;
+  color: var(--ds-ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Where the verification code should go. The masked value is the point of the
+   row -- it proves the app can reach the guest without disclosing the address
+   to whoever is holding the booking reference. */
+.guest-channel-choice {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.guest-channel-choice legend {
+  padding: 0 0 8px;
+  color: var(--ds-ink-muted);
+  font-size: 13px;
+}
+.guest-channel-choice__option {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--ds-line);
+  border-radius: 12px;
+  background: var(--ds-surface);
+  cursor: pointer;
+}
+.guest-channel-choice__option:has(input:checked) {
+  border-color: var(--ds-pink-strong);
+  background: var(--ds-pink-soft);
+}
+.guest-channel-choice__option:focus-within { outline: 2px solid var(--ds-pink-strong); outline-offset: 2px; }
+.guest-channel-choice__option input { accent-color: var(--ds-pink-strong); }
+.guest-channel-choice__icon { display: grid; place-items: center; color: var(--ds-ink-muted); }
+.guest-channel-choice__icon svg { width: 20px; height: 20px; }
+.guest-channel-choice__text { display: grid; gap: 2px; min-width: 0; }
+.guest-channel-choice__text b { font-size: 14px; font-weight: 650; }
+.guest-channel-choice__text small { color: var(--ds-ink-muted); font-size: 13px; }
 
 /* This is an in-page representation of a system push. It floats, so it takes
    a shadow and no hairline. */
@@ -3110,6 +3209,101 @@
 .guest-travel-payment-pills {
   display: flex;
   gap: 8px;
+}
+
+/* ==========================================================================
+   Booking another stay
+   ========================================================================== */
+
+/* A property is chosen on the strength of the place, so the image leads and the
+   rate sits under it rather than competing with the name. */
+.guest-property-card {
+  display: grid;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease, transform var(--duration-press) var(--ease-out);
+}
+.guest-property-card:active { transform: scale(0.995); }
+.guest-property-card__body { display: grid; gap: 3px; padding: 14px 16px 15px; }
+.guest-property-card__body b { font-size: 16px; font-weight: 680; letter-spacing: -0.01em; }
+.guest-property-card__body small { color: var(--guest-muted); font-size: 13px; line-height: 1.4; }
+.guest-property-card__rate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 7px;
+  color: var(--guest-accent-strong);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.guest-property-card__rate svg { width: 15px; height: 15px; }
+@media (hover: hover) and (pointer: fine) {
+  .guest-property-card:hover { border-color: var(--guest-line-strong); }
+}
+
+.guest-room-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 16px;
+  border: 1px solid var(--guest-line);
+  border-radius: 14px;
+  background: var(--guest-paper);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+}
+.guest-room-option.is-selected {
+  border-color: var(--guest-accent);
+  background: var(--guest-soft);
+  box-shadow: 0 0 0 1px var(--guest-accent-strong);
+}
+.guest-room-option__text { display: grid; gap: 2px; min-width: 0; }
+.guest-room-option__text b { font-size: 15px; font-weight: 650; }
+.guest-room-option__text small { color: var(--guest-muted); font-size: 12.5px; line-height: 1.35; }
+.guest-room-option__price { display: grid; gap: 1px; justify-items: end; }
+.guest-room-option__price b { font-size: 15px; font-weight: 700; }
+.guest-room-option__price small { color: var(--guest-muted); font-size: 12px; }
+
+.guest-payment-choice { display: grid; gap: 9px; }
+.guest-payment-choice__label {
+  color: var(--guest-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.guest-payment-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* The settled receipt on My Stay. */
+.guest-stay-receipt { display: grid; gap: 12px; }
+
+/* Two actions where the live stay has one: the rebooking is the offer, the
+   front desk is the fallback, and they must not read as equals. */
+.guest-dock--stacked { gap: 4px; padding-top: 10px; }
+.guest-dock__quiet {
+  padding: 6px 8px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--guest-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.guest-dock__quiet:focus-visible { outline: 2px solid var(--ds-pink-strong); outline-offset: 2px; border-radius: 8px; }
+@media (hover: hover) and (pointer: fine) {
+  .guest-dock__quiet:hover { color: var(--guest-ink); }
 }
 
 .guest-payment-chip {

@@ -7,6 +7,13 @@ export type ScreenId =
   | 'room-qr-landing'
   | 'wifi-landing'
   | 'identify'
+  | 'book-stay'
+  | 'book-stay-dates'
+  | 'book-stay-rooms'
+  | 'book-stay-checkout'
+  | 'book-stay-confirmation'
+  | 'identify-returning'
+  | 'verify-contact'
   | 'lookup-fallback'
   | 'front-desk-assist'
   | 'no-booking'
@@ -115,6 +122,13 @@ export const SCREENS: PrototypeScreen[] = [
   screen(47, 'Stay', 'notifications', 'Notifications'),
   screen(48, 'Account', 'stay-detail', 'Stay detail'),
   screen(49, 'Stay', 'stay-entry', 'Booking receipt'),
+  screen(50, 'Entry', 'identify-returning', 'Log in with a booking'),
+  screen(51, 'Entry', 'verify-contact', 'Verify it is you'),
+  screen(52, 'Stay', 'book-stay', 'Book another stay'),
+  screen(53, 'Stay', 'book-stay-dates', 'Dates and guests'),
+  screen(54, 'Stay', 'book-stay-rooms', 'Choose a room'),
+  screen(55, 'Stay', 'book-stay-checkout', 'Confirm and pay'),
+  screen(56, 'Stay', 'book-stay-confirmation', 'Stay booked'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -164,6 +178,14 @@ export type Booking = {
   preArrivalTotal: number;
   nextPreArrivalStep?: string;
   folioTotal?: string;
+  /**
+   * What the room itself came to, before anything charged against it.
+   *
+   * `PastStay` has carried this from the start; a live `Booking` had nowhere to
+   * record it, which is why a settled stay could only report its extras and
+   * showed a room of zero.
+   */
+  roomRate?: string;
 };
 
 /**
@@ -493,22 +515,24 @@ export function signOutSession(): GuestSession {
  * reservation shown to a stranger, and it left the `no-booking` screen
  * unreachable from the only flow that should produce it.
  *
- * Either field alone is accepted: a guest with the confirmation number should
- * not be stopped by a surname spelt differently from the booking, and one
- * without it should still get in on their name.
+ * The reference is required, and it is the only thing matched on.
+ *
+ * A surname alone used to be accepted, so `Santos` with any reference at all
+ * returned Ana Santos's property, dates, room type and booking source to
+ * whoever typed it. Surnames are not secrets -- they are on the luggage tag --
+ * and this screen is reachable by anyone. The field stays on the form because
+ * it confirms to the *guest* that they matched the stay they meant, but it is
+ * not a key. A guest who does not have their reference has the
+ * `lookup-fallback` → `front-desk-assist` path, which is what human
+ * verification is for.
  */
 const normalise = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
-export function findBookingByLookup(reference: string, lastName: string): Booking | undefined {
+export function findBookingByLookup(reference: string): Booking | undefined {
   const ref = normalise(reference);
-  const name = normalise(lastName);
-  if (!ref && !name) return undefined;
+  if (!ref) return undefined;
 
-  return [UPCOMING_BOOKING_FIXTURE].find((booking) => {
-    const surname = normalise(booking.guestName.split(' ').slice(-1)[0] ?? '');
-    return (ref.length > 0 && normalise(booking.id) === ref)
-      || (name.length > 0 && surname === name);
-  });
+  return [UPCOMING_BOOKING_FIXTURE].find((booking) => normalise(booking.id) === ref);
 }
 
 export function connectBooking(session: GuestSession): GuestSession {
@@ -692,6 +716,13 @@ export const CHECK_OUT_BY = '12:00 PM';
 export const PROTOTYPE_TODAY = '2026-11-11';
 
 /**
+ * What the rebooking date fields open on. Far enough ahead of the prototype
+ * clock to be plainly a future trip rather than an edit of the current one.
+ */
+export const DEFAULT_REBOOK_CHECK_IN = '2026-12-11';
+export const DEFAULT_REBOOK_CHECK_OUT = '2026-12-14';
+
+/**
  * What the travel date picker opens on: the day after this stay ends.
  *
  * The checkout used to date every leg to the hotel stay's *check-in*, which is
@@ -873,6 +904,491 @@ export const PAST_STAYS: PastStay[] = [
 ];
 
 export const findPastStay = (id: string) => PAST_STAYS.find((stay) => stay.id === id);
+
+/**
+ * The contact the estate holds for this guest, in one place.
+ *
+ * The mobile used to exist only as a default value on the `guest-details`
+ * form, which made it impossible to say "we sent a code to the number on your
+ * reservation" without restating it and letting the two drift.
+ */
+export const GUEST_PROFILE = {
+  name: 'Ana Santos',
+  email: 'ana@example.com',
+  mobile: '+63 917 555 0142',
+} as const;
+
+/**
+ * Masked for display *before* verification.
+ *
+ * The re-entry screen has to prove to the guest that it reached the right
+ * person without telling an unknown party what that address is -- the whole
+ * point of the code step is that holding a booking reference is not yet proof
+ * of anything.
+ */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return email;
+
+  return `${local.slice(0, 1)}•••@${domain}`;
+}
+
+export function maskMobile(mobile: string): string {
+  const parts = mobile.trim().split(/\s+/);
+  if (parts.length < 3) return mobile;
+
+  // Country code and prefix stay, the subscriber block goes, the last block
+  // stays -- enough for the guest to recognise their own number and no more.
+  return parts.map((part, index) => (index === parts.length - 2 ? '•••' : part)).join(' ');
+}
+
+/**
+ * A reference matched against everything the estate holds for this guest --
+ * the live reservations *and* the settled stays.
+ *
+ * Distinct from `findBookingByLookup`, which answers "is there a stay to
+ * attach". This answers "is whoever typed this plausibly the guest", which is
+ * a different question with a different set to search: a guest coming back
+ * eighteen months later has no live reservation at all, only the reference on
+ * a receipt.
+ */
+export type ProfileMatch = {
+  reference: string;
+  guestName: string;
+  property: string;
+  /** Set when the reference names a reservation the middleware still tracks. */
+  booking?: Booking;
+  /** Set when the reference names a stay that is settled and immutable. */
+  pastStay?: PastStay;
+};
+
+export function findProfileByLookup(reference: string): ProfileMatch | undefined {
+  const ref = normalise(reference);
+  if (!ref) return undefined;
+
+  const booking = MOCK_SESSION.bookings.find((entry) => normalise(entry.id) === ref);
+  if (booking) {
+    return {
+      reference: booking.id,
+      guestName: booking.guestName,
+      property: booking.property,
+      booking,
+    };
+  }
+
+  const pastStay = PAST_STAYS.find((stay) => normalise(stay.id) === ref);
+  if (pastStay) {
+    return {
+      reference: pastStay.id,
+      guestName: GUEST_PROFILE.name,
+      property: pastStay.property,
+      pastStay,
+    };
+  }
+
+  return undefined;
+}
+
+/**
+ * What a verified code buys: the whole profile, not the one stay that was
+ * looked up.
+ *
+ * This is the answer to "can I log in with an old booking ID and see
+ * everything?" -- the reference is the way in, the guest profile is what is
+ * behind the door. Restoring only the matched reservation would make a guest
+ * re-enter a reference per stay to assemble their own history.
+ */
+export function restoreProfileSession(): GuestSession {
+  return {
+    ...MOCK_SESSION,
+    auth: 'authenticated',
+    accountStatus: 'returning',
+    authMethod: 'email-code',
+  };
+}
+
+/**
+ * The four states of a stay worth demonstrating, for the prototype control.
+ *
+ * Reaching the finished state by playing the app forward is impossible -- there
+ * is no checkout to perform -- so without a switch the post-checkout app is
+ * unreachable and effectively undesigned.
+ */
+export type PrototypeStayState = 'signed-out' | 'pre-arrival' | 'live' | 'finished';
+
+/**
+ * Read through `describeStayStatus`, which is the badge the guest is looking at
+ * while they use the switch.
+ *
+ * Reading `status` directly is what the first version did, and the reference
+ * stay breaks it: it runs 9-12 November against a clock of the 11th while still
+ * calling itself `upcoming`, so the panel reported `pre-arrival` for a stay the
+ * home screen was badging "Checked in". Whatever the switch says has to be what
+ * is on screen, or it is worse than no switch at all.
+ */
+export function getPrototypeStayState(session: GuestSession): PrototypeStayState {
+  const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+  if (!booking) return 'signed-out';
+
+  const { status } = describeStayStatus(booking);
+  if (status === 'checked-out') return 'finished';
+  if (status === 'checked-in') return 'live';
+  return 'pre-arrival';
+}
+
+/* ==========================================================================
+   The estate, and booking another stay in it
+   ========================================================================== */
+
+export type PropertyRoomType = {
+  id: string;
+  name: string;
+  detail: string;
+  /** Per night, before taxes. */
+  nightlyRate: string;
+  maxGuests: number;
+};
+
+export type EstateProperty = {
+  id: string;
+  name: string;
+  city: string;
+  /**
+   * Part of the reference the property issues: `HEN-MNL-251002`,
+   * `HEN-CEBU-260314`. Both forms already exist in the fixtures, so this is
+   * read off the property rather than inferred from the city.
+   */
+  referenceCode: string;
+  tagline: string;
+  roomTypes: PropertyRoomType[];
+};
+
+/**
+ * The three properties a returning guest can book into.
+ *
+ * This is not hotel search. It is the estate a guest who has already stayed can
+ * come back to, reachable only from a finished stay -- `no-booking` still tells
+ * anyone without a reservation that Cabana is not a place to compare hotels,
+ * and that stays true. A direct booking here displaces an OTA's commission
+ * rather than buying a new guest.
+ */
+export const ESTATE_PROPERTIES: EstateProperty[] = [
+  {
+    id: 'manila',
+    name: 'The Henry Manila',
+    city: 'Manila',
+    referenceCode: 'MNL',
+    tagline: 'Post-war villas and garden courtyards in Pasay',
+    roomTypes: [
+      { id: 'manila-king', name: 'King room', detail: '32 sqm · Courtyard view · Sleeps 2', nightlyRate: '₱6,200', maxGuests: 2 },
+      { id: 'manila-suite', name: 'Garden suite', detail: '48 sqm · Private terrace · Sleeps 3', nightlyRate: '₱9,400', maxGuests: 3 },
+      { id: 'manila-family', name: 'Two-bedroom villa', detail: '76 sqm · Separate living room · Sleeps 5', nightlyRate: '₱14,800', maxGuests: 5 },
+    ],
+  },
+  {
+    id: 'cebu',
+    name: 'The Henry Cebu',
+    city: 'Cebu',
+    referenceCode: 'CEBU',
+    tagline: 'Pool deck, Azotea rooftop, ten minutes from Mactan',
+    roomTypes: [
+      { id: 'cebu-deluxe', name: 'Deluxe room', detail: '28 sqm · Pool view · Sleeps 2', nightlyRate: '₱5,600', maxGuests: 2 },
+      { id: 'cebu-suite', name: 'Garden suite', detail: '44 sqm · Ground floor garden · Sleeps 3', nightlyRate: '₱8,800', maxGuests: 3 },
+    ],
+  },
+  {
+    id: 'dumaguete',
+    name: 'The Henry Dumaguete',
+    city: 'Dumaguete',
+    referenceCode: 'DGTE',
+    tagline: 'Quiet sea-facing wing, walking distance to Rizal Boulevard',
+    roomTypes: [
+      { id: 'dumaguete-deluxe', name: 'Deluxe room', detail: '26 sqm · Sea view · Sleeps 2', nightlyRate: '₱4,900', maxGuests: 2 },
+      { id: 'dumaguete-suite', name: 'Corner suite', detail: '40 sqm · Balcony · Sleeps 4', nightlyRate: '₱7,600', maxGuests: 4 },
+    ],
+  },
+];
+
+export const findEstateProperty = (id: string) =>
+  ESTATE_PROPERTIES.find((property) => property.id === id);
+
+/** The lowest nightly rate on offer, so a property card can say "from". */
+export function propertyFromRate(property: EstateProperty): string {
+  return formatPesoAmount(
+    Math.min(...property.roomTypes.map((room) => parsePesoAmount(room.nightlyRate))),
+  );
+}
+
+/** Nights between two dates, never negative -- a date picker can invert them. */
+export function countNightsBetween(checkIn: string, checkOut: string): number {
+  const nights = dayIndex(checkOut) - dayIndex(checkIn);
+  return nights > 0 ? nights : 0;
+}
+
+/**
+ * 12% VAT. The figure matches the rate already shown on `rate-detail`
+ * (₱18,000 room, ₱2,160 tax), so a booking made in the app and one made
+ * through an OTA do not appear to be taxed differently.
+ */
+const STAY_TAX_RATE = 0.12;
+
+export type StayQuote = {
+  nights: number;
+  roomTotal: string;
+  taxes: string;
+  total: string;
+};
+
+export function quoteStay(roomType: PropertyRoomType, nights: number): StayQuote {
+  const room = parsePesoAmount(roomType.nightlyRate) * nights;
+  const taxes = Math.round(room * STAY_TAX_RATE);
+
+  return {
+    nights,
+    roomTotal: formatPesoAmount(room),
+    taxes: formatPesoAmount(taxes),
+    total: formatPesoAmount(room + taxes),
+  };
+}
+
+/**
+ * Mints the reservation a direct booking produces.
+ *
+ * Pre-arrival starts at zero however many times this guest has stayed: the
+ * details go to a different property, which holds its own registration record
+ * and has not seen their ID.
+ */
+export function createStayBooking(input: {
+  property: EstateProperty;
+  roomType: PropertyRoomType;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  guestName: string;
+}): Booking {
+  const { property, roomType, checkIn, checkOut, guests, guestName } = input;
+  const quote = quoteStay(roomType, countNightsBetween(checkIn, checkOut));
+  const stamp = checkIn.replaceAll('-', '').slice(2);
+
+  return {
+    id: `HEN-${property.referenceCode}-${stamp}`,
+    guestName,
+    property: property.name,
+    city: property.city,
+    status: 'upcoming',
+    checkIn,
+    checkOut,
+    roomType: roomType.name,
+    roomAssignment: 'pending',
+    guestCount: guests,
+    // The commercial point of the feature: this one is not an OTA's.
+    source: 'Direct booking',
+    preArrivalCompleted: 0,
+    preArrivalTotal: 4,
+    nextPreArrivalStep: 'Add your details',
+    roomRate: quote.roomTotal,
+  };
+}
+
+/** Adds a booking and makes it the one the app is about. */
+export function addStayBooking(session: GuestSession, booking: Booking): GuestSession {
+  return {
+    ...session,
+    bookings: [...session.bookings, booking],
+    activeBookingId: booking.id,
+  };
+}
+
+/**
+ * A finished `Booking` rendered as the `PastStay` it has become, so the receipt
+ * on My Stay and the one on `stay-detail` are the same object and read alike.
+ *
+ * Deliberately not `getRoomCharges`, which answers "what is running up against
+ * the room right now" and drops anything not `confirmed`. This answers "what
+ * did the stay come to", which is closed, includes the room itself, and counts
+ * services that have since completed.
+ */
+export function toFinishedStay(session: GuestSession, booking: Booking): PastStay {
+  const charges: PastStayCharge[] = [];
+
+  for (const posted of POSTED_ROOM_CHARGES) {
+    charges.push({
+      id: posted.id,
+      parent: booking.property,
+      title: posted.title,
+      detail: posted.detail,
+      amount: posted.amount,
+      category: posted.category ?? 'Hotel services',
+    });
+  }
+
+  for (const service of session.serviceBookings) {
+    if (service.bookingId !== booking.id || service.status === 'cancelled') continue;
+
+    charges.push({
+      id: service.id,
+      parent: service.diningOrder?.venueName ?? booking.property,
+      title: service.title,
+      detail: service.scheduledFor,
+      category: categoryLabelFor(service.title),
+      amount: service.amount,
+    });
+  }
+
+  const roomRate = booking.roomRate ?? deriveRoomRate(booking);
+  const extras = charges.reduce((sum, charge) => sum + parsePesoAmount(charge.amount), 0);
+
+  return {
+    id: booking.id,
+    property: booking.property,
+    city: booking.city,
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    nights: countNightsBetween(booking.checkIn, booking.checkOut),
+    roomType: booking.roomType,
+    roomNumber: booking.roomNumber ?? '—',
+    guestCount: booking.guestCount,
+    source: booking.source,
+    roomRate,
+    charges,
+    total: formatPesoAmount(parsePesoAmount(roomRate) + extras),
+  };
+}
+
+/**
+ * What the room cost, for a booking that never recorded it.
+ *
+ * Emphatically not `folioTotal`, which was the first fallback here and is
+ * wrong in a way that looks right: it is the total *charged against* the room,
+ * so using it as the room's own price both understates the room and counts
+ * every extra twice -- once on the room line and again in its own group.
+ *
+ * The catalogue knows what that room goes for. Where it does not -- a property
+ * or room type outside the estate list -- the honest answer is nothing, not a
+ * borrowed number.
+ */
+function deriveRoomRate(booking: Booking): string {
+  const property = ESTATE_PROPERTIES.find((entry) => entry.name === booking.property);
+  const room = property?.roomTypes.find((entry) => entry.name === booking.roomType);
+  if (!room) return '₱0';
+
+  return quoteStay(room, countNightsBetween(booking.checkIn, booking.checkOut)).roomTotal;
+}
+
+/** Maps a booked item back to the receipt heading it belongs under. */
+function categoryLabelFor(title: string): PastStayCharge['category'] {
+  const categoryId = SERVICES.find((service) => service.name === title)?.categoryId
+    ?? (RESTAURANTS.some((venue) => venue.name === title) ? 'dining' : 'services');
+
+  if (categoryId === 'dining') return 'Dining';
+  if (categoryId === 'spa') return 'Spa & wellness';
+  if (categoryId === 'entertainment') return 'Tours';
+  /*
+    No `Travel` branch: travel is not stay-scoped and never reaches a folio, so
+    it cannot arrive here. `serviceBookings` are on-property by definition --
+    the compiler agrees, and rejected the unreachable check.
+  */
+  return 'Hotel services';
+}
+
+/** The switcher's rows, so the panel and the model cannot disagree on wording. */
+export const PROTOTYPE_STAY_STATES: Array<{
+  id: PrototypeStayState;
+  label: string;
+  detail: string;
+}> = [
+  { id: 'signed-out', label: 'Signed out', detail: 'Welcome screen, nothing connected' },
+  { id: 'pre-arrival', label: 'Pre-arrival', detail: 'Booked, not yet checked in' },
+  { id: 'live', label: 'Live stay', detail: 'In the room, charging to the folio' },
+  { id: 'finished', label: 'Finished stay', detail: 'Checked out, room charging closed' },
+];
+
+export function applyPrototypeStayState(state: PrototypeStayState): GuestSession {
+  if (state === 'signed-out') return { ...ANONYMOUS_SESSION };
+
+  const profile = restoreProfileSession();
+
+  if (state === 'pre-arrival') {
+    const booking: Booking = {
+      ...UPCOMING_BOOKING_FIXTURE,
+      status: 'upcoming',
+      // Clear of the prototype clock, so nothing about this stay reads as
+      // under way.
+      checkIn: '2026-11-20',
+      checkOut: '2026-11-23',
+      roomNumber: undefined,
+      roomAssignment: 'pending',
+      preArrivalCompleted: 2,
+      preArrivalTotal: 4,
+      folioTotal: undefined,
+    };
+
+    return {
+      ...profile,
+      bookings: [booking],
+      activeBookingId: booking.id,
+      serviceBookings: [],
+      folioTotal: '₱0',
+    };
+  }
+
+  if (state === 'live') {
+    const booking: Booking = {
+      ...UPCOMING_BOOKING_FIXTURE,
+      status: 'active',
+      roomNumber: '304',
+      roomAssignment: 'ready',
+      roomReadyAt: '2:15 PM',
+      preArrivalCompleted: 4,
+      preArrivalTotal: 4,
+      nextPreArrivalStep: undefined,
+      folioTotal: '₱3,050',
+      // Three nights of the Manila king room at the catalogue's own rate, so
+      // the receipt and `ESTATE_PROPERTIES` cannot quote different numbers.
+      roomRate: '₱18,600',
+    };
+
+    return {
+      ...profile,
+      bookings: [booking],
+      activeBookingId: booking.id,
+      folioTotal: '₱3,050',
+    };
+  }
+
+  /*
+    Finished. `status: 'completed'` is what closes the live surface -- every
+    gate that guards room charging, dining orders and room-ready reporting runs
+    through `isStayUnderWay`, which reads completed as false. The stay stays
+    legible; only the things that post to a room the guest has left go away.
+  */
+  const booking: Booking = {
+    ...UPCOMING_BOOKING_FIXTURE,
+    status: 'completed',
+    checkIn: '2026-11-02',
+    checkOut: '2026-11-05',
+    roomNumber: '304',
+    roomAssignment: 'ready',
+    preArrivalCompleted: 4,
+    preArrivalTotal: 4,
+    nextPreArrivalStep: undefined,
+    folioTotal: '₱3,050',
+    roomRate: '₱18,600',
+  };
+
+  return {
+    ...profile,
+    bookings: [booking],
+    activeBookingId: booking.id,
+    // Settled at checkout: nothing is owing on a stay that is over.
+    folioTotal: '₱0',
+    serviceBookings: profile.serviceBookings.map((service) => ({
+      ...service,
+      bookingId: booking.id,
+      status: service.status === 'cancelled' ? 'cancelled' : 'completed',
+    })),
+  };
+}
 
 /**
  * Groups a past stay's charges by the category that sold them, so the detail
@@ -2068,6 +2584,8 @@ export type RoomCharge = {
   /** Which venue, amenity or vendor -- plus anything the guest chose. */
   detail: string;
   amount: string;
+  /** Where it belongs once the stay is settled and grouped into a receipt. */
+  category?: PastStayCharge['category'];
 };
 
 /**
@@ -2076,9 +2594,9 @@ export type RoomCharge = {
  * the app reports them rather than creating them.
  */
 const POSTED_ROOM_CHARGES: RoomCharge[] = [
-  { id: 'posted-transfer', date: 'NOV 9', title: 'Airport transfer', detail: 'Hotel arranged', amount: '₱1,200' },
-  { id: 'posted-dining', date: 'NOV 10', title: 'In-room dining', detail: 'Dinner · 2 guests', amount: '₱850' },
-  { id: 'posted-laundry', date: 'NOV 10', title: 'Laundry service', detail: 'Hotel operated', amount: '₱1,000' },
+  { id: 'posted-transfer', date: 'NOV 9', title: 'Airport transfer', detail: 'Hotel arranged', amount: '₱1,200', category: 'Hotel services' },
+  { id: 'posted-dining', date: 'NOV 10', title: 'In-room dining', detail: 'Dinner · 2 guests', amount: '₱850', category: 'Dining' },
+  { id: 'posted-laundry', date: 'NOV 10', title: 'Laundry service', detail: 'Hotel operated', amount: '₱1,000', category: 'Hotel services' },
 ];
 
 /**

@@ -55,6 +55,7 @@ import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
   ANONYMOUS_SESSION,
   canUseOnPropertyServices,
+  bookingFromLookup,
   connectBooking,
   describeBookingSlot,
   describeGuestGate,
@@ -1022,6 +1023,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   });
   const [stayPaymentMethod, setStayPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
   const [bookedStayId, setBookedStayId] = useState<string | null>(null);
+  /** The reservation the lookup produced, held between the form and the
+      confirmation so both show the guest's own reference rather than a
+      fixture's. */
+  const [lookupBooking, setLookupBooking] = useState<Booking | null>(null);
+  /** Prototype only: put strict reference matching back, to demo not-found. */
+  const [strictLookup, setStrictLookup] = useState(false);
   const [profileMatch, setProfileMatch] = useState<ProfileMatch | null>(null);
   const [verifyChannel, setVerifyChannel] = useState<'email' | 'mobile'>('email');
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
@@ -1161,7 +1168,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const roomReadyNotification = roomReadyNotificationBooking
     ? describeRoomAssignment(roomReadyNotificationBooking)
     : undefined;
-  const displayBooking = primaryBooking ?? MOCK_SESSION.bookings[0]!;
+  const displayBooking = primaryBooking ?? lookupBooking ?? MOCK_SESSION.bookings[0]!;
   const contextBooking = primaryBooking ?? displayBooking;
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
   const contextService = session.serviceBookings.find(
@@ -1473,7 +1480,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const claimBooking = () => {
-    const next = connectBooking(session);
+    const next = connectBooking(session, lookupBooking ?? undefined);
     setSession(next);
     go(getPostAuthScreen(next));
   };
@@ -1583,14 +1590,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           event.preventDefault();
           const data = new FormData(event.currentTarget);
           const reference = String(data.get('booking-number') ?? '');
+          const lastName = String(data.get('last-name') ?? '');
+
           const match = findBookingByLookup(reference);
           if (match) {
+            setLookupBooking(match);
             go('booking-found');
             return;
           }
-          /* Not a live reservation. Before giving up, see whether it is a stay
-             this guest has already finished -- a returning guest has no live
-             booking to find, only an old reference. */
+
+          /* Not a live reservation. Before anything else, see whether it is a
+             stay this guest has already finished -- a returning guest has no
+             live booking to find, only an old reference. */
           const profile = findProfileByLookup(reference);
           if (profile) {
             setProfileMatch(profile);
@@ -1599,7 +1610,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             go('verify-contact');
             return;
           }
-          go('no-booking');
+
+          /*
+            Anything else is accepted, stamped with what the guest typed. The
+            prototype has one real reference, so strict matching meant a demo
+            mostly showed the not-found screen. `strictLookup` in the
+            prototype controls puts the refusal back when that path is what
+            needs demonstrating.
+          */
+          if (strictLookup) {
+            go('no-booking');
+            return;
+          }
+          setLookupBooking(bookingFromLookup(reference, lastName));
+          go('booking-found');
         }}
       >
         <Field
@@ -3546,6 +3570,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onClearReview={clearReview}
         autoDetectScans={autoDetectScans}
         onToggleAutoDetectScans={() => setAutoDetectScans((on) => !on)}
+        strictLookup={strictLookup}
+        onToggleStrictLookup={() => setStrictLookup((on) => !on)}
         onReset={resetPrototype}
       />
 
@@ -3697,6 +3723,8 @@ function PrototypeControls({
   onClearReview,
   autoDetectScans,
   onToggleAutoDetectScans,
+  strictLookup,
+  onToggleStrictLookup,
   onReset,
 }: {
   online: boolean;
@@ -3713,6 +3741,8 @@ function PrototypeControls({
   onClearReview: () => void;
   autoDetectScans: boolean;
   onToggleAutoDetectScans: () => void;
+  strictLookup: boolean;
+  onToggleStrictLookup: () => void;
   onReset: () => void;
 }) {
   /*
@@ -3821,6 +3851,16 @@ function PrototypeControls({
           <button type="button" onClick={onToggleAutoDetectScans}>
             <ClockCountdown aria-hidden="true" />
             {autoDetectScans ? 'Scanner: auto-detects after 2s' : 'Scanner: waits for the button'}
+          </button>
+
+          {/*
+            Off by default so any reference walks the happy path. On, only the
+            real fixture matches -- which is how the not-found and
+            returning-guest screens stay demonstrable.
+          */}
+          <button type="button" onClick={onToggleStrictLookup}>
+            <Ticket aria-hidden="true" />
+            {strictLookup ? 'Lookup: only real references' : 'Lookup: accepts anything'}
           </button>
         </fieldset>
 

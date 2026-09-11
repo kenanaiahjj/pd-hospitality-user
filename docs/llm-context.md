@@ -164,6 +164,12 @@ evidence that the requested app is covered.
 - The account gate offers one `Get started` action. It opens an accessible SSO
   bottom sheet; Apple and Google both lead directly to the booking lookup
   form, which asks for a reference number and last name.
+- The booking lookup accepts any reference by default and stamps it onto the
+  reference stay, so a demo is not gated on typing `HEN-241109`. The real
+  fixture and old past-stay references still take their own paths first
+  (`booking-found`, `verify-contact`). The controls' "Lookup: accepts
+  anything" toggle restores strict matching, which is how `no-booking` stays
+  demonstrable.
 - Signing in lands on Home, never on a bare lookup form, and it shows the
   guest's previous stays under one `Add a booking` card. SSO matches an
   identity the estate has seen, so a signed-in session carries history; a

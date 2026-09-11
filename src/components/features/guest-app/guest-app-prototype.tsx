@@ -1289,6 +1289,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const pastStays = session.pastStays;
   const scannerReducedMotion = usePrefersReducedMotion();
   const [autoDetectScans, setAutoDetectScans] = useState(true);
+  /** Marks the scan icon while the one thing it unlocks is still locked. */
+  const scanPending = Boolean(
+    primaryBooking && isStayUnderWay(primaryBooking) && !primaryBooking.roomVerification,
+  );
   const stayReview = session.reviews.find((review) => review.bookingId === contextBooking.id);
 
   const submitStayReview = (rating: StayReview['rating'], comment: string) => {
@@ -3569,15 +3573,36 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             */}
             <div className="guest-appbar__side guest-appbar__side--end">
               {session.auth === 'authenticated' || session.bookings.length > 0 ? (
-                <button
-                  className="guest-icon-button guest-bell"
-                  type="button"
-                  onClick={openNotifications}
-                  aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : 'Notifications'}
-                >
-                  <Bell />
-                  {unreadNotifications ? <span className="guest-bell__dot" aria-hidden="true" /> : null}
-                </button>
+                <>
+                  {/*
+                    The scan lives here because DESIGN.md's own rule puts
+                    actions in this slot and places in the tab bar -- and
+                    because as a list row on Home it was unfindable: a guest
+                    holding the code had to scroll past the stay card and the
+                    booking row to reach the one thing they were trying to do.
+                    A dot marks it while the room is still unverified, the same
+                    way the bell marks unread.
+                  */}
+                  <button
+                    className="guest-icon-button guest-scan-action"
+                    type="button"
+                    data-testid="guest-scan-action"
+                    onClick={() => go('scan-room-code')}
+                    aria-label={scanPending ? 'Scan room code, room not yet verified' : 'Scan room code'}
+                  >
+                    <QrCode />
+                    {scanPending ? <span className="guest-bell__dot" aria-hidden="true" /> : null}
+                  </button>
+                  <button
+                    className="guest-icon-button guest-bell"
+                    type="button"
+                    onClick={openNotifications}
+                    aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : 'Notifications'}
+                  >
+                    <Bell />
+                    {unreadNotifications ? <span className="guest-bell__dot" aria-hidden="true" /> : null}
+                  </button>
+                </>
               ) : null}
             </div>
           </header> : null}
@@ -3893,24 +3918,18 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
           </div>
         </section>
         {/*
-          Promoted when it is the only thing in the way. For a guest who has
-          arrived and not scanned, this is not one option among several --
-          it is the single action that opens the rest of the app, and a quiet
-          row was the wrong weight for it.
+          Only while it is the thing in the way. Once the room is verified the
+          scan is just an action, and it lives in the app bar where every
+          screen can reach it -- repeating it here as a row was what made it
+          unfindable in the first place, one quiet line among many.
         */}
-        <section className="guest-home-room-qr" aria-label="Room access">
-          {canUseOnPropertyServices(booking) ? (
-            <button className="guest-list-row" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
-              <span><QrCode aria-hidden="true" /></span>
-              <div><b>Room QR</b><small>Scan the code in your room</small></div>
-              <CaretRight aria-hidden="true" />
-            </button>
-          ) : (
+        {canUseOnPropertyServices(booking) ? null : (
+          <section className="guest-home-room-qr" aria-label="Room access">
             <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
               <QrCode aria-hidden="true" />Scan your room code<ArrowRight aria-hidden="true" />
             </Button>
-          )}
-        </section>
+          </section>
+        )}
         <AnnouncementsSection />
         <section>
           <SectionHeading title="Categories" action="See all" onAction={() => onNavigate('marketplace')} />
@@ -4362,8 +4381,12 @@ function EmptyStayHome({
           with no reference in hand -- the code on the desk card identifies
           the reservation for them.
         */}
+        {/*
+          "Scan a room code", not "your": this guest has no booking attached
+          yet, and the code is what finds it for them.
+        */}
         <button className="guest-button guest-button--secondary" type="button" onClick={() => onNavigate('scan-room-code')}>
-          <QrCode aria-hidden="true" />Scan room code
+          <QrCode aria-hidden="true" />Scan a room code
         </button>
       </div>
 

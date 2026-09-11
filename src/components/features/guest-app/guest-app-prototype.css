@@ -3793,3 +3793,8 @@
 @media (prefers-reduced-motion: reduce) {
   .guest-scanner__sweep { animation: none; }
 }
+
+/* The scan sits beside the bell: both are actions, and the app bar's end
+   slot is where DESIGN.md puts actions. The dot marks an unverified room the
+   same way it marks unread notifications. */
+.guest-scan-action { position: relative; }

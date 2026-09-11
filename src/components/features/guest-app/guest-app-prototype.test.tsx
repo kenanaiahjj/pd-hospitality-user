@@ -2039,10 +2039,17 @@ describe('a finished stay on My Stay', () => {
     expect(screen.getByText('Total settled')).toBeInTheDocument();
   });
 
-  it('leads with booking another stay and keeps the front desk reachable', () => {
+  it('leads with booking another stay', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
 
     expect(screen.getByRole('button', { name: /Book another stay/ })).toBeInTheDocument();
+  });
+
+  it('keeps the front desk reachable for the 24 hours after checkout', () => {
+    // Reachability is now a property of the window, not of being checked out:
+    // `finished` above is a stay whose desk window has already closed.
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('just-checked-out')} />);
+
     expect(screen.getByRole('button', { name: 'Message the front desk' })).toBeInTheDocument();
   });
 
@@ -2286,5 +2293,61 @@ describe('lifecycle gates', () => {
     await user.click(screen.getByTestId('guest-front-desk-action'));
 
     expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
+  });
+});
+
+describe('post-stay front desk window', () => {
+  const justCheckedOut = applyPrototypeStayState('just-checked-out');
+  const closed = applyPrototypeStayState('closed');
+
+  it('keeps the desk reachable for 24 hours, and says how long is left', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={justCheckedOut} />);
+
+    expect(screen.getByText(/Front desk open for another \d+ hours?/)).toBeInTheDocument();
+    expect(screen.getByTestId('guest-front-desk-action')).toBeInTheDocument();
+  });
+
+  it('closes the desk once the window is over and offers a review instead', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
+
+    expect(screen.queryByTestId('guest-front-desk-action')).toBeNull();
+    expect(screen.getByText('Front desk chat closed')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rate your stay' })).toBeInTheDocument();
+  });
+
+  it('still shows every activity and charge after the desk closes', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
+
+    // The receipt is the point of the screen once the conversation is over.
+    expect(screen.getByText('This stay')).toBeInTheDocument();
+    expect(screen.getByText(/King room · 3 nights/)).toBeInTheDocument();
+    expect(screen.getByText('Spa & wellness')).toBeInTheDocument();
+  });
+
+  it('takes a stay-level rating and keeps it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
+
+    await user.click(screen.getByRole('button', { name: 'Rate your stay' }));
+    await user.click(screen.getByRole('radio', { name: '4 stars' }));
+    await user.type(screen.getByLabelText(/Anything you.{1,3}d like the property to know/), 'Lovely room, slow breakfast.');
+    await user.click(screen.getByRole('button', { name: 'Send to the property' }));
+
+    expect(screen.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
+    // Private to the property: nothing here publishes or scores a listing.
+    expect(screen.getByText(/only the property sees this/i)).toBeInTheDocument();
+  });
+
+  it('does not ask twice once a stay has been rated', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
+
+    await user.click(screen.getByRole('button', { name: 'Rate your stay' }));
+    await user.click(screen.getByRole('radio', { name: '5 stars' }));
+    await user.click(screen.getByRole('button', { name: 'Send to the property' }));
+    await user.click(screen.getByRole('button', { name: /Back to my stay/ }));
+
+    expect(screen.queryByRole('button', { name: 'Rate your stay' })).toBeNull();
+    expect(screen.getByText(/You rated this stay 5/)).toBeInTheDocument();
   });
 });

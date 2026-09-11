@@ -3585,3 +3585,71 @@
   letter-spacing: 0.01em;
   text-transform: uppercase;
 }
+
+/* --------------------------------------------------------------------------
+   Post-stay
+   -------------------------------------------------------------------------- */
+
+/* Which side of the 24-hour desk window this stay is on. Status, not brand:
+   an open desk is the positive green, a closed one is simply quiet. */
+.guest-desk-window {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--guest-subtle);
+  font-size: 13px;
+}
+.guest-desk-window svg { width: 16px; height: 16px; }
+.guest-desk-window.is-open { color: var(--guest-positive, var(--guest-ink)); }
+
+.guest-dock__note {
+  margin: 0;
+  color: var(--guest-subtle);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* The rating scale. Selection is the accent fill with ink on top, which is
+   the same rule every other selectable thing in the app follows. */
+.guest-rating__scale { display: flex; gap: 8px; }
+.guest-rating__star { flex: 1 1 0; }
+.guest-rating__star input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.guest-rating__star span {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-sm);
+  background: var(--guest-paper);
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.guest-rating__star input:checked + span {
+  border-color: transparent;
+  background: var(--guest-primary);
+  color: var(--guest-ink);
+}
+.guest-rating__star input:focus-visible + span {
+  outline: 2px solid var(--guest-primary);
+  outline-offset: 2px;
+}
+.guest-rating__star span:active { transform: scale(0.97); }
+
+.guest-field textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-sm);
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  font: inherit;
+  resize: vertical;
+}

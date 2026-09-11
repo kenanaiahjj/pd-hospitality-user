@@ -124,6 +124,7 @@ import {
   type GuestSession,
   type PastStay,
   type StayEntry,
+  type StayReview,
   type NotificationTone,
   type DiningFulfillment,
   type MenuItemCategory,
@@ -175,6 +176,8 @@ type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pendin
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
   'my-stay',
+  'stay-review',
+  'stay-review-sent',
   'folio',
   'chat',
   'chat-after-hours',
@@ -1128,7 +1131,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 850);
   };
 
-  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'profile', 'stay-history'].includes(activeScreen);
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history'].includes(activeScreen);
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1257,6 +1260,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const bookingSlot = describeBookingSlot(contextBooking);
   const unlockPending = session.unlockRequest?.bookingId === contextBooking.id;
+
+  /*
+    The 24-hour front-desk window. Real arithmetic over `checkedOutAt`, but
+    the prototype reaches both sides of it through the state switcher rather
+    than by elapsing -- nothing should expire while a stakeholder is looking
+    at it.
+  */
+  const postStayWindow = describePostStayWindow(contextBooking);
+  const stayReview = session.reviews.find((review) => review.bookingId === contextBooking.id);
+
+  const submitStayReview = (rating: StayReview['rating'], comment: string) => {
+    setSession((current) => ({
+      ...current,
+      reviews: [
+        ...current.reviews.filter((review) => review.bookingId !== contextBooking.id),
+        { bookingId: contextBooking.id, rating, comment, submittedAt: PROTOTYPE_TODAY },
+      ],
+    }));
+    go('stay-review-sent');
+  };
 
   /** Why this guest cannot reach on-property services right now. */
   const blockedReasonFor = (booking: Booking): BlockedReason => {
@@ -2243,6 +2266,73 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'prereg-queued':
         return <ScreenIntro icon={<WifiSlash size={30} />} eyebrow="Saved on this device" title="Ready to send when connected" text="Your pre-registration is safely queued. It will send automatically when a connection returns."><Notice tone="offline" title="No action needed">Your edits remain on this device. The hotel has not received them yet.</Notice>{primary('Open cached stay', 'stay-overview')}</ScreenIntro>;
 
+      case 'stay-review': {
+        /*
+          One rating for the stay as a whole, and it goes to the property.
+          Nothing here publishes: the app is only reachable at the point of
+          booking, so there is no listing for a score to influence and a
+          public rating would be a number with nowhere to go.
+        */
+        return (
+          <form
+            className="guest-stack"
+            onSubmit={(event: FormEvent<HTMLFormElement>) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              const rating = Number(data.get('rating')) as StayReview['rating'];
+              if (!rating) return;
+              submitStayReview(rating, String(data.get('review-comment') ?? '').trim());
+            }}
+          >
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">{contextBooking.property}</p>
+              <h1>Rate your stay</h1>
+              <p>{formatStayDateRange(contextBooking)} · {contextBooking.roomType}</p>
+            </div>
+
+            <fieldset className="guest-fieldset guest-rating">
+              <legend>How was it?</legend>
+              <div className="guest-rating__scale">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <label key={value} className="guest-rating__star">
+                    <input type="radio" name="rating" value={value} aria-label={value === 1 ? '1 star' : `${value} stars`} required />
+                    <span aria-hidden="true">{value}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <label className="guest-field">
+              <span>Anything you&rsquo;d like the property to know?</span>
+              <textarea name="review-comment" rows={4} placeholder="Optional" />
+            </label>
+
+            <Notice title="Private to the property">
+              Only the property sees this. Cabana does not publish reviews or score listings.
+            </Notice>
+
+            <Button className="guest-button guest-button--primary" type="submit">
+              Send to the property<ArrowRight aria-hidden="true" />
+            </Button>
+            <TextButton onClick={() => go('my-stay')}>Not now</TextButton>
+          </form>
+        );
+      }
+
+      case 'stay-review-sent':
+        return (
+          <ScreenIntro
+            icon={<Check size={30} />}
+            eyebrow={contextBooking.property}
+            title="Thank you"
+            text="Your rating has gone to the property team. Only the property sees this — Cabana does not publish reviews."
+          >
+            {stayReview?.comment ? <Notice title="What you sent">{stayReview.comment}</Notice> : null}
+            {primary('Back to my stay', 'my-stay')}
+            <TextButton onClick={() => go('book-stay')}>Book another stay</TextButton>
+          </ScreenIntro>
+        );
+
       case 'pre-arrival-services': {
         /*
           What a guest can arrange before they are in the room: getting there,
@@ -2884,6 +2974,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <CaretRight />
             </button>
 
+            {checkedOut ? (
+              /*
+                Says which of the two post-stay surfaces this is. The desk is
+                reachable for a day after checkout because a guest chases a
+                lost item or a disputed charge then; after that the stay is a
+                receipt, and pretending the conversation is still open would
+                be the unkind version.
+              */
+              <p className={`guest-desk-window${postStayWindow.deskOpen ? ' is-open' : ''}`}>
+                {postStayWindow.deskOpen ? <ChatCircleDots aria-hidden="true" /> : <Clock aria-hidden="true" />}
+                {postStayWindow.label}
+              </p>
+            ) : null}
+
             {finishedStay && finishedSummary ? (
               <section className="guest-stay-receipt">
                 <div className="guest-total-card">
@@ -2992,9 +3096,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <Button className="guest-button guest-button--primary" type="button" onClick={() => go('book-stay')}>
                   Book another stay<ArrowRight aria-hidden="true" />
                 </Button>
-                <button className="guest-dock__quiet" onClick={() => go('chat')} type="button">
-                  Message the front desk
-                </button>
+                {postStayWindow.deskOpen ? (
+                  <button className="guest-dock__quiet" data-testid="guest-front-desk-action" onClick={() => go('chat')} type="button">
+                    Message the front desk
+                  </button>
+                ) : stayReview ? (
+                  <p className="guest-dock__note">You rated this stay {stayReview.rating} out of 5. Thank you.</p>
+                ) : (
+                  <button className="guest-dock__quiet" onClick={() => go('stay-review')} type="button">
+                    Rate your stay
+                  </button>
+                )}
               </div>
             ) : (
               <div className="guest-dock guest-dock--single">

@@ -69,8 +69,8 @@ import {
 
 describe('guest app prototype model', () => {
   it('contains the complete stay-only screen inventory', () => {
-    expect(SCREENS).toHaveLength(50);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(50);
+    expect(SCREENS).toHaveLength(52);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(52);
     // The Arrival surface: what a guest can book before they are in the room.
     expect(SCREENS.find((s) => s.id === 'pre-arrival-services')?.group).toBe('Pre-arrival');
     // Get started is the welcome-screen trigger and SSO bottom sheet, not a

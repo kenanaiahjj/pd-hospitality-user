@@ -50,6 +50,8 @@ export type ScreenId =
   | 'stay-detail'
   | 'stay-entry'
   | 'pre-arrival-services'
+  | 'stay-review'
+  | 'stay-review-sent'
   | 'notifications';
 
 export type PrototypeScreen = {
@@ -117,6 +119,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(50, 'Stay', 'book-stay-checkout', 'Confirm and pay'),
   screen(51, 'Stay', 'book-stay-confirmation', 'Stay booked'),
   screen(52, 'Pre-arrival', 'pre-arrival-services', 'Arrange your arrival'),
+  screen(53, 'Stay', 'stay-review', 'Rate your stay'),
+  screen(54, 'Stay', 'stay-review-sent', 'Review sent'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';

@@ -2385,16 +2385,18 @@ describe('signed-in home with no booking', () => {
 
     // The lookup is still reachable, but it is a choice now, not the wall a
     // guest with no reference in hand used to hit with nowhere else to go.
-    // A fresh SSO account has no history, so it is greeted, not welcomed back.
-    expect(screen.getByRole('heading', { name: 'Hello, Ana' })).toBeInTheDocument();
+    // Signing in shows the guest what they have already stayed in, with the
+    // one action they are here for above it.
+    expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Previous stays' })).toBeInTheDocument();
   });
 
   it('shows the guest their recent stays and links to the full list', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
-    expect(screen.getByRole('heading', { name: 'Recent stays' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Previous stays' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /The Henry/ }).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: /See all 3 stays/ }));
@@ -2412,17 +2414,24 @@ describe('signed-in home with no booking', () => {
 
     expect(screen.getByRole('heading', { name: 'Hello, Ana' })).toBeInTheDocument();
 
-    expect(screen.queryByRole('heading', { name: 'Recent stays' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
     expect(screen.queryByText(/The Henry Cebu/)).toBeNull();
     expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
   });
 
-  it('offers the scan as a second way in', async () => {
-    const user = userEvent.setup();
+  it('does not offer a scan to a guest with no room to scan', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
-    await user.click(screen.getByRole('button', { name: 'Scan a room code' }));
-    expect(screen.getByRole('heading', { name: 'Scan the room code' })).toBeInTheDocument();
+    /*
+      No booking means no allocated room, so there is no code on any desk
+      card for this guest to point a camera at. Offering it was an action
+      that could not succeed.
+    */
+    expect(screen.queryByRole('button', { name: /Scan a room code/ })).toBeNull();
+    expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
+    // Including the app bar, which would otherwise open a viewfinder that
+    // could never resolve to anything.
+    expect(screen.queryByTestId('guest-scan-action')).toBeNull();
   });
 });
 
@@ -2524,13 +2533,13 @@ describe('prototype controls', () => {
     const returning = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
-    expect(screen.getByRole('heading', { name: 'Recent stays' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Previous stays' })).toBeInTheDocument();
 
     await openControls(user);
     await user.click(screen.getByRole('button', { name: /Clear stay history/ }));
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
-    expect(screen.queryByRole('heading', { name: 'Recent stays' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
   });
 
   it('holds the viewfinder open when auto-detect is off', async () => {
@@ -2617,5 +2626,26 @@ describe('scan discoverability', () => {
     // Repeating it on Home is what buried it; the app bar carries it now.
     expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
     expect(screen.getByTestId('guest-scan-action')).toBeInTheDocument();
+  });
+});
+
+describe('design tokens', () => {
+  it('never references a custom property the stylesheet does not define', () => {
+    /*
+      The bug this catches: five rules were written against `--guest-primary`,
+      which does not exist -- the token is `--guest-accent`. CSS fails silently
+      on an undefined variable, so the scanner's corner brackets and the rating
+      scale's selected state simply rendered as nothing, and the one place it
+      was visible I talked myself out of as a screenshot artefact.
+    */
+    const defined = new Set([...guestStyles.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+    const globalDefined = new Set([...globalStyles.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+    const used = [...guestStyles.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]);
+
+    const undefinedTokens = [...new Set(used)].filter(
+      (token) => !defined.has(token) && !globalDefined.has(token),
+    );
+
+    expect(undefinedTokens).toEqual([]);
   });
 });

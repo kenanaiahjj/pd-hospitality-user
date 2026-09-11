@@ -527,21 +527,31 @@ export function createAccountSession(
  */
 export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
   /*
-    A person's own name, not the provider's. "Apple Guest" and "Google Guest"
-    were invisible while the app only ever used the name on a booking; the
-    moment home greets by first name they read as "Welcome back, Google".
-    SSO returns the account holder either way -- the same human, signing in
-    two different ways -- so only the address differs.
+    A returning guest with their history, and no booking attached.
+    
+    Two things were wrong before. The name came back as "Apple Guest" /
+    "Google Guest", which read as "Welcome back, Google" the moment home
+    greeted anyone by name. And the session was built from ANONYMOUS_SESSION,
+    so signing in produced an account with no past stays -- which made the
+    main demo path land on an empty home, when showing the guest what they
+    have already stayed in is the whole point of it.
+
+    The estate knows this person: SSO matches an identity it has seen before.
+    A genuinely first-time account is still reachable, from the prototype
+    controls' "Clear stay history".
   */
   const identity = method === 'apple'
-    ? { guestName: 'Ana Santos', email: 'ana.santos@privaterelay.appleid.com' }
-    : { guestName: 'Ana Santos', email: 'ana.santos@gmail.com' };
+    ? { email: 'ana.santos@privaterelay.appleid.com' }
+    : { email: 'ana.santos@gmail.com' };
 
   return {
-    ...ANONYMOUS_SESSION,
+    ...restoreProfileSession(),
     ...identity,
-    auth: 'authenticated',
-    accountStatus: 'new',
+    // No booking yet: the reference is the one thing SSO cannot supply.
+    bookings: [],
+    activeBookingId: undefined,
+    serviceBookings: [],
+    folioTotal: '₱0',
     authMethod: method,
   };
 }

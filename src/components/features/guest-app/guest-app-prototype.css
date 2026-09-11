@@ -3619,7 +3619,7 @@
   font-size: 13px;
 }
 .guest-desk-window svg { width: 16px; height: 16px; }
-.guest-desk-window.is-open { color: var(--guest-positive, var(--guest-ink)); }
+.guest-desk-window.is-open { color: var(--guest-positive); }
 
 .guest-dock__note {
   margin: 0;
@@ -3653,11 +3653,11 @@
 }
 .guest-rating__star input:checked + span {
   border-color: transparent;
-  background: var(--guest-primary);
+  background: var(--guest-accent);
   color: var(--guest-ink);
 }
 .guest-rating__star input:focus-visible + span {
-  outline: 2px solid var(--guest-primary);
+  outline: 2px solid var(--guest-accent);
   outline-offset: 2px;
 }
 .guest-rating__star span:active { transform: scale(0.97); }
@@ -3677,7 +3677,38 @@
    Signed-in home with no booking
    -------------------------------------------------------------------------- */
 
-.guest-home-entry-actions { display: grid; gap: 10px; }
+/* The main action on a signed-in home with no booking. A card, not a pill:
+   it is the subject of the screen, and it sits above the guest's history. */
+.guest-add-booking-card {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  /* The one accent-filled surface on this screen, with ink on top -- white
+     on Cabana pink fails contrast, ink clears it. */
+  background: var(--guest-accent);
+  color: var(--guest-on-accent);
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.guest-add-booking-card:active { transform: scale(0.99); }
+.guest-add-booking-card__glyph {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: var(--guest-radius-sm);
+  background: oklch(1 0 0 / 0.5);
+}
+.guest-add-booking-card__glyph svg { width: 22px; height: 22px; }
+.guest-add-booking-card__text { display: grid; gap: 3px; min-width: 0; }
+.guest-add-booking-card__text b { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.guest-add-booking-card__text small { font-size: 13px; line-height: 1.4; opacity: 0.78; }
+.guest-add-booking-card > svg { width: 18px; height: 18px; }
 
 /* Heading and its "see all" share a baseline rather than stacking, so the
    section reads as one row of scaffolding instead of two. */
@@ -3734,7 +3765,7 @@
   position: absolute;
   width: 30px;
   height: 30px;
-  border: 3px solid var(--guest-primary);
+  border: 3px solid var(--guest-accent);
 }
 .guest-scanner__corner--tl { top: 14px; left: 14px; border-right: 0; border-bottom: 0; border-top-left-radius: 10px; }
 .guest-scanner__corner--tr { top: 14px; right: 14px; border-left: 0; border-bottom: 0; border-top-right-radius: 10px; }
@@ -3746,7 +3777,7 @@
   left: 14px;
   right: 14px;
   height: 2px;
-  background: var(--guest-primary);
+  background: var(--guest-accent);
   box-shadow: 0 0 12px 2px oklch(0.79 0.18 345 / 0.55);
   animation: guest-scanner-sweep 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

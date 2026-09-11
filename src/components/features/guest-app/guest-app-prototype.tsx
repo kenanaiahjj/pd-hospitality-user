@@ -3583,16 +3583,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     A dot marks it while the room is still unverified, the same
                     way the bell marks unread.
                   */}
-                  <button
-                    className="guest-icon-button guest-scan-action"
-                    type="button"
-                    data-testid="guest-scan-action"
-                    onClick={() => go('scan-room-code')}
-                    aria-label={scanPending ? 'Scan room code, room not yet verified' : 'Scan room code'}
-                  >
-                    <QrCode />
-                    {scanPending ? <span className="guest-bell__dot" aria-hidden="true" /> : null}
-                  </button>
+                  {/*
+                    Only with a room to scan. No booking means no allocated
+                    room and therefore no code on any desk card, so the icon
+                    would open a viewfinder that could never succeed.
+                  */}
+                  {primaryBooking?.roomNumber ? (
+                    <button
+                      className="guest-icon-button guest-scan-action"
+                      type="button"
+                      data-testid="guest-scan-action"
+                      onClick={() => go('scan-room-code')}
+                      aria-label={scanPending ? 'Scan room code, room not yet verified' : 'Scan room code'}
+                    >
+                      <QrCode />
+                      {scanPending ? <span className="guest-bell__dot" aria-hidden="true" /> : null}
+                    </button>
+                  ) : null}
                   <button
                     className="guest-icon-button guest-bell"
                     type="button"
@@ -4367,36 +4374,37 @@ function EmptyStayHome({
         </h1>
         <p>
           {pastStays.length > 0
-            ? 'No stay is connected right now. Add a booking to open arrival details, on-property services and room charges.'
+            ? 'No stay is connected right now. Here is where you have been.'
             : 'Add your booking to open arrival details, on-property services, room charges and front-desk help in one place.'}
         </p>
       </div>
 
-      <div className="guest-home-entry-actions">
-        <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('identify')}>
-          Add a booking<ArrowRight aria-hidden="true" />
-        </Button>
-        {/*
-          The second front door. A guest can be on property, in the room,
-          with no reference in hand -- the code on the desk card identifies
-          the reservation for them.
-        */}
-        {/*
-          "Scan a room code", not "your": this guest has no booking attached
-          yet, and the code is what finds it for them.
-        */}
-        <button className="guest-button guest-button--secondary" type="button" onClick={() => onNavigate('scan-room-code')}>
-          <QrCode aria-hidden="true" />Scan a room code
-        </button>
-      </div>
+      {/*
+        The main action, as a card rather than a pill. It is the one thing a
+        signed-in guest with no reservation is here to do, and it sits above
+        their history so it reads as the next step rather than a footnote to
+        it.
+
+        No scan here, deliberately. A guest with no booking has no room and
+        therefore no code to point a camera at -- offering it was an action
+        that could not succeed.
+      */}
+      <button className="guest-add-booking-card" type="button" onClick={() => onNavigate('identify')}>
+        <span className="guest-add-booking-card__glyph" aria-hidden="true"><Ticket /></span>
+        <span className="guest-add-booking-card__text">
+          <b>Add a booking</b>
+          <small>Enter your reference and last name to open arrival details, services and room charges.</small>
+        </span>
+        <ArrowRight aria-hidden="true" />
+      </button>
 
       {recent.length > 0 ? (
         <section>
           <div className="guest-section-heading-row">
-            <SectionHeading title="Recent stays" />
+            <SectionHeading title="Previous stays" />
             {pastStays.length > recent.length ? (
               <button className="guest-text-link" type="button" onClick={() => onNavigate('stay-history')}>
-                See all {pastStays.length} stays
+                See all {pastStays.length}
               </button>
             ) : null}
           </div>

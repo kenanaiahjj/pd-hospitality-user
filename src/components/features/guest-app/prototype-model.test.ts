@@ -333,10 +333,21 @@ describe('account sessions', () => {
     const apple = ssoSession('apple');
     const google = ssoSession('google');
 
-    expect(apple).toMatchObject({ auth: 'authenticated', accountStatus: 'new', authMethod: 'apple' });
-    expect(google).toMatchObject({ auth: 'authenticated', accountStatus: 'new', authMethod: 'google' });
+    expect(apple).toMatchObject({ auth: 'authenticated', accountStatus: 'returning', authMethod: 'apple' });
+    expect(google).toMatchObject({ auth: 'authenticated', accountStatus: 'returning', authMethod: 'google' });
     expect(apple.bookings).toHaveLength(0);
     expect(google.bookings).toHaveLength(0);
+
+    /*
+      The estate has seen this person: SSO matches an identity it holds, so
+      signing in shows the guest their own history. Building the session from
+      ANONYMOUS_SESSION made the main demo path land on an empty home, which
+      is the opposite of what a signed-in home is for. A genuinely first-time
+      account is reachable from the prototype controls instead.
+    */
+    expect(apple.pastStays.length).toBeGreaterThan(0);
+    expect(apple.guestName).toBe('Ana Santos');
+    expect(apple.email).not.toBe(google.email);
   });
 
   it('creates an authenticated new account with Apple SSO and no bookings', () => {

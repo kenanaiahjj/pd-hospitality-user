@@ -164,12 +164,20 @@ evidence that the requested app is covered.
 - The account gate offers one `Get started` action. It opens an accessible SSO
   bottom sheet; Apple and Google both lead directly to the booking lookup
   form, which asks for a reference number and last name.
-- Signing in lands on Home, never on a bare lookup form. Home carries the
-  greeting, `Add a booking`, the room scan, and the guest's recent stays.
+- Signing in lands on Home, never on a bare lookup form, and it shows the
+  guest's previous stays under one `Add a booking` card. SSO matches an
+  identity the estate has seen, so a signed-in session carries history; a
+  genuinely first-time account is reached from the prototype controls.
+- No scan is offered to a guest with no booking — not on Home, not in the app
+  bar. No booking means no allocated room and therefore no code to scan.
 - Stay history is `session.pastStays`, not a global. A new account has none;
   `PAST_STAYS` is the seed for the demo profile only.
-- Home shows at most three recent stays and links to `stay-history` for the
+- Home shows at most three previous stays and links to `stay-history` for the
   full list. Do not duplicate the full list on Home.
+- Guest-app CSS may only use custom properties the stylesheets define. Five
+  rules once referenced `--guest-primary`, which does not exist (it is
+  `--guest-accent`); CSS fails silently on an undefined variable, so those
+  rules simply rendered as nothing. A test now asserts this.
 - The scan lives in the app bar's end slot, beside the bell, on every
   authenticated screen — actions go there, places go in the tab bar. It carries
   a dot while the room is unverified. As a list row on Home it was unfindable:

@@ -599,8 +599,33 @@ export function findBookingByLookup(reference: string): Booking | undefined {
   return [UPCOMING_BOOKING_FIXTURE].find((booking) => normalise(booking.id) === ref);
 }
 
-export function connectBooking(session: GuestSession): GuestSession {
-  if (session.bookings.some((booking) => booking.id === UPCOMING_BOOKING_FIXTURE.id)) {
+/**
+ * A reservation built from whatever the guest typed.
+ *
+ * The prototype has one real reference, and a demo that only proceeds when
+ * someone types `HEN-241109` exactly is a demo that mostly shows the
+ * not-found screen. Any reference is accepted and stamped onto the reference
+ * stay, so the confirmation shows the guest their own number and surname
+ * rather than a fixture's. Strict matching is still reachable -- see
+ * `findBookingByLookup`, which the prototype controls can put back in front
+ * of this.
+ */
+export function bookingFromLookup(reference: string, lastName: string): Booking {
+  const typed = reference.trim().toUpperCase();
+  const surname = lastName.trim();
+  const firstName = UPCOMING_BOOKING_FIXTURE.guestName.split(' ')[0];
+
+  return {
+    ...UPCOMING_BOOKING_FIXTURE,
+    id: typed || UPCOMING_BOOKING_FIXTURE.id,
+    guestName: surname ? `${firstName} ${surname}` : UPCOMING_BOOKING_FIXTURE.guestName,
+    // Typed by hand, so it did not come from an OTA feed.
+    source: typed === UPCOMING_BOOKING_FIXTURE.id ? UPCOMING_BOOKING_FIXTURE.source : 'Direct booking',
+  };
+}
+
+export function connectBooking(session: GuestSession, booking: Booking = UPCOMING_BOOKING_FIXTURE): GuestSession {
+  if (session.bookings.some((existing) => existing.id === booking.id)) {
     return session;
   }
   /*
@@ -618,9 +643,18 @@ export function connectBooking(session: GuestSession): GuestSession {
       it -- the room-QR path collects a surname before it ever connects a
       booking, and what the guest typed should win over the record.
     */
-    guestName: session.guestName || UPCOMING_BOOKING_FIXTURE.guestName,
-    bookings: [...session.bookings, UPCOMING_BOOKING_FIXTURE],
-    serviceBookings: [...session.serviceBookings, ...MOCK_SESSION.serviceBookings],
+    guestName: session.guestName || booking.guestName,
+    bookings: [...session.bookings, booking],
+    /*
+      Re-pointed at whatever was actually connected. These carry the fixture's
+      booking id, so on a typed reference they would attach to a stay that is
+      not in the session -- present in the data, invisible on every screen
+      that filters by the active booking.
+    */
+    serviceBookings: [
+      ...session.serviceBookings,
+      ...MOCK_SESSION.serviceBookings.map((service) => ({ ...service, bookingId: booking.id })),
+    ],
     folioTotal: parsePesoAmount(session.folioTotal) > 0 ? session.folioTotal : MOCK_SESSION.folioTotal,
     additionalGuests: session.additionalGuests.length ? session.additionalGuests : MOCK_SESSION.additionalGuests,
   };

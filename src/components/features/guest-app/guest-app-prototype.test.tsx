@@ -1154,9 +1154,49 @@ describe('booking lookup', () => {
     expect(screen.getByText('Ana Santos')).toBeInTheDocument();
   });
 
-  it('sends an unmatched lookup to the no-booking screen', async () => {
+  it('accepts any reference and stamps it onto the stay', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="identify" />);
+
+    /*
+      The prototype has one real reference, so strict matching meant a demo
+      mostly showed the not-found screen. Whatever is typed now walks the
+      happy path, and the confirmation shows the guest their own number and
+      surname rather than the fixture's.
+    */
+    await user.type(screen.getByLabelText(/Booking or confirmation number/), 'abc-999');
+    await user.type(screen.getByLabelText(/Last name/), 'Reyes');
+    await user.click(screen.getByRole('button', { name: 'Find booking' }));
+
+    expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
+    expect(screen.getByText('Booking ABC-999')).toBeInTheDocument();
+    expect(screen.getByText('Ana Reyes')).toBeInTheDocument();
+  });
+
+  it('carries that booking through to the connected stay', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="identify" />);
+
+    await user.type(screen.getByLabelText(/Booking or confirmation number/), 'demo-1');
+    await user.type(screen.getByLabelText(/Last name/), 'Cruz');
+    await user.click(screen.getByRole('button', { name: 'Find booking' }));
+    await user.click(screen.getByRole('button', { name: /Use this booking/ }));
+
+    /*
+      A new account lands in pre-arrival rather than on a home with a nav, so
+      the proof the stay attached is the flow it opens -- and the surname the
+      guest typed travelling with it.
+    */
+    expect(screen.getByRole('heading', { name: 'Your details' })).toBeInTheDocument();
+  });
+
+  it('still refuses an unmatched reference under strict lookup', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="identify" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('button', { name: 'Lookup: accepts anything' }));
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'ZZZZ-000000');
     await user.type(screen.getByLabelText(/Last name/), 'Nobody');

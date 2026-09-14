@@ -228,6 +228,9 @@ describe('category cards', () => {
 });
 
 describe('swipe deck', () => {
+  const topTitle = () =>
+    screen.getByTestId('swipe-deck').querySelector('.deck__copy b')?.textContent;
+
   it('offers experiences, not restaurants', () => {
     /*
       A restaurant is a decision against a time and a hunger; flicking past
@@ -239,10 +242,8 @@ describe('swipe deck', () => {
     expect(deck.some((item) => /restaurant|bar|caf/i.test(item.category))).toBe(false);
   });
 
-  it('browses rather than judges', async () => {
-    const user = userEvent.setup();
-    const items = buildSwipeDeck();
-    render(<SwipeDeck items={items} onOpen={vi.fn()} />);
+  it('browses rather than judges', () => {
+    render(<SwipeDeck items={buildSwipeDeck()} onOpen={vi.fn()} />);
 
     /*
       An earlier pass asked for a verdict on each card, which meant having an
@@ -251,27 +252,37 @@ describe('swipe deck', () => {
     */
     expect(screen.queryByRole('button', { name: /save/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /pass/i })).toBeNull();
-
-    expect(screen.getByText(`1 of ${items.length}`)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText(`2 of ${items.length}`)).toBeInTheDocument();
   });
 
-  it('goes back, because browsing is reversible', async () => {
+  it('stays operable once the arrows are gone', async () => {
     const user = userEvent.setup();
-    const items = buildSwipeDeck();
-    render(<SwipeDeck items={items} onOpen={vi.fn()} />);
+    render(<SwipeDeck items={buildSwipeDeck()} onOpen={vi.fn()} />);
 
     /*
-      The pile rotates rather than emptying, so Previous is always live --
-      going back from the first card wraps to the last, the same way going
-      forward from the last wraps to the first.
+      The chrome came off, so the card itself has to carry the affordance: a
+      flick cannot be the only way through, or the pile is unreachable by
+      keyboard. The label says which keys, because nothing on screen does.
     */
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText(`2 of ${items.length}`)).toBeInTheDocument();
+    const card = screen.getByRole('button', { name: /left and right arrows to browse/ });
+    const first = topTitle();
 
-    await user.click(screen.getByRole('button', { name: 'Previous' }));
-    expect(await screen.findByText(`1 of ${items.length}`)).toBeInTheDocument();
+    await user.click(card);
+    await user.keyboard('{ArrowRight}');
+    expect(topTitle()).not.toBe(first);
+
+    await user.keyboard('{ArrowLeft}');
+    expect(topTitle()).toBe(first);
+  });
+
+  it('opens on Enter, the same as a tap', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    const items = buildSwipeDeck();
+    render(<SwipeDeck items={items} onOpen={onOpen} />);
+
+    await user.click(screen.getByRole('button', { name: /Press Enter to open/ }));
+    await user.keyboard('{Enter}');
+    expect(onOpen).toHaveBeenCalledWith(items[0]!.id);
   });
 
   it('never runs out, because a thrown card goes to the back', async () => {
@@ -279,23 +290,14 @@ describe('swipe deck', () => {
     const items = buildSwipeDeck();
     render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
-    const first = screen.getByTestId('swipe-deck').querySelector('.deck__copy b')?.textContent;
+    const first = topTitle();
+    await user.click(screen.getByRole('button', { name: /Press Enter to open/ }));
     for (let i = 0; i < items.length; i += 1) {
-      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await user.keyboard('{ArrowRight}');
     }
 
     // All the way round and back to where it started.
-    expect(screen.getByTestId('swipe-deck').querySelector('.deck__copy b')?.textContent).toBe(first);
-  });
-
-  it('can be worked without a gesture', async () => {
-    const user = userEvent.setup();
-    render(<SwipeDeck items={buildSwipeDeck()} onOpen={vi.fn()} />);
-
-    // A flick cannot be the only way through, or the pile is unreadable to a
-    // keyboard and unusable one-handed.
-    await user.tab();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
+    expect(topTitle()).toBe(first);
   });
 
   it('ends without pretending there is more', () => {

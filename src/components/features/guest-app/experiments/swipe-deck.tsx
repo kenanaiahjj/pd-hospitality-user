@@ -1,8 +1,7 @@
 'use client';
 
-import { ArrowLeft, ArrowRight } from '@phosphor-icons/react';
 import Image from 'next/image';
-import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { SearchableItem } from './story-model';
 
 /*
@@ -39,10 +38,11 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
   const [order, setOrder] = useState(() => items.map((item) => item.id));
   /** The card currently diving to the back, kept mounted so it can animate. */
   const [recycling, setRecycling] = useState<string | null>(null);
-  const [seen, setSeen] = useState(0);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const recycleTimer = useRef<number | undefined>(undefined);
+  /** Whether the guest is driving the pile from the keyboard. */
+  const keyboardDriving = useRef(false);
   const drag = useRef({ active: false, startX: 0, x: 0, at: 0, frame: 0 });
 
   const byId = useMemo(
@@ -51,6 +51,17 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
   );
 
   const current = byId.get(order[0] ?? '');
+
+  /*
+    A rotation replaces the top card with a different DOM node, which drops
+    focus -- so a keyboard user got exactly one arrow press and then nothing.
+    Focus follows the top of the pile, but only once they have actually used a
+    key, so the deck never steals focus from elsewhere on the page.
+  */
+  useEffect(() => {
+    if (!keyboardDriving.current) return;
+    cardRef.current?.focus();
+  }, [order]);
   const visible = order.slice(0, WINDOW);
 
   const paint = useCallback(() => {
@@ -65,7 +76,6 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
     setOrder((list) => (direction === -1
       ? [...list.slice(1), list[0]!]
       : [list[list.length - 1]!, ...list.slice(0, -1)]));
-    setSeen((n) => (direction === -1 ? n + 1 : Math.max(0, n - 1)));
   }, []);
 
   const move = useCallback((direction: -1 | 1) => {
@@ -84,8 +94,15 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
       the rotation legible -- thrown away and silently re-appearing at the
       bottom would read as a glitch.
     */
-    const id = order[0]!;
-    setRecycling(id);
+    /*
+      Only a forward throw needs a diving card. Going back, the card arriving
+      from the last slot is already sitting there and simply transitions
+      forward, which is the correct animation for that direction anyway --
+      and marking the outgoing card would land it back inside the visible
+      window, rendering the same id twice.
+    */
+    if (direction === -1) setRecycling(order[0]!);
+    else setRecycling(null);
     rotate(direction);
 
     /*
@@ -163,7 +180,9 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
 
   /* The diving card renders last so it is a sibling of the stack, and its
      own class puts it underneath. */
-  const rendered = recycling ? [...visible, recycling] : visible;
+  const rendered = recycling && !visible.includes(recycling)
+    ? [...visible, recycling]
+    : visible;
 
   return (
     <div className="deck" data-testid="swipe-deck">
@@ -172,7 +191,13 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
           const item = byId.get(id);
           if (!item) return null;
 
-          const isRecycling = id === recycling;
+          /*
+            Only the appended card is diving. A recycling id that has rotated
+            back into the visible window is just a card again -- treating it
+            as still in flight left the pile with no card at depth 0, and the
+            top card lost its title.
+          */
+          const isRecycling = id === recycling && !visible.includes(id);
           const depth = isRecycling ? WINDOW : visible.indexOf(id);
           const isTop = depth === 0 && !isRecycling;
 
@@ -186,15 +211,18 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
                 ? {
                     role: 'button',
                     tabIndex: 0,
-                    'aria-label': `${item.title}. Open`,
+                    'aria-label': `${item.title}. Press Enter to open, left and right arrows to browse`,
+                    'aria-keyshortcuts': 'ArrowLeft ArrowRight Enter',
                     onPointerDown,
                     onPointerMove,
                     onPointerUp,
                     onPointerCancel: onPointerUp,
                     onKeyDown: (event: React.KeyboardEvent) => {
                       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(item.id); }
-                      if (event.key === 'ArrowLeft') move(-1);
-                      if (event.key === 'ArrowRight') move(1);
+                      /* Right goes on, left goes back -- the direction the
+                         card travels, not the direction the pile shifts. */
+                      if (event.key === 'ArrowRight') { keyboardDriving.current = true; move(-1); }
+                      if (event.key === 'ArrowLeft') { keyboardDriving.current = true; move(1); }
                     },
                   }
                 : { 'aria-hidden': true })}
@@ -222,17 +250,6 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
         })}
       </div>
 
-      <div className="deck__actions">
-        <button className="deck__action" type="button" onClick={() => move(1)} aria-label="Previous">
-          <ArrowLeft aria-hidden="true" />
-        </button>
-        <p className="deck__progress" role="status">
-          {(seen % items.length) + 1} of {items.length}
-        </p>
-        <button className="deck__action" type="button" onClick={() => move(-1)} aria-label="Next">
-          <ArrowRight aria-hidden="true" />
-        </button>
-      </div>
     </div>
   );
 }

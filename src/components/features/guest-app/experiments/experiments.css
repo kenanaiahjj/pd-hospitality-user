@@ -700,33 +700,10 @@
 .deck__mark--save { right: 18px; background: oklch(0.55 0.16 155); }
 .deck__mark--pass { left: 18px; background: oklch(0.55 0.19 25); }
 
-.deck__actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.deck__action {
-  display: grid;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--guest-paper);
-  box-shadow: var(--shadow-xs);
-  transition: transform var(--duration-press) var(--ease-out);
-}
-.deck__action svg { width: 24px; height: 24px; }
-.deck__action:active { transform: scale(0.94); }
-.deck__action--pass { color: oklch(0.5 0.19 25); }
-.deck__action--save { color: oklch(0.44 0.14 155); }
 
-.deck__progress {
-  display: grid;
-  gap: 1px;
-  margin: 0;
-  color: var(--guest-subtle);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-.deck__progress b { color: var(--guest-accent-strong); font-weight: 700; }
+
+
+
 
 .deck--done {
   display: grid;
@@ -749,8 +726,7 @@
 @media (prefers-reduced-motion: reduce) {
   /* The deck still rotates; `move()` skips the dive and reorders outright. */
   .deck__card,
-  .deck__card.is-recycling,
-  .deck__action { transition: none; }
+  .deck__card.is-recycling { transition: none; }
 }
 
 .discover__search {

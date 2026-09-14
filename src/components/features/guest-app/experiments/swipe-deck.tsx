@@ -43,7 +43,12 @@ export function SwipeDeck({ items, onSave, onPass, onOpenSaved, savedCount }: Sw
   const cardRef = useRef<HTMLDivElement>(null);
 
   const current = items[index];
-  const next = items[index + 1];
+  /*
+    Two behind, not one. A single card tucked directly under the top one is
+    invisible -- the deck read as a page until it was already being dragged,
+    which is exactly when the affordance stops mattering.
+  */
+  const beneath = items.slice(index + 1, index + 3);
 
   const decide = (verdict: 'save' | 'pass') => {
     if (!current || exiting) return;
@@ -107,12 +112,25 @@ export function SwipeDeck({ items, onSave, onPass, onOpenSaved, savedCount }: Sw
   return (
     <div className="deck" data-testid="swipe-deck">
       <div className="deck__stack">
-        {/* The card beneath, so the deck reads as a deck rather than a page. */}
-        {next ? (
-          <div className="deck__card deck__card--under" aria-hidden="true">
-            <Image src={next.image.src} alt="" fill sizes="360px" style={{ objectPosition: next.image.focalPoint }} />
-          </div>
-        ) : null}
+        {/*
+          Rendered back-to-front so the nearest sits highest, and each one
+          steps down far enough to show a lip. The peeking edges are the whole
+          signal that there is more here than one card.
+        */}
+        {[...beneath].reverse().map((item, i) => {
+          const depth = beneath.length - i;
+          return (
+            <div
+              key={item.id}
+              className="deck__card deck__card--under"
+              style={{ ['--depth' as string]: depth }}
+              aria-hidden="true"
+            >
+              <Image src={item.image.src} alt="" fill sizes="360px" style={{ objectPosition: item.image.focalPoint }} />
+              <span className="deck__veil" />
+            </div>
+          );
+        })}
 
         <div
           ref={cardRef}

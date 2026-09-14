@@ -310,3 +310,29 @@ describe('ask', () => {
     expect(resolveIntent(ghost).items).toEqual([]);
   });
 });
+
+describe('the deck reads as a deck', () => {
+  it('shows the cards behind before anyone drags', () => {
+    /*
+      One card tucked directly under the top one is invisible: the deck read
+      as a single page until it was already being dragged, which is exactly
+      when the affordance has stopped mattering.
+    */
+    const items = buildSwipeDeck();
+    render(<SwipeDeck items={items} savedCount={0} onSave={vi.fn()} onPass={vi.fn()} onOpenSaved={vi.fn()} />);
+
+    const deck = screen.getByTestId('swipe-deck');
+    const under = deck.querySelectorAll('.deck__card--under');
+    expect(under).toHaveLength(2);
+
+    // Stepped, so each one shows a lip rather than hiding behind the last.
+    expect([...under].map((c) => (c as HTMLElement).style.getPropertyValue('--depth'))).toEqual(['2', '1']);
+  });
+
+  it('never renders more cards behind than it has left', () => {
+    const items = buildSwipeDeck().slice(0, 1);
+    render(<SwipeDeck items={items} savedCount={0} onSave={vi.fn()} onPass={vi.fn()} onOpenSaved={vi.fn()} />);
+
+    expect(screen.getByTestId('swipe-deck').querySelectorAll('.deck__card--under')).toHaveLength(0);
+  });
+});

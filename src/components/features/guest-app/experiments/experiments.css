@@ -547,6 +547,8 @@
   /* 1:1, not 4:5. The stack plus its buttons has to clear the fold in one
      screen, or the deck is discovered by accident rather than by looking. */
   aspect-ratio: 1 / 1;
+  /* Room for the stepped edges below the top card. */
+  margin-bottom: 44px;
   /* The exiting card leaves the frame; nothing should clip it mid-flight. */
   overflow: visible;
   touch-action: pan-y;
@@ -568,8 +570,26 @@
 /* Only the settle and the exit animate; a dragged card must track the finger. */
 .deck__card:not(.is-dragging) { transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
 
-/* The next card, visible enough to read as a deck. */
-.deck__card--under { transform: scale(0.94) translateY(10px); opacity: 0.6; box-shadow: none; }
+/*
+  The cards behind, stepped down so a lip of each one shows.
+
+  `translateY` is applied before `scale` here: scaling a centred card pulls
+  its bottom edge back up, so the offset has to out-run the shrink or the lip
+  never appears. 22px per step against a 5% shrink clears it.
+*/
+.deck__card--under {
+  transform: translateY(calc(var(--depth, 1) * 22px)) scale(calc(1 - var(--depth, 1) * 0.05));
+  box-shadow: 0 6px 18px oklch(0.2 0.02 300 / 0.12);
+  pointer-events: none;
+}
+
+/* Pushes the lower cards back without greying them out -- a washed-out card
+   reads as disabled, and these are the next things to look at. */
+.deck__veil {
+  position: absolute;
+  inset: 0;
+  background: oklch(0.98 0.004 300 / calc(var(--depth, 1) * 0.22));
+}
 
 .deck__scrim {
   position: absolute;

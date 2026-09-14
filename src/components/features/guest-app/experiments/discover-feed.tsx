@@ -3,6 +3,8 @@
 import { ArrowRight, CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useState, type ReactNode } from 'react';
+import { AskAnswer, AskSuggestions } from './ask-panel';
+import { INTENTS, matchIntent, resolveIntent } from './intent-model';
 import { searchCatalogue } from './story-model';
 import type { CategoryCard, DiscoverBanner, SearchableItem, Story } from './story-model';
 
@@ -53,8 +55,22 @@ export function DiscoverFeed({
     curation on screen under a filtered list would be two answers to two
     different questions at once.
   */
-  const results = searchCatalogue(searchIndex, query);
-  const searching = query.trim().length > 0;
+  /*
+    A prompt first, a search box second.
+
+    "spa" is not a question anyone has; "it is raining and I have three hours"
+    is. So the field tries to understand a situation, and only falls through
+    to keyword matching when it cannot -- a wrong answer delivered confidently
+    is worse than a list that never claimed to understand.
+  */
+  const [askedId, setAskedId] = useState<string | null>(null);
+  const intent = askedId
+    ? INTENTS.find((entry) => entry.id === askedId)
+    : matchIntent(query);
+  const answer = intent ? resolveIntent(intent) : undefined;
+
+  const results = answer ? [] : searchCatalogue(searchIndex, query);
+  const searching = query.trim().length > 0 || Boolean(askedId);
 
   return (
     <div className="discover" data-testid="discover-feed">
@@ -68,18 +84,22 @@ export function DiscoverFeed({
         <input
           type="search"
           value={query}
-          placeholder="Search dining, spa, tours"
-          aria-label="Search everything on property"
-          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Ask anything about your stay"
+          aria-label="Ask anything about your stay"
+          onChange={(event) => { setQuery(event.target.value); setAskedId(null); }}
         />
         {searching ? (
-          <button type="button" onClick={() => setQuery('')} aria-label="Clear search">
+          <button type="button" onClick={() => { setQuery(''); setAskedId(null); }} aria-label="Clear">
             <X aria-hidden="true" />
           </button>
         ) : null}
       </div>
 
-      {searching ? (
+      {!searching ? <AskSuggestions onAsk={setAskedId} /> : null}
+
+      {answer ? (
+        <AskAnswer result={answer} onOpenItem={onOpenItem} />
+      ) : searching ? (
         <section aria-label="Search results">
           <p className="discover__count" role="status">
             {results.length} {results.length === 1 ? 'result' : 'results'} for &ldquo;{query.trim()}&rdquo;

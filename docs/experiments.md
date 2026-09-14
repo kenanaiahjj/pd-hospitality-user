@@ -65,6 +65,31 @@ The viewer takes the whole device frame, over both bars, because a story is
 the photograph — chrome around it reads as a screenshot of a story. Chrome is
 otherwise set per flow in the registry; discovery keeps its bars.
 
+## Ask: intent-led discovery
+
+The bet, and the reason the rest of the feed exists under it.
+
+Every hotel app is a catalogue — categories, lists, a keyword box. A guest's
+actual question is never "spa"; it is "it's raining and I have three hours",
+or "somewhere for dinner, nothing formal". A catalogue cannot answer a
+situation and a search box can only match the words in it.
+
+The hotel is the only party that knows the guest's time, their room, the
+weather outside and what is open right now. That context is the thing an OTA
+structurally cannot have, so it is what the surface is built around.
+
+The field takes a situation, returns one line of reasoning and two or three
+ranked picks, each with a *why* rather than a category. Every pick resolves
+through the catalogue, so an answer can never list something the property
+cannot sell.
+
+Deterministic cue matching, on purpose. A shipped version puts a small model
+behind `matchIntent`; the interaction is the thing being tested, and a fixture
+that answers the same way every time is what makes it demonstrable. Anything
+unmatched falls through to keyword search rather than guessing — a wrong
+answer delivered confidently is worse than a list that never claimed to
+understand.
+
 ## Assets
 
 `RoomUnlocked` reads `UNLOCKED_ART` — one path constant at the top of

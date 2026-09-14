@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EXPERIMENT_FLOWS, RoomScanner, RoomUnlocked, isFlowId } from './index';
 import { buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck, searchCatalogue } from './story-model';
 import { SwipeDeck } from './swipe-deck';
+import { INTENTS, matchIntent, resolveIntent } from './intent-model';
 
 afterEach(cleanup);
 
@@ -264,5 +265,48 @@ describe('swipe deck', () => {
     // Swiping is low-attention; booking spends money against a room. The deck
     // collects intent and must not imply it spent anything.
     expect(screen.getByText(/nothing is held/i)).toBeInTheDocument();
+  });
+});
+
+describe('ask', () => {
+  it('understands a situation, not a keyword', () => {
+    /*
+      "spa" is not a question anyone has. "it is raining and I have three
+      hours" is, and a catalogue cannot answer it.
+    */
+    expect(matchIntent('its raining')?.id).toBe('rain');
+    expect(matchIntent('somewhere to eat tonight')?.id).toBe('dinner');
+    expect(matchIntent('we have kids')?.id).toBe('kids');
+    expect(matchIntent('flight is at 4')?.id).toBe('before-checkout');
+  });
+
+  it('says nothing rather than guessing', () => {
+    // A wrong answer delivered confidently is worse than none; anything
+    // unmatched falls through to catalogue search, which never claims to
+    // have understood.
+    expect(matchIntent('')).toBeUndefined();
+    expect(matchIntent('x')).toBeUndefined();
+    expect(matchIntent('zzzzz qqqq')).toBeUndefined();
+  });
+
+  it('answers with real, bookable things and a reason for each', () => {
+    for (const intent of INTENTS) {
+      const result = resolveIntent(intent);
+
+      expect(result.items.length, intent.id).toBeGreaterThan(0);
+      for (const item of result.items) {
+        // Resolved from the catalogue, so an answer can never list something
+        // the property cannot sell.
+        expect(item.title, `${intent.id}/${item.id}`).toBeTruthy();
+        expect(item.price, `${intent.id}/${item.id}`).toMatch(/₱|Complimentary/);
+        // The reason is the difference between this and a filtered list.
+        expect(item.why.length, `${intent.id}/${item.id}`).toBeGreaterThan(8);
+      }
+    }
+  });
+
+  it('drops a pick the catalogue no longer sells', () => {
+    const ghost = { ...INTENTS[0]!, picks: [{ id: 'does-not-exist', why: 'nope' }] };
+    expect(resolveIntent(ghost).items).toEqual([]);
   });
 });

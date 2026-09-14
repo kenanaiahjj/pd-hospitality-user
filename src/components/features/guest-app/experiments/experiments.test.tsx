@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RoomScanner, RoomUnlocked } from './index';
+import { EXPERIMENT_FLOWS, RoomScanner, RoomUnlocked, isFlowId } from './index';
 
 afterEach(cleanup);
 
@@ -117,5 +117,25 @@ describe('promotion seam', () => {
   it('falls back gracefully before a room is allocated', () => {
     render(<RoomUnlocked onExplore={vi.fn()} onViewStay={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Your room is open' })).toBeInTheDocument();
+  });
+});
+
+describe('addressing a flow', () => {
+  it('accepts the flows it knows and rejects anything else off the URL', () => {
+    // The URL is user input like any other.
+    expect(isFlowId('guest')).toBe(true);
+    expect(isFlowId('qr-scan')).toBe(true);
+    expect(isFlowId('explore')).toBe(true);
+
+    expect(isFlowId(null)).toBe(false);
+    expect(isFlowId('')).toBe(false);
+    expect(isFlowId('qr-scan-typo')).toBe(false);
+    expect(isFlowId('__proto__')).toBe(false);
+  });
+
+  it('names every registered experiment, so a new one is addressable for free', () => {
+    for (const flow of EXPERIMENT_FLOWS) {
+      expect(isFlowId(flow.id)).toBe(true);
+    }
   });
 });

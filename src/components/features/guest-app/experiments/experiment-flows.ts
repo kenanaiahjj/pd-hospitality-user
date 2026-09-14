@@ -47,3 +47,11 @@ export type FlowId = 'guest' | ExperimentFlowId;
 
 export const findExperiment = (id: FlowId): ExperimentFlow | undefined =>
   EXPERIMENT_FLOWS.find((flow) => flow.id === id);
+
+/** The query parameter that opens a flow directly: `/?flow=qr-scan`. */
+export const FLOW_PARAM = 'flow';
+
+/** Guards a value off the URL, which is user input like any other. */
+export function isFlowId(value: string | null): value is FlowId {
+  return value === 'guest' || EXPERIMENT_FLOWS.some((flow) => flow.id === value);
+}

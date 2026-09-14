@@ -1,4 +1,4 @@
-export { EXPERIMENT_FLOWS, findExperiment } from './experiment-flows';
+export { EXPERIMENT_FLOWS, FLOW_PARAM, findExperiment, isFlowId } from './experiment-flows';
 export type { ExperimentFlow, ExperimentFlowId, FlowId } from './experiment-flows';
 export { QrScanExperiment } from './qr-scan-experiment';
 export { ExploreExperiment } from './explore-experiment';

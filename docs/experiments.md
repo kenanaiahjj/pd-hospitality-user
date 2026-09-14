@@ -5,11 +5,19 @@ app once they are judged good. They are not a sandbox for throwaway ideas —
 separation exists so the real flow's logic cannot be broken while a candidate
 is being pulled apart, not because the work is disposable.
 
-## Switching
+## Opening one
 
-Prototype controls → **Flow**: `Guest app`, or one experiment. The guest-flow
-controls (stay state, gates, lookup) hide when an experiment is showing, since
-they have nothing to act on.
+By URL — `/?flow=qr-scan`, `/?flow=explore` — which is the way to send someone
+a candidate without a sentence explaining which panel to open. `/` with no
+parameter, or `?flow=guest`, is the real app.
+
+Or from prototype controls → **Flow**. Switching there writes the parameter
+back, so the address bar is always a link to what is on screen. The guest-flow
+controls (stay state, gates, lookup) hide while an experiment is showing,
+since they have nothing to act on.
+
+A new experiment is addressable for free: add a row to `EXPERIMENT_FLOWS` and
+its id becomes a valid `?flow=` value.
 
 ## The shape that makes promotion cheap
 

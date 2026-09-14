@@ -50,7 +50,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { CATEGORY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
-import { EXPERIMENT_FLOWS, ExploreExperiment, QrScanExperiment, findExperiment } from './experiments';
+import { EXPERIMENT_FLOWS, ExploreExperiment, FLOW_PARAM, QrScanExperiment, findExperiment, isFlowId } from './experiments';
 import type { FlowId } from './experiments';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
@@ -1038,6 +1038,47 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const [flow, setFlow] = useState<FlowId>('guest');
   const experiment = findExperiment(flow);
+
+  /*
+    A flow is addressable: `/?flow=qr-scan` opens a candidate directly, so one
+    can be sent to someone without a sentence explaining which panel to open.
+
+    Read in an effect and applied from a timer, for the two reasons the
+    session hydration above documents: this route is prerendered, so reading
+    the URL during render gives the server one tree and the client another;
+    and a synchronous setState in an effect body is a lint error here. The
+    flag is raised inside the callback so StrictMode's double-invoke cannot
+    swallow the restore.
+  */
+  const flowHydratedRef = useRef(false);
+  useEffect(() => {
+    if (flowHydratedRef.current) return;
+
+    const requested = new URLSearchParams(window.location.search).get(FLOW_PARAM);
+    if (!isFlowId(requested)) return;
+
+    const timer = window.setTimeout(() => {
+      flowHydratedRef.current = true;
+      setFlow(requested);
+    });
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  /*
+    Switching writes the URL back, so the address bar is always a link to what
+    is on screen. `replaceState` rather than `pushState`: a flow switch is
+    changing the subject, not a step in a journey, and stacking history
+    entries would make Back mean something different inside an experiment than
+    it does in the app.
+  */
+  const changeFlow = (next: FlowId) => {
+    setFlow(next);
+
+    const url = new URL(window.location.href);
+    if (next === 'guest') url.searchParams.delete(FLOW_PARAM);
+    else url.searchParams.set(FLOW_PARAM, next);
+    window.history.replaceState(null, '', url);
+  };
   /** Prototype only: put strict reference matching back, to demo not-found. */
   const [strictLookup, setStrictLookup] = useState(false);
   const [profileMatch, setProfileMatch] = useState<ProfileMatch | null>(null);
@@ -3584,7 +3625,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         strictLookup={strictLookup}
         onToggleStrictLookup={() => setStrictLookup((on) => !on)}
         flow={flow}
-        onFlowChange={setFlow}
+        onFlowChange={changeFlow}
         onReset={resetPrototype}
       />
 

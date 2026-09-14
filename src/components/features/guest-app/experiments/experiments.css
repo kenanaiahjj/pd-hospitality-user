@@ -135,36 +135,130 @@
 
 /* --------------------------------------------------------------------------
    Room unlocked
+
+   The one celebratory screen in the app. Accent as colour rather than as
+   signal, contained here on purpose -- see the note in `confetti.tsx`.
    -------------------------------------------------------------------------- */
 
-.unlocked { text-align: center; justify-items: center; }
-.unlocked__art { width: min(300px, 78%); height: auto; }
-.unlocked .guest-page-title { text-align: center; }
+.unlocked {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding-bottom: 8px;
+}
 
-/* What the scan bought. Two columns so the four read as a set rather than a
-   list the eye has to work down. */
-.unlocked__grid {
+.unlocked__hero { display: grid; gap: 6px; justify-items: center; text-align: center; }
+
+/* accentStrong, not the brand pink: pink is a light surface colour and fails
+   as text on a light ground. DESIGN.md's rule, applied. */
+.unlocked__title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+  color: var(--guest-accent-strong);
+  text-wrap: balance;
+}
+.unlocked__subtitle { margin: 0; color: var(--guest-accent-strong); font-size: 15px; opacity: 0.82; }
+.unlocked__art { width: min(280px, 74%); height: auto; margin: 2px 0 4px; }
+
+.unlocked__card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+}
+.unlocked__card header { display: flex; align-items: center; gap: 10px; }
+.unlocked__card h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.008em; }
+.unlocked__card-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: var(--guest-radius-xs, 8px);
+  background: var(--guest-accent-soft, var(--guest-soft));
+  color: var(--guest-accent-strong);
+}
+.unlocked__card-icon svg { width: 16px; height: 16px; }
+.unlocked__card-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--guest-positive);
+  font-size: 12px;
+  font-weight: 650;
+}
+.unlocked__card-flag svg { width: 14px; height: 14px; }
+
+/* Two columns: the four read as a set, not a list to work down. */
+.unlocked__opened {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  width: 100%;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.unlocked__grid li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-paper);
-  box-shadow: var(--shadow-xs);
-  font-size: 13px;
-  font-weight: 650;
-  text-align: left;
+.unlocked__opened li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--guest-radius-sm);
+  background: var(--guest-surface);
 }
-.unlocked__grid svg { width: 18px; height: 18px; color: var(--guest-accent-strong); flex: 0 0 auto; }
+.unlocked__opened svg { width: 18px; height: 18px; color: var(--guest-accent-strong); }
+.unlocked__opened b { font-size: 13px; font-weight: 650; }
+.unlocked__opened small { color: var(--guest-subtle); font-size: 11px; line-height: 1.35; }
+
+.unlocked__rows { display: grid; gap: 8px; margin: 0; }
+.unlocked__rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.unlocked__rows dt { color: var(--guest-subtle); font-size: 13px; }
+.unlocked__rows dd { margin: 0; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.unlocked__note { margin: 0; color: var(--guest-subtle); font-size: 12px; line-height: 1.45; }
+
+.unlocked__dock { display: grid; gap: 8px; margin-top: 4px; }
+
+/* --------------------------------------------------------------------------
+   Confetti
+   -------------------------------------------------------------------------- */
+
+.confetti {
+  position: absolute;
+  inset: -20px -20px auto;
+  height: 320px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.confetti__piece {
+  position: absolute;
+  top: -24px;
+  border-radius: 2px;
+  opacity: 0;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.3, 0.6, 0.5, 1);
+  animation-fill-mode: forwards;
+}
+.confetti__piece.is-round { border-radius: 50%; }
+.confetti__piece--0 { background: var(--guest-accent); }
+.confetti__piece--1 { background: var(--guest-accent-strong); }
+.confetti__piece--2 { background: var(--guest-brand, var(--guest-ink)); }
+
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate3d(var(--drift, 0), 320px, 0) rotate(420deg); opacity: 0; }
+}
+
+/* Reduced motion drops the burst entirely -- `Confetti` returns null, and this
+   is the belt to that component's braces. */
+@media (prefers-reduced-motion: reduce) {
+  .confetti { display: none; }
+}
 
 /* --------------------------------------------------------------------------
    Discovery

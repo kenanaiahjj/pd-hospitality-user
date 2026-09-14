@@ -110,7 +110,7 @@ describe('promotion seam', () => {
     expect(screen.getByRole('heading', { name: 'Room 304 is open' })).toBeInTheDocument();
     expect(screen.getByText('Charge to room')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Explore the property/ }));
+    await user.click(screen.getByRole('button', { name: 'Explore' }));
     expect(onExplore).toHaveBeenCalledOnce();
   });
 

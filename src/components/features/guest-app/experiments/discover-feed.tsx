@@ -152,6 +152,25 @@ export function DiscoverFeed({
       </section>
 
       {/*
+        High, not buried.
+
+        It sat below the categories on the argument that a guest who knows
+        what they want should not scroll past a game -- but that guest uses
+        the ask field at the top of the screen, not the category grid. Below
+        four category cards the deck started 896px down an 812px viewport,
+        which is the same as not shipping it.
+      */}
+      {deck ? (
+        <section className="discover__deck" aria-label="Swipe to save">
+          <div className="discover__deck-head">
+            <h2>Not sure yet?</h2>
+            <p>Swipe through what&rsquo;s on property. Saving costs nothing.</p>
+          </div>
+          {deck}
+        </section>
+      ) : null}
+
+      {/*
         A lead card and three followers, not four equal tiles.
 
         Equal tiles make the guest read all four before choosing anything;
@@ -185,13 +204,6 @@ export function DiscoverFeed({
           ))}
         </div>
       </section>
-
-      {/*
-        Below the categories, deliberately. A guest who knows what they want
-        takes a category; the deck is for the one who does not, and putting it
-        above would make the decisive path scroll past the browsing one.
-      */}
-      {deck}
 
       {lead ? (
         <button

@@ -534,12 +534,19 @@
    Swipe deck
    -------------------------------------------------------------------------- */
 
+.discover__deck { display: grid; gap: 12px; }
+.discover__deck-head { display: grid; gap: 2px; }
+.discover__deck-head h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.008em; }
+.discover__deck-head p { margin: 0; color: var(--guest-subtle); font-size: 13px; }
+
 .deck { display: grid; gap: 14px; }
 
 .deck__stack {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  /* 1:1, not 4:5. The stack plus its buttons has to clear the fold in one
+     screen, or the deck is discovered by accident rather than by looking. */
+  aspect-ratio: 1 / 1;
   /* The exiting card leaves the frame; nothing should clip it mid-flight. */
   overflow: visible;
   touch-action: pan-y;

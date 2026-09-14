@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { DiscoverFeed } from './discover-feed';
+import { CategoryListing } from './category-listing';
+import { NearbyDetail } from './nearby-detail';
+import { NEARBY_PLACES, nearbyForCategory, onPropertyForCategory } from './nearby-model';
 import { ServiceDetail } from './service-detail';
 import { SwipeDeck } from './swipe-deck';
 import { StoryViewer } from './story-viewer';
@@ -39,8 +42,41 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
   /* A card opens a screen, not a story: tapping is a request to read more,
      and a story plays past what the guest stopped to look at. */
   const [openItemId, setOpenItemId] = useState<string | null>(null);
+  const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
+  const [openPlaceId, setOpenPlaceId] = useState<string | null>(null);
   const index = STORIES.findIndex((story) => story.id === openStoryId);
   const story = index >= 0 ? STORIES[index] : undefined;
+
+  const place = openPlaceId ? NEARBY_PLACES.find((entry) => entry.id === openPlaceId) : undefined;
+  if (place) {
+    return (
+      <div className="experiment-page">
+        <NearbyDetail
+          place={place}
+          onBack={() => setOpenPlaceId(null)}
+          /* In the app this opens the transfer booking, pre-filled with the
+             destination -- the one thing the property can actually sell here. */
+          onBookRide={() => setOpenPlaceId(null)}
+        />
+      </div>
+    );
+  }
+
+  const category = openCategoryId ? CATEGORIES.find((entry) => entry.id === openCategoryId) : undefined;
+  if (category) {
+    return (
+      <div className="experiment-page">
+        <CategoryListing
+          title={category.title}
+          onProperty={onPropertyForCategory(category.id)}
+          nearby={nearbyForCategory(category.id)}
+          onBack={() => setOpenCategoryId(null)}
+          onOpenItem={setOpenItemId}
+          onOpenNearby={setOpenPlaceId}
+        />
+      </div>
+    );
+  }
 
   const item = openItemId ? DECK.find((entry) => entry.id === openItemId) : undefined;
   if (item) {
@@ -92,7 +128,7 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
         setOpenStoryId(match ? match.id : null);
       }}
       /* In the app this opens `category-listing`. */
-      onOpenCategory={() => undefined}
+      onOpenCategory={setOpenCategoryId}
       onBrowseAll={() => undefined}
       deck={(
         <SwipeDeck

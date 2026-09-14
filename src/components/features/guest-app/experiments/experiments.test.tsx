@@ -7,6 +7,9 @@ import { EXPERIMENT_FLOWS, RoomScanner, RoomUnlocked, isFlowId } from './index';
 import { buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck, searchCatalogue } from './story-model';
 import { SwipeDeck } from './swipe-deck';
 import { ServiceDetail } from './service-detail';
+import { CategoryListing } from './category-listing';
+import { NearbyDetail } from './nearby-detail';
+import { nearbyForCategory, onPropertyForCategory } from './nearby-model';
 import { INTENTS, matchIntent, resolveIntent } from './intent-model';
 
 afterEach(cleanup);
@@ -421,5 +424,80 @@ describe('deck motion', () => {
     // `transition: all` lets unrelated style changes ride along for free.
     expect(css).not.toMatch(/\.deck__card[^{]*\{[^}]*transition:\s*all/);
     expect(css).toMatch(/prefers-reduced-motion[\s\S]*?\.deck__card/);
+  });
+});
+
+describe('category listing', () => {
+  it('keeps what the hotel can book separate from what it can only point at', () => {
+    render(
+      <CategoryListing
+        title="Food & Drink"
+        onProperty={onPropertyForCategory('dining')}
+        nearby={nearbyForCategory('dining')}
+        onBack={vi.fn()}
+        onOpenItem={vi.fn()}
+        onOpenNearby={vi.fn()}
+      />,
+    );
+
+    /*
+      Merging them into one ranked list is what makes hotel directories
+      useless: a guest cannot tell what the building can actually do for them.
+    */
+    expect(screen.getByRole('heading', { name: 'In the building' })).toBeInTheDocument();
+    expect(screen.getByText(/charged to your room/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Places nearby' })).toBeInTheDocument();
+    expect(screen.getByText(/Not ours to book/i)).toBeInTheDocument();
+  });
+
+  it('lists each venue once, though the catalogue holds it twice', () => {
+    // The same dining rooms appear as venues and as services, under names
+    // that differ only by a suffix.
+    const names = onPropertyForCategory('dining').map((item) => item.title);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.filter((n) => /poolside/i.test(n))).toHaveLength(1);
+  });
+
+  it('sorts nearby by how far it actually is', () => {
+    const distances = nearbyForCategory('dining').map((place) => place.distanceKm);
+    expect([...distances].sort((a, b) => a - b)).toEqual(distances);
+  });
+});
+
+describe('nearby place', () => {
+  const place = nearbyForCategory('dining')[0]!;
+
+  it('offers the ride, because the ride is the only thing the hotel sells here', async () => {
+    const user = userEvent.setup();
+    const onBookRide = vi.fn();
+    render(<NearbyDetail place={place} onBack={vi.fn()} onBookRide={onBookRide} />);
+
+    /*
+      No booking button: the property does not hold this restaurant's tables,
+      and a button implying otherwise fails the first guest who presses it.
+    */
+    expect(screen.queryByRole('button', { name: /book a table|reserve/i })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /Book a hotel car/ }));
+    expect(onBookRide).toHaveBeenCalledWith(place.id);
+  });
+
+  it('gives a guest what they need to decide, and a number they can press', () => {
+    render(<NearbyDetail place={place} onBack={vi.fn()} onBookRide={vi.fn()} />);
+
+    expect(screen.getByText(place.address)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: place.phone })).toHaveAttribute(
+      'href',
+      `tel:${place.phone.replace(/\s/g, '')}`,
+    );
+    expect(screen.getByRole('img', { name: new RegExp(place.name) })).toBeInTheDocument();
+  });
+
+  it('draws its map rather than fetching one', () => {
+    // A tile service in the render path is a third party that can be blocked
+    // or rate-limited in front of a guest -- and this needs to say "roughly
+    // here, this far", not navigate.
+    const source = readFileSync(resolve(EXPERIMENTS_DIR, 'nearby-detail.tsx'), 'utf8');
+    expect(source).not.toMatch(/https?:\/\//);
   });
 });

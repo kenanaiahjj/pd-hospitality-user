@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EXPERIMENT_FLOWS, RoomScanner, RoomUnlocked, isFlowId } from './index';
 import { buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck, searchCatalogue } from './story-model';
 import { SwipeDeck } from './swipe-deck';
+import { ServiceDetail } from './service-detail';
 import { INTENTS, matchIntent, resolveIntent } from './intent-model';
 
 afterEach(cleanup);
@@ -357,5 +358,52 @@ describe('the deck reads as a deck', () => {
     render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
     expect(screen.getByTestId('swipe-deck').querySelectorAll('.deck__card--under')).toHaveLength(0);
+  });
+});
+
+describe('service detail', () => {
+  it('opens a full screen with the price and the settlement terms', () => {
+    const item = buildSwipeDeck()[0]!;
+    render(<ServiceDetail item={item} onBack={vi.fn()} onBook={vi.fn()} />);
+
+    expect(screen.getByRole('heading', { name: item.title, level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(item.price)).toBeInTheDocument();
+    // A card is a way in to booking, never a way around what it costs.
+    expect(screen.getByText(/settled with the property at checkout/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is charged now/i)).toBeInTheDocument();
+  });
+
+  it('books through the host, so the gate still decides', async () => {
+    const user = userEvent.setup();
+    const onBook = vi.fn();
+    const item = buildSwipeDeck()[0]!;
+
+    render(<ServiceDetail item={item} onBack={vi.fn()} onBook={onBook} />);
+    await user.click(screen.getByRole('button', { name: 'Choose a time' }));
+
+    expect(onBook).toHaveBeenCalledWith(item.id);
+  });
+});
+
+describe('deck motion', () => {
+  it('never re-renders React while a finger is down', () => {
+    /*
+      The jank was architectural, not a curve: an earlier pass called setState
+      on every pointermove, re-rendering the images, scrim and copy once per
+      frame. No easing rescues a component that re-renders at 60fps.
+    */
+    const source = readFileSync(resolve(EXPERIMENTS_DIR, 'swipe-deck.tsx'), 'utf8');
+    const onMove = source.slice(source.indexOf('const onPointerMove'), source.indexOf('const onPointerUp'));
+
+    expect(onMove).not.toMatch(/setState|setIndex|useState/);
+    expect(onMove).toMatch(/requestAnimationFrame/);
+  });
+
+  it('enumerates the properties it transitions, and ships a reduced-motion path', () => {
+    const css = readFileSync(resolve(EXPERIMENTS_DIR, 'experiments.css'), 'utf8');
+
+    // `transition: all` lets unrelated style changes ride along for free.
+    expect(css).not.toMatch(/\.deck__card[^{]*\{[^}]*transition:\s*all/);
+    expect(css).toMatch(/prefers-reduced-motion[\s\S]*?\.deck__card/);
   });
 });

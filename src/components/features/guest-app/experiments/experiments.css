@@ -539,7 +539,20 @@
 .discover__deck-head h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.008em; }
 .discover__deck-head p { margin: 0; color: var(--guest-subtle); font-size: 13px; }
 
-.deck { display: grid; gap: 14px; }
+/*
+  Timing, named once. Values follow the transitions.dev vocabulary: a single
+  ease-out quart for anything settling, and a slightly flatter curve for the
+  throw so it reads as released rather than pulled.
+*/
+.deck {
+  --deck-settle-dur: 260ms;
+  --deck-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --deck-fly-dur: 340ms;
+  --deck-fly-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  display: grid;
+  gap: 14px;
+}
 
 .deck__stack {
   position: relative;
@@ -583,9 +596,15 @@
   will-change: transform;
 }
 .deck__card img { object-fit: cover; pointer-events: none; }
+/*
+  Exact properties, never `all`: a dragged card must track the finger with no
+  transition at all, and everything else must not ride along for free.
+*/
+.deck__card { transition: transform var(--deck-settle-dur) var(--deck-ease); }
 .deck__card.is-dragging { cursor: grabbing; transition: none; }
-/* Only the settle and the exit animate; a dragged card must track the finger. */
-.deck__card:not(.is-dragging) { transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+/* The throw runs longer than the settle -- it covers ten times the distance,
+   and matching their durations makes the exit look yanked. */
+.deck__card.is-flying { transition: transform var(--deck-fly-dur) var(--deck-fly-ease); }
 
 /*
   The pile fans sideways, not downward.
@@ -607,6 +626,8 @@
   transform-origin: bottom center;
   box-shadow: 0 6px 18px oklch(0.2 0.02 300 / 0.14);
   pointer-events: none;
+  /* They step forward as the pile advances, rather than snapping. */
+  transition: transform var(--deck-settle-dur) var(--deck-ease);
 }
 
 /* Pushes the lower cards back without greying them out -- a washed-out card
@@ -697,7 +718,9 @@
   rather than fly, and the deck still works exactly the same way.
 */
 @media (prefers-reduced-motion: reduce) {
-  .deck__card:not(.is-dragging) { transition: none; }
+  /* The deck still works: `move()` skips the flight and advances outright. */
+  .deck__card,
+  .deck__card.is-flying,
   .deck__action { transition: none; }
 }
 
@@ -1044,4 +1067,94 @@
 
 @media (prefers-reduced-motion: reduce) {
   .story__tick { transition: none; }
+}
+
+
+/* --------------------------------------------------------------------------
+   Service detail
+
+   Page side-by-side, to the transitions.dev vocabulary: the outgoing screen
+   slides and blurs a short distance while the incoming one arrives. Distances
+   stay small -- a long slide reads as a stunt on a surface a guest crosses
+   many times a day.
+   -------------------------------------------------------------------------- */
+
+.experiment-page {
+  --page-slide-dur: 220ms;
+  --page-slide-distance: 10px;
+  --page-blur: 3px;
+  --page-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  animation: page-enter var(--page-slide-dur) var(--page-ease) both;
+}
+.experiment-page[data-direction='back'] { animation-name: page-enter-back; }
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translate3d(var(--page-slide-distance), 0, 0); filter: blur(var(--page-blur)); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes page-enter-back {
+  from { opacity: 0; transform: translate3d(calc(var(--page-slide-distance) * -1), 0, 0); filter: blur(var(--page-blur)); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+.detail { display: grid; gap: 0; align-content: start; margin: -12px -16px -36px; }
+
+.detail__art { position: relative; aspect-ratio: 4 / 3; overflow: hidden; }
+.detail__art img { object-fit: cover; }
+.detail__art-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--guest-canvas) 0%, transparent 34%);
+}
+.detail__back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: oklch(1 0 0 / 0.92);
+  color: var(--guest-ink);
+}
+.detail__back svg { width: 20px; height: 20px; }
+
+.detail__body { display: grid; gap: 18px; padding: 4px 16px 16px; }
+.detail__title { display: grid; gap: 4px; }
+.detail__title small { color: var(--guest-accent-strong); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.detail__title h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.022em; line-height: 1.1; text-wrap: balance; }
+.detail__title p { margin: 0; color: var(--guest-subtle); font-size: 14px; }
+
+.detail__facts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+}
+.detail__facts > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.detail__facts dt { display: flex; align-items: center; gap: 8px; color: var(--guest-subtle); font-size: 13px; }
+.detail__facts svg { width: 15px; height: 15px; }
+.detail__facts dd { margin: 0; font-size: 13px; font-weight: 650; }
+
+.detail__note { margin: 0; color: var(--guest-subtle); font-size: 12px; line-height: 1.45; }
+
+.detail__dock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 8px;
+}
+.detail__price { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.detail__dock .guest-button { flex: 1 1 auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The move still happens; only the choreography goes. */
+  .experiment-page { animation: page-fade var(--page-slide-dur) ease both; }
+  @keyframes page-fade { from { opacity: 0; } to { opacity: 1; } }
 }

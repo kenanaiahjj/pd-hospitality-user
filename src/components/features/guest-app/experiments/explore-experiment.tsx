@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { DiscoverFeed } from './discover-feed';
+import { ServiceDetail } from './service-detail';
 import { SwipeDeck } from './swipe-deck';
 import { StoryViewer } from './story-viewer';
 import { buildBanners, buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck } from './story-model';
@@ -35,8 +36,26 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
     autoplayIntro ? STORIES[0]?.id ?? null : null,
   );
   const [introPlaying, setIntroPlaying] = useState(autoplayIntro);
+  /* A card opens a screen, not a story: tapping is a request to read more,
+     and a story plays past what the guest stopped to look at. */
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
   const index = STORIES.findIndex((story) => story.id === openStoryId);
   const story = index >= 0 ? STORIES[index] : undefined;
+
+  const item = openItemId ? DECK.find((entry) => entry.id === openItemId) : undefined;
+  if (item) {
+    return (
+      <div className="experiment-page">
+        <ServiceDetail
+          item={item}
+          onBack={() => setOpenItemId(null)}
+          /* In the app this is `openServiceBooking`, so the room-scan gate
+             still decides whether the booking may proceed. */
+          onBook={() => setOpenItemId(null)}
+        />
+      </div>
+    );
+  }
 
   if (story) {
     return (
@@ -80,10 +99,7 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
           items={DECK}
           /* In the app this opens the service detail, where the gate still
              decides whether a booking may proceed. */
-          onOpen={(id) => {
-            const match = STORIES.find((story) => story.id.endsWith(id));
-            setOpenStoryId(match ? match.id : null);
-          }}
+          onOpen={setOpenItemId}
         />
       )}
     />

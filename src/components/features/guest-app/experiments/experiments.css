@@ -301,19 +301,23 @@
   gap: 6px;
   justify-items: center;
   flex: 0 0 auto;
-  width: 76px;
+  width: 72px;
   border: 0;
   background: none;
   scroll-snap-align: start;
 }
-/* Rounded square, not a circle: the subject is a place, and a circle crops a
-   room to a face. The accent ring is the unread signal, same as everywhere. */
+/*
+  Portrait, not a square or a circle. The subject is a room, a terrace, a
+  treatment table -- all of which are taller than they are wide once a person
+  is in them, and a square crops the part that sells it. The accent ring is
+  the unread signal, same as everywhere.
+*/
 .discover__story-art {
   position: relative;
   display: block;
-  width: 76px;
-  height: 76px;
-  border-radius: 22px;
+  width: 72px;
+  height: 96px;
+  border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 0 0 2px var(--guest-paper), 0 0 0 4px var(--guest-accent);
 }

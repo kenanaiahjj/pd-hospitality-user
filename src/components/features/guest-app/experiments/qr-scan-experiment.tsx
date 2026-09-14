@@ -55,7 +55,7 @@ export function QrScanExperiment() {
     Reuses the discovery harness whole, so the two candidates stay one
     implementation and cannot drift into two.
   */
-  if (stage === 'discover') return <ExploreExperiment />;
+  if (stage === 'discover') return <ExploreExperiment autoplayIntro />;
 
   if (stage === 'unlocked') {
     return (

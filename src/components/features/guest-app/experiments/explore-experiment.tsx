@@ -17,8 +17,20 @@ import { buildBanners, buildStories } from './story-model';
 const STORIES = buildStories();
 const BANNERS = buildBanners();
 
-export function ExploreExperiment() {
-  const [openStoryId, setOpenStoryId] = useState<string | null>(null);
+export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: boolean } = {}) {
+  /*
+    Arriving from the unlock opens on a story rather than on the feed: the
+    handoff is "here is what is on tonight", and a grid of cards asks the
+    guest to start choosing before they have seen anything.
+
+    One story, then the feed -- not the full chain. Chaining is what the rail
+    does when a guest taps in deliberately; doing it on arrival would hold
+    someone who only wanted to look around.
+  */
+  const [openStoryId, setOpenStoryId] = useState<string | null>(
+    autoplayIntro ? STORIES[0]?.id ?? null : null,
+  );
+  const [introPlaying, setIntroPlaying] = useState(autoplayIntro);
   const index = STORIES.findIndex((story) => story.id === openStoryId);
   const story = index >= 0 ? STORIES[index] : undefined;
 
@@ -26,9 +38,14 @@ export function ExploreExperiment() {
     return (
       <StoryViewer
         story={story}
-        onClose={() => setOpenStoryId(null)}
-        onBook={() => setOpenStoryId(null)}
+        onClose={() => { setIntroPlaying(false); setOpenStoryId(null); }}
+        onBook={() => { setIntroPlaying(false); setOpenStoryId(null); }}
         onFinished={() => {
+          if (introPlaying) {
+            setIntroPlaying(false);
+            setOpenStoryId(null);
+            return;
+          }
           // Straight into the next one, which is the whole premise.
           const next = STORIES[index + 1];
           setOpenStoryId(next ? next.id : null);

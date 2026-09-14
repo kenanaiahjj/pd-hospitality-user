@@ -19,14 +19,11 @@ import { RoomUnlocked } from './room-unlocked';
 */
 
 /*
-  Cabana's real printed code, once it is in the repo.
-
-  Save the PNG to `public/illustrations/room-code.png` and set this to
-  '/illustrations/room-code.png'. Until then the frame draws a synthetic code
-  that matches the house style but encodes nothing -- fine to look at, not
-  something a phone can read.
+  Cabana's real printed code. A phone pointed at the screen can read this one,
+  which the drawn fallback in `qr-code-graphic.tsx` cannot -- that one matches
+  the house style but encodes nothing.
 */
-const ROOM_CODE_SRC: string | undefined = undefined;
+const ROOM_CODE_SRC = '/illustrations/cabana-qr.png';
 
 type Stage = 'closed' | 'scanning' | 'unlocked' | 'discover';
 

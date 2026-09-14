@@ -501,3 +501,21 @@ describe('nearby place', () => {
     expect(source).not.toMatch(/https?:\/\//);
   });
 });
+
+describe('grids that contain rails', () => {
+  it('state their track, so a scroller cannot widen the page', () => {
+    /*
+      Four separate bugs this session came from the same place: a grid item's
+      automatic minimum size refuses to shrink below its content, so a
+      horizontal rail sizes its whole parent column to its scroll width.
+      Every grid here that holds an overflowing child says minmax(0, 1fr).
+    */
+    const css = readFileSync(resolve(EXPERIMENTS_DIR, 'experiments.css'), 'utf8');
+
+    for (const parent of ['.discover', '.listing']) {
+      const rule = css.slice(css.indexOf(`\n${parent} {`));
+      const block = rule.slice(0, rule.indexOf('}'));
+      expect(block, parent).toMatch(/grid-template-columns:\s*minmax\(0/);
+    }
+  });
+});

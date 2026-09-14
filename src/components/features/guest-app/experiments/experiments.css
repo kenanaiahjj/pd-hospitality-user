@@ -1177,11 +1177,38 @@
 /* --------------------------------------------------------------------------
    Category listing
 
-   Two lists, visibly not the same kind of thing: what the building can book,
-   and what it can only point at.
+   Hierarchy over uniformity: one venue leads at full width, the rest sit in a
+   grid, and nearby runs as a rail. Five identical rows told the guest nothing
+   about what to look at first.
    -------------------------------------------------------------------------- */
 
-.listing { display: grid; gap: 22px; align-content: start; }
+/*
+  `minmax(0, 1fr)`, like `.discover`. Any grid holding a horizontal rail needs
+  this: a grid item's default `min-width: auto` refuses to shrink below its
+  content, so the nearby rail sized the whole column to its own 868px scroll
+  width and the tile grid laid out two 428px columns inside a 375px screen.
+  Fourth time in this stylesheet -- the rule is that a grid containing a rail
+  states its track.
+*/
+.listing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 26px;
+  align-content: start;
+}
+
+/*
+  And their children, because the constraint has to reach the element that
+  actually wraps the rail. Setting it on the container alone fixed the
+  container and left the <section> inside it free to expand -- the same bug
+  one level down. Five instances of this in one stylesheet: every direct
+  child of a grid here is told it may shrink.
+*/
+.listing > *,
+.discover > *,
+.listing section > *,
+.discover section > * { min-width: 0; }
+
 .listing__head { display: flex; align-items: center; gap: 12px; }
 .listing__head h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
 .listing__back {
@@ -1195,53 +1222,166 @@
   background: var(--guest-paper);
   color: var(--guest-ink);
   box-shadow: var(--shadow-xs);
+  transition: transform var(--duration-press) var(--ease-out);
 }
+.listing__back:active { transform: scale(0.94); }
 .listing__back svg { width: 18px; height: 18px; }
 
-.listing__section { display: grid; gap: 2px; margin-bottom: 10px; }
-.listing__section h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.008em; }
+.listing__section { display: grid; gap: 2px; margin-bottom: 12px; }
+.listing__section h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 .listing__section small { color: var(--guest-subtle); font-size: 13px; }
 
-.listing__rows { display: grid; gap: 8px; }
-.listing__row {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  align-items: center;
-  gap: 12px;
+/* The lead. Big enough that the photograph does the selling. */
+.listing__lead {
+  position: relative;
+  display: block;
   width: 100%;
-  padding: 10px 14px 10px 10px;
+  aspect-ratio: 16 / 11;
+  margin-bottom: 12px;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  overflow: hidden;
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.listing__lead:active { transform: scale(0.99); }
+.listing__lead img { object-fit: cover; }
+.listing__lead-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, oklch(0.14 0.02 300 / 0.88) 0%, oklch(0.14 0.02 300 / 0.28) 42%, transparent 70%);
+}
+.listing__lead-copy {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  color: oklch(1 0 0);
+}
+.listing__lead-copy b { font-size: 24px; font-weight: 700; letter-spacing: -0.018em; line-height: 1.1; text-wrap: balance; }
+.listing__lead-copy > small { font-size: 13px; opacity: 0.9; }
+
+.listing__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.listing__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: oklch(1 0 0 / 0.18);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
+}
+/* The price is the one chip that carries weight, so it takes the solid fill. */
+.listing__chip--price { background: oklch(1 0 0); color: var(--guest-ink); }
+.listing__chip svg { width: 13px; height: 13px; }
+
+.listing__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+.listing__tile {
+  display: grid;
+  gap: 0;
   border: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   box-shadow: var(--shadow-xs);
+  overflow: hidden;
   text-align: left;
   transition: transform var(--duration-press) var(--ease-out);
 }
-.listing__row:active { transform: scale(0.99); }
-.listing__art {
-  position: relative;
-  display: block;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--guest-radius-sm);
-  overflow: hidden;
-}
-.listing__art img { object-fit: cover; }
-.listing__copy { display: grid; gap: 2px; min-width: 0; }
-.listing__copy b { font-size: 14px; font-weight: 650; }
-.listing__copy small { color: var(--guest-subtle); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.listing__price { font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.listing__away {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
+.listing__tile:active { transform: scale(0.98); }
+.listing__tile-art { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; }
+.listing__tile-art img { object-fit: cover; }
+.listing__tile-copy { display: grid; gap: 2px; padding: 10px 12px 12px; }
+.listing__tile-copy b { font-size: 14px; font-weight: 650; line-height: 1.2; }
+.listing__tile-copy small {
   color: var(--guest-subtle);
   font-size: 12px;
-  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.listing__away svg { width: 13px; height: 13px; }
-.listing__row > svg { width: 15px; height: 15px; color: var(--guest-subtle); }
+.listing__tile-copy i {
+  margin-top: 2px;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  Nearby runs sideways. A vertical list asks to be chosen from, and these are
+  not the property's to offer -- a rail reads as "have a look", which is the
+  honest posture for somewhere it can only drive you to.
+*/
+.listing__rail {
+  display: flex;
+  gap: 12px;
+  margin: 0 calc(var(--app-inset) * -1);
+  padding: 2px var(--app-inset) 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.listing__rail::-webkit-scrollbar { display: none; }
+
+.listing__near {
+  flex: 0 0 auto;
+  width: 208px;
+  display: grid;
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  text-align: left;
+  scroll-snap-align: start;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.listing__near:active { transform: scale(0.98); }
+.listing__near-art { position: relative; display: block; width: 100%; aspect-ratio: 16 / 10; }
+.listing__near-art img { object-fit: cover; }
+
+/* Distance on the photograph, because it is the fact that decides. */
+.listing__near-away {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: var(--radius-pill);
+  background: oklch(0.14 0.02 300 / 0.72);
+  color: oklch(1 0 0);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
+}
+.listing__near-away svg { width: 11px; height: 11px; }
+
+.listing__near-copy { display: grid; gap: 2px; padding: 10px 12px 12px; }
+.listing__near-copy b { font-size: 14px; font-weight: 650; line-height: 1.2; }
+.listing__near-copy small { color: var(--guest-subtle); font-size: 12px; }
+.listing__near-copy > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: var(--guest-accent-strong);
+  font-size: 12px;
+  font-weight: 650;
+}
+.listing__near-copy svg { width: 12px; height: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .listing__back, .listing__lead, .listing__tile, .listing__near { transition: none; }
+}
 
 /* --------------------------------------------------------------------------
    Nearby place
@@ -1308,5 +1448,5 @@
 .nearby__dock small { color: var(--guest-subtle); font-size: 12px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .listing__row { transition: none; }
+  
 }

@@ -89,6 +89,8 @@ export function onPropertyForCategory(categoryId: MiniAppCategoryId) {
         detail: venue.location,
         price: venue.priceRange,
         image: storyImage(venue.id),
+        /* Hours are the one fact that decides whether a guest gets up. */
+        note: venue.hours,
       }))
     : [];
 
@@ -100,6 +102,7 @@ export function onPropertyForCategory(categoryId: MiniAppCategoryId) {
       detail: service.operator,
       price: service.price,
       image: storyImage(service.id),
+      note: service.cutoff,
     }));
 
   /*

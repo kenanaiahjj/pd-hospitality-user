@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { DiscoverFeed } from './discover-feed';
+import { SwipeDeck } from './swipe-deck';
 import { StoryViewer } from './story-viewer';
-import { buildBanners, buildCategoryCards, buildSearchIndex, buildStories } from './story-model';
+import { buildBanners, buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck } from './story-model';
 
 /*
   The harness. Stands in for the guest app while the two candidates below it
@@ -18,8 +19,12 @@ const STORIES = buildStories();
 const BANNERS = buildBanners();
 const SEARCH_INDEX = buildSearchIndex();
 const CATEGORIES = buildCategoryCards();
+const DECK = buildSwipeDeck();
 
 export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: boolean } = {}) {
+  /* Saved lives here so the deck and the feed agree on the count. In the app
+     it would be session state the Saved tab reads. */
+  const [saved, setSaved] = useState<string[]>([]);
   /*
     Arriving from the unlock opens on a story rather than on the feed: the
     handoff is "here is what is on tonight", and a grid of cards asks the
@@ -73,6 +78,15 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
       /* In the app this opens `category-listing`. */
       onOpenCategory={() => undefined}
       onBrowseAll={() => undefined}
+      deck={(
+        <SwipeDeck
+          items={DECK}
+          savedCount={saved.length}
+          onSave={(id) => setSaved((list) => (list.includes(id) ? list : [...list, id]))}
+          onPass={() => undefined}
+          onOpenSaved={() => undefined}
+        />
+      )}
     />
   );
 }

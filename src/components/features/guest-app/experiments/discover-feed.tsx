@@ -2,7 +2,7 @@
 
 import { ArrowRight, CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { searchCatalogue } from './story-model';
 import type { CategoryCard, DiscoverBanner, SearchableItem, Story } from './story-model';
 
@@ -26,6 +26,8 @@ export type DiscoverFeedProps = {
   onOpenItem: (itemId: string) => void;
   onOpenCategory: (categoryId: string) => void;
   onBrowseAll: () => void;
+  /** The swipe deck, composed by the host so this stays presentational. */
+  deck?: ReactNode;
 };
 
 export function DiscoverFeed({
@@ -38,6 +40,7 @@ export function DiscoverFeed({
   onOpenItem,
   onOpenCategory,
   onBrowseAll,
+  deck,
 }: DiscoverFeedProps) {
   const [lead, ...rest] = banners;
   const [query, setQuery] = useState('');
@@ -162,6 +165,13 @@ export function DiscoverFeed({
           ))}
         </div>
       </section>
+
+      {/*
+        Below the categories, deliberately. A guest who knows what they want
+        takes a category; the deck is for the one who does not, and putting it
+        above would make the decisive path scroll past the browsing one.
+      */}
+      {deck}
 
       {lead ? (
         <button

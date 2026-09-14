@@ -180,6 +180,28 @@ export function buildCategoryCards(): CategoryCard[] {
   }));
 }
 
+/**
+ * The swipe deck: things to do, not places to eat.
+ *
+ * Dining is excluded on purpose. A restaurant is a decision a guest makes
+ * against a time and a hunger, and asking them to rule one in or out at
+ * random is noise. An experience is exactly the kind of thing nobody knows
+ * they want until they see it, which is the only case where a deck beats a
+ * list.
+ */
+export function buildSwipeDeck(): SearchableItem[] {
+  return SERVICES
+    .filter((service) => service.categoryId !== 'dining')
+    .map((service) => ({
+      id: service.id,
+      title: service.name,
+      category: service.category,
+      price: service.price,
+      detail: service.operator,
+      image: storyImage(service.id),
+    }));
+}
+
 /** A big editorial banner, distinct from the rail. */
 export type DiscoverBanner = {
   id: string;

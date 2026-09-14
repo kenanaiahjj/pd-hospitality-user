@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EXPERIMENT_FLOWS, RoomScanner, RoomUnlocked, isFlowId } from './index';
-import { buildCategoryCards, buildSearchIndex, buildStories, searchCatalogue } from './story-model';
+import { buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck, searchCatalogue } from './story-model';
+import { SwipeDeck } from './swipe-deck';
 
 afterEach(cleanup);
 
@@ -221,5 +222,47 @@ describe('category cards', () => {
     // ground is what survives a photograph changing behind it.
     const css = readFileSync(resolve(EXPERIMENTS_DIR, 'experiments.css'), 'utf8');
     expect(css).toMatch(/\.categories__card::after\s*\{[^}]*linear-gradient/);
+  });
+});
+
+describe('swipe deck', () => {
+  it('offers experiences, not restaurants', () => {
+    /*
+      A restaurant is a decision against a time and a hunger; ruling one in
+      or out at random is noise. An experience is the thing nobody knows they
+      want until they see it, which is the only case where a deck beats a list.
+    */
+    const deck = buildSwipeDeck();
+    expect(deck.length).toBeGreaterThan(0);
+    expect(deck.some((item) => /restaurant|bar|caf/i.test(item.category))).toBe(false);
+  });
+
+  it('can be answered without a drag', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const onPass = vi.fn();
+    const items = buildSwipeDeck().slice(0, 2);
+
+    render(<SwipeDeck items={items} savedCount={0} onSave={onSave} onPass={onPass} onOpenSaved={vi.fn()} />);
+
+    // Drag is the fast path for someone who knows it is there. It cannot be
+    // the only way to answer, or the deck is unusable with a keyboard.
+    await user.click(screen.getByRole('button', { name: `Save ${items[0]!.title}` }));
+    expect(onSave).toHaveBeenCalledWith(items[0]!.id);
+  });
+
+  it('ends by pointing at what was saved, not at a dead end', () => {
+    render(<SwipeDeck items={[]} savedCount={3} onSave={vi.fn()} onPass={vi.fn()} onOpenSaved={vi.fn()} />);
+
+    expect(screen.getByTestId('swipe-deck-empty')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /See what you saved/ })).toBeInTheDocument();
+  });
+
+  it('says saving is not booking', () => {
+    render(<SwipeDeck items={[]} savedCount={2} onSave={vi.fn()} onPass={vi.fn()} onOpenSaved={vi.fn()} />);
+
+    // Swiping is low-attention; booking spends money against a room. The deck
+    // collects intent and must not imply it spent anything.
+    expect(screen.getByText(/nothing is held/i)).toBeInTheDocument();
   });
 });

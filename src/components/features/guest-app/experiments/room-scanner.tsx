@@ -1,6 +1,7 @@
 'use client';
 
 import { Image as ImageIcon, X } from '@phosphor-icons/react';
+import NextImage from 'next/image';
 import { useEffect, useRef } from 'react';
 import { QrCodeGraphic } from './qr-code-graphic';
 
@@ -29,6 +30,12 @@ export type RoomScannerProps = {
    * its decoder.
    */
   autoDetectMs?: number | null;
+  /**
+   * A real code image to show inside the frame, for a demo someone should be
+   * able to point an actual phone at. Without it the frame draws a synthetic
+   * code, which looks right but encodes nothing.
+   */
+  codeImageSrc?: string;
 };
 
 export function RoomScanner({
@@ -37,6 +44,7 @@ export function RoomScanner({
   onCancel,
   onPickFromPhotos,
   autoDetectMs = 2000,
+  codeImageSrc,
 }: RoomScannerProps) {
   /*
     Through a ref, armed once. `onDetected` is rebuilt on every parent render,
@@ -63,7 +71,9 @@ export function RoomScanner({
       <div className="scanner__viewport">
         {/* Stands in for the camera feed. A real one replaces this node. */}
         <div className="scanner__feed" aria-hidden="true" />
-        <QrCodeGraphic className="scanner__code" />
+        {codeImageSrc
+          ? <NextImage className="scanner__code" src={codeImageSrc} alt="QR code" width={230} height={230} />
+          : <QrCodeGraphic className="scanner__code" />}
         <span className="scanner__bracket scanner__bracket--tl" aria-hidden="true" />
         <span className="scanner__bracket scanner__bracket--tr" aria-hidden="true" />
         <span className="scanner__bracket scanner__bracket--bl" aria-hidden="true" />

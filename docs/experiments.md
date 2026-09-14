@@ -71,6 +71,11 @@ otherwise set per flow in the registry; discovery keeps its bars.
 `room-unlocked.tsx`. Drop a file in `public/illustrations/` and change that
 line.
 
+The scanner draws a synthetic QR that matches Cabana's printed style but
+encodes nothing. To show a code a phone can actually read, save the real PNG
+to `public/illustrations/room-code.png` and set `ROOM_CODE_SRC` in
+`qr-scan-experiment.tsx`; `RoomScanner` takes it as `codeImageSrc`.
+
 Story and banner photography is Unsplash, in `story-imagery.ts`, and is
 placeholder only — it exists because a story is full-bleed at phone height and
 the app's local art is cropped for cards. It is not for promotion: a promoted

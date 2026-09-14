@@ -612,16 +612,28 @@
 .deck__card.is-dragging { cursor: grabbing; transition: none; }
 
 /*
-  The dive. `z-index: 0` puts the card under the whole pile immediately, so
-  it visibly passes beneath the others on its way to the back rather than
-  sliding across their faces -- that read is the entire point of rotating
-  instead of discarding.
+  The dive, and its own target rather than the next slot along.
+
+  Inheriting the fan's step put the card one place behind the deepest visible
+  one, which is what it looked like: a card shuffling back a single position.
+  Going to the *very* back means travelling past the whole pile -- much
+  smaller, much further down, and faded out by the time it gets there, so the
+  eye reads it as swallowed rather than nudged.
+
+  `z-index: 0` first, so it passes beneath the others on the way rather than
+  sliding across their faces.
 */
 .deck__card.is-recycling {
   z-index: 0;
+  transform:
+    translateX(78px)
+    translateY(34px)
+    rotate(14deg)
+    scale(0.7);
+  opacity: 0;
   transition:
     transform var(--deck-recycle-dur) var(--deck-recycle-ease),
-    opacity var(--deck-recycle-dur) var(--deck-recycle-ease);
+    opacity var(--deck-recycle-dur) ease-in;
 }
 
 /*
@@ -655,9 +667,7 @@
     transform var(--deck-recycle-dur) var(--deck-recycle-ease),
     opacity var(--deck-recycle-dur) var(--deck-recycle-ease);
 }
-/* The deepest slot is where a dived card lands; fading it in there stops the
-   back of the pile popping into existence. */
-.deck__card--under.is-recycling { opacity: 0.9; }
+
 
 /* Pushes the lower cards back without greying them out -- a washed-out card
    reads as disabled, and these are the next things to look at. */

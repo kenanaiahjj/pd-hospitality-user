@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -166,5 +166,31 @@ describe('discovery search', () => {
     const index = buildSearchIndex();
     expect(searchCatalogue(index, '')).toEqual([]);
     expect(searchCatalogue(index, '   ')).toEqual([]);
+  });
+});
+
+describe('experiment imagery', () => {
+  it('never puts a third party in the render path', () => {
+    /*
+      These were live Unsplash URLs, which Next fetches server-side at request
+      time -- so a blocked network, an offline laptop, or rate-limiting across
+      fifteen images all rendered as a broken glyph in front of whoever was
+      being shown the prototype.
+    */
+    const source = readFileSync(resolve(EXPERIMENTS_DIR, 'story-imagery.ts'), 'utf8');
+    expect(source).not.toMatch(/https?:\/\//);
+  });
+
+  it('ships every image it references', () => {
+    const source = readFileSync(resolve(EXPERIMENTS_DIR, 'story-imagery.ts'), 'utf8');
+    const paths = [...source.matchAll(/shot\('([^']+)'/g)].map((m) => m[1]!);
+
+    expect(paths.length).toBeGreaterThan(0);
+    for (const id of paths) {
+      expect(
+        existsSync(resolve(process.cwd(), 'public/experiments', `${id}.jpg`)),
+        `public/experiments/${id}.jpg`,
+      ).toBe(true);
+    }
   });
 });

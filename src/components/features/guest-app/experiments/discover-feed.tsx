@@ -1,8 +1,10 @@
 'use client';
 
-import { ArrowRight, CaretRight } from '@phosphor-icons/react';
+import { ArrowRight, CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Image from 'next/image';
-import type { DiscoverBanner, Story } from './story-model';
+import { useState } from 'react';
+import { searchCatalogue } from './story-model';
+import type { DiscoverBanner, SearchableItem, Story } from './story-model';
 
 /*
   A promotable discovery page.
@@ -16,19 +18,36 @@ import type { DiscoverBanner, Story } from './story-model';
 export type DiscoverFeedProps = {
   stories: Story[];
   banners: DiscoverBanner[];
+  /** Everything bookable, for the search field. */
+  searchIndex: SearchableItem[];
   onOpenStory: (storyId: string) => void;
   onOpenBanner: (bannerId: string) => void;
+  onOpenItem: (itemId: string) => void;
   onBrowseAll: () => void;
 };
 
 export function DiscoverFeed({
   stories,
   banners,
+  searchIndex,
   onOpenStory,
   onOpenBanner,
+  onOpenItem,
   onBrowseAll,
 }: DiscoverFeedProps) {
   const [lead, ...rest] = banners;
+  const [query, setQuery] = useState('');
+
+  /*
+    Typing replaces the feed rather than filtering it.
+
+    The rail and the banners are an argument about what to do tonight; a guest
+    who already knows they want a massage is not browsing, and leaving the
+    curation on screen under a filtered list would be two answers to two
+    different questions at once.
+  */
+  const results = searchCatalogue(searchIndex, query);
+  const searching = query.trim().length > 0;
 
   return (
     <div className="discover" data-testid="discover-feed">
@@ -36,6 +55,53 @@ export function DiscoverFeed({
         <h1>Tonight on property</h1>
         <p>Eight places open now, and what people are booking.</p>
       </div>
+
+      <div className="discover__search">
+        <MagnifyingGlass aria-hidden="true" />
+        <input
+          type="search"
+          value={query}
+          placeholder="Search dining, spa, tours"
+          aria-label="Search everything on property"
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        {searching ? (
+          <button type="button" onClick={() => setQuery('')} aria-label="Clear search">
+            <X aria-hidden="true" />
+          </button>
+        ) : null}
+      </div>
+
+      {searching ? (
+        <section aria-label="Search results">
+          <p className="discover__count" role="status">
+            {results.length} {results.length === 1 ? 'result' : 'results'} for &ldquo;{query.trim()}&rdquo;
+          </p>
+
+          <div className="discover__results">
+            {results.map((item) => (
+              <button key={item.id} className="discover__result" type="button" onClick={() => onOpenItem(item.id)}>
+                <span className="discover__result-art">
+                  <Image src={item.image.src} alt="" fill sizes="72px" style={{ objectPosition: item.image.focalPoint }} />
+                </span>
+                <span className="discover__result-copy">
+                  <b>{item.title}</b>
+                  <small>{item.category} · {item.detail}</small>
+                </span>
+                <span className="discover__result-price">{item.price}</span>
+              </button>
+            ))}
+          </div>
+
+          {results.length === 0 ? (
+            <div className="guest-hub-empty">
+              <h2>Nothing matches</h2>
+              <p>Try a category instead — dining, spa, tours, or services.</p>
+            </div>
+          ) : null}
+        </section>
+      ) : (
+      <>
 
       {/* The rail. Rounded squares rather than circles: the subject is a
           place, and a circle crops a room to a face. */}
@@ -110,6 +176,8 @@ export function DiscoverFeed({
         <span><b>Browse everything</b><small>Dining, spa, tours and hotel services</small></span>
         <CaretRight aria-hidden="true" />
       </button>
+      </>
+      )}
     </div>
   );
 }

@@ -84,6 +84,56 @@ export function buildStories(): Story[] {
   return [...featuredVenues, ...featuredServices];
 }
 
+/**
+ * One searchable thing. Everything a guest can book, flattened.
+ *
+ * Search reaches past the curation deliberately: the rail and the banners are
+ * an argument about what to do tonight, and a guest who already knows they
+ * want a massage should not have to scroll an argument to find one.
+ */
+export type SearchableItem = {
+  id: string;
+  title: string;
+  /** What it is, in the guest's words. Matched on, and shown under the title. */
+  category: string;
+  price: string;
+  /** Who runs it, or where it is. */
+  detail: string;
+  image: ServiceImageDefinition;
+};
+
+export function buildSearchIndex(): SearchableItem[] {
+  return [
+    ...RESTAURANTS.map((venue) => ({
+      id: venue.id,
+      title: venue.name,
+      category: venue.category,
+      price: venue.priceRange,
+      detail: venue.location,
+      image: storyImage(venue.id),
+    })),
+    ...SERVICES.map((service) => ({
+      id: service.id,
+      title: service.name,
+      category: service.category,
+      price: service.price,
+      detail: service.operator,
+      image: storyImage(service.id),
+    })),
+  ];
+}
+
+/** Case- and accent-insensitive contains, over the fields a guest would type. */
+export function searchCatalogue(index: SearchableItem[], query: string): SearchableItem[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [];
+
+  return index.filter((item) =>
+    item.title.toLowerCase().includes(needle)
+    || item.category.toLowerCase().includes(needle)
+    || item.detail.toLowerCase().includes(needle));
+}
+
 /** A big editorial banner, distinct from the rail. */
 export type DiscoverBanner = {
   id: string;

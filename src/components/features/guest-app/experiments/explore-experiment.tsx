@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DiscoverFeed } from './discover-feed';
 import { StoryViewer } from './story-viewer';
-import { buildBanners, buildStories } from './story-model';
+import { buildBanners, buildSearchIndex, buildStories } from './story-model';
 
 /*
   The harness. Stands in for the guest app while the two candidates below it
@@ -16,6 +16,7 @@ import { buildBanners, buildStories } from './story-model';
 
 const STORIES = buildStories();
 const BANNERS = buildBanners();
+const SEARCH_INDEX = buildSearchIndex();
 
 export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: boolean } = {}) {
   /*
@@ -58,8 +59,15 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
     <DiscoverFeed
       stories={STORIES}
       banners={BANNERS}
+      searchIndex={SEARCH_INDEX}
       onOpenStory={setOpenStoryId}
       onOpenBanner={() => setOpenStoryId(STORIES[0]?.id ?? null)}
+      /* In the app this opens the service detail; here it plays its story if
+         the thing has one, so the search result still leads somewhere. */
+      onOpenItem={(itemId) => {
+        const match = STORIES.find((story) => story.id.endsWith(itemId));
+        setOpenStoryId(match ? match.id : null);
+      }}
       onBrowseAll={() => undefined}
     />
   );

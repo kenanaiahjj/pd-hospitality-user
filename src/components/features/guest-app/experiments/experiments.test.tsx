@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EXPERIMENT_FLOWS, RoomScanner, RoomUnlocked, isFlowId } from './index';
+import { buildSearchIndex, buildStories, searchCatalogue } from './story-model';
 
 afterEach(cleanup);
 
@@ -137,5 +138,33 @@ describe('addressing a flow', () => {
     for (const flow of EXPERIMENT_FLOWS) {
       expect(isFlowId(flow.id)).toBe(true);
     }
+  });
+});
+
+describe('discovery search', () => {
+  it('reaches past the curation to everything bookable', () => {
+    const index = buildSearchIndex();
+
+    // The rail shows eight things; search must find the ones it does not.
+    expect(index.length).toBeGreaterThan(buildStories().length);
+    expect(searchCatalogue(index, 'massage').length).toBeGreaterThan(0);
+    expect(searchCatalogue(index, 'laundry').length).toBeGreaterThan(0);
+  });
+
+  it('matches what a guest would actually type', () => {
+    const index = buildSearchIndex();
+
+    // Name, category and the who-or-where line, case-insensitively.
+    expect(searchCatalogue(index, 'HILOM')[0]?.title).toMatch(/Hilom/);
+    expect(searchCatalogue(index, 'spa').length).toBeGreaterThan(0);
+    expect(searchCatalogue(index, 'rooftop').length).toBeGreaterThan(0);
+  });
+
+  it('returns nothing for an empty query rather than everything', () => {
+    // The feed shows curation when the field is empty; a full dump here would
+    // put a list of every service under it.
+    const index = buildSearchIndex();
+    expect(searchCatalogue(index, '')).toEqual([]);
+    expect(searchCatalogue(index, '   ')).toEqual([]);
   });
 });

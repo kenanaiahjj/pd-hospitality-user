@@ -388,6 +388,79 @@
 .discover__card-copy b { font-size: 17px; font-weight: 700; letter-spacing: -0.014em; line-height: 1.15; }
 .discover__hero-copy span { font-size: 13px; opacity: 0.9; }
 
+.discover__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 14px;
+  min-height: 48px;
+  border-radius: var(--radius-pill);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+}
+.discover__search > svg { width: 18px; height: 18px; color: var(--guest-subtle); flex: 0 0 auto; }
+.discover__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--guest-ink);
+  font: inherit;
+}
+.discover__search input:focus { outline: none; }
+/* The browser's own clear affordance, replaced with one that matches. */
+.discover__search input::-webkit-search-cancel-button { display: none; }
+.discover__search button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--guest-sunken, var(--guest-surface));
+  color: var(--guest-subtle);
+  flex: 0 0 auto;
+}
+.discover__search button svg { width: 14px; height: 14px; }
+
+.discover__count { margin: 0 0 10px; color: var(--guest-subtle); font-size: 13px; }
+
+.discover__results { display: grid; gap: 2px; }
+.discover__result {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  text-align: left;
+}
+.discover__result:active { transform: scale(0.99); }
+.discover__result-art {
+  position: relative;
+  display: block;
+  width: 54px;
+  height: 54px;
+  border-radius: var(--guest-radius-sm);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.discover__result-art img { object-fit: cover; }
+.discover__result-copy { display: grid; gap: 2px; min-width: 0; }
+.discover__result-copy b { font-size: 14px; font-weight: 650; }
+.discover__result-copy small {
+  color: var(--guest-subtle);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.discover__result-price { font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 .discover__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
 .discover__all {

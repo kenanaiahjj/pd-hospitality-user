@@ -1,4 +1,5 @@
-import { RESTAURANTS, SERVICES } from '../prototype-model';
+import { MINI_APP_CATEGORIES, RESTAURANTS, SERVICES } from '../prototype-model';
+import type { MiniAppCategoryId } from '../prototype-model';
 import type { ServiceImageDefinition } from '../service-images';
 import { storyImage } from './story-imagery';
 
@@ -132,6 +133,51 @@ export function searchCatalogue(index: SearchableItem[], query: string): Searcha
     item.title.toLowerCase().includes(needle)
     || item.category.toLowerCase().includes(needle)
     || item.detail.toLowerCase().includes(needle));
+}
+
+/**
+ * A category, as something to tap rather than a row to read.
+ *
+ * Counted from the catalogue rather than written down, so a card can never
+ * promise eleven things and open onto four.
+ */
+export type CategoryCard = {
+  id: MiniAppCategoryId;
+  /** Uppercased at the type level, not in CSS -- screen readers read the
+      text, and shouting is a design decision, not a data one. */
+  title: string;
+  subtitle: string;
+  count: number;
+  image: ServiceImageDefinition;
+  tone: 'ember' | 'bloom' | 'dusk' | 'tide';
+};
+
+const CATEGORY_TONES: Record<string, CategoryCard['tone']> = {
+  dining: 'ember',
+  spa: 'bloom',
+  entertainment: 'dusk',
+  services: 'tide',
+};
+
+/** The image that best says what a category is, at a glance. */
+const CATEGORY_FACE: Record<string, string> = {
+  dining: 'rooftop',
+  spa: 'spa',
+  entertainment: 'food-crawl',
+  services: 'tour',
+};
+
+export function buildCategoryCards(): CategoryCard[] {
+  return MINI_APP_CATEGORIES.map((category) => ({
+    id: category.id,
+    title: category.title,
+    subtitle: category.subtitle,
+    count: category.id === 'dining'
+      ? RESTAURANTS.length + SERVICES.filter((s) => s.categoryId === 'dining').length
+      : SERVICES.filter((s) => s.categoryId === category.id).length,
+    image: storyImage(CATEGORY_FACE[category.id] ?? 'spa'),
+    tone: CATEGORY_TONES[category.id] ?? 'bloom',
+  }));
 }
 
 /** A big editorial banner, distinct from the rail. */

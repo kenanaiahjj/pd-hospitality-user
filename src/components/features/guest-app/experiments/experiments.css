@@ -279,7 +279,19 @@
    gradient washes over it, not in new chrome.
    -------------------------------------------------------------------------- */
 
-.discover { display: grid; gap: 18px; align-content: start; }
+.discover {
+  display: grid;
+  /*
+    `minmax(0, 1fr)`, not the implicit `auto`. A grid item's default
+    `min-width: auto` refuses to shrink below its content, so the story rail
+    was sizing the whole column to its own scroll width -- 872px inside a
+    375px screen. It was never scrolling; it was overflowing, and it took the
+    category grid out with it.
+  */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-content: start;
+}
 .discover__title { display: grid; gap: 4px; }
 .discover__title h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.022em; }
 .discover__title p { margin: 0; color: var(--guest-subtle); font-size: 14px; }
@@ -387,6 +399,136 @@
 .discover__hero-copy b { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; text-wrap: balance; }
 .discover__card-copy b { font-size: 17px; font-weight: 700; letter-spacing: -0.014em; line-height: 1.15; }
 .discover__hero-copy span { font-size: 13px; opacity: 0.9; }
+
+/* --------------------------------------------------------------------------
+   Category cards
+
+   The one place in the experiment that commits colour hard. Four gradients,
+   one per category, so the ground itself is the label -- a guest learns
+   "warm means food" in one visit and stops reading the titles.
+
+   These four are a documented expansion beyond DESIGN.md's restrained accent
+   rule, and they live only here: the argument being tested is whether a
+   hotel's inventory sells better when browsing feels like scrolling, and a
+   quiet grid is not that argument. If the experiment is promoted, this block
+   goes with it or the cards go back to neutral surfaces.
+   -------------------------------------------------------------------------- */
+
+.categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.categories__card {
+  position: relative;
+  display: block;
+  min-height: 132px;
+  padding: 14px;
+  border: 0;
+  /* 20px: the radius DESIGN.md already gives sheets and the folio total. */
+  border-radius: var(--guest-radius-lg);
+  overflow: hidden;
+  color: oklch(1 0 0);
+  text-align: left;
+  isolation: isolate;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+/*
+  Full, half, half, full.
+
+  Four cards in a two-column grid leaves the fourth alone on its own row with
+  a hole beside it. Spanning it reads as a decision rather than a remainder,
+  and gives the set a rhythm: one card to start on, two to compare, one to
+  close.
+*/
+.categories__card.is-lead { grid-column: 1 / -1; min-height: 172px; }
+.categories__card:last-child:nth-child(even) { grid-column: 1 / -1; min-height: 118px; }
+
+.categories__card:active { transform: scale(0.985); }
+
+/*
+  The gradient is the card, and the photograph is masked into it rather than
+  boxed on top -- a rectangle inside a rectangle reads as two objects, and a
+  subject that dissolves into its ground reads as one.
+*/
+.categories__card--ember { background: linear-gradient(135deg, oklch(0.7 0.19 55), oklch(0.45 0.19 25)); }
+.categories__card--bloom { background: linear-gradient(135deg, oklch(0.72 0.19 350), oklch(0.38 0.16 330)); }
+.categories__card--dusk { background: linear-gradient(135deg, oklch(0.72 0.17 75), oklch(0.4 0.17 300)); }
+.categories__card--tide { background: linear-gradient(135deg, oklch(0.66 0.15 230), oklch(0.34 0.15 270)); }
+
+.categories__art {
+  position: absolute;
+  inset: 0 -6% -12% 34%;
+  opacity: 0.85;
+  mix-blend-mode: luminosity;
+  mask-image: radial-gradient(120% 100% at 82% 60%, #000 34%, transparent 74%);
+}
+.categories__card.is-lead .categories__art { inset: -8% -4% -8% 46%; }
+.categories__art img { object-fit: cover; }
+
+/* A spotlight rather than drawn rays: same lift under the subject, none of
+   the decoration that would read as ornament stuck on a card. */
+.categories__card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(90% 70% at 78% 52%, oklch(1 0 0 / 0.3), transparent 62%);
+}
+
+/*
+  A scrim under the copy, not a lighter text colour.
+
+  White on the light end of these gradients lands near 2:1, and the 12px meta
+  line needs 4.5:1. Darkening the ground beneath the text is the fix that
+  survives a photograph changing behind it; lowering the text opacity would
+  have made it worse while looking more designed.
+*/
+.categories__card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    oklch(0.16 0.02 300 / 0.78) 0%,
+    oklch(0.16 0.02 300 / 0.42) 34%,
+    transparent 68%
+  );
+}
+
+.categories__copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 4px;
+  align-content: end;
+  height: 100%;
+  max-width: 64%;
+}
+.categories__card.is-lead .categories__copy { max-width: 58%; }
+
+.categories__copy b {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.012em;
+  line-height: 1.05;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.categories__card.is-lead .categories__copy b { font-size: 27px; letter-spacing: -0.022em; }
+
+/* Full white, not a muted grey: grey on a saturated ground is the washed-out
+   failure, and this line carries the number the card is selling. */
+.categories__copy small {
+  color: oklch(1 0 0 / 0.94);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .categories__card { transition: none; }
+}
 
 .discover__search {
   display: flex;

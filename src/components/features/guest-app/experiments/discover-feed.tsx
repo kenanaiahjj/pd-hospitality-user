@@ -4,7 +4,7 @@ import { ArrowRight, CaretRight, MagnifyingGlass, X } from '@phosphor-icons/reac
 import Image from 'next/image';
 import { useState } from 'react';
 import { searchCatalogue } from './story-model';
-import type { DiscoverBanner, SearchableItem, Story } from './story-model';
+import type { CategoryCard, DiscoverBanner, SearchableItem, Story } from './story-model';
 
 /*
   A promotable discovery page.
@@ -18,21 +18,25 @@ import type { DiscoverBanner, SearchableItem, Story } from './story-model';
 export type DiscoverFeedProps = {
   stories: Story[];
   banners: DiscoverBanner[];
+  categories: CategoryCard[];
   /** Everything bookable, for the search field. */
   searchIndex: SearchableItem[];
   onOpenStory: (storyId: string) => void;
   onOpenBanner: (bannerId: string) => void;
   onOpenItem: (itemId: string) => void;
+  onOpenCategory: (categoryId: string) => void;
   onBrowseAll: () => void;
 };
 
 export function DiscoverFeed({
   stories,
   banners,
+  categories,
   searchIndex,
   onOpenStory,
   onOpenBanner,
   onOpenItem,
+  onOpenCategory,
   onBrowseAll,
 }: DiscoverFeedProps) {
   const [lead, ...rest] = banners;
@@ -119,6 +123,41 @@ export function DiscoverFeed({
                 />
               </span>
               <small>{story.title}</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/*
+        A lead card and three followers, not four equal tiles.
+
+        Equal tiles make the guest read all four before choosing anything;
+        one card carrying twice the area answers "where do I start" before
+        the question is asked. The photograph is masked into the gradient
+        rather than boxed inside it, so the card reads as one object.
+      */}
+      <section aria-label="Categories">
+        <div className="categories">
+          {categories.map((category, i) => (
+            <button
+              key={category.id}
+              className={`categories__card categories__card--${category.tone}${i === 0 ? ' is-lead' : ''}`}
+              type="button"
+              onClick={() => onOpenCategory(category.id)}
+            >
+              <span className="categories__art" aria-hidden="true">
+                <Image
+                  src={category.image.src}
+                  alt=""
+                  fill
+                  sizes="(max-width: 480px) 50vw, 240px"
+                  style={{ objectPosition: category.image.focalPoint }}
+                />
+              </span>
+              <span className="categories__copy">
+                <b>{category.title}</b>
+                <small>{category.count} to book{i === 0 ? ` · ${category.subtitle}` : ''}</small>
+              </span>
             </button>
           ))}
         </div>

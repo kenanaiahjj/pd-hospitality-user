@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DiscoverFeed } from './discover-feed';
 import { StoryViewer } from './story-viewer';
-import { buildBanners, buildSearchIndex, buildStories } from './story-model';
+import { buildBanners, buildCategoryCards, buildSearchIndex, buildStories } from './story-model';
 
 /*
   The harness. Stands in for the guest app while the two candidates below it
@@ -17,6 +17,7 @@ import { buildBanners, buildSearchIndex, buildStories } from './story-model';
 const STORIES = buildStories();
 const BANNERS = buildBanners();
 const SEARCH_INDEX = buildSearchIndex();
+const CATEGORIES = buildCategoryCards();
 
 export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: boolean } = {}) {
   /*
@@ -59,6 +60,7 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
     <DiscoverFeed
       stories={STORIES}
       banners={BANNERS}
+      categories={CATEGORIES}
       searchIndex={SEARCH_INDEX}
       onOpenStory={setOpenStoryId}
       onOpenBanner={() => setOpenStoryId(STORIES[0]?.id ?? null)}
@@ -68,6 +70,8 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
         const match = STORIES.find((story) => story.id.endsWith(itemId));
         setOpenStoryId(match ? match.id : null);
       }}
+      /* In the app this opens `category-listing`. */
+      onOpenCategory={() => undefined}
       onBrowseAll={() => undefined}
     />
   );

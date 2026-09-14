@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EXPERIMENT_FLOWS, RoomScanner, RoomUnlocked, isFlowId } from './index';
-import { buildSearchIndex, buildStories, searchCatalogue } from './story-model';
+import { buildCategoryCards, buildSearchIndex, buildStories, searchCatalogue } from './story-model';
 
 afterEach(cleanup);
 
@@ -192,5 +192,34 @@ describe('experiment imagery', () => {
         `public/experiments/${id}.jpg`,
       ).toBe(true);
     }
+  });
+});
+
+describe('category cards', () => {
+  it('counts what it promises', () => {
+    /*
+      Counted from the catalogue, never written down: a card that says
+      "11 to book" and opens onto four is the kind of small lie that costs
+      trust in a booking surface.
+    */
+    const cards = buildCategoryCards();
+    expect(cards).toHaveLength(4);
+
+    for (const card of cards) {
+      expect(card.count, card.title).toBeGreaterThan(0);
+      expect(card.image.src, card.title).toMatch(/^\/experiments\//);
+    }
+  });
+
+  it('gives each category its own ground, so colour is the label', () => {
+    const tones = buildCategoryCards().map((c) => c.tone);
+    expect(new Set(tones).size).toBe(tones.length);
+  });
+
+  it('keeps text legible over imagery with a scrim, not a lighter colour', () => {
+    // White on the light end of these gradients lands near 2:1. Darkening the
+    // ground is what survives a photograph changing behind it.
+    const css = readFileSync(resolve(EXPERIMENTS_DIR, 'experiments.css'), 'utf8');
+    expect(css).toMatch(/\.categories__card::after\s*\{[^}]*linear-gradient/);
   });
 });

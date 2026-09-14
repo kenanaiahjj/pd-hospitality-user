@@ -1100,17 +1100,33 @@
   --page-blur: 3px;
   --page-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  animation: page-enter var(--page-slide-dur) var(--page-ease) both;
+  /*
+    `backwards`, not `both`.
+
+    A filling animation keeps computing its properties, and an interpolated
+    `transform: none` computes to `matrix(1, 0, 0, 1, 0, 0)` -- not `none`.
+    Any transform or filter other than `none` makes the element a containing
+    block for fixed-position descendants, so with `both` this page held that
+    forever: `.guest-mini-cart` resolved its `position: fixed` against the
+    page instead of the viewport and sat 2,154px down an 812px screen --
+    present in the DOM, correct in its numbers, and never once on screen.
+
+    `backwards` still applies the first keyframe before the animation starts,
+    which is the flash this was guarding against. It just stops applying
+    anything after it ends, and the resting state is the base style: opaque,
+    unmoved, unfiltered.
+  */
+  animation: page-enter var(--page-slide-dur) var(--page-ease) backwards;
 }
 .experiment-page[data-direction='back'] { animation-name: page-enter-back; }
 
 @keyframes page-enter {
   from { opacity: 0; transform: translate3d(var(--page-slide-distance), 0, 0); filter: blur(var(--page-blur)); }
-  to { opacity: 1; transform: none; filter: blur(0); }
+  to { opacity: 1; transform: none; filter: none; }
 }
 @keyframes page-enter-back {
   from { opacity: 0; transform: translate3d(calc(var(--page-slide-distance) * -1), 0, 0); filter: blur(var(--page-blur)); }
-  to { opacity: 1; transform: none; filter: blur(0); }
+  to { opacity: 1; transform: none; filter: none; }
 }
 
 .detail { display: grid; gap: 0; align-content: start; margin: -12px -16px -36px; }
@@ -1170,7 +1186,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   /* The move still happens; only the choreography goes. */
-  .experiment-page { animation: page-fade var(--page-slide-dur) ease both; }
+  .experiment-page { animation: page-fade var(--page-slide-dur) ease backwards; }
   @keyframes page-fade { from { opacity: 0; } to { opacity: 1; } }
 }
 
@@ -1451,14 +1467,223 @@
   
 }
 
-/* The app's restaurant screen keeps its own styles; only the hero art is new,
-   because the experiment reaches it with photography rather than the app's
-   illustrated ServiceImage. */
+/* --------------------------------------------------------------------------
+   Venue menu
+
+   The app's restaurant screen with an experimental skin. Every rule here is
+   scoped under `.venue-menu`, so the shipping screen -- which shares these
+   class names -- is untouched.
+
+   Three changes carry it: the photograph bleeds and holds the venue's name
+   instead of sitting cropped above a title card; the dishes share one surface
+   with hairline separators rather than each wearing its own bordered card
+   (DESIGN.md: related rows share one inset surface); and the add control is a
+   44px target instead of a button wider than the price it sits beside.
+   -------------------------------------------------------------------------- */
+.venue-menu {
+  /* Cancel the screen padding so the art can reach all four edges. Same
+     offsets as `.detail`, which is the sibling screen this flow also opens. */
+  margin: -12px -16px -36px;
+  gap: 0;
+  padding-bottom: 0;
+}
+
 .venue-menu__art {
   position: relative;
-  aspect-ratio: 16 / 10;
-  margin: -12px -16px 4px;
+  aspect-ratio: 5 / 4;
+  min-height: 256px;
+  max-height: 62vh;
   overflow: hidden;
+  isolation: isolate;
 }
 .venue-menu__art img { object-fit: cover; }
-.venue-menu__back { position: absolute; top: 14px; left: 14px; }
+.venue-menu__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    oklch(0.13 0.02 300 / 0.93) 0%,
+    oklch(0.13 0.02 300 / 0.74) 24%,
+    oklch(0.13 0.02 300 / 0.3) 52%,
+    oklch(0.13 0.02 300 / 0) 80%
+  );
+}
+.venue-menu__back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--guest-radius-pill);
+  background: oklch(1 0 0 / 0.92);
+  color: var(--guest-ink);
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.venue-menu__back:active { transform: scale(0.92); }
+.venue-menu__back svg { width: 20px; height: 20px; }
+
+.venue-menu__title {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  gap: 6px;
+  padding: 0 20px 20px;
+}
+.venue-menu__title h1 {
+  margin: 0;
+  color: oklch(1 0 0);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.venue-menu__meta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: oklch(1 0 0 / 0.86);
+  font-size: 13px;
+  font-weight: 550;
+}
+.venue-menu__meta span { display: inline-flex; align-items: center; gap: 5px; }
+.venue-menu__meta svg { width: 14px; height: 14px; }
+/* A dot, not a bullet character -- it stays put when the hours string wraps. */
+.venue-menu__meta i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: oklch(1 0 0 / 0.55);
+}
+
+/* The hero card is gone: prose sits on the canvas, and the two facts a guest
+   actually checks share one surface. */
+.venue-menu .guest-restaurant-hero {
+  gap: 16px;
+  padding: 20px 16px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.venue-menu__blurb {
+  margin: 0;
+  color: var(--guest-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.venue-menu__facts {
+  display: grid;
+  margin: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+}
+.venue-menu__facts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+}
+.venue-menu__facts > div + div { border-top: 1px solid var(--guest-line); }
+.venue-menu__facts dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--guest-subtle);
+  font-size: 13px;
+}
+.venue-menu__facts svg { width: 15px; height: 15px; }
+.venue-menu__facts dd { margin: 0; font-size: 13px; font-weight: 650; text-align: right; }
+
+/*
+  Sticky, because on a thirteen-dish menu the categories are the only way out
+  of the middle of it. The rail bleeds to both edges so the last chip is cut
+  by the screen rather than by an invisible box -- which is what tells a
+  thumb it scrolls.
+*/
+.venue-menu .guest-menu-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  background: var(--guest-canvas);
+}
+
+.venue-menu .guest-menu-grid {
+  gap: 0;
+  margin: 0 16px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+}
+/* Rows in a shared surface, not a stack of cards. The card's own border and
+   shadow come off; a hairline between rows does the separating. */
+.venue-menu .guest-menu-item-card {
+  gap: 6px;
+  padding: 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.venue-menu .guest-menu-item-card + .guest-menu-item-card { border-top: 1px solid var(--guest-line); }
+.venue-menu .guest-menu-item-card__header {
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 10px;
+}
+.venue-menu .guest-menu-item-card h4 { font-size: 16px; letter-spacing: -0.01em; }
+.venue-menu .guest-menu-item-card p { color: var(--guest-subtle); line-height: 1.45; text-wrap: pretty; }
+.venue-menu .guest-menu-item-card__actions { margin-top: 6px; }
+/* The price reads as the menu's figure, so it gets the weight and a tabular
+   face -- rows keep their alignment when a ₱1,850 sits under a ₱480. */
+.venue-menu .guest-menu-item-card__price {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.venue-menu__marker {
+  min-height: 20px;
+  padding: 0 8px;
+  background: var(--guest-sunken);
+  color: var(--guest-subtle);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.venue-menu__add {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--guest-line-strong);
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, transform var(--duration-press) var(--ease-out);
+}
+.venue-menu__add:hover { background: var(--guest-surface); }
+.venue-menu__add:active { transform: scale(0.92); }
+.venue-menu__add svg { width: 18px; height: 18px; }
+
+/* 76px of it is the mini cart's own height plus its gap; the rest is the
+   breathing room the screen ends on. */
+.venue-menu__dock { padding: 20px 16px 96px; }
+.venue-menu__dock .guest-button { width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .venue-menu__back,
+  .venue-menu__add { transition: none; }
+}

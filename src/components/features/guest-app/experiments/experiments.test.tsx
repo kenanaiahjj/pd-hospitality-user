@@ -574,3 +574,29 @@ describe('the venue screen a category tap lands on', () => {
     }
   });
 });
+
+describe('screen entry animation', () => {
+  it('does not fill forwards, because a filling transform traps fixed children', () => {
+    /*
+      An animation that fills keeps computing its properties, and an
+      interpolated `transform: none` computes to `matrix(1, 0, 0, 1, 0, 0)` --
+      not `none`. A transform or filter other than `none` makes the element a
+      containing block for fixed-position descendants, so `both` left
+      `.guest-mini-cart` resolving against the page instead of the viewport
+      and sitting 2,154px down an 812px screen: in the DOM, correct in its
+      numbers, never on screen.
+
+      Nothing about the markup says this screen holds a fixed child, which is
+      why it needs a test rather than a comment.
+    */
+    const css = readFileSync(resolve(EXPERIMENTS_DIR, 'experiments.css'), 'utf8');
+    const rules = [...css.matchAll(/\.experiment-page[^{]*\{([^}]*)\}/g)].map((m) => m[1]);
+
+    expect(rules.length).toBeGreaterThan(0);
+    for (const rule of rules) {
+      for (const declaration of rule.match(/animation:[^;]*/g) ?? []) {
+        expect(declaration).not.toMatch(/\bboth\b|\bforwards\b/);
+      }
+    }
+  });
+});

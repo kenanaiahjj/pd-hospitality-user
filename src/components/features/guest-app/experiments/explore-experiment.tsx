@@ -6,8 +6,10 @@ import { CategoryListing } from './category-listing';
 import { NearbyDetail } from './nearby-detail';
 import { NEARBY_PLACES, nearbyForCategory, onPropertyForCategory } from './nearby-model';
 import { ServiceDetail } from './service-detail';
+import { VenueMenu } from './venue-menu';
 import { SwipeDeck } from './swipe-deck';
 import { StoryViewer } from './story-viewer';
+import { RESTAURANTS } from '../prototype-model';
 import { buildBanners, buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck } from './story-model';
 
 /*
@@ -62,17 +64,22 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
     );
   }
 
-  const category = openCategoryId ? CATEGORIES.find((entry) => entry.id === openCategoryId) : undefined;
-  if (category) {
+  /*
+    A venue opens the app's restaurant screen, a service opens the service
+    detail. Tapping "Apartment 1B" and landing on a generic service page is
+    the kind of seam that makes a prototype stop being believable.
+  */
+  const venue = openItemId ? RESTAURANTS.find((entry) => entry.id === openItemId) : undefined;
+  if (venue) {
     return (
       <div className="experiment-page">
-        <CategoryListing
-          title={category.title}
-          onProperty={onPropertyForCategory(category.id)}
-          nearby={nearbyForCategory(category.id)}
-          onBack={() => setOpenCategoryId(null)}
-          onOpenItem={setOpenItemId}
-          onOpenNearby={setOpenPlaceId}
+        <VenueMenu
+          venue={venue}
+          roomLabel="Room 304"
+          /* Back lands on the category it was opened from, not the feed. */
+          onBack={() => setOpenItemId(null)}
+          /* In the app this seeds the front-desk chat with the reservation. */
+          onReserve={() => setOpenItemId(null)}
         />
       </div>
     );
@@ -88,6 +95,28 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
           /* In the app this is `openServiceBooking`, so the room-scan gate
              still decides whether the booking may proceed. */
           onBook={() => setOpenItemId(null)}
+        />
+      </div>
+    );
+  }
+
+  /*
+    Checked after the item and the venue, deliberately. A category is where a
+    guest is standing, not something they opened -- returning it first meant
+    tapping a restaurant inside Food & Drink set the item and then re-rendered
+    the category anyway, so nothing appeared to happen.
+  */
+  const category = openCategoryId ? CATEGORIES.find((entry) => entry.id === openCategoryId) : undefined;
+  if (category) {
+    return (
+      <div className="experiment-page">
+        <CategoryListing
+          title={category.title}
+          onProperty={onPropertyForCategory(category.id)}
+          nearby={nearbyForCategory(category.id)}
+          onBack={() => setOpenCategoryId(null)}
+          onOpenItem={setOpenItemId}
+          onOpenNearby={setOpenPlaceId}
         />
       </div>
     );

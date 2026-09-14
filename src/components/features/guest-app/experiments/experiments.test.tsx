@@ -10,6 +10,8 @@ import { ServiceDetail } from './service-detail';
 import { CategoryListing } from './category-listing';
 import { NearbyDetail } from './nearby-detail';
 import { nearbyForCategory, onPropertyForCategory } from './nearby-model';
+import { VenueMenu } from './venue-menu';
+import { RESTAURANTS } from '../prototype-model';
 import { INTENTS, matchIntent, resolveIntent } from './intent-model';
 
 afterEach(cleanup);
@@ -516,6 +518,59 @@ describe('grids that contain rails', () => {
       const rule = css.slice(css.indexOf(`\n${parent} {`));
       const block = rule.slice(0, rule.indexOf('}'));
       expect(block, parent).toMatch(/grid-template-columns:\s*minmax\(0/);
+    }
+  });
+});
+
+describe('the venue screen a category tap lands on', () => {
+  const venue = RESTAURANTS[0];
+
+  it('serves the venue its own menu, not a generic service page', () => {
+    render(<VenueMenu venue={venue} roomLabel="Room 304" onBack={vi.fn()} onReserve={vi.fn()} />);
+
+    expect(screen.getByRole('heading', { level: 1, name: venue.name })).toBeInTheDocument();
+    for (const dish of venue.menu.slice(0, 3)) {
+      expect(screen.getByRole('heading', { name: dish.name })).toBeInTheDocument();
+    }
+  });
+
+  it('adds up a cart with the app\'s own helper rather than its own arithmetic', async () => {
+    const user = userEvent.setup();
+    render(<VenueMenu venue={venue} roomLabel="Room 304" onBack={vi.fn()} onReserve={vi.fn()} />);
+
+    // No cart until there is something in it: an empty bar is furniture.
+    expect(screen.queryByRole('button', { name: /cart/i })).not.toBeInTheDocument();
+
+    const first = venue.menu[0];
+    await user.click(screen.getByRole('button', { name: `Add ${first.name}` }));
+
+    expect(screen.getByRole('button', { name: new RegExp(`1 item .* ${first.price.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) })).toBeInTheDocument();
+  });
+
+  it('routes every on-property card somewhere real', () => {
+    /*
+      The bug this guards: a category listing is built from one model and the
+      screens it opens from another, so an id can exist in the list and match
+      nothing downstream -- and the tap silently does nothing, which is the
+      hardest failure to spot by clicking around.
+    */
+    const deck = new Set(buildSwipeDeck().map((item) => item.id));
+    const venues = new Set(RESTAURANTS.map((entry) => entry.id));
+
+    for (const category of buildCategoryCards()) {
+      for (const item of onPropertyForCategory(category.id)) {
+        expect(venues.has(item.id) || deck.has(item.id), `${category.id} / ${item.id}`).toBe(true);
+      }
+    }
+  });
+
+  it('is written against the app\'s classes, so promoting it is a deletion', () => {
+    // The point of restating this markup is that it renders with the shipping
+    // stylesheet. Renaming these to experiment-only classes would make it a
+    // lookalike that drifts, and promotion a rewrite.
+    const source = readFileSync(resolve(EXPERIMENTS_DIR, 'venue-menu.tsx'), 'utf8');
+    for (const shared of ['guest-restaurant-menu', 'guest-menu-tabs', 'guest-menu-item-card', 'guest-mini-cart']) {
+      expect(source, shared).toContain(shared);
     }
   });
 });

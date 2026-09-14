@@ -1450,3 +1450,15 @@
 @media (prefers-reduced-motion: reduce) {
   
 }
+
+/* The app's restaurant screen keeps its own styles; only the hero art is new,
+   because the experiment reaches it with photography rather than the app's
+   illustrated ServiceImage. */
+.venue-menu__art {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  margin: -12px -16px 4px;
+  overflow: hidden;
+}
+.venue-menu__art img { object-fit: cover; }
+.venue-menu__back { position: absolute; top: 14px; left: 14px; }

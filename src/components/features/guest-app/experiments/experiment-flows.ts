@@ -18,11 +18,11 @@ export type ExperimentFlow = {
   label: string;
   detail: string;
   /**
-   * Whether the app bar and tab bar stay on screen.
+   * Whether the app bar and tab bar stay on screen for the flow.
    *
-   * A scanner is a full-bleed takeover -- chrome around a viewfinder reads as
-   * a screenshot of a camera rather than a camera. A discovery page is a tab,
-   * and judging its density without the bars around it would flatter it.
+   * Screens that need the whole frame -- the viewfinder, a story -- take it
+   * themselves in CSS, so a flow that ends somewhere ordinary keeps its bars
+   * and is judged with them, which is how it will ship.
    */
   chrome: 'full-bleed' | 'app';
 };
@@ -31,8 +31,8 @@ export const EXPERIMENT_FLOWS: ExperimentFlow[] = [
   {
     id: 'qr-scan',
     label: 'QR scanning',
-    detail: 'Viewfinder, detection, and what happens after',
-    chrome: 'full-bleed',
+    detail: 'Scan, unlock, then discovery',
+    chrome: 'app',
   },
   {
     id: 'explore',

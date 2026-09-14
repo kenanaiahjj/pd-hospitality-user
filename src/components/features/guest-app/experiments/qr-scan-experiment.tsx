@@ -3,6 +3,7 @@
 import { ArrowRight, QrCode } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui';
+import { ExploreExperiment } from './explore-experiment';
 import { RoomScanner } from './room-scanner';
 import { RoomUnlocked } from './room-unlocked';
 
@@ -27,7 +28,7 @@ import { RoomUnlocked } from './room-unlocked';
 */
 const ROOM_CODE_SRC: string | undefined = undefined;
 
-type Stage = 'closed' | 'scanning' | 'unlocked';
+type Stage = 'closed' | 'scanning' | 'unlocked' | 'discover';
 
 export function QrScanExperiment() {
   const [stage, setStage] = useState<Stage>('closed');
@@ -46,11 +47,21 @@ export function QrScanExperiment() {
     );
   }
 
+  /*
+    The point of the unlock. `Explore` on the success screen is the handoff
+    into discovery -- scan, open, then scroll -- so the harness plays the
+    whole journey rather than dropping back to its own start screen.
+
+    Reuses the discovery harness whole, so the two candidates stay one
+    implementation and cannot drift into two.
+  */
+  if (stage === 'discover') return <ExploreExperiment />;
+
   if (stage === 'unlocked') {
     return (
       <RoomUnlocked
         roomNumber="304"
-        onExplore={() => setStage('closed')}
+        onExplore={() => setStage('discover')}
         onViewStay={() => setStage('closed')}
       />
     );

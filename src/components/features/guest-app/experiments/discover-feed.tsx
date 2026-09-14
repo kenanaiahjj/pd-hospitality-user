@@ -161,10 +161,10 @@ export function DiscoverFeed({
         which is the same as not shipping it.
       */}
       {deck ? (
-        <section className="discover__deck" aria-label="Swipe to save">
+        <section className="discover__deck" aria-label="Browse by swiping">
           <div className="discover__deck-head">
             <h2>Not sure yet?</h2>
-            <p>Swipe through what&rsquo;s on property. Saving costs nothing.</p>
+            <p>Flick through what&rsquo;s on property. Tap one to look closer.</p>
           </div>
           {deck}
         </section>

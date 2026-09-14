@@ -22,9 +22,6 @@ const CATEGORIES = buildCategoryCards();
 const DECK = buildSwipeDeck();
 
 export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: boolean } = {}) {
-  /* Saved lives here so the deck and the feed agree on the count. In the app
-     it would be session state the Saved tab reads. */
-  const [saved, setSaved] = useState<string[]>([]);
   /*
     Arriving from the unlock opens on a story rather than on the feed: the
     handoff is "here is what is on tonight", and a grid of cards asks the
@@ -81,10 +78,12 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
       deck={(
         <SwipeDeck
           items={DECK}
-          savedCount={saved.length}
-          onSave={(id) => setSaved((list) => (list.includes(id) ? list : [...list, id]))}
-          onPass={() => undefined}
-          onOpenSaved={() => undefined}
+          /* In the app this opens the service detail, where the gate still
+             decides whether a booking may proceed. */
+          onOpen={(id) => {
+            const match = STORIES.find((story) => story.id.endsWith(id));
+            setOpenStoryId(match ? match.id : null);
+          }}
         />
       )}
     />

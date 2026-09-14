@@ -229,42 +229,60 @@ describe('category cards', () => {
 describe('swipe deck', () => {
   it('offers experiences, not restaurants', () => {
     /*
-      A restaurant is a decision against a time and a hunger; ruling one in
-      or out at random is noise. An experience is the thing nobody knows they
-      want until they see it, which is the only case where a deck beats a list.
+      A restaurant is a decision against a time and a hunger; flicking past
+      one at random is noise. An experience is the thing nobody knows they
+      want until they see it, which is the only case where a pile beats a list.
     */
     const deck = buildSwipeDeck();
     expect(deck.length).toBeGreaterThan(0);
     expect(deck.some((item) => /restaurant|bar|caf/i.test(item.category))).toBe(false);
   });
 
-  it('can be answered without a drag', async () => {
+  it('browses rather than judges', async () => {
     const user = userEvent.setup();
-    const onSave = vi.fn();
-    const onPass = vi.fn();
-    const items = buildSwipeDeck().slice(0, 2);
+    const items = buildSwipeDeck();
+    render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
-    render(<SwipeDeck items={items} savedCount={0} onSave={onSave} onPass={onPass} onOpenSaved={vi.fn()} />);
+    /*
+      An earlier pass asked for a verdict on each card, which meant having an
+      opinion about twenty-eight things before seeing any of them -- and made
+      a throw irreversible, a strange price for looking.
+    */
+    expect(screen.queryByRole('button', { name: /save/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /pass/i })).toBeNull();
 
-    // Drag is the fast path for someone who knows it is there. It cannot be
-    // the only way to answer, or the deck is unusable with a keyboard.
-    await user.click(screen.getByRole('button', { name: `Save ${items[0]!.title}` }));
-    expect(onSave).toHaveBeenCalledWith(items[0]!.id);
+    expect(screen.getByText(`1 of ${items.length}`)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText(`2 of ${items.length}`)).toBeInTheDocument();
   });
 
-  it('ends by pointing at what was saved, not at a dead end', () => {
-    render(<SwipeDeck items={[]} savedCount={3} onSave={vi.fn()} onPass={vi.fn()} onOpenSaved={vi.fn()} />);
+  it('goes back, because browsing is reversible', async () => {
+    const user = userEvent.setup();
+    const items = buildSwipeDeck();
+    render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
+    // Nowhere to go at the first card; the control says so rather than
+    // silently doing nothing.
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(await screen.findByRole('button', { name: 'Previous' }));
+    expect(await screen.findByText(`1 of ${items.length}`)).toBeInTheDocument();
+  });
+
+  it('can be worked without a gesture', async () => {
+    const user = userEvent.setup();
+    render(<SwipeDeck items={buildSwipeDeck()} onOpen={vi.fn()} />);
+
+    // A flick cannot be the only way through, or the pile is unreadable to a
+    // keyboard and unusable one-handed.
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
+  });
+
+  it('ends without pretending there is more', () => {
+    render(<SwipeDeck items={[]} onOpen={vi.fn()} />);
     expect(screen.getByTestId('swipe-deck-empty')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /See what you saved/ })).toBeInTheDocument();
-  });
-
-  it('says saving is not booking', () => {
-    render(<SwipeDeck items={[]} savedCount={2} onSave={vi.fn()} onPass={vi.fn()} onOpenSaved={vi.fn()} />);
-
-    // Swiping is low-attention; booking spends money against a room. The deck
-    // collects intent and must not imply it spent anything.
-    expect(screen.getByText(/nothing is held/i)).toBeInTheDocument();
   });
 });
 
@@ -319,19 +337,24 @@ describe('the deck reads as a deck', () => {
       when the affordance has stopped mattering.
     */
     const items = buildSwipeDeck();
-    render(<SwipeDeck items={items} savedCount={0} onSave={vi.fn()} onPass={vi.fn()} onOpenSaved={vi.fn()} />);
+    render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
     const deck = screen.getByTestId('swipe-deck');
     const under = deck.querySelectorAll('.deck__card--under');
-    expect(under).toHaveLength(2);
+    expect(under).toHaveLength(3);
 
-    // Stepped, so each one shows a lip rather than hiding behind the last.
-    expect([...under].map((c) => (c as HTMLElement).style.getPropertyValue('--depth'))).toEqual(['2', '1']);
+    // Stepped and tilted: a neat stack reads as a component, loose cards read
+    // as something you can throw.
+    const styles = [...under].map((c) => c as HTMLElement);
+    expect(styles.map((c) => c.style.getPropertyValue('--depth'))).toEqual(['3', '2', '1']);
+    for (const card of styles) {
+      expect(card.style.getPropertyValue('--tilt')).toMatch(/-?\d/);
+    }
   });
 
   it('never renders more cards behind than it has left', () => {
     const items = buildSwipeDeck().slice(0, 1);
-    render(<SwipeDeck items={items} savedCount={0} onSave={vi.fn()} onPass={vi.fn()} onOpenSaved={vi.fn()} />);
+    render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
     expect(screen.getByTestId('swipe-deck').querySelectorAll('.deck__card--under')).toHaveLength(0);
   });

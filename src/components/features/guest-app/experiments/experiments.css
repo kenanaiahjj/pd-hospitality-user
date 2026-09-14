@@ -547,8 +547,25 @@
   /* 1:1, not 4:5. The stack plus its buttons has to clear the fold in one
      screen, or the deck is discovered by accident rather than by looking. */
   aspect-ratio: 1 / 1;
-  /* Room for the stepped edges below the top card. */
-  margin-bottom: 44px;
+  /*
+    Room for the fan, and `min-width: 0` so asking for it does not backfire.
+
+    A grid item's automatic minimum size refuses to shrink below its content,
+    and on an aspect-ratio box that made the margin *widen* the track instead
+    of insetting the box: 343px of column became a 389px stack hanging off
+    the screen. Third instance of this in the experiment; the rule is that any
+    grid child that needs to shrink says so explicitly.
+  */
+  min-width: 0;
+  /*
+    An explicit width, not a right margin. Margin on an aspect-ratio grid item
+    inflated its own track rather than insetting the box, so the fan hung off
+    the screen either way. Stating the width leaves nothing to resolve.
+  */
+  /* 58, not 46: a rotated card's bounding box is wider than the card, so
+     the reserve has to cover the lean as well as the offset. */
+  width: calc(100% - 58px);
+  margin-bottom: 26px;
   /* The exiting card leaves the frame; nothing should clip it mid-flight. */
   overflow: visible;
   touch-action: pan-y;
@@ -571,15 +588,24 @@
 .deck__card:not(.is-dragging) { transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
 
 /*
-  The cards behind, stepped down so a lip of each one shows.
+  The pile fans sideways, not downward.
 
-  `translateY` is applied before `scale` here: scaling a centred card pulls
-  its bottom edge back up, so the offset has to out-run the shrink or the lip
-  never appears. 22px per step against a 5% shrink clears it.
+  A card peeking out below says "there is more underneath"; a card leaning out
+  to the side says "push this one that way", which is the gesture actually on
+  offer. The peek belongs in the direction of travel.
+
+  translate before scale, and the offset has to out-run the shrink: scaling a
+  centred card pulls its edges back toward the middle, so a 5% shrink eats
+  about 9px of a 343px card on each side before the translate is even seen.
 */
 .deck__card--under {
-  transform: translateY(calc(var(--depth, 1) * 22px)) scale(calc(1 - var(--depth, 1) * 0.05));
-  box-shadow: 0 6px 18px oklch(0.2 0.02 300 / 0.12);
+  transform:
+    translateX(calc(var(--depth, 1) * 16px))
+    translateY(calc(var(--depth, 1) * 6px))
+    rotate(var(--tilt, 0deg))
+    scale(calc(1 - var(--depth, 1) * 0.04));
+  transform-origin: bottom center;
+  box-shadow: 0 6px 18px oklch(0.2 0.02 300 / 0.14);
   pointer-events: none;
 }
 

@@ -1,129 +1,122 @@
 'use client';
 
-import { ArrowRight, BookmarkSimple, X } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { Button } from '@/components/ui';
 import type { SearchableItem } from './story-model';
 
 /*
-  A deck of experiences to rule in or out, one at a time.
+  A pile of experiences to flick through.
 
-  The argument: a guest scrolling a list is comparing, and comparing needs a
-  reason to prefer one thing over another that they usually do not have on
-  day one. A deck asks a smaller question -- this one, yes or no -- and a
-  yes costs nothing because it only saves.
+  Browsing, not judging. An earlier pass had this as save-or-pass, which asked
+  a guest to have an opinion about twenty-eight things before they had seen
+  any of them -- and made a throw irreversible, which is a strange price for
+  looking. Left goes on, right goes back, a tap opens. Nothing is decided by
+  flicking.
 
-  A save is never a booking. Swiping is a low-attention gesture and booking
-  spends money against a room; the deck collects intent and the Saved tab is
-  where a guest acts on it deliberately.
+  The pile is tilted for that reason too: a neat stack reads as a component,
+  and loose cards read as something you can throw.
 */
 
-/** How far a card must travel before the gesture counts as a decision. */
-const COMMIT_PX = 96;
-/** A flick shorter than the threshold still counts if it was fast enough. */
-const COMMIT_VELOCITY = 0.45;
+/** How far a card must travel before the flick counts. */
+const COMMIT_PX = 88;
+/** A short flick still counts if it was fast. */
+const COMMIT_VELOCITY = 0.4;
+/*
+  One direction, increasing. A scatter of alternating angles reads as mess;
+  a fan that leans consistently reads as a hand of cards you can push.
+*/
+const TILT = [3.5, 6.5, 9];
 
 export type SwipeDeckProps = {
   items: SearchableItem[];
-  onSave: (itemId: string) => void;
-  onPass: (itemId: string) => void;
-  /** Opens what has been saved so far. */
-  onOpenSaved: () => void;
-  savedCount: number;
+  /** A tap on the card. In the app, the service detail. */
+  onOpen: (itemId: string) => void;
+  /** Reached the end of the pile. */
+  onExhausted?: () => void;
 };
 
 type Drag = { x: number; startX: number; startedAt: number } | null;
 
-export function SwipeDeck({ items, onSave, onPass, onOpenSaved, savedCount }: SwipeDeckProps) {
+export function SwipeDeck({ items, onOpen, onExhausted }: SwipeDeckProps) {
   const [index, setIndex] = useState(0);
   const [drag, setDrag] = useState<Drag>(null);
-  /** The direction a card is flying out, so the exit can be animated. */
-  const [exiting, setExiting] = useState<'save' | 'pass' | null>(null);
+  const [flying, setFlying] = useState<-1 | 1 | 0>(0);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const current = items[index];
-  /*
-    Two behind, not one. A single card tucked directly under the top one is
-    invisible -- the deck read as a page until it was already being dragged,
-    which is exactly when the affordance stops mattering.
-  */
-  const beneath = items.slice(index + 1, index + 3);
+  const beneath = items.slice(index + 1, index + 4);
+  const atStart = index === 0;
 
-  const decide = (verdict: 'save' | 'pass') => {
-    if (!current || exiting) return;
-    setExiting(verdict);
-    if (verdict === 'save') onSave(current.id);
-    else onPass(current.id);
-
-    // Let the card clear the frame before the next one takes its place.
-    window.setTimeout(() => {
-      setIndex((i) => i + 1);
-      setExiting(null);
+  const move = (direction: -1 | 1) => {
+    // Right at the first card has nowhere to go; bounce rather than pretend.
+    if (!current || flying || (direction === 1 && atStart)) {
       setDrag(null);
-    }, 220);
+      return;
+    }
+
+    setFlying(direction);
+    window.setTimeout(() => {
+      const nextIndex = index + (direction === -1 ? 1 : -1);
+      setIndex(nextIndex);
+      setFlying(0);
+      setDrag(null);
+      if (nextIndex >= items.length) onExhausted?.();
+    }, 200);
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (exiting) return;
+    if (flying) return;
     cardRef.current?.setPointerCapture(event.pointerId);
     setDrag({ x: 0, startX: event.clientX, startedAt: performance.now() });
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!drag || exiting) return;
+    if (!drag || flying) return;
     setDrag({ ...drag, x: event.clientX - drag.startX });
   };
 
   const onPointerUp = () => {
-    if (!drag || exiting) return;
-    const elapsed = Math.max(performance.now() - drag.startedAt, 1);
-    const velocity = Math.abs(drag.x) / elapsed;
+    if (!drag || flying) return;
+    const velocity = Math.abs(drag.x) / Math.max(performance.now() - drag.startedAt, 1);
     const committed = Math.abs(drag.x) > COMMIT_PX || velocity > COMMIT_VELOCITY;
 
-    if (committed) decide(drag.x > 0 ? 'save' : 'pass');
+    // A drag under the threshold is a tap: open the thing being looked at.
+    if (!committed && Math.abs(drag.x) < 6 && current) {
+      setDrag(null);
+      onOpen(current.id);
+      return;
+    }
+
+    if (committed) move(drag.x < 0 ? -1 : 1);
     else setDrag(null);
   };
 
   if (!current) {
     return (
       <div className="deck deck--done" data-testid="swipe-deck-empty">
-        <div className="deck__done-copy">
-          <b>That&rsquo;s everything on property</b>
-          <small>
-            {savedCount > 0
-              ? `${savedCount} saved. Book them whenever you like — nothing is held.`
-              : 'Nothing saved. The categories above have the full list.'}
-          </small>
-        </div>
-        {savedCount > 0 ? (
-          <Button className="guest-button guest-button--primary" type="button" onClick={onOpenSaved}>
-            See what you saved<ArrowRight aria-hidden="true" />
-          </Button>
-        ) : null}
+        <b>That&rsquo;s everything on property</b>
+        <small>The categories below have the same things, sorted.</small>
       </div>
     );
   }
 
   const offset = drag?.x ?? 0;
-  const intent = Math.max(-1, Math.min(1, offset / COMMIT_PX));
-  const flying = exiting ? (exiting === 'save' ? 1 : -1) : 0;
+  const lean = Math.max(-1, Math.min(1, offset / COMMIT_PX));
 
   return (
     <div className="deck" data-testid="swipe-deck">
       <div className="deck__stack">
-        {/*
-          Rendered back-to-front so the nearest sits highest, and each one
-          steps down far enough to show a lip. The peeking edges are the whole
-          signal that there is more here than one card.
-        */}
         {[...beneath].reverse().map((item, i) => {
           const depth = beneath.length - i;
           return (
             <div
               key={item.id}
               className="deck__card deck__card--under"
-              style={{ ['--depth' as string]: depth }}
+              style={{
+                ['--depth' as string]: depth,
+                ['--tilt' as string]: `${TILT[Math.min(depth - 1, TILT.length - 1)]}deg`,
+              }}
               aria-hidden="true"
             >
               <Image src={item.image.src} alt="" fill sizes="360px" style={{ objectPosition: item.image.focalPoint }} />
@@ -134,11 +127,11 @@ export function SwipeDeck({ items, onSave, onPass, onOpenSaved, savedCount }: Sw
 
         <div
           ref={cardRef}
-          className={`deck__card${drag ? ' is-dragging' : ''}${exiting ? ' is-exiting' : ''}`}
+          className={`deck__card${drag ? ' is-dragging' : ''}${flying ? ' is-flying' : ''}`}
           style={{
             transform: flying
-              ? `translate3d(${flying * 480}px, 0, 0) rotate(${flying * 18}deg)`
-              : `translate3d(${offset}px, 0, 0) rotate(${intent * 7}deg)`,
+              ? `translate3d(${flying * 460}px, 0, 0) rotate(${flying * 16}deg)`
+              : `translate3d(${offset}px, 0, 0) rotate(${lean * 6}deg)`,
           }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -154,11 +147,6 @@ export function SwipeDeck({ items, onSave, onPass, onOpenSaved, savedCount }: Sw
             priority
           />
           <span className="deck__scrim" aria-hidden="true" />
-
-          {/* Verdict marks, revealed by how far the card has travelled. */}
-          <span className="deck__mark deck__mark--save" style={{ opacity: Math.max(0, intent) }} aria-hidden="true">Save</span>
-          <span className="deck__mark deck__mark--pass" style={{ opacity: Math.max(0, -intent) }} aria-hidden="true">Pass</span>
-
           <span className="deck__copy">
             <small>{current.category}</small>
             <b>{current.title}</b>
@@ -168,20 +156,22 @@ export function SwipeDeck({ items, onSave, onPass, onOpenSaved, savedCount }: Sw
       </div>
 
       {/*
-        Buttons, not only the gesture. A drag is the fast path for someone who
-        already knows it is there; it cannot be the only way to answer, or the
-        deck is unusable with a keyboard, a screen reader, or one hand full.
+        Arrows, not only the flick. A gesture cannot be the only way through
+        a pile, or it is unreadable to a keyboard and unusable one-handed.
       */}
       <div className="deck__actions">
-        <button className="deck__action deck__action--pass" type="button" onClick={() => decide('pass')} aria-label={`Pass on ${current.title}`}>
-          <X aria-hidden="true" />
+        <button
+          className="deck__action"
+          type="button"
+          onClick={() => move(1)}
+          disabled={atStart}
+          aria-label="Previous"
+        >
+          <ArrowLeft aria-hidden="true" />
         </button>
-        <p className="deck__progress" role="status">
-          {index + 1} of {items.length}
-          {savedCount > 0 ? <b>{savedCount} saved</b> : null}
-        </p>
-        <button className="deck__action deck__action--save" type="button" onClick={() => decide('save')} aria-label={`Save ${current.title}`}>
-          <BookmarkSimple aria-hidden="true" weight="fill" />
+        <p className="deck__progress" role="status">{index + 1} of {items.length}</p>
+        <button className="deck__action" type="button" onClick={() => move(-1)} aria-label="Next">
+          <ArrowRight aria-hidden="true" />
         </button>
       </div>
     </div>

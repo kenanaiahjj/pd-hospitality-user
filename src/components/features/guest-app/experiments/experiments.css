@@ -262,26 +262,276 @@
 
 /* --------------------------------------------------------------------------
    Discovery
+
+   Bright and photographic, against the app's quiet neutral ground. The
+   argument being tested is that inventory sells better as something to watch
+   than as a list to read -- so the colour lives in the imagery and the
+   gradient washes over it, not in new chrome.
    -------------------------------------------------------------------------- */
 
-.guest-experiment-search {
+.discover { display: grid; gap: 18px; align-content: start; }
+.discover__title { display: grid; gap: 4px; }
+.discover__title h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.022em; }
+.discover__title p { margin: 0; color: var(--guest-subtle); font-size: 14px; }
+
+/* The rail. Bleeds to both edges so it reads as continuing past the screen. */
+.discover__rail {
+  display: flex;
+  gap: 12px;
+  margin: 0 calc(var(--app-inset) * -1);
+  padding: 2px var(--app-inset) 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.discover__rail::-webkit-scrollbar { display: none; }
+
+.discover__story {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  flex: 0 0 auto;
+  width: 76px;
+  border: 0;
+  background: none;
+  scroll-snap-align: start;
+}
+/* Rounded square, not a circle: the subject is a place, and a circle crops a
+   room to a face. The accent ring is the unread signal, same as everywhere. */
+.discover__story-art {
+  position: relative;
+  display: block;
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--guest-paper), 0 0 0 4px var(--guest-accent);
+}
+.discover__story-art img { object-fit: cover; }
+.discover__story small {
+  max-width: 100%;
+  color: var(--guest-ink);
+  font-size: 11px;
+  font-weight: 650;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.discover__story:active .discover__story-art { transform: scale(0.97); }
+
+/* Hero and cards: photography under a tonal wash, display type on top. */
+.discover__hero,
+.discover__card {
+  position: relative;
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  overflow: hidden;
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.discover__hero { aspect-ratio: 4 / 3; }
+.discover__card { aspect-ratio: 3 / 4; }
+.discover__hero:active,
+.discover__card:active { transform: scale(0.99); }
+.discover__hero img,
+.discover__card img { object-fit: cover; }
+
+.discover__wash { position: absolute; inset: 0; }
+.discover__hero--sunset .discover__wash,
+.discover__card--sunset .discover__wash {
+  background: linear-gradient(200deg, oklch(0.72 0.19 45 / 0.62), oklch(0.45 0.2 20 / 0.82));
+}
+.discover__hero--ocean .discover__wash,
+.discover__card--ocean .discover__wash {
+  background: linear-gradient(200deg, oklch(0.62 0.16 240 / 0.6), oklch(0.33 0.14 275 / 0.86));
+}
+.discover__hero--bloom .discover__wash,
+.discover__card--bloom .discover__wash {
+  background: linear-gradient(200deg, oklch(0.74 0.2 345 / 0.58), oklch(0.36 0.16 330 / 0.86));
+}
+
+.discover__hero-copy,
+.discover__card-copy {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  color: oklch(1 0 0);
+}
+.discover__hero-copy small,
+.discover__card-copy small {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+.discover__hero-copy b { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; text-wrap: balance; }
+.discover__card-copy b { font-size: 17px; font-weight: 700; letter-spacing: -0.014em; line-height: 1.15; }
+.discover__hero-copy span { font-size: 13px; opacity: 0.9; }
+
+.discover__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+.discover__all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+  text-align: left;
+}
+.discover__all span { display: grid; gap: 2px; }
+.discover__all b { font-size: 15px; font-weight: 650; }
+.discover__all small { color: var(--guest-subtle); font-size: 12px; }
+.discover__all svg { width: 16px; height: 16px; color: var(--guest-subtle); flex: 0 0 auto; }
+
+.discover__promo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  color: oklch(1 0 0);
+  text-align: left;
+}
+.discover__promo--sunset { background: linear-gradient(110deg, oklch(0.66 0.2 45), oklch(0.48 0.2 22)); }
+.discover__promo--ocean { background: linear-gradient(110deg, oklch(0.58 0.16 240), oklch(0.36 0.15 275)); }
+.discover__promo--bloom { background: linear-gradient(110deg, oklch(0.7 0.2 345), oklch(0.4 0.17 330)); }
+.discover__promo-copy { display: grid; gap: 2px; }
+.discover__promo-copy small { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.9; }
+.discover__promo-copy b { font-size: 15px; font-weight: 700; }
+.discover__promo svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+/* --------------------------------------------------------------------------
+   Story viewer
+
+   Full-bleed and dark, because a story is the photograph. The app's chrome is
+   absent here by design -- this is the one surface that takes the whole frame.
+   -------------------------------------------------------------------------- */
+
+.story {
+  /*
+    Takes the whole device frame, over the app bar and the tab bar.
+
+    A story is the photograph -- chrome around it reads as a screenshot of a
+    story rather than a story. The flow registry sets chrome per flow, and
+    discovery needs its bars, so the takeover happens here at the screen level
+    instead. Absolute against `.guest-device`, which the rule below makes the
+    containing block.
+  */
+  position: absolute;
+  inset: 0;
+  /* Above the app bar too, not just the tab bar -- `--z-appbar` is 40. */
+  z-index: var(--z-backdrop);
+  display: grid;
+  overflow: hidden;
+  background: oklch(0.16 0.01 275);
+  color: oklch(1 0 0);
+}
+
+/* The frame is the containing block for any screen that takes it over. */
+.guest-device { position: relative; }
+.story__image { object-fit: cover; }
+.story__scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, oklch(0 0 0 / 0.55) 0%, transparent 26%),
+    linear-gradient(0deg, oklch(0 0 0 / 0.82) 0%, transparent 52%);
+}
+
+.story__progress {
+  position: absolute;
+  inset: 12px 12px auto;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+.story__tick {
+  flex: 1 1 0;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: oklch(1 0 0 / 0.32);
+  transition: background-color var(--duration-fast) ease;
+}
+.story__tick.is-seen { background: oklch(1 0 0 / 0.95); }
+
+.story__head {
+  position: absolute;
+  inset: 26px 12px auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2;
+}
+.story__who { display: grid; gap: 1px; min-width: 0; }
+.story__who b { font-size: 14px; font-weight: 700; }
+.story__who small { font-size: 11px; opacity: 0.78; }
+.story__close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: oklch(1 0 0 / 0.16);
+  color: oklch(1 0 0);
+}
+.story__close svg { width: 18px; height: 18px; }
+
+/* Under the header, above the footer: both stay reachable. */
+.story__zones { position: absolute; inset: 74px 0 190px; display: grid; grid-template-columns: 1fr 2fr; z-index: 1; }
+.story__zones button { border: 0; background: none; }
+
+.story__foot {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  z-index: 2;
+}
+.story__headline {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+.story__detail { margin: 0; font-size: 14px; line-height: 1.45; opacity: 0.88; }
+
+.story__cta {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  padding: 0 16px;
-  min-height: 48px;
-  border-radius: var(--radius-pill);
-  background: var(--guest-paper);
-  box-shadow: var(--shadow-xs);
-}
-.guest-experiment-search svg { width: 18px; height: 18px; color: var(--guest-subtle); flex: 0 0 auto; }
-.guest-experiment-search input {
-  flex: 1 1 auto;
-  min-width: 0;
+  min-height: 52px;
+  padding: 0 18px;
   border: 0;
-  background: none;
-  color: var(--guest-ink);
-  font: inherit;
+  border-radius: var(--radius-pill);
+  background: var(--guest-accent);
+  color: var(--guest-on-accent);
+  font-size: 15px;
+  font-weight: 700;
 }
-.guest-experiment-search input:focus { outline: none; }
+.story__cta svg { width: 18px; height: 18px; margin-left: auto; }
+.story__price { margin-left: auto; font-variant-numeric: tabular-nums; opacity: 0.72; }
+.story__cta svg { margin-left: 0; }
+.story__cta:active { transform: scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) {
+  .story__tick { transition: none; }
+}

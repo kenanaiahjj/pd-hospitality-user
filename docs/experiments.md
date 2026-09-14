@@ -49,8 +49,30 @@ import or a session reference.
 3. Delete the harness and its registry row.
 4. Point the relevant screen at the new component.
 
+## Activity discovery
+
+The premise: a guest mid-stay scrolls the way they scroll everywhere else, so
+what is on offer arrives as something to watch rather than a list to read. A
+story rail over the same catalogue the list view sells, bright photographic
+banners under it, and a full-frame story viewer that auto-advances from one
+venue into the next.
+
+Every slide still resolves to one bookable thing. In the app `onBook` is
+`openServiceBooking`, so a story is a way *in* to the booking flow and never a
+way around the gate that decides whether it may proceed.
+
+The viewer takes the whole device frame, over both bars, because a story is
+the photograph — chrome around it reads as a screenshot of a story. Chrome is
+otherwise set per flow in the registry; discovery keeps its bars.
+
 ## Assets
 
 `RoomUnlocked` reads `UNLOCKED_ART` — one path constant at the top of
 `room-unlocked.tsx`. Drop a file in `public/illustrations/` and change that
 line.
+
+Story and banner photography is Unsplash, in `story-imagery.ts`, and is
+placeholder only — it exists because a story is full-bleed at phone height and
+the app's local art is cropped for cards. It is not for promotion: a promoted
+flow reads `getItemCardImage` like everything else, or ships art the property
+owns.

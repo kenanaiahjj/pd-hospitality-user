@@ -1,0 +1,193 @@
+/* --------------------------------------------------------------------------
+   Experiment surfaces
+
+   Same tokens as the app, kept in their own stylesheet so an experiment can
+   be torn apart without touching the guest app's CSS -- and so promoting one
+   is a file move rather than an archaeology exercise through 4,000 lines.
+   -------------------------------------------------------------------------- */
+
+.guest-experiment-badge {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--guest-accent-soft, var(--guest-soft));
+  color: var(--guest-accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.experiment-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--guest-subtle);
+  font-size: 13px;
+}
+
+/* --------------------------------------------------------------------------
+   Room scanner
+
+   A light sheet, not a dark takeover: the camera is one object on the screen
+   rather than the screen itself, so the frame reads as something you aim
+   rather than a mode you are trapped in.
+   -------------------------------------------------------------------------- */
+
+.scanner {
+  display: grid;
+  gap: 20px;
+  justify-items: center;
+  align-content: start;
+  padding: 12px 20px 24px;
+  min-height: 100%;
+}
+
+.scanner__handle {
+  width: 44px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--guest-line-strong, var(--guest-line));
+}
+
+.scanner__title {
+  margin: 0;
+  max-width: 14ch;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.scanner__viewport {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 52vh;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+/* Stands in for a live feed. Warm and out of focus, so the eye reads it as a
+   surface the code is sitting on rather than as a designed background. */
+.scanner__feed {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 30% 20%, oklch(0.72 0.05 70 / 0.9), transparent 60%),
+    radial-gradient(100% 90% at 80% 90%, oklch(0.52 0.05 60 / 0.95), transparent 55%),
+    linear-gradient(160deg, oklch(0.66 0.05 68), oklch(0.44 0.04 58));
+}
+
+.scanner__code {
+  position: relative;
+  width: 62%;
+  max-width: 230px;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px oklch(0 0 0 / 0.28);
+}
+
+/* Corner brackets, not a full border: the frame is a target the code goes
+   inside, not a box drawn over the picture. */
+.scanner__bracket {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 3px solid oklch(1 0 0 / 0.95);
+}
+.scanner__bracket--tl { top: 18px; left: 18px; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
+.scanner__bracket--tr { top: 18px; right: 18px; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
+.scanner__bracket--bl { bottom: 18px; left: 18px; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
+.scanner__bracket--br { bottom: 18px; right: 18px; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
+
+.scanner__hint {
+  margin: 0;
+  color: var(--guest-subtle);
+  font-size: 14px;
+  text-align: center;
+}
+
+.scanner__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: auto;
+}
+
+.scanner__button {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--guest-accent-soft, var(--guest-soft));
+  color: var(--guest-accent-strong);
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
+}
+.scanner__button svg { width: 26px; height: 26px; }
+.scanner__button:active { transform: scale(0.96); }
+
+/* --------------------------------------------------------------------------
+   Room unlocked
+   -------------------------------------------------------------------------- */
+
+.unlocked { text-align: center; justify-items: center; }
+.unlocked__art { width: min(300px, 78%); height: auto; }
+.unlocked .guest-page-title { text-align: center; }
+
+/* What the scan bought. Two columns so the four read as a set rather than a
+   list the eye has to work down. */
+.unlocked__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.unlocked__grid li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+}
+.unlocked__grid svg { width: 18px; height: 18px; color: var(--guest-accent-strong); flex: 0 0 auto; }
+
+/* --------------------------------------------------------------------------
+   Discovery
+   -------------------------------------------------------------------------- */
+
+.guest-experiment-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 16px;
+  min-height: 48px;
+  border-radius: var(--radius-pill);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-xs);
+}
+.guest-experiment-search svg { width: 18px; height: 18px; color: var(--guest-subtle); flex: 0 0 auto; }
+.guest-experiment-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--guest-ink);
+  font: inherit;
+}
+.guest-experiment-search input:focus { outline: none; }

@@ -50,6 +50,8 @@ import Image from 'next/image';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { CATEGORY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
+import { EXPERIMENT_FLOWS, ExploreExperiment, QrScanExperiment, findExperiment } from './experiments';
+import type { FlowId } from './experiments';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
@@ -146,6 +148,7 @@ import {
 } from './service-images';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
 import './guest-app-prototype.css';
+import './experiments/experiments.css';
 
 type ActiveScreen = ScreenId | 'entry-hub';
 
@@ -1027,6 +1030,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       confirmation so both show the guest's own reference rather than a
       fixture's. */
   const [lookupBooking, setLookupBooking] = useState<Booking | null>(null);
+  /*
+    Which flow the device frame is showing. `guest` is the app; anything else
+    is an experiment, which shares the design system and the frame and
+    nothing else -- no session, no screen model, no navigation into or out of
+    the real flow.
+  */
+  const [flow, setFlow] = useState<FlowId>('guest');
+  const experiment = findExperiment(flow);
   /** Prototype only: put strict reference matching back, to demo not-found. */
   const [strictLookup, setStrictLookup] = useState(false);
   const [profileMatch, setProfileMatch] = useState<ProfileMatch | null>(null);
@@ -3572,6 +3583,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onToggleAutoDetectScans={() => setAutoDetectScans((on) => !on)}
         strictLookup={strictLookup}
         onToggleStrictLookup={() => setStrictLookup((on) => !on)}
+        flow={flow}
+        onFlowChange={setFlow}
         onReset={resetPrototype}
       />
 
@@ -3589,6 +3602,41 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ) : null}
 
       <main className="guest-prototype guest-app">
+        {/*
+          An experiment borrows the device frame and the design system, and
+          replaces everything inside. It gets its own shell rather than
+          branching the guest app's -- the real flow's chrome depends on its
+          own screen model, and threading an experiment through that is how a
+          sandbox stops being one.
+        */}
+        {experiment ? (
+          <section className="guest-device" aria-label={`${experiment.label} experiment`}>
+            {experiment.chrome === 'app' ? (
+              <header className="guest-appbar" data-scrolled={false}>
+                <div className="guest-appbar__side">
+                  <span className="guest-brand"><CabanaLockup className="guest-brand__lockup" /><span className="sr-only">Cabana</span></span>
+                </div>
+                <div className="guest-appbar__center" />
+                <div className="guest-appbar__side guest-appbar__side--end">
+                  <span className="guest-experiment-badge">Experiment</span>
+                </div>
+              </header>
+            ) : null}
+
+            <div className={`guest-screen ${experiment.chrome === 'app' ? 'has-nav' : ''}`} data-testid="experiment-surface">
+              {flow === 'qr-scan' ? <QrScanExperiment /> : null}
+              {flow === 'explore' ? <ExploreExperiment /> : null}
+            </div>
+
+            {experiment.chrome === 'app' ? (
+              <nav className="guest-bottom-nav" aria-label="Experiment navigation">
+                <NavButton label="Discover" icon={<Compass />} active onClick={() => undefined} />
+                <NavButton label="Saved" icon={<Bed />} active={false} onClick={() => undefined} />
+                <NavButton label="Profile" icon={<UserCircle />} active={false} onClick={() => undefined} />
+              </nav>
+            ) : null}
+          </section>
+        ) : (
         <section className={`guest-device ${isWelcome ? 'is-welcome' : ''}`} aria-label="Cabana guest app">
           {!isWelcome ? <header className="guest-appbar" data-scrolled={scrolled}>
             <div className="guest-appbar__side">
@@ -3703,6 +3751,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </nav>
           ) : null}
         </section>
+        )}
       </main>
     </div>
   );
@@ -3725,6 +3774,8 @@ function PrototypeControls({
   onToggleAutoDetectScans,
   strictLookup,
   onToggleStrictLookup,
+  flow,
+  onFlowChange,
   onReset,
 }: {
   online: boolean;
@@ -3743,6 +3794,8 @@ function PrototypeControls({
   onToggleAutoDetectScans: () => void;
   strictLookup: boolean;
   onToggleStrictLookup: () => void;
+  flow: FlowId;
+  onFlowChange: (flow: FlowId) => void;
   onReset: () => void;
 }) {
   /*
@@ -3791,6 +3844,45 @@ function PrototypeControls({
         its own track and it has nowhere to stick to.
       */}
       <div className="guest-prototype-toolbar__body">
+        {/*
+          First, because it decides what everything below it applies to. The
+          stay states and gate toggles belong to the guest flow; in an
+          experiment they have nothing to act on, so they are not rendered.
+        */}
+        <fieldset className="guest-prototype-states">
+          <legend>Flow</legend>
+          <label className="guest-prototype-states__option">
+            <input
+              type="radio"
+              name="prototype-flow"
+              value="guest"
+              checked={flow === 'guest'}
+              onChange={() => onFlowChange('guest')}
+            />
+            <span>
+              <b>Guest app</b>
+              <small>The real flow</small>
+            </span>
+          </label>
+          {EXPERIMENT_FLOWS.map((entry) => (
+            <label key={entry.id} className="guest-prototype-states__option">
+              <input
+                type="radio"
+                name="prototype-flow"
+                value={entry.id}
+                checked={flow === entry.id}
+                onChange={() => onFlowChange(entry.id)}
+              />
+              <span>
+                <b>{entry.label}</b>
+                <small>{entry.detail}</small>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
+        {flow !== 'guest' ? null : (
+          <>
         <fieldset className="guest-prototype-states">
           <legend>Stay state</legend>
           {PROTOTYPE_STAY_STATES.map((state) => (
@@ -3863,6 +3955,8 @@ function PrototypeControls({
             {strictLookup ? 'Lookup: only real references' : 'Lookup: accepts anything'}
           </button>
         </fieldset>
+          </>
+        )}
 
         <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
           Reset saved session

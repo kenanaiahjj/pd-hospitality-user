@@ -262,13 +262,30 @@ describe('swipe deck', () => {
     const items = buildSwipeDeck();
     render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
-    // Nowhere to go at the first card; the control says so rather than
-    // silently doing nothing.
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
-
+    /*
+      The pile rotates rather than emptying, so Previous is always live --
+      going back from the first card wraps to the last, the same way going
+      forward from the last wraps to the first.
+    */
     await user.click(screen.getByRole('button', { name: 'Next' }));
-    await user.click(await screen.findByRole('button', { name: 'Previous' }));
+    expect(await screen.findByText(`2 of ${items.length}`)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Previous' }));
     expect(await screen.findByText(`1 of ${items.length}`)).toBeInTheDocument();
+  });
+
+  it('never runs out, because a thrown card goes to the back', async () => {
+    const user = userEvent.setup();
+    const items = buildSwipeDeck();
+    render(<SwipeDeck items={items} onOpen={vi.fn()} />);
+
+    const first = screen.getByTestId('swipe-deck').querySelector('.deck__copy b')?.textContent;
+    for (let i = 0; i < items.length; i += 1) {
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+    }
+
+    // All the way round and back to where it started.
+    expect(screen.getByTestId('swipe-deck').querySelector('.deck__copy b')?.textContent).toBe(first);
   });
 
   it('can be worked without a gesture', async () => {
@@ -344,13 +361,10 @@ describe('the deck reads as a deck', () => {
     const under = deck.querySelectorAll('.deck__card--under');
     expect(under).toHaveLength(3);
 
-    // Stepped and tilted: a neat stack reads as a component, loose cards read
-    // as something you can throw.
-    const styles = [...under].map((c) => c as HTMLElement);
-    expect(styles.map((c) => c.style.getPropertyValue('--depth'))).toEqual(['3', '2', '1']);
-    for (const card of styles) {
-      expect(card.style.getPropertyValue('--tilt')).toMatch(/-?\d/);
-    }
+    // Every slot is derived from `--depth` -- position, tilt and scale alike --
+    // so a rotation is four numbers changing and CSS does the choreography.
+    const depths = [...under].map((c) => (c as HTMLElement).style.getPropertyValue('--depth'));
+    expect(depths).toEqual(['1', '2', '3']);
   });
 
   it('never renders more cards behind than it has left', () => {

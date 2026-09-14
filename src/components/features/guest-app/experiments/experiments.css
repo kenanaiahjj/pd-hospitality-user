@@ -547,8 +547,10 @@
 .deck {
   --deck-settle-dur: 260ms;
   --deck-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --deck-fly-dur: 340ms;
-  --deck-fly-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  /* The dive runs longer than the settle: it covers the whole depth of the
+     pile, and matching their durations makes the tuck look yanked. */
+  --deck-recycle-dur: 420ms;
+  --deck-recycle-ease: cubic-bezier(0.32, 0.72, 0, 1);
 
   display: grid;
   gap: 14px;
@@ -585,6 +587,12 @@
 }
 
 .deck__card {
+  /*
+    Stated, not left to `auto`. The under-cards carry explicit z-indexes, so
+    an `auto` top card sitting earlier in DOM order paints beneath every one
+    of them -- the pile rendered inside out.
+  */
+  z-index: 10;
   position: absolute;
   inset: 0;
   border-radius: var(--guest-radius-lg);
@@ -598,13 +606,23 @@
 .deck__card img { object-fit: cover; pointer-events: none; }
 /*
   Exact properties, never `all`: a dragged card must track the finger with no
-  transition at all, and everything else must not ride along for free.
+  transition at all, and nothing unrelated may ride along for free.
 */
 .deck__card { transition: transform var(--deck-settle-dur) var(--deck-ease); }
 .deck__card.is-dragging { cursor: grabbing; transition: none; }
-/* The throw runs longer than the settle -- it covers ten times the distance,
-   and matching their durations makes the exit look yanked. */
-.deck__card.is-flying { transition: transform var(--deck-fly-dur) var(--deck-fly-ease); }
+
+/*
+  The dive. `z-index: 0` puts the card under the whole pile immediately, so
+  it visibly passes beneath the others on its way to the back rather than
+  sliding across their faces -- that read is the entire point of rotating
+  instead of discarding.
+*/
+.deck__card.is-recycling {
+  z-index: 0;
+  transition:
+    transform var(--deck-recycle-dur) var(--deck-recycle-ease),
+    opacity var(--deck-recycle-dur) var(--deck-recycle-ease);
+}
 
 /*
   The pile fans sideways, not downward.
@@ -618,17 +636,28 @@
   about 9px of a 343px card on each side before the translate is even seen.
 */
 .deck__card--under {
+  /*
+    Every slot is derived from `--depth`, including the tilt, so a rotation is
+    just four numbers changing and CSS does the choreography. Nothing unmounts
+    mid-move, which is what made the old version stutter.
+  */
   transform:
     translateX(calc(var(--depth, 1) * 16px))
     translateY(calc(var(--depth, 1) * 6px))
-    rotate(var(--tilt, 0deg))
+    rotate(calc(var(--depth, 1) * 3deg))
     scale(calc(1 - var(--depth, 1) * 0.04));
   transform-origin: bottom center;
+  z-index: calc(10 - var(--depth, 1));
   box-shadow: 0 6px 18px oklch(0.2 0.02 300 / 0.14);
   pointer-events: none;
-  /* They step forward as the pile advances, rather than snapping. */
-  transition: transform var(--deck-settle-dur) var(--deck-ease);
+  /* They step forward as the pile rotates, rather than snapping. */
+  transition:
+    transform var(--deck-recycle-dur) var(--deck-recycle-ease),
+    opacity var(--deck-recycle-dur) var(--deck-recycle-ease);
 }
+/* The deepest slot is where a dived card lands; fading it in there stops the
+   back of the pile popping into existence. */
+.deck__card--under.is-recycling { opacity: 0.9; }
 
 /* Pushes the lower cards back without greying them out -- a washed-out card
    reads as disabled, and these are the next things to look at. */
@@ -718,9 +747,9 @@
   rather than fly, and the deck still works exactly the same way.
 */
 @media (prefers-reduced-motion: reduce) {
-  /* The deck still works: `move()` skips the flight and advances outright. */
+  /* The deck still rotates; `move()` skips the dive and reorders outright. */
   .deck__card,
-  .deck__card.is-flying,
+  .deck__card.is-recycling,
   .deck__action { transition: none; }
 }
 

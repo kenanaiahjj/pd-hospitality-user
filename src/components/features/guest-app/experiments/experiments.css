@@ -309,46 +309,82 @@
 .unlocked__hero { margin-bottom: 6px; }
 
 /*
-  The stage: a dark screen with one glow, one graphic, one thing to do.
+  The whole screen changes state.
 
-  DESIGN.md reserves the single inverted surface for the folio total. This is
-  a deliberate second, scoped to this screen alone -- the same licence the
-  accent already has here and nowhere else. A moment of arrival is the one
-  place in a task-first app where the screen is allowed to be the point.
+  Not a dark hero with the app's light canvas carrying on beneath it -- the
+  chrome goes too, so the moment reads as the app switching mode rather than
+  as one tall banner. It is the only screen that does this, which is what
+  makes it mean something.
+
+  DESIGN.md reserves the single inverted surface for the folio total, so this
+  is a deliberate second, and it is scoped to `:has(.unlocked)` so it cannot
+  reach any other screen. Same licence the accent already has here: a moment
+  of arrival is the one place in a task-first app where the screen is allowed
+  to be the point.
 */
+.guest-device:has(.unlocked),
+.guest-screen:has(.unlocked) {
+  background:
+    radial-gradient(84% 46% at 50% 16%, oklch(0.46 0.15 348 / 0.58), transparent 70%),
+    radial-gradient(62% 36% at 82% 4%, oklch(0.58 0.16 338 / 0.3), transparent 72%),
+    linear-gradient(180deg, oklch(0.19 0.028 320), oklch(0.105 0.014 300) 58%);
+}
+/* The bar and the tab rail are outside the screen component, so they are
+   reached by looking down from the frame rather than up from the content. */
+.guest-device:has(.unlocked) .guest-appbar {
+  background: transparent;
+  border-bottom-color: transparent;
+  color: oklch(1 0 0);
+}
+/* The lockup is an inline SVG taking `color`, not an image -- a filter aimed
+   at `img` did nothing to it. */
+.guest-device:has(.unlocked) .guest-brand { color: oklch(1 0 0); }
+.guest-device:has(.unlocked) .guest-appbar .guest-tag,
+.guest-device:has(.unlocked) .guest-appbar [class*='experiment'] {
+  background: oklch(1 0 0 / 0.14);
+  color: oklch(1 0 0);
+}
+.guest-device:has(.unlocked) .guest-bottom-nav {
+  background: oklch(0.105 0.014 300 / 0.92);
+  border-top-color: oklch(1 0 0 / 0.1);
+  color: oklch(1 0 0 / 0.62);
+}
+.guest-device:has(.unlocked) .guest-bottom-nav button { color: oklch(1 0 0 / 0.6); }
+.guest-device:has(.unlocked) .guest-bottom-nav button[aria-current='page'] { color: oklch(1 0 0); }
+
 .unlocked__stage {
   position: relative;
   display: grid;
-  grid-template-rows: 1fr auto auto;
-  gap: 26px;
+  gap: 24px;
   align-content: center;
   justify-items: center;
-  min-height: 78vh;
-  padding: 40px 22px calc(28px + env(safe-area-inset-bottom));
-  margin-bottom: 8px;
-  overflow: hidden;
+  min-height: 62vh;
+  padding: 26px 22px 8px;
   text-align: center;
   color: oklch(1 0 0);
-  background:
-    radial-gradient(86% 58% at 50% 26%, oklch(0.5 0.16 350 / 0.62), transparent 68%),
-    radial-gradient(60% 40% at 78% 8%, oklch(0.62 0.17 340 / 0.34), transparent 70%),
-    linear-gradient(180deg, oklch(0.2 0.03 320), oklch(0.11 0.016 300) 62%);
 }
 
-/* The graphic. No plate: the render is lit for dark and carries its own
-   glow, and its edges are feathered into transparency so the stage shows
-   through rather than a cut-out square sitting on it. */
+/*
+  An app-icon tile, which is what the reference actually shows: a rounded
+  square mark glowing on a dark ground.
+
+  The render is lit for a light page -- it has a bright ground of its own and
+  a dark glyph inside the glass -- so keying that ground out left a muddy
+  halo, and crushing it took the life out of the glass. Rounding the square
+  and glowing it turns the ground into the tile instead of fighting it.
+*/
 .unlocked__mark {
-  display: grid;
-  place-items: center;
-  align-self: end;
-  width: min(300px, 78%);
+  width: min(176px, 46%);
+  aspect-ratio: 1;
+  border-radius: 27%;
+  overflow: hidden;
+  box-shadow:
+    0 26px 64px oklch(0.4 0.17 344 / 0.5),
+    0 0 0 1px oklch(1 0 0 / 0.16);
 }
-.unlocked__art { width: 100%; height: auto; }
+.unlocked__art { display: block; width: 100%; height: auto; }
 
 .unlocked__say { display: grid; gap: 12px; justify-items: center; }
-/* White, not accentStrong: the ground under it is ink now, and the rule the
-   old colour satisfied was about pink failing on a light surface. */
 .unlocked__title {
   margin: 0;
   font-size: 32px;
@@ -361,32 +397,45 @@
 .unlocked__subtitle {
   margin: 0;
   max-width: 32ch;
-  color: oklch(1 0 0 / 0.82);
+  color: oklch(1 0 0 / 0.8);
   font-size: 15px;
   line-height: 1.5;
   text-wrap: pretty;
 }
 
-.unlocked__go { display: grid; gap: 4px; justify-items: center; width: 100%; }
+.unlocked__go { display: grid; gap: 2px; justify-items: center; width: 100%; }
 .unlocked__go .guest-button { width: 100%; }
-/* White pill on the dark ground -- the accent is a light surface colour and
-   would sink into the glow behind it. */
-.guest-button--invert {
-  background: oklch(1 0 0);
-  color: var(--guest-ink);
-  border: 0;
-}
+/* White, because the brand pink is a light surface colour and sinks into the
+   glow behind it. */
+.guest-button--invert { background: oklch(1 0 0); color: var(--guest-ink); border: 0; }
 .guest-button--invert:active { transform: scale(0.985); }
 .unlocked__quiet {
   padding: 12px;
   border: 0;
   background: none;
-  color: oklch(1 0 0 / 0.72);
+  color: oklch(1 0 0 / 0.7);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .unlocked__quiet:hover { color: oklch(1 0 0); }
+
+/* --- the cards, in the dark ---------------------------------------------- */
+.unlocked .unlocked__card {
+  background: oklch(1 0 0 / 0.055);
+  border: 1px solid oklch(1 0 0 / 0.1);
+  box-shadow: none;
+  color: oklch(1 0 0);
+}
+.unlocked .unlocked__card h2 { color: oklch(1 0 0); }
+.unlocked .unlocked__card-icon { background: oklch(1 0 0 / 0.12); color: oklch(1 0 0); }
+.unlocked .unlocked__open-list li + li { border-top-color: oklch(1 0 0 / 0.1); }
+.unlocked .unlocked__open-copy b { color: oklch(1 0 0); }
+.unlocked .unlocked__open-copy small { color: oklch(1 0 0 / 0.62); }
+.unlocked .unlocked__open-icon { background: oklch(1 0 0 / 0.12); color: oklch(1 0 0); }
+.unlocked .unlocked__rows dt { color: oklch(1 0 0 / 0.62); }
+.unlocked .unlocked__rows dd { color: oklch(1 0 0); }
+.unlocked .unlocked__note { color: oklch(1 0 0 / 0.58); }
 
 .unlocked__card {
   display: grid;

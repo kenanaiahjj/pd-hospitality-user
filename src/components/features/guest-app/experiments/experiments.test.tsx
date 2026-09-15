@@ -573,12 +573,14 @@ describe('the venue screen a category tap lands on', () => {
       nothing downstream -- and the tap silently does nothing, which is the
       hardest failure to spot by clicking around.
     */
-    const deck = new Set(buildFeaturedDeck().map((item) => item.id));
+    // The catalogue, which is what the detail screen resolves against --
+    // not the curated deck, which is a selection out of it.
+    const bookable = new Set(buildSearchIndex().map((item) => item.id));
     const venues = new Set(RESTAURANTS.map((entry) => entry.id));
 
     for (const category of buildCategoryCards()) {
       for (const item of onPropertyForCategory(category.id)) {
-        expect(venues.has(item.id) || deck.has(item.id), `${category.id} / ${item.id}`).toBe(true);
+        expect(venues.has(item.id) || bookable.has(item.id), `${category.id} / ${item.id}`).toBe(true);
       }
     }
   });
@@ -745,5 +747,27 @@ describe('services have venues behind them', () => {
       expect(detail).not.toMatch(/third-party|hotel (operated|arranged)|curated guide/i);
     }
     expect(details).toContain('Lakbay Island Tours');
+  });
+});
+
+describe('the featured deck is a selection, not a dump', () => {
+  it('gives every card a picture of its own', () => {
+    /*
+      Twenty-eight cards drew ten images between them, nineteen of them the
+      same resort photo, because the deck was every non-dining service and
+      `storyImage` falls back to the house shot. Side by side that reads as
+      broken whatever the copy says.
+    */
+    const deck = buildFeaturedDeck();
+    const images = deck.map((card) => card.image.src);
+    expect(new Set(images).size).toBe(deck.length);
+  });
+
+  it('is small enough to have been chosen by somebody', () => {
+    const deck = buildFeaturedDeck();
+    expect(deck.length).toBeGreaterThan(4);
+    expect(deck.length).toBeLessThan(
+      buildSearchIndex().length,
+    );
   });
 });

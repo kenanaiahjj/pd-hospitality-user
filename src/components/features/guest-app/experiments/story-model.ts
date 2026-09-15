@@ -1,7 +1,7 @@
 import { MINI_APP_CATEGORIES, RESTAURANTS, SERVICES } from '../prototype-model';
 import type { MiniAppCategoryId } from '../prototype-model';
 import type { ServiceImageDefinition } from '../service-images';
-import { storyImage } from './story-imagery';
+import { hasStoryImage, storyImage } from './story-imagery';
 import { venueForService } from './service-venues';
 
 /*
@@ -362,38 +362,38 @@ export type FeaturedCard = {
 };
 
 /*
-  Written per service, not generated.
+  The featured set, written out.
 
-  A reason that could apply to anything ("Recommended for you") is the same
-  as no reason. These name something true about the specific thing.
+  This used to be every non-dining service with a reason bolted on, which is
+  the same "no curator" problem the reason field was added to solve -- a list
+  the catalogue generates is not a selection whoever runs the hotel made. It
+  also showed: twenty-eight cards drew ten images between them, nineteen of
+  them the same resort photo, because most services have no picture of their
+  own and `storyImage` falls back to the house shot.
+
+  So the deck is a list, in order, and everything in it has a photograph of
+  its own and a reason someone wrote. A test holds both.
 */
-const FEATURED_REASONS: Record<string, FeaturedReason> = {
-  spa: { kind: 'popular', label: 'Most booked this week' },
-  rooftop: { kind: 'stay-context', label: 'Open late on your last night' },
-  'food-crawl': { kind: 'hotel-pick', label: 'Picked by the hotel' },
-  'sunset-cruise': { kind: 'stay-context', label: 'Tomorrow, before checkout' },
-  'hot-stone': { kind: 'popular', label: 'Books out by Friday' },
-  'heritage-walk': { kind: 'hotel-pick', label: 'Picked by the hotel' },
-  'couples-massage': { kind: 'hotel-pick', label: 'Picked by the hotel' },
-  facial: { kind: 'popular', label: 'Most booked this week' },
-  tour: { kind: 'stay-context', label: 'A half day from your room' },
-};
+const FEATURED: Array<{ id: string; reason: FeaturedReason }> = [
+  { id: 'spa', reason: { kind: 'popular', label: 'Most booked this week' } },
+  { id: 'sunset-cruise', reason: { kind: 'stay-context', label: 'Tomorrow, before checkout' } },
+  { id: 'hot-stone', reason: { kind: 'popular', label: 'Books out by Friday' } },
+  { id: 'food-crawl', reason: { kind: 'hotel-pick', label: 'Picked by the hotel' } },
+  { id: 'scrub', reason: { kind: 'stay-context', label: 'Time for one before dinner' } },
+  { id: 'tour', reason: { kind: 'stay-context', label: 'A half day from your room' } },
+  { id: 'facial', reason: { kind: 'popular', label: 'Booked twelve times today' } },
+  { id: 'heritage-walk', reason: { kind: 'hotel-pick', label: 'Picked by the hotel' } },
+  { id: 'couples-massage', reason: { kind: 'hotel-pick', label: 'Picked by the hotel' } },
+];
 
-const DEFAULT_REASON: FeaturedReason = { kind: 'hotel-pick', label: 'Picked by the hotel' };
-
-/**
- * The featured deck: things to do, not places to eat.
- *
- * Dining is excluded on purpose. A restaurant is a decision a guest makes
- * against a time and a hunger, and asking them to rule one in or out at
- * random is noise. An experience is exactly the kind of thing nobody knows
- * they want until they see it, which is the only case where a deck beats a
- * list.
- */
 export function buildFeaturedDeck(): FeaturedCard[] {
-  return SERVICES
-    .filter((service) => service.categoryId !== 'dining')
-    .map((service) => ({
+  return FEATURED.flatMap(({ id, reason }) => {
+    const service = SERVICES.find((entry) => entry.id === id);
+    /* Belt and braces: a card with no picture of its own would be the
+       nineteen-identical-photos bug coming back one card at a time. */
+    if (!service || !hasStoryImage(id)) return [];
+
+    return [{
       id: service.id,
       title: service.name,
       category: service.category,
@@ -403,8 +403,9 @@ export function buildFeaturedDeck(): FeaturedCard[] {
          can decide about. */
       detail: venueForService(service.id).name,
       image: storyImage(service.id),
-      reason: FEATURED_REASONS[service.id] ?? DEFAULT_REASON,
-    }));
+      reason,
+    }];
+  });
 }
 
 /** A big editorial banner, distinct from the rail. */

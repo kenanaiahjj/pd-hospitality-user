@@ -60,3 +60,13 @@ export const PROPERTY_IMAGE = shot('photo-1566073771259-6a8506099945', 'The prop
 const FALLBACK = PROPERTY_IMAGE;
 
 export const storyImage = (id: string): ServiceImageDefinition => STORY_IMAGERY[id] ?? FALLBACK;
+
+/**
+ * Whether this id has a photograph of its own rather than the house shot.
+ *
+ * `storyImage` falling back is right for a rail or a detail screen, where one
+ * generic picture beats a hole. It is wrong for a deck of cards seen side by
+ * side: nineteen of twenty-eight featured cards were the same resort photo,
+ * which reads as a bug whatever the copy on them says.
+ */
+export const hasStoryImage = (id: string): boolean => id in STORY_IMAGERY;

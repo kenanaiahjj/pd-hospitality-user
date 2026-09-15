@@ -157,6 +157,9 @@
   align-content: start;
   padding-bottom: 8px;
 }
+/* Varied, not uniform: the celebration needs air after it, the two cards
+   belong together. */
+.unlocked__hero { margin-bottom: 6px; }
 
 .unlocked__hero { display: grid; gap: 6px; justify-items: center; text-align: center; }
 
@@ -171,8 +174,20 @@
   color: var(--guest-accent-strong);
   text-wrap: balance;
 }
-.unlocked__subtitle { margin: 0; color: var(--guest-accent-strong); font-size: 15px; opacity: 0.82; }
-.unlocked__art { width: min(280px, 74%); height: auto; margin: 2px 0 4px; }
+/* Ink, not a second block of accent. Two pink paragraphs stacked is accent
+   as decoration, which is the one thing DESIGN.md says it is never for --
+   the headline is the celebration, the line under it is information. */
+.unlocked__subtitle {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--guest-muted);
+  font-size: 15px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+/* Was 280px and taking better than a third of the screen before anything
+   useful started. */
+.unlocked__art { width: min(200px, 54%); height: auto; margin: 6px 0 2px; }
 
 .unlocked__card {
   display: grid;
@@ -194,16 +209,6 @@
   color: var(--guest-accent-strong);
 }
 .unlocked__card-icon svg { width: 16px; height: 16px; }
-.unlocked__card-flag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  color: var(--guest-positive);
-  font-size: 12px;
-  font-weight: 650;
-}
-.unlocked__card-flag svg { width: 14px; height: 14px; }
 
 /*
   What the scan opened, led by a picture of the thing it opened.
@@ -216,8 +221,8 @@
 
 .unlocked__banner {
   position: relative;
-  aspect-ratio: 20 / 9;
-  min-height: 132px;
+  aspect-ratio: 16 / 7;
+  min-height: 124px;
   display: flex;
   align-items: flex-end;
   padding: 14px;
@@ -249,74 +254,54 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-/* On the photograph the flag has to carry its own contrast, so it takes a
-   chip rather than the green it wears on white. */
-.unlocked__banner .unlocked__card-flag {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  margin: 0;
-  padding: 5px 10px;
-  border-radius: var(--guest-radius-pill);
-  background: oklch(1 0 0 / 0.93);
-  color: var(--guest-positive);
-}
+/*
+  One row shape for all four.
 
-/* Two photographs, because these two are places a guest goes. */
-.unlocked__tiles {
+  The art slot is the same 52px square whether it holds a photograph or an
+  icon, which is what lets billing and housekeeping sit in the same list as
+  dining and the spa rather than in a tinted block underneath them. That
+  block was a surface inside a surface, which DESIGN.md rules out, and it was
+  the reason the section read as three things bolted together.
+*/
+.unlocked__open-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
   margin: 0;
-  padding: 0 14px;
+  padding: 0 16px;
   list-style: none;
 }
-.unlocked__tile {
+.unlocked__open-list li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+}
+.unlocked__open-list li + li { border-top: 1px solid var(--guest-line); }
+
+.unlocked__open-art {
   position: relative;
-  aspect-ratio: 4 / 3;
-  display: flex;
-  align-items: flex-end;
-  padding: 11px;
+  display: block;
+  width: 52px;
+  height: 52px;
   border-radius: var(--guest-radius-sm);
   overflow: hidden;
 }
-.unlocked__tile img { object-fit: cover; }
-.unlocked__tile-scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to top,
-    oklch(0.13 0.02 300 / 0.92) 0%,
-    oklch(0.13 0.02 300 / 0.5) 46%,
-    oklch(0.13 0.02 300 / 0.06) 78%
-  );
+.unlocked__open-art img { object-fit: cover; }
+/* The icon tile is a chip, not a background wash -- same move the app makes
+   in `.unlocked__card-icon`. */
+.unlocked__open-icon {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: var(--guest-soft);
+  color: var(--guest-accent-strong);
 }
-.unlocked__tile-copy { position: relative; display: grid; gap: 1px; }
-.unlocked__tile-copy b { color: oklch(1 0 0); font-size: 14px; font-weight: 700; }
-.unlocked__tile-copy small { color: oklch(1 0 0 / 0.82); font-size: 11px; line-height: 1.3; }
+.unlocked__open-icon svg { width: 22px; height: 22px; }
 
-/* And two rows, because these two are not places. */
-.unlocked__privileges {
-  display: grid;
-  gap: 0;
-  margin: 0 14px;
-  padding: 0;
-  border-radius: var(--guest-radius-sm);
-  background: var(--guest-surface);
-  list-style: none;
-}
-.unlocked__privileges li {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  align-items: center;
-  gap: 0 10px;
-  padding: 10px 12px;
-}
-.unlocked__privileges li + li { border-top: 1px solid var(--guest-line); }
-.unlocked__privilege-icon { grid-row: 1 / span 2; display: grid; place-items: center; }
-.unlocked__privileges svg { width: 18px; height: 18px; color: var(--guest-accent-strong); }
-.unlocked__privileges b { font-size: 13px; font-weight: 650; }
-.unlocked__privileges small { color: var(--guest-subtle); font-size: 11px; line-height: 1.35; }
+.unlocked__open-copy { display: grid; gap: 2px; min-width: 0; }
+.unlocked__open-copy b { font-size: 15px; font-weight: 650; letter-spacing: -0.006em; }
+.unlocked__open-copy small { color: var(--guest-subtle); font-size: 12px; line-height: 1.35; }
 
 .unlocked__rows { display: grid; gap: 8px; margin: 0; }
 .unlocked__rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }

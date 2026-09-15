@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowRight, Check, House, Receipt } from '@phosphor-icons/react';
+import { ArrowRight, House, Receipt } from '@phosphor-icons/react';
 import Image from 'next/image';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui';
 import { Confetti } from './confetti';
 import { PROPERTY_IMAGE, storyImage } from './story-imagery';
@@ -39,24 +40,29 @@ export type RoomUnlockedProps = {
 };
 
 /*
-  Photographs for the two a guest goes and does, and rows for the two that
-  are simply true now.
+  One list, one rhythm.
 
-  Dining and the spa are places with real pictures. "Charge to room" and
-  "Room services" are privileges, and the honest set has no photograph of
-  either -- a stock folio or a folded towel standing in for them is
-  decoration, and the picture would be doing less work than the words. So
-  they keep a line each under the cards rather than being dressed as
-  destinations.
+  This was a banner, then two photographic cards, then two rows in a tinted
+  block inside the white card -- three weights stacked, and a surface nested
+  in a surface, which DESIGN.md rules out on its own. The section was the
+  least settled thing on the screen because nothing in it agreed on how big
+  anything should be.
+
+  Now every entry is the same row. The art slot is either a photograph or a
+  tinted icon, which is how the two that have no honest picture -- billing
+  and housekeeping are not places -- sit in the same rhythm as the two that
+  do, instead of being demoted to a second treatment underneath them.
 */
-const PLACES = [
-  { id: 'dining', label: 'Dining', detail: 'Room service or downstairs' },
-  { id: 'spa', label: 'Spa & tours', detail: 'Book a time today' },
-];
-
-const PRIVILEGES = [
-  { icon: <Receipt aria-hidden="true" />, label: 'Charge to room', detail: 'Settles at checkout' },
-  { icon: <House aria-hidden="true" />, label: 'Room services', detail: 'Housekeeping and requests' },
+const OPEN_NOW: Array<{
+  label: string;
+  detail: string;
+  /** A catalogue id where a real photograph exists, an icon where it does not. */
+  art: { photo: string } | { icon: ReactNode };
+}> = [
+  { label: 'Dining', detail: 'Room service or downstairs', art: { photo: 'dining' } },
+  { label: 'Spa & tours', detail: 'Book a time today', art: { photo: 'spa' } },
+  { label: 'Charge to room', detail: 'Settles at checkout', art: { icon: <Receipt aria-hidden="true" /> } },
+  { label: 'Room services', detail: 'Housekeeping and requests', art: { icon: <House aria-hidden="true" /> } },
 ];
 
 /* The property itself -- the one image that is honestly about all of it. */
@@ -89,33 +95,30 @@ export function RoomUnlocked({
           <span className="unlocked__banner-scrim" aria-hidden="true" />
           <div className="unlocked__banner-copy">
             <h2>What&rsquo;s open now</h2>
-            <p>{roomNumber ? `Room ${roomNumber} · settles at checkout` : 'Settles at checkout'}</p>
+            <p>{roomNumber ? `Billed to room ${roomNumber}, settled at checkout` : 'Settled at checkout'}</p>
           </div>
-          <span className="unlocked__card-flag"><Check aria-hidden="true" />Unlocked</span>
         </div>
 
-        <ul className="unlocked__tiles">
-          {PLACES.map((item) => {
-            const art = storyImage(item.id);
-            return (
-              <li key={item.label} className="unlocked__tile">
-                <Image src={art.src} alt="" fill sizes="240px" style={{ objectPosition: art.focalPoint }} />
-                <span className="unlocked__tile-scrim" aria-hidden="true" />
-                <span className="unlocked__tile-copy">
-                  <b>{item.label}</b>
-                  <small>{item.detail}</small>
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-
-        <ul className="unlocked__privileges">
-          {PRIVILEGES.map((item) => (
+        <ul className="unlocked__open-list">
+          {OPEN_NOW.map((item) => (
             <li key={item.label}>
-              <span className="unlocked__privilege-icon" aria-hidden="true">{item.icon}</span>
-              <b>{item.label}</b>
-              <small>{item.detail}</small>
+              <span className="unlocked__open-art" aria-hidden="true">
+                {'photo' in item.art ? (
+                  <Image
+                    src={storyImage(item.art.photo).src}
+                    alt=""
+                    fill
+                    sizes="104px"
+                    style={{ objectPosition: storyImage(item.art.photo).focalPoint }}
+                  />
+                ) : (
+                  <span className="unlocked__open-icon">{item.art.icon}</span>
+                )}
+              </span>
+              <span className="unlocked__open-copy">
+                <b>{item.label}</b>
+                <small>{item.detail}</small>
+              </span>
             </li>
           ))}
         </ul>

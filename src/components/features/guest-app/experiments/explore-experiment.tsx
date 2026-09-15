@@ -85,7 +85,15 @@ export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: b
     );
   }
 
-  const item = openItemId ? DECK.find((entry) => entry.id === openItemId) : undefined;
+  /*
+    Resolved from the catalogue, not from the featured deck.
+
+    The deck is a curated nine; the categories list everything. Looking an
+    opened item up in the deck meant anything the hotel had not featured
+    opened onto nothing at all -- a tap that silently does nothing, which is
+    the failure this file already has one comment about.
+  */
+  const item = openItemId ? SEARCH_INDEX.find((entry) => entry.id === openItemId) : undefined;
   if (item) {
     return (
       <div className="experiment-page">

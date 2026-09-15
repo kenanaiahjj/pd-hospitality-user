@@ -3658,9 +3658,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <span className="guest-brand"><CabanaLockup className="guest-brand__lockup" /><span className="sr-only">Cabana</span></span>
                 </div>
                 <div className="guest-appbar__center" />
-                <div className="guest-appbar__side guest-appbar__side--end">
-                  <span className="guest-experiment-badge">Experiment</span>
-                </div>
+                {/* No Experiment badge. The flow is being judged as the app,
+                    and a label saying otherwise sits in every screenshot of
+                    it. The switcher in the prototype controls already says
+                    which flow is running, to the only person who needs it. */}
+                <div className="guest-appbar__side guest-appbar__side--end" />
               </header>
             ) : null}
 

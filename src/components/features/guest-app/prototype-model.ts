@@ -2743,6 +2743,14 @@ export const SERVICES = [
   { id: 'laundry', name: 'Express laundry & pressing', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'From ₱250', cutoff: 'Same-day service', tone: 'blue' },
   { id: 'luggage', name: 'Luggage storage & delivery', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Same-day service', tone: 'blue' },
   { id: 'celebration', name: 'Flowers & celebration setup', category: 'Hotel services', categoryId: 'services', operator: 'Curated guide', price: 'From ₱1,600', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
+  /* Facilities, as distinct from the people you book. The catalogue had a
+     personal trainer but no gym, which is the thing a guest actually asks
+     about -- and no pool, in a property whose own photograph is of one. */
+  { id: 'gym', name: '24-hour fitness centre', category: 'Fitness', categoryId: 'spa', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Open 24 hours', tone: 'sage' },
+  { id: 'pool', name: 'Swimming pool & sun deck', category: 'Pool & sun deck', categoryId: 'spa', operator: 'Hotel operated', price: 'Complimentary', cutoff: '6:00 AM – 10:00 PM', tone: 'sage' },
+  { id: 'sauna', name: 'Sauna & steam room', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱900', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
+  { id: 'kids-club', name: 'Kids club & play room', category: 'Family', categoryId: 'services', operator: 'Hotel operated', price: 'Complimentary', cutoff: '9:00 AM – 6:00 PM', tone: 'sand' },
+  { id: 'business-centre', name: 'Business centre & printing', category: 'Work', categoryId: 'services', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Open 24 hours', tone: 'sand' },
   { id: 'trainer', name: 'Personal training session', category: 'Fitness & wellness', categoryId: 'services', operator: 'Hotel operated', price: '₱1,400', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
   { id: 'babysitting', name: 'Babysitting & childcare', category: 'Family services', categoryId: 'services', operator: 'Third-party on property', price: '₱600 / hour', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
   { id: 'meeting-room', name: 'Meeting room hire', category: 'Business services', categoryId: 'services', operator: 'Hotel operated', price: '₱2,500 / half day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },

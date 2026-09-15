@@ -39,8 +39,12 @@ export const STORY_IMAGERY: Record<string, ServiceImageDefinition> = {
   rooftop: shot('photo-1613066697157-e8345495b665', 'Rooftop terrace at dusk'),
   dining: shot('photo-1551632436-cbf8dd35adfa', 'Plated dish'),
 
-  // Spa
+  // Spa and the facilities beside it
   spa: shot('photo-1544161515-4ab6ce6db874', 'Massage treatment'),
+  /* The property shot is of its own pool, so this one is the real thing
+     rather than a stand-in. */
+  pool: shot('photo-1566073771259-6a8506099945', 'The pool at dusk'),
+  sauna: shot('photo-1600334129128-685c5582fd35', 'Treatment room'),
   scrub: shot('photo-1600334129128-685c5582fd35', 'Spa treatment room'),
   'hot-stone': shot('photo-1591343395082-e120087004b4', 'Hot stone therapy'),
   'couples-massage': shot('photo-1639162906614-0603b0ae95fd', 'Spa suite'),

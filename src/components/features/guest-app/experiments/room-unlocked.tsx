@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, House, Receipt } from '@phosphor-icons/react';
+import { ArrowRight, Barbell, House, Receipt } from '@phosphor-icons/react';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui';
@@ -67,6 +67,11 @@ const OPEN_NOW: Array<{
 }> = [
   { label: 'Dining', detail: 'Room service or downstairs', art: { photo: 'dining' } },
   { label: 'Spa & tours', detail: 'Book a time today', art: { photo: 'spa' } },
+  /* The mark above this list has a dumbbell in it and the list did not
+     mention a gym, which is the sort of gap a guest notices before anyone
+     else does. The pool is real -- the property's own photograph is of it. */
+  { label: 'Pool & sun deck', detail: 'Open until 10:00 PM', art: { photo: 'pool' } },
+  { label: 'Fitness centre', detail: 'Open 24 hours', art: { icon: <Barbell aria-hidden="true" /> } },
   { label: 'Charge to room', detail: 'Settles at checkout', art: { icon: <Receipt aria-hidden="true" /> } },
   { label: 'Room services', detail: 'Housekeeping and requests', art: { icon: <House aria-hidden="true" /> } },
 ];

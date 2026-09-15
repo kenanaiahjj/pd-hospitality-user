@@ -173,7 +173,7 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
   if (!current) {
     return (
       <div className="deck deck--done" data-testid="swipe-deck-empty">
-        <b>Nothing on property right now</b>
+        <b>Nothing available right now</b>
         <small>The categories below have the full list.</small>
       </div>
     );

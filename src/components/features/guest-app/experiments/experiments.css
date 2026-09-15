@@ -385,9 +385,31 @@
   gap: 18px;
   align-content: start;
 }
-.discover__title { display: grid; gap: 4px; }
-.discover__title h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.022em; }
-.discover__title p { margin: 0; color: var(--guest-subtle); font-size: 14px; }
+/*
+  DESIGN.md's screen title, finally applied in full: 30px / 700 / -0.022em,
+  balanced, and set at display leading.
+
+  The line-height was never declared, so it inherited the body's 1.5. That
+  was invisible while the title fit on one line and fell apart the moment it
+  carried the property's name -- "Tonight at The Henry / Manila" at a
+  paragraph's leading, with the second line stranded.
+*/
+.discover__title { display: grid; gap: 6px; }
+.discover__title h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.discover__title p {
+  margin: 0;
+  color: var(--guest-subtle);
+  font-size: 14px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
 
 /* The rail. Bleeds to both edges so it reads as continuing past the screen. */
 .discover__rail {

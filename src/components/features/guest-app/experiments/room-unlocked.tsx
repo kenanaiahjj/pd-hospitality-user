@@ -50,7 +50,7 @@ export type RoomUnlockedProps = {
   destinations.
 */
 const PLACES = [
-  { id: 'dining', label: 'Dining', detail: 'In-room and on property' },
+  { id: 'dining', label: 'Dining', detail: 'Room service or downstairs' },
   { id: 'spa', label: 'Spa & tours', detail: 'Book a time today' },
 ];
 
@@ -77,8 +77,8 @@ export function RoomUnlocked({
         <h1 className="unlocked__title">You&rsquo;re all set</h1>
         <p className="unlocked__subtitle">
           {roomNumber
-            ? `Room ${roomNumber} is confirmed — every service on the property is open to you.`
-            : 'Your stay is confirmed — every service on the property is open to you.'}
+            ? `Room ${roomNumber} is confirmed. Everything at the hotel is open to you.`
+            : 'Your stay is confirmed. Everything at the hotel is open to you.'}
         </p>
         <Image className="unlocked__art" src={UNLOCKED_ART} alt="" width={330} height={230} priority />
       </div>
@@ -132,7 +132,7 @@ export function RoomUnlocked({
           <div><dt>Checking out</dt><dd>{checkOut}</dd></div>
         </dl>
         <p className="unlocked__note">
-          Anything you book is added to your room and settles with the property at checkout.
+          Anything you book is added to your room and settles when you check out.
         </p>
       </section>
 

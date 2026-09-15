@@ -18,6 +18,15 @@ import type { CategoryCard, DiscoverBanner, SearchableItem, Story } from './stor
 */
 
 export type DiscoverFeedProps = {
+  /**
+   * The house, named.
+   *
+   * Four Seasons, Aman and Rosewood all put the property's name on the
+   * screen; the chains that don't fall back to "hotel". Nobody writes "on
+   * property" -- that is the word an operator uses for an estate, and it had
+   * four appearances on this screen.
+   */
+  property?: string;
   stories: Story[];
   banners: DiscoverBanner[];
   categories: CategoryCard[];
@@ -33,6 +42,7 @@ export type DiscoverFeedProps = {
 };
 
 export function DiscoverFeed({
+  property = 'The Henry Manila',
   stories,
   banners,
   categories,
@@ -75,12 +85,17 @@ export function DiscoverFeed({
   return (
     <div className="discover" data-testid="discover-feed">
       <div className="discover__title">
-        <h1>Tonight on property</h1>
+        <h1>Tonight at {property}</h1>
         {/* Counted, not written down -- same rule the category cards follow.
             A hardcoded "Eight" survived the rail growing to nine accounts,
             and a screen that miscounts itself is not one a guest trusts on
             anything else. */}
-        <p>{stories.length} places posted today, and what people are booking.</p>
+        {/*
+          Resy and OpenTable lead on what is available right now; Klook and
+          GetYourGuide lead on the city. A hotel app can do the thing neither
+          can, which is the second sentence.
+        */}
+        <p>{stories.length} places posted today. Everything you book goes on your room.</p>
       </div>
 
       <div className="discover__search">
@@ -149,7 +164,7 @@ export function DiscoverFeed({
         <section aria-label="Posts from the property">
           <div className="discover__head">
             <h2>Posted today</h2>
-            <p>From the restaurants, spa and tours on property.</p>
+            <p>From the restaurants, spa and tour desks.</p>
           </div>
           <div className="discover__rail">
             {stories.map((story) => {
@@ -195,7 +210,7 @@ export function DiscoverFeed({
         <section className="discover__deck" aria-label="Featured">
           <div className="discover__head">
             <h2>Featured</h2>
-            <p>Picked by the hotel, plus what&rsquo;s booking fast. Tap one to look closer.</p>
+            <p>Picked by the hotel, plus what&rsquo;s booking fast. Swipe through.</p>
           </div>
           {deck}
         </section>
@@ -211,8 +226,11 @@ export function DiscoverFeed({
       */}
       <section aria-label="Categories">
         <div className="discover__head">
-          <h2>Everything on property</h2>
-          <p>All of it, by category.</p>
+          {/* Marriott and Hyatt both say "hotel", plainly, and list the
+              nouns. It is the least clever option and the one a guest reads
+              without translating. */}
+          <h2>Everything at the hotel</h2>
+          <p>Dining, spa, tours and services.</p>
         </div>
         <div className="categories">
           {categories.map((category, i) => (
@@ -289,7 +307,7 @@ export function DiscoverFeed({
       </section>
 
       <button className="discover__all" type="button" onClick={onBrowseAll}>
-        <span><b>Browse everything</b><small>Dining, spa, tours and hotel services</small></span>
+        <span><b>See the full list</b><small>Every service, with prices</small></span>
         <CaretRight aria-hidden="true" />
       </button>
       </>

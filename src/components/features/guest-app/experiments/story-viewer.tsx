@@ -16,8 +16,11 @@ import { formatPostedAgo, storyExpiryLabel } from './story-model';
   proceed. A story is a way in, never a way around.
 */
 
-/** How long a slide holds before advancing. */
+/** How long a still holds before advancing. A clip holds for its own length. */
 const SLIDE_MS = 4000;
+
+/** Longest a clip may hold the rail, however long the file turns out to be. */
+const MAX_CLIP_MS = 9000;
 
 export type StoryViewerProps = {
   story: Story;
@@ -47,13 +50,46 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
     };
   });
 
+  /*
+    A clip runs for as long as it runs.
+
+    Holding a video slide for a fixed four seconds either cuts it off or
+    leaves a frozen last frame on screen, and the file's duration is not
+    known until it has loaded. So a still is timed and a clip reports its own
+    length -- clamped, because the rail should not be at the mercy of a file
+    someone swaps in later.
+  */
+  /*
+    Stamped with the slide it belongs to, and read back by comparison.
+
+    Clearing it from an effect when the slide changes is the pattern the
+    React Compiler rules reject outright -- and they are right to: for one
+    render the old clip's duration would still be current, and the rail would
+    time a still against the length of the video before it.
+  */
+  const [clip, setClip] = useState<{ slide: string; ms: number } | null>(null);
+  const slideKey = `${story.id}:${index}`;
+  const clipMs = clip && clip.slide === slideKey ? clip.ms : null;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playing = Boolean(slide.video) && !reducedMotion;
+
   useEffect(() => {
     // Auto-advance is the doomscroll premise; reduced motion opts out of
     // being moved along and waits for a tap instead.
     if (reducedMotion) return;
-    const timer = window.setTimeout(() => advanceRef.current(), SLIDE_MS);
+    // A clip that has not reported its length yet holds until it does.
+    if (playing && clipMs === null) return;
+    const hold = playing && clipMs !== null ? Math.min(clipMs, MAX_CLIP_MS) : SLIDE_MS;
+    const timer = window.setTimeout(() => advanceRef.current(), hold);
     return () => window.clearTimeout(timer);
-  }, [index, reducedMotion, story.id]);
+  }, [index, reducedMotion, story.id, playing, clipMs]);
+
+  /*
+    Autoplay can be refused -- a low-power device, a browser policy, a file
+    that will not decode. The poster is already underneath, so the honest
+    response is to stop waiting on the clip and time the slide as a still.
+  */
+  const giveUpOnClip = () => setClip({ slide: slideKey, ms: SLIDE_MS });
 
   // A new story starts at its beginning rather than wherever the last one got to.
   useEffect(() => {
@@ -63,6 +99,8 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
 
   return (
     <div className="story" data-testid="story-viewer">
+      {/* The still is always rendered: it is the poster while a clip loads,
+          and the whole picture when one cannot play. */}
       <Image
         className="story__image"
         src={slide.image.src}
@@ -72,6 +110,29 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
         style={{ objectPosition: slide.image.focalPoint }}
         priority
       />
+      {playing ? (
+        <video
+          key={slide.video}
+          ref={videoRef}
+          className="story__video"
+          src={slide.video}
+          poster={slide.image.src}
+          muted
+          playsInline
+          autoPlay
+          preload="auto"
+          aria-hidden="true"
+          onLoadedMetadata={(event) => {
+            const seconds = event.currentTarget.duration;
+            setClip({
+              slide: slideKey,
+              ms: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : SLIDE_MS,
+            });
+          }}
+          onError={giveUpOnClip}
+          onStalled={giveUpOnClip}
+        />
+      ) : null}
       <div className="story__scrim" aria-hidden="true" />
 
       <div className="story__progress" role="presentation">

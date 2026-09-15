@@ -70,3 +70,24 @@ export const storyImage = (id: string): ServiceImageDefinition => STORY_IMAGERY[
  * which reads as a bug whatever the copy on them says.
  */
 export const hasStoryImage = (id: string): boolean => id in STORY_IMAGERY;
+
+/*
+  Motion, for the stories that have it.
+
+  Generated from the stills above as slow pans rather than sourced as
+  footage: a prototype needs to prove the viewer handles video -- duration it
+  does not control, muted autoplay, a poster while it loads, a still under
+  reduced motion -- and none of that needs real footage to be worth deciding
+  about. Real clips drop in by replacing these files; nothing reads their
+  contents.
+
+  Keyed by catalogue id, and deliberately sparse: a rail where every story is
+  a video is not the thing being tested.
+*/
+export const STORY_VIDEO: Record<string, string> = {
+  'poolside-bar': '/experiments/clip-poolside-bar.mp4',
+  spa: '/experiments/clip-spa.mp4',
+  'food-crawl': '/experiments/clip-food-crawl.mp4',
+};
+
+export const storyVideo = (id: string): string | undefined => STORY_VIDEO[id];

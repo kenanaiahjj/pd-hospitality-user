@@ -1,7 +1,7 @@
 import { MINI_APP_CATEGORIES, RESTAURANTS, SERVICES } from '../prototype-model';
 import type { MiniAppCategoryId } from '../prototype-model';
 import type { ServiceImageDefinition } from '../service-images';
-import { hasStoryImage, storyImage } from './story-imagery';
+import { hasStoryImage, storyImage, storyVideo } from './story-imagery';
 import { venueForService } from './service-venues';
 
 /*
@@ -23,6 +23,57 @@ export type StorySlide = {
   /** One supporting line. Absent where the headline carries it alone. */
   detail?: string;
   image: ServiceImageDefinition;
+  /**
+   * A clip to play instead of the still, with `image` as its poster.
+   *
+   * The still is never optional: a video that has not loaded, cannot decode,
+   * or is playing on a device that refuses autoplay still has to show the
+   * guest something, and reduced motion opts out of playback entirely.
+   */
+  video?: string;
+};
+
+/*
+  The pictures each story moves through.
+
+  Slides used to repeat one photograph for the whole story, which is a
+  slideshow of the same image -- the format's entire premise is that the next
+  frame shows you something you have not seen. Handwritten per account,
+  because the right second picture is a judgement about what sells the place,
+  not something a rule can pick.
+*/
+const STORY_FRAMES: Record<string, string[]> = {
+  'poolside-bar': ['poolside-bar', 'rooftop', 'dining'],
+  'apartment-1b': ['apartment-1b', 'dining', 'cafe'],
+  dining: ['dining', 'apartment-1b', 'cafe'],
+  cafe: ['cafe', 'dining', 'apartment-1b'],
+  rooftop: ['rooftop', 'poolside-bar', 'dining'],
+  spa: ['spa', 'couples-massage', 'hot-stone'],
+  scrub: ['scrub', 'facial', 'spa'],
+  'hot-stone': ['hot-stone', 'spa', 'scrub'],
+  'couples-massage': ['couples-massage', 'spa', 'facial'],
+  facial: ['facial', 'scrub', 'couples-massage'],
+  reflexology: ['rooftop', 'spa', 'poolside-bar'],
+  barber: ['facial', 'couples-massage', 'scrub'],
+  'mani-pedi': ['facial', 'scrub', 'spa'],
+  tour: ['tour', 'sunset-cruise', 'heritage-walk'],
+  diving: ['sunset-cruise', 'tour', 'heritage-walk'],
+  'sunset-cruise': ['sunset-cruise', 'tour', 'food-crawl'],
+  'heritage-walk': ['heritage-walk', 'food-crawl', 'tour'],
+  'food-crawl': ['food-crawl', 'heritage-walk', 'cafe'],
+  'museum-pass': ['heritage-walk', 'tour', 'food-crawl'],
+};
+
+/**
+ * The frames for a story, as image definitions.
+ *
+ * Falls back to the item's own picture repeated, which is the old behaviour
+ * and still better than a hole -- `storiesUseDistinctFrames` in the tests is
+ * what stops that fallback quietly becoming the norm again.
+ */
+const framesFor = (id: string, slideCount: number): ServiceImageDefinition[] => {
+  const keys = STORY_FRAMES[id] ?? [id];
+  return Array.from({ length: slideCount }, (_, i) => storyImage(keys[i % keys.length]!));
 };
 
 /** Who published a story. A story is a post, so it is signed. */
@@ -142,17 +193,22 @@ const authorKind = (operator: string): StoryAuthor['kind'] =>
 
 const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
   const image = storyImage(venue.id);
+  const frames = framesFor(venue.id, 3);
+  const clip = storyVideo(venue.id);
   return {
     id: `venue-${venue.id}`,
     title: venue.name,
     subtitle: venue.location,
     price: venue.priceRange,
     cta: 'See the menu',
-    cover: image,
+    /* The opening frame, not `storyImage(id)`. The ring should show what the
+       story actually starts on -- and an id with no art of its own fell back
+       to the house shot, which is why three rings were the same picture. */
+    cover: frames[0]!,
     slides: [
-      { headline: venue.category.toUpperCase(), detail: venue.description, image },
-      { headline: 'OPEN TODAY', detail: venue.hours, image },
-      { headline: venue.priceRange.toUpperCase(), detail: venue.cutoff, image },
+      { headline: venue.category.toUpperCase(), detail: venue.description, image: frames[0]!, video: clip },
+      { headline: 'OPEN TODAY', detail: venue.hours, image: frames[1]! },
+      { headline: venue.priceRange.toUpperCase(), detail: venue.cutoff, image: frames[2]! },
     ],
     author: { name: venue.name, kind: authorKind(venue.operator), image },
     ...postingFor(venue.id),
@@ -160,7 +216,8 @@ const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
 };
 
 const serviceStory = (service: (typeof SERVICES)[number]): Story => {
-  const image = storyImage(service.id);
+  const frames = framesFor(service.id, 2);
+  const clip = storyVideo(service.id);
   const house = venueForService(service.id);
   return {
     id: `service-${service.id}`,
@@ -168,10 +225,10 @@ const serviceStory = (service: (typeof SERVICES)[number]): Story => {
     subtitle: house.location,
     price: service.price,
     cta: 'Book a time',
-    cover: image,
+    cover: frames[0]!,
     slides: [
-      { headline: service.category.toUpperCase(), detail: service.name, image },
-      { headline: service.price.toUpperCase(), detail: service.cutoff, image },
+      { headline: service.category.toUpperCase(), detail: service.name, image: frames[0]!, video: clip },
+      { headline: service.price.toUpperCase(), detail: service.cutoff, image: frames[1]! },
     ],
     /*
       The venue, not the treatment. "Hilom signature massage" is a thing the

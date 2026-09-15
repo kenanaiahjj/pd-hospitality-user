@@ -1310,6 +1310,17 @@
 /* The frame is the containing block for any screen that takes it over. */
 .guest-device { position: relative; }
 .story__image { object-fit: cover; }
+
+/* Sits exactly over its own poster, so a clip that fails to start reveals
+   the still rather than a black rectangle. */
+.story__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: transparent;
+}
 .story__scrim {
   position: absolute;
   inset: 0;

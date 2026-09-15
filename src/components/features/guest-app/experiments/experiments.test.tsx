@@ -812,3 +812,61 @@ describe('prices a guest can read', () => {
     }
   });
 });
+
+describe('stories are made of pictures, plural', () => {
+  it('opens every story on a different picture', () => {
+    /*
+      Three rings were the same resort photo: `cover` read `storyImage(id)`,
+      and an id with no art of its own falls back to the house shot. A rail
+      is a row of thumbnails the guest picks between, so identical thumbnails
+      are the one thing it cannot have.
+    */
+    const covers = buildStories().map((story) => story.cover.src);
+    expect(new Set(covers).size).toBe(covers.length);
+  });
+
+  it('moves to a new picture on each slide', () => {
+    // Every slide used the same photograph, which is a slideshow of one
+    // image -- the format's whole premise is that the next frame shows you
+    // something you have not seen.
+    for (const story of buildStories()) {
+      const frames = story.slides.map((slide) => slide.image.src);
+      expect(new Set(frames).size, story.id).toBe(frames.length);
+    }
+  });
+
+  it('opens each story on its own cover', () => {
+    for (const story of buildStories()) {
+      expect(story.slides[0]!.image.src, story.id).toBe(story.cover.src);
+    }
+  });
+
+  it('carries clips on some stories, and a still under every one of them', () => {
+    const stories = buildStories();
+    const withVideo = stories.filter((story) => story.slides.some((slide) => slide.video));
+
+    // Some, not all: a rail where everything moves is not the thing being tried.
+    expect(withVideo.length).toBeGreaterThan(0);
+    expect(withVideo.length).toBeLessThan(stories.length);
+
+    for (const story of stories) {
+      for (const slide of story.slides) {
+        // The still is the poster while a clip loads and the whole picture
+        // when autoplay is refused, so it is never optional.
+        expect(slide.image.src, story.id).toMatch(/^\/experiments\//);
+        if (slide.video) expect(slide.video).toMatch(/^\/experiments\/.*\.mp4$/);
+      }
+    }
+  });
+
+  it('ships every clip it references', () => {
+    // Same rule the photographs follow: nothing in the render path is fetched
+    // from somebody else's server.
+    for (const story of buildStories()) {
+      for (const slide of story.slides) {
+        if (!slide.video) continue;
+        expect(existsSync(resolve(process.cwd(), 'public', slide.video.replace(/^\//, ''))), slide.video).toBe(true);
+      }
+    }
+  });
+});

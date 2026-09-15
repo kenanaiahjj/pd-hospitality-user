@@ -85,17 +85,21 @@ export function DiscoverFeed({
   return (
     <div className="discover" data-testid="discover-feed">
       <div className="discover__title">
-        <h1>Tonight at {property}</h1>
+        <h1>What&rsquo;s on at {property}</h1>
         {/* Counted, not written down -- same rule the category cards follow.
             A hardcoded "Eight" survived the rail growing to nine accounts,
             and a screen that miscounts itself is not one a guest trusts on
             anything else. */}
         {/*
-          Resy and OpenTable lead on what is available right now; Klook and
-          GetYourGuide lead on the city. A hotel app can do the thing neither
-          can, which is the second sentence.
+          Not "Tonight": the app has no idea what time it is, and a guest
+          opening this at nine in the morning is owed better than a screen
+          that guesses wrong about something it could simply not claim.
+
+          The count went too. It said "9 places posted today" directly above a
+          section headed "Posted today" -- the same fact twice within a
+          scroll. What is left is the line no OTA can write.
         */}
-        <p>{stories.length} places posted today. Everything you book goes on your room.</p>
+        <p>Anything you book goes on your room, settled when you check out.</p>
       </div>
 
       <div className="discover__search">
@@ -164,7 +168,9 @@ export function DiscoverFeed({
         <section aria-label="Posts from the property">
           <div className="discover__head">
             <h2>Posted today</h2>
-            <p>From the restaurants, spa and tour desks.</p>
+            {/* Says why a ring turns amber, which nothing else on the screen
+                explains. A list of departments told the guest nothing. */}
+            <p>Straight from the venues. Each post lasts a day.</p>
           </div>
           <div className="discover__rail">
             {stories.map((story) => {
@@ -210,7 +216,10 @@ export function DiscoverFeed({
         <section className="discover__deck" aria-label="Featured">
           <div className="discover__head">
             <h2>Featured</h2>
-            <p>Picked by the hotel, plus what&rsquo;s booking fast. Swipe through.</p>
+            {/* "Swipe through" is gone: the pile is visibly stacked and
+                tilted now, so the instruction was describing an affordance
+                the design already makes. */}
+            <p>The hotel&rsquo;s picks, and what&rsquo;s booking fastest.</p>
           </div>
           {deck}
         </section>

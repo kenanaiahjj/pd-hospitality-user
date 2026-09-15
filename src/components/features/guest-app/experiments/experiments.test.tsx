@@ -413,21 +413,24 @@ describe('the deck reads as a deck', () => {
 });
 
 describe('service detail', () => {
+  // The catalogue, which is what the harness resolves an opened item from.
+  const detailItem = () => buildSearchIndex().find((entry) => entry.id === 'spa')!;
+
   it('opens a full screen with the price and the settlement terms', () => {
-    const item = buildFeaturedDeck()[0]!;
+    const item = detailItem();
     render(<ServiceDetail item={item} onBack={vi.fn()} onBook={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: item.title, level: 1 })).toBeInTheDocument();
     expect(screen.getByText(item.price)).toBeInTheDocument();
     // A card is a way in to booking, never a way around what it costs.
-    expect(screen.getByText(/settled with the property at checkout/i)).toBeInTheDocument();
+    expect(screen.getByText(/settles when you check out/i)).toBeInTheDocument();
     expect(screen.getByText(/Nothing is charged now/i)).toBeInTheDocument();
   });
 
   it('books through the host, so the gate still decides', async () => {
     const user = userEvent.setup();
     const onBook = vi.fn();
-    const item = buildFeaturedDeck()[0]!;
+    const item = detailItem();
 
     render(<ServiceDetail item={item} onBack={vi.fn()} onBook={onBook} />);
     await user.click(screen.getByRole('button', { name: 'Choose a time' }));

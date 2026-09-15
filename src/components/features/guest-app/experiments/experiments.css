@@ -1370,7 +1370,23 @@
   to { opacity: 1; transform: none; filter: none; }
 }
 
+/*
+  The detail screen fills its scroller so the dock lands on the bottom edge.
+
+  Sticky only pins while there is something to scroll; on a short service the
+  dock sat at its in-flow position with ninety pixels of empty canvas beneath
+  it and a hairline across the middle of nothing. Scoped with `:has()` so the
+  feed, the listing and the menu keep their own intrinsic heights.
+*/
+/* +48px: the screen's own 12px top and 36px bottom padding, which the
+   detail's negative margins span. Without it the fill stops short by exactly
+   that much and the dock hovers one padding above the tab bar. */
+.experiment-page:has(> .detail) { min-height: calc(100% + 48px); display: grid; }
 .detail { display: grid; gap: 0; align-content: start; margin: -12px -16px -36px; }
+.experiment-page:has(> .detail) .detail {
+  grid-template-rows: auto 1fr auto;
+  align-content: stretch;
+}
 
 .detail__art { position: relative; aspect-ratio: 4 / 3; overflow: hidden; }
 .detail__art img { object-fit: cover; }
@@ -1394,9 +1410,10 @@
 }
 .detail__back svg { width: 20px; height: 20px; }
 
-.detail__body { display: grid; gap: 18px; padding: 4px 16px 16px; }
-.detail__title { display: grid; gap: 4px; }
-.detail__title small { color: var(--guest-accent-strong); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+/* The dock is opaque and pinned, so the body needs somewhere to end that is
+   not underneath it. */
+.detail__body { display: grid; gap: 18px; padding: 4px 16px 28px; }
+.detail__title { display: grid; gap: 5px; }
 .detail__title h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.022em; line-height: 1.1; text-wrap: balance; }
 .detail__title p { margin: 0; color: var(--guest-subtle); font-size: 14px; }
 
@@ -1409,20 +1426,53 @@
   background: var(--guest-paper);
   box-shadow: var(--shadow-xs);
 }
-.detail__facts > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.detail__facts dt { display: flex; align-items: center; gap: 8px; color: var(--guest-subtle); font-size: 13px; }
-.detail__facts svg { width: 15px; height: 15px; }
-.detail__facts dd { margin: 0; font-size: 13px; font-weight: 650; }
+.detail__facts > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.detail__facts dt { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; color: var(--guest-subtle); font-size: 13px; line-height: 1.5; }
+.detail__facts svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.detail__facts dd {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+  text-align: right;
+  text-wrap: pretty;
+}
+/* Who runs it is two facts in one row: the name, and whether that is the
+   hotel or someone it hosts. The second is the one that tells a guest who to
+   chase if something goes wrong. */
+.detail__facts dd i { color: var(--guest-subtle); font-size: 11px; font-style: normal; font-weight: 600; }
 
 .detail__note { margin: 0; color: var(--guest-subtle); font-size: 12px; line-height: 1.45; }
 
+/*
+  The dock sticks.
+
+  It sat at the end of the document, so on a screen with a photograph, three
+  facts and a settlement note, the price and the action scrolled away from
+  each other -- and the guest had to go looking for the button they came for.
+  Every booking surface worth the name pins these two together.
+*/
 .detail__dock {
+  position: sticky;
+  /* -36px: sticky pins inside the scroller's PADDING box, and the screen
+     carries 36px of it at the bottom, so `bottom: 0` parks the dock one
+     padding short of the tab bar. */
+  bottom: -36px;
+  z-index: 2;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 16px 8px;
+  gap: 14px;
+  margin-top: 4px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--guest-canvas);
+  border-top: 1px solid var(--guest-line);
 }
-.detail__price { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.detail__price { display: grid; gap: 1px; flex: 0 0 auto; }
+.detail__price i { color: var(--guest-subtle); font-size: 11px; font-style: normal; font-weight: 600; }
+.detail__price b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .detail__dock .guest-button { flex: 1 1 auto; }
 
 @media (prefers-reduced-motion: reduce) {

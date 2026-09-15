@@ -244,10 +244,33 @@ export type SearchableItem = {
   /** What it is, in the guest's words. Matched on, and shown under the title. */
   category: string;
   price: string;
-  /** Who runs it, or where it is. */
+  /** Who runs it, or where it is. One line, for a card. */
   detail: string;
   image: ServiceImageDefinition;
+  /** Where to find it, from the venue that runs it. */
+  where: string;
+  /** Who runs it, and whether that is the hotel or somebody it hosts. */
+  runBy: { name: string; kind: 'property' | 'venue' };
+  /** The catalogue's own cancellation or access line, verbatim. */
+  cutoff: string;
 };
+
+/**
+ * The cancellation line, in words rather than in the catalogue's shorthand.
+ *
+ * "24-hour cancellation cutoff" is how an operations system stores a rule.
+ * What a guest wants to know is whether they can change their mind and until
+ * when, so the screen says that instead. Anything the pattern does not
+ * recognise passes through untouched -- a wrong promise about a refund is
+ * worse than an awkward phrase.
+ */
+export function describeCancellation(cutoff: string): string {
+  const hours = /^(\d+)-hour cancellation cutoff$/.exec(cutoff);
+  if (hours) return `Free up to ${hours[1]} hours before`;
+  if (/^walk-in/i.test(cutoff)) return 'No booking needed';
+  if (/^same-day/i.test(cutoff)) return 'Same day, no cutoff';
+  return cutoff;
+}
 
 export function buildSearchIndex(): SearchableItem[] {
   return [
@@ -258,15 +281,30 @@ export function buildSearchIndex(): SearchableItem[] {
       price: venue.priceRange,
       detail: venue.location,
       image: storyImage(venue.id),
+      where: venue.location,
+      runBy: {
+        name: venue.name,
+        kind: (venue.operator.startsWith('Hotel') ? 'property' : 'venue') as 'property' | 'venue',
+      },
+      cutoff: venue.cutoff,
     })),
-    ...SERVICES.map((service) => ({
-      id: service.id,
-      title: service.name,
-      category: service.category,
-      price: service.price,
-      detail: service.operator,
-      image: storyImage(service.id),
-    })),
+    ...SERVICES.map((service) => {
+      const house = venueForService(service.id);
+      return {
+        id: service.id,
+        title: service.name,
+        category: service.category,
+        price: service.price,
+        /* The account, not the contract term. A guest can decide about
+           "Hilom Spa & Wellness"; "Third-party on property" is a line from
+           a supplier agreement. */
+        detail: house.name,
+        image: storyImage(service.id),
+        where: house.location,
+        runBy: { name: house.name, kind: house.kind },
+        cutoff: service.cutoff,
+      };
+    }),
   ];
 }
 

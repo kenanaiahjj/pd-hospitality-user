@@ -1,9 +1,10 @@
 'use client';
 
-import { ArrowLeft, CalendarBlank, Clock, MapPin } from '@phosphor-icons/react';
+import { ArrowLeft, CalendarX, MapPin, Storefront } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { Button } from '@/components/ui';
 import type { SearchableItem } from './story-model';
+import { describeCancellation } from './story-model';
 
 /*
   The full screen behind a card.
@@ -39,25 +40,59 @@ export function ServiceDetail({ item, onBack, onBook }: ServiceDetailProps) {
       </div>
 
       <div className="detail__body">
+        {/*
+          No category eyebrow. "SPA & MASSAGE" set over "Hilom signature
+          massage" is a second heading the eye reads and discards, which is
+          the rule DESIGN.md already states -- an eyebrow earns its place by
+          carrying what the title cannot. It sits under the title instead,
+          where it orients without competing.
+        */}
         <div className="detail__title">
-          <small>{item.category}</small>
           <h1>{item.title}</h1>
-          <p>{item.detail}</p>
+          <p>{item.category}</p>
         </div>
 
+        {/*
+          Three facts about this service, rather than three about nothing.
+
+          These were the literals "On property", "3 times open" and "Up to 24
+          hours before" -- identical on a massage, an island tour and a
+          scooter hire. A screen that says the same thing about everything is
+          worse than a screen that says less, because the guest cannot tell
+          which parts to believe. Availability is gone entirely: there is no
+          availability data, and "Choose a time" is where it belongs anyway.
+        */}
         <dl className="detail__facts">
-          <div><dt><MapPin aria-hidden="true" />Where</dt><dd>On property</dd></div>
-          <div><dt><Clock aria-hidden="true" />Today</dt><dd>3 times open</dd></div>
-          <div><dt><CalendarBlank aria-hidden="true" />Cancel</dt><dd>Up to 24 hours before</dd></div>
+          <div>
+            <dt><MapPin aria-hidden="true" />Where</dt>
+            <dd>{item.where}</dd>
+          </div>
+          <div>
+            <dt><Storefront aria-hidden="true" />Run by</dt>
+            <dd>
+              {item.runBy.name}
+              <i>{item.runBy.kind === 'property' ? 'The hotel' : 'Hosted partner'}</i>
+            </dd>
+          </div>
+          <div>
+            <dt><CalendarX aria-hidden="true" />Cancellation</dt>
+            <dd>{describeCancellation(item.cutoff)}</dd>
+          </div>
         </dl>
 
         <p className="detail__note">
-          Booked to your room and settled with the property at checkout. Nothing is charged now.
+          Added to your room. Nothing is charged now &mdash; it settles when you check out.
         </p>
       </div>
 
+      {/* Sticky, the way every booking screen worth using docks its price and
+          its action -- the guest can read the whole page without losing the
+          thing they came to press. */}
       <div className="detail__dock">
-        <span className="detail__price">{item.price}</span>
+        <span className="detail__price">
+          <i>Billed to your room</i>
+          <b>{item.price}</b>
+        </span>
         <Button className="guest-button guest-button--primary" type="button" onClick={() => onBook(item.id)}>
           Choose a time
         </Button>

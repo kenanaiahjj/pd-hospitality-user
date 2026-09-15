@@ -25,11 +25,19 @@ import { PROPERTY_IMAGE, storyImage } from './story-imagery';
 */
 
 /*
-  Not the door-and-keycard illustration this screen used to carry. The scan
-  unlocks services, so art of a lock being opened argued with the words
-  underneath it -- and a guest reads the picture first.
+  The one graphic on the stage.
+
+  Cut from the glass icon sheet and radially feathered, so its own ground
+  dissolves into the stage instead of landing as a grey square on it. It is
+  lit for dark already, which is why there is no plate behind it -- the
+  earlier line art was drawn for a white page and needed one.
+
+  A padlock rather than the orbiting service tiles from the same sheet: at
+  230px the tiles are too small to read, and one object states it. The lock
+  carries the property mark, so what opens is the hotel and not a door --
+  which is the distinction the copy on this screen turns on.
 */
-const UNLOCKED_ART = '/illustrations/celebrate.png';
+const UNLOCKED_ART = '/illustrations/unlocked-glass.png';
 
 export type RoomUnlockedProps = {
   roomNumber?: string;
@@ -77,17 +85,44 @@ export function RoomUnlocked({
 }: RoomUnlockedProps) {
   return (
     <div className="unlocked" data-testid="room-unlocked">
-      <Confetti />
+      {/*
+        One dark stage that fills the screen: a graphic, what happened, and
+        the single thing to do next.
 
-      <div className="unlocked__hero">
-        <h1 className="unlocked__title">You&rsquo;re all set</h1>
-        <p className="unlocked__subtitle">
-          {roomNumber
-            ? `Room ${roomNumber} is confirmed. Everything at the hotel is open to you.`
-            : 'Your stay is confirmed. Everything at the hotel is open to you.'}
-        </p>
-        <Image className="unlocked__art" src={UNLOCKED_ART} alt="" width={330} height={230} priority />
-      </div>
+        DESIGN.md keeps one inverted surface for the folio total, and this is
+        a deliberate second -- scoped to this screen and no other, the same
+        way the accent is let off its leash here and nowhere else. A moment
+        of arrival is the one place in a task-first app where the screen is
+        allowed to be the point.
+      */}
+      <section className="unlocked__stage">
+        <Confetti />
+
+        <div className="unlocked__mark">
+          <Image className="unlocked__art" src={UNLOCKED_ART} alt="" width={640} height={640} priority />
+        </div>
+
+        <div className="unlocked__say">
+          <h1 className="unlocked__title">You&rsquo;re all set</h1>
+          <p className="unlocked__subtitle">
+            {roomNumber
+              ? `Room ${roomNumber} is confirmed. Everything at the hotel is open to you.`
+              : 'Your stay is confirmed. Everything at the hotel is open to you.'}
+          </p>
+          <p className="unlocked__subtitle">
+            Dining, the spa, and anything else you book goes straight onto your room.
+          </p>
+        </div>
+
+        <div className="unlocked__go">
+          <Button className="guest-button guest-button--invert" type="button" onClick={onExplore}>
+            Explore<ArrowRight aria-hidden="true" />
+          </Button>
+          <button className="unlocked__quiet" type="button" onClick={onViewStay}>
+            Back to my stay
+          </button>
+        </div>
+      </section>
 
       <section className="unlocked__card unlocked__open">
         <div className="unlocked__banner">
@@ -139,14 +174,6 @@ export function RoomUnlocked({
         </p>
       </section>
 
-      <div className="unlocked__dock">
-        <Button className="guest-button guest-button--primary" type="button" onClick={onExplore}>
-          Explore<ArrowRight aria-hidden="true" />
-        </Button>
-        <button className="guest-button guest-button--secondary" type="button" onClick={onViewStay}>
-          Back to my stay
-        </button>
-      </div>
     </div>
   );
 }

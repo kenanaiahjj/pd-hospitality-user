@@ -299,39 +299,94 @@
   display: grid;
   gap: 14px;
   align-content: start;
-  padding-bottom: 8px;
+  margin: -12px -16px -36px;
+  padding-bottom: 36px;
 }
+/* Only the stage reaches the edges. */
+.unlocked > :not(.unlocked__stage) { margin-inline: 16px; }
 /* Varied, not uniform: the celebration needs air after it, the two cards
    belong together. */
 .unlocked__hero { margin-bottom: 6px; }
 
-.unlocked__hero { display: grid; gap: 6px; justify-items: center; text-align: center; }
+/*
+  The stage: a dark screen with one glow, one graphic, one thing to do.
 
-/* accentStrong, not the brand pink: pink is a light surface colour and fails
-   as text on a light ground. DESIGN.md's rule, applied. */
+  DESIGN.md reserves the single inverted surface for the folio total. This is
+  a deliberate second, scoped to this screen alone -- the same licence the
+  accent already has here and nowhere else. A moment of arrival is the one
+  place in a task-first app where the screen is allowed to be the point.
+*/
+.unlocked__stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  gap: 26px;
+  align-content: center;
+  justify-items: center;
+  min-height: 78vh;
+  padding: 40px 22px calc(28px + env(safe-area-inset-bottom));
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-align: center;
+  color: oklch(1 0 0);
+  background:
+    radial-gradient(86% 58% at 50% 26%, oklch(0.5 0.16 350 / 0.62), transparent 68%),
+    radial-gradient(60% 40% at 78% 8%, oklch(0.62 0.17 340 / 0.34), transparent 70%),
+    linear-gradient(180deg, oklch(0.2 0.03 320), oklch(0.11 0.016 300) 62%);
+}
+
+/* The graphic. No plate: the render is lit for dark and carries its own
+   glow, and its edges are feathered into transparency so the stage shows
+   through rather than a cut-out square sitting on it. */
+.unlocked__mark {
+  display: grid;
+  place-items: center;
+  align-self: end;
+  width: min(300px, 78%);
+}
+.unlocked__art { width: 100%; height: auto; }
+
+.unlocked__say { display: grid; gap: 12px; justify-items: center; }
+/* White, not accentStrong: the ground under it is ink now, and the rule the
+   old colour satisfied was about pink failing on a light surface. */
 .unlocked__title {
   margin: 0;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 700;
-  letter-spacing: -0.022em;
-  line-height: 1.1;
-  color: var(--guest-accent-strong);
+  letter-spacing: -0.024em;
+  line-height: 1.08;
+  color: oklch(1 0 0);
   text-wrap: balance;
 }
-/* Ink, not a second block of accent. Two pink paragraphs stacked is accent
-   as decoration, which is the one thing DESIGN.md says it is never for --
-   the headline is the celebration, the line under it is information. */
 .unlocked__subtitle {
   margin: 0;
-  max-width: 34ch;
-  color: var(--guest-muted);
+  max-width: 32ch;
+  color: oklch(1 0 0 / 0.82);
   font-size: 15px;
-  line-height: 1.45;
+  line-height: 1.5;
   text-wrap: pretty;
 }
-/* Was 280px and taking better than a third of the screen before anything
-   useful started. */
-.unlocked__art { width: min(200px, 54%); height: auto; margin: 6px 0 2px; }
+
+.unlocked__go { display: grid; gap: 4px; justify-items: center; width: 100%; }
+.unlocked__go .guest-button { width: 100%; }
+/* White pill on the dark ground -- the accent is a light surface colour and
+   would sink into the glow behind it. */
+.guest-button--invert {
+  background: oklch(1 0 0);
+  color: var(--guest-ink);
+  border: 0;
+}
+.guest-button--invert:active { transform: scale(0.985); }
+.unlocked__quiet {
+  padding: 12px;
+  border: 0;
+  background: none;
+  color: oklch(1 0 0 / 0.72);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.unlocked__quiet:hover { color: oklch(1 0 0); }
 
 .unlocked__card {
   display: grid;
@@ -453,7 +508,6 @@
 .unlocked__rows dd { margin: 0; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .unlocked__note { margin: 0; color: var(--guest-subtle); font-size: 12px; line-height: 1.45; }
 
-.unlocked__dock { display: grid; gap: 8px; margin-top: 4px; }
 
 /* --------------------------------------------------------------------------
    Confetti

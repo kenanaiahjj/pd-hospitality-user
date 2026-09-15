@@ -27,10 +27,8 @@ import { PROPERTY_IMAGE, storyImage } from './story-imagery';
 /*
   The one graphic on the stage.
 
-  Cut from the glass icon sheet and radially feathered, so its own ground
-  dissolves into the stage instead of landing as a grey square on it. It is
-  lit for dark already, which is why there is no plate behind it -- the
-  earlier line art was drawn for a white page and needed one.
+  Cut from the glass icon sheet with its background keyed out, so it carries
+  no ground of its own onto the stage.
 
   The property with dining, the spa, the gym and a bed in orbit around it --
   which is what the screen says in words underneath. The padlock from the

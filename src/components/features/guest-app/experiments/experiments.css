@@ -369,18 +369,16 @@
 }
 
 /*
-  The graphic, free-floating.
+  The graphic, with its background actually gone.
 
-  Not the rounded tile the padlock got: this one is a group -- a property
-  tile with dining, the spa, the gym and a bed in orbit around it -- and a
-  square frame cuts the orbit off, which is the whole subject. Its ground is
-  feathered on an ellipse matching the group instead, so the render dissolves
-  into the stage.
-
-  No contrast crush. Fighting the padlock's ground that way is what turned it
-  to mud; left alone, the render's own glow is the glow this screen wanted.
+  Feathering it was the wrong tool twice over: a soft edge does not remove a
+  background, it fades one, and what was left was still a pale rectangle
+  sitting on the dark. The render's ground is keyed out now -- flood-filled
+  inward from the frame, which walks the vignette's gradient and stops at the
+  pink rim of each glass tile -- so what lands here is the tiles and nothing
+  else.
 */
-.unlocked__mark { width: min(304px, 84%); }
+.unlocked__mark { width: min(312px, 86%); }
 .unlocked__art { display: block; width: 100%; height: auto; }
 
 .unlocked__say { display: grid; gap: 12px; justify-items: center; }

@@ -84,8 +84,9 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
         {/* A post is signed: who published it, what kind of account that is,
             and when. The countdown appears only once it is information --
             see `STORY_URGENT_HOURS`. */}
+        {/* The account's face, not the post's cover. */}
         <span className="story__avatar" aria-hidden="true">
-          <Image src={story.cover.src} alt="" fill sizes="36px" style={{ objectPosition: story.cover.focalPoint }} />
+          <Image src={story.author.image.src} alt="" fill sizes="36px" style={{ objectPosition: story.author.image.focalPoint }} />
         </span>
         <div className="story__who">
           <b>

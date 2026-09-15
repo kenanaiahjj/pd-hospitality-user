@@ -2,6 +2,7 @@ import { MINI_APP_CATEGORIES, RESTAURANTS, SERVICES } from '../prototype-model';
 import type { MiniAppCategoryId } from '../prototype-model';
 import type { ServiceImageDefinition } from '../service-images';
 import { storyImage } from './story-imagery';
+import { venueForService } from './service-venues';
 
 /*
   Curated stories, built from the same catalogue the guest app sells from.
@@ -34,6 +35,8 @@ export type StoryAuthor = {
    * the two are worth different money in a promoted slot.
    */
   kind: 'property' | 'venue';
+  /** The account's face, not the post's cover -- they are different pictures. */
+  image: ServiceImageDefinition;
 };
 
 export type Story = {
@@ -108,6 +111,12 @@ const POSTED_HOURS_AGO: Record<string, number> = {
   scrub: 11,
   'hot-stone': 14,
   'couples-massage': 17,
+  reflexology: 4,
+  barber: 8,
+  'mani-pedi': 10,
+  diving: 12,
+  'museum-pass': 15,
+  'heritage-walk': 18,
   tour: 19,
   cafe: 21,
   'food-crawl': 22.5,
@@ -145,17 +154,18 @@ const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
       { headline: 'OPEN TODAY', detail: venue.hours, image },
       { headline: venue.priceRange.toUpperCase(), detail: venue.cutoff, image },
     ],
-    author: { name: venue.name, kind: authorKind(venue.operator) },
+    author: { name: venue.name, kind: authorKind(venue.operator), image },
     ...postingFor(venue.id),
   };
 };
 
 const serviceStory = (service: (typeof SERVICES)[number]): Story => {
   const image = storyImage(service.id);
+  const house = venueForService(service.id);
   return {
     id: `service-${service.id}`,
     title: service.name,
-    subtitle: service.operator,
+    subtitle: house.location,
     price: service.price,
     cta: 'Book a time',
     cover: image,
@@ -163,7 +173,12 @@ const serviceStory = (service: (typeof SERVICES)[number]): Story => {
       { headline: service.category.toUpperCase(), detail: service.name, image },
       { headline: service.price.toUpperCase(), detail: service.cutoff, image },
     ],
-    author: { name: service.name, kind: authorKind(service.operator) },
+    /*
+      The venue, not the treatment. "Hilom signature massage" is a thing the
+      spa sells; the spa is the thing that can post. `subtitle` follows it --
+      a post is located where its author is.
+    */
+    author: { name: house.name, kind: house.kind, image: house.image },
     ...postingFor(service.id),
   };
 };
@@ -183,14 +198,37 @@ const serviceStory = (service: (typeof SERVICES)[number]): Story => {
  */
 export function buildStories(): Story[] {
   const venues = RESTAURANTS.slice(0, 4).map(restaurantStory);
+  /*
+    No `.slice(0, 4)` here any more.
+
+    Slicing the filtered list took the first four services, which were four
+    spa treatments -- fine when each was its own ring, useless once they all
+    resolve to one spa. The account dedupe below is the real limit, and it
+    limits by account rather than by position, so the rail spans the tour
+    desks and the beauty bar instead of stopping inside the spa.
+  */
   const services = SERVICES
     .filter((service) => service.categoryId === 'spa' || service.categoryId === 'entertainment')
-    .slice(0, 4)
     .map(serviceStory);
 
-  return [...venues, ...services]
+  const live = [...venues, ...services]
     .filter(storyIsLive)
     .sort((a, b) => a.postedHoursAgo - b.postedHoursAgo);
+
+  /*
+    One ring per account, newest post first.
+
+    Five spa treatments are five posts by one spa, and a rail showing "Hilom
+    Spa & Wellness" five times is not what a story rail looks like anywhere
+    a guest has ever used one -- an account gets one ring, however much it
+    has published.
+  */
+  const seen = new Set<string>();
+  return live.filter((story) => {
+    if (seen.has(story.author.name)) return false;
+    seen.add(story.author.name);
+    return true;
+  });
 }
 
 /**
@@ -360,7 +398,10 @@ export function buildFeaturedDeck(): FeaturedCard[] {
       title: service.name,
       category: service.category,
       price: service.price,
-      detail: service.operator,
+      /* The account that runs it. "Third-party on property" is a contract
+         term the guest has no use for; "Lakbay Island Tours" is a name they
+         can decide about. */
+      detail: venueForService(service.id).name,
       image: storyImage(service.id),
       reason: FEATURED_REASONS[service.id] ?? DEFAULT_REASON,
     }));

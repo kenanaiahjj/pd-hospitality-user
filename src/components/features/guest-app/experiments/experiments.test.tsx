@@ -20,6 +20,7 @@ import { ServiceDetail } from './service-detail';
 import { CategoryListing } from './category-listing';
 import { NearbyDetail } from './nearby-detail';
 import { nearbyForCategory, onPropertyForCategory } from './nearby-model';
+import { SERVICE_VENUES, unclaimedServiceIds, venueForService } from './service-venues';
 import { VenueMenu } from './venue-menu';
 import { RESTAURANTS } from '../prototype-model';
 import { INTENTS, matchIntent, resolveIntent } from './intent-model';
@@ -700,5 +701,49 @@ describe('featured says why', () => {
     for (const card of buildFeaturedDeck()) {
       expect(card.reason.label, card.id).not.toMatch(/recommended for you|just for you|you may (also )?like/i);
     }
+  });
+});
+
+describe('services have venues behind them', () => {
+  it('leaves no service without an account', () => {
+    /*
+      `venueForService` falls back to the house account, which is the right
+      behaviour at runtime and a terrible thing to rely on: it would let every
+      new service quietly post as the hotel. This is what stops the fallback
+      becoming the answer.
+    */
+    expect(unclaimedServiceIds()).toEqual([]);
+  });
+
+  it('claims each service exactly once', () => {
+    const claimed = SERVICE_VENUES.flatMap((venue) => venue.operates);
+    expect(new Set(claimed).size).toBe(claimed.length);
+  });
+
+  it('posts a treatment under the venue that sells it, not under its own name', () => {
+    // The bug this replaces: "Hilom signature massage" in the rail as if a
+    // massage could publish something.
+    const spa = venueForService('spa');
+    expect(spa.name).toBe('Hilom Spa & Wellness');
+    expect(venueForService('hot-stone').id).toBe(spa.id);
+
+    const story = buildStories().find((entry) => entry.author.name === spa.name);
+    expect(story?.author.kind).toBe('venue');
+    expect(story?.subtitle).toBe(spa.location);
+  });
+
+  it('gives an account one ring however much it has published', () => {
+    // Five treatments are five posts by one spa, not five rings.
+    const names = buildStories().map((story) => story.author.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('shows featured cards the account, not the contract term', () => {
+    // "Third-party on property" is not a thing a guest can decide about.
+    const details = buildFeaturedDeck().map((card) => card.detail);
+    for (const detail of details) {
+      expect(detail).not.toMatch(/third-party|hotel (operated|arranged)|curated guide/i);
+    }
+    expect(details).toContain('Lakbay Island Tours');
   });
 });

@@ -76,7 +76,11 @@ export function DiscoverFeed({
     <div className="discover" data-testid="discover-feed">
       <div className="discover__title">
         <h1>Tonight on property</h1>
-        <p>Eight places open now, and what people are booking.</p>
+        {/* Counted, not written down -- same rule the category cards follow.
+            A hardcoded "Eight" survived the rail growing to nine accounts,
+            and a screen that miscounts itself is not one a guest trusts on
+            anything else. */}
+        <p>{stories.length} places posted today, and what people are booking.</p>
       </div>
 
       <div className="discover__search">

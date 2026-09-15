@@ -295,14 +295,6 @@ export type CategoryCard = {
   subtitle: string;
   count: number;
   image: ServiceImageDefinition;
-  tone: 'ember' | 'bloom' | 'dusk' | 'tide';
-};
-
-const CATEGORY_TONES: Record<string, CategoryCard['tone']> = {
-  dining: 'ember',
-  spa: 'bloom',
-  entertainment: 'dusk',
-  services: 'tide',
 };
 
 /** The image that best says what a category is, at a glance. */
@@ -322,7 +314,6 @@ export function buildCategoryCards(): CategoryCard[] {
       ? RESTAURANTS.length + SERVICES.filter((s) => s.categoryId === 'dining').length
       : SERVICES.filter((s) => s.categoryId === category.id).length,
     image: storyImage(CATEGORY_FACE[category.id] ?? 'spa'),
-    tone: CATEGORY_TONES[category.id] ?? 'bloom',
   }));
 }
 
@@ -415,14 +406,20 @@ export type DiscoverBanner = {
   headline: string;
   meta: string;
   image: ServiceImageDefinition;
-  /** Which gradient wash sits under the image. */
-  tone: 'sunset' | 'ocean' | 'bloom';
 };
 
+/*
+  No "Off property" banner.
+
+  Every category listing already opens onto its own Places nearby rail, so
+  presenting off-property as a bucket of its own said the same thing a second
+  time -- and the Binondo crawl it pointed at is in the featured deck anyway.
+  "Off property" was also the last of the operator's vocabulary left on this
+  screen.
+*/
 export function buildBanners(): DiscoverBanner[] {
   const rooftop = SERVICES.find((s) => s.id === 'rooftop');
   const spa = SERVICES.find((s) => s.id === 'spa');
-  const tour = SERVICES.find((s) => s.id === 'food-crawl');
 
   const banners: DiscoverBanner[] = [];
   if (rooftop) {
@@ -432,7 +429,6 @@ export function buildBanners(): DiscoverBanner[] {
       headline: 'Sunset on the ninth floor',
       meta: `${rooftop.name} · ${rooftop.price}`,
       image: storyImage(rooftop.id),
-      tone: 'sunset',
     });
   }
   if (spa) {
@@ -442,17 +438,6 @@ export function buildBanners(): DiscoverBanner[] {
       headline: 'Ninety minutes to yourself',
       meta: `${spa.name} · ${spa.price}`,
       image: storyImage(spa.id),
-      tone: 'bloom',
-    });
-  }
-  if (tour) {
-    banners.push({
-      id: tour.id,
-      eyebrow: 'Off property',
-      headline: 'Eat your way through Binondo',
-      meta: `${tour.name} · ${tour.price}`,
-      image: storyImage(tour.id),
-      tone: 'ocean',
     });
   }
   return banners;

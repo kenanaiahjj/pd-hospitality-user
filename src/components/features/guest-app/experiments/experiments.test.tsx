@@ -238,9 +238,20 @@ describe('category cards', () => {
     }
   });
 
-  it('gives each category its own ground, so colour is the label', () => {
-    const tones = buildCategoryCards().map((c) => c.tone);
-    expect(new Set(tones).size).toBe(tones.length);
+  it('lets the photograph identify the category, not a colour wash', () => {
+    /*
+      Each card used to carry its own saturated gradient -- ember, bloom,
+      dusk, tide -- with the photograph blended into it at luminosity. Four
+      different hues on one screen is a palette competing with four
+      photographs, and it read as loud rather than as premium. The picture is
+      the label now, so the pictures have to differ.
+    */
+    const images = buildCategoryCards().map((card) => card.image.src);
+    expect(new Set(images).size).toBe(images.length);
+
+    const css = readFileSync(resolve(EXPERIMENTS_DIR, 'experiments.css'), 'utf8');
+    expect(css).not.toMatch(/categories__card--(ember|bloom|dusk|tide)/);
+    expect(css).not.toMatch(/mix-blend-mode:\s*luminosity/);
   });
 
   it('keeps text legible over imagery with a scrim, not a lighter colour', () => {

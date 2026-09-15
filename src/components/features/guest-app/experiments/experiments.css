@@ -510,18 +510,19 @@
 .discover__hero img,
 .discover__card img { object-fit: cover; }
 
-.discover__wash { position: absolute; inset: 0; }
-.discover__hero--sunset .discover__wash,
-.discover__card--sunset .discover__wash {
-  background: linear-gradient(200deg, oklch(0.72 0.19 45 / 0.62), oklch(0.45 0.2 20 / 0.82));
-}
-.discover__hero--ocean .discover__wash,
-.discover__card--ocean .discover__wash {
-  background: linear-gradient(200deg, oklch(0.62 0.16 240 / 0.6), oklch(0.33 0.14 275 / 0.86));
-}
-.discover__hero--bloom .discover__wash,
-.discover__card--bloom .discover__wash {
-  background: linear-gradient(200deg, oklch(0.74 0.2 345 / 0.58), oklch(0.36 0.16 330 / 0.86));
+/* One wash for every banner, for the same reason the category cards lost
+   theirs: three hues across three photographs is a palette arguing with the
+   pictures underneath it. */
+.discover__wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    oklch(0.13 0.02 300 / 0.9) 0,
+    oklch(0.13 0.02 300 / 0.76) 52px,
+    oklch(0.13 0.02 300 / 0.3) 96px,
+    oklch(0.13 0.02 300 / 0) 140px
+  );
 }
 
 .discover__hero-copy,
@@ -568,7 +569,7 @@
 .categories__card {
   position: relative;
   display: block;
-  min-height: 132px;
+  min-height: 152px;
   padding: 14px;
   border: 0;
   /* 20px: the radius DESIGN.md already gives sheets and the folio total. */
@@ -587,57 +588,51 @@
   and gives the set a rhythm: one card to start on, two to compare, one to
   close.
 */
-.categories__card.is-lead { grid-column: 1 / -1; min-height: 172px; }
-.categories__card:last-child:nth-child(even) { grid-column: 1 / -1; min-height: 118px; }
+.categories__card.is-lead { grid-column: 1 / -1; min-height: 188px; }
+.categories__card:last-child:nth-child(even) { grid-column: 1 / -1; min-height: 132px; }
 
 .categories__card:active { transform: scale(0.985); }
 
 /*
-  The gradient is the card, and the photograph is masked into it rather than
-  boxed on top -- a rectangle inside a rectangle reads as two objects, and a
-  subject that dissolves into its ground reads as one.
-*/
-.categories__card--ember { background: linear-gradient(135deg, oklch(0.7 0.19 55), oklch(0.45 0.19 25)); }
-.categories__card--bloom { background: linear-gradient(135deg, oklch(0.72 0.19 350), oklch(0.38 0.16 330)); }
-.categories__card--dusk { background: linear-gradient(135deg, oklch(0.72 0.17 75), oklch(0.4 0.17 300)); }
-.categories__card--tide { background: linear-gradient(135deg, oklch(0.66 0.15 230), oklch(0.34 0.15 270)); }
+  The photograph is the card.
 
-.categories__art {
-  position: absolute;
-  inset: 0 -6% -12% 34%;
-  opacity: 0.85;
-  mix-blend-mode: luminosity;
-  mask-image: radial-gradient(120% 100% at 82% 60%, #000 34%, transparent 74%);
-}
-.categories__card.is-lead .categories__art { inset: -8% -4% -8% 46%; }
+  It used to be a saturated gradient per category -- ember, bloom, dusk, tide
+  -- with the picture blended into it at luminosity behind a radial mask and
+  a spotlight. Four hues competing with four photographs on one screen reads
+  as loud, not as premium, and it made the set look like four different
+  products. The picture identifies the category; the treatment is identical
+  across all four, which is what makes them read as one system.
+
+  Same scrim language as the venue hero, the listing lead, the deck and the
+  unlock banner -- consistency is most of what premium means here.
+*/
+.categories__art { position: absolute; inset: 0; }
 .categories__art img { object-fit: cover; }
 
-/* A spotlight rather than drawn rays: same lift under the subject, none of
-   the decoration that would read as ornament stuck on a card. */
-.categories__card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(90% 70% at 78% 52%, oklch(1 0 0 / 0.3), transparent 62%);
-}
-
 /*
-  A scrim under the copy, not a lighter text colour.
+  Pixel stops, not percentages.
 
-  White on the light end of these gradients lands near 2:1, and the 12px meta
-  line needs 4.5:1. Darkening the ground beneath the text is the fix that
-  survives a photograph changing behind it; lowering the text opacity would
-  have made it worse while looking more designed.
+  The hero scrim this borrowed from is tuned for a 300px image, where 38%
+  is 114px down. On a 132px card that same 38% is 50px, so the gradient sat
+  at half opacity across most of the card and the photographs came out as
+  grey mush -- the picture was there, it just could not be seen. In pixels
+  the band covers the text and clears at the same rate whatever height the
+  card is.
 */
 .categories__card::after {
   content: '';
   position: absolute;
   inset: 0;
+  /* Stops run from the BOTTOM edge upward. The band has to be shorter than
+     the card, or the "clear" end lands above the top and the whole
+     photograph sits under tint -- which is what a 136px clear point did to a
+     152px card. Heavy across the ~70px the copy occupies, gone by 110px. */
   background: linear-gradient(
     to top,
-    oklch(0.16 0.02 300 / 0.78) 0%,
-    oklch(0.16 0.02 300 / 0.42) 34%,
-    transparent 68%
+    oklch(0.13 0.02 300 / 0.9) 0,
+    oklch(0.13 0.02 300 / 0.78) 40px,
+    oklch(0.13 0.02 300 / 0.34) 76px,
+    oklch(0.13 0.02 300 / 0) 110px
   );
 }
 
@@ -648,19 +643,20 @@
   gap: 4px;
   align-content: end;
   height: 100%;
-  max-width: 64%;
+  max-width: 78%;
 }
-.categories__card.is-lead .categories__copy { max-width: 58%; }
+.categories__card.is-lead .categories__copy { max-width: 72%; }
 
+/* Title case at 700, not uppercase at 800. Caps at this size is shouting,
+   and shouting is the cheapest thing a card can do. */
 .categories__copy b {
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -0.012em;
-  line-height: 1.05;
-  text-transform: uppercase;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.014em;
+  line-height: 1.12;
   text-wrap: balance;
 }
-.categories__card.is-lead .categories__copy b { font-size: 27px; letter-spacing: -0.022em; }
+.categories__card.is-lead .categories__copy b { font-size: 26px; letter-spacing: -0.02em; }
 
 /* Full white, not a muted grey: grey on a saturated ground is the washed-out
    failure, and this line carries the number the card is selling. */
@@ -1111,6 +1107,15 @@
 .discover__result-price { font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .discover__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/*
+  A single follower spans, and turns landscape.
+
+  Dropping the off-property banner left one card in a two-column grid: a tall
+  3:4 portrait stranded in the left half with a hole beside it, which reads
+  as something failing to load rather than as a layout. Same rule the
+  category grid already uses for its odd card out.
+*/
+.discover__grid > :only-child { grid-column: 1 / -1; aspect-ratio: 16 / 9; }
 
 .discover__all {
   display: flex;
@@ -1130,25 +1135,6 @@
 .discover__all small { color: var(--guest-subtle); font-size: 12px; }
 .discover__all svg { width: 16px; height: 16px; color: var(--guest-subtle); flex: 0 0 auto; }
 
-.discover__promo {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  border: 0;
-  border-radius: var(--guest-radius-md);
-  color: oklch(1 0 0);
-  text-align: left;
-}
-.discover__promo--sunset { background: linear-gradient(110deg, oklch(0.66 0.2 45), oklch(0.48 0.2 22)); }
-.discover__promo--ocean { background: linear-gradient(110deg, oklch(0.58 0.16 240), oklch(0.36 0.15 275)); }
-.discover__promo--bloom { background: linear-gradient(110deg, oklch(0.7 0.2 345), oklch(0.4 0.17 330)); }
-.discover__promo-copy { display: grid; gap: 2px; }
-.discover__promo-copy small { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.9; }
-.discover__promo-copy b { font-size: 15px; font-weight: 700; }
-.discover__promo svg { width: 18px; height: 18px; flex: 0 0 auto; }
 
 /* --------------------------------------------------------------------------
    Story viewer

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useState, type ReactNode } from 'react';
 import { AskAnswer, AskSuggestions } from './ask-panel';
@@ -233,10 +233,19 @@ export function DiscoverFeed({
           <p>Dining, spa, tours and services.</p>
         </div>
         <div className="categories">
-          {categories.map((category, i) => (
+          {categories.map((category, i) => {
+            /*
+              The lead spans, and so does an odd card out -- so both need to
+              ask for a full-width image. They were requesting 50vw and being
+              served a 187px file stretched across 343px, which is a soft,
+              blurry hero on the one card the layout is built to make
+              biggest.
+            */
+            const spans = i === 0 || (i === categories.length - 1 && categories.length % 2 === 0);
+            return (
             <button
               key={category.id}
-              className={`categories__card categories__card--${category.tone}${i === 0 ? ' is-lead' : ''}`}
+              className={`categories__card${i === 0 ? ' is-lead' : ''}`}
               type="button"
               onClick={() => onOpenCategory(category.id)}
             >
@@ -245,7 +254,7 @@ export function DiscoverFeed({
                   src={category.image.src}
                   alt=""
                   fill
-                  sizes="(max-width: 480px) 50vw, 240px"
+                  sizes={spans ? '(max-width: 480px) 100vw, 480px' : '(max-width: 480px) 50vw, 240px'}
                   style={{ objectPosition: category.image.focalPoint }}
                 />
               </span>
@@ -254,13 +263,14 @@ export function DiscoverFeed({
                 <small>{category.count} to book{i === 0 ? ` · ${category.subtitle}` : ''}</small>
               </span>
             </button>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       {lead ? (
         <button
-          className={`discover__hero discover__hero--${lead.tone}`}
+          className="discover__hero"
           type="button"
           onClick={() => onOpenBanner(lead.id)}
         >
@@ -285,7 +295,7 @@ export function DiscoverFeed({
           {rest.map((banner) => (
             <button
               key={banner.id}
-              className={`discover__card discover__card--${banner.tone}`}
+              className="discover__card"
               type="button"
               onClick={() => onOpenBanner(banner.id)}
             >
@@ -313,18 +323,5 @@ export function DiscoverFeed({
       </>
       )}
     </div>
-  );
-}
-
-/** A dismissible strip promoting one thing, for the top of any screen. */
-export function DiscoverPromo({ banner, onOpen }: { banner: DiscoverBanner; onOpen: () => void }) {
-  return (
-    <button className={`discover__promo discover__promo--${banner.tone}`} type="button" onClick={onOpen}>
-      <span className="discover__promo-copy">
-        <small>{banner.eyebrow}</small>
-        <b>{banner.headline}</b>
-      </span>
-      <ArrowRight aria-hidden="true" />
-    </button>
   );
 }

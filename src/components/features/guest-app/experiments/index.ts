@@ -12,7 +12,7 @@ export { RoomScanner } from './room-scanner';
 export type { RoomScannerProps } from './room-scanner';
 export { RoomUnlocked } from './room-unlocked';
 export type { RoomUnlockedProps } from './room-unlocked';
-export { DiscoverFeed, DiscoverPromo } from './discover-feed';
+export { DiscoverFeed } from './discover-feed';
 export type { DiscoverFeedProps } from './discover-feed';
 export { StoryViewer } from './story-viewer';
 export type { StoryViewerProps } from './story-viewer';

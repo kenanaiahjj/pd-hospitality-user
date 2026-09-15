@@ -82,10 +82,19 @@
    The collapsed state: a single dev affordance small enough to sit in a corner
    without covering the interface it is there to exercise.
 */
+/*
+  Parked on the left, and draggable from there.
+
+  The right edge is where every action in this app lives -- add buttons,
+  prices, carets, the ride CTA -- so a fixed control sitting there is on top
+  of something on almost every screen. The left edge carries labels, which
+  survive being covered for the second it takes to drag the thing away.
+*/
 .guest-prototype-trigger {
   position: fixed;
-  right: 12px;
+  left: 12px;
   bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 94px);
+  touch-action: none;
   z-index: 40;
   display: grid;
   width: 40px;
@@ -98,10 +107,12 @@
   color: var(--ds-ink-muted);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out), color var(--duration-fast) ease;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 .guest-prototype-trigger svg { width: 18px; height: 18px; }
-.guest-prototype-trigger:active { transform: scale(0.94); }
+/* Not a transform: that property is the drag offset now, and a press cue
+   written into it would snap the button back to its parked position. */
+.guest-prototype-trigger:active { background: oklch(0.96 0 0); }
 .guest-prototype-trigger:focus-visible { outline: 2px solid var(--ds-pink-strong); outline-offset: 2px; }
 
 @media (hover: hover) and (pointer: fine) {

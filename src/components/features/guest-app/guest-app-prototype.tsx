@@ -47,7 +47,7 @@ import {
   X,
 } from '@phosphor-icons/react';
 import Image from 'next/image';
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { CATEGORY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
 import { EXPERIMENT_FLOWS, ExploreExperiment, FLOW_PARAM, QrScanExperiment, findExperiment, isFlowId } from './experiments';
@@ -3798,6 +3798,41 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   );
 }
 
+/** Below this, a press that wandered is still a tap and not a drag. */
+const TRIGGER_DRAG_THRESHOLD = 6;
+
+const TRIGGER_OFFSET_KEY = 'cabana.prototype-trigger.v1';
+
+/*
+  Read and written straight from the handlers, never through state.
+
+  Both are wrapped: a private window, blocked site data or a full quota all
+  throw on access, and a prototype control that cannot remember where it was
+  put is a much smaller problem than one that takes the screen down with it.
+*/
+function readTriggerOffset(): { x: number; y: number } | null {
+  try {
+    const raw = window.localStorage.getItem(TRIGGER_OFFSET_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const { x, y } = parsed as { x?: unknown; y?: unknown };
+    if (typeof x !== 'number' || typeof y !== 'number') return null;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return { x, y };
+  } catch {
+    return null;
+  }
+}
+
+function writeTriggerOffset(offset: { x: number; y: number }) {
+  try {
+    window.localStorage.setItem(TRIGGER_OFFSET_KEY, JSON.stringify(offset));
+  } catch {
+    /* Nothing to do: the offset simply will not survive a reload. */
+  }
+}
+
 function PrototypeControls({
   online,
   stayState,
@@ -3847,14 +3882,142 @@ function PrototypeControls({
   */
   const [open, setOpen] = useState(false);
 
+  /*
+    The trigger is draggable.
+
+    It is fixed chrome over a single column, so wherever it sits it covers
+    something -- it has been clipping a price, an Add button and a checkout
+    date all week. Rather than hunt for a corner that is never in the way,
+    let it be moved.
+
+    Position lives on the element, not in state: the offset is written
+    straight to `style.transform` from a rAF, so a drag never re-renders the
+    app underneath it. Same reason the swipe deck does it -- and here it also
+    sidesteps the hydration problem, because the server renders no transform
+    and the stored offset is applied after mount rather than during render.
+  */
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const drag = useRef({ active: false, moved: false, startX: 0, startY: 0, baseX: 0, baseY: 0, x: 0, y: 0, frame: 0 });
+
+  const writeOffset = useCallback((x: number, y: number) => {
+    const node = triggerRef.current;
+    if (node) node.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  }, []);
+
+  /* Keeps it on screen whatever the drag asks for, measured from where the
+     CSS parked it rather than from an assumed corner. */
+  const clamp = useCallback((x: number, y: number) => {
+    const node = triggerRef.current;
+    if (!node) return { x, y };
+    const rect = node.getBoundingClientRect();
+    const restLeft = rect.left - drag.current.x;
+    const restTop = rect.top - drag.current.y;
+    const pad = 8;
+    return {
+      x: Math.min(Math.max(x, pad - restLeft), window.innerWidth - rect.width - pad - restLeft),
+      y: Math.min(Math.max(y, pad - restTop), window.innerHeight - rect.height - pad - restTop),
+    };
+  }, []);
+
+  useEffect(() => {
+    const stored = readTriggerOffset();
+    if (!stored) return;
+    drag.current.x = stored.x;
+    drag.current.y = stored.y;
+    writeOffset(stored.x, stored.y);
+  }, [open, writeOffset]);
+
   if (!open) {
+    const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+      const node = triggerRef.current;
+      if (!node) return;
+      try { node.setPointerCapture(event.pointerId); } catch { /* not ours to capture */ }
+      drag.current = {
+        ...drag.current,
+        active: true,
+        moved: false,
+        startX: event.clientX,
+        startY: event.clientY,
+        baseX: drag.current.x,
+        baseY: drag.current.y,
+      };
+    };
+
+    const onPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (!drag.current.active) return;
+      const dx = event.clientX - drag.current.startX;
+      const dy = event.clientY - drag.current.startY;
+      // A press wanders a pixel or two; below the threshold this is still a tap.
+      if (!drag.current.moved && Math.hypot(dx, dy) < TRIGGER_DRAG_THRESHOLD) return;
+      drag.current.moved = true;
+
+      const next = clamp(drag.current.baseX + dx, drag.current.baseY + dy);
+      drag.current.x = next.x;
+      drag.current.y = next.y;
+      if (drag.current.frame) return;
+      drag.current.frame = window.requestAnimationFrame(() => {
+        drag.current.frame = 0;
+        writeOffset(drag.current.x, drag.current.y);
+      });
+    };
+
+    const onPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (!drag.current.active) return;
+      try { triggerRef.current?.releasePointerCapture(event.pointerId); } catch { /* already gone */ }
+      drag.current.active = false;
+      if (drag.current.moved) writeTriggerOffset({ x: drag.current.x, y: drag.current.y });
+    };
+
+    /*
+      Opening stays on `click`, and a drag suppresses it.
+
+      Doing it from `pointerup` instead looked equivalent and was not: it
+      dropped the keyboard entirely, because Enter and Space raise a click
+      and no pointer events at all. Nineteen tests went red on exactly that.
+    */
+    const onClick = () => {
+      if (drag.current.moved) {
+        drag.current.moved = false;
+        return;
+      }
+      setOpen(true);
+    };
+
+    /* Arrow keys move it too, so it is not a mouse-only affordance. */
+    const onKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      const step = event.shiftKey ? 24 : 8;
+      const nudge: Record<string, [number, number]> = {
+        ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step],
+      };
+      const move = nudge[event.key];
+      if (!move) return;
+      event.preventDefault();
+      const next = clamp(drag.current.x + move[0], drag.current.y + move[1]);
+      drag.current.x = next.x;
+      drag.current.y = next.y;
+      writeOffset(next.x, next.y);
+      writeTriggerOffset(next);
+    };
+
     return (
       <button
+        ref={triggerRef}
         className="guest-prototype-trigger"
         type="button"
-        onClick={() => setOpen(true)}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onClick={onClick}
+        onKeyDown={onKeyDown}
         aria-expanded={false}
+        /* The name is the action, and only the action. Nineteen tests look
+           this button up by it, and they are right to: a screen reader
+           announces the name on every focus, so an instruction parked in
+           there is read out every single time. The hint is a description. */
         aria-label="Open prototype controls"
+        title="Drag, or use the arrow keys, to move this out of the way"
+        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"
       >
         <Wrench aria-hidden="true" />
       </button>

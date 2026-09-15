@@ -32,10 +32,10 @@ import { PROPERTY_IMAGE, storyImage } from './story-imagery';
   lit for dark already, which is why there is no plate behind it -- the
   earlier line art was drawn for a white page and needed one.
 
-  A padlock rather than the orbiting service tiles from the same sheet: at
-  230px the tiles are too small to read, and one object states it. The lock
-  carries the property mark, so what opens is the hotel and not a door --
-  which is the distinction the copy on this screen turns on.
+  The property with dining, the spa, the gym and a bed in orbit around it --
+  which is what the screen says in words underneath. The padlock from the
+  same sheet was the wrong pick: it illustrates the mechanism, and the news
+  is not that a lock opened, it is what is now within reach.
 */
 const UNLOCKED_ART = '/illustrations/unlocked-glass.png';
 
@@ -99,7 +99,7 @@ export function RoomUnlocked({
         <Confetti />
 
         <div className="unlocked__mark">
-          <Image className="unlocked__art" src={UNLOCKED_ART} alt="" width={640} height={640} priority />
+          <Image className="unlocked__art" src={UNLOCKED_ART} alt="" width={680} height={614} priority />
         </div>
 
         <div className="unlocked__say">

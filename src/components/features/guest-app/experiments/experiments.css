@@ -344,13 +344,17 @@
   background: oklch(1 0 0 / 0.14);
   color: oklch(1 0 0);
 }
-.guest-device:has(.unlocked) .guest-bottom-nav {
-  background: oklch(0.105 0.014 300 / 0.92);
-  border-top-color: oklch(1 0 0 / 0.1);
-  color: oklch(1 0 0 / 0.62);
-}
-.guest-device:has(.unlocked) .guest-bottom-nav button { color: oklch(1 0 0 / 0.6); }
-.guest-device:has(.unlocked) .guest-bottom-nav button[aria-current='page'] { color: oklch(1 0 0); }
+/*
+  No tab rail on this screen.
+
+  It is a terminal moment with one way forward, and the rail offers three
+  ways sideways out of it -- including back to the tab the guest is already
+  on. The reference has no rail either, and it is the same reason: the screen
+  is the whole message, so nothing should be inviting you off it. The bar is
+  a flex child rather than an overlay, so removing it hands the height back
+  to the stage instead of leaving a gap.
+*/
+.guest-device:has(.unlocked) .guest-bottom-nav { display: none; }
 
 .unlocked__stage {
   position: relative;
@@ -358,30 +362,25 @@
   gap: 24px;
   align-content: center;
   justify-items: center;
-  min-height: 62vh;
-  padding: 26px 22px 8px;
+  min-height: 66vh;
+  padding: 30px 22px 10px;
   text-align: center;
   color: oklch(1 0 0);
 }
 
 /*
-  An app-icon tile, which is what the reference actually shows: a rounded
-  square mark glowing on a dark ground.
+  The graphic, free-floating.
 
-  The render is lit for a light page -- it has a bright ground of its own and
-  a dark glyph inside the glass -- so keying that ground out left a muddy
-  halo, and crushing it took the life out of the glass. Rounding the square
-  and glowing it turns the ground into the tile instead of fighting it.
+  Not the rounded tile the padlock got: this one is a group -- a property
+  tile with dining, the spa, the gym and a bed in orbit around it -- and a
+  square frame cuts the orbit off, which is the whole subject. Its ground is
+  feathered on an ellipse matching the group instead, so the render dissolves
+  into the stage.
+
+  No contrast crush. Fighting the padlock's ground that way is what turned it
+  to mud; left alone, the render's own glow is the glow this screen wanted.
 */
-.unlocked__mark {
-  width: min(176px, 46%);
-  aspect-ratio: 1;
-  border-radius: 27%;
-  overflow: hidden;
-  box-shadow:
-    0 26px 64px oklch(0.4 0.17 344 / 0.5),
-    0 0 0 1px oklch(1 0 0 / 0.16);
-}
+.unlocked__mark { width: min(304px, 84%); }
 .unlocked__art { display: block; width: 100%; height: auto; }
 
 .unlocked__say { display: grid; gap: 12px; justify-items: center; }

@@ -45,6 +45,14 @@ export const STORY_IMAGERY: Record<string, ServiceImageDefinition> = {
      rather than a stand-in. */
   pool: shot('photo-1566073771259-6a8506099945', 'The pool at dusk'),
   sauna: shot('photo-1600334129128-685c5582fd35', 'Treatment room'),
+  gym: shot('photo-1758448756350-3d0eec02ba37', 'Hotel fitness room'),
+  reflexology: shot('photo-1611073615830-9f76902c10fe', 'Foot massage'),
+  'mani-pedi': shot('photo-1619607146034-5a05296c8f9a', 'Nail salon'),
+  barber: shot('photo-1585747860715-2ba37e788b70', 'Barber shop'),
+
+  // Hotel services with a room of their own
+  'kids-club': shot('photo-1600173868911-23137600bed9', 'Children\'s play room'),
+  'business-centre': shot('photo-1761818645928-47e5dad8ec76', 'Work lounge'),
   scrub: shot('photo-1600334129128-685c5582fd35', 'Spa treatment room'),
   'hot-stone': shot('photo-1591343395082-e120087004b4', 'Hot stone therapy'),
   'couples-massage': shot('photo-1639162906614-0603b0ae95fd', 'Spa suite'),

@@ -1,5 +1,6 @@
 import { RESTAURANTS, SERVICES } from '../prototype-model';
 import { storyImage } from './story-imagery';
+import { venueForService } from './service-venues';
 import type { MiniAppCategoryId } from '../prototype-model';
 import type { ServiceImageDefinition } from '../service-images';
 
@@ -99,7 +100,10 @@ export function onPropertyForCategory(categoryId: MiniAppCategoryId) {
     .map((service) => ({
       id: service.id,
       title: service.name,
-      detail: service.operator,
+      /* The venue, not the operator field. "Third-party on property" is a
+         line from a supplier agreement -- the same jargon the service detail
+         and the featured cards already dropped, still showing here. */
+      detail: venueForService(service.id).name,
       price: service.price,
       image: storyImage(service.id),
       note: service.cutoff,

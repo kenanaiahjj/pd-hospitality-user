@@ -1,8 +1,10 @@
 'use client';
 
-import { ArrowLeft, ArrowRight, Car, MapPin, Phone } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Car, Coins, MapPin, Phone } from '@phosphor-icons/react';
+import Image from 'next/image';
 import { Button } from '@/components/ui';
 import type { NearbyPlace } from './nearby-model';
+import { describeSpend } from './nearby-model';
 
 /*
   An off-property place, and the only thing the hotel can sell about it.
@@ -20,18 +22,36 @@ export type NearbyDetailProps = {
 };
 
 export function NearbyDetail({ place, onBack, onBookRide }: NearbyDetailProps) {
+  const spend = describeSpend(place.priceRange);
+
   return (
     <div className="nearby" data-testid="nearby-detail">
-      <div className="nearby__head">
-        <button className="listing__back" type="button" onClick={onBack} aria-label="Back">
+      {/*
+        The same anatomy as the service detail: photograph, then title, then
+        facts, then a docked action. A guest crosses between these two screens
+        constantly -- on-property card, nearby card, back, forward -- and two
+        different shapes for the same job is what makes a flow feel like parts
+        rather than an app. The card that led here had a photograph; arriving
+        at a screen without one read as a step backwards.
+      */}
+      <div className="nearby__art">
+        <Image
+          src={place.image.src}
+          alt=""
+          fill
+          sizes="480px"
+          style={{ objectPosition: place.image.focalPoint }}
+          priority
+        />
+        <span className="nearby__art-scrim" aria-hidden="true" />
+        <button className="detail__back" type="button" onClick={onBack} aria-label="Back">
           <ArrowLeft aria-hidden="true" />
         </button>
       </div>
 
       <div className="nearby__title">
-        <small>{place.kind}</small>
         <h1>{place.name}</h1>
-        <p>{place.distanceKm} km away · about {place.minutesByCar} minutes by car</p>
+        <p>{place.kind} · {place.distanceKm} km away, about {place.minutesByCar} minutes by car</p>
       </div>
 
       {/*
@@ -71,17 +91,25 @@ export function NearbyDetail({ place, onBack, onBookRide }: NearbyDetailProps) {
               on a phone is press it. */}
           <dd><a href={`tel:${place.phone.replace(/\s/g, '')}`}>{place.phone}</a></dd>
         </div>
-        <div>
-          <dt>Typical spend</dt>
-          <dd>{place.priceRange}</dd>
-        </div>
+        {spend ? (
+          <div>
+            <dt><Coins aria-hidden="true" />Typical spend</dt>
+            <dd>{place.priceRange === spend ? spend : `${place.priceRange} · ${spend}`}</dd>
+          </div>
+        ) : null}
       </dl>
 
+      {/* Docked like the service detail's, for the same reason: the price and
+          the one action the hotel can actually take belong together and in
+          reach. */}
       <div className="nearby__dock">
+        <span className="detail__price">
+          <i>Hotel car, each way</i>
+          <b>From {place.rideFrom}</b>
+        </span>
         <Button className="guest-button guest-button--primary" type="button" onClick={() => onBookRide(place.id)}>
-          <Car aria-hidden="true" />Book a hotel car here<ArrowRight aria-hidden="true" />
+          <Car aria-hidden="true" />Book a hotel car<ArrowRight aria-hidden="true" />
         </Button>
-        <small>From {place.rideFrom} each way · charged to your room</small>
       </div>
     </div>
   );

@@ -129,3 +129,25 @@ export function onPropertyForCategory(categoryId: MiniAppCategoryId) {
     }),
   ];
 }
+
+/**
+ * The price glyph, in words.
+ *
+ * "₱" on its own is a currency symbol standing in for a judgement, and a
+ * guest reading one peso sign under "Typical spend" learns nothing. Google
+ * and TripAdvisor both show the glyph and the word together; the glyph is
+ * the shorthand people already scan for, the word is what makes it mean
+ * something the first time.
+ *
+ * Returns undefined where the catalogue has no opinion, so the row can be
+ * left out rather than printed as an em dash.
+ */
+export function describeSpend(priceRange: string): string | undefined {
+  switch (priceRange) {
+    case '₱': return 'Inexpensive';
+    case '₱₱': return 'Mid-range';
+    case '₱₱₱': return 'Upmarket';
+    case '—': return undefined;
+    default: return priceRange;
+  }
+}

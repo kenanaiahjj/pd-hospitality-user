@@ -17,12 +17,121 @@
   text-transform: uppercase;
 }
 
-.experiment-toggle {
+/* --------------------------------------------------------------------------
+   Scan intro
+
+   The first screen of the flow, so it is a screen in the flow rather than a
+   page about it. Demo affordances live under a rule at the bottom, where
+   they cannot be mistaken for part of the product.
+   -------------------------------------------------------------------------- */
+.scan-intro {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 18px;
+  min-height: 100%;
+  align-content: start;
+}
+.scan-intro__art { display: grid; place-items: center; padding-top: 8px; }
+.scan-intro__art img { width: min(260px, 70%); height: auto; }
+
+.scan-intro__copy { display: grid; gap: 8px; text-align: center; }
+.scan-intro__copy h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.scan-intro__copy p {
+  margin: 0 auto;
+  max-width: 34ch;
+  color: var(--guest-muted);
+  font-size: 15px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.scan-intro__dock { display: grid; gap: 10px; align-content: end; }
+.scan-intro__dock .guest-button { width: 100%; }
+.scan-intro__alt { margin: 0; color: var(--guest-subtle); font-size: 13px; text-align: center; }
+
+/* Under a rule, and labelled. A prototype needs its controls; it does not
+   need them to look like the product. */
+.scan-intro__demo {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding-top: 16px;
+  border-top: 1px solid var(--guest-line);
+}
+.scan-intro__demo h2 {
+  margin: 0;
+  color: var(--guest-subtle);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.scan-intro__demo-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--guest-accent-strong);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* A switch, not a browser checkbox -- the default control is the single most
+   unfinished-looking thing that can appear on a screen. */
+.scan-intro__switch {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--guest-subtle);
-  font-size: 13px;
+  gap: 10px;
+  color: var(--guest-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+.scan-intro__switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.scan-intro__switch span {
+  position: relative;
+  display: block;
+  width: 42px;
+  height: 25px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--guest-line-strong);
+  transition: background-color var(--duration-fast) ease;
+}
+.scan-intro__switch span::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--guest-paper);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.22);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.scan-intro__switch input:checked + span { background: var(--guest-accent); }
+.scan-intro__switch input:checked + span::after { transform: translateX(17px); }
+.scan-intro__switch input:focus-visible + span { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scanner__sweep::after { animation: none; opacity: 0.5; }
+  .scan-intro__switch span,
+  .scan-intro__switch span::after { transition: none; }
 }
 
 /* --------------------------------------------------------------------------
@@ -81,15 +190,46 @@
   overflow: hidden;
 }
 
-/* Stands in for a live feed. Warm and out of focus, so the eye reads it as a
-   surface the code is sitting on rather than as a designed background. */
+/*
+  Stands in for a live feed.
+
+  It was a warm tan wash, which read as a paper surface rather than as a
+  camera -- every scanner a guest has used is dark, because a viewfinder is
+  a lens and not a page. Dark also does the work the brackets were doing
+  alone: a white code on near-black is unmistakably the thing to aim at.
+*/
 .scanner__feed {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 80% at 30% 20%, oklch(0.72 0.05 70 / 0.9), transparent 60%),
-    radial-gradient(100% 90% at 80% 90%, oklch(0.52 0.05 60 / 0.95), transparent 55%),
-    linear-gradient(160deg, oklch(0.66 0.05 68), oklch(0.44 0.04 58));
+    radial-gradient(120% 80% at 32% 18%, oklch(0.34 0.014 280 / 0.9), transparent 62%),
+    radial-gradient(100% 90% at 78% 92%, oklch(0.16 0.012 275 / 0.95), transparent 58%),
+    linear-gradient(160deg, oklch(0.28 0.012 278), oklch(0.13 0.01 275));
+}
+
+/*
+  One slow sweep, so the frame reads as live rather than as a photograph of a
+  scanner. It is the only motion on the screen and it says one thing: this is
+  looking.
+*/
+.scanner__sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.scanner__sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 42%;
+  background: linear-gradient(to bottom, transparent, oklch(1 0 0 / 0.09) 62%, oklch(1 0 0 / 0.16));
+  animation: scanner-sweep 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes scanner-sweep {
+  0%, 8% { transform: translateY(-46%); }
+  50% { transform: translateY(184%); }
+  92%, 100% { transform: translateY(-46%); }
 }
 
 .scanner__code {
@@ -105,9 +245,9 @@
    inside, not a box drawn over the picture. */
 .scanner__bracket {
   position: absolute;
-  width: 34px;
-  height: 34px;
-  border: 3px solid oklch(1 0 0 / 0.95);
+  width: 32px;
+  height: 32px;
+  border: 2.5px solid oklch(1 0 0 / 0.92);
 }
 .scanner__bracket--tl { top: 18px; left: 18px; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
 .scanner__bracket--tr { top: 18px; right: 18px; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
@@ -136,11 +276,15 @@
   place-items: center;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--guest-accent-soft, var(--guest-soft));
-  color: var(--guest-accent-strong);
+  /* Neutral. Neither of these is the primary action -- the camera is -- and
+     DESIGN.md keeps the accent for the thing a guest is meant to do next.
+     Two pink circles either side of a viewfinder is decoration. */
+  background: var(--guest-sunken);
+  color: var(--guest-ink);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
 }
-.scanner__button svg { width: 26px; height: 26px; }
+.scanner__button:hover { background: var(--guest-line); }
+.scanner__button svg { width: 24px; height: 24px; }
 .scanner__button:active { transform: scale(0.96); }
 
 /* --------------------------------------------------------------------------
@@ -1694,10 +1838,29 @@
    Nearby place
    -------------------------------------------------------------------------- */
 
-.nearby { display: grid; gap: 18px; align-content: start; }
-.nearby__head { display: flex; }
+.experiment-page:has(> .nearby) { min-height: calc(100% + 48px); display: grid; }
+/* art, title, map, facts, dock -- the facts row takes the slack so the dock
+   is pushed to the bottom edge on a short place. */
+.experiment-page:has(> .nearby) .nearby { grid-template-rows: auto auto auto 1fr auto; align-content: stretch; }
+.experiment-page:has(> .nearby) .nearby__facts { align-self: start; }
+/*
+  Full bleed, like `.detail`. The hero was inset inside the screen padding,
+  so the same photograph that reaches both edges on the service screen
+  stopped short here -- and the two screens sit one tap apart.
+*/
+.nearby { display: grid; gap: 18px; align-content: start; margin: -12px -16px -36px; }
+/* Everything but the art keeps the reading inset the margins just cancelled. */
+.nearby > :not(.nearby__art) { margin-inline: 16px; }
+/* Same hero as `.detail__art`; the two screens are siblings in the flow. */
+.nearby__art { position: relative; aspect-ratio: 4 / 3; overflow: hidden; }
+.nearby__art img { object-fit: cover; }
+.nearby__art-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--guest-canvas) 0%, transparent 34%);
+}
+
 .nearby__title { display: grid; gap: 4px; }
-.nearby__title small { color: var(--guest-accent-strong); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .nearby__title h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.022em; line-height: 1.1; text-wrap: balance; }
 .nearby__title p { margin: 0; color: var(--guest-subtle); font-size: 14px; }
 
@@ -1750,9 +1913,19 @@
 .nearby__facts dd { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; }
 .nearby__facts a { color: var(--guest-accent-strong); text-decoration: none; }
 
-.nearby__dock { display: grid; gap: 6px; justify-items: center; }
-.nearby__dock .guest-button { width: 100%; }
-.nearby__dock small { color: var(--guest-subtle); font-size: 12px; }
+.nearby__dock {
+  position: sticky;
+  bottom: -36px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--guest-canvas);
+  border-top: 1px solid var(--guest-line);
+}
+.nearby__dock .guest-button { flex: 1 1 auto; }
 
 @media (prefers-reduced-motion: reduce) {
   

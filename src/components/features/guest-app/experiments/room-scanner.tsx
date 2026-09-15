@@ -74,6 +74,9 @@ export function RoomScanner({
         {codeImageSrc
           ? <NextImage className="scanner__code" src={codeImageSrc} alt="QR code" width={230} height={230} />
           : <QrCodeGraphic className="scanner__code" />}
+        {/* One slow sweep, so the frame reads as looking rather than as a
+            picture of a scanner. Stilled under reduced motion. */}
+        <span className="scanner__sweep" aria-hidden="true" />
         <span className="scanner__bracket scanner__bracket--tl" aria-hidden="true" />
         <span className="scanner__bracket scanner__bracket--tr" aria-hidden="true" />
         <span className="scanner__bracket scanner__bracket--bl" aria-hidden="true" />

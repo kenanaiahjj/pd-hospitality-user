@@ -19,7 +19,7 @@ import { SwipeDeck } from './swipe-deck';
 import { ServiceDetail } from './service-detail';
 import { CategoryListing } from './category-listing';
 import { NearbyDetail } from './nearby-detail';
-import { nearbyForCategory, onPropertyForCategory } from './nearby-model';
+import { NEARBY_PLACES, describeSpend, nearbyForCategory, onPropertyForCategory } from './nearby-model';
 import { SERVICE_VENUES, unclaimedServiceIds, venueForService } from './service-venues';
 import { VenueMenu } from './venue-menu';
 import { RESTAURANTS } from '../prototype-model';
@@ -783,5 +783,32 @@ describe('the featured deck is a selection, not a dump', () => {
     expect(deck.length).toBeLessThan(
       buildSearchIndex().length,
     );
+  });
+});
+
+describe('prices a guest can read', () => {
+  it('turns the glyph into a judgement', () => {
+    // A single peso sign under "Typical spend" is a currency symbol standing
+    // in for an opinion.
+    expect(describeSpend('₱')).toBe('Inexpensive');
+    expect(describeSpend('₱₱')).toBe('Mid-range');
+    expect(describeSpend('₱₱₱')).toBe('Upmarket');
+  });
+
+  it('says nothing rather than an em dash where the catalogue has no view', () => {
+    expect(describeSpend('—')).toBeUndefined();
+  });
+
+  it('passes through anything it does not recognise', () => {
+    // Inventing a band for a value nobody anticipated is how a screen starts
+    // making claims the catalogue never made.
+    expect(describeSpend('Free entry')).toBe('Free entry');
+  });
+
+  it('covers every price band in the catalogue', () => {
+    for (const place of NEARBY_PLACES) {
+      const described = describeSpend(place.priceRange);
+      expect(described === undefined || described.length > 0, place.id).toBe(true);
+    }
   });
 });

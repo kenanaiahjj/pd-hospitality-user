@@ -205,25 +205,118 @@
 }
 .unlocked__card-flag svg { width: 14px; height: 14px; }
 
-/* Two columns: the four read as a set, not a list to work down. */
-.unlocked__opened {
+/*
+  What the scan opened, led by a picture of the thing it opened.
+
+  The card's own padding comes off so the banner can reach its edges -- a
+  banner inset inside a white card is a photograph wearing a frame, which is
+  the look this was moving away from.
+*/
+.unlocked__open { gap: 12px; padding: 0 0 14px; overflow: hidden; }
+
+.unlocked__banner {
+  position: relative;
+  aspect-ratio: 20 / 9;
+  min-height: 132px;
+  display: flex;
+  align-items: flex-end;
+  padding: 14px;
+  overflow: hidden;
+}
+.unlocked__banner img { object-fit: cover; }
+.unlocked__banner-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    oklch(0.13 0.02 300 / 0.9) 0%,
+    oklch(0.13 0.02 300 / 0.55) 38%,
+    oklch(0.13 0.02 300 / 0.12) 72%,
+    oklch(0.13 0.02 300 / 0.28) 100%
+  );
+}
+.unlocked__banner-copy { position: relative; display: grid; gap: 2px; }
+.unlocked__banner-copy h2 {
+  margin: 0;
+  color: oklch(1 0 0);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.014em;
+}
+.unlocked__banner-copy p {
+  margin: 0;
+  color: oklch(1 0 0 / 0.84);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* On the photograph the flag has to carry its own contrast, so it takes a
+   chip rather than the green it wears on white. */
+.unlocked__banner .unlocked__card-flag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: var(--guest-radius-pill);
+  background: oklch(1 0 0 / 0.93);
+  color: var(--guest-positive);
+}
+
+/* Two photographs, because these two are places a guest goes. */
+.unlocked__tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
-  padding: 0;
+  padding: 0 14px;
   list-style: none;
 }
-.unlocked__opened li {
+.unlocked__tile {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: flex-end;
+  padding: 11px;
+  border-radius: var(--guest-radius-sm);
+  overflow: hidden;
+}
+.unlocked__tile img { object-fit: cover; }
+.unlocked__tile-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    oklch(0.13 0.02 300 / 0.92) 0%,
+    oklch(0.13 0.02 300 / 0.5) 46%,
+    oklch(0.13 0.02 300 / 0.06) 78%
+  );
+}
+.unlocked__tile-copy { position: relative; display: grid; gap: 1px; }
+.unlocked__tile-copy b { color: oklch(1 0 0); font-size: 14px; font-weight: 700; }
+.unlocked__tile-copy small { color: oklch(1 0 0 / 0.82); font-size: 11px; line-height: 1.3; }
+
+/* And two rows, because these two are not places. */
+.unlocked__privileges {
   display: grid;
-  gap: 2px;
-  padding: 10px 12px;
+  gap: 0;
+  margin: 0 14px;
+  padding: 0;
   border-radius: var(--guest-radius-sm);
   background: var(--guest-surface);
+  list-style: none;
 }
-.unlocked__opened svg { width: 18px; height: 18px; color: var(--guest-accent-strong); }
-.unlocked__opened b { font-size: 13px; font-weight: 650; }
-.unlocked__opened small { color: var(--guest-subtle); font-size: 11px; line-height: 1.35; }
+.unlocked__privileges li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 0 10px;
+  padding: 10px 12px;
+}
+.unlocked__privileges li + li { border-top: 1px solid var(--guest-line); }
+.unlocked__privilege-icon { grid-row: 1 / span 2; display: grid; place-items: center; }
+.unlocked__privileges svg { width: 18px; height: 18px; color: var(--guest-accent-strong); }
+.unlocked__privileges b { font-size: 13px; font-weight: 650; }
+.unlocked__privileges small { color: var(--guest-subtle); font-size: 11px; line-height: 1.35; }
 
 .unlocked__rows { display: grid; gap: 8px; margin: 0; }
 .unlocked__rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }

@@ -53,6 +53,10 @@ export const STORY_IMAGERY: Record<string, ServiceImageDefinition> = {
   'heritage-walk': shot('photo-1636405189493-181ecf851006', 'Old city street'),
 };
 
-const FALLBACK = shot('photo-1566073771259-6a8506099945', 'Hotel property');
+/* The property itself. Also the fallback, because a shot of the hotel is the
+   one picture that is never wrong for something on it. */
+export const PROPERTY_IMAGE = shot('photo-1566073771259-6a8506099945', 'The property at dusk');
+
+const FALLBACK = PROPERTY_IMAGE;
 
 export const storyImage = (id: string): ServiceImageDefinition => STORY_IMAGERY[id] ?? FALLBACK;

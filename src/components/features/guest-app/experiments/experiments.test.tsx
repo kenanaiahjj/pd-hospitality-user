@@ -116,7 +116,14 @@ describe('promotion seam', () => {
 
     render(<RoomUnlocked roomNumber="304" onExplore={onExplore} onViewStay={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { name: 'Room 304 is open' })).toBeInTheDocument();
+    /*
+      Never "your room is open": the scan opens services, not a door. The
+      room number still has to appear -- it is what the guest checks the
+      screen against -- but as the thing that was confirmed.
+    */
+    expect(screen.getByRole('heading', { name: /all set/i })).toBeInTheDocument();
+    expect(screen.getByText(/Room 304 is confirmed/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/room (304 )?is open|unlock(ed)? (your|the) (room|door)/i);
     expect(screen.getByText('Charge to room')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Explore' }));
@@ -125,7 +132,8 @@ describe('promotion seam', () => {
 
   it('falls back gracefully before a room is allocated', () => {
     render(<RoomUnlocked onExplore={vi.fn()} onViewStay={vi.fn()} />);
-    expect(screen.getByRole('heading', { name: 'Your room is open' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /all set/i })).toBeInTheDocument();
+    expect(screen.getByText(/Your stay is confirmed/)).toBeInTheDocument();
   });
 });
 

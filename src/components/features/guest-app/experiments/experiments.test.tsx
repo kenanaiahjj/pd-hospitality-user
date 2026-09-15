@@ -4,7 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EXPERIMENT_FLOWS, RoomScanner, RoomUnlocked, isFlowId } from './index';
-import { buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck, searchCatalogue } from './story-model';
+import {
+  STORY_URGENT_HOURS,
+  buildCategoryCards,
+  buildFeaturedDeck,
+  buildSearchIndex,
+  buildStories,
+  formatPostedAgo,
+  searchCatalogue,
+  storyExpiryLabel,
+  storyIsLive,
+} from './story-model';
 import { SwipeDeck } from './swipe-deck';
 import { ServiceDetail } from './service-detail';
 import { CategoryListing } from './category-listing';
@@ -250,13 +260,13 @@ describe('swipe deck', () => {
       one at random is noise. An experience is the thing nobody knows they
       want until they see it, which is the only case where a pile beats a list.
     */
-    const deck = buildSwipeDeck();
+    const deck = buildFeaturedDeck();
     expect(deck.length).toBeGreaterThan(0);
     expect(deck.some((item) => /restaurant|bar|caf/i.test(item.category))).toBe(false);
   });
 
   it('browses rather than judges', () => {
-    render(<SwipeDeck items={buildSwipeDeck()} onOpen={vi.fn()} />);
+    render(<SwipeDeck items={buildFeaturedDeck()} onOpen={vi.fn()} />);
 
     /*
       An earlier pass asked for a verdict on each card, which meant having an
@@ -269,7 +279,7 @@ describe('swipe deck', () => {
 
   it('stays operable once the arrows are gone', async () => {
     const user = userEvent.setup();
-    render(<SwipeDeck items={buildSwipeDeck()} onOpen={vi.fn()} />);
+    render(<SwipeDeck items={buildFeaturedDeck()} onOpen={vi.fn()} />);
 
     /*
       The chrome came off, so the card itself has to carry the affordance: a
@@ -290,7 +300,7 @@ describe('swipe deck', () => {
   it('opens on Enter, the same as a tap', async () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();
-    const items = buildSwipeDeck();
+    const items = buildFeaturedDeck();
     render(<SwipeDeck items={items} onOpen={onOpen} />);
 
     await user.click(screen.getByRole('button', { name: /Press Enter to open/ }));
@@ -300,7 +310,7 @@ describe('swipe deck', () => {
 
   it('never runs out, because a thrown card goes to the back', async () => {
     const user = userEvent.setup();
-    const items = buildSwipeDeck();
+    const items = buildFeaturedDeck();
     render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
     const first = topTitle();
@@ -369,7 +379,7 @@ describe('the deck reads as a deck', () => {
       as a single page until it was already being dragged, which is exactly
       when the affordance has stopped mattering.
     */
-    const items = buildSwipeDeck();
+    const items = buildFeaturedDeck();
     render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
     const deck = screen.getByTestId('swipe-deck');
@@ -383,7 +393,7 @@ describe('the deck reads as a deck', () => {
   });
 
   it('never renders more cards behind than it has left', () => {
-    const items = buildSwipeDeck().slice(0, 1);
+    const items = buildFeaturedDeck().slice(0, 1);
     render(<SwipeDeck items={items} onOpen={vi.fn()} />);
 
     expect(screen.getByTestId('swipe-deck').querySelectorAll('.deck__card--under')).toHaveLength(0);
@@ -392,7 +402,7 @@ describe('the deck reads as a deck', () => {
 
 describe('service detail', () => {
   it('opens a full screen with the price and the settlement terms', () => {
-    const item = buildSwipeDeck()[0]!;
+    const item = buildFeaturedDeck()[0]!;
     render(<ServiceDetail item={item} onBack={vi.fn()} onBook={vi.fn()} />);
 
     expect(screen.getByRole('heading', { name: item.title, level: 1 })).toBeInTheDocument();
@@ -405,7 +415,7 @@ describe('service detail', () => {
   it('books through the host, so the gate still decides', async () => {
     const user = userEvent.setup();
     const onBook = vi.fn();
-    const item = buildSwipeDeck()[0]!;
+    const item = buildFeaturedDeck()[0]!;
 
     render(<ServiceDetail item={item} onBack={vi.fn()} onBook={onBook} />);
     await user.click(screen.getByRole('button', { name: 'Choose a time' }));
@@ -562,7 +572,7 @@ describe('the venue screen a category tap lands on', () => {
       nothing downstream -- and the tap silently does nothing, which is the
       hardest failure to spot by clicking around.
     */
-    const deck = new Set(buildSwipeDeck().map((item) => item.id));
+    const deck = new Set(buildFeaturedDeck().map((item) => item.id));
     const venues = new Set(RESTAURANTS.map((entry) => entry.id));
 
     for (const category of buildCategoryCards()) {
@@ -605,6 +615,90 @@ describe('screen entry animation', () => {
       for (const declaration of rule.match(/animation:[^;]*/g) ?? []) {
         expect(declaration).not.toMatch(/\bboth\b|\bforwards\b/);
       }
+    }
+  });
+});
+
+describe('a story is a post, not a profile', () => {
+  it('is signed and dated', () => {
+    // Without these two the rail is a row of thumbnails, and a guest cannot
+    // tell it apart from the featured deck three sections below it.
+    for (const story of buildStories()) {
+      expect(story.author.name, story.id).toBeTruthy();
+      expect(['property', 'venue']).toContain(story.author.kind);
+      expect(Number.isFinite(story.postedHoursAgo), story.id).toBe(true);
+      expect(story.livesForHours, story.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('drops posts that have outlived their window', () => {
+    /*
+      Decay is the whole reason a venue has to come back and publish again.
+      A post that never expires is a banner, and a rail of banners needs no
+      merchant on the other end of it.
+    */
+    const stories = buildStories();
+    expect(stories.every(storyIsLive)).toBe(true);
+
+    const expired = { ...stories[0]!, postedHoursAgo: 48, livesForHours: 24 };
+    expect(storyIsLive(expired)).toBe(false);
+  });
+
+  it('sorts newest first, because that is what makes it a feed', () => {
+    const posted = buildStories().map((story) => story.postedHoursAgo);
+    expect(posted).toEqual([...posted].sort((a, b) => a - b));
+  });
+
+  it('gives no two posts the same timestamp', () => {
+    // Half a rail reading "7h" is the tell that nobody wrote them.
+    const posted = buildStories().map((story) => formatPostedAgo(story.postedHoursAgo));
+    expect(new Set(posted).size).toBe(posted.length);
+  });
+
+  it('counts time the way every other feed does', () => {
+    expect(formatPostedAgo(0.4)).toBe('Just now');
+    expect(formatPostedAgo(1)).toBe('1h');
+    expect(formatPostedAgo(23.9)).toBe('23h');
+    expect(formatPostedAgo(24)).toBe('1d');
+    expect(formatPostedAgo(50)).toBe('2d');
+  });
+
+  it('only counts down once the countdown is information', () => {
+    const base = buildStories()[0]!;
+    const at = (hoursAgo: number) => storyExpiryLabel({ ...base, postedHoursAgo: hoursAgo, livesForHours: 24 });
+
+    // Twenty hours left is pressure with nothing behind it.
+    expect(at(4)).toBeUndefined();
+    expect(at(24 - STORY_URGENT_HOURS - 1)).toBeUndefined();
+    expect(at(22)).toBe('Ends in 2h');
+    expect(at(23.5)).toBe('Ends within the hour');
+  });
+});
+
+describe('featured says why', () => {
+  it('carries a reason on every card', () => {
+    for (const card of buildFeaturedDeck()) {
+      expect(card.reason.label, card.id).toBeTruthy();
+      expect(['hotel-pick', 'stay-context', 'popular']).toContain(card.reason.kind);
+    }
+  });
+
+  it('is no longer the search index wearing a different layout', () => {
+    /*
+      The deck used to return `SearchableItem[]` -- literally the type the
+      search field renders. That made "featured" the catalogue in a different
+      shape: no curator, no reason, and nothing a guest could tell apart from
+      search results that happened to be stacked.
+    */
+    const searchRow = buildSearchIndex()[0]!;
+    expect('reason' in searchRow).toBe(false);
+    expect(buildFeaturedDeck().every((card) => 'reason' in card)).toBe(true);
+  });
+
+  it('names something specific rather than something that fits anything', () => {
+    // "Recommended for you" is the same as no reason at all.
+    for (const card of buildFeaturedDeck()) {
+      expect(card.reason.label, card.id).not.toMatch(/recommended for you|just for you|you may (also )?like/i);
     }
   });
 });

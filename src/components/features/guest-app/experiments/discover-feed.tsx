@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState, type ReactNode } from 'react';
 import { AskAnswer, AskSuggestions } from './ask-panel';
 import { INTENTS, matchIntent, resolveIntent } from './intent-model';
-import { searchCatalogue } from './story-model';
+import { formatPostedAgo, searchCatalogue, storyExpiryLabel } from './story-model';
 import type { CategoryCard, DiscoverBanner, SearchableItem, Story } from './story-model';
 
 /*
@@ -132,24 +132,51 @@ export function DiscoverFeed({
 
       {/* The rail. Rounded squares rather than circles: the subject is a
           place, and a circle crops a room to a face. */}
-      <section aria-label="Stories">
-        <div className="discover__rail">
-          {stories.map((story) => (
-            <button key={story.id} className="discover__story" type="button" onClick={() => onOpenStory(story.id)}>
-              <span className="discover__story-art">
-                <Image
-                  src={story.cover.src}
-                  alt=""
-                  fill
-                  sizes="96px"
-                  style={{ objectPosition: story.cover.focalPoint }}
-                />
-              </span>
-              <small>{story.title}</small>
-            </button>
-          ))}
-        </div>
-      </section>
+      {/*
+        Posts, so they are signed and dated.
+
+        The ring, the account name and the age are what separate this rail
+        from the featured deck three sections down -- without them a guest
+        sees two rows of pretty pictures and is right to read the second as
+        a repeat of the first. The accent ring is DESIGN.md's "live state",
+        which is one of the three jobs the pink is allowed to do.
+      */}
+      {stories.length ? (
+        <section aria-label="Posts from the property">
+          <div className="discover__head">
+            <h2>Posted today</h2>
+            <p>From the restaurants, spa and tours on property.</p>
+          </div>
+          <div className="discover__rail">
+            {stories.map((story) => {
+              const expiring = storyExpiryLabel(story);
+              return (
+                <button
+                  key={story.id}
+                  className="discover__story"
+                  type="button"
+                  onClick={() => onOpenStory(story.id)}
+                  aria-label={`${story.author.name}, posted ${formatPostedAgo(story.postedHoursAgo)} ago${expiring ? `. ${expiring}` : ''}`}
+                >
+                  <span className={`discover__story-ring${expiring ? ' is-expiring' : ''}`}>
+                    <span className="discover__story-art">
+                      <Image
+                        src={story.cover.src}
+                        alt=""
+                        fill
+                        sizes="96px"
+                        style={{ objectPosition: story.cover.focalPoint }}
+                      />
+                    </span>
+                  </span>
+                  <b>{story.author.name}</b>
+                  <small>{expiring ? 'Ending' : formatPostedAgo(story.postedHoursAgo)}</small>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {/*
         High, not buried.
@@ -161,10 +188,10 @@ export function DiscoverFeed({
         which is the same as not shipping it.
       */}
       {deck ? (
-        <section className="discover__deck" aria-label="Browse by swiping">
-          <div className="discover__deck-head">
-            <h2>Not sure yet?</h2>
-            <p>Flick through what&rsquo;s on property. Tap one to look closer.</p>
+        <section className="discover__deck" aria-label="Featured">
+          <div className="discover__head">
+            <h2>Featured</h2>
+            <p>Picked by the hotel, plus what&rsquo;s booking fast. Tap one to look closer.</p>
           </div>
           {deck}
         </section>
@@ -179,6 +206,10 @@ export function DiscoverFeed({
         rather than boxed inside it, so the card reads as one object.
       */}
       <section aria-label="Categories">
+        <div className="discover__head">
+          <h2>Everything on property</h2>
+          <p>All of it, by category.</p>
+        </div>
         <div className="categories">
           {categories.map((category, i) => (
             <button

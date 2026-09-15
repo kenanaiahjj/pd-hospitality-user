@@ -406,7 +406,7 @@
   gap: 6px;
   justify-items: center;
   flex: 0 0 auto;
-  width: 72px;
+  width: 84px;
   border: 0;
   background: none;
   scroll-snap-align: start;
@@ -417,26 +417,71 @@
   is in them, and a square crops the part that sells it. The accent ring is
   the unread signal, same as everywhere.
 */
+/*
+  The ring, which the comment above has been promising since this rail was
+  written and which nothing actually drew.
+
+  It is the one thing that makes a post look like a post rather than a
+  thumbnail, and DESIGN.md sanctions accent for exactly this: live state.
+  Amber when the post is about to lapse -- that is status, not brand, so it
+  does not borrow the accent hue.
+*/
+.discover__story-ring {
+  position: relative;
+  display: block;
+  padding: 2px;
+  border-radius: 21px;
+  background: var(--guest-accent);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.discover__story-ring.is-expiring { background: var(--guest-warning); }
+.discover__story:active .discover__story-ring { transform: scale(0.95); }
+.discover__story:focus-visible { outline: none; }
+.discover__story:focus-visible .discover__story-ring {
+  outline: 2px solid var(--guest-accent-strong);
+  outline-offset: 2px;
+}
+
 .discover__story-art {
   position: relative;
   display: block;
-  width: 72px;
-  height: 96px;
-  border-radius: 18px;
+  width: 68px;
+  height: 92px;
+  border: 2px solid var(--guest-canvas);
+  border-radius: 19px;
   overflow: hidden;
   box-shadow: 0 0 0 2px var(--guest-paper), 0 0 0 4px var(--guest-accent);
 }
 .discover__story-art img { object-fit: cover; }
-.discover__story small {
+/* The account that published it... */
+/*
+  Two lines, not one with an ellipsis.
+
+  These are venue names, not handles -- "The Poolside Bar" and "Herbal body
+  scrub & wrap" both truncate to nothing useful at a single line, and a rail
+  where every caption ends in "..." reads as broken rather than as tight.
+*/
+.discover__story b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   max-width: 100%;
+  overflow: hidden;
   color: var(--guest-ink);
   font-size: 11px;
   font-weight: 650;
+  line-height: 1.25;
   text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
+/* ...and when, which is what stops it being a thumbnail of a place. */
+.discover__story small {
+  color: var(--guest-subtle);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.discover__story-ring.is-expiring + b + small { color: var(--guest-warning); }
 .discover__story:active .discover__story-art { transform: scale(0.97); }
 
 /* Hero and cards: photography under a tonal wash, display type on top. */
@@ -628,9 +673,21 @@
    -------------------------------------------------------------------------- */
 
 .discover__deck { display: grid; gap: 12px; }
-.discover__deck-head { display: grid; gap: 2px; }
-.discover__deck-head h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.008em; }
-.discover__deck-head p { margin: 0; color: var(--guest-subtle); font-size: 13px; }
+/*
+  One head shape for all three sections, because they are three different
+  things and the only way a guest learns that is if each one says what it is.
+  The rail is what venues posted, the deck is what the hotel picked, the grid
+  is the catalogue. Same typography, different claim.
+*/
+.discover__head { display: grid; gap: 2px; margin-bottom: 12px; }
+.discover__head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  color: var(--guest-ink);
+}
+.discover__head p { margin: 0; color: var(--guest-subtle); font-size: 13px; line-height: 1.4; text-wrap: pretty; }
 
 /*
   Timing, named once. Values follow the transitions.dev vocabulary: a single
@@ -784,9 +841,40 @@
   padding: 18px;
   color: oklch(1 0 0);
 }
-.deck__copy small { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.9; }
 .deck__copy b { font-size: 24px; font-weight: 700; letter-spacing: -0.018em; line-height: 1.1; text-wrap: balance; }
-.deck__copy > span { font-size: 13px; opacity: 0.9; }
+.deck__copy > span { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.92; }
+.deck__copy > span i { font-style: normal; opacity: 0.6; }
+
+/*
+  Why this card is here.
+
+  Sits on the photograph above the title rather than in the copy block, so it
+  reads as a label applied to the card rather than as another line of its
+  description. Each kind gets its own mark: a hotel's pick, the catalogue
+  reporting on itself, and the app reasoning about this stay are three
+  different claims, and flattening them into one chip is how "featured" stops
+  meaning anything.
+*/
+.deck__reason {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 32px);
+  padding: 6px 11px;
+  border-radius: var(--radius-pill);
+  background: oklch(1 0 0 / 0.94);
+  color: var(--guest-ink);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+.deck__reason svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.deck__reason--hotel-pick svg { color: var(--guest-accent-strong); }
+.deck__reason--popular svg { color: var(--guest-positive); }
+.deck__reason--stay-context svg { color: var(--guest-ink); }
 
 /* Verdict marks: the answer, before the finger commits to it. */
 .deck__mark {
@@ -1117,13 +1205,80 @@
   gap: 12px;
   z-index: 2;
 }
+/* The signature on the post: face, account, kind, age. */
+.story__avatar {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border: 1.5px solid oklch(1 0 0 / 0.9);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.story__avatar img { object-fit: cover; }
+
 .story__who { display: grid; gap: 1px; min-width: 0; }
-.story__who b { font-size: 14px; font-weight: 700; }
-.story__who small { font-size: 11px; opacity: 0.78; }
+.story__who b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  /* One line. The account name wrapping pushed the badge onto a second row
+     and made the header twice as tall as the thing it labels. */
+  white-space: nowrap;
+}
+.story__who b > :first-child { overflow: hidden; text-overflow: ellipsis; }
+.story__who small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 11px;
+  opacity: 0.78;
+  font-variant-numeric: tabular-nums;
+}
+.story__where { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.story__who small i { font-style: normal; opacity: 0.6; }
+
+/* Not a tick on a coloured disc -- that reads as an identity claim about a
+   person. This says which of the two kinds of account posted. */
+.story__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 2px 7px 2px 5px;
+  border-radius: var(--radius-pill);
+  background: oklch(1 0 0 / 0.18);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.story__badge svg { width: 12px; height: 12px; }
+.story__badge i { font-style: normal; }
+
+/* Amber, because it is a deadline, and it only exists inside the last few
+   hours -- see STORY_URGENT_HOURS. */
+.story__expiry {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--guest-warning);
+  color: var(--guest-ink);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 1;
+}
 .story__close {
   display: grid;
   width: 36px;
   height: 36px;
+  flex: 0 0 auto;
   margin-left: auto;
   place-items: center;
   border: 0;

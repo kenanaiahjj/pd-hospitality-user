@@ -1,10 +1,11 @@
 'use client';
 
-import { ArrowRight, X } from '@phosphor-icons/react';
+import { ArrowRight, SealCheck, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import type { Story } from './story-model';
+import { formatPostedAgo, storyExpiryLabel } from './story-model';
 
 /*
   A promotable story viewer.
@@ -30,6 +31,7 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
   const [index, setIndex] = useState(0);
   const reducedMotion = usePrefersReducedMotion();
   const slide = story.slides[Math.min(index, story.slides.length - 1)]!;
+  const expiry = storyExpiryLabel(story);
   const isLast = index >= story.slides.length - 1;
 
   /*
@@ -79,9 +81,31 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
       </div>
 
       <header className="story__head">
+        {/* A post is signed: who published it, what kind of account that is,
+            and when. The countdown appears only once it is information --
+            see `STORY_URGENT_HOURS`. */}
+        <span className="story__avatar" aria-hidden="true">
+          <Image src={story.cover.src} alt="" fill sizes="36px" style={{ objectPosition: story.cover.focalPoint }} />
+        </span>
         <div className="story__who">
-          <b>{story.title}</b>
-          <small>{story.subtitle}</small>
+          <b>
+            {story.author.name}
+            {story.author.kind === 'property' ? (
+              <span className="story__badge" title="Posted by the property">
+                <SealCheck weight="fill" aria-hidden="true" />
+                <i>Property</i>
+              </span>
+            ) : null}
+          </b>
+          <small>
+            {formatPostedAgo(story.postedHoursAgo)}
+            <i aria-hidden="true">·</i>
+            <span className="story__where">{story.subtitle}</span>
+            {/* Sits with the time, not up beside the close button: it is a
+                fact about when the post ends, and the top row is already
+                carrying the account. */}
+            {expiry ? <span className="story__expiry">{expiry}</span> : null}
+          </small>
         </div>
         <button className="story__close" type="button" onClick={onClose} aria-label="Close story">
           <X aria-hidden="true" />

@@ -1,8 +1,9 @@
 'use client';
 
+import { Clock, Star, TrendUp } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type { SearchableItem } from './story-model';
+import type { FeaturedCard } from './story-model';
 
 /*
   A pile of experiences to flick through.
@@ -30,7 +31,7 @@ const RECYCLE_MS = 420;
 const WINDOW = 4;
 
 export type SwipeDeckProps = {
-  items: SearchableItem[];
+  items: FeaturedCard[];
   onOpen: (itemId: string) => void;
 };
 
@@ -211,7 +212,7 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
                 ? {
                     role: 'button',
                     tabIndex: 0,
-                    'aria-label': `${item.title}. Press Enter to open, left and right arrows to browse`,
+                    'aria-label': `${item.title}. ${item.reason.label}. Press Enter to open, left and right arrows to browse`,
                     'aria-keyshortcuts': 'ArrowLeft ArrowRight Enter',
                     onPointerDown,
                     onPointerMove,
@@ -238,10 +239,19 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
               {isTop ? (
                 <>
                   <span className="deck__scrim" aria-hidden="true" />
+                  {/* The reason sits above the title, because it is the
+                      answer to the question the card provokes -- "why am I
+                      being shown this?" -- and an unanswered version of that
+                      question is what makes a featured row feel like an ad. */}
+                  <span className={`deck__reason deck__reason--${item.reason.kind}`}>
+                    {item.reason.kind === 'hotel-pick' ? <Star weight="fill" aria-hidden="true" /> : null}
+                    {item.reason.kind === 'popular' ? <TrendUp weight="bold" aria-hidden="true" /> : null}
+                    {item.reason.kind === 'stay-context' ? <Clock weight="bold" aria-hidden="true" /> : null}
+                    {item.reason.label}
+                  </span>
                   <span className="deck__copy">
-                    <small>{item.category}</small>
                     <b>{item.title}</b>
-                    <span>{item.price} · {item.detail}</span>
+                    <span>{item.price}<i aria-hidden="true">·</i>{item.detail}</span>
                   </span>
                 </>
               ) : <span className="deck__veil" />}

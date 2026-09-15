@@ -10,7 +10,7 @@ import { VenueMenu } from './venue-menu';
 import { SwipeDeck } from './swipe-deck';
 import { StoryViewer } from './story-viewer';
 import { RESTAURANTS } from '../prototype-model';
-import { buildBanners, buildCategoryCards, buildSearchIndex, buildStories, buildSwipeDeck } from './story-model';
+import { buildBanners, buildCategoryCards, buildSearchIndex, buildStories, buildFeaturedDeck } from './story-model';
 
 /*
   The harness. Stands in for the guest app while the two candidates below it
@@ -25,7 +25,7 @@ const STORIES = buildStories();
 const BANNERS = buildBanners();
 const SEARCH_INDEX = buildSearchIndex();
 const CATEGORIES = buildCategoryCards();
-const DECK = buildSwipeDeck();
+const DECK = buildFeaturedDeck();
 
 export function ExploreExperiment({ autoplayIntro = false }: { autoplayIntro?: boolean } = {}) {
   /*

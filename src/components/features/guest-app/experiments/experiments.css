@@ -309,92 +309,74 @@
 .unlocked__hero { margin-bottom: 6px; }
 
 /*
-  The whole screen changes state.
-
-  Not a dark hero with the app's light canvas carrying on beneath it -- the
-  chrome goes too, so the moment reads as the app switching mode rather than
-  as one tall banner. It is the only screen that does this, which is what
-  makes it mean something.
-
-  DESIGN.md reserves the single inverted surface for the folio total, so this
-  is a deliberate second, and it is scoped to `:has(.unlocked)` so it cannot
-  reach any other screen. Same licence the accent already has here: a moment
-  of arrival is the one place in a task-first app where the screen is allowed
-  to be the point.
-*/
-.guest-device:has(.unlocked),
-.guest-screen:has(.unlocked) {
-  background:
-    radial-gradient(84% 46% at 50% 16%, oklch(0.46 0.15 348 / 0.58), transparent 70%),
-    radial-gradient(62% 36% at 82% 4%, oklch(0.58 0.16 338 / 0.3), transparent 72%),
-    linear-gradient(180deg, oklch(0.19 0.028 320), oklch(0.105 0.014 300) 58%);
-}
-/* The bar and the tab rail are outside the screen component, so they are
-   reached by looking down from the frame rather than up from the content. */
-.guest-device:has(.unlocked) .guest-appbar {
-  background: transparent;
-  border-bottom-color: transparent;
-  color: oklch(1 0 0);
-}
-/* The lockup is an inline SVG taking `color`, not an image -- a filter aimed
-   at `img` did nothing to it. */
-.guest-device:has(.unlocked) .guest-brand { color: oklch(1 0 0); }
-.guest-device:has(.unlocked) .guest-appbar .guest-tag,
-.guest-device:has(.unlocked) .guest-appbar [class*='experiment'] {
-  background: oklch(1 0 0 / 0.14);
-  color: oklch(1 0 0);
-}
-/*
   No tab rail on this screen.
 
   It is a terminal moment with one way forward, and the rail offers three
   ways sideways out of it -- including back to the tab the guest is already
-  on. The reference has no rail either, and it is the same reason: the screen
-  is the whole message, so nothing should be inviting you off it. The bar is
-  a flex child rather than an overlay, so removing it hands the height back
-  to the stage instead of leaving a gap.
+  on. The bar is a flex child rather than an overlay, so removing it hands
+  the height back to the stage instead of leaving a gap.
 */
 .guest-device:has(.unlocked) .guest-bottom-nav { display: none; }
 
+/*
+  The stage, on the app's own canvas.
+
+  It was briefly a dark screen -- frame, chrome and cards -- as a change of
+  state. It reads well on its own and does not belong to this app yet: a
+  single inverted screen in a light app is a mode nothing else shares. Dark
+  comes back when the whole app has one.
+*/
 .unlocked__stage {
   position: relative;
   display: grid;
-  gap: 24px;
+  gap: 22px;
   align-content: center;
   justify-items: center;
-  min-height: 66vh;
-  padding: 30px 22px 10px;
+  min-height: 62vh;
+  padding: 26px 22px 6px;
   text-align: center;
-  color: oklch(1 0 0);
 }
 
 /*
-  The graphic, with its background actually gone.
+  A soft halo under the mark.
 
-  Feathering it was the wrong tool twice over: a soft edge does not remove a
-  background, it fades one, and what was left was still a pale rectangle
-  sitting on the dark. The render's ground is keyed out now -- flood-filled
-  inward from the frame, which walks the vignette's gradient and stops at the
-  pink rim of each glass tile -- so what lands here is the tiles and nothing
-  else.
+  The tiles are pale glass cut out of their own ground, so on a near-white
+  canvas the bodies have almost nothing to sit against -- only the pink rims
+  and the dark glyphs read. The halo gives them a surface without putting a
+  hard plate behind them.
 */
-.unlocked__mark { width: min(312px, 86%); }
+.unlocked__mark {
+  position: relative;
+  width: min(300px, 84%);
+  isolation: isolate;
+}
+.unlocked__mark::before {
+  content: '';
+  position: absolute;
+  inset: -12% -6%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(60% 55% at 50% 48%, var(--guest-soft), transparent 72%);
+}
 .unlocked__art { display: block; width: 100%; height: auto; }
 
-.unlocked__say { display: grid; gap: 12px; justify-items: center; }
+.unlocked__say { display: grid; gap: 10px; justify-items: center; }
+/* accentStrong, not the brand pink: pink is a light surface colour and fails
+   as text on a light ground. DESIGN.md's rule, and the one screen where the
+   accent is allowed to carry a headline at all. */
 .unlocked__title {
   margin: 0;
   font-size: 32px;
   font-weight: 700;
   letter-spacing: -0.024em;
   line-height: 1.08;
-  color: oklch(1 0 0);
+  color: var(--guest-accent-strong);
   text-wrap: balance;
 }
 .unlocked__subtitle {
   margin: 0;
   max-width: 32ch;
-  color: oklch(1 0 0 / 0.8);
+  color: var(--guest-muted);
   font-size: 15px;
   line-height: 1.5;
   text-wrap: pretty;
@@ -402,37 +384,16 @@
 
 .unlocked__go { display: grid; gap: 2px; justify-items: center; width: 100%; }
 .unlocked__go .guest-button { width: 100%; }
-/* White, because the brand pink is a light surface colour and sinks into the
-   glow behind it. */
-.guest-button--invert { background: oklch(1 0 0); color: var(--guest-ink); border: 0; }
-.guest-button--invert:active { transform: scale(0.985); }
 .unlocked__quiet {
   padding: 12px;
   border: 0;
   background: none;
-  color: oklch(1 0 0 / 0.7);
+  color: var(--guest-subtle);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
-.unlocked__quiet:hover { color: oklch(1 0 0); }
-
-/* --- the cards, in the dark ---------------------------------------------- */
-.unlocked .unlocked__card {
-  background: oklch(1 0 0 / 0.055);
-  border: 1px solid oklch(1 0 0 / 0.1);
-  box-shadow: none;
-  color: oklch(1 0 0);
-}
-.unlocked .unlocked__card h2 { color: oklch(1 0 0); }
-.unlocked .unlocked__card-icon { background: oklch(1 0 0 / 0.12); color: oklch(1 0 0); }
-.unlocked .unlocked__open-list li + li { border-top-color: oklch(1 0 0 / 0.1); }
-.unlocked .unlocked__open-copy b { color: oklch(1 0 0); }
-.unlocked .unlocked__open-copy small { color: oklch(1 0 0 / 0.62); }
-.unlocked .unlocked__open-icon { background: oklch(1 0 0 / 0.12); color: oklch(1 0 0); }
-.unlocked .unlocked__rows dt { color: oklch(1 0 0 / 0.62); }
-.unlocked .unlocked__rows dd { color: oklch(1 0 0); }
-.unlocked .unlocked__note { color: oklch(1 0 0 / 0.58); }
+.unlocked__quiet:hover { color: var(--guest-ink); }
 
 .unlocked__card {
   display: grid;

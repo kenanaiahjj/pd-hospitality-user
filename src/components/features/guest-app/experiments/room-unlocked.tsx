@@ -84,14 +84,10 @@ export function RoomUnlocked({
   return (
     <div className="unlocked" data-testid="room-unlocked">
       {/*
-        One dark stage that fills the screen: a graphic, what happened, and
-        the single thing to do next.
+        The stage: a graphic, what happened, and the single thing to do next.
 
-        DESIGN.md keeps one inverted surface for the folio total, and this is
-        a deliberate second -- scoped to this screen and no other, the same
-        way the accent is let off its leash here and nowhere else. A moment
-        of arrival is the one place in a task-first app where the screen is
-        allowed to be the point.
+        No tab rail underneath it -- see the CSS -- because this is a
+        terminal moment and the rail only offers ways out of it.
       */}
       <section className="unlocked__stage">
         <Confetti />
@@ -113,7 +109,7 @@ export function RoomUnlocked({
         </div>
 
         <div className="unlocked__go">
-          <Button className="guest-button guest-button--invert" type="button" onClick={onExplore}>
+          <Button className="guest-button guest-button--primary" type="button" onClick={onExplore}>
             Explore<ArrowRight aria-hidden="true" />
           </Button>
           <button className="unlocked__quiet" type="button" onClick={onViewStay}>

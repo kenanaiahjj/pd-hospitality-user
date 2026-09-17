@@ -378,6 +378,17 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('button', { name: 'Chat' })).toBeInTheDocument();
   });
 
+  it('eager-loads the active stay hero image', () => {
+    const { container } = render(
+      <GuestAppPrototype
+        initialScreen="stay-overview"
+        initialSession={activeSession}
+      />,
+    );
+
+    expect(container.querySelector('.guest-stay-hero-card__media img')).toHaveAttribute('loading', 'eager');
+  });
+
   it('keeps the room QR action on the arrived guest home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);

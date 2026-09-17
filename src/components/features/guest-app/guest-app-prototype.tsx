@@ -382,11 +382,13 @@ function PropertyImage({
   aspectRatio = '16/9',
   className = '',
   decorative = false,
+  loading = 'lazy',
 }: {
   property?: string;
   aspectRatio?: string;
   className?: string;
   decorative?: boolean;
+  loading?: 'eager' | 'lazy';
 }) {
   const [failed, setFailed] = useState(false);
   const image = getPropertyImage(property);
@@ -400,6 +402,7 @@ function PropertyImage({
         src={image.src}
         alt={decorative ? '' : image.alt}
         fill
+        loading={loading}
         sizes="(max-width: 720px) calc(100vw - 32px), 480px"
         style={{ objectPosition: image.focalPoint }}
         onError={() => setFailed(true)}
@@ -4311,7 +4314,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
         <section className="guest-stay-hero-card">
           <div className="guest-stay-hero-card__media">
-            <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
+            <PropertyImage property={booking.property} aspectRatio="16/8" decorative loading="eager" />
             <div className="guest-stay-hero-card__badges">
               <span className="guest-stay-hero-card__status guest-stay-hero-card__status--positive">Checked in</span>
               <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">{roomLabel}</span>

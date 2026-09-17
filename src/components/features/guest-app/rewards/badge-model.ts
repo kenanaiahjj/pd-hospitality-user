@@ -251,7 +251,17 @@ const none = (): string[] => [];
    The 42
    -------------------------------------------------------------------------- */
 
-export const BADGES: BadgeDefinition[] = [
+/**
+ * Badge ids whose artwork has been uploaded to `public/badges/<id>.png`.
+ *
+ * Add ids here as art lands, in batches or all at once -- the filename is
+ * always the badge id, so this is the only edit. Anything not listed draws
+ * itself from its family's shape and enamel instead, which is why the set can
+ * sit empty without a hole appearing anywhere.
+ */
+export const ARTWORK_READY: readonly string[] = [];
+
+const DEFINITIONS: BadgeDefinition[] = [
   /* Taste — what the feed and story rail should lead with. */
   { id: 'foodie', name: 'Foodie', family: 'taste', threshold: 3, glyph: 'ForkKnife',
     requirement: 'Three meals booked',
@@ -463,6 +473,11 @@ export const BADGES: BadgeDefinition[] = [
       return [...groups.values()].map((set) => [...set]).sort((a, b) => b.length - a.length)[0] ?? [];
     } },
 ];
+
+/** The set as the app sees it, with artwork attached where it exists. */
+export const BADGES: BadgeDefinition[] = DEFINITIONS.map((badge) => (
+  ARTWORK_READY.includes(badge.id) ? { ...badge, art: `/badges/${badge.id}.png` } : badge
+));
 
 export const findBadge = (id: string): BadgeDefinition | undefined =>
   BADGES.find((badge) => badge.id === id);

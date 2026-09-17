@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ANONYMOUS_SESSION, MOCK_SESSION, RESTAURANTS, SERVICES } from '../prototype-model';
 import {
+  ARTWORK_READY,
   BADGES,
   BADGE_FAMILIES,
   badgeProgress,
@@ -50,8 +51,21 @@ describe('the badge set', () => {
     }
   });
 
-  it('ships no artwork yet, so the medal has to draw itself', () => {
-    expect(BADGES.every((badge) => badge.art === undefined)).toBe(true);
+  /*
+    Deliberately not "no badge has artwork yet". That version fails the day the
+    real medals are uploaded, which is a good change -- a test that goes red on
+    success trains people to ignore it.
+  */
+  it('points any badge that has artwork at its own file', () => {
+    for (const badge of BADGES) {
+      if (!badge.art) continue;
+      expect(badge.art, badge.id).toBe(`/badges/${badge.id}.png`);
+    }
+  });
+
+  it('draws the badges that have no artwork yet', () => {
+    const drawn = BADGES.filter((badge) => !badge.art);
+    expect(drawn.length + ARTWORK_READY.length).toBe(BADGES.length);
   });
 });
 

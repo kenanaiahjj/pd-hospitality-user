@@ -1,0 +1,84 @@
+# Guest app test suite — triage
+
+`src/components/features/guest-app/guest-app-prototype.test.tsx`, **63 failing**
+as of `c06717a`. Every other file in the suite is green (455 passing).
+
+Written because "fix the failing tests" turned out to hide three very different
+problems, and only one of them is safe to fix without a product ruling.
+
+## The headline
+
+**Almost nothing here is a stale selector.** Of the strings these tests look
+for, only two — `"This stay so far"` and `"All Items"` — are absent from the
+app. Everything else still exists; the tests simply cannot reach the screen it
+lives on, or the feature it belonged to was removed wholesale.
+
+That matters because the obvious repair — updating assertions until they match
+what renders — would have silently erased a real bug. It already nearly did:
+see *Already fixed* below.
+
+## Already fixed (`c06717a`)
+
+- **A genuine regression.** Continuing with Apple or Google landed on "Log in
+  with a booking", asking a guest to look up the reservation they were already
+  holding. `getPostAuthScreen()` existed and was used elsewhere; this call site
+  had a screen hardcoded past it. Four tests recovered.
+- Two real renames: `guest-scan-action` → `guest-room-qr-action`, and the
+  dining category "Dining" → "Food & Drinks".
+
+## Group A — the feature was removed, so the test is obsolete (7)
+
+All seven dining-cart tests fail on `Add Crispy Calamari`. The venue screen no
+longer has a menu or a cart: `restaurant-menu` renders `EstablishmentChatScreen`,
+an enquiry surface, introduced in `8144c6c` and kept through the promotion.
+
+- builds and edits a venue cart before opening order review
+- keeps independent carts for each dining establishment
+- clears only the establishment cart that was confirmed
+- confirms a dining order once and adds its grouped total to the room folio
+- supports scheduled pickup for a dining order
+- preserves an offline dining cart and blocks submission
+- disables room delivery until a room is assigned
+
+**Ruling needed.** These were specced in
+`docs/superpowers/specs/2026-09-09-dining-venue-carts-design.md`. Either in-app
+dining carts were deliberately superseded by the enquiry screen — in which case
+these tests and `restaurant-cart` should be deleted — or the menu was lost by
+accident and the app needs restoring. I can't tell which from the code, and
+guessing either way is expensive.
+
+## Group B — suspected regressions, like the SSO one (6)
+
+Each expects an affordance that still exists in the source but is no longer
+reachable where the test looks. These are the ones most likely to be real bugs.
+
+| Test | Expects |
+|---|---|
+| puts the scan in the app bar, reachable from every screen | `guest-room-qr-action` in the app bar |
+| marks the scan while the room is still unverified | `/Scan room code, room not yet verified/` |
+| drops the home row once the room is verified | one scan affordance only |
+| reaches the front desk before arrival | `guest-front-desk-action` |
+| keeps the desk reachable for 24 hours, and says how long is left | `guest-front-desk-action` |
+| docks the front desk above the tab bar rather than burying it | `/Message the front desk/` |
+
+The scan trio has its own shipped spec (scan discoverability); "reachable from
+every screen" is a stated product intent, not an implementation detail. The
+front-desk trio is complicated by the other session **currently adding a Chat
+tab**, which moves that affordance again — those three should wait for it.
+
+## Group C — cascades, safe to fix (50)
+
+The rest. The target exists, the path to it changed. These are mechanical once
+the path is traced: SSO entry, menu filters and sorts, folio totals, profile
+re-entry, post-stay, announcements, Explore Nearby headings.
+
+Two in this group need a value rather than a path: `13 dishes` and `5 venues`
+are counts that moved with the catalogue, and `"This stay so far"` /
+`"All Items"` are the only genuinely deleted strings.
+
+## Recommended order
+
+1. Rule on Group A — it is 7 tests and one decision.
+2. Fix Group C, which is the bulk and carries no product risk.
+3. Leave the front-desk half of Group B until the Chat tab lands.
+4. Treat the scan trio as a bug report, not a test failure.

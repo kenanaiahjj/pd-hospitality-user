@@ -21,6 +21,11 @@ a welcoming first state, suggested prompts, a quiet status header, an
 unobtrusive typing state, and a rounded composer that stays close to the
 conversation.
 
+The finish should feel premium, glassy, and modern through a small number of
+purposeful translucent surfaces, layered depth, careful spacing, and restrained
+motion. The entire screen must not become a blur effect or a stack of floating
+cards.
+
 The product meaning remains explicit: this is a conversation with the hotel
 front desk, not an autonomous Cabana bot. Existing quick requests, local image
 attachments, local voice recordings, offline delivery, unread indicators,
@@ -49,6 +54,8 @@ inventing an AI identity or changing the underlying front-desk contract.
 ## Goals
 
 - Make the first chat view feel welcoming and ready to help.
+- Give the chat a premium, contemporary finish with purposeful translucency and
+  depth.
 - Make common hotel requests discoverable without making the screen feel like a
   menu of five equal actions.
 - Give the conversation a stronger visual hierarchy and more natural rhythm.
@@ -63,6 +70,8 @@ inventing an AI identity or changing the underlying front-desk contract.
 
 - Do not create a new bot name, bot persona, or AI branding.
 - Do not claim that an automated assistant is a hotel employee.
+- Do not apply glass, blur, glow, or floating shadows to every element. The
+  effect belongs to the chat shell and composer, not to the whole screen.
 - Do not add generative answers, streaming responses, transcription, booking
   changes, service fulfillment, or server-backed chat.
 - Do not change the existing quick-action messages or their send behavior.
@@ -211,6 +220,37 @@ restrained and service-oriented:
 The assistant inspiration comes from hierarchy, prompt affordances, and
 conversation density—not from copying Grok or Genie colors, logos, names, or
 specific branded UI.
+
+### Premium glass finish
+
+Use glass as a material with a job, not as a theme applied indiscriminately:
+
+- Keep the page background solid and quiet so the conversation remains the
+  focal point.
+- Make the compact chat context and sticky composer the two translucent
+  surfaces. Use a light white alpha surface around `0.72–0.82`,
+  `backdrop-filter: blur(18px) saturate(1.12)`, and the existing medium
+  elevation token. Provide a solid `--guest-paper` fallback when backdrop blur
+  is unavailable.
+- Give the glass surfaces enough contrast against the canvas and use a single
+  depth treatment. Do not combine a decorative border with a wide shadow, and
+  do not nest glass surfaces inside other glass surfaces.
+- Keep message bubbles calmer than the shell: desk replies use a quiet opaque
+  surface, while guest replies use a dark ink surface with clear readable text.
+  Pink remains a state/action accent rather than the entire chat background.
+- Use a small circular desk mark and a restrained status halo as the only
+  identity detail. It must read as the hotel desk, not a glowing AI avatar.
+- Preserve Asbir Sans, fixed product type sizes, optical spacing, and a 16–20px
+  radius scale. Premium quality comes from proportion and layering, not larger
+  type or exaggerated corner radii.
+- Use 150–220ms transitions for prompt, composer, and message-state changes.
+  Keep the typing indicator quiet and static-text accessible. Reduced motion
+  removes movement while retaining the same visual state changes.
+
+On narrow screens, the glass composer must sit above the bottom navigation and
+respect the existing safe-area and scroll inset. The last message must remain
+readable above it, and the composer must not cover the prompt rail when it is
+focused.
 
 ### Motion
 

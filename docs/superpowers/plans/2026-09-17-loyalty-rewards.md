@@ -34,7 +34,7 @@ waits on artwork.
 |---|---|---|---|---|---|
 | 0 | Restore the green baseline (precondition, not loyalty work) | ⬜ Not started | — | — | — |
 | 1 | Model additions and the rewards session slice | ✅ Complete | 2026-09-17 | 2026-09-17 | `5d724ac` |
-| 2 | Points model | ⬜ Not started | — | — | — |
+| 2 | Points model | ✅ Complete | 2026-09-17 | 2026-09-17 | `d8cd450` |
 | 3 | Badge model | ⬜ Not started | — | — | — |
 | 4 | BadgeMedal and the artwork fallback | ⬜ Not started | — | — | — |
 | 5 | Rewards hub, and the door from Profile | ⬜ Not started | — | — | — |
@@ -289,7 +289,10 @@ git commit -m "feat: carry rewards state and the fixtures badges derive from"
 
 ## Task 2: Points model
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commit:** `d8cd450`
+
+> Verified: `rewards/` 14/14 · `typecheck` exit 0 · `lint` exit 0. The reference
+> guest lands at **37,220 points**, not the 30,100 estimated in brainstorming.
 
 **Files:**
 - Create: `src/components/features/guest-app/rewards/points-model.ts`
@@ -299,7 +302,7 @@ git commit -m "feat: carry rewards state and the fixtures badges derive from"
 - Consumes: `getRewards`, `PointsRedemption`, `PastStay`, `GuestSession`, `parsePesoAmount`, `formatPesoAmount`.
 - Produces: `POINTS_PER_100`, `POINTS_FLOOR_BLOCK`, `REWARD_MENU`, `PointsEntry`, `Reward`, `buildPointsLedger`, `pointsBalance`, `pointsAsPesos`, `affordableRewards`, `pointsExpiry`, `redeemReward`, `earnedForStay`, `directCounterfactual`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -343,12 +346,12 @@ describe('points-model', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/points-model.test.ts`
 Expected: FAIL — `Cannot find module './points-model'`
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```ts
 /** Points per ₱100 of spend. The rate and the percentage are the same number. */
@@ -385,17 +388,17 @@ room rate, applies `in-app-booking` to every charge, and floors each product.
 appends redemptions as negative entries. `pointsBalance` sums the ledger.
 `redeemReward` returns the session unchanged when the balance cannot cover it.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/points-model.test.ts`
 Expected: PASS — 7 passed
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint`
 Expected: exit 0
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app/rewards/points-model.ts src/components/features/guest-app/rewards/points-model.test.ts
@@ -788,6 +791,13 @@ git commit -m "feat: show why a badge was given, and let the guest deny it"
 ## Task 7: Reward menu, reward detail, redeem
 
 **Status:** ⬜ Not started · **Started:** — · **Completed:** —
+
+> **The "1,900 away" test below cannot pass as written.** At the real balance of
+> 37,220 every reward on the menu is affordable, including the couples suite at
+> 32,000, so there is no out-of-reach row to disable. Either drop that
+> assertion, or add a genuine stretch reward first — a free night at ~55,000
+> points against a ₱9,400 rate is the natural top of a hotel menu and stays
+> well under the floor. **Owner's call; raised 2026-09-17.**
 
 **Files:**
 - Create: `reward-menu.tsx`

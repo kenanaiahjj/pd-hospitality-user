@@ -38,7 +38,7 @@ waits on artwork.
 | 3 | Badge model | ✅ Complete | 2026-09-17 | 2026-09-17 | `b6b9b99` |
 | 4 | BadgeMedal and the artwork fallback | ✅ Complete | 2026-09-17 | 2026-09-17 | `cb5aa68` |
 | 5 | Rewards hub, and the door from Profile | ✅ Complete | 2026-09-17 | 2026-09-17 | `e35e5d5` |
-| 6 | Badge sheet and the mute control | ⬜ Not started | — | — | — |
+| 6 | Badge sheet and the mute control | ✅ Complete | 2026-09-17 | 2026-09-17 | `a82c69b` |
 | 7 | Reward menu, reward detail, redeem | ⬜ Not started | — | — | — |
 | 8 | Apply points to a booking, earn on confirmation | ⬜ Not started | — | — | — |
 | 9 | Folio line, scan earn, OTA counterfactual | ⬜ Not started | — | — | — |
@@ -754,12 +754,14 @@ git commit -m "feat: give the profile a rewards hub that shows what the points b
 
 ## Task 6: Badge sheet and the mute control
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commit:** `a82c69b`
 
-> `BadgeShelf`'s `onOpenBadge` is optional and currently unpassed, so rows
-> render inert. Passing it swaps `div` back to `button` — the stylesheet already
-> targets the child whatever its tag, so nothing should move. Same for
-> `PointsWallet`'s `onOpenReward` in Task 7.
+> Verified: `rewards/` 58/58 · 198 passed across touched files (the 2 failures
+> remain the Task 0 pair) · typecheck and lint exit 0 · **sheet confirmed on
+> screen** with all six evidence lines and the correction control.
+>
+> `PointsWallet`'s `onOpenReward` is still optional and unpassed — Task 7 wires
+> it the same way, and the stylesheet already targets the child whatever its tag.
 
 **Files:**
 - Create: `badge-sheet.tsx`
@@ -774,7 +776,7 @@ A badge derived from spend is a profile, and an unannounced one reads as
 surveillance. The correction affordance lives on the badge itself, not in
 settings.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it('shows the bookings that earned a badge, and lets the guest deny it', async () => {
@@ -789,12 +791,12 @@ it('shows the bookings that earned a badge, and lets the guest deny it', async (
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: FAIL — opening a badge does nothing
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 `BadgeSheet` floats at the 20px radius with a shadow: the 64px medal, the name,
 one line of meaning, the evidence list from `row.evidence`, and the mute
@@ -802,17 +804,17 @@ control. For an unearned badge it shows what remains and the completing booking
 as the primary action. Muting calls `muteBadge` and writes the session, so the
 correction survives a reload.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint`
 Expected: exit 0
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app/rewards src/components/features/guest-app/guest-app-prototype.tsx

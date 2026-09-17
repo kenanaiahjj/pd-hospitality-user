@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Progress` |
+| **Status** | `Complete` |
 | **Created** | 2026-09-17 |
 | **Updated** | 2026-09-17 |
 | **Owner** | Kenanaiah Jo |
@@ -41,7 +41,7 @@ waits on artwork.
 | 6 | Badge sheet and the mute control | ✅ Complete | 2026-09-17 | 2026-09-17 | `a82c69b` |
 | 7 | Reward menu, reward detail, redeem | ✅ Complete | 2026-09-17 | 2026-09-17 | `e5df5e6` |
 | 8 | Apply points to a booking, earn on confirmation | ✅ Complete | 2026-09-17 | 2026-09-17 | `2efa6b8` |
-| 9 | Folio line, scan earn, OTA counterfactual | ⬜ Not started | — | — | — |
+| 9 | Folio line, scan earn, OTA counterfactual | ✅ Complete | 2026-09-17 | 2026-09-17 | `26e9ace` |
 
 Legend: ⬜ Not started · 🔄 In progress · 🔁 Fix round *R*/5 · ✅ Complete · ⛔ Blocked · ⏭️ Descoped
 
@@ -980,7 +980,13 @@ git commit -m "feat: spend points at the moment of booking, and award what it ea
 
 ## Task 9: Folio line, scan earn, OTA counterfactual
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commit:** `26e9ace`
+
+> Verified: `rewards/` 75/75 · 220 passed across touched files (2 failures remain
+> the pre-existing Task 0 pair) · typecheck, lint and **`npm run build`** all
+> exit 0 · **all three confirmed on screen**, including the Agoda receipt
+> reading "6,860 points instead of 1,960 on the room" and the direct stay
+> correctly saying nothing of the kind.
 
 **Files:**
 - Modify: `guest-app-prototype.tsx`, `rewards.css`
@@ -990,7 +996,7 @@ git commit -m "feat: spend points at the moment of booking, and award what it ea
 - Consumes: `pointsBalance`, `directCounterfactual`, `BEHAVIOUR_POINTS`.
 - Produces: no new exports — three integrations into existing screens.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it('offers points against the folio total', async () => {
@@ -1009,12 +1015,12 @@ it('says what an OTA stay would have earned booked direct', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: FAIL — none of the three lines exist
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 On `folio`, a row above the inverted total offering the balance against the
 bill. On the room-scan success path, `+1,000 points` inside the existing
@@ -1023,17 +1029,17 @@ for a stay whose `source` is not `Direct booking`, one line from
 `directCounterfactual` — stated as fact on a stay already taken, never as a
 prompt.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint && npm run build && npm test`
 Expected: exit 0, full suite green, build succeeds
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app

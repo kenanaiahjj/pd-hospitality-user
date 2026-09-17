@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | `Draft` |
+| **Status** | `Implemented` |
 | **Created** | 2026-09-17 |
 | **Updated** | 2026-09-17 |
 | **Owner** | Kenanaiah Jo |
@@ -103,27 +103,27 @@ block on it** — see *Artwork fallback* below.
 
 ## Success criteria
 
-- [ ] A guest opening Profile → Rewards sees a points balance, the reward menu,
+- [x] A guest opening Profile → Rewards sees a points balance, the reward menu,
       badges held, and badges in progress — all derived from their own history,
       with no hand-written balance fixture anywhere in the codebase.
-- [ ] The reference guest (Ana Santos, `MOCK_SESSION`) shows **37,220 points**,
+- [x] The reference guest (Ana Santos, `MOCK_SESSION`) shows **37,220 points**,
       **13 badges held** and **6 within one step** — every figure derived, none
       hand-written. *(Computed in Tasks 2 and 3. The brainstorming estimates —
       30,100 points, 8 held, 7 one away — came from `PAST_STAYS` alone, before
       the five live service bookings and the completed pre-registration were
       counted.)*
-- [ ] Redeeming a reward reduces the balance, appears in the ledger, and earns
+- [x] Redeeming a reward reduces the balance, appears in the ledger, and earns
       nothing back.
-- [ ] Every in-progress badge row links to a specific bookable thing that would
+- [x] Every in-progress badge row links to a specific bookable thing that would
       complete it.
-- [ ] Opening a badge shows the actual bookings that earned it, and muting it
+- [x] Opening a badge shows the actual bookings that earned it, and muting it
       removes it from every surface and survives a reload.
-- [ ] A stay booked through an OTA shows, on its receipt, what it would have
+- [x] A stay booked through an OTA shows, on its receipt, what it would have
       earned booked direct.
-- [ ] Badges render correctly with **zero** artwork files present, and adopt
+- [x] Badges render correctly with **zero** artwork files present, and adopt
       real artwork per badge as PNGs land, with no code change beyond the asset
       path.
-- [ ] `npm run typecheck && npm run lint && npm run build && npm test` passes
+- [x] `npm run typecheck && npm run lint && npm run build && npm test` passes
       with fresh output.
 
 ---

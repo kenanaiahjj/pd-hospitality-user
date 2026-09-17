@@ -32,7 +32,8 @@ export type BadgeShelfProps = {
   nearly: BadgeProgress[];
   /** Everything, for the family sections underneath. */
   all: BadgeProgress[];
-  onOpenBadge: (badgeId: string) => void;
+  /** Absent until the badge sheet exists; rows render inert rather than dead. */
+  onOpenBadge?: (badgeId: string) => void;
 };
 
 export function BadgeShelf({ earned, nearly, all, onOpenBadge }: BadgeShelfProps) {
@@ -49,10 +50,17 @@ export function BadgeShelf({ earned, nearly, all, onOpenBadge }: BadgeShelfProps
         <ul className="badge-shelf__held">
           {earned.map((row) => (
             <li key={row.definition.id}>
-              <button type="button" onClick={() => onOpenBadge(row.definition.id)}>
-                <BadgeMedal badge={row.definition} earned />
-                <span>{row.definition.name}</span>
-              </button>
+              {onOpenBadge ? (
+                <button type="button" onClick={() => onOpenBadge(row.definition.id)}>
+                  <BadgeMedal badge={row.definition} earned />
+                  <span>{row.definition.name}</span>
+                </button>
+              ) : (
+                <div>
+                  <BadgeMedal badge={row.definition} earned />
+                  <span>{row.definition.name}</span>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -103,13 +111,16 @@ export function BadgeShelf({ earned, nearly, all, onOpenBadge }: BadgeShelfProps
 
 function BadgeRow({
   row, accented, onOpen,
-}: { row: BadgeProgress; accented: boolean; onOpen: (id: string) => void }) {
+}: { row: BadgeProgress; accented: boolean; onOpen?: (id: string) => void }) {
   const { definition, count, earned } = row;
   const fraction = Math.min(count / definition.threshold, 1);
+  const Row = onOpen ? 'button' : 'div';
 
   return (
     <li data-testid="badge-progress-row">
-      <button type="button" onClick={() => onOpen(definition.id)}>
+      <Row
+        {...(onOpen ? { type: 'button' as const, onClick: () => onOpen(definition.id) } : {})}
+      >
         <BadgeMedal badge={definition} earned={earned} />
         <div>
           <b>{definition.name}</b>
@@ -123,8 +134,8 @@ function BadgeRow({
           </span>
         </div>
         <span className="badge-shelf__count">{count} of {definition.threshold}</span>
-        <CaretRight aria-hidden="true" />
-      </button>
+        {onOpen ? <CaretRight aria-hidden="true" /> : null}
+      </Row>
     </li>
   );
 }

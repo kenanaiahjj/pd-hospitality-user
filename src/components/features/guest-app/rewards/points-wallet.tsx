@@ -25,10 +25,27 @@ export type PointsWalletProps = {
   expiry: string;
   /** The badge nearest to earned, shown as the other thing in reach. */
   nearest?: BadgeProgress;
-  onOpenReward: (rewardId: string) => void;
+  /**
+   * Absent until the reward detail screen exists. A control that navigates
+   * nowhere is worse than a line of text, so without this the block is text.
+   */
+  onOpenReward?: (rewardId: string) => void;
 };
 
 const points = (value: number) => value.toLocaleString('en-US');
+
+/**
+ * A button when there is somewhere to go, a plain block when there is not.
+ *
+ * Rendering a `<button>` that does nothing announces an action to a screen
+ * reader that the screen cannot perform.
+ */
+function Pressable({
+  className, onPress, children,
+}: { className: string; onPress?: () => void; children: React.ReactNode }) {
+  if (!onPress) return <div className={className}>{children}</div>;
+  return <button className={className} type="button" onClick={onPress}>{children}</button>;
+}
 
 export function PointsWallet({
   balance, affordable, nextUp, ledger, expiry, nearest, onOpenReward,
@@ -44,10 +61,9 @@ export function PointsWallet({
       </p>
 
       {best ? (
-        <button
+        <Pressable
           className="points-wallet__buys"
-          type="button"
-          onClick={() => onOpenReward(best.id)}
+          onPress={onOpenReward ? () => onOpenReward(best.id) : undefined}
         >
           <span>That is</span>
           <b>{best.title}</b>
@@ -55,7 +71,7 @@ export function PointsWallet({
             {points(best.points)} points
             {balance > best.points ? ` · ${points(balance - best.points)} left over` : null}
           </small>
-        </button>
+        </Pressable>
       ) : (
         <p className="points-wallet__buys points-wallet__buys--empty">
           Book anything on property and this starts filling in.
@@ -64,10 +80,13 @@ export function PointsWallet({
 
       {/* Something out of reach, or the balance has nothing left to pull toward. */}
       {nextUp ? (
-        <button className="points-wallet__next" type="button" onClick={() => onOpenReward(nextUp.id)}>
+        <Pressable
+          className="points-wallet__next"
+          onPress={onOpenReward ? () => onOpenReward(nextUp.id) : undefined}
+        >
           <b>{nextUp.title}</b>
           <small>{points(nextUp.points - balance)} points away</small>
-        </button>
+        </Pressable>
       ) : null}
 
       {nearest ? (

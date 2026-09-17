@@ -150,9 +150,23 @@ import {
   buildStories,
 } from './promoted';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
+import {
+  BadgeShelf,
+  EstateMap,
+  PointsWallet,
+  REWARD_MENU,
+  affordableRewards,
+  badgeProgress,
+  buildPointsLedger,
+  earnedBadges,
+  nearlyEarnedBadges,
+  pointsBalance,
+  pointsExpiry,
+} from './rewards';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
+import './rewards/rewards.css';
 
 type ActiveScreen = ScreenId | 'entry-hub';
 
@@ -1277,7 +1291,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('chat');
   };
 
-  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history'].includes(activeScreen);
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards'].includes(activeScreen);
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -3673,6 +3687,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <small>Passport on file · ends 4821</small>
               </div>
             </div>
+            <button className="guest-list-row" onClick={() => go('rewards')}>
+              <span><Sparkle /></span>
+              <div>
+                <b>Points and badges</b>
+                <small>{pointsBalance(session).toLocaleString('en-US')} points · {earnedBadges(session).length} badges</small>
+              </div>
+              <CaretRight />
+            </button>
             <button className="guest-list-row" onClick={() => go('stay-history')}>
               <span><SuitcaseRolling /></span>
               <div><b>Stay history</b><small>3 stays across 2 properties</small></div>
@@ -3685,6 +3707,48 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </button>
           </div>
         );
+
+      case 'rewards': {
+        /*
+          Everything on this screen is derived on the spot. Nothing about what
+          a guest has earned is stored, so the balance and the badges cannot
+          drift from the stays behind them -- and they follow the prototype's
+          stay-state switch instead of surviving it.
+        */
+        const balance = pointsBalance(session);
+        const nearly = nearlyEarnedBadges(session);
+
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <h1>Points and badges</h1>
+              <p>Earned across every property you have stayed at.</p>
+            </div>
+
+            <PointsWallet
+              balance={balance}
+              affordable={affordableRewards(balance)}
+              nextUp={REWARD_MENU.find((reward) => reward.points > balance)}
+              ledger={buildPointsLedger(session)}
+              expiry={pointsExpiry(session)}
+              nearest={nearly[0]}
+            />
+
+            <BadgeShelf
+              earned={earnedBadges(session)}
+              nearly={nearly}
+              all={badgeProgress(session)}
+            />
+
+            <EstateMap
+              visitedCities={[
+                ...session.pastStays.map((stay) => stay.city),
+                ...session.bookings.map((booking) => booking.city),
+              ]}
+            />
+          </div>
+        );
+      }
 
       case 'stay-history': {
         const lifetime = formatPesoAmount(pastStays.reduce((sum, stay) => sum + parsePesoAmount(stay.total), 0));
@@ -3917,7 +3981,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <NavButton
                 label="Profile"
                 icon={<UserCircle />}
-                active={activeScreen === 'profile' || activeScreen === 'stay-history'}
+                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards'}
                 onClick={() => go('profile')}
               />
             </nav>

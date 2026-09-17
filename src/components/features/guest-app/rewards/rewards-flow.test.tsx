@@ -2,7 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { MOCK_SESSION } from '../prototype-model';
+import { MOCK_SESSION, SCREENS } from '../prototype-model';
+import { GuestAppPrototype } from '../guest-app-prototype';
 import {
   BADGES, BADGE_FAMILIES, badgeProgress, earnedBadges, findBadge, nearlyEarnedBadges,
 } from './badge-model';
@@ -195,5 +196,38 @@ describe('EstateMap', () => {
 
     expect(screen.getByRole('heading', { name: 'Mindanao' })).toBeInTheDocument();
     expect(screen.getByText('No property here yet')).toBeInTheDocument();
+  });
+});
+
+
+describe('the door from Profile', () => {
+  it('registers Rewards as a screen of the app', () => {
+    expect(SCREENS.find((screenEntry) => screenEntry.id === 'rewards')).toMatchObject({
+      group: 'Account',
+      title: 'Points and badges',
+    });
+  });
+
+  it('opens the hub from Profile and derives everything on the spot', async () => {
+    render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
+
+    const door = screen.getByRole('button', { name: /points and badges/i });
+    expect(within(door).getByText(/37,220 points · 13 badges/)).toBeInTheDocument();
+
+    await userEvent.click(door);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Points and badges' })).toBeInTheDocument();
+    expect(screen.getByText('37,220')).toBeInTheDocument();
+    expect(screen.getByText('13 earned')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Foodie' })).toBeInTheDocument();
+  });
+
+  /* Rewards lives inside Profile, so the bar must not lose its highlight. */
+  it('keeps the Profile tab current while rewards is open', async () => {
+    render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
+    await userEvent.click(screen.getByRole('button', { name: /points and badges/i }));
+
+    const profileTab = screen.getByRole('button', { name: /^profile$/i });
+    expect(profileTab).toHaveAttribute('aria-current', 'page');
   });
 });

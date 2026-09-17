@@ -245,7 +245,12 @@
   padding: 0;
 }
 
-.badge-shelf__held button {
+/*
+  The child, whatever tag it is. These render as a button when there is
+  somewhere to go and a div when there is not, and a tag-keyed selector left
+  the inert version completely unstyled.
+*/
+.badge-shelf__held li > * {
   display: grid;
   gap: 6px;
   justify-items: center;
@@ -258,7 +263,7 @@
   transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.badge-shelf__held button:active { transform: scale(0.96); }
+.badge-shelf__held li > button:active { transform: scale(0.96); }
 
 .badge-shelf__held span {
   font-size: 12px;
@@ -278,7 +283,7 @@
 
 .badge-shelf__rows li + li { border-block-start: 1px solid var(--line, oklch(0.912 0.004 285)); }
 
-.badge-shelf__rows button {
+.badge-shelf__rows li > * {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
   gap: 12px;

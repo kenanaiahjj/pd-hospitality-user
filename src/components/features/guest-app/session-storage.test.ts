@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { MOCK_SESSION, verifyRoomPresence } from './prototype-model';
+import { MOCK_SESSION, getRewards, verifyRoomPresence } from './prototype-model';
+import type { GuestSession } from './prototype-model';
 import {
   SESSION_STORAGE_KEY,
   clearStoredSession,
@@ -77,6 +78,58 @@ describe('session storage', () => {
 
     expect(restored?.bookings.find((booking) => booking.id === 'HEN-241109')?.roomVerification)
       .toEqual({ method: 'scan', at: '2026-11-11' });
+  });
+
+  /*
+    Rewards is the first field that is purely additive: a record written before
+    it existed restores as a guest who has redeemed nothing and muted nothing,
+    so the key stays at v5 rather than discarding every stored session to gain
+    a default two lines of code already supply.
+  */
+  it('restores a record written before rewards existed', () => {
+    const stale: Record<string, unknown> = { ...MOCK_SESSION };
+    delete stale.rewards;
+    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(stale));
+
+    const restored = readStoredSession();
+
+    expect(restored).toBeDefined();
+    expect(getRewards(restored as GuestSession)).toEqual({ redemptions: [], mutedBadges: [] });
+  });
+
+  it('round-trips redemptions and muted badges', () => {
+    writeStoredSession({
+      ...MOCK_SESSION,
+      rewards: {
+        redemptions: [{
+          id: 'redemption-1',
+          rewardId: 'hilom-massage',
+          title: 'Hilom signature massage',
+          points: 16000,
+          redeemedAt: '2026-11-11',
+        }],
+        mutedBadges: ['night-owl'],
+      },
+    });
+
+    const restored = readStoredSession();
+
+    expect(getRewards(restored as GuestSession).redemptions).toHaveLength(1);
+    expect(getRewards(restored as GuestSession).mutedBadges).toEqual(['night-owl']);
+  });
+
+  /*
+    The only new way a stored record can be malformed. A string here would reach
+    `getRewards(...).mutedBadges.includes(...)` on the badge shelf and take the
+    screen down, which is the failure the rest of this guard exists to prevent.
+  */
+  it('discards a record whose rewards slice is not an object', () => {
+    window.localStorage.setItem(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ ...MOCK_SESSION, rewards: 'nope' }),
+    );
+
+    expect(readStoredSession()).toBeUndefined();
   });
 
   it('discards a record whose auth state is not one the app branches on', () => {

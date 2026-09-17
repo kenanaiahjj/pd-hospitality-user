@@ -40,7 +40,7 @@ waits on artwork.
 | 5 | Rewards hub, and the door from Profile | ✅ Complete | 2026-09-17 | 2026-09-17 | `e35e5d5` |
 | 6 | Badge sheet and the mute control | ✅ Complete | 2026-09-17 | 2026-09-17 | `a82c69b` |
 | 7 | Reward menu, reward detail, redeem | ✅ Complete | 2026-09-17 | 2026-09-17 | `e5df5e6` |
-| 8 | Apply points to a booking, earn on confirmation | ⬜ Not started | — | — | — |
+| 8 | Apply points to a booking, earn on confirmation | ✅ Complete | 2026-09-17 | 2026-09-17 | `2efa6b8` |
 | 9 | Folio line, scan earn, OTA counterfactual | ⬜ Not started | — | — | — |
 
 Legend: ⬜ Not started · 🔄 In progress · 🔁 Fix round *R*/5 · ✅ Complete · ⛔ Blocked · ⏭️ Descoped
@@ -906,7 +906,16 @@ git commit -m "feat: spend points on inventory rather than on a discount"
 
 ## Task 8: Apply points to a booking, earn on confirmation
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commit:** `2efa6b8`
+
+> Verified: `rewards/` 71/71 · 211 passed across touched files (2 failures remain
+> the Task 0 pair) · typecheck and lint exit 0 · **confirmed on screen** —
+> 10,000 points took a ₱2,400 treatment to ₱1,400, and the confirmation earned
+> +700 on what was actually paid alongside "You're now Spontaneous".
+>
+> Booking tests run against `applyPrototypeStayState('live')`, not
+> `MOCK_SESSION`: confirming needs a verified room, and the fixture already
+> holds the massage so a re-book could earn nothing.
 
 **Files:**
 - Create: `points-apply.tsx`
@@ -920,7 +929,7 @@ git commit -m "feat: spend points on inventory rather than on a discount"
 The floor spends in ₱100 blocks against any booking. The confirmation is where
 both earns land — points, and any badge the booking just completed.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it('applies points in ₱100 blocks and drops the total', async () => {
@@ -935,12 +944,12 @@ it('announces a badge the booking completed', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: FAIL — no points control on the booking screen
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 `PointsApply` sits on `service-booking` above the total: the balance, a control
 stepping in `POINTS_FLOOR_BLOCK` units up to the lesser of the balance and the
@@ -950,17 +959,17 @@ earn moment — medal scaling `0.96 → 1` over 220ms with `Confetti`, and the
 consequence stated in the same breath. Reduced motion keeps the fade and drops
 the confetti.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: exit 0, full suite green
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app/rewards src/components/features/guest-app/guest-app-prototype.tsx

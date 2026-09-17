@@ -37,7 +37,7 @@ waits on artwork.
 | 2 | Points model | ✅ Complete | 2026-09-17 | 2026-09-17 | `d8cd450` |
 | 3 | Badge model | ✅ Complete | 2026-09-17 | 2026-09-17 | `b6b9b99` |
 | 4 | BadgeMedal and the artwork fallback | ✅ Complete | 2026-09-17 | 2026-09-17 | `cb5aa68` |
-| 5 | Rewards hub, and the door from Profile | 🔄 In progress | 2026-09-17 | — | `1b078c1` |
+| 5 | Rewards hub, and the door from Profile | ✅ Complete | 2026-09-17 | 2026-09-17 | `e35e5d5` |
 | 6 | Badge sheet and the mute control | ⬜ Not started | — | — | — |
 | 7 | Reward menu, reward detail, redeem | ⬜ Not started | — | — | — |
 | 8 | Apply points to a booking, earn on confirmation | ⬜ Not started | — | — | — |
@@ -657,18 +657,20 @@ git commit -m "feat: render a badge before its artwork exists"
 
 ## Task 5: Rewards hub, and the door from Profile
 
-**Status:** 🔄 In progress · **Started:** 2026-09-17 · **Completed:** — · **Commit so far:** `1b078c1`
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commits:** `1b078c1`, `e35e5d5`
 
-> **Components done, app wiring blocked.** `PointsWallet`, `BadgeShelf`,
-> `EstateMap`, the barrel and their styles are built and tested — 49/49 in
-> `rewards/`, typecheck and lint clean, and the medal is verified on screen.
+> Verified: 53/53 in `rewards/`, 193 passed across the touched files (the only
+> 2 failures are the pre-existing Task 0 pair), typecheck and lint exit 0, and
+> **the hub confirmed on screen at 900×1000** — wallet, shelf, estate map and
+> the Profile tab staying current.
 >
-> **What remains:** the two `ScreenId`s, the two `SCREENS` rows, the Profile row
-> and the `case 'rewards':` branch — all of which live in
-> `guest-app-prototype.tsx`, which a second session has had uncommitted for the
-> whole task (a `showNav` → `showPrimaryNav` split, `MY_STAY_SCREENS` changes,
-> 127 lines of CSS and 87 of tests). Staging it would commit their unfinished
-> refactor. **Resume when that file is clean.**
+> One `ScreenId` only: `rewards` (60). `reward-detail` belongs to Task 7, and a
+> screen id with no case is a dead entry.
+>
+> `guest-app-prototype.tsx` was dirty with a second session's work throughout.
+> Its hunks were staged surgically (`git apply --cached -R`), so their
+> `showNav`/`showPrimaryNav` split and `MY_STAY_SCREENS` change are still
+> uncommitted in the working tree, untouched.
 
 > **Mount `rewards.css` and screenshot the badge shelf.** Task 4's CSS medal has
 > never been on screen — clip-path shapes, the sunburst field and the glyph
@@ -690,7 +692,7 @@ git commit -m "feat: render a badge before its artwork exists"
 sit in the `Account` group and must be added to the `showNav` list so the bars
 stay on.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it('opens rewards from profile and states the balance with its floor value', async () => {
@@ -714,12 +716,12 @@ it('links every in-progress badge to something bookable', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: FAIL — no `points and badges` control on Profile
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 `PointsWallet` shows the balance in tabular figures with its floor value beside
 it, then what it buys named from `REWARD_MENU`, then the ledger and the expiry.
@@ -731,17 +733,17 @@ pink progress track appears on the nearest two rows only.
 In `guest-app-prototype.tsx`, add a Profile row into `rewards` showing the
 balance, and the `case 'rewards':` branch composing the three components.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: exit 0, full suite green
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app/rewards src/components/features/guest-app/prototype-model.ts src/components/features/guest-app/guest-app-prototype.tsx
@@ -753,6 +755,11 @@ git commit -m "feat: give the profile a rewards hub that shows what the points b
 ## Task 6: Badge sheet and the mute control
 
 **Status:** ⬜ Not started · **Started:** — · **Completed:** —
+
+> `BadgeShelf`'s `onOpenBadge` is optional and currently unpassed, so rows
+> render inert. Passing it swaps `div` back to `button` — the stylesheet already
+> targets the child whatever its tag, so nothing should move. Same for
+> `PointsWallet`'s `onOpenReward` in Task 7.
 
 **Files:**
 - Create: `badge-sheet.tsx`

@@ -149,11 +149,31 @@ import {
   buildSearchIndex,
   buildStories,
 } from './promoted';
+import { ChatComposer, type ChatAttachment } from './chat-composer';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
 
 type ActiveScreen = ScreenId | 'entry-hub';
+
+type ChatQuickAction = {
+  label: string;
+  message: (room: string) => string;
+};
+
+const CHAT_QUICK_ACTIONS: ChatQuickAction[] = [
+  { label: 'Towels', message: () => 'Could we get two fresh towels, please?' },
+  { label: 'Housekeeping', message: (room) => `Please arrange housekeeping for ${room.toLowerCase()}.` },
+  { label: 'Late checkout', message: () => 'Can we request a late checkout?' },
+  { label: 'Room issue', message: (room) => `There’s an issue in ${room.toLowerCase()}. Could someone help?` },
+  { label: 'Transfers', message: () => 'We need help arranging a transfer.' },
+];
+
+const formatChatDuration = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const remainder = (seconds % 60).toString().padStart(2, '0');
+  return `${minutes}:${remainder}`;
+};
 
 /**
  * Which screens light which tab. Explore owns the whole catalogue -- the
@@ -974,12 +994,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [, setCode] = useState('');
   const [, setCodeNotice] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ from: 'guest' | 'desk'; body: string; state?: string; images?: string[] }>>([
+  const [chatMessages, setChatMessages] = useState<Array<{ from: 'guest' | 'desk'; body: string; state?: string; images?: string[]; attachment?: ChatAttachment }>>([
     { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?' },
   ]);
   const [chatDraft, setChatDraft] = useState('');
   const [chatPreviewImage, setChatPreviewImage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const chatObjectUrlsRef = useRef(new Set<string>());
   const [selectedCategory, setSelectedCategory] = useState<MiniAppCategoryId>('dining');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
   const [selectedNearbyEstablishmentId, setSelectedNearbyEstablishmentId] = useState<string | null>(null);
@@ -1057,6 +1078,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [profileMatch, setProfileMatch] = useState<ProfileMatch | null>(null);
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
+
+  useEffect(() => () => {
+    chatObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    chatObjectUrlsRef.current.clear();
+  }, []);
 
   /*
     Tests drive the prototype by handing it a session outright. When they do,
@@ -1185,29 +1211,33 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const sendQuickMessage = (body: string) => {
+  const sendChatMessage = (body: string, attachment?: ChatAttachment) => {
+    const messageBody = body.trim() || (attachment?.kind === 'image' ? 'Image attached.' : 'Voice message attached.');
     setChatDraft('');
     const state = online ? 'Sent' : 'Will send when connected';
-    setChatMessages((messages) => [...messages, { from: 'guest', body, state }]);
+    if (attachment?.url.startsWith('blob:')) chatObjectUrlsRef.current.add(attachment.url);
+    setChatMessages((messages) => [...messages, { from: 'guest', body: messageBody, state, attachment }]);
     if (!online) return;
     setSending(true);
     window.setTimeout(() => {
-      const catalogRequest = /see the menu and order|see the available products|see the available options/i.test(body);
-      const establishment = body.match(/from (.+?)\.$/i)?.[1] ?? 'the establishment';
+      const catalogRequest = /see the menu and order|see the available products|see the available options/i.test(messageBody);
+      const establishment = messageBody.match(/from (.+?)\.$/i)?.[1] ?? 'the establishment';
       const catalogImages = catalogRequest
-        ? body.includes('products')
+        ? messageBody.includes('products')
           ? GIFT_PRODUCTS.slice(0, 2).map((product) => product.image)
           : [getMenuItemImage('a1b-calamari'), getMenuItemImage('a1b-ribeye')]
         : undefined;
-      const deskReply = body.includes('towel')
+      const deskReply = messageBody.includes('towel')
         ? `We’ll bring two fresh towels to ${contextRoom.toLowerCase()} shortly.`
         : catalogRequest
-          ? `Here is the current ${establishment} ${body.includes('products') ? 'product catalog' : 'menu'} and ordering information. Please send the item names and quantities you would like to order.`
+          ? `Here is the current ${establishment} ${messageBody.includes('products') ? 'product catalog' : 'menu'} and ordering information. Please send the item names and quantities you would like to order.`
           : 'Thanks. The front desk has received your request.';
       setChatMessages((messages) => [...messages, { from: 'desk', body: deskReply, state: 'Seen', images: catalogImages }]);
       setSending(false);
     }, 850);
   };
+
+  const sendQuickMessage = (body: string) => sendChatMessage(body);
 
   const openExtensionChat = () => {
     setChatDraft('Hi! I’d like to ask if I can extend my stay for one more night. Is my current room available, and how much would the additional night cost?');
@@ -3468,12 +3498,113 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'chat-after-hours': {
         const afterHours = activeScreen === 'chat-after-hours';
         const chatDisabled = checkedOutNav && (simulatePostStayExpired || !postStayWindow.deskOpen);
-        const displayedChatMessages = chatDisabled ? [
-          { from: 'desk' as const, body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
-          { from: 'guest' as const, body: 'Could we get two fresh towels, please?', state: 'Seen' },
-          { from: 'desk' as const, body: `Of course — we’ll send two fresh towels to ${contextRoom.toLowerCase()} shortly.`, state: 'Seen' },
+        const displayedChatMessages: Array<{
+          from: 'guest' | 'desk';
+          body: string;
+          state?: string;
+          images?: string[];
+          attachment?: ChatAttachment;
+        }> = chatDisabled ? [
+          { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
+          { from: 'guest', body: 'Could we get two fresh towels, please?', state: 'Seen' },
+          { from: 'desk', body: `Of course — we’ll send two fresh towels to ${contextRoom.toLowerCase()} shortly.`, state: 'Seen' },
         ] : chatMessages;
-        return <div className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''}`}><div className="guest-chat__intro"><div><Tag tone={chatDisabled ? 'neutral' : afterHours ? 'warning' : 'positive'}>{chatDisabled ? 'Chat unavailable' : afterHours ? 'Outside staffed hours' : 'Front desk online'}</Tag><h1>Front desk</h1><p>{chatDisabled ? 'The post-stay support window ended 24 hours after checkout.' : afterHours ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.` : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}</p></div></div>{chatDisabled ? <Notice tone="neutral" title="Chat is closed">For help after 24 hours, please contact the hotel directly.</Notice> : null}{!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}<div className="guest-quick-actions" aria-label="Quick requests">{['Towels', 'Housekeeping', 'Late checkout', 'Transfers'].map((label) => <button key={label} disabled={chatDisabled} onClick={() => sendQuickMessage(label === 'Towels' ? 'Could we get two fresh towels, please?' : label === 'Housekeeping' ? `Please arrange housekeeping for ${contextRoom.toLowerCase()}.` : label === 'Late checkout' ? 'Can we request a late checkout?' : 'We need help arranging a transfer.')}>{label}</button>)}</div><div className="guest-messages" aria-live="polite">{displayedChatMessages.map((message, index) => <div key={`${message.body}-${index}`} className={`guest-message guest-message--${message.from}`}><p>{message.body}</p>{message.images?.length ? <div className="guest-chat-catalog-images">{message.images.map((image) => <button key={image} type="button" onClick={() => setChatPreviewImage(image)}><Image src={image} alt="Current catalog" width={120} height={88} /></button>)}</div> : null}{message.state ? <small>{message.state}</small> : null}</div>)}{sending ? <div className="guest-message guest-message--desk guest-message--typing"><SpinnerGap className="guest-spin" /><span>Front desk is replying</span></div> : null}</div>{unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}<form className="guest-composer" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const body = chatDraft.trim(); if (body) sendQuickMessage(body); }}><label className="sr-only" htmlFor="message">Message the front desk</label><input id="message" name="message" value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} placeholder={chatDisabled ? 'Chat is unavailable' : 'Ask the front desk'} disabled={chatDisabled} /><button aria-label="Send message" type="submit" disabled={chatDisabled}><ArrowRight /></button></form>{chatPreviewImage ? <div className="guest-chat-image-preview" role="dialog" aria-label="Catalog preview" onClick={() => setChatPreviewImage(null)}><button type="button" aria-label="Close preview" onClick={() => setChatPreviewImage(null)}><X /></button><Image src={chatPreviewImage} alt="Catalog preview" fill sizes="90vw" /></div> : null}</div>;
+
+        return (
+          <div className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''}`}>
+            <div className="guest-chat__intro">
+              <div>
+                <Tag tone={chatDisabled ? 'neutral' : afterHours ? 'warning' : 'positive'}>
+                  {chatDisabled ? 'Chat unavailable' : afterHours ? 'Outside staffed hours' : 'Front desk online'}
+                </Tag>
+                <h1>Front desk</h1>
+                <p>
+                  {chatDisabled
+                    ? 'The post-stay support window ended 24 hours after checkout.'
+                    : afterHours
+                      ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.`
+                      : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}
+                </p>
+              </div>
+            </div>
+            {chatDisabled ? <Notice tone="neutral" title="Chat is closed">For help after 24 hours, please contact the hotel directly.</Notice> : null}
+            {!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}
+            <div className="guest-quick-actions" aria-label="Quick requests">
+              {CHAT_QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  disabled={chatDisabled}
+                  onClick={() => sendQuickMessage(action.message(contextRoom))}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+            <div className="guest-messages" aria-live="polite">
+              {displayedChatMessages.map((message, index) => (
+                <div key={`${message.body}-${index}`} className={`guest-message guest-message--${message.from}`}>
+                  <p>{message.body}</p>
+                  {message.attachment ? (
+                    message.attachment.kind === 'image' ? (
+                      <button
+                        className="guest-message__attachment guest-message__attachment--image"
+                        type="button"
+                        aria-label={message.attachment.name}
+                        onClick={() => setChatPreviewImage(message.attachment!.url)}
+                      >
+                        <Image
+                          src={message.attachment.url}
+                          alt={message.attachment.name}
+                          width={220}
+                          height={160}
+                          unoptimized
+                        />
+                      </button>
+                    ) : (
+                      <div className="guest-message__attachment guest-message__attachment--audio">
+                        <audio
+                          controls
+                          src={message.attachment.url}
+                          aria-label={`Voice message · ${formatChatDuration(message.attachment.duration ?? 0)}`}
+                        />
+                      </div>
+                    )
+                  ) : null}
+                  {message.images?.length ? (
+                    <div className="guest-chat-catalog-images">
+                      {message.images.map((image) => (
+                        <button key={image} type="button" onClick={() => setChatPreviewImage(image)}>
+                          <Image src={image} alt="Current catalog" width={120} height={88} />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {message.state ? <small>{message.state}</small> : null}
+                </div>
+              ))}
+              {sending ? <div className="guest-message guest-message--desk guest-message--typing"><SpinnerGap className="guest-spin" /><span>Front desk is replying</span></div> : null}
+            </div>
+            {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
+            <ChatComposer
+              disabled={chatDisabled}
+              draft={chatDraft}
+              onDraftChange={setChatDraft}
+              onSubmit={({ body, attachment }) => sendChatMessage(body, attachment)}
+            />
+            {chatPreviewImage ? (
+              <div
+                className="guest-chat-image-preview"
+                role="dialog"
+                aria-label="Catalog preview"
+                onClick={() => setChatPreviewImage(null)}
+              >
+                <button type="button" aria-label="Close preview" onClick={() => setChatPreviewImage(null)}><X /></button>
+                <Image src={chatPreviewImage} alt="Catalog preview" fill sizes="90vw" unoptimized={chatPreviewImage.startsWith('blob:')} />
+              </div>
+            ) : null}
+          </div>
+        );
       }
 
       case 'room-qr-midstay':

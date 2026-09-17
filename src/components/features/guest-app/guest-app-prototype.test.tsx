@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import userEvent from '@testing-library/user-event';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
 import {
   MOCK_SESSION,
@@ -16,6 +16,10 @@ import { readStoredSession, writeStoredSession } from './session-storage';
 
 const globalStyles = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
 const guestStyles = readFileSync(resolve(process.cwd(), 'src/components/features/guest-app/guest-app-prototype.css'), 'utf8');
+const urlMethodDescriptors = {
+  createObjectURL: Object.getOwnPropertyDescriptor(URL, 'createObjectURL'),
+  revokeObjectURL: Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL'),
+};
 
 const makeBooking = (overrides: Partial<Booking> = {}): Booking => ({
   id: 'booking-default',
@@ -88,6 +92,27 @@ const assignedSession = sessionFor([
 
 beforeAll(() => {
   Object.defineProperty(window, 'scrollTo', { value: vi.fn(), writable: true });
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    value: vi.fn(() => 'blob:chat-integration'),
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    value: vi.fn(),
+  });
+});
+
+afterAll(() => {
+  if (urlMethodDescriptors.createObjectURL) {
+    Object.defineProperty(URL, 'createObjectURL', urlMethodDescriptors.createObjectURL);
+  } else {
+    Reflect.deleteProperty(URL, 'createObjectURL');
+  }
+  if (urlMethodDescriptors.revokeObjectURL) {
+    Object.defineProperty(URL, 'revokeObjectURL', urlMethodDescriptors.revokeObjectURL);
+  } else {
+    Reflect.deleteProperty(URL, 'revokeObjectURL');
+  }
 });
 
 describe('GuestAppPrototype', () => {
@@ -2355,11 +2380,41 @@ describe('lifecycle gates', () => {
 
     expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
   });
+
+  it('sends each quick action through the existing front-desk message path', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="chat" initialSession={verified} />);
+
+    await user.click(screen.getByRole('button', { name: 'Room issue' }));
+
+    expect(screen.getByText(/There’s an issue in room 304/)).toBeInTheDocument();
+    expect(screen.getByText('Sent')).toBeInTheDocument();
+  });
+
+  it('renders an outgoing image and preserves the offline delivery state', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="chat" initialSession={verified} initialOnline={false} />);
+    const file = new File(['room'], 'room.jpg', { type: 'image/jpeg' });
+
+    fireEvent.change(screen.getByLabelText('Choose an image to attach'), { target: { files: [file] } });
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    expect(screen.getByRole('img', { name: 'room.jpg' })).toBeInTheDocument();
+    expect(screen.getByText('Will send when connected')).toBeInTheDocument();
+  });
 });
 
 describe('post-stay front desk window', () => {
   const justCheckedOut = applyPrototypeStayState('just-checked-out');
   const closed = applyPrototypeStayState('closed');
+
+  it('disables quick actions and media controls when the post-stay chat is closed', () => {
+    render(<GuestAppPrototype initialScreen="chat" initialSession={closed} />);
+
+    expect(screen.getByRole('button', { name: 'Towels' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Attach an image' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Start voice recording' })).toBeDisabled();
+  });
 
   it('keeps the desk reachable for 24 hours, and says how long is left', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={justCheckedOut} />);

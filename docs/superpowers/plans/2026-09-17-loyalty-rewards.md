@@ -35,7 +35,7 @@ waits on artwork.
 | 0 | Restore the green baseline (precondition, not loyalty work) | ⬜ Not started | — | — | — |
 | 1 | Model additions and the rewards session slice | ✅ Complete | 2026-09-17 | 2026-09-17 | `5d724ac` |
 | 2 | Points model | ✅ Complete | 2026-09-17 | 2026-09-17 | `d8cd450` |
-| 3 | Badge model | ⬜ Not started | — | — | — |
+| 3 | Badge model | ✅ Complete | 2026-09-17 | 2026-09-17 | `b6b9b99` |
 | 4 | BadgeMedal and the artwork fallback | ⬜ Not started | — | — | — |
 | 5 | Rewards hub, and the door from Profile | ⬜ Not started | — | — | — |
 | 6 | Badge sheet and the mute control | ⬜ Not started | — | — | — |
@@ -409,7 +409,10 @@ git commit -m "feat: derive a points balance from the stays that earned it"
 
 ## Task 3: Badge model
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commit:** `b6b9b99`
+
+> **Real figures: 13 held, 6 within one step.** Not the estimated 8 and 7.
+> Verified: `rewards/` 33/33 · `typecheck` exit 0 · `lint` exit 0.
 
 > **Two findings from Task 1 that change this task's tests.**
 >
@@ -438,7 +441,7 @@ git commit -m "feat: derive a points balance from the stays that earned it"
 All 42 definitions come from `docs/badge-art-prompts.md` — name, family,
 threshold, glyph and earn criteria. Encode them; do not paraphrase them.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -498,12 +501,12 @@ describe('badge-model', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/badge-model.test.ts`
 Expected: FAIL — `Cannot find module './badge-model'`
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```ts
 export type BadgeFamily = 'taste' | 'company' | 'rhythm' | 'place' | 'house' | 'venue';
@@ -545,17 +548,17 @@ export const BADGE_FAMILIES: Record<BadgeFamily, { label: string; shape: string;
 in `getRewards(session).mutedBadges`. A badge whose data is absent counts zero.
 `nextStep` resolves to the cheapest unbooked `qualifyingIds` entry.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/badge-model.test.ts`
 Expected: PASS — 7 passed
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint`
 Expected: exit 0
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app/rewards/badge-model.ts src/components/features/guest-app/rewards/badge-model.test.ts

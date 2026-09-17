@@ -106,13 +106,12 @@ block on it** — see *Artwork fallback* below.
 - [ ] A guest opening Profile → Rewards sees a points balance, the reward menu,
       badges held, and badges in progress — all derived from their own history,
       with no hand-written balance fixture anywhere in the codebase.
-- [ ] The reference guest (Ana Santos, `MOCK_SESSION`) shows a points balance,
-      several badges held and several one step from completion — every figure
-      derived, none hand-written. *(The brainstorming figures — 30,100 points,
-      8 held, 7 one away — were computed from `PAST_STAYS` alone.
-      `MOCK_SESSION.serviceBookings` adds five further qualifying events, so
-      Task 3 computes the true counts and amends this line. Do not assert the
-      illustrative numbers.)*
+- [ ] The reference guest (Ana Santos, `MOCK_SESSION`) shows **37,220 points**,
+      **13 badges held** and **6 within one step** — every figure derived, none
+      hand-written. *(Computed in Tasks 2 and 3. The brainstorming estimates —
+      30,100 points, 8 held, 7 one away — came from `PAST_STAYS` alone, before
+      the five live service bookings and the completed pre-registration were
+      counted.)*
 - [ ] Redeeming a reward reduces the balance, appears in the ledger, and earns
       nothing back.
 - [ ] Every in-progress badge row links to a specific bookable thing that would
@@ -238,14 +237,17 @@ Redemption has two rates, and the gap between them is the product:
 | Room upgrade, one night | 12,000 | ₱1,200 | ~₱3,000 gap |
 | Hilom signature massage | 16,000 | ₱1,600 | ₱2,400 |
 | Couples massage suite | 32,000 | ₱3,200 | ₱4,600 |
+| A night on us | 55,000 | ₱5,500 | ₱9,400 |
 
 Rules: a redemption earns nothing back · points expire 24 months after the
 earn, and any new stay resets the clock on the whole balance · the balance is
 shown with its floor value alongside it, always, so the conversion is never
 something the guest has to perform.
 
-Against the reference guest this yields **30,100 points** — the massage
-outright with 14,100 left, and the couples suite 1,900 away.
+Against the reference guest this yields **37,220 points** — every row affordable
+except the free night, which sits 17,780 away. A menu whose every row is within
+reach has nothing left to aim at, which is the one job its most expensive row
+does.
 
 ### The badge model
 

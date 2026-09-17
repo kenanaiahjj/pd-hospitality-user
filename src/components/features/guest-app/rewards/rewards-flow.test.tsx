@@ -2,8 +2,9 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { MOCK_SESSION, SCREENS } from '../prototype-model';
+import { MOCK_SESSION, SCREENS, applyPrototypeStayState } from '../prototype-model';
 import { RewardDetail, RewardMenu } from './reward-menu';
+import { PointsApply } from './points-apply';
 import { GuestAppPrototype } from '../guest-app-prototype';
 import {
   BADGES, BADGE_FAMILIES, badgeProgress, earnedBadges, findBadge, nearlyEarnedBadges,
@@ -391,5 +392,102 @@ describe('redeeming from the app', () => {
     // 37,220 − 16,000, and no earn for the redemption itself.
     expect(screen.getByText('21,220')).toBeInTheDocument();
     expect(screen.getByText('-16,000')).toBeInTheDocument();
+  });
+});
+
+
+describe('PointsApply', () => {
+  const render0 = (applied = 0, onChange = vi.fn()) => {
+    render(<PointsApply balance={37220} amount="₱2,400" applied={applied} onChange={onChange} />);
+    return onChange;
+  };
+
+  it('offers the balance against this booking, floored to what it can spend', () => {
+    render0();
+
+    // 37,220 points spends ₱3,700, not ₱3,722.
+    expect(screen.getByText('37,220 points · ₱3,700 available')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /use points/i })).toBeEnabled();
+  });
+
+  /*
+    Capped by the booking, not only by the balance. Points cannot pay more than
+    the thing costs, and the floor spends in whole ₱100 blocks -- ₱2,400 is
+    24 of them.
+  */
+  it('will not apply more points than the booking is worth', async () => {
+    const onChange = render0(23000);
+
+    await userEvent.click(screen.getByRole('button', { name: /add 1,000/i }));
+    expect(onChange).toHaveBeenLastCalledWith(24000);
+
+    render0(24000);
+    expect(screen.getAllByRole('button', { name: /add 1,000/i }).at(-1)).toBeDisabled();
+  });
+
+  it('says what the points take off, and what is left to pay', () => {
+    render0(10000);
+
+    expect(screen.getByText('−₱1,000')).toBeInTheDocument();
+    expect(screen.getByText('₱1,400')).toBeInTheDocument();
+  });
+});
+
+describe('booking with points', () => {
+  /*
+    The live stay state, because booking needs a verified room -- and without
+    the massage, since the fixture already holds it and a booking that changes
+    nothing can earn nothing. Removing it puts Wellness at 2 of 3, so booking
+    it is what tips the badge over.
+  */
+  const live = applyPrototypeStayState('live');
+  const beforeMassage = {
+    ...live,
+    serviceBookings: live.serviceBookings.filter((s) => s.id !== 'service-hilom-1'),
+  };
+
+  const openBooking = async (session = beforeMassage) => {
+    render(<GuestAppPrototype initialSession={session} initialScreen="service-booking" />);
+    await userEvent.click(screen.getByRole('button', { name: /charge to room 304/i }));
+  };
+
+  it('charges less when points are applied', async () => {
+    await openBooking();
+
+    await userEvent.click(screen.getByRole('button', { name: /^use points$/i }));
+    for (let i = 0; i < 9; i += 1) {
+      await userEvent.click(screen.getByRole('button', { name: /add 1,000/i }));
+    }
+
+    // Ten blocks of 1,000 points is ₱1,000 off a ₱2,400 treatment.
+    expect(screen.getByRole('button', { name: /charge ₱1,400 to room/i })).toBeInTheDocument();
+  });
+
+  /*
+    The moment a booking tips a badge over, said in the same breath as what it
+    changes -- a badge announced without its consequence is a sticker.
+  */
+  it('announces a badge the booking completed', async () => {
+    await openBooking();
+
+    await userEvent.click(screen.getByRole('button', { name: /charge ₱2,400 to room/i }));
+
+    expect(await screen.findByText(/you.re now wellness/i)).toBeInTheDocument();
+    expect(screen.getByText(/three spa treatments/i)).toBeInTheDocument();
+  });
+
+  /*
+    Only what this booking changed, never everything the guest holds. Booking
+    from the full live session re-books a massage they already had, so Wellness
+    is untouched -- but it is booked for today, which is the third same-day
+    booking and tips Spontaneous over.
+  */
+  it('announces only what the booking actually completed', async () => {
+    await openBooking(live);
+
+    await userEvent.click(screen.getByRole('button', { name: /charge ₱2,400 to room/i }));
+
+    expect(await screen.findByText(/you.re now spontaneous/i)).toBeInTheDocument();
+    expect(screen.queryByText(/you.re now wellness/i)).not.toBeInTheDocument();
   });
 });

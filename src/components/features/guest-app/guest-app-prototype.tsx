@@ -154,6 +154,8 @@ import {
   BadgeSheet,
   BadgeShelf,
   EstateMap,
+  PointsApply,
+  PointsEarned,
   PointsWallet,
   REWARD_MENU,
   RewardDetail,
@@ -166,12 +168,17 @@ import {
   nearlyEarnedBadges,
   pointsBalance,
   pointsExpiry,
+  pesosOff,
   redeemReward,
+  spendPoints,
 } from './rewards';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
 import './rewards/rewards.css';
+
+/** The one service the booking flow sells, in pesos. */
+const SERVICE_PRICE = 2400;
 
 type ActiveScreen = ScreenId | 'entry-hub';
 
@@ -1013,6 +1020,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
   /* Which reward the detail screen is showing. */
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
+  /* Points staged against the booking in progress, in ₱100 blocks. */
+  const [appliedPoints, setAppliedPoints] = useState(0);
+  /* Badges the last confirmed booking tipped over, for the confirmation. */
+  const [justEarned, setJustEarned] = useState<string[]>([]);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
   const [online, setOnline] = useState(initialOnline ?? true);
   const [, setCode] = useState('');
@@ -1325,6 +1336,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     ? describeRoomAssignment(roomReadyNotificationBooking)
     : undefined;
   const displayBooking = primaryBooking ?? lookupBooking ?? MOCK_SESSION.bookings[0]!;
+  /* What the booking costs once staged points come off it. */
+  const serviceCharge = formatPesoAmount(SERVICE_PRICE - pesosOff(appliedPoints));
+
   const contextBooking = primaryBooking ?? displayBooking;
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
   const roomChargeTarget = contextBooking.roomNumber ? contextRoom : 'your room';
@@ -1655,26 +1669,53 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       title: 'Hilom signature massage',
       scheduledFor: 'Tuesday · November 11 · 1:30 PM',
       scheduledDate: PROTOTYPE_TODAY,
-      amount: '₱2,400',
+      scheduledHour: 13,
+      bookedAt: PROTOTYPE_TODAY,
+      serviceId: 'spa',
+      /* What is actually charged: points come off before the folio sees it. */
+      amount: formatPesoAmount(SERVICE_PRICE - pesosOff(appliedPoints)),
       status: 'confirmed',
       provider: 'Operated by Sans Rival',
       paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
       paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
     };
 
-    setSession((current) => {
-      const alreadyBooked = current.serviceBookings.some((service) => service.id === serviceBooking.id);
-      return {
-        ...current,
-        serviceBookings: [
-          ...current.serviceBookings.filter((service) => service.id !== serviceBooking.id),
-          serviceBooking,
-        ],
-        folioTotal: alreadyBooked || checkoutPayment === 'pay-now'
-          ? current.folioTotal
-          : formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(serviceBooking.amount)),
-      };
-    });
+    const alreadyBooked = session.serviceBookings.some((service) => service.id === serviceBooking.id);
+    const booked: GuestSession = {
+      ...session,
+      serviceBookings: [
+        ...session.serviceBookings.filter((service) => service.id !== serviceBooking.id),
+        serviceBooking,
+      ],
+      folioTotal: alreadyBooked || checkoutPayment === 'pay-now'
+        ? session.folioTotal
+        : formatPesoAmount(parsePesoAmount(session.folioTotal) + parsePesoAmount(serviceBooking.amount)),
+    };
+
+    /*
+      Spending and booking are one step, so a balance can never be debited for
+      a booking that did not happen.
+    */
+    const next = appliedPoints > 0
+      ? spendPoints(booked, {
+          id: serviceBooking.id,
+          title: `Points off ${serviceBooking.title}`,
+          points: appliedPoints,
+        })
+      : booked;
+
+    /*
+      Compared before and after rather than recomputed from the new session
+      alone: what matters on the confirmation is what this booking changed, not
+      everything the guest happens to hold.
+    */
+    const held = new Set(earnedBadges(session).map((row) => row.definition.id));
+    setJustEarned(earnedBadges(next)
+      .filter((row) => !held.has(row.definition.id))
+      .map((row) => row.definition.id));
+
+    setSession(next);
+    setAppliedPoints(0);
     go('booking-confirmation');
   };
 
@@ -3216,10 +3257,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
 
       case 'service-booking':
-        return <FormScreen step="Review and pay" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Category" value="Spa & wellness" /><SummaryRow label="Service" value="Hilom signature massage" /><SummaryRow label="Provider" value="Operated by Sans Rival" /><SummaryRow label="Total" value="₱2,400" strong /></div><PaymentChoice provider="Operated by Sans Rival" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} /><Button className="guest-button guest-button--primary" type="button" disabled={!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)} onClick={confirmService}>{checkoutPayment === 'room' ? 'Charge ₱2,400 to room' : checkoutPayment === 'pay-now' ? 'Pay ₱2,400 now' : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button></FormScreen>;
+        return <FormScreen step="Review and pay" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Category" value="Spa & wellness" /><SummaryRow label="Service" value="Hilom signature massage" /><SummaryRow label="Provider" value="Operated by Sans Rival" /><SummaryRow label="Total" value={serviceCharge} strong /></div><PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(SERVICE_PRICE)} applied={appliedPoints} onChange={setAppliedPoints} /><PaymentChoice provider="Operated by Sans Rival" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} /><Button className="guest-button guest-button--primary" type="button" disabled={!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)} onClick={confirmService}>{checkoutPayment === 'room' ? `Charge ${serviceCharge} to room` : checkoutPayment === 'pay-now' ? `Pay ${serviceCharge} now` : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button></FormScreen>;
 
       case 'booking-confirmation':
-        return <ScreenIntro icon={<Check size={30} />} title="Your massage is booked" text={contextService?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this booking.' : `The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><div className="guest-summary"><SummaryRow label="Provider" value={contextService?.provider ?? 'Operated by Sans Rival'} /><SummaryRow label={contextService?.paymentStatus === 'paid' ? 'Payment status' : 'Payment method'} value={contextService?.paymentStatus === 'paid' ? 'Paid' : 'Charged to room'} /></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The booking remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Check size={30} />} title="Your massage is booked" text={contextService?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this booking.' : `The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><div className="guest-summary"><SummaryRow label="Provider" value={contextService?.provider ?? 'Operated by Sans Rival'} /><SummaryRow label={contextService?.paymentStatus === 'paid' ? 'Payment status' : 'Payment method'} value={contextService?.paymentStatus === 'paid' ? 'Paid' : 'Charged to room'} /></div><PointsEarned points={contextService ? Math.floor(parsePesoAmount(contextService.amount) / 100) * 50 : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} /><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The booking remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
 
       /*
         Two different reasons a booking cannot go through, and they used to

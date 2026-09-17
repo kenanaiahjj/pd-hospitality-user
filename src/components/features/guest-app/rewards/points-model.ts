@@ -281,7 +281,24 @@ export function redeemReward(
   reward: Reward,
   today: string = PROTOTYPE_TODAY,
 ): GuestSession {
-  if (pointsBalance(session) < reward.points) return session;
+  return spendPoints(session, { id: reward.id, title: reward.title, points: reward.points }, today);
+}
+
+/**
+ * Take points off the balance for anything -- a reward from the menu, or a
+ * booking the guest chose to part-pay for.
+ *
+ * Both are the same event to the ledger: points left, and what they bought is
+ * written down. Keeping two spend paths would let them disagree about whether
+ * a balance can go negative.
+ */
+export function spendPoints(
+  session: GuestSession,
+  spend: { id: string; title: string; points: number },
+  today: string = PROTOTYPE_TODAY,
+): GuestSession {
+  if (spend.points <= 0) return session;
+  if (pointsBalance(session) < spend.points) return session;
 
   const rewards = getRewards(session);
 
@@ -292,10 +309,10 @@ export function redeemReward(
       redemptions: [
         ...rewards.redemptions,
         {
-          id: `${reward.id}-${rewards.redemptions.length + 1}`,
-          rewardId: reward.id,
-          title: reward.title,
-          points: reward.points,
+          id: `${spend.id}-${rewards.redemptions.length + 1}`,
+          rewardId: spend.id,
+          title: spend.title,
+          points: spend.points,
           redeemedAt: today,
         },
       ],

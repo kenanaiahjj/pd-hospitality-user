@@ -520,3 +520,110 @@
 .reward-detail__after { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
 .reward-detail__redeem { justify-self: stretch; }
 .reward-detail__note { margin: 0; font-size: 13px; color: var(--ink-soft, #6b6a76); }
+
+/* --------------------------------------------------------------------------
+   Points at the moment of booking
+   -------------------------------------------------------------------------- */
+
+.points-apply {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line, oklch(0.912 0.004 285));
+  background: var(--paper, #fff);
+}
+
+.points-apply__head b { display: block; font-size: 15px; font-weight: 600; }
+.points-apply__head small { font-size: 13px; color: var(--ink-soft, #6b6a76); font-variant-numeric: tabular-nums; }
+
+.points-apply__start {
+  justify-self: start;
+  min-block-size: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent-strong, oklch(0.5 0.19 351));
+  cursor: pointer;
+}
+
+.points-apply__stepper {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  gap: 8px;
+  align-items: center;
+  justify-items: center;
+}
+
+.points-apply__stepper button {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 1px solid var(--line, oklch(0.912 0.004 285));
+  border-radius: 999px;
+  background: var(--paper, #fff);
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.points-apply__stepper button:active { transform: scale(0.96); }
+.points-apply__stepper button:disabled { opacity: 0.4; cursor: default; }
+.points-apply__stepper span { display: grid; justify-items: center; }
+.points-apply__stepper b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.points-apply__stepper small { font-size: 12px; color: var(--ink-soft, #6b6a76); }
+
+.points-apply__effect {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  padding-block-start: 10px;
+  border-block-start: 1px solid var(--line, oklch(0.912 0.004 285));
+  font-variant-numeric: tabular-nums;
+}
+
+.points-apply__effect span { color: var(--accent-strong, oklch(0.5 0.19 351)); }
+.points-apply__effect b { font-size: 17px; font-weight: 700; }
+
+/* --------------------------------------------------------------------------
+   What a booking earned
+   -------------------------------------------------------------------------- */
+
+.points-earned { display: grid; gap: 12px; justify-items: center; text-align: center; }
+
+.points-earned__points { display: grid; gap: 2px; margin: 0; }
+.points-earned__points b {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.points-earned__points span { font-size: 13px; color: var(--ink-soft, #6b6a76); }
+
+.points-earned__badge {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--surface, oklch(0.972 0.003 285));
+  /* Scales in rather than appearing: the one moment worth marking. */
+  animation: points-earned-in 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.points-earned__badge b { font-size: 17px; font-weight: 600; }
+.points-earned__badge small { font-size: 13px; color: var(--ink-soft, #6b6a76); }
+.points-earned__badge span { font-size: 13px; color: var(--ink-soft, #6b6a76); }
+
+@keyframes points-earned-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The fade stays, the movement goes. */
+  .points-earned__badge { animation: none; }
+}

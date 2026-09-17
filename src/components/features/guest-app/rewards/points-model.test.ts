@@ -108,6 +108,15 @@ describe('spending', () => {
     expect(affordableRewards(0)).toEqual([]);
   });
 
+  /* The menu has to keep something out of reach, or it stops pulling. */
+  it('keeps one reward beyond the reference guest', () => {
+    const balance = pointsBalance(MOCK_SESSION);
+    const out = REWARD_MENU.filter((entry) => entry.points > balance);
+
+    expect(out.map((entry) => entry.id)).toEqual(['free-night']);
+    expect(affordableRewards(balance)).toHaveLength(REWARD_MENU.length - 1);
+  });
+
   it('prices every reward below what the floor would charge for it', () => {
     for (const entry of REWARD_MENU) {
       if (!entry.cashPrice) continue;

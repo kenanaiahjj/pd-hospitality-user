@@ -88,6 +88,12 @@ export const REWARD_MENU: Reward[] = [
   { id: 'room-upgrade', title: 'Room upgrade, one night', detail: 'Subject to availability', points: 12000 },
   { id: 'hilom-massage', title: 'Hilom signature massage', detail: '60 minutes', points: 16000, cashPrice: '₱2,400' },
   { id: 'couples-suite', title: 'Couples massage suite', detail: '90 minutes, two guests', points: 32000, cashPrice: '₱4,600' },
+  /*
+    The top of the menu, and the only thing on it the reference guest cannot
+    afford. A menu whose every row is already within reach has nothing left to
+    aim at, which is the one job the most expensive row does.
+  */
+  { id: 'free-night', title: 'A night on us', detail: 'Garden suite, any property', points: 55000, cashPrice: '₱9,400' },
 ];
 
 /**

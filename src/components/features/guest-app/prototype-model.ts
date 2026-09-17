@@ -1989,7 +1989,17 @@ export function getStayEntries(
       // an on-property booking belongs to the property it was made at.
       parent: booking.property,
       parentDetail: venue?.location,
-      settlement: describeServiceSettlement(service.status === 'cancelled' && service.scheduledDate < PROTOTYPE_TODAY ? 'completed' : service.status, booking.roomNumber),
+      /*
+        The real status, never the grouped one.
+
+        The line above deliberately files a past cancellation under `completed`
+        so My Stay's history reads in one voice -- but that is a decision about
+        where a card sits, and this is a statement about money. Sharing the
+        coercion made the app tell a guest that a service they cancelled had
+        been charged to their room, which is the one thing a folio line must
+        never get wrong.
+      */
+      settlement: describeServiceSettlement(service.status, booking.roomNumber),
       category: service.diningOrder ? 'dining' : categoryOf(service.title),
       date: service.scheduledDate,
       /*

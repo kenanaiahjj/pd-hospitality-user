@@ -156,6 +156,8 @@ import {
   EstateMap,
   PointsWallet,
   REWARD_MENU,
+  RewardDetail,
+  RewardMenu,
   affordableRewards,
   badgeProgress,
   buildPointsLedger,
@@ -164,6 +166,7 @@ import {
   nearlyEarnedBadges,
   pointsBalance,
   pointsExpiry,
+  redeemReward,
 } from './rewards';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
 import './guest-app-prototype.css';
@@ -1008,6 +1011,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* Which badge's sheet is open. A sheet, not a screen: it floats over the hub
      rather than replacing it, so closing it returns the guest where they were. */
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
+  /* Which reward the detail screen is showing. */
+  const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
   const [online, setOnline] = useState(initialOnline ?? true);
   const [, setCode] = useState('');
@@ -1296,7 +1301,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('chat');
   };
 
-  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards'].includes(activeScreen);
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -3724,6 +3729,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const nearly = nearlyEarnedBadges(session);
         const badges = badgeProgress(session);
         const openBadge = badges.find((row) => row.definition.id === openBadgeId);
+        const openReward = (rewardId: string) => {
+          setSelectedRewardId(rewardId);
+          go('reward-detail');
+        };
 
         return (
           <div className="guest-stack">
@@ -3739,7 +3748,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ledger={buildPointsLedger(session)}
               expiry={pointsExpiry(session)}
               nearest={nearly[0]}
+              onOpenReward={openReward}
             />
+
+            <RewardMenu rewards={REWARD_MENU} balance={balance} onOpenReward={openReward} />
 
             <BadgeShelf
               earned={earnedBadges(session)}
@@ -3765,6 +3777,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               />
             ) : null}
           </div>
+        );
+      }
+
+      case 'reward-detail': {
+        const reward = REWARD_MENU.find((entry) => entry.id === selectedRewardId);
+        if (!reward) return null;
+
+        return (
+          <RewardDetail
+            reward={reward}
+            balance={pointsBalance(session)}
+            /* `redeemReward` returns the session untouched if the balance
+               cannot cover it, so a view bug cannot go negative. */
+            onRedeem={() => { setSession(redeemReward(session, reward)); go('rewards'); }}
+          />
         );
       }
 
@@ -3999,7 +4026,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <NavButton
                 label="Profile"
                 icon={<UserCircle />}
-                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards'}
+                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards' || activeScreen === 'reward-detail'}
                 onClick={() => go('profile')}
               />
             </nav>

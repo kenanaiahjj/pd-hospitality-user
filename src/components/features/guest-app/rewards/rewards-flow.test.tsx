@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { MOCK_SESSION, SCREENS } from '../prototype-model';
+import { RewardDetail, RewardMenu } from './reward-menu';
 import { GuestAppPrototype } from '../guest-app-prototype';
 import {
   BADGES, BADGE_FAMILIES, badgeProgress, earnedBadges, findBadge, nearlyEarnedBadges,
@@ -310,5 +311,85 @@ describe('the badge sheet', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
+  });
+});
+
+
+describe('RewardMenu', () => {
+  const balance = pointsBalance(MOCK_SESSION);
+
+  it('prices every reward in points, and against what the floor would charge', () => {
+    render(<RewardMenu rewards={REWARD_MENU} balance={balance} onOpenReward={vi.fn()} />);
+
+    const massage = screen.getByRole('button', { name: /hilom signature massage/i });
+    expect(within(massage).getByText('16,000')).toBeInTheDocument();
+    // The gap between ₱1,600 at the floor and a ₱2,400 treatment is the point.
+    expect(within(massage).getByText(/₱1,600 at the floor · worth ₱2,400/)).toBeInTheDocument();
+  });
+
+  it('disables what the balance cannot cover, and says how far off it is', () => {
+    render(<RewardMenu rewards={REWARD_MENU} balance={balance} onOpenReward={vi.fn()} />);
+
+    const night = screen.getByRole('button', { name: /a night on us/i });
+    expect(night).toBeDisabled();
+    expect(within(night).getByText('17,780 away')).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: /couples massage suite/i })).toBeEnabled();
+  });
+
+  it('opens a reward', async () => {
+    const onOpenReward = vi.fn();
+    render(<RewardMenu rewards={REWARD_MENU} balance={balance} onOpenReward={onOpenReward} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /airport transfer/i }));
+
+    expect(onOpenReward).toHaveBeenCalledWith('airport-transfer');
+  });
+});
+
+describe('RewardDetail', () => {
+  const massage = REWARD_MENU.find((reward) => reward.id === 'hilom-massage')!;
+
+  it('says what it costs and what would be left', () => {
+    render(
+      <RewardDetail reward={massage} balance={37220} onRedeem={vi.fn()} />,
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: massage.title })).toBeInTheDocument();
+    expect(screen.getByText('16,000')).toBeInTheDocument();
+    expect(screen.getByText(/21,220 points left/)).toBeInTheDocument();
+  });
+
+  it('will not offer a redemption the balance cannot cover', () => {
+    render(
+      <RewardDetail reward={massage} balance={1000} onRedeem={vi.fn()} />,
+    );
+
+    expect(screen.getByRole('button', { name: /redeem/i })).toBeDisabled();
+    expect(screen.getByText(/15,000 points short/)).toBeInTheDocument();
+  });
+});
+
+describe('redeeming from the app', () => {
+  const openRewards = async () => {
+    render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
+    await userEvent.click(screen.getByRole('button', { name: /points and badges/i }));
+  };
+
+  it('registers the reward detail as a screen', () => {
+    expect(SCREENS.find((entry) => entry.id === 'reward-detail')).toMatchObject({
+      group: 'Account',
+    });
+  });
+
+  it('spends the points, and earns nothing back for spending them', async () => {
+    await openRewards();
+
+    await userEvent.click(screen.getByRole('button', { name: /hilom signature massage/i }));
+    await userEvent.click(screen.getByRole('button', { name: /redeem/i }));
+
+    // 37,220 − 16,000, and no earn for the redemption itself.
+    expect(screen.getByText('21,220')).toBeInTheDocument();
+    expect(screen.getByText('-16,000')).toBeInTheDocument();
   });
 });

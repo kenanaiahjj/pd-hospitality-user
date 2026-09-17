@@ -6,6 +6,8 @@ export { BadgeShelf } from './badge-shelf';
 export type { BadgeShelfProps } from './badge-shelf';
 export { EstateMap } from './estate-map';
 export type { EstateMapProps } from './estate-map';
+export { RewardDetail, RewardMenu } from './reward-menu';
+export type { RewardDetailProps, RewardMenuProps } from './reward-menu';
 export { PointsWallet, rewardFloorValue } from './points-wallet';
 export type { PointsWalletProps } from './points-wallet';
 

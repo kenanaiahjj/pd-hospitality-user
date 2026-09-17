@@ -67,6 +67,7 @@ export type ScreenId =
   | 'scan-room-code'
   | 'stay-review-sent'
   | 'rewards'
+  | 'reward-detail'
   | 'notifications';
 
 export type PrototypeScreen = {
@@ -108,6 +109,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(24, 'Stay', 'category-listing', 'Explore services'),
   screen(59, 'Stay', 'nearby-establishment', 'Nearby recommendation'),
   screen(60, 'Account', 'rewards', 'Points and badges'),
+  screen(61, 'Account', 'reward-detail', 'Redeem a reward'),
   screen(58, 'Stay', 'gifts-souvenirs', 'Gifts & Souvenirs'),
   screen(25, 'Stay', 'hotel-service', 'In-room dining'),
   screen(26, 'Stay', 'vendor-service', 'Hilom signature massage'),

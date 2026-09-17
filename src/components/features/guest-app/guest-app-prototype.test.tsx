@@ -2228,9 +2228,9 @@ describe('lifecycle gates', () => {
     within(screen.getByRole('navigation', { name: 'Primary navigation' }))
       .getAllByRole('button')[1];
 
-  it('names the second tab for the gate the guest is in', () => {
+  it('keeps the second tab labeled Explore before and during a stay', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
-    expect(secondTab()).toHaveAccessibleName('Arrival');
+    expect(secondTab()).toHaveAccessibleName('Explore');
     cleanup();
 
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
@@ -2837,6 +2837,17 @@ describe('promoted Explore and room QR', () => {
     expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'What’s on at The Henry Manila' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Explore', level: 1 })).toBeNull();
+  });
+
+  it('keeps the Explore tab label while the promoted Explore layout is open', () => {
+    const beforeArrival = sessionFor([
+      makeBooking({ id: 'soon', checkIn: '2026-11-20', checkOut: '2026-11-23', roomNumber: '304' }),
+    ], { activeBookingId: 'soon' });
+
+    render(<GuestAppPrototype initialScreen="marketplace" initialSession={beforeArrival} />);
+
+    expect(screen.getByRole('button', { name: 'Explore' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Arrival' })).toBeNull();
   });
 
   it('keeps the room-code gate in front of an unverified active stay', () => {

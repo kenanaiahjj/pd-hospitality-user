@@ -1455,6 +1455,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     the tab bar and the buttons inside it cannot disagree.
   */
   const bookingSlot = describeBookingSlot(contextBooking);
+  const bookingNavLabel = bookingSlot.screen === 'book-stay' ? 'Book again' : 'Explore';
   const unlockPending = session.unlockRequest?.bookingId === contextBooking.id;
 
   /*
@@ -3993,10 +3994,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               */}
               {primaryBooking ? (
                   <NavButton
-                    label={bookingSlot.label}
-                    icon={bookingSlot.label === 'Arrival'
-                      ? <SuitcaseRolling />
-                      : bookingSlot.label === 'Book again' ? <Plus /> : <Compass />}
+                    label={bookingNavLabel}
+                    icon={bookingNavLabel === 'Explore'
+                      ? <Compass />
+                      : bookingNavLabel === 'Book again' ? <Plus /> : <SuitcaseRolling />}
                     active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen}
                     onClick={() => go(bookingSlot.screen)}
                   />

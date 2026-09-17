@@ -43,6 +43,14 @@ export type RoomUnlockedProps = {
   checkOut?: string;
   onExplore: () => void;
   onViewStay: () => void;
+  /**
+   * Points the scan itself earned.
+   *
+   * Said here rather than on a later screen because this is the moment it
+   * happened, and because the scan is the one earn that costs the property
+   * nothing and saves it real time at the desk.
+   */
+  earned?: number;
 };
 
 /*
@@ -84,8 +92,7 @@ export function RoomUnlocked({
   property = 'The Henry Manila',
   checkOut = 'November 12',
   onExplore,
-  onViewStay,
-}: RoomUnlockedProps) {
+  onViewStay, earned }: RoomUnlockedProps) {
   return (
     <div className="unlocked" data-testid="room-unlocked">
       {/*
@@ -111,6 +118,11 @@ export function RoomUnlocked({
           <p className="unlocked__subtitle">
             Dining, the spa, and anything else you book goes straight onto your room.
           </p>
+          {earned ? (
+            <p className="unlocked__earned">
+              +{earned.toLocaleString('en-US')} points for scanning in
+            </p>
+          ) : null}
         </div>
 
         <div className="unlocked__go">

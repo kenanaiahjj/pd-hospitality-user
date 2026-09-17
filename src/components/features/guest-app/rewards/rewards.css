@@ -627,3 +627,40 @@
   /* The fade stays, the movement goes. */
   .points-earned__badge { animation: none; }
 }
+
+
+/* --------------------------------------------------------------------------
+   Points where money is already being discussed
+   -------------------------------------------------------------------------- */
+
+.folio-points {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 12px 16px;
+  border: 1px solid var(--line, oklch(0.912 0.004 285));
+  border-radius: 16px;
+  background: var(--paper, #fff);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.folio-points b { display: block; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.folio-points small { font-size: 13px; color: var(--ink-soft, #6b6a76); font-variant-numeric: tabular-nums; }
+
+/*
+  A fact about a stay already taken, so it reads as reporting rather than as a
+  pitch. The number is emphasised; the sentence around it is not.
+*/
+.stay-earned {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft, #6b6a76);
+}
+
+.stay-earned b { color: var(--ink, oklch(0.16 0.012 275)); font-variant-numeric: tabular-nums; }

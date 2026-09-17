@@ -161,11 +161,15 @@ import {
   RewardDetail,
   RewardMenu,
   affordableRewards,
+  BEHAVIOUR_POINTS,
   badgeProgress,
   buildPointsLedger,
+  directCounterfactual,
+  earnedForStay,
   earnedBadges,
   muteBadge,
   nearlyEarnedBadges,
+  pointsAsPesos,
   pointsBalance,
   pointsExpiry,
   pesosOff,
@@ -3584,7 +3588,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom);
         const folioTotal = session.folioTotal || contextBooking.folioTotal || '₱0';
         const visibleCharges = folioCharges;
-        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div><div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
+        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} off this bill</small></span><CaretRight aria-hidden="true" /></button> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
       }
 
       case 'chat':
@@ -3718,6 +3722,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             checkOut={formatCheckoutDate(contextBooking.checkOut)}
             onExplore={openExploreIntro}
             onViewStay={() => go('stay-overview')}
+            earned={contextBooking.roomVerification ? BEHAVIOUR_POINTS['room-scan'] : undefined}
           />
         );
 
@@ -3867,6 +3872,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           : undefined;
         const stay = findPastStay(pastStays, selectedPastStayId ?? '') ?? currentAsFinished ?? pastStays[0];
         const summary = summarisePastStay(stay);
+        /*
+          Only where there is something to say. Stated on a stay already taken,
+          where it cannot be argued with, and never as a prompt before one.
+        */
+        const wouldHaveEarned = directCounterfactual(stay);
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
@@ -3874,6 +3884,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <h1>{stay.property}</h1>
               <p>Room {stay.roomNumber} · {stay.roomType} · {stay.guestCount} {stay.guestCount === 1 ? 'guest' : 'guests'}</p>
             </div>
+
+            <p className="stay-earned">
+              This stay earned <b>{earnedForStay(stay).toLocaleString('en-US')} points</b>.
+              {wouldHaveEarned ? (
+                <>
+                  {' '}Booked direct it would have earned{' '}
+                  <b>{wouldHaveEarned.toLocaleString('en-US')} points</b> instead of{' '}
+                  {Math.floor(parsePesoAmount(stay.roomRate) / 100 * 20).toLocaleString('en-US')} on the room.
+                </>
+              ) : null}
+            </p>
 
             <div className="guest-total-card">
               <span>Total for this stay</span>

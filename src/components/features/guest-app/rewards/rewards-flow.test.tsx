@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { MOCK_SESSION, SCREENS, applyPrototypeStayState } from '../prototype-model';
+import { MOCK_SESSION, PAST_STAYS, SCREENS, applyPrototypeStayState } from '../prototype-model';
 import { RewardDetail, RewardMenu } from './reward-menu';
 import { PointsApply } from './points-apply';
 import { GuestAppPrototype } from '../guest-app-prototype';
@@ -489,5 +489,56 @@ describe('booking with points', () => {
 
     expect(await screen.findByText(/you.re now spontaneous/i)).toBeInTheDocument();
     expect(screen.queryByText(/you.re now wellness/i)).not.toBeInTheDocument();
+  });
+});
+
+
+describe('points where money is already being discussed', () => {
+  const live = applyPrototypeStayState('live');
+
+  it('offers the balance against the folio', () => {
+    render(<GuestAppPrototype initialSession={live} initialScreen="folio" />);
+
+    expect(screen.getByText(/38,220 points/)).toBeInTheDocument();
+    expect(screen.getByText(/₱3,800 off this bill/)).toBeInTheDocument();
+  });
+
+  /*
+    The scan is the one earn that costs the property nothing and saves it real
+    desk time, so it is worth saying out loud at the moment it happens.
+  */
+  it('pays for scanning the room code, on the screen that follows the scan', () => {
+    render(<GuestAppPrototype initialSession={live} initialScreen="room-qr-midstay" />);
+
+    expect(screen.getByText(/\+1,000 points/)).toBeInTheDocument();
+  });
+
+  /*
+    Stated on a receipt for a stay already taken, where it cannot be argued
+    with -- never as a prompt before one. This is the whole zero-CAC mechanic
+    in a single line.
+  */
+  it('says what an OTA stay would have earned booked direct', async () => {
+    render(<GuestAppPrototype initialSession={live} initialScreen="stay-history" />);
+
+    const agoda = PAST_STAYS.find((stay) => stay.source === 'Agoda')!;
+    await userEvent.click(screen.getAllByRole('button', { name: new RegExp(agoda.property, 'i') })[0]!);
+
+    // Split across <b> tags, so read the sentence rather than a text node.
+    const line = document.querySelector('.stay-earned') as HTMLElement;
+    expect(line.textContent?.replace(/\s+/g, ' ')).toContain('4,110 points');
+    expect(line.textContent?.replace(/\s+/g, ' '))
+      .toContain('6,860 points instead of 1,960 on the room');
+  });
+
+  it('says nothing of the kind on a stay already booked direct', async () => {
+    render(<GuestAppPrototype initialSession={live} initialScreen="stay-history" />);
+
+    const direct = PAST_STAYS.find((stay) => stay.source === 'Direct booking')!;
+    await userEvent.click(screen.getAllByRole('button', { name: new RegExp(direct.property, 'i') })[0]!);
+
+    const line = document.querySelector('.stay-earned') as HTMLElement;
+    expect(line.textContent).toContain('22,370 points');
+    expect(line.textContent).not.toContain('instead of');
   });
 });

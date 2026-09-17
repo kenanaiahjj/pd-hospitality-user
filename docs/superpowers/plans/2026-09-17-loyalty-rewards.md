@@ -39,7 +39,7 @@ waits on artwork.
 | 4 | BadgeMedal and the artwork fallback | ✅ Complete | 2026-09-17 | 2026-09-17 | `cb5aa68` |
 | 5 | Rewards hub, and the door from Profile | ✅ Complete | 2026-09-17 | 2026-09-17 | `e35e5d5` |
 | 6 | Badge sheet and the mute control | ✅ Complete | 2026-09-17 | 2026-09-17 | `a82c69b` |
-| 7 | Reward menu, reward detail, redeem | ⬜ Not started | — | — | — |
+| 7 | Reward menu, reward detail, redeem | ✅ Complete | 2026-09-17 | 2026-09-17 | `e5df5e6` |
 | 8 | Apply points to a booking, earn on confirmation | ⬜ Not started | — | — | — |
 | 9 | Folio line, scan earn, OTA counterfactual | ⬜ Not started | — | — | — |
 
@@ -825,9 +825,17 @@ git commit -m "feat: show why a badge was given, and let the guest deny it"
 
 ## Task 7: Reward menu, reward detail, redeem
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commit:** `e5df5e6`
 
-> **The "1,900 away" test below cannot pass as written.** At the real balance of
+> Verified: `rewards/` 65/65 · 205 passed across touched files (2 failures remain
+> the Task 0 pair) · typecheck and lint exit 0 · **redeem confirmed on screen**,
+> balance 38,220 → 22,220 with the menu re-ranking behind it.
+>
+> The stretch reward is `free-night` at 55,000, not the couples suite — see the
+> resolved note below.
+
+> ~~**The "1,900 away" test below cannot pass as written.**~~ *(Resolved: a free
+> night at 55,000 was added in `75da13c`, so the assertion now targets it.)* At the real balance of
 > 37,220 every reward on the menu is affordable, including the couples suite at
 > 32,000, so there is no out-of-reach row to disable. Either drop that
 > assertion, or add a genuine stretch reward first — a free night at ~55,000
@@ -843,7 +851,7 @@ git commit -m "feat: show why a badge was given, and let the guest deny it"
 - Consumes: `REWARD_MENU`, `affordableRewards`, `redeemReward`, `pointsBalance`.
 - Produces: `RewardMenu`, `RewardDetail`, and the `reward-detail` screen case.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it('redeems a reward, moves the balance, and earns nothing back', async () => {
@@ -864,12 +872,12 @@ it('disables a reward the balance cannot cover', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: FAIL — no reward controls
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 `RewardMenu` lists `REWARD_MENU` with each item's points, its floor value, and
 its cash price where one exists — the gap is the point. Unaffordable rows are
@@ -877,17 +885,17 @@ disabled and state the shortfall. `reward-detail` shows one reward and what the
 balance would be afterwards; redeeming calls `redeemReward` and returns to the
 hub with the ledger updated.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint && npm test`
 Expected: exit 0, full suite green
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app/rewards src/components/features/guest-app/prototype-model.ts src/components/features/guest-app/guest-app-prototype.tsx

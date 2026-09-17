@@ -1870,16 +1870,14 @@ export function getStayEntries(
         ? `${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${service.scheduledFor}`
         : service.scheduledFor,
       amount: service.amount,
-      // Past activity is a completed record in My Stay. Cancellation is only
-      // an actionable state while the booking is still current; once it has
-      // moved into history, the guest sees the same completed treatment as
-      // every other past activity.
-      status: service.status === 'cancelled' && service.scheduledDate < PROTOTYPE_TODAY ? 'completed' : service.status,
+      // Keep cancellation visible in history. A cancelled booking is not a
+      // completed service, even when its scheduled date has passed.
+      status: service.status,
       // The hotel is the parent whether or not the venue is in the catalogue:
       // an on-property booking belongs to the property it was made at.
       parent: booking.property,
       parentDetail: venue?.location,
-      settlement: describeServiceSettlement(service.status === 'cancelled' && service.scheduledDate < PROTOTYPE_TODAY ? 'completed' : service.status, booking.roomNumber),
+      settlement: describeServiceSettlement(service.status, booking.roomNumber),
       category: service.diningOrder ? 'dining' : categoryOf(service.title),
       date: service.scheduledDate,
       /*
@@ -2283,7 +2281,7 @@ export function getRoomCharges(
         date,
         title: service.title,
         detail: service.diningOrder
-          ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${date} · ${time}`
+          ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${service.diningOrder.fulfillment.scheduledFor}`
           : `${date} · ${time}`,
         amount: service.amount,
       };

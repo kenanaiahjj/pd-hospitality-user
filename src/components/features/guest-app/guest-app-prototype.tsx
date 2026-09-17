@@ -16,6 +16,8 @@ import {
   ClockCountdown,
   Compass,
   CreditCard,
+  DeviceMobile,
+  EnvelopeSimple,
   ForkKnife,
   Gift,
   GoogleLogo,
@@ -48,7 +50,7 @@ import {
 import Image from 'next/image';
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
-import { CATEGORY_ILLUSTRATIONS, WELCOME_ILLUSTRATIONS } from './illustrations';
+import { WELCOME_ILLUSTRATIONS } from './illustrations';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
@@ -74,10 +76,16 @@ import {
   getPrimaryBooking,
   getVenueCartSummary,
   getRoomCharges,
+  availableDietaryTags,
+  availableOperators,
   availableTypes,
+  filterMenu,
   filterServices,
+  DIETARY_LABELS,
   LISTING_SORTS,
+  type DietaryTag,
   type ListingSort,
+  type MenuItemCategory,
   sumRoomCharges,
   canReportRoomReady,
   markRoomReady,
@@ -85,9 +93,9 @@ import {
   MINI_APP_CATEGORIES,
   PROPERTY_ANNOUNCEMENTS,
   PROTOTYPE_TODAY,
+  UPCOMING_BOOKING_FIXTURE,
   findPastStay,
   summarisePastStay,
-  getFeaturedServices,
   MOCK_SESSION,
   RESTAURANTS,
   SERVICES,
@@ -106,6 +114,8 @@ import {
   DEFAULT_REBOOK_CHECK_IN,
   DEFAULT_REBOOK_CHECK_OUT,
   GUEST_PROFILE,
+  maskEmail,
+  maskMobile,
   applyPrototypeStayState,
   getPrototypeStayState,
   PROTOTYPE_STAY_STATES,
@@ -137,8 +147,23 @@ import {
   getCategoryCoverImage,
   type ServiceImageKey,
 } from './service-images';
+import {
+  DiscoverFeed,
+  RoomScanner,
+  RoomUnlocked,
+  StoryViewer,
+  SwipeDeck,
+  SwipeStoryViewer,
+  buildBanners,
+  buildCategoryCards,
+  buildFeaturedDeck,
+  buildSearchIndex,
+  buildStories,
+  venueForService,
+} from './promoted';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
 import './guest-app-prototype.css';
+import './promoted/promoted.css';
 
 type ActiveScreen = ScreenId | 'entry-hub';
 
@@ -187,6 +212,20 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
  * watching a demo thinks it has hung.
  */
 const SCAN_DETECT_MS = 2000;
+
+const EXPLORE_STORIES = buildStories();
+const EXPLORE_BANNERS = buildBanners();
+const EXPLORE_CATEGORIES = buildCategoryCards();
+const EXPLORE_SEARCH_INDEX = buildSearchIndex();
+const EXPLORE_DECK = buildFeaturedDeck();
+
+const serviceNeedsVendorDetail = (service: (typeof SERVICES)[number]) =>
+  service.operator === 'Third-party on property' || service.operator === 'Curated guide';
+
+const serviceProviderLabel = (service: (typeof SERVICES)[number]) =>
+  serviceNeedsVendorDetail(service)
+    ? `Operated by ${venueForService(service.id).name}`
+    : 'Operated by the hotel';
 
 /** One glyph per arrival service, so the column reads as four things. */
 const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
@@ -368,22 +407,6 @@ function PropertyImage({
     </div>
   );
 }
-
-function CategoryIcon({ id }: { id: MiniAppCategoryId }) {
-  const art = CATEGORY_ILLUSTRATIONS[id];
-  return (
-    <Image
-      src={art.src}
-      alt=""
-      width={art.width}
-      height={art.height}
-      className="guest-category-icon-img"
-      loading="eager"
-    />
-  );
-}
-
-
 
 /**
  * The room QR identifies a room, so it may be the very first thing that
@@ -583,10 +606,12 @@ function SsoSheet({
   online,
   onClose,
   onSso,
+  onBookingReference,
 }: {
   online: boolean;
   onClose: () => void;
   onSso: (method: AuthMethod) => void;
+  onBookingReference: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -648,6 +673,14 @@ function SsoSheet({
               <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
             </Button>
           </div>
+          <TextButton
+            onClick={() => {
+              close();
+              onBookingReference();
+            }}
+          >
+            Use a booking reference instead
+          </TextButton>
         </div>
       </div>
     </dialog>
@@ -657,9 +690,11 @@ function SsoSheet({
 function WelcomeScreen({
   online,
   onSso,
+  onBookingReference,
 }: {
   online: boolean;
   onSso: (method: AuthMethod) => void;
+  onBookingReference: () => void;
 }) {
   const pager = useWelcomePager();
   const [ssoOpen, setSsoOpen] = useState(false);
@@ -702,7 +737,7 @@ function WelcomeScreen({
           </div>
         </div>
       </section>
-      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} /> : null}
+      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onBookingReference={onBookingReference} /> : null}
     </>
   );
 }
@@ -968,8 +1003,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [session, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
   const [online, setOnline] = useState(initialOnline ?? true);
-  const [, setCode] = useState('');
-  const [, setCodeNotice] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [codeNotice, setCodeNotice] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ from: 'guest' | 'desk'; body: string; state?: string; images?: string[] }>>([
     { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?' },
@@ -979,10 +1014,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [sending, setSending] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<MiniAppCategoryId>('dining');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
+  const [selectedMenuTab, setSelectedMenuTab] = useState<MenuItemCategory>('all');
+  const [menuSort, setMenuSort] = useState<ListingSort>('recommended');
+  const [menuDietary, setMenuDietary] = useState<DietaryTag[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('spa');
   const [selectedNearbyEstablishmentId, setSelectedNearbyEstablishmentId] = useState<string | null>(null);
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<string | null>(null);
   const [extensionDate, setExtensionDate] = useState('2026-11-14');
   const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
+  const [serviceOperators, setServiceOperators] = useState<string[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
   const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | 'gifts' | null>(null);
@@ -995,6 +1035,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
   const [scanSuccessToast, setScanSuccessToast] = useState(false);
+  const [openExploreStoryId, setOpenExploreStoryId] = useState<string | null>(null);
+  const [exploreIntroPlaying, setExploreIntroPlaying] = useState(false);
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
   /*
     Two sets, because "the bell has stopped nagging me" and "I have read this
@@ -1002,7 +1044,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     what clears the dot on the bell; a row keeps its own dot until it is
     actually opened.
   */
-  const [stayTab, setStayTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [stayTab, setStayTab] = useState<'upcoming' | 'past'>(() => {
+    const initialBooking = initialSession
+      ? getPrimaryBooking(initialSession.bookings, initialSession.activeBookingId)
+      : undefined;
+    return initialBooking && describeStayStatus(initialBooking).status === 'checked-out'
+      ? 'past'
+      : 'upcoming';
+  });
   const [expandedChargeId, setExpandedChargeId] = useState<string | null>(null);
   const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
   const [selectedStayEntryId, setSelectedStayEntryId] = useState<string | null>(null);
@@ -1050,6 +1099,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** Prototype only: put strict reference matching back, to demo not-found. */
   const [strictLookup, setStrictLookup] = useState(false);
   const [profileMatch, setProfileMatch] = useState<ProfileMatch | null>(null);
+  const [verifyChannel, setVerifyChannel] = useState<'email' | 'mobile'>('email');
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
@@ -1218,6 +1268,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
+  const showRoomScanAction = showNav
+    && Boolean(primaryBooking?.roomNumber)
+    && Boolean(primaryBooking && canUseOnPropertyServices(primaryBooking));
   const checkedOutNav = Boolean(primaryBooking && describeStayStatus(primaryBooking).status === 'checked-out');
   const eligibleRoomReadyBooking = primaryBooking && canReportRoomReady(primaryBooking)
     ? primaryBooking
@@ -1241,8 +1294,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const contextBooking = primaryBooking ?? displayBooking;
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
   const roomChargeTarget = contextBooking.roomNumber ? contextRoom : 'your room';
+  const selectedService = SERVICES.find((service) => service.id === selectedServiceId) ?? SERVICES.find((service) => service.id === 'spa')!;
+  const selectedServiceBookingId = selectedService.id === 'spa' ? 'service-hilom-1' : `service-${selectedService.id}-1`;
   const contextService = session.serviceBookings.find(
-    (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
+    (service) => service.id === selectedServiceBookingId && service.bookingId === contextBooking.id,
   );
 
   const stayEntries = getStayEntries(session, primaryBooking);
@@ -1324,15 +1379,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setDiningOrderError('Add at least one item before placing your order');
       return;
     }
-    if (!checkoutPayment) {
-      setDiningOrderError('Choose how you would like to pay before placing your order');
-      return;
-    }
-    if (checkoutPayment === 'pay-now' && !paymentMethod) {
-      setDiningOrderError('Choose a payment method to continue');
-      return;
-    }
-
     const scheduledFor = diningMethod === 'delivery'
       ? diningTiming === 'asap'
         ? `Deliver to Room ${booking.roomNumber} · As soon as possible`
@@ -1350,8 +1396,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       amount: cartSummary.formattedTotal,
       status: 'confirmed',
       provider: 'Operated by the hotel',
-      paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
-      paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
+      paymentStatus: 'charged-to-room',
+      paymentMethod: 'room',
       diningOrder: {
         venueId: venue.id,
         venueName: venue.name,
@@ -1359,9 +1405,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         fulfillment,
       },
     };
-    const newFolioTotal = checkoutPayment === 'room'
-      ? formatPesoAmount(parsePesoAmount(session.folioTotal) + cartSummary.total)
-      : session.folioTotal;
+    const newFolioTotal = formatPesoAmount(parsePesoAmount(session.folioTotal) + cartSummary.total);
 
     setSession((current) => ({
       ...current,
@@ -1419,7 +1463,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const postStayWindow = describePostStayWindow(contextBooking);
   /** This guest's own history. Empty for an account that has not stayed yet. */
   const pastStays = session.pastStays;
-  const scannerReducedMotion = usePrefersReducedMotion();
   const [autoDetectScans, setAutoDetectScans] = useState(true);
   const stayReview = session.reviews.find((review) => review.bookingId === contextBooking.id);
 
@@ -1455,7 +1498,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     setSession((current) => verifyRoomPresence(current, primaryBooking.id, 'scan'));
     setScanSuccessToast(true);
-    go('stay-overview');
+    go('room-qr-midstay');
   };
 
   /*
@@ -1500,6 +1543,62 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     goToCheckout('service-booking');
   };
 
+  const openExploreItem = (itemId: string) => {
+    const venue = RESTAURANTS.find((restaurant) => restaurant.id === itemId);
+    if (venue) {
+      setSelectedRestaurantId(venue.id);
+      go('restaurant-menu');
+      return;
+    }
+
+    const service = SERVICES.find((entry) => entry.id === itemId);
+    if (!service) return;
+
+    setSelectedServiceId(service.id);
+    go(serviceNeedsVendorDetail(service) ? 'vendor-service' : 'hotel-service');
+  };
+
+  const closeExploreStory = () => {
+    setOpenExploreStoryId(null);
+    setExploreIntroPlaying(false);
+  };
+
+  const openExploreStory = (storyId: string) => {
+    if (!EXPLORE_STORIES.some((story) => story.id === storyId)) return;
+    setOpenExploreStoryId(storyId);
+    setExploreIntroPlaying(false);
+  };
+
+  const openExploreIntro = () => {
+    const firstStory = EXPLORE_STORIES[0];
+    if (!firstStory) {
+      go('marketplace');
+      return;
+    }
+    if (primaryBooking && !primaryBooking.roomVerification) {
+      setSession((current) => verifyRoomPresence(current, primaryBooking.id, 'scan'));
+    }
+    setOpenExploreStoryId(firstStory.id);
+    setExploreIntroPlaying(true);
+    go('marketplace');
+  };
+
+  const bookExploreStory = (storyId: string) => {
+    closeExploreStory();
+    const itemId = storyId.replace(/^(?:venue|service)-/, '');
+    const venue = RESTAURANTS.find((restaurant) => restaurant.id === itemId);
+    if (venue) {
+      setSelectedRestaurantId(venue.id);
+      go('restaurant-menu');
+      return;
+    }
+
+    const service = SERVICES.find((entry) => entry.id === itemId);
+    if (!service) return;
+    setSelectedServiceId(service.id);
+    openServiceBooking();
+  };
+
   const confirmService = () => {
     const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
     if (!online) {
@@ -1513,20 +1612,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
-    if (!checkoutPayment) return;
-    if (checkoutPayment === 'pay-now' && !paymentMethod) return;
+    const chargeToRoom = selectedService.price !== 'Complimentary';
 
     const serviceBooking: ServiceBooking = {
-      id: 'service-hilom-1',
+      id: selectedServiceBookingId,
       bookingId: booking.id,
-      title: 'Hilom signature massage',
+      title: selectedService.name,
       scheduledFor: 'Tuesday · November 11 · 1:30 PM',
       scheduledDate: PROTOTYPE_TODAY,
-      amount: '₱2,400',
+      amount: selectedService.price,
       status: 'confirmed',
-      provider: 'Operated by Sans Rival',
-      paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
-      paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
+      provider: selectedService.operator === 'Hotel operated' || selectedService.operator === 'Hotel arranged'
+        ? 'Operated by the hotel'
+        : `Operated by ${venueForService(selectedService.id).name}`,
+      paymentStatus: chargeToRoom ? 'charged-to-room' : 'complimentary',
+      paymentMethod: chargeToRoom ? 'room' : undefined,
     };
 
     setSession((current) => {
@@ -1537,7 +1637,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ...current.serviceBookings.filter((service) => service.id !== serviceBooking.id),
           serviceBooking,
         ],
-        folioTotal: alreadyBooked || checkoutPayment === 'pay-now'
+        folioTotal: alreadyBooked || !chargeToRoom
           ? current.folioTotal
           : formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(serviceBooking.amount)),
       };
@@ -1586,10 +1686,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const claimBooking = () => {
     const next = connectBooking(session, lookupBooking ?? undefined);
+    const claimedBooking = next.bookings.find(
+      (booking) => booking.id === (lookupBooking?.id ?? UPCOMING_BOOKING_FIXTURE.id),
+    );
     setSession(next);
     // A booking-first guest still needs the registration flow. Authenticated
-    // guests use the shared pre-arrival home after connecting another stay.
-    go(session.auth === 'authenticated' ? getPostAuthScreen() : 'guest-details');
+    // guests use the shared home after connecting another stay. An anonymous
+    // guest whose reservation is already complete has no registration work to
+    // do, so they can also continue to the same home.
+    const preArrivalComplete = Boolean(
+      claimedBooking
+      && claimedBooking.preArrivalCompleted >= claimedBooking.preArrivalTotal,
+    );
+    go(session.auth === 'authenticated' || preArrivalComplete ? getPostAuthScreen() : 'guest-details');
   };
 
   /*
@@ -1625,6 +1734,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setCode('');
     setCodeNotice(null);
     setScrolled(false);
+    setStayTab(state === 'just-checked-out' || state === 'closed' ? 'past' : 'upcoming');
     setActiveScreen(state === 'signed-out' ? 'entry-hub' : 'stay-overview');
   };
 
@@ -1684,7 +1794,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setScrolled(false);
   };
 
-  const renderBookingLookup = () => (
+  const renderBookingLookup = (returningGuest = false) => (
     <ScreenIntro
       title="Find your booking"
       text="Enter the number from your booking confirmation."
@@ -1723,7 +1833,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             prototype controls puts the refusal back when that path is what
             needs demonstrating.
           */
-          if (strictLookup) {
+          if (returningGuest || strictLookup) {
             go('no-booking');
             return;
           }
@@ -1738,9 +1848,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           helper="Hotel, Agoda, or Booking.com reference"
           required
         />
-        <Field label="Last name" name="last-name" placeholder="Santos" required />
+        <Field label="Last name" name="last-name" placeholder="Santos" required={!returningGuest} />
         <Button className="guest-button guest-button--primary" type="submit">
-          Find booking<ArrowRight aria-hidden="true" />
+          {returningGuest ? 'Continue' : 'Find booking'}<ArrowRight aria-hidden="true" />
         </Button>
       </form>
       <TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton>
@@ -1753,9 +1863,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <WelcomeScreen
             online={online}
+            onBookingReference={() => go('identify-returning')}
             onSso={(method) => {
               setSession(ssoSession(method));
-              go('identify-returning');
+              go(getPostAuthScreen());
             }}
           />
         );
@@ -2057,47 +2168,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'identify-returning':
-        return (
-          <ScreenIntro
-            title="Log in with a booking"
-            text="Any reference from a stay with us works — the one you are on now, or one from years ago."
-          >
-            <form
-              className="guest-form"
-              onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                event.preventDefault();
-                const data = new FormData(event.currentTarget);
-                const reference = String(data.get('reentry-reference') ?? '');
-                const lastName = String(data.get('reentry-last-name') ?? '').trim().toLowerCase();
-                const match = findProfileByLookup(reference);
-                if (!match || !lastName || !match.guestName.toLowerCase().endsWith(lastName)) {
-                  go('no-booking');
-                  return;
-                }
-                setProfileMatch(match);
-                setCode('');
-                setCodeNotice(null);
-                go('verify-contact');
-              }}
-            >
-              <Field
-                label="Booking or confirmation number"
-                name="reentry-reference"
-                placeholder="HEN-CEBU-250508"
-                helper="From a confirmation email, or the receipt for a stay you have finished"
-                required
-              />
-              <Field label="Last name" name="reentry-last-name" placeholder="Santos" required />
-              <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
-                Continue<ArrowRight aria-hidden="true" />
-              </Button>
-            </form>
-            <Notice icon={<ShieldCheck />} title="Confirm your booking reference">
-              Anyone can hold a booking number. We send a code to the contact on that reservation before opening the account.
-            </Notice>
-            <TextButton onClick={() => go('entry-hub')}>Back to welcome</TextButton>
-          </ScreenIntro>
-        );
+        return renderBookingLookup(true);
 
       case 'verify-contact': {
         /*
@@ -2107,7 +2178,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         if (!profileMatch) {
           return (
             <ScreenIntro
-                title="Start again"
+              eyebrow="Returning guest"
+              title="Start again"
               text="We no longer have the booking you matched. Enter the reference once more."
             >
               {primary('Enter a booking reference', 'identify-returning')}
@@ -2115,13 +2187,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
 
+        const maskedEmail = maskEmail(GUEST_PROFILE.email);
+        const maskedMobile = maskMobile(GUEST_PROFILE.mobile);
+        const destination = verifyChannel === 'email' ? maskedEmail : maskedMobile;
+        const channels = [
+          { id: 'email' as const, label: 'Email', value: maskedEmail, icon: <EnvelopeSimple /> },
+          { id: 'mobile' as const, label: 'Mobile', value: maskedMobile, icon: <DeviceMobile /> },
+        ];
+
         return (
           <div className="guest-stack guest-stack--intro">
             <HeroIcon tone="dark"><ShieldCheck size={30} /></HeroIcon>
             <div className="guest-page-title">
               <p className="guest-eyebrow">Step 2 of 2</p>
-              <h1>Is this your booking?</h1>
-              <p>We found a stay under that reference. Confirm the details to open it in your account.</p>
+              <h1>Verify it&rsquo;s you</h1>
+              <p>We found a stay under that reference. We will send a code to the contact the property holds for it.</p>
             </div>
 
             <div className="guest-summary">
@@ -2130,14 +2210,52 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Guest" value={profileMatch.guestName} />
             </div>
 
+            <fieldset className="guest-channel-choice">
+              <legend>Where should the code go?</legend>
+              {channels.map((channel) => (
+                <label key={channel.id} className="guest-channel-choice__option">
+                  <input
+                    type="radio"
+                    name="verify-channel"
+                    value={channel.id}
+                    checked={verifyChannel === channel.id}
+                    onChange={() => setVerifyChannel(channel.id)}
+                  />
+                  <span className="guest-channel-choice__icon" aria-hidden="true">{channel.icon}</span>
+                  <span className="guest-channel-choice__text">
+                    <b>{channel.label}</b>
+                    <small>{channel.value}</small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+
+            {codeNotice ? <Notice tone="warning" title={codeNotice}>Codes expire quickly, so the newest one is the only one that works.</Notice> : null}
+            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Verification needs a connection">We cannot check a code offline. Nothing has been opened yet.</Notice> : null}
+
+            <label className="guest-field guest-code-field" htmlFor="reentry-code">
+              <span>6-digit verification code</span>
+              <Input
+                id="reentry-code"
+                name="reentry-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                value={code}
+                onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, ''))}
+              />
+            </label>
+
             <Button
               className="guest-button guest-button--primary"
               type="button"
-              disabled={!online}
+              disabled={code.length !== 6 || !online}
               onClick={completeReentry}
             >
-              Yes, this is my booking<ArrowRight aria-hidden="true" />
+              Verify and open my account<ArrowRight aria-hidden="true" />
             </Button>
+            <TextButton disabled={!online} onClick={() => setCodeNotice(`A new code is on its way to ${destination}`)}>Resend the code</TextButton>
             <TextButton onClick={() => go('identify-returning')}>Use a different booking</TextButton>
           </div>
         );
@@ -2290,26 +2408,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'extend-stay-review': {
         const nights = Math.max(1, countNightsBetween(contextBooking.checkOut, extensionDate));
         const additional = nights * 5000;
-        return <ScreenIntro eyebrow="Review extension" title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, checkOut: extensionDate } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
+        return <ScreenIntro title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, checkOut: extensionDate } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
       }
 
       case 'extend-stay-success':
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Booking updated" title="Stay extended" text={`Your stay now ends on ${extensionDate} at 12:00 PM. Your updated checkout date is reflected throughout the app.`}><Notice title="Same room confirmed">Room {contextBooking.roomNumber} remains yours through the new checkout date.</Notice>{primary('Back to My Stay', 'my-stay')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} title="Stay extended" text={`Your stay now ends on ${extensionDate} at 12:00 PM. Your updated checkout date is reflected throughout the app.`}><Notice title="Same room confirmed">Room {contextBooking.roomNumber} remains yours through the new checkout date.</Notice>{primary('Back to My Stay', 'my-stay')}</ScreenIntro>;
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<Bed size={30} />} eyebrow="Review room upgrade" title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, roomUpgrade: { status: 'preparing', newRoomNumber: upgrade.roomNumber, newRoomType: upgrade.name, additionalCost: upgrade.price, transferDeadline: upgrade.transferDeadline, transferTime: upgrade.transfer } } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(upgrade.price)) })); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, roomUpgrade: { status: 'preparing', newRoomNumber: upgrade.roomNumber, newRoomType: upgrade.name, additionalCost: upgrade.price, transferDeadline: upgrade.transferDeadline, transferTime: upgrade.transfer } } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(upgrade.price)) })); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
       }
 
       case 'room-upgrade-success': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Room change confirmed" title="Upgrade confirmed" text={`Your ${upgrade.name} is being prepared. You can keep using Room ${contextBooking.roomNumber} until the transfer is ready.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.name} · Room number coming soon`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /></div><Notice title="Your current room stays active">Room {contextBooking.roomNumber} remains available while the hotel prepares your upgrade.</Notice>{primary('Back to home', 'stay-overview')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} title="Upgrade confirmed" text={`Your ${upgrade.name} is being prepared. You can keep using Room ${contextBooking.roomNumber} until the transfer is ready.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.name} · Room number coming soon`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /></div><Notice title="Your current room stays active">Room {contextBooking.roomNumber} remains available while the hotel prepares your upgrade.</Notice>{primary('Back to home', 'stay-overview')}</ScreenIntro>;
       }
 
       case 'room-transfer-details': {
         const upgrade = contextBooking.roomUpgrade;
         if (!upgrade) return primary('View my stay', 'my-stay');
-        return <ScreenIntro icon={<Bed size={30} />} eyebrow="Room transfer" title="Complete your room transfer" text="Both rooms remain available until you confirm the move."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.newRoomType} · Room ${upgrade.newRoomNumber}`} /><SummaryRow label="Transfer deadline" value={upgrade.transferDeadline} /><SummaryRow label="Transfer time" value={upgrade.transferTime} /></div><Notice title="Moving your belongings">Pack your belongings and contact the front desk if you need help transferring your bags.</Notice><Notice title="Keys">Collect or activate the new key at the front desk, then return your Room {contextBooking.roomNumber} key there.</Notice><button className="guest-list-row" type="button" onClick={() => go('chat')}><span><ChatCircleDots /></span><div><b>Contact the front desk</b><small>Chat with the hotel team about your transfer</small></div><CaretRight /></button><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomType: booking.roomUpgrade.newRoomType, roomNumber: booking.roomUpgrade.newRoomNumber, roomUpgrade: undefined } : booking) })); go('stay-overview'); }}>Confirm room transfer<ArrowRight /></Button></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Complete your room transfer" text="Both rooms remain available until you confirm the move."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.newRoomType} · Room ${upgrade.newRoomNumber}`} /><SummaryRow label="Transfer deadline" value={upgrade.transferDeadline} /><SummaryRow label="Transfer time" value={upgrade.transferTime} /></div><Notice title="Moving your belongings">Pack your belongings and contact the front desk if you need help transferring your bags.</Notice><Notice title="Keys">Collect or activate the new key at the front desk, then return your Room {contextBooking.roomNumber} key there.</Notice><button className="guest-list-row" type="button" onClick={() => go('chat')}><span><ChatCircleDots /></span><div><b>Contact the front desk</b><small>Chat with the hotel team about your transfer</small></div><CaretRight /></button><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomType: booking.roomUpgrade.newRoomType, roomNumber: booking.roomUpgrade.newRoomNumber, roomUpgrade: undefined } : booking) })); go('stay-overview'); }}>Confirm room transfer<ArrowRight /></Button></ScreenIntro>;
       }
 
       case 'rate-detail': {
@@ -2457,12 +2575,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'scan-room-code':
         return (
-          <RoomCodeScanner
+          <RoomScanner
             roomNumber={primaryBooking?.roomNumber}
             onDetected={scanRoomCode}
             onCancel={back}
-            reducedMotion={scannerReducedMotion}
-            autoDetect={autoDetectScans}
+            autoDetectMs={autoDetectScans ? SCAN_DETECT_MS : null}
           />
         );
 
@@ -2669,36 +2786,48 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
 
+        const openStory = openExploreStoryId
+          ? EXPLORE_STORIES.find((story) => story.id === openExploreStoryId)
+          : undefined;
+
+        if (openStory) {
+          return exploreIntroPlaying ? (
+            <StoryViewer
+              story={openStory}
+              onClose={closeExploreStory}
+              onBook={bookExploreStory}
+              onFinished={closeExploreStory}
+            />
+          ) : (
+            <SwipeStoryViewer
+              stories={EXPLORE_STORIES}
+              initialStoryId={openStory.id}
+              onClose={closeExploreStory}
+              onBook={bookExploreStory}
+            />
+          );
+        }
+
         return (
-          <div className="guest-stack guest-bookings-hub">
-            <div className="guest-page-title">
-              <h1>Explore</h1>
-              <p>Discover services, experiences, and offers for your stay.</p>
-            </div>
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
-
-            {/*
-              A catalogue, and only a catalogue. What the guest has already
-              booked lives in My Stay -- one screen answering both questions was
-              what made the old hub send people back to Home to browse.
-            */}
-            <section>
-              <div className="guest-explore-catalog">
-                {[...MINI_APP_CATEGORIES.map((cat) => ({ id: cat.id, label: cat.title, cover: getCategoryCoverImage(cat.id) })), { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs', cover: { src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80', focalPoint: 'center' } }].map((item, index) => (
-                  <button key={item.id} type="button" className={`guest-explore-catalog__tile ${index === 4 ? 'guest-explore-catalog__tile--wide' : ''}`} onClick={() => { if (item.id === 'gifts-souvenirs') go('gifts-souvenirs'); else { setSelectedCategory(item.id as MiniAppCategoryId); go('category-listing'); } }}>
-                    <Image src={item.cover.src} alt="" fill sizes="(max-width: 720px) 50vw, 344px" style={{ objectPosition: item.cover.focalPoint }} />
-                    <span aria-hidden="true" />
-                    <b>{item.label}</b>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <SectionHeading title="Featured on property" />
-              <ExplorePromotions onOpenCategory={(category) => { if (category === 'gifts-souvenirs') { go('gifts-souvenirs'); } else { setSelectedCategory(category); go('category-listing'); } }} />
-            </section>
-          </div>
+          <DiscoverFeed
+            property={contextBooking.property}
+            stories={EXPLORE_STORIES}
+            banners={EXPLORE_BANNERS}
+            categories={EXPLORE_CATEGORIES}
+            searchIndex={EXPLORE_SEARCH_INDEX}
+            onOpenStory={openExploreStory}
+            onOpenBanner={openExploreItem}
+            onOpenItem={openExploreItem}
+            onOpenCategory={(categoryId) => {
+              setSelectedCategory(categoryId as MiniAppCategoryId);
+              go('category-listing');
+            }}
+            onBrowseAll={() => {
+              setSelectedCategory('services');
+              go('category-listing');
+            }}
+            deck={<SwipeDeck items={EXPLORE_DECK} onOpen={openExploreItem} />}
+          />
         );
       }
 
@@ -2708,15 +2837,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // Venues carry their price as `priceRange`; aliasing it lets the shared
         // filter/sort run over them unchanged.
         const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
-        const listingFilters = { operators: [], types: serviceTypes, sort: serviceSort };
+        const listingFilters = { operators: serviceOperators, types: serviceTypes, sort: serviceSort };
         const visibleVenues = filterServices(venueRows, listingFilters);
         const visibleServices = filterServices(categoryServices, listingFilters);
-        const servicesNarrowed = serviceTypes.length > 0 || serviceSort !== 'recommended';
-        const clearServiceControls = () => { setServiceTypes([]); setServiceSort('recommended'); };
+        const servicesNarrowed = serviceOperators.length > 0 || serviceTypes.length > 0 || serviceSort !== 'recommended';
+        const clearServiceControls = () => { setServiceOperators([]); setServiceTypes([]); setServiceSort('recommended'); };
         const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
         const buildFacets = (rows: readonly { operator: string; category: string }[]) => [
           { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [serviceSort], onChange: (next: string[]) => setServiceSort(next[0] as ListingSort) },
           ...(availableTypes(rows).length ? [{ key: 'type', label: 'Type', options: asOptions(availableTypes(rows)), selected: serviceTypes, onChange: setServiceTypes }] : []),
+          ...(availableOperators(rows).length ? [{ key: 'operator', label: 'Operator', options: asOptions(availableOperators(rows)), selected: serviceOperators, onChange: setServiceOperators }] : []),
         ];
         const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
         const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', services: 'Independent services available near the hotel.' };
@@ -2737,7 +2867,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 nouns={['venue', 'venues']}
                 narrowed={servicesNarrowed}
                 onClear={clearServiceControls}
-                showCount={false}
               />
               {visibleVenues.length ? (
               <div className="guest-food-restaurant-list">
@@ -2748,6 +2877,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     type="button"
                     onClick={() => {
                       setSelectedRestaurantId(res.id);
+                      setSelectedMenuTab('all');
+                      setMenuSort('recommended');
+                      setMenuDietary([]);
                       go('restaurant-menu');
                     }}
                   >
@@ -2781,7 +2913,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 nouns={['service', 'services']}
                 narrowed={servicesNarrowed}
                 onClear={clearServiceControls}
-                showCount={false}
               />
               {visibleServices.length ? (
               <div className="guest-stack" style={{ gap: '12px' }}>
@@ -2791,11 +2922,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     className="guest-service-row"
                     type="button"
                     onClick={() => {
-                      if (service.id === 'spa' || service.id === 'scrub') {
-                        go('vendor-service');
-                      } else {
-                        openServiceBooking();
-                      }
+                      setSelectedServiceId(service.id);
+                      go(serviceNeedsVendorDetail(service) ? 'vendor-service' : 'hotel-service');
                     }}
                   >
                     <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="thumbnail" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <Compass /> : <Storefront />} decorative />
@@ -2844,7 +2972,131 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        return <EstablishmentChatScreen kind="restaurant" venue={venue} booking={contextBooking} online={online} onChat={(message) => { setChatDraft(message); go('chat'); }} />;
+        const dietaryFacets = availableDietaryTags(venue.menu);
+        const filteredMenu = filterMenu(venue.menu, { category: selectedMenuTab, dietary: menuDietary, sort: menuSort });
+        const menuNarrowed = menuDietary.length > 0 || menuSort !== 'recommended';
+        const clearMenuControls = () => { setMenuDietary([]); setMenuSort('recommended'); };
+        const venueCart = restaurantCarts[venue.id] ?? {};
+        const cartSummary = getVenueCartSummary(venue.menu, venueCart);
+        return (
+          <div className="guest-stack guest-restaurant-menu">
+            <ServiceImage
+              imageKey={venue.id === 'apartment-1b' ? 'restaurant' : 'dining'}
+              tone={venue.tone}
+              icon={<ForkKnife size={38} />}
+              decorative
+            />
+            <div className="guest-restaurant-hero">
+              <div className="guest-tag-row">
+                <Tag>{venue.operator}</Tag>
+                <Tag>{venue.hours}</Tag>
+              </div>
+              <h1>{venue.name}</h1>
+              <p>{venue.description}</p>
+              <div className="guest-restaurant-hero__meta">
+                <span><MapPin size={16} /> {venue.location}</span>
+                <span>·</span>
+                <span>Billed to {contextRoom.toLowerCase()}</span>
+              </div>
+            </div>
+
+            <div className="guest-menu-tabs" role="tablist" aria-label="Menu categories">
+              {(['all', 'starters', 'mains', 'desserts', 'drinks'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  role="tab"
+                  aria-selected={selectedMenuTab === tab}
+                  className={`guest-menu-tab ${selectedMenuTab === tab ? 'is-active' : ''}`}
+                  onClick={() => setSelectedMenuTab(tab)}
+                  type="button"
+                >
+                  {tab === 'all' ? 'All Items' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <ListingControls
+              facets={[
+                { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [menuSort], onChange: (next: string[]) => setMenuSort(next[0] as ListingSort) },
+                ...(dietaryFacets.length ? [{
+                  key: 'dietary',
+                  label: 'Dietary',
+                  options: dietaryFacets.map((tag) => ({ value: tag, label: DIETARY_LABELS[tag] })),
+                  selected: menuDietary,
+                  onChange: (next: string[]) => setMenuDietary(next as DietaryTag[]),
+                }] : []),
+              ]}
+              count={filteredMenu.length}
+              nouns={['dish', 'dishes']}
+              narrowed={menuNarrowed}
+              onClear={clearMenuControls}
+            />
+
+            {filteredMenu.length ? (
+            <div className="guest-menu-grid">
+              {filteredMenu.map((item) => (
+                <div key={item.id} className="guest-menu-item-card">
+                  <div className="guest-menu-item-card__header">
+                    <div>
+                      {item.tag ? <Tag tone="positive">{item.tag}</Tag> : null}
+                      <h4>{item.name}</h4>
+                    </div>
+                    <span className="guest-menu-item-card__price">{item.price}</span>
+                  </div>
+                  <p>{item.description}</p>
+                  <div className="guest-menu-item-card__actions">
+                    <small>{venueCart[item.id] ? `${venueCart[item.id]} in this cart` : 'Add to venue cart'}</small>
+                    {venueCart[item.id] ? (
+                      <div className="guest-menu-quantity" aria-label={`${item.name} quantity`}>
+                        <button type="button" aria-label={`Decrease ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, -1)}><Minus aria-hidden="true" /></button>
+                        <output aria-live="polite">{venueCart[item.id]}</output>
+                        <button type="button" aria-label={`Increase ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, 1)}><Plus aria-hidden="true" /></button>
+                      </div>
+                    ) : (
+                      <Button className="guest-button guest-button--secondary guest-menu-add" type="button" aria-label={`Add ${item.name}`} onClick={() => changeCartQuantity(venue.id, item.id, 1)}>Add</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            ) : (
+              <Notice title="No dishes match those filters">
+                {venue.name} has {venue.menu.length} dishes in total. Clear a filter to see the rest.
+              </Notice>
+            )}
+
+            {cartSummary.itemCount > 0 ? (
+              <button
+                className="guest-mini-cart"
+                type="button"
+                aria-label={`View ${venue.name} cart · ${cartSummary.itemCount} ${cartSummary.itemCount === 1 ? 'item' : 'items'} · ${cartSummary.formattedTotal}`}
+                onClick={() => go('restaurant-cart')}
+              >
+                <span><small>{venue.name} cart</small><b>{cartSummary.itemCount} {cartSummary.itemCount === 1 ? 'item' : 'items'}</b></span>
+                <strong>{cartSummary.formattedTotal}</strong>
+                <CaretRight aria-hidden="true" />
+              </button>
+            ) : null}
+
+            <div className="guest-summary">
+              <SummaryRow label="Property" value={contextBooking.property} />
+              <SummaryRow label="Room" value={contextRoom} />
+              <SummaryRow label="Billing" value="Settled at checkout" />
+            </div>
+
+            <Button
+              className="guest-button guest-button--primary"
+              type="button"
+              onClick={() => {
+                sendQuickMessage(`Hi, I would like to reserve a table at ${venue.name} for 2 guests tonight.`);
+                go('chat');
+              }}
+            >
+              Reserve a table via Front Desk<ArrowRight aria-hidden="true" />
+            </Button>
+            <TextButton onClick={() => go('category-listing')}>Back to {selectedCategory === 'dining' ? 'Food & Drink' : 'Services'}</TextButton>
+          </div>
+        );
       }
 
       case 'restaurant-cart': {
@@ -2916,9 +3168,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ) : null}
             </fieldset>
             {diningOrderError ? <Notice tone={!online ? 'offline' : 'warning'} title={diningOrderError}>Your cart is saved. Review it and try again when you’re ready.</Notice> : null}
-            <PaymentChoice provider="Operated by the hotel" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} />
-            <Notice title="Nothing is charged yet">Your room folio changes only after you review and place this order.</Notice>
-            <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0 || !checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)} onClick={confirmDiningOrder}>{checkoutPayment === 'room' ? `Charge ${cartSummary.formattedTotal} to room` : checkoutPayment === 'pay-now' ? `Pay ${cartSummary.formattedTotal} now` : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button>
+            <Notice title="Added to your room folio">This order is charged to {contextRoom.toLowerCase()} and settles with your hotel folio at checkout.</Notice>
+            <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0} onClick={confirmDiningOrder}>Place order and charge to room<ArrowRight aria-hidden="true" /></Button>
             <TextButton onClick={() => go('restaurant-menu')}>Add more from {venue.name}</TextButton>
           </div>
         );
@@ -2927,6 +3178,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'dining-order-confirmation': {
         const order = session.serviceBookings.find((service) => service.diningOrder && service.bookingId === contextBooking.id);
         const paidNow = order?.paymentStatus === 'paid';
+        const itemCount = order?.diningOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
         return (
           <ScreenIntro
             icon={<CheckCircle size={30} />}
@@ -2937,7 +3189,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-summary">
               <SummaryRow label="Establishment" value={order?.diningOrder?.venueName ?? 'Food & Drink'} />
               <SummaryRow label="Provider" value={order?.provider ?? 'Operated by the hotel'} />
-              <SummaryRow label="Items" value={`${order?.diningOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0}`} />
+              <SummaryRow label="Items" value={`${itemCount} ${itemCount === 1 ? 'item' : 'items'}${order?.scheduledFor ? ` · ${order.scheduledFor}` : ''}`} />
               <SummaryRow label={paidNow ? 'Paid' : 'Added to room charges'} value={order?.amount ?? '₱0'} strong />
             </div>
             <Notice title={paidNow ? 'Payment successful' : 'Pay at checkout'}>{paidNow ? 'Your receipt is available in this order.' : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>
@@ -3066,16 +3318,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'hotel-service':
-        return <ServiceDetail kind="hotel" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
+        return <ServiceDetail kind="hotel" service={selectedService} booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
 
       case 'vendor-service':
-        return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
+        return <ServiceDetail kind="vendor" service={selectedService} booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
 
-      case 'service-booking':
-        return <FormScreen step="Review and pay" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Category" value="Spa & wellness" /><SummaryRow label="Service" value="Hilom signature massage" /><SummaryRow label="Provider" value="Operated by Sans Rival" /><SummaryRow label="Total" value="₱2,400" strong /></div><PaymentChoice provider="Operated by Sans Rival" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} /><Button className="guest-button guest-button--primary" type="button" disabled={!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)} onClick={confirmService}>{checkoutPayment === 'room' ? 'Charge ₱2,400 to room' : checkoutPayment === 'pay-now' ? 'Pay ₱2,400 now' : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button></FormScreen>;
+      case 'service-booking': {
+        const provider = serviceProviderLabel(selectedService);
+        const complimentary = selectedService.price === 'Complimentary';
+        return <FormScreen step="Review your booking" title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Category" value={selectedService.category} /><SummaryRow label="Service" value={selectedService.name} /><SummaryRow label="Provider" value={provider} /><SummaryRow label={complimentary ? 'Included in stay' : 'Charged to'} value={complimentary ? 'Complimentary' : contextRoom} /><SummaryRow label="Total" value={selectedService.price} strong /></div>{complimentary ? <Notice title="Complimentary service">There is nothing to pay. Confirm the time and we&rsquo;ll add it to your stay.</Notice> : <Notice title="Charge to room">This service is added to {contextRoom.toLowerCase()} and settles with your hotel folio at checkout.</Notice>}<Button className="guest-button guest-button--primary" type="button" onClick={confirmService}>{complimentary ? 'Confirm booking' : 'Confirm and charge to room'}<ArrowRight aria-hidden="true" /></Button></FormScreen>;
+      }
 
-      case 'booking-confirmation':
-        return <ScreenIntro icon={<Check size={30} />} title="Your massage is booked" text={contextService?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this booking.' : `The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><div className="guest-summary"><SummaryRow label="Provider" value={contextService?.provider ?? 'Operated by Sans Rival'} /><SummaryRow label={contextService?.paymentStatus === 'paid' ? 'Payment status' : 'Payment method'} value={contextService?.paymentStatus === 'paid' ? 'Paid' : 'Charged to room'} /></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The booking remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
+      case 'booking-confirmation': {
+        const serviceTitle = contextService?.title ?? selectedService.name;
+        const complimentary = contextService?.paymentStatus === 'complimentary' || selectedService.price === 'Complimentary';
+        return <ScreenIntro icon={<Check size={30} />} title={selectedService.id === 'spa' ? 'Your massage is booked' : `${serviceTitle} is booked`} text={complimentary ? 'Your complimentary service is confirmed for the selected time.' : `The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{serviceTitle} · 1 guest</p></div><Tag>Confirmed</Tag></div><div className="guest-summary"><SummaryRow label="Provider" value={contextService?.provider ?? serviceProviderLabel(selectedService)} /><SummaryRow label={complimentary ? 'Payment status' : 'Payment method'} value={complimentary ? 'Complimentary' : 'Charged to room'} /></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The booking remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
+      }
 
       /*
         Two different reasons a booking cannot go through, and they used to
@@ -3156,6 +3414,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const started = hasStayStarted(contextBooking);
 
         const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
+        const settledStay = checkedOut ? toFinishedStay(session, contextBooking) : null;
+        const daysUntilCheckIn = countNightsBetween(PROTOTYPE_TODAY, contextBooking.checkIn);
+        const stayTiming = !started
+          ? daysUntilCheckIn === 0
+            ? 'Checks in today'
+            : `Checks in ${daysUntilCheckIn} days`
+          : contextBooking.checkOut === '2026-11-12'
+            ? 'Checks out tomorrow'
+            : `Checkout on ${contextBooking.checkOut}`;
+        const showDeskDock = !checkedOut || postStayWindow.deskOpen;
 
         return (
           <div className="guest-stack guest-my-stay-page">
@@ -3166,7 +3434,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-stay-context guest-checkout-card">
               <button type="button" onClick={() => go('rate-detail')}>
                 <span className="guest-stay-context__clock" aria-hidden="true"><ClockCountdown /></span>
-                <span className="guest-stay-context__text"><b>{contextBooking.checkOut === '2026-11-12' ? 'Checks out tomorrow' : `Checkout on ${contextBooking.checkOut}`}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
+              <span className="guest-stay-context__text"><b>{stayTiming}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
               </button>
               {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions"><button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button><div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
             </div>
@@ -3185,8 +3453,38 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </p>
             ) : null}
 
+            {checkedOut && !postStayWindow.deskOpen && !stayReview ? (
+              <Button className="guest-button guest-button--secondary" type="button" onClick={() => go('stay-review')}>
+                Rate your stay<ArrowRight aria-hidden="true" />
+              </Button>
+            ) : null}
+            {checkedOut && stayReview ? <Notice tone="positive" title={`You rated this stay ${stayReview.rating}/5`}>Your private feedback was sent to the property.</Notice> : null}
+
+            {settledStay ? (
+              <section className="guest-settled-summary">
+                <SectionHeading title="This stay" />
+                <p className="guest-settled-summary__status">Settled at checkout</p>
+                <div className="guest-summary">
+                  <SummaryRow label={`${settledStay.roomType} · ${settledStay.nights} nights`} value={settledStay.roomRate} />
+                  <SummaryRow label="Total settled" value={settledStay.total} strong />
+                </div>
+                <Button className="guest-button guest-button--secondary" type="button" onClick={() => { setSelectedPastStayId(contextBooking.id); go('stay-detail'); }}>
+                  View settled stay<ArrowRight aria-hidden="true" />
+                </Button>
+                <TextButton onClick={() => go('book-stay')}>Book another stay</TextButton>
+              </section>
+            ) : null}
+
             {started ? (
-              <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}><span><b>Room charges</b><small>View charges added to your room</small></span><span className="guest-my-stay-charges__view">View</span></button>
+              <>
+                {!checkedOut ? (
+                  <div className="guest-folio-summary guest-my-stay-total">
+                    <div><span>This stay so far</span><small>Due at checkout</small></div>
+                    <strong>{session.folioTotal || contextBooking.folioTotal || '₱0'}</strong>
+                  </div>
+                ) : null}
+                <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}><span><b>Room charges</b><small>View charges added to your room</small></span><span className="guest-my-stay-charges__view">View</span></button>
+              </>
             ) : null}
 
             {/*
@@ -3250,6 +3548,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </div>
               )}
             </section>
+
+            {showDeskDock ? (
+              <>
+                <div className="guest-dock-spacer" aria-hidden="true" />
+                <div className="guest-dock guest-dock--single">
+                  <button className="guest-dock__action" data-testid="guest-front-desk-action" type="button" aria-label="Message the front desk" onClick={() => go('chat')}>
+                    <span className="guest-dock__glyph"><ChatCircleDots aria-hidden="true" /></span>
+                    <span className="guest-dock__label"><b>Message the front desk</b><small>Usually replies in a few minutes.</small></span>
+                    <CaretRight aria-hidden="true" />
+                  </button>
+                </div>
+              </>
+            ) : null}
 
           </div>
         );
@@ -3415,13 +3726,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'room-qr-midstay':
-        /*
-          "You're checked in" was the old title and it was a claim the app has
-          no standing to make -- the front desk checks a guest in, against the
-          property's own PMS. What the app knows is narrower and is the whole
-          basis of the gate: this guest is in this room.
-        */
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={`${contextRoom} confirmed`} title="Your room is linked" text="Dining, spa, tours and charging to your room are open. The front desk still handles check-in itself."><StayMiniCard booking={contextBooking} status={`Active until ${contextBooking.checkOut}`} />{primary('Explore services', 'marketplace')}<button className="guest-button guest-button--secondary" onClick={() => go('stay-overview')}>Open stay overview</button></ScreenIntro>;
+        return (
+          <RoomUnlocked
+            roomNumber={contextBooking.roomNumber}
+            property={contextBooking.property}
+            checkOut={formatCheckoutDate(contextBooking.checkOut)}
+            onExplore={openExploreIntro}
+            onViewStay={() => go('my-stay')}
+          />
+        );
 
       case 'profile':
         return (
@@ -3546,9 +3859,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   return (
     <div className="guest-prototype-stage">
-      <div className="sr-only" role="status" aria-live="polite">
-        {roomReadyNotification ? `${roomReadyNotification.headline}. ${roomReadyNotification.detail}` : ''}
-      </div>
+      {roomReadyNotification ? (
+        <div className="sr-only" role="status" aria-live="polite">
+          {`${roomReadyNotification.headline}. ${roomReadyNotification.detail}`}
+        </div>
+      ) : null}
 
       <PrototypeControls
         online={online}
@@ -3556,6 +3871,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onStayStateChange={applyStayState}
         onSimulateRoomAssignment={simulateRoomAssignment}
         canSimulateRoomAssignment={Boolean(eligibleRoomAssignBooking)}
+        roomReadyUnavailableReason={
+          primaryBooking && primaryBooking.reportsRoomReadiness === false
+            ? 'This property does not report room readiness.'
+            : undefined
+        }
         onSimulateRoomReady={simulateRoomReady}
         canSimulateRoomReady={Boolean(eligibleRoomReadyBooking)}
         roomVerified={Boolean(primaryBooking?.roomVerification)}
@@ -3605,6 +3925,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               duplication this pass removed elsewhere.
             */}
             <div className="guest-appbar__side guest-appbar__side--end">
+              {showRoomScanAction ? (
+                <button
+                  className="guest-icon-button guest-scan-action"
+                  type="button"
+                  data-testid="guest-scan-action"
+                  onClick={() => go('scan-room-code')}
+                  aria-label="Scan room code"
+                >
+                  <QrCode aria-hidden="true" />
+                </button>
+              ) : null}
               {session.auth === 'authenticated' || session.bookings.length > 0 ? (
                 <button
                   className="guest-icon-button guest-bell"
@@ -3657,7 +3988,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 genuinely do not exist yet. They appear, permanently, the
                 moment a booking is added.
               */}
-              {primaryBooking && !checkedOutNav && bookingSlot.screen !== 'pre-arrival-services' ? (
+              {primaryBooking ? (
                   <NavButton
                     label={bookingSlot.label}
                     icon={bookingSlot.label === 'Arrival'
@@ -3701,6 +4032,7 @@ function PrototypeControls({
   onStayStateChange,
   onSimulateRoomAssignment,
   canSimulateRoomAssignment,
+  roomReadyUnavailableReason,
   onSimulateRoomReady,
   canSimulateRoomReady,
   roomVerified,
@@ -3723,6 +4055,7 @@ function PrototypeControls({
   onStayStateChange: (state: PrototypeStayState) => void;
   onSimulateRoomAssignment: () => void;
   canSimulateRoomAssignment: boolean;
+  roomReadyUnavailableReason?: string;
   onSimulateRoomReady: () => void;
   canSimulateRoomReady: boolean;
   roomVerified: boolean;
@@ -3774,7 +4107,7 @@ function PrototypeControls({
       <div className="guest-prototype-toolbar__head">
         <div>
           <span>Prototype controls</span>
-          <small>{online ? 'Switch the stay state, or fire a PMS event.' : 'Reconnect to fire a PMS event.'}</small>
+          <small>{!online ? 'Reconnect to fire a PMS event.' : roomReadyUnavailableReason ?? 'Switch the stay state, or fire a PMS event.'}</small>
         </div>
         <button
           className="guest-prototype-toolbar__close"
@@ -4008,7 +4341,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
           */}
           {canUseOnPropertyServices(booking) ? null : (
             <div className="guest-stay-hero-card__qr">
-              <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
+              <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-action" aria-label="Scan room code, room not yet verified" onClick={() => onNavigate('scan-room-code')}>
                 <QrCode aria-hidden="true" />Scan your room code<ArrowRight aria-hidden="true" />
               </Button>
             </div>
@@ -4016,31 +4349,18 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
         </section>
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" onClick={() => onNavigate('my-stay')}><span><b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b><small>{confirmedServices[0].scheduledFor}</small><small>{confirmedServices[0].amount} · Charged to {roomLabel}</small></span><span className="guest-next-service-card__action">View details <CaretRight /></span></button></section> : null}
         <section>
-          <SectionHeading title="Make the most of your stay" />
-          <div className="guest-category-banners" role="group" aria-label="Experience categories">
-            {[
-              { id: 'dining', label: 'Food & Drinks' },
-              { id: 'spa', label: 'Spa & Wellness' },
-              { id: 'entertainment', label: 'Activities & Tours' },
-              { id: 'services', label: 'Hotel Services' },
-              { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs' },
-            ].map((item) => {
-              const cat = MINI_APP_CATEGORIES.find((category) => category.id === item.id);
-              const cover = item.id === 'gifts-souvenirs'
-                ? { src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80', focalPoint: 'center' }
-                : getCategoryCoverImage(cat!.id);
+          <SectionHeading title="Explore Nearby" />
+          <div className="guest-category-catalog" role="group" aria-label="Experience categories">
+            {MINI_APP_CATEGORIES.map((cat) => {
+              const cover = getCategoryCoverImage(cat.id);
               return (
                 <button
-                  key={item.id}
+                  key={cat.id}
                   type="button"
-                  className="guest-category-banner"
+                  className="guest-category-catalog__card"
                   onClick={() => {
-                    if (item.id === 'gifts-souvenirs') {
-                      onNavigate('gifts-souvenirs');
-                      return;
-                    }
-                    onSelectCategory(cat!.id);
-                    onNavigate(cat!.screen);
+                    onSelectCategory(cat.id);
+                    onNavigate(cat.screen);
                   }}
                 >
                   <Image
@@ -4050,8 +4370,8 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
                     sizes="(max-width: 720px) calc(100vw - 32px), 688px"
                     style={{ objectPosition: cover.focalPoint }}
                   />
-                  <span className="guest-category-banner__scrim" aria-hidden="true" />
-                  <span className="guest-category-banner__label">{item.label}</span>
+                  <span className="guest-category-catalog__scrim" aria-hidden="true" />
+                  <span className="guest-category-catalog__label">{cat.shortTitle}</span>
                 </button>
               );
             })}
@@ -4103,6 +4423,11 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
   return (
     <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
       <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} showUpgrade={canOfferRoomUpgrade(booking)} />
+      <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('identify')}>
+        <span className="guest-add-booking-card__glyph" aria-hidden="true"><Ticket /></span>
+        <span className="guest-add-booking-card__text"><b>Add a booking</b><small>Connect another reservation to your Cabana account.</small></span>
+        <ArrowRight aria-hidden="true" />
+      </button>
       {booking.preArrivalCompleted < booking.preArrivalTotal ? (
         <section className="guest-home-booking guest-home-booking--primary">
           <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>
@@ -4342,15 +4667,21 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
   const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
   const when = `${entry.date === PROTOTYPE_TODAY ? 'Tonight' : date}${time ? ` · ${time}` : ''}`;
-  const showLocation = entry.title === 'Apartment 1B' || entry.title === 'Azotea Rooftop';
   const body = (
     <>
+      <span className="guest-stay-entry__parent">
+        <span aria-hidden="true"><Storefront /></span>
+        <span className="guest-stay-entry__parent-copy">
+          <span>{entry.parent}</span>
+          {entry.parentDetail ? <small>{entry.parentDetail}</small> : null}
+        </span>
+      </span>
       <span className="guest-stay-entry__headline">
         <h2>{entry.title}</h2>
         <strong>{entry.amount}</strong>
       </span>
-      {showLocation && entry.parentDetail ? <span className="guest-stay-entry__location">{entry.parentDetail}</span> : null}
       <span className="guest-stay-entry__when">{when}</span>
+      {entry.settlement ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
     </>
   );
 
@@ -4385,83 +4716,6 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel
         {showUpgrade ? <button className="guest-list-row" onClick={() => onNavigate('room-upgrades')} type="button"><span><Bed /></span><div><b>Upgrade room</b><small>Explore available rooms for your stay</small></div><CaretRight /></button> : null}
       </div>
     </section>
-  );
-}
-
-/**
- * A stand-in for a camera, because the prototype has no camera.
- *
- * The point is fidelity of *timing*, not of optics: a real scan is a short
- * wait that resolves itself, and a screen with only a button on it teaches
- * a stakeholder the wrong thing about how the moment feels. So the
- * viewfinder finds the code on its own after a beat, and carries a clearly
- * marked control for firing it immediately when someone is presenting and
- * wants to talk over the wait.
- */
-function RoomCodeScanner({
-  roomNumber,
-  onDetected,
-  onCancel,
-  reducedMotion,
-  autoDetect,
-}: {
-  roomNumber?: string;
-  onDetected: () => void;
-  onCancel: () => void;
-  reducedMotion: boolean;
-  autoDetect: boolean;
-}) {
-  /*
-    Through a ref, and armed once. `onDetected` is rebuilt on every parent
-    render, so depending on it directly would clear and restart the countdown
-    forever and the scan would never fire. The ref is written in an effect,
-    never during render -- the React Compiler rules here make the latter an
-    error, and `use-debounce.ts` is the reference for the shape.
-  */
-  const onDetectedRef = useRef(onDetected);
-  useEffect(() => {
-    onDetectedRef.current = onDetected;
-  }, [onDetected]);
-
-  useEffect(() => {
-    if (!autoDetect) return;
-    const timer = window.setTimeout(() => onDetectedRef.current(), SCAN_DETECT_MS);
-    return () => window.clearTimeout(timer);
-  }, [autoDetect]);
-
-  return (
-    <div className="guest-scanner" data-testid="guest-viewfinder">
-      <div className="guest-scanner__frame" aria-hidden="true">
-        <span className="guest-scanner__corner guest-scanner__corner--tl" />
-        <span className="guest-scanner__corner guest-scanner__corner--tr" />
-        <span className="guest-scanner__corner guest-scanner__corner--bl" />
-        <span className="guest-scanner__corner guest-scanner__corner--br" />
-        {reducedMotion ? null : <span className="guest-scanner__sweep" />}
-      </div>
-
-      <div className="guest-scanner__copy">
-        <h1>Scan the room code</h1>
-        <p>
-          Point your camera at the code on the desk card
-          {roomNumber ? ` in room ${roomNumber}` : ''}. It confirms you are in the room.
-        </p>
-      </div>
-
-      <p className="guest-scanner__status" role="status">
-        {autoDetect ? 'Looking for a code…' : 'Auto-detect is off for this demo'}
-      </p>
-
-      <div className="guest-scanner__actions">
-        <button className="guest-scanner__cancel" type="button" onClick={onCancel}>Cancel</button>
-      </div>
-
-      <div className="guest-desk-grant guest-scanner__rig">
-        <small>Prototype — there is no real camera here</small>
-        <Button className="guest-button guest-button--secondary" type="button" onClick={onDetected}>
-          Simulate a successful scan
-        </Button>
-      </div>
-    </div>
   );
 }
 
@@ -4575,6 +4829,12 @@ function formatStayDateRange(booking: Booking) {
   return `${start}–${end}, ${booking.checkIn.slice(0, 4)}`;
 }
 
+function formatCheckoutDate(isoDate: string) {
+  const date = new Date(`${isoDate}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  return new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(date);
+}
+
 /**
  * `eyebrow` is optional, and most screens should not pass one.
  *
@@ -4634,64 +4894,6 @@ function ReviewBlock({ icon, title, lines }: { icon: ReactNode; title: string; l
 
 function TimelineItem({ title, text, done }: { title: string; text: string; done?: boolean }) {
   return <div className={`guest-timeline__item ${done ? 'is-done' : ''}`}><span>{done ? <Check /> : null}</span><div><b>{title}</b><small>{text}</small></div></div>;
-}
-
-/**
- * Home's discovery rail. A native overflow-scroll list with snap points: no
- * carousel library, no autoplay, no dots. The row bleeds past the screen inset
- * so a card is always visibly cut off at the right edge -- that clipped card is
- * what tells the guest the row scrolls, more honestly than any affordance
- * drawn on top of the content.
- */
-function FeaturedRail({ onOpenCategory }: { onOpenCategory: (category: MiniAppCategoryId) => void }) {
-  return (
-    <ul className="guest-featured-rail">
-      {getFeaturedServices().map((service) => (
-        <li key={service.id}>
-          <button
-            type="button"
-            className="guest-featured-card"
-            onClick={() => onOpenCategory(service.categoryId)}
-          >
-            <ServiceImage
-              imageKey={getServiceImageKey(service)}
-              itemId={service.id}
-              categoryId={service.categoryId}
-              variant="card"
-              tone={service.tone}
-              icon={<CategoryIcon id={service.categoryId} />}
-              decorative
-            />
-            <span className="guest-featured-card__body">
-              <small>{service.category}</small>
-              <b>{service.name}</b>
-              <span>{service.price}</span>
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-void FeaturedRail;
-
-function ExplorePromotions({ onOpenCategory }: { onOpenCategory: (category: MiniAppCategoryId | 'gifts-souvenirs') => void }) {
-  const railRef = useRef<HTMLUListElement>(null);
-  const [active, setActive] = useState(0);
-  const promotions = [
-    { category: 'spa' as const, label: 'Spa offer', title: 'Relax with the Hilom Signature Massage', detail: 'Traditional Filipino massage from ₱2,400', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1200&q=80' },
-    { category: 'dining' as const, label: 'Dining offer', title: 'Dinner at Azotea Rooftop', detail: 'Ninth-floor dining with Manila views', image: 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1200&q=80' },
-    { category: 'entertainment' as const, label: 'Island tour', title: 'Make a day of it', detail: 'Curated island experiences from the hotel', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80' },
-    { category: 'gifts-souvenirs' as const, label: 'Gift shop', title: 'Take a little Cabana home', detail: 'Local treats and hotel gift bundles', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80' },
-  ];
-  const moveTo = (index: number) => { setActive(index); railRef.current?.children[index]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); };
-  return <>
-    <ul className="guest-explore-promotions" ref={railRef} onScroll={(event) => { const target = event.currentTarget; const first = target.children[0] as HTMLElement | undefined; if (first) setActive(Math.round(target.scrollLeft / (first.offsetWidth + 10))); }}>
-      {promotions.map((promotion) => <li key={promotion.title}><button type="button" onClick={() => onOpenCategory(promotion.category)}><Image src={promotion.image} alt="" fill sizes="(max-width: 720px) calc(100vw - 48px), 640px" /><span aria-hidden="true" /><div><small>{promotion.label}</small><b>{promotion.title}</b><em>{promotion.detail}</em><strong>View offer <ArrowRight /></strong></div></button></li>)}
-    </ul>
-    <div className="guest-explore-promotions__dots" aria-label="Featured promotions">{promotions.map((promotion, index) => <button key={promotion.title} type="button" className={active === index ? 'is-active' : ''} aria-label={`Go to promotion ${index + 1}`} onClick={() => moveTo(index)} />)}</div>
-  </>;
 }
 
 /** One facet on the filter bar: a pill that opens a sheet of choices. */
@@ -5154,10 +5356,22 @@ function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; 
 
 void ActionTile;
 
-function ServiceDetail({ kind, booking, online, onBook, onChat }: { kind: 'hotel' | 'vendor'; booking: Booking; online: boolean; onBook: () => void; onChat: () => void }) {
+function ServiceDetail({ kind, service, booking, online, onBook, onChat }: { kind: 'hotel' | 'vendor'; service?: (typeof SERVICES)[number]; booking: Booking; online: boolean; onBook: () => void; onChat: () => void }) {
   const vendor = kind === 'vendor';
+  const selected = service ?? (vendor ? SERVICES.find((entry) => entry.id === 'spa') : SERVICES.find((entry) => entry.id === 'dining'))!;
+  const house = venueForService(selected.id);
   const roomLabel = booking.roomNumber ? `room ${booking.roomNumber}` : 'your assigned room';
-  return <div className="guest-stack guest-service-detail"><ServiceImage imageKey={vendor ? 'spa' : 'dining'} itemId={vendor ? 'spa' : 'dining'} variant="card" tone={vendor ? 'sage' : 'sand'} icon={vendor ? <Sparkle size={38} /> : <ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{vendor ? 'Hilom signature massage' : 'In-room dining'}</h1><p>{vendor ? 'A 90-minute traditional Filipino therapeutic massage, delivered in the on-property spa.' : `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`}</p></div><div className="guest-summary"><SummaryRow label="Price" value={vendor ? '₱2,400' : 'From ₱450'} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Provider" value={vendor ? 'Operated by Sans Rival' : 'Operated by the hotel'} /><SummaryRow label="Location" value={vendor ? 'Spa & wellness · The Henry Manila' : booking.property} /><SummaryRow label="Operating hours" value={vendor ? 'Daily · 9:00 AM–10:00 PM' : 'Daily · 6:30 AM–11:00 PM'} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Cancellation" value={vendor ? 'Up to 24 hours before' : 'Up to 2 hours before'} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" onClick={onBook}>{online ? (vendor ? 'Choose a time' : 'View menu and order') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}{vendor ? <div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div> : null}</div>;
+  const provider = serviceProviderLabel(selected);
+  const description = vendor
+    ? `${selected.name} is available at ${house.location.toLowerCase()}.`
+    : selected.id === 'dining'
+      ? `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`
+      : `${selected.name} is arranged by the hotel for your stay.`;
+  const location = vendor ? `${house.location} · ${booking.property}` : booking.property;
+  const hours = vendor ? 'Daily · 9:00 AM–10:00 PM' : 'Daily · 6:30 AM–11:00 PM';
+  const icon = selected.categoryId === 'spa' ? <Sparkle size={38} /> : selected.categoryId === 'entertainment' ? <Compass size={38} /> : <ForkKnife size={38} />;
+
+  return <div className="guest-stack guest-service-detail"><ServiceImage itemId={selected.id} categoryId={selected.categoryId} variant="card" tone={selected.tone} icon={icon} /><div className="guest-page-title"><h1>{selected.name}</h1><p>{description}</p></div><div className="guest-summary"><SummaryRow label="Price" value={selected.price} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Provider" value={provider} /><SummaryRow label="Location" value={location} /><SummaryRow label="Operating hours" value={hours} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Cancellation" value={selected.cutoff} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" type="button" onClick={onBook}>{online ? (selected.id === 'dining' ? 'View menu and order' : 'Choose a time') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}{vendor ? <div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div> : null}</div>;
 }
 
 function EstablishmentChatScreen({ kind, venue, booking, online, onChat }: { kind: 'restaurant' | 'gift'; venue?: RestaurantVenue; booking: Booking; online: boolean; onChat: (message: string) => void }) {

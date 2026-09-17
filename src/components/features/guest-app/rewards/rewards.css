@@ -380,3 +380,73 @@
 
 .estate-map__group li small { grid-column: 2; font-size: 11px; color: var(--ink-soft, #6b6a76); }
 .estate-map__none { margin: 0; font-size: 12px; color: var(--ink-soft, #6b6a76); }
+
+/* --------------------------------------------------------------------------
+   The badge sheet
+
+   Chrome comes from `.guest-sheet` in the app's own stylesheet, so this only
+   describes what is inside the panel.
+   -------------------------------------------------------------------------- */
+
+.badge-sheet__head {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 4px 16px 16px;
+  text-align: center;
+}
+
+.badge-sheet__head h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.018em; }
+.badge-sheet__head p { margin: 0; font-size: 14px; color: var(--ink-soft, #6b6a76); }
+
+.badge-sheet__close {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 12px;
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-soft, #6b6a76);
+  cursor: pointer;
+}
+
+.badge-sheet__why {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft, #6b6a76);
+}
+
+.badge-sheet__evidence {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 16px;
+  background: var(--surface, oklch(0.972 0.003 285));
+}
+
+.badge-sheet__evidence li { padding: 10px 14px; font-size: 14px; }
+.badge-sheet__evidence li + li { border-block-start: 1px solid var(--line, oklch(0.912 0.004 285)); }
+
+.badge-sheet__progress { display: grid; gap: 6px; }
+.badge-sheet__progress b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.badge-sheet__progress p { margin: 0 0 4px; font-size: 14px; color: var(--ink-soft, #6b6a76); }
+
+/* A tertiary action: accent-coloured text, not a filled control. */
+.badge-sheet__mute {
+  justify-self: start;
+  margin-block-start: 16px;
+  padding: 10px 0;
+  min-block-size: 44px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent-strong, oklch(0.5 0.19 351));
+  cursor: pointer;
+}

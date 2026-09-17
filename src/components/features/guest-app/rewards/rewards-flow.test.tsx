@@ -151,24 +151,28 @@ describe('BadgeShelf', () => {
     renderShelf();
 
     expect(screen.getByText('13 earned')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Foodie' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Nearly there' })).toBeInTheDocument();
   });
 
   it('shows every badge exactly once', () => {
     renderShelf();
 
-    const names = BADGES.map((badge) => badge.name);
-    for (const name of new Set(names)) {
-      const matches = names.filter((entry) => entry === name).length;
-      expect(screen.getAllByRole('img', { name: new RegExp(`^${name}( —|$)`) })).toHaveLength(matches);
-    }
+    expect(screen.getAllByTestId('badge-progress-row').length
+      + earnedBadges(MOCK_SESSION).length).toBe(BADGES.length);
   });
 
-  it('tells assistive technology a locked badge is locked', () => {
+  /*
+    One announcement, not three. The row's medal, its label and its count would
+    otherwise each be read out, so the medal is decorative and the button
+    carries name, requirement and progress together.
+  */
+  it('announces an in-progress badge as one thing', () => {
     renderShelf();
 
-    expect(screen.getByRole('img', { name: 'Culture — not yet earned' })).toBeInTheDocument();
+    expect(screen.getByRole('button', {
+      name: 'Culture — Two museums or heritage walks, 1 of 2',
+    })).toBeInTheDocument();
   });
 
   it('opens a badge from its row', async () => {
@@ -219,7 +223,7 @@ describe('the door from Profile', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Points and badges' })).toBeInTheDocument();
     expect(screen.getByText('37,220')).toBeInTheDocument();
     expect(screen.getByText('13 earned')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Foodie' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
   });
 
   /* Rewards lives inside Profile, so the bar must not lose its highlight. */
@@ -229,5 +233,82 @@ describe('the door from Profile', () => {
 
     const profileTab = screen.getByRole('button', { name: /^profile$/i });
     expect(profileTab).toHaveAttribute('aria-current', 'page');
+  });
+});
+
+
+describe('the badge sheet', () => {
+  const openRewards = async () => {
+    render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
+    await userEvent.click(screen.getByRole('button', { name: /points and badges/i }));
+  };
+
+  /*
+    A badge derived from spend is a profile, and one that appears unannounced
+    reads as surveillance. Showing the bookings behind it is what makes it an
+    inference the guest can argue with rather than a verdict.
+  */
+  it('shows the bookings that earned a badge', async () => {
+    await openRewards();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Foodie' }));
+
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).getByRole('heading', { name: 'Foodie' })).toBeInTheDocument();
+    expect(within(sheet).getByText('Dinner for two · Azotea Rooftop')).toBeInTheDocument();
+    expect(within(sheet).getByText('Drinks and snacks · The Poolside Bar')).toBeInTheDocument();
+  });
+
+  it('lets the guest deny it, and the badge leaves every surface', async () => {
+    await openRewards();
+    expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Foodie' }));
+    await userEvent.click(screen.getByRole('button', { name: /turn this off/i }));
+
+    expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
+    expect(screen.getByText('12 earned')).toBeInTheDocument();
+  });
+
+  /*
+    The correction has to outlive the screen, not just the view.
+
+    Persistence to localStorage is not asserted here: `persistent` is
+    `!initialSession`, so injecting a session deliberately turns writing off
+    and a test cannot clobber the real stored record. That half is covered
+    where it lives -- `muteBadge` writing the id, and `session-storage`
+    round-tripping `rewards.mutedBadges`. What is left to prove is that the app
+    keeps the correction on the session rather than in a component's state.
+  */
+  it('keeps the correction after leaving the screen', async () => {
+    await openRewards();
+    await userEvent.click(screen.getByRole('button', { name: 'Foodie' }));
+    await userEvent.click(screen.getByRole('button', { name: /turn this off/i }));
+
+    await userEvent.click(screen.getByRole('button', { name: /^profile$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /points and badges/i }));
+
+    expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
+    expect(screen.getByText('12 earned')).toBeInTheDocument();
+  });
+
+  it('says what is left on a badge still in progress', async () => {
+    await openRewards();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Culture/ }));
+
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).getByText('1 of 2')).toBeInTheDocument();
+    expect(within(sheet).getByText(/one more/i)).toBeInTheDocument();
+  });
+
+  it('closes without changing anything', async () => {
+    await openRewards();
+    await userEvent.click(screen.getByRole('button', { name: 'Foodie' }));
+
+    await userEvent.click(screen.getByRole('button', { name: /close/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
   });
 });

@@ -68,9 +68,15 @@ export type BadgeMedalProps = {
   earned: boolean;
   /** 28 inline · 48 in grids and rows · 64 in the sheet. */
   size?: 28 | 48 | 64;
+  /**
+   * Hidden from assistive technology, for a medal inside something already
+   * named. Two announcements of the same badge is worse than one: a button
+   * holding both the medal and its label reads "Foodie Foodie".
+   */
+  decorative?: boolean;
 };
 
-export function BadgeMedal({ badge, earned, size = 48 }: BadgeMedalProps) {
+export function BadgeMedal({ badge, earned, size = 48, decorative = false }: BadgeMedalProps) {
   const family = BADGE_FAMILIES[badge.family];
   const Glyph = GLYPHS[badge.glyph];
 
@@ -79,13 +85,17 @@ export function BadgeMedal({ badge, earned, size = 48 }: BadgeMedalProps) {
       className={`badge-medal${earned ? '' : ' badge-medal--locked'}`}
       data-family={badge.family}
       data-shape={family.shape}
-      role="img"
-      /*
-        The locked state is a filter, and a filter says nothing to a screen
-        reader. Without this the only difference between a badge someone has
-        earned and one they have not is a visual one.
-      */
-      aria-label={earned ? badge.name : `${badge.name} — not yet earned`}
+      {...(decorative
+        ? { 'aria-hidden': true }
+        : {
+            role: 'img',
+            /*
+              The locked state is a filter, and a filter says nothing to a
+              screen reader. Without this the only difference between a badge
+              someone has earned and one they have not is a visual one.
+            */
+            'aria-label': earned ? badge.name : `${badge.name} — not yet earned`,
+          })}
       style={{
         '--medal-size': `${size}px`,
         '--medal-enamel': family.enamel,

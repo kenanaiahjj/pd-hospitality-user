@@ -151,6 +151,7 @@ import {
 } from './promoted';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
 import {
+  BadgeSheet,
   BadgeShelf,
   EstateMap,
   PointsWallet,
@@ -159,6 +160,7 @@ import {
   badgeProgress,
   buildPointsLedger,
   earnedBadges,
+  muteBadge,
   nearlyEarnedBadges,
   pointsBalance,
   pointsExpiry,
@@ -1003,6 +1005,9 @@ function AdditionalGuestsScreen({
 export function GuestAppPrototype({ initialSession, initialScreen, initialOnline }: GuestAppPrototypeProps = {}) {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
   const [session, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
+  /* Which badge's sheet is open. A sheet, not a screen: it floats over the hub
+     rather than replacing it, so closing it returns the guest where they were. */
+  const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
   const [online, setOnline] = useState(initialOnline ?? true);
   const [, setCode] = useState('');
@@ -3717,6 +3722,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         */
         const balance = pointsBalance(session);
         const nearly = nearlyEarnedBadges(session);
+        const badges = badgeProgress(session);
+        const openBadge = badges.find((row) => row.definition.id === openBadgeId);
 
         return (
           <div className="guest-stack">
@@ -3737,7 +3744,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <BadgeShelf
               earned={earnedBadges(session)}
               nearly={nearly}
-              all={badgeProgress(session)}
+              all={badges}
+              onOpenBadge={setOpenBadgeId}
             />
 
             <EstateMap
@@ -3746,6 +3754,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 ...session.bookings.map((booking) => booking.city),
               ]}
             />
+
+            {openBadge ? (
+              <BadgeSheet
+                row={openBadge}
+                /* Muting rewrites the session, so the correction is persisted
+                   by the same effect that persists everything else. */
+                onMute={(badgeId) => setSession(muteBadge(session, badgeId))}
+                onClose={() => setOpenBadgeId(null)}
+              />
+            ) : null}
           </div>
         );
       }

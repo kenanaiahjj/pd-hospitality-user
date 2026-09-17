@@ -51,13 +51,17 @@ export function BadgeShelf({ earned, nearly, all, onOpenBadge }: BadgeShelfProps
           {earned.map((row) => (
             <li key={row.definition.id}>
               {onOpenBadge ? (
-                <button type="button" onClick={() => onOpenBadge(row.definition.id)}>
-                  <BadgeMedal badge={row.definition} earned />
+                <button
+                  type="button"
+                  aria-label={row.definition.name}
+                  onClick={() => onOpenBadge(row.definition.id)}
+                >
+                  <BadgeMedal badge={row.definition} earned decorative />
                   <span>{row.definition.name}</span>
                 </button>
               ) : (
                 <div>
-                  <BadgeMedal badge={row.definition} earned />
+                  <BadgeMedal badge={row.definition} earned decorative />
                   <span>{row.definition.name}</span>
                 </div>
               )}
@@ -119,9 +123,17 @@ function BadgeRow({
   return (
     <li data-testid="badge-progress-row">
       <Row
-        {...(onOpen ? { type: 'button' as const, onClick: () => onOpen(definition.id) } : {})}
+        {...(onOpen
+          ? {
+              type: 'button' as const,
+              /* One announcement carrying name, requirement and progress --
+                 the medal, the label and the count would otherwise be three. */
+              'aria-label': `${definition.name} — ${definition.requirement}, ${count} of ${definition.threshold}`,
+              onClick: () => onOpen(definition.id),
+            }
+          : {})}
       >
-        <BadgeMedal badge={definition} earned={earned} />
+        <BadgeMedal badge={definition} earned={earned} decorative />
         <div>
           <b>{definition.name}</b>
           <small>{definition.requirement}</small>

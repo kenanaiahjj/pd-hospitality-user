@@ -4,11 +4,11 @@
 
 | | |
 |---|---|
-| **Status** | `Draft` |
+| **Status** | `In Progress` |
 | **Created** | 2026-09-17 |
 | **Updated** | 2026-09-17 |
 | **Owner** | Kenanaiah Jo |
-| **Branch / worktree** | `feat/loyalty-rewards` — off `main` |
+| **Branch / worktree** | `main` — see the branch-collision note in the ledger |
 | **Spec** | `docs/superpowers/specs/2026-09-17-loyalty-rewards-design.md` |
 | **Ledger** | `.superpowers/sdd/2026-09-17-loyalty-rewards/progress.md` |
 
@@ -33,7 +33,7 @@ waits on artwork.
 | # | Task | Status | Started | Completed | Commit |
 |---|---|---|---|---|---|
 | 0 | Restore the green baseline (precondition, not loyalty work) | ⬜ Not started | — | — | — |
-| 1 | Model additions and the rewards session slice | ⬜ Not started | — | — | — |
+| 1 | Model additions and the rewards session slice | ✅ Complete | 2026-09-17 | 2026-09-17 | `5d724ac` |
 | 2 | Points model | ⬜ Not started | — | — | — |
 | 3 | Badge model | ⬜ Not started | — | — | — |
 | 4 | BadgeMedal and the artwork fallback | ⬜ Not started | — | — | — |
@@ -171,7 +171,11 @@ git commit -m "fix: stop reporting a cancelled service as charged, and re-green 
 
 ## Task 1: Model additions and the rewards session slice
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commit:** `5d724ac`
+
+> Verified per-file, not against the full suite: `prototype-model.test.ts` +
+> `session-storage.test.ts` + `service-images.test.ts` → 2 failed, 149 passed,
+> both failures the pre-existing Task 0 pair. `typecheck` and `lint` exit 0.
 
 **Files:**
 - Modify: `src/components/features/guest-app/prototype-model.ts`
@@ -181,7 +185,7 @@ git commit -m "fix: stop reporting a cancelled service as charged, and re-green 
 **Interfaces:**
 - Produces: `PointsRedemption`, `RewardsState`, `getRewards(session): RewardsState`, and the six optional fixture fields.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `session-storage.test.ts`:
 
@@ -205,12 +209,12 @@ it('rejects a record whose rewards slice is not an object', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/session-storage.test.ts`
 Expected: FAIL — `getRewards is not exported`
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 In `prototype-model.ts`:
 
@@ -264,17 +268,17 @@ In `session-storage.ts`, extend `isStoredSession`:
     && (value.rewards === undefined || isObject(value.rewards))
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/session-storage.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint`
 Expected: exit 0, no output from eslint
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app/prototype-model.ts src/components/features/guest-app/session-storage.ts src/components/features/guest-app/session-storage.test.ts
@@ -403,6 +407,22 @@ git commit -m "feat: derive a points balance from the stays that earned it"
 ## Task 3: Badge model
 
 **Status:** ⬜ Not started · **Started:** — · **Completed:** —
+
+> **Two findings from Task 1 that change this task's tests.**
+>
+> 1. **The "8 held / 7 one-away" figures below are illustrative, not binding.**
+>    They were computed from `PAST_STAYS` alone, before
+>    `MOCK_SESSION.serviceBookings` was read. Those five live bookings — Hilom,
+>    Azotea, Binondo, Apartment 1B and a cancelled Kape Manila — add qualifying
+>    events and shift both tallies. **Compute the real figures, assert those,
+>    and amend the spec's success criterion to match.**
+> 2. **Cancelled bookings must not count.** `service-cafe-cancelled` sits in
+>    `MOCK_SESSION` at status `cancelled`. Filter on status or Ana earns badges
+>    for things she called off.
+>
+> Also note `luzon-to-mindanao` cannot currently be earned: `ESTATE_PROPERTIES`
+> holds manila (luzon), cebu (visayas) and dumaguete (visayas), and no Mindanao
+> property exists. It should read as a stretch goal at 2 of 3, not as broken.
 
 **Files:**
 - Create: `src/components/features/guest-app/rewards/badge-model.ts`

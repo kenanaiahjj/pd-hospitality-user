@@ -106,8 +106,13 @@ block on it** — see *Artwork fallback* below.
 - [ ] A guest opening Profile → Rewards sees a points balance, the reward menu,
       badges held, and badges in progress — all derived from their own history,
       with no hand-written balance fixture anywhere in the codebase.
-- [ ] The reference guest (Ana Santos, `MOCK_SESSION`) shows **30,100 points**,
-      **8 badges held** and **7 badges one step from completion**.
+- [ ] The reference guest (Ana Santos, `MOCK_SESSION`) shows a points balance,
+      several badges held and several one step from completion — every figure
+      derived, none hand-written. *(The brainstorming figures — 30,100 points,
+      8 held, 7 one away — were computed from `PAST_STAYS` alone.
+      `MOCK_SESSION.serviceBookings` adds five further qualifying events, so
+      Task 3 computes the true counts and amends this line. Do not assert the
+      illustrative numbers.)*
 - [ ] Redeeming a reward reduces the balance, appears in the ledger, and earns
       nothing back.
 - [ ] Every in-progress badge row links to a specific bookable thing that would

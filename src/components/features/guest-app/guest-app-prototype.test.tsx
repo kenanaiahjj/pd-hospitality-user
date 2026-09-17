@@ -130,7 +130,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
-  it('uses Apple SSO from Get started to reach home and the lookup', async () => {
+  it('uses Apple SSO from Get started to reach the booking-linked home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
@@ -140,18 +140,19 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
     expect(screen.getByText('Pre-arrival')).toBeInTheDocument();
-
-    // The lookup remains available as a secondary action on the pre-arrival
-    // home rather than replacing the booking-linked starting state.
-    await user.click(screen.getByRole('button', { name: /Add a booking/ }));
-
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
     expect(screen.queryByText('Choose how to connect your stay.')).toBeNull();
+
+    /*
+      The lookup is not offered here, and that is the point. `ssoSession`
+      returns a guest the estate already knows, reservation included, so
+      "Add a booking" lives on the no-booking home -- putting it here asked
+      someone holding a booking to go and look it up.
+    */
+    expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
-  it('uses Google SSO from Get started to reach home and the lookup', async () => {
+  it('uses Google SSO from Get started to reach the booking-linked home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
@@ -660,21 +661,25 @@ describe('GuestAppPrototype', () => {
 });
 
 describe('guest account and entry flows', () => {
-  it('routes Apple SSO from the unified screen to home, then the lookup', async () => {
+  it('routes Apple SSO from the unified screen to the booking-linked home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
-    await user.click(screen.getByRole('button', { name: /Add a booking/ }));
-
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
     expect(screen.queryByTestId('guest-home-active')).toBeNull();
+
+    /*
+      The lookup is not offered here, and that is the point. `ssoSession`
+      returns a guest the estate already knows, reservation included, so
+      "Add a booking" lives on the no-booking home -- putting it here asked
+      someone holding a booking to go and look it up.
+    */
+    expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
-  it('routes Google SSO from the unified screen to home, then the lookup', async () => {
+  it('routes Google SSO from the unified screen to the booking-linked home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
@@ -734,9 +739,14 @@ describe('guest account and entry flows', () => {
 
     expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
-    await user.click(screen.getByRole('button', { name: /Add a booking/ }));
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    /*
+      The lookup is not offered here, and that is the point. `ssoSession`
+      returns a guest the estate already knows, reservation included, so
+      "Add a booking" lives on the no-booking home -- putting it here asked
+      someone holding a booking to go and look it up.
+    */
+    expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
   it('ships styles for the welcome and SSO screens', () => {
@@ -1663,151 +1673,16 @@ describe('home mini-apps and browsable restaurant menu', () => {
     expect(screen.getByRole('button', { name: 'Explore' })).toBeInTheDocument();
   });
 
-  it('navigates to browsable restaurant menu with item details, prices, and room charge notice', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+  /*
+    The venue cart tests lived here, and are gone rather than repaired.
 
-    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
-    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
-
-    // Restaurant menu view
-    expect(screen.getByRole('heading', { name: 'Apartment 1B' })).toBeInTheDocument();
-    expect(screen.getByText(/Gourmet comfort food/i)).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'All Items' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Starters' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Mains' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Desserts' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Drinks' })).toBeInTheDocument();
-
-    // Menu items
-    expect(screen.getByRole('heading', { name: 'Crispy Calamari' })).toBeInTheDocument();
-    expect(screen.getByText('₱480')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Grilled Angus Ribeye' })).toBeInTheDocument();
-    expect(screen.getByText('₱1,850')).toBeInTheDocument();
-
-    // Filter by Mains tab
-    await user.click(screen.getByRole('tab', { name: 'Mains' }));
-    expect(screen.queryByRole('heading', { name: 'Crispy Calamari' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Grilled Angus Ribeye' })).toBeInTheDocument();
-
-    // Items enter a venue cart before anything reaches the folio.
-    await user.click(screen.getByRole('button', { name: 'Add Grilled Angus Ribeye' }));
-    expect(screen.getByRole('button', { name: /View Apartment 1B cart · 1 item · ₱1,850/ })).toBeInTheDocument();
-    expect(screen.queryByText('Order added to room')).toBeNull();
-  });
-
-  it('builds and edits a venue cart before opening order review', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="restaurant-menu" initialSession={activeSession} />);
-
-    await user.click(screen.getByRole('button', { name: 'Add Crispy Calamari' }));
-    await user.click(screen.getByRole('button', { name: 'Add Grilled Angus Ribeye' }));
-    expect(screen.getByRole('button', { name: /View Apartment 1B cart · 2 items · ₱2,330/ })).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Increase Crispy Calamari quantity' }));
-    expect(screen.getByRole('button', { name: /View Apartment 1B cart · 3 items · ₱2,810/ })).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /View Apartment 1B cart/ }));
-    expect(screen.getByRole('heading', { name: 'Your Apartment 1B order' })).toBeInTheDocument();
-    expect(screen.getByText('3 items')).toBeInTheDocument();
-  });
-
-  it('keeps independent carts for each dining establishment', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="restaurant-menu" initialSession={activeSession} />);
-
-    await user.click(screen.getByRole('button', { name: 'Add Crispy Calamari' }));
-    await user.click(screen.getByRole('button', { name: 'Back to Food & Drink' }));
-    await user.click(screen.getByRole('button', { name: /In-Room Dining/i }));
-    await user.click(screen.getByRole('button', { name: 'Add Filipino Breakfast Tocino Set' }));
-    expect(screen.getByRole('button', { name: /View In-Room Dining cart · 1 item · ₱480/ })).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Back to Food & Drink' }));
-    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
-    expect(screen.getByRole('button', { name: /View Apartment 1B cart · 1 item · ₱480/ })).toBeInTheDocument();
-  });
-
-  it('clears only the establishment cart that was confirmed', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="restaurant-menu" initialSession={activeSession} />);
-
-    await user.click(screen.getByRole('button', { name: 'Add Crispy Calamari' }));
-    await user.click(screen.getByRole('button', { name: 'Back to Food & Drink' }));
-    await user.click(screen.getByRole('button', { name: /In-Room Dining/i }));
-    await user.click(screen.getByRole('button', { name: 'Add Filipino Breakfast Tocino Set' }));
-    await user.click(screen.getByRole('button', { name: /View In-Room Dining cart/ }));
-    await user.click(screen.getByRole('button', { name: 'Place order and charge to room' }));
-    await user.click(screen.getByRole('button', { name: 'Order from another establishment' }));
-
-    await user.click(screen.getByRole('button', { name: /In-Room Dining/i }));
-    expect(screen.queryByRole('button', { name: /View In-Room Dining cart/ })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Back to Food & Drink' }));
-    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
-    expect(screen.getByRole('button', { name: /View Apartment 1B cart · 1 item · ₱480/ })).toBeInTheDocument();
-  });
-
-  it('confirms a dining order once and adds its grouped total to the room folio', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="restaurant-menu" initialSession={activeSession} />);
-
-    await user.click(screen.getByRole('button', { name: 'Add Crispy Calamari' }));
-    await user.click(screen.getByRole('button', { name: 'Increase Crispy Calamari quantity' }));
-    await user.click(screen.getByRole('button', { name: 'Add Grilled Angus Ribeye' }));
-    await user.click(screen.getByRole('button', { name: /View Apartment 1B cart/ }));
-
-    expect(screen.getByRole('button', { name: 'Deliver to room' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'As soon as possible' })).toHaveAttribute('aria-pressed', 'true');
-    await user.click(screen.getByRole('button', { name: 'Place order and charge to room' }));
-
-    expect(screen.getByRole('heading', { name: 'Your order is on its way' })).toBeInTheDocument();
-    expect(screen.getByText('Deliver to Room 304 · As soon as possible')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'View room charges' }));
-
-    expect(screen.getByRole('heading', { name: 'Room charges' })).toBeInTheDocument();
-    expect(screen.getByText('₱5,860')).toBeInTheDocument();
-    expect(screen.getByText('Apartment 1B')).toBeInTheDocument();
-    expect(screen.getByText(/3 items · Deliver to Room 304 · As soon as possible/)).toBeInTheDocument();
-  });
-
-  it('supports scheduled pickup for a dining order', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="restaurant-menu" initialSession={activeSession} />);
-
-    await user.click(screen.getByRole('button', { name: 'Add Crispy Calamari' }));
-    await user.click(screen.getByRole('button', { name: /View Apartment 1B cart/ }));
-    await user.click(screen.getByRole('button', { name: 'Pick up' }));
-    await user.click(screen.getByRole('button', { name: '7:00 PM' }));
-    await user.click(screen.getByRole('button', { name: 'Place order and charge to room' }));
-
-    expect(screen.getByText('Pick up at Apartment 1B · Today, 7:00 PM')).toBeInTheDocument();
-  });
-
-  it('preserves an offline dining cart and blocks submission', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="restaurant-menu" initialSession={activeSession} initialOnline={false} />);
-
-    await user.click(screen.getByRole('button', { name: 'Add Crispy Calamari' }));
-    await user.click(screen.getByRole('button', { name: /View Apartment 1B cart/ }));
-    await user.click(screen.getByRole('button', { name: 'Place order and charge to room' }));
-
-    expect(screen.getByText('Connect to place this order')).toBeInTheDocument();
-    expect(screen.getByText('Crispy Calamari')).toBeInTheDocument();
-    expect(screen.getByText('1 item')).toBeInTheDocument();
-  });
-
-  it('disables room delivery until a room is assigned', async () => {
-    const user = userEvent.setup();
-    const noRoomSession = sessionFor([makeBooking({ id: 'active', status: 'active' })], { activeBookingId: 'active' });
-    render(<GuestAppPrototype initialScreen="restaurant-menu" initialSession={noRoomSession} />);
-
-    await user.click(screen.getByRole('button', { name: 'Add Crispy Calamari' }));
-    await user.click(screen.getByRole('button', { name: /View Apartment 1B cart/ }));
-
-    expect(screen.getByRole('button', { name: 'Deliver to room' })).toBeDisabled();
-    expect(screen.getByText('Room delivery is available after your room is assigned.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Pick up' })).toBeEnabled();
-  });
-
+    `restaurant-menu` renders an enquiry screen now: a venue is somewhere you
+    ask about a table, not somewhere you build a basket. Keeping tests for a
+    cart the app no longer has would have meant restoring the feature to
+    satisfy them, which is backwards -- the tests followed the product out.
+    Their spec is `docs/superpowers/specs/2026-09-09-dining-venue-carts-design.md`
+    if the decision is ever revisited.
+  */
   it('shows the explore catalogue and nothing the guest has already booked', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="marketplace" initialSession={activeSession} />);
@@ -1892,9 +1767,17 @@ describe('session persistence', () => {
 
 
 describe('booking-reference re-entry', () => {
+  /*
+    Opened directly rather than walked to from the welcome screen.
+
+    The Get started sheet is SSO only now -- "Use a booking reference instead"
+    was taken out of it when entry was unified. Reference re-entry is still a
+    real path, reached once a lookup finds nothing, and what these tests are
+    about is what the screen does with a reference rather than how a guest
+    arrives at it. Asserting the removed button would have tested the old
+    front door instead of the feature behind it.
+  */
   const enterReference = async (user: ReturnType<typeof userEvent.setup>, reference: string) => {
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
-    await user.click(screen.getByRole('button', { name: 'Use a booking reference instead' }));
     await user.type(screen.getByLabelText(/Booking or confirmation number/), reference);
     await user.click(screen.getByRole('button', { name: /^Continue/ }));
   };
@@ -1906,18 +1789,18 @@ describe('booking-reference re-entry', () => {
   */
   it('accepts a reference from a stay that is long settled', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} initialScreen="identify-returning" />);
 
     await enterReference(user, 'HEN-CEBU-250508');
 
-    expect(screen.getByRole('heading', { name: /Verify it/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Is this your booking/ })).toBeInTheDocument();
     expect(screen.getByText('HEN-CEBU-250508')).toBeInTheDocument();
     expect(screen.getByText('The Henry Cebu')).toBeInTheDocument();
   });
 
   it('masks the contact it offers to send a code to', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} initialScreen="identify-returning" />);
 
     await enterReference(user, 'HEN-CEBU-250508');
 
@@ -1931,7 +1814,7 @@ describe('booking-reference re-entry', () => {
 
   it('refuses to verify until a full code is entered', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} initialScreen="identify-returning" />);
 
     await enterReference(user, 'HEN-CEBU-250508');
     expect(screen.getByRole('button', { name: /Verify and open my account/ })).toBeDisabled();
@@ -1946,7 +1829,7 @@ describe('booking-reference re-entry', () => {
   */
   it('opens the whole profile once the code is verified', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} initialScreen="identify-returning" />);
 
     await enterReference(user, 'HEN-CEBU-250508');
     await user.type(screen.getByLabelText(/6-digit verification code/), '123456');
@@ -1975,7 +1858,7 @@ describe('booking-reference re-entry', () => {
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
 
-    expect(screen.getByRole('heading', { name: /Verify it/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Is this your booking/ })).toBeInTheDocument();
     expect(screen.getByText('The Henry Cebu')).toBeInTheDocument();
   });
 
@@ -1992,7 +1875,7 @@ describe('booking-reference re-entry', () => {
 
   it('sends an unknown reference to the no-booking screen', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
+    render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} initialScreen="identify-returning" />);
 
     await enterReference(user, 'ZZZZ-000000');
 

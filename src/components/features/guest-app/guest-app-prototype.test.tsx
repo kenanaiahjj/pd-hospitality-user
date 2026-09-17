@@ -398,7 +398,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText(/Welcome, Ana · Room 304/)).toBeInTheDocument();
     // Room charges belong to My Stay; Home should not duplicate the folio entry point.
     expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
-    expect(screen.getByTestId('guest-scan-action')).toBeInTheDocument();
+    expect(screen.getByTestId('guest-room-qr-action')).toBeInTheDocument();
     // The front desk moved off the tab bar and into My Trip.
     expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull();
   });
@@ -410,7 +410,7 @@ describe('GuestAppPrototype', () => {
     // The row is gone for a verified stay -- the app bar carries the scan
     // from every screen, which is what made it findable.
     expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
-    await user.click(screen.getByTestId('guest-scan-action'));
+    await user.click(screen.getByTestId('guest-room-qr-action'));
 
     expect(screen.getByRole('heading', { name: 'Place QR code in the frame' })).toBeInTheDocument();
   });
@@ -990,7 +990,7 @@ describe('menu and service listing controls', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
     await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
 
     expect(screen.getByText('13 dishes')).toBeInTheDocument();
@@ -1014,7 +1014,7 @@ describe('menu and service listing controls', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
     await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
     await user.click(screen.getByRole('tab', { name: 'Mains' }));
     await choose(user, 'Recommended', [{ role: 'radio', name: 'Lowest price' }]);
@@ -1028,7 +1028,7 @@ describe('menu and service listing controls', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
     await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
 
     const sortButton = screen.getByRole('button', { name: 'Recommended' });
@@ -1044,7 +1044,7 @@ describe('menu and service listing controls', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
     await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
     await user.click(screen.getByRole('button', { name: 'Recommended' }));
 
@@ -1081,7 +1081,7 @@ describe('menu and service listing controls', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
     expect(screen.getByText(`${RESTAURANTS.length} venues`)).toBeInTheDocument();
 
     await choose(user, 'Recommended', [{ role: 'radio', name: 'Lowest price' }]);
@@ -1628,7 +1628,7 @@ describe('home mini-apps and browsable restaurant menu', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    const diningBtn = screen.getByRole('button', { name: 'Dining' });
+    const diningBtn = screen.getByRole('button', { name: 'Food & Drinks' });
     const spaBtn = screen.getByRole('button', { name: 'Spa' });
     const toursBtn = screen.getByRole('button', { name: 'Tours' });
     const servicesBtn = screen.getByRole('button', { name: 'Services' });
@@ -1667,7 +1667,7 @@ describe('home mini-apps and browsable restaurant menu', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Dining' }));
+    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
     await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
 
     // Restaurant menu view
@@ -2629,7 +2629,7 @@ describe('signed-in home with no booking', () => {
     expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
     // Including the app bar, which would otherwise open a viewfinder that
     // could never resolve to anything.
-    expect(screen.queryByTestId('guest-scan-action')).toBeNull();
+    expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
   });
 });
 
@@ -2811,12 +2811,12 @@ describe('scan discoverability', () => {
     */
     for (const start of ['stay-overview', 'my-stay', 'marketplace', 'folio'] as const) {
       render(<GuestAppPrototype initialScreen={start} initialSession={verified} />);
-      expect(screen.getByTestId('guest-scan-action')).toBeInTheDocument();
+      expect(screen.getByTestId('guest-room-qr-action')).toBeInTheDocument();
       cleanup();
     }
 
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={verified} />);
-    await user.click(screen.getByTestId('guest-scan-action'));
+    await user.click(screen.getByTestId('guest-room-qr-action'));
     expect(screen.getByRole('heading', { name: 'Place QR code in the frame' })).toBeInTheDocument();
   });
 
@@ -2834,14 +2834,14 @@ describe('scan discoverability', () => {
 
     // Repeating it on Home is what buried it; the app bar carries it now.
     expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
-    expect(screen.getByTestId('guest-scan-action')).toBeInTheDocument();
+    expect(screen.getByTestId('guest-room-qr-action')).toBeInTheDocument();
   });
 
   it('keeps service discovery in the category catalog instead of duplicating featured cards on home', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
     expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dining' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Food & Drinks' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Spa' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tours' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Services' })).toBeInTheDocument();

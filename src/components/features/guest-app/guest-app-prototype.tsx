@@ -38,13 +38,21 @@ import {
   SuitcaseRolling,
   Lock,
   Car,
-  UserCircle,
   Users,
   Wrench,
   WifiHigh,
   WifiSlash,
   X,
 } from '@phosphor-icons/react';
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import {
+  BedSingle02Icon as HugeBedSingleIcon,
+  CompassIcon as HugeCompassIcon,
+  Home04Icon as HugeHomeIcon,
+  MessageCircleMoreIcon as HugeChatIcon,
+  PlusSignIcon as HugeBookAgainIcon,
+  UserRoundIcon as HugeProfileIcon,
+} from '@hugeicons-pro/core-stroke-rounded';
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
@@ -185,6 +193,8 @@ import './rewards/rewards.css';
 const SERVICE_PRICE = 2400;
 
 type ActiveScreen = ScreenId | 'entry-hub';
+
+const isChatScreen = (screen: ActiveScreen) => screen === 'chat' || screen === 'chat-after-hours';
 
 type ChatQuickAction = {
   label: string;
@@ -1018,6 +1028,7 @@ function AdditionalGuestsScreen({
 
 export function GuestAppPrototype({ initialSession, initialScreen, initialOnline }: GuestAppPrototypeProps = {}) {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
+  const activeScreenRef = useRef(activeScreen);
   const [session, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
   /* Which badge's sheet is open. A sheet, not a screen: it floats over the hub
      rather than replacing it, so closing it returns the guest where they were. */
@@ -1036,6 +1047,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [chatMessages, setChatMessages] = useState<Array<{ from: 'guest' | 'desk'; body: string; state?: string; images?: string[]; attachment?: ChatAttachment }>>([
     { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?' },
   ]);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [chatDraft, setChatDraft] = useState('');
   const [chatPreviewImage, setChatPreviewImage] = useState<string | null>(null);
   const chatPreviewCloseRef = useRef<HTMLButtonElement | null>(null);
@@ -1252,11 +1264,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     return () => window.clearTimeout(timeout);
   }, [scanSuccessToast]);
 
+  useEffect(() => {
+    activeScreenRef.current = activeScreen;
+  }, [activeScreen]);
+
   const go = (next: ActiveScreen) => {
     if (['restaurant-cart', 'gift-order-cart', 'service-booking', 'transfer-booking'].includes(next)) {
       setCheckoutPayment(null);
       setPaymentMethod(null);
     }
+    if (isChatScreen(next)) setHasUnreadChat(false);
     setHistory((items) => [...items, activeScreen]);
     setActiveScreen(next);
     setScrolled(false);
@@ -1273,7 +1290,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setScrolled(false);
     setHistory((items) => {
       const next = [...items];
-      setActiveScreen(next.pop() ?? 'entry-hub');
+      const nextScreen = next.pop() ?? 'entry-hub';
+      if (isChatScreen(nextScreen)) setHasUnreadChat(false);
+      setActiveScreen(nextScreen);
       return next;
     });
   };
@@ -1300,6 +1319,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ? `Here is the current ${establishment} ${messageBody.includes('products') ? 'product catalog' : 'menu'} and ordering information. Please send the item names and quantities you would like to order.`
           : 'Thanks. The front desk has received your request.';
       setChatMessages((messages) => [...messages, { from: 'desk', body: deskReply, state: 'Seen', images: catalogImages }]);
+      if (!isChatScreen(activeScreenRef.current)) setHasUnreadChat(true);
       setSending(false);
     }, 850);
   };
@@ -1932,8 +1952,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <WelcomeScreen
             online={online}
             onSso={(method) => {
+              /*
+                Where the model says, not a hardcoded screen.
+
+                `ssoSession` returns a guest the estate already knows, upcoming
+                booking included -- so sending them to "Log in with a booking"
+                asked them to look up the reservation they were already
+                holding, and the lookup stopped being the secondary action it
+                was specified as.
+              */
               setSession(ssoSession(method));
-              go('identify-returning');
+              go(getPostAuthScreen());
             }}
           />
         );
@@ -3345,6 +3374,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const started = hasStayStarted(contextBooking);
 
         const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
+        const checkoutIsDue = contextBooking.checkOut <= PROTOTYPE_TODAY;
 
         return (
           <div className="guest-stack guest-my-stay-page">
@@ -3357,7 +3387,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <span className="guest-stay-context__clock" aria-hidden="true"><ClockCountdown /></span>
                 <span className="guest-stay-context__text"><b>{contextBooking.checkOut === '2026-11-12' ? 'Checks out tomorrow' : `Checkout on ${contextBooking.checkOut}`}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
               </button>
-              {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions"><button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button><div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
+              {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions">{checkoutIsDue ? <button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button> : null}<div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
             </div>
 
             {checkedOut ? (
@@ -4044,7 +4074,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <nav className="guest-bottom-nav" aria-label="Primary navigation">
               <NavButton
                 label="Home"
-                icon={<House />}
+                icon={<GuestNavIcon icon={HugeHomeIcon} />}
                 active={activeScreen === 'stay-overview'}
                 onClick={() => go('stay-overview')}
               />
@@ -4065,8 +4095,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <NavButton
                     label={bookingNavLabel}
                     icon={bookingNavLabel === 'Explore'
-                      ? <Compass />
-                      : <Plus />}
+                      ? <GuestNavIcon icon={HugeCompassIcon} />
+                      : <GuestNavIcon icon={HugeBookAgainIcon} />}
                     active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen}
                     onClick={() => go(bookingSlot.screen)}
                   />
@@ -4074,20 +4104,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               {primaryBooking ? (
                 <NavButton
                     label="My Stay"
-                    icon={<Bed />}
+                    icon={<GuestNavIcon icon={HugeBedSingleIcon} />}
                     active={MY_STAY_SCREENS.includes(activeScreen)}
                     onClick={() => go('my-stay')}
                   />
               ) : null}
               <NavButton
                 label="Chat"
-                icon={<ChatCircleDots />}
+                icon={<GuestNavIcon icon={HugeChatIcon} />}
                 active={activeScreen === 'chat' || activeScreen === 'chat-after-hours'}
+                unread={hasUnreadChat}
                 onClick={() => go('chat')}
               />
               <NavButton
                 label="Profile"
-                icon={<UserCircle />}
+                icon={<GuestNavIcon icon={HugeProfileIcon} />}
                 active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards' || activeScreen === 'reward-detail'}
                 onClick={() => go('profile')}
               />
@@ -5520,6 +5551,10 @@ function HistoryItem({ stay, onOpen }: { stay: PastStay; onOpen: () => void }) {
   );
 }
 
-function NavButton({ label, icon, active, onClick }: { label: string; icon: ReactNode; active: boolean; onClick: () => void }) {
-  return <button aria-current={active ? 'page' : undefined} onClick={onClick}><span>{icon}</span><small>{label}</small></button>;
+function GuestNavIcon({ icon }: { icon: IconSvgElement }) {
+  return <HugeiconsIcon icon={icon} size={24} strokeWidth={1.75} aria-hidden="true" focusable="false" />;
+}
+
+function NavButton({ label, icon, active, unread = false, onClick }: { label: string; icon: ReactNode; active: boolean; unread?: boolean; onClick: () => void }) {
+  return <button aria-label={unread ? `${label}, new message` : label} aria-current={active ? 'page' : undefined} onClick={onClick}><span>{icon}</span><small>{label}</small>{unread ? <i className="guest-bottom-nav__badge" aria-hidden="true" /> : null}</button>;
 }

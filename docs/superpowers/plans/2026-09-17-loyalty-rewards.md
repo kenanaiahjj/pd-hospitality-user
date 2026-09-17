@@ -37,7 +37,7 @@ waits on artwork.
 | 2 | Points model | ✅ Complete | 2026-09-17 | 2026-09-17 | `d8cd450` |
 | 3 | Badge model | ✅ Complete | 2026-09-17 | 2026-09-17 | `b6b9b99` |
 | 4 | BadgeMedal and the artwork fallback | ✅ Complete | 2026-09-17 | 2026-09-17 | `cb5aa68` |
-| 5 | Rewards hub, and the door from Profile | ⬜ Not started | — | — | — |
+| 5 | Rewards hub, and the door from Profile | 🔄 In progress | 2026-09-17 | — | `1b078c1` |
 | 6 | Badge sheet and the mute control | ⬜ Not started | — | — | — |
 | 7 | Reward menu, reward detail, redeem | ⬜ Not started | — | — | — |
 | 8 | Apply points to a booking, earn on confirmation | ⬜ Not started | — | — | — |
@@ -657,7 +657,18 @@ git commit -m "feat: render a badge before its artwork exists"
 
 ## Task 5: Rewards hub, and the door from Profile
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** 🔄 In progress · **Started:** 2026-09-17 · **Completed:** — · **Commit so far:** `1b078c1`
+
+> **Components done, app wiring blocked.** `PointsWallet`, `BadgeShelf`,
+> `EstateMap`, the barrel and their styles are built and tested — 49/49 in
+> `rewards/`, typecheck and lint clean, and the medal is verified on screen.
+>
+> **What remains:** the two `ScreenId`s, the two `SCREENS` rows, the Profile row
+> and the `case 'rewards':` branch — all of which live in
+> `guest-app-prototype.tsx`, which a second session has had uncommitted for the
+> whole task (a `showNav` → `showPrimaryNav` split, `MY_STAY_SCREENS` changes,
+> 127 lines of CSS and 87 of tests). Staging it would commit their unfinished
+> refactor. **Resume when that file is clean.**
 
 > **Mount `rewards.css` and screenshot the badge shelf.** Task 4's CSS medal has
 > never been on screen — clip-path shapes, the sunburst field and the glyph

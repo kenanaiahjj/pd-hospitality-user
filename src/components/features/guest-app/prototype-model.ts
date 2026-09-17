@@ -271,6 +271,16 @@ export type ServiceBooking = {
   scheduledHour?: number;
   /** ISO date the guest made the booking, as distinct from when it happens. */
   bookedAt?: string;
+  /**
+   * What was booked, as `SERVICES[].id`.
+   *
+   * Carried rather than matched back from `title`. `categoryLabelFor` already
+   * matches on name, and a name match silently reclassifies everything the day
+   * a service is renamed -- which is exactly the drift badges cannot tolerate,
+   * since a badge that quietly stops counting looks to the guest like one that
+   * was taken away.
+   */
+  serviceId?: string;
   amount: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   provider?: string;
@@ -433,11 +443,11 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Direct booking',
     roomRate: '₱18,600',
     charges: [
-      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness', hour: 14 },
-      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining', hour: 19 },
-      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours', hour: 8 },
-      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining' },
-      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services', hour: 11 },
+      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness', hour: 14, serviceId: 'spa' },
+      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining', hour: 19, serviceId: 'rooftop' },
+      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours', hour: 8, serviceId: 'tour' },
+      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining', serviceId: 'cafe' },
+      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services', hour: 11, serviceId: 'transfer' },
     ],
     total: '₱37,390',
   },
@@ -454,9 +464,9 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Agoda',
     roomRate: '₱9,800',
     charges: [
-      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining', hour: 20 },
-      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services' },
-      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours', hour: 9 },
+      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining', hour: 20, serviceId: 'restaurant' },
+      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services', serviceId: 'laundry' },
+      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours', hour: 9, serviceId: 'heritage-walk' },
     ],
     total: '₱14,150',
   },
@@ -473,8 +483,8 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Booking.com',
     roomRate: '₱11,200',
     charges: [
-      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining' },
-      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness', hour: 16 },
+      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining', serviceId: 'poolside-bar' },
+      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness', hour: 16, serviceId: 'reflexology' },
     ],
     total: '₱13,820',
   },
@@ -525,6 +535,7 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-hilom-1',
       bookingId: 'HEN-241109',
+      serviceId: 'spa',
       scheduledHour: 13,
       bookedAt: '2026-11-09',
       title: 'Hilom signature massage',
@@ -536,6 +547,7 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-rooftop-1',
       bookingId: 'HEN-241109',
+      serviceId: 'rooftop',
       scheduledHour: 19,
       bookedAt: '2026-11-11',
       title: 'Azotea Rooftop',
@@ -556,6 +568,7 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-tour-1',
       bookingId: 'HEN-241109',
+      serviceId: 'food-crawl',
       scheduledHour: 9,
       bookedAt: '2026-11-02',
       title: 'Binondo food crawl',
@@ -567,6 +580,7 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-dining-past',
       bookingId: 'HEN-241109',
+      serviceId: 'restaurant',
       scheduledHour: 20,
       bookedAt: '2026-11-10',
       title: 'Apartment 1B',
@@ -584,6 +598,7 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-cafe-cancelled',
       bookingId: 'HEN-241109',
+      serviceId: 'cafe',
       scheduledHour: 7,
       bookedAt: '2026-11-09',
       title: 'Kape Manila Café',
@@ -1227,6 +1242,8 @@ export type PastStayCharge = {
    * three mornings of breakfast, a same-day laundry pickup.
    */
   hour?: number;
+  /** What it was, as `SERVICES[].id`. Absent on anything off-catalogue. */
+  serviceId?: string;
 };
 
 export type PastStay = {
@@ -1607,6 +1624,8 @@ export function toFinishedStay(session: GuestSession, booking: Booking): PastSta
       title: service.title,
       detail: service.scheduledFor,
       category: categoryLabelFor(service.title),
+      serviceId: service.serviceId,
+      hour: service.scheduledHour,
       amount: service.amount,
     });
   }

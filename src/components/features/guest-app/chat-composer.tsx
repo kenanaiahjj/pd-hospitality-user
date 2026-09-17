@@ -67,6 +67,7 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit 
 
   const finishRecording = useCallback(() => {
     const recorder = recorderRef.current;
+    if (!recorder) return;
     const chunks = recordingChunksRef.current;
     const shouldDiscard = discardRecordingRef.current;
     const duration = recordingSecondsRef.current;
@@ -139,6 +140,12 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit 
       mountedRef.current = false;
       discardRecordingRef.current = true;
       const recorder = recorderRef.current;
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        recorderRef.current = null;
+        recordingChunksRef.current = [];
+      }
       if (recorder && recorder.state !== 'inactive') {
         try {
           recorder.stop();
@@ -199,12 +206,12 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit 
       return;
     }
 
+    streamRef.current = stream;
     try {
       const recorderOptions = MediaRecorder.isTypeSupported?.('audio/webm')
         ? { mimeType: 'audio/webm' }
         : undefined;
       const recorder = recorderOptions ? new MediaRecorder(stream, recorderOptions) : new MediaRecorder(stream);
-      streamRef.current = stream;
       recorderRef.current = recorder;
       recordingChunksRef.current = [];
       discardRecordingRef.current = false;
@@ -217,7 +224,13 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit 
       recorder.onstop = finishRecording;
       recorder.start();
     } catch {
-      stream.getTracks().forEach((track) => track.stop());
+      recorderRef.current = null;
+      recordingChunksRef.current = [];
+      discardRecordingRef.current = false;
+      releaseStream();
+      setIsRecording(false);
+      setRecordingSeconds(0);
+      recordingSecondsRef.current = 0;
       setMediaError(VOICE_UNAVAILABLE_ERROR);
     }
   };

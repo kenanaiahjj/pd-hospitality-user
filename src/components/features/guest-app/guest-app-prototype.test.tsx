@@ -2402,6 +2402,90 @@ describe('lifecycle gates', () => {
     expect(screen.getByRole('img', { name: 'room.jpg' })).toBeInTheDocument();
     expect(screen.getByText('Will send when connected')).toBeInTheDocument();
   });
+
+  it('renders an outgoing voice message through the existing offline path', async () => {
+    const user = userEvent.setup();
+    const recorderDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'MediaRecorder');
+    const mediaDevicesDescriptor = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+    const stopTrack = vi.fn();
+
+    class MockMediaRecorder {
+      static isTypeSupported = vi.fn(() => true);
+      state = 'inactive';
+      mimeType = 'audio/webm';
+      ondataavailable?: (event: { data: Blob }) => void;
+      onstop?: () => void;
+      start = vi.fn(() => {
+        this.state = 'recording';
+      });
+      stop = vi.fn(() => {
+        this.state = 'inactive';
+        this.ondataavailable?.({ data: new Blob(['voice'], { type: 'audio/webm' }) });
+        this.onstop?.();
+      });
+    }
+
+    vi.stubGlobal('MediaRecorder', MockMediaRecorder);
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: stopTrack }] }) },
+    });
+
+    try {
+      render(<GuestAppPrototype initialScreen="chat" initialSession={verified} initialOnline={false} />);
+      await user.click(screen.getByRole('button', { name: 'Start voice recording' }));
+      await user.click(screen.getByRole('button', { name: 'Stop recording' }));
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      expect(screen.getByLabelText('Voice message · 00:00')).toBeInTheDocument();
+      expect(screen.getByText('Voice message attached.')).toBeInTheDocument();
+      expect(screen.getByText('Will send when connected')).toBeInTheDocument();
+      expect(stopTrack).toHaveBeenCalled();
+    } finally {
+      if (recorderDescriptor) {
+        Object.defineProperty(globalThis, 'MediaRecorder', recorderDescriptor);
+      } else {
+        Reflect.deleteProperty(globalThis, 'MediaRecorder');
+      }
+      if (mediaDevicesDescriptor) {
+        Object.defineProperty(navigator, 'mediaDevices', mediaDevicesDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, 'mediaDevices');
+      }
+    }
+  });
+
+  it('closes an outgoing image preview with Escape', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="chat" initialSession={verified} />);
+    const file = new File(['room'], 'room.jpg', { type: 'image/jpeg' });
+
+    fireEvent.change(screen.getByLabelText('Choose an image to attach'), { target: { files: [file] } });
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+    await user.click(screen.getByRole('button', { name: 'room.jpg' }));
+
+    expect(screen.getByRole('dialog', { name: 'Image preview' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull();
+  });
+
+  it('keeps image preview focus contained and returns it to the trigger', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="chat" initialSession={verified} />);
+    const file = new File(['room'], 'room.jpg', { type: 'image/jpeg' });
+
+    fireEvent.change(screen.getByLabelText('Choose an image to attach'), { target: { files: [file] } });
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+    const trigger = screen.getByRole('button', { name: 'room.jpg' });
+    await user.click(trigger);
+
+    const close = screen.getByRole('button', { name: 'Close preview' });
+    expect(close).toHaveFocus();
+    await user.keyboard('{Tab}');
+    expect(close).toHaveFocus();
+    await user.click(close);
+    expect(trigger).toHaveFocus();
+  });
 });
 
 describe('post-stay front desk window', () => {

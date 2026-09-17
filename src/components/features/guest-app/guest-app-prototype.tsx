@@ -46,7 +46,7 @@ import {
   X,
 } from '@phosphor-icons/react';
 import Image from 'next/image';
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { WELCOME_ILLUSTRATIONS } from './illustrations';
 import { Button, Input } from '@/components/ui';
@@ -999,6 +999,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   ]);
   const [chatDraft, setChatDraft] = useState('');
   const [chatPreviewImage, setChatPreviewImage] = useState<string | null>(null);
+  const chatPreviewCloseRef = useRef<HTMLButtonElement | null>(null);
+  const chatPreviewTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [sending, setSending] = useState(false);
   const chatObjectUrlsRef = useRef(new Set<string>());
   const [selectedCategory, setSelectedCategory] = useState<MiniAppCategoryId>('dining');
@@ -1079,10 +1081,36 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
+  const openChatImagePreview = useCallback((image: string, trigger: HTMLButtonElement) => {
+    chatPreviewTriggerRef.current = trigger;
+    setChatPreviewImage(image);
+  }, []);
+
+  const closeChatImagePreview = useCallback(() => {
+    const trigger = chatPreviewTriggerRef.current;
+    setChatPreviewImage(null);
+    trigger?.focus();
+    chatPreviewTriggerRef.current = null;
+  }, []);
+
   useEffect(() => () => {
     chatObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     chatObjectUrlsRef.current.clear();
   }, []);
+
+  useEffect(() => {
+    if (!chatPreviewImage) return undefined;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeChatImagePreview();
+    };
+
+    window.addEventListener('keydown', closeOnEscape);
+    chatPreviewCloseRef.current?.focus();
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [chatPreviewImage, closeChatImagePreview]);
 
   /*
     Tests drive the prototype by handing it a session outright. When they do,
@@ -3551,7 +3579,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                         className="guest-message__attachment guest-message__attachment--image"
                         type="button"
                         aria-label={message.attachment.name}
-                        onClick={() => setChatPreviewImage(message.attachment!.url)}
+                        onClick={(event) => openChatImagePreview(message.attachment!.url, event.currentTarget)}
                       >
                         <Image
                           src={message.attachment.url}
@@ -3574,7 +3602,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   {message.images?.length ? (
                     <div className="guest-chat-catalog-images">
                       {message.images.map((image) => (
-                        <button key={image} type="button" onClick={() => setChatPreviewImage(image)}>
+                        <button key={image} type="button" onClick={(event) => openChatImagePreview(image, event.currentTarget)}>
                           <Image src={image} alt="Current catalog" width={120} height={88} />
                         </button>
                       ))}
@@ -3596,10 +3624,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <div
                 className="guest-chat-image-preview"
                 role="dialog"
-                aria-label="Catalog preview"
-                onClick={() => setChatPreviewImage(null)}
+                aria-modal="true"
+                aria-label="Image preview"
+                tabIndex={-1}
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) closeChatImagePreview();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Tab') {
+                    event.preventDefault();
+                    chatPreviewCloseRef.current?.focus();
+                  }
+                }}
               >
-                <button type="button" aria-label="Close preview" onClick={() => setChatPreviewImage(null)}><X /></button>
+                <button ref={chatPreviewCloseRef} type="button" aria-label="Close preview" onClick={closeChatImagePreview}><X /></button>
                 <Image src={chatPreviewImage} alt="Catalog preview" fill sizes="90vw" unoptimized={chatPreviewImage.startsWith('blob:')} />
               </div>
             ) : null}

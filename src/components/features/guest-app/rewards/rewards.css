@@ -80,9 +80,23 @@
   border-radius: calc(var(--medal-size) / 3.4);
 }
 
+/*
+  Wider than it is tall, or a pill on a square box is just a circle -- which
+  made the venue family indistinguishable from taste at a glance and undid the
+  whole point of shape carrying the family.
+*/
+.badge-medal[data-shape='capsule'] {
+  inline-size: calc(var(--medal-size) * 1.6);
+}
+
 .badge-medal[data-shape='capsule'],
 .badge-medal[data-shape='capsule'] .badge-medal__field {
   border-radius: var(--radius-pill, 999px);
+}
+
+.badge-medal[data-shape='capsule'] .badge-medal__field svg {
+  /* The glyph keeps the medal's height, not its new width. */
+  inline-size: calc(55% / 1.6);
 }
 
 /*
@@ -94,3 +108,270 @@
   filter: grayscale(1) brightness(0.45);
   opacity: 0.55;
 }
+
+/* --------------------------------------------------------------------------
+   The wallet
+
+   A balance is a score until it is stated as something in the catalogue. The
+   number is the largest thing here; what it buys is the thing you can press.
+   -------------------------------------------------------------------------- */
+
+.points-wallet { display: grid; gap: 12px; }
+
+.points-wallet__balance {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.points-wallet__balance b {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  /* Any number that can change is tabular, so the row never shifts. */
+  font-variant-numeric: tabular-nums;
+}
+
+.points-wallet__balance span { font-size: 14px; color: var(--ink-soft, #6b6a76); }
+
+.points-wallet__buys,
+.points-wallet__next {
+  display: grid;
+  gap: 2px;
+  text-align: start;
+  padding: 14px 16px;
+  border: 1px solid var(--line, oklch(0.912 0.004 285));
+  border-radius: 16px;
+  background: var(--paper, #fff);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.points-wallet__buys:active,
+.points-wallet__next:active { transform: scale(0.98); }
+
+.points-wallet__buys span { font-size: 13px; color: var(--ink-soft, #6b6a76); }
+.points-wallet__buys b,
+.points-wallet__next b { font-size: 17px; font-weight: 600; }
+.points-wallet__buys small,
+.points-wallet__next small {
+  font-size: 13px;
+  color: var(--ink-soft, #6b6a76);
+  font-variant-numeric: tabular-nums;
+}
+
+.points-wallet__buys--empty { cursor: default; color: var(--ink-soft, #6b6a76); }
+
+.points-wallet__nearest {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--surface, oklch(0.972 0.003 285));
+}
+
+.points-wallet__nearest b { display: block; font-size: 15px; font-weight: 600; }
+.points-wallet__nearest small { font-size: 13px; color: var(--ink-soft, #6b6a76); }
+
+.points-wallet__heading,
+.badge-shelf__heading,
+.estate-map__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 8px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.points-wallet__heading small,
+.badge-shelf__heading small,
+.estate-map__heading small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft, #6b6a76);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Related rows share one inset surface with separators, never a card each. */
+.points-wallet__ledger {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 16px;
+  background: var(--paper, #fff);
+  border: 1px solid var(--line, oklch(0.912 0.004 285));
+}
+
+.points-wallet__ledger li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.points-wallet__ledger li + li { border-block-start: 1px solid var(--line, oklch(0.912 0.004 285)); }
+.points-wallet__ledger b { display: block; font-size: 15px; font-weight: 500; }
+.points-wallet__ledger small { font-size: 13px; color: var(--ink-soft, #6b6a76); }
+.points-wallet__ledger span { font-variant-numeric: tabular-nums; font-weight: 600; }
+.points-wallet__ledger .is-spent { color: var(--ink-soft, #6b6a76); }
+
+.points-wallet__expiry { margin: 0; font-size: 13px; color: var(--ink-soft, #6b6a76); }
+
+/* --------------------------------------------------------------------------
+   The badge shelf
+   -------------------------------------------------------------------------- */
+
+.badge-shelf { display: grid; gap: 12px; }
+
+.badge-shelf__subheading {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft, #6b6a76);
+}
+
+/* Earned badges explain themselves, so they wrap rather than queue. */
+.badge-shelf__held {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.badge-shelf__held button {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  inline-size: 72px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.badge-shelf__held button:active { transform: scale(0.96); }
+
+.badge-shelf__held span {
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.badge-shelf__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 16px;
+  background: var(--paper, #fff);
+  border: 1px solid var(--line, oklch(0.912 0.004 285));
+}
+
+.badge-shelf__rows li + li { border-block-start: 1px solid var(--line, oklch(0.912 0.004 285)); }
+
+.badge-shelf__rows button {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  inline-size: 100%;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  min-block-size: 44px;
+}
+
+.badge-shelf__rows b { display: block; font-size: 15px; font-weight: 500; }
+.badge-shelf__rows small { display: block; font-size: 13px; color: var(--ink-soft, #6b6a76); }
+
+.badge-shelf__count {
+  font-size: 13px;
+  color: var(--ink-soft, #6b6a76);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  The only pink on the screen, and only on the nearest two. Progress is live
+  state, which is one of the accent's three jobs; everything else here carries
+  its hierarchy in ink.
+*/
+.badge-shelf__track {
+  display: block;
+  block-size: 2px;
+  margin-block-start: 6px;
+  border-radius: 999px;
+  background: var(--line, oklch(0.912 0.004 285));
+  overflow: hidden;
+}
+
+.badge-shelf__track i {
+  display: block;
+  block-size: 100%;
+  background: var(--ink-soft, #6b6a76);
+}
+
+.badge-shelf__track.is-near i { background: var(--accent, oklch(0.79 0.18 345)); }
+
+.badge-shelf__empty { margin: 0; font-size: 14px; color: var(--ink-soft, #6b6a76); }
+
+/* --------------------------------------------------------------------------
+   The estate
+   -------------------------------------------------------------------------- */
+
+.estate-map { display: grid; gap: 12px; }
+
+.estate-map__groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.estate-map__group {
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--surface, oklch(0.972 0.003 285));
+}
+
+.estate-map__group h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft, #6b6a76);
+}
+
+.estate-map__group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+.estate-map__group li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.estate-map__group li i {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--ink-soft, #6b6a76);
+}
+
+.estate-map__group li.is-visited i {
+  background: var(--ink, oklch(0.16 0.012 275));
+  border-color: var(--ink, oklch(0.16 0.012 275));
+}
+
+.estate-map__group li small { grid-column: 2; font-size: 11px; color: var(--ink-soft, #6b6a76); }
+.estate-map__none { margin: 0; font-size: 12px; color: var(--ink-soft, #6b6a76); }

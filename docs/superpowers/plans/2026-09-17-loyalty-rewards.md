@@ -36,7 +36,7 @@ waits on artwork.
 | 1 | Model additions and the rewards session slice | ✅ Complete | 2026-09-17 | 2026-09-17 | `5d724ac` |
 | 2 | Points model | ✅ Complete | 2026-09-17 | 2026-09-17 | `d8cd450` |
 | 3 | Badge model | ✅ Complete | 2026-09-17 | 2026-09-17 | `b6b9b99` |
-| 4 | BadgeMedal and the artwork fallback | ⬜ Not started | — | — | — |
+| 4 | BadgeMedal and the artwork fallback | ✅ Complete | 2026-09-17 | 2026-09-17 | `cb5aa68` |
 | 5 | Rewards hub, and the door from Profile | ⬜ Not started | — | — | — |
 | 6 | Badge sheet and the mute control | ⬜ Not started | — | — | — |
 | 7 | Reward menu, reward detail, redeem | ⬜ Not started | — | — | — |
@@ -569,7 +569,12 @@ git commit -m "feat: derive 42 traveller badges from the bookings that earned th
 
 ## Task 4: BadgeMedal and the artwork fallback
 
-**Status:** ⬜ Not started · **Started:** — · **Completed:** —
+**Status:** ✅ Complete · **Started:** 2026-09-17 · **Completed:** 2026-09-17 · **Commit:** `cb5aa68`
+
+> Verified: `rewards/` 39/39 · `typecheck` exit 0 · `lint` exit 0.
+> **Visually unverified** — the medal is not reachable in the app until Task 5
+> mounts it. Screenshot the shelf there before claiming the fallback looks
+> deliberate.
 
 **Files:**
 - Create: `src/components/features/guest-app/rewards/badge-medal.tsx`
@@ -583,7 +588,7 @@ git commit -m "feat: derive 42 traveller badges from the bookings that earned th
 The fallback is a deliverable, not a placeholder — it is what the flow demos
 with until the 42 PNGs land, so it has to look deliberate.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { render, screen } from '@testing-library/react';
@@ -607,12 +612,12 @@ describe('BadgeMedal', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: FAIL — `Cannot find module './badge-medal'`
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 `BadgeMedal` renders `next/image` when `badge.art` is set. Otherwise it composes
 the medal from the family's shape and enamel colour with the Phosphor glyph
@@ -631,17 +636,17 @@ In `rewards.css`, the locked treatment applies to whichever path rendered:
 Shapes come from `clip-path` per family. No shadow on a medal — a surface takes
 a hairline or a shadow, never both.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/features/guest-app/rewards/rewards-flow.test.tsx`
 Expected: PASS — 2 passed
 
-- [ ] **Step 5: Verify the repo is clean**
+- [x] **Step 5: Verify the repo is clean**
 
 Run: `npm run typecheck && npm run lint`
 Expected: exit 0
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/features/guest-app/rewards/badge-medal.tsx src/components/features/guest-app/rewards/rewards.css src/components/features/guest-app/rewards/rewards-flow.test.tsx
@@ -653,6 +658,13 @@ git commit -m "feat: render a badge before its artwork exists"
 ## Task 5: Rewards hub, and the door from Profile
 
 **Status:** ⬜ Not started · **Started:** — · **Completed:** —
+
+> **Mount `rewards.css` and screenshot the badge shelf.** Task 4's CSS medal has
+> never been on screen — clip-path shapes, the sunburst field and the glyph
+> gloss are all unverified. Check all six family shapes render, and that a
+> locked medal still reads as the same object rather than as a hole.
+>
+> Real figures to build against: **37,220 points · 13 held · 6 within one step**.
 
 **Files:**
 - Create: `points-wallet.tsx`, `badge-shelf.tsx`, `estate-map.tsx`, `index.ts`

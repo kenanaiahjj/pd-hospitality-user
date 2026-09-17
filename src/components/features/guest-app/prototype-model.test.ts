@@ -329,14 +329,16 @@ describe('account sessions', () => {
     expect(MOCK_SESSION.accountStatus).toBe('returning');
   });
 
-  it('creates one provider-neutral authenticated SSO session without a booking', () => {
+  it('sends Apple to the upcoming booking and Google to the signed-in, no-booking home', () => {
     const apple = ssoSession('apple');
     const google = ssoSession('google');
 
     expect(apple).toMatchObject({ auth: 'authenticated', accountStatus: 'returning', authMethod: 'apple' });
     expect(google).toMatchObject({ auth: 'authenticated', accountStatus: 'returning', authMethod: 'google' });
-    expect(apple.bookings).toHaveLength(0);
-    expect(google.bookings).toHaveLength(0);
+    expect(apple.bookings).toEqual([UPCOMING_BOOKING_FIXTURE]);
+    expect(apple.activeBookingId).toBe(UPCOMING_BOOKING_FIXTURE.id);
+    expect(google.bookings).toEqual([]);
+    expect(google.activeBookingId).toBeUndefined();
 
     /*
       The estate has seen this person: SSO matches an identity it holds, so
@@ -383,35 +385,8 @@ describe('account sessions', () => {
 });
 
 describe('getPostAuthScreen', () => {
-  const newAccount = () =>
-    createAccountSession('Mara Cruz', 'mara@example.com', 'apple');
-
-  it('sends an account with no booking to home, not to a bare lookup form', () => {
-    // Home carries the lookup, the guest's own stay history, and the room
-    // scan. The form on its own assumed the only reason to sign in was to
-    // attach a reference the guest already had.
-    expect(getPostAuthScreen(newAccount())).toBe('stay-overview');
-  });
-
-  it('welcomes a returning account back when pre-arrival is incomplete', () => {
-    expect(getPostAuthScreen(signInSession('google'))).toBe('welcome-back');
-  });
-
-  it('sends a new account into pre-arrival once a booking is connected', () => {
-    expect(getPostAuthScreen(connectBooking(newAccount()))).toBe('guest-details');
-  });
-
-  it('sends a completed pre-arrival to the stay overview', () => {
-    const base = connectBooking(newAccount());
-    const session = {
-      ...base,
-      bookings: base.bookings.map((booking) => ({
-        ...booking,
-        preArrivalCompleted: booking.preArrivalTotal,
-      })),
-    };
-
-    expect(getPostAuthScreen(session)).toBe('stay-overview');
+  it('is the shared pre-arrival home, for every account and booking shape', () => {
+    expect(getPostAuthScreen()).toBe('stay-overview');
   });
 });
 
@@ -1025,7 +1000,7 @@ describe('profile lookup and re-entry', () => {
 
 
 describe('prototype stay-state switch', () => {
-  const states = ['signed-out', 'pre-arrival', 'arrived-unverified', 'live', 'just-checked-out', 'closed'] as const;
+  const states = ['signed-out', 'account-only', 'pre-arrival', 'live', 'just-checked-out', 'closed'] as const;
 
   it('round-trips every state it can build', () => {
     for (const state of states) {

@@ -7,6 +7,7 @@ import {
   Bed,
   Bell,
   BellRinging,
+  CalendarPlus,
   CaretRight,
   ChatCircleDots,
   Check,
@@ -15,8 +16,8 @@ import {
   ClockCountdown,
   Compass,
   CreditCard,
-  EnvelopeSimple,
   ForkKnife,
+  Gift,
   GoogleLogo,
   House,
   IdentificationCard,
@@ -28,7 +29,6 @@ import {
   QrCode,
   Receipt,
   SignOut,
-  SlidersHorizontal,
   CaretDown,
   Sparkle,
   SpinnerGap,
@@ -41,7 +41,6 @@ import {
   UserCircle,
   Users,
   Wrench,
-  DeviceMobile,
   WifiHigh,
   WifiSlash,
   X,
@@ -64,7 +63,6 @@ import {
   requestFrontDeskUnlock,
   verifyRoomPresence,
   findBookingByLookup,
-  describeCheckoutCountdown,
   describeStayStatus,
   formatPesoAmount,
   getHomeVariant,
@@ -76,14 +74,9 @@ import {
   getPrimaryBooking,
   getVenueCartSummary,
   getRoomCharges,
-  availableDietaryTags,
-  availableOperators,
   availableTypes,
-  filterMenu,
   filterServices,
-  DIETARY_LABELS,
   LISTING_SORTS,
-  type DietaryTag,
   type ListingSort,
   sumRoomCharges,
   canReportRoomReady,
@@ -112,8 +105,6 @@ import {
   ESTATE_PROPERTIES,
   DEFAULT_REBOOK_CHECK_IN,
   DEFAULT_REBOOK_CHECK_OUT,
-  maskEmail,
-  maskMobile,
   GUEST_PROFILE,
   applyPrototypeStayState,
   getPrototypeStayState,
@@ -124,15 +115,16 @@ import {
   type ProfileMatch,
   type PrototypeStayState,
   type GuestNotification,
+  type PropertyAnnouncement,
   type GuestSession,
   type PastStay,
   type StayEntry,
   type StayReview,
   type NotificationTone,
   type DiningFulfillment,
-  type MenuItemCategory,
   type MiniAppCategoryId,
   type ServiceBooking,
+  type RestaurantVenue,
   type ScreenId,
   type AuthMethod,
 } from './prototype-model';
@@ -142,6 +134,7 @@ import {
   getServiceImageKey,
   getItemThumbnail,
   getItemCardImage,
+  getCategoryCoverImage,
   type ServiceImageKey,
 } from './service-images';
 import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
@@ -158,8 +151,21 @@ type ActiveScreen = ScreenId | 'entry-hub';
  */
 const EXPLORE_SCREENS: ActiveScreen[] = [
   'pre-arrival-services',
+  'transfer-booking',
+  'transfer-confirmation',
   'marketplace',
   'category-listing',
+  'nearby-establishment',
+  'gifts-souvenirs',
+  'gift-order-cart',
+  'gift-order-confirmation',
+  'room-upgrades',
+  'room-upgrade-confirmation',
+  'room-upgrade-success',
+  'room-transfer-details',
+  'extend-stay',
+  'extend-stay-review',
+  'extend-stay-success',
   'hotel-service',
   'vendor-service',
   'restaurant-menu',
@@ -577,12 +583,10 @@ function SsoSheet({
   online,
   onClose,
   onSso,
-  onBookingReference,
 }: {
   online: boolean;
   onClose: () => void;
   onSso: (method: AuthMethod) => void;
-  onBookingReference: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -644,7 +648,6 @@ function SsoSheet({
               <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
             </Button>
           </div>
-          <TextButton onClick={() => { close(); onBookingReference(); }}>Use a booking reference instead</TextButton>
         </div>
       </div>
     </dialog>
@@ -654,11 +657,9 @@ function SsoSheet({
 function WelcomeScreen({
   online,
   onSso,
-  onBookingReference,
 }: {
   online: boolean;
   onSso: (method: AuthMethod) => void;
-  onBookingReference: () => void;
 }) {
   const pager = useWelcomePager();
   const [ssoOpen, setSsoOpen] = useState(false);
@@ -701,7 +702,7 @@ function WelcomeScreen({
           </div>
         </div>
       </section>
-      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onBookingReference={onBookingReference} /> : null}
+      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} /> : null}
     </>
   );
 }
@@ -711,13 +712,6 @@ type GuestAppPrototypeProps = {
   initialScreen?: ActiveScreen;
   initialOnline?: boolean;
 };
-
-/**
- * What the guest was trying to do when the account gate interrupted them.
- * Applied once verification succeeds, because creating an account starts from
- * a clean session and would otherwise discard the booking they just matched.
- */
-type PendingIntent = 'none' | 'connect-booking' | 'link-room';
 
 type Companion = {
   name: string;
@@ -974,23 +968,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [session, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
   const [online, setOnline] = useState(initialOnline ?? true);
-  const [code, setCode] = useState('');
-  const [codeNotice, setCodeNotice] = useState<string | null>(null);
-  const [pendingIntent, setPendingIntent] = useState<PendingIntent>('none');
+  const [, setCode] = useState('');
+  const [, setCodeNotice] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ from: 'guest' | 'desk'; body: string; state?: string }>>([
+  const [chatMessages, setChatMessages] = useState<Array<{ from: 'guest' | 'desk'; body: string; state?: string; images?: string[] }>>([
     { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?' },
   ]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [chatPreviewImage, setChatPreviewImage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<MiniAppCategoryId>('dining');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
-  const [selectedMenuTab, setSelectedMenuTab] = useState<MenuItemCategory>('all');
-  const [menuSort, setMenuSort] = useState<ListingSort>('recommended');
-  const [menuDietary, setMenuDietary] = useState<DietaryTag[]>([]);
+  const [selectedNearbyEstablishmentId, setSelectedNearbyEstablishmentId] = useState<string | null>(null);
+  const [selectedUpgradeId, setSelectedUpgradeId] = useState<string | null>(null);
+  const [extensionDate, setExtensionDate] = useState('2026-11-14');
   const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
-  const [serviceOperators, setServiceOperators] = useState<string[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
+  const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | 'gifts' | null>(null);
+  const [, setOrderTrayStep] = useState<'tray' | 'review'>('tray');
   const [diningMethod, setDiningMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
   const [diningTime, setDiningTime] = useState('7:00 PM');
@@ -998,6 +994,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [bookingBlockedReason, setBookingBlockedReason] = useState<BlockedReason>('offline');
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
+  const [scanSuccessToast, setScanSuccessToast] = useState(false);
+  const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
   /*
     Two sets, because "the bell has stopped nagging me" and "I have read this
     one" are different facts. Opening the inbox marks everything seen, which is
@@ -1005,6 +1003,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     actually opened.
   */
   const [stayTab, setStayTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [expandedChargeId, setExpandedChargeId] = useState<string | null>(null);
   const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
   const [selectedStayEntryId, setSelectedStayEntryId] = useState<string | null>(null);
   /*
@@ -1023,14 +1022,34 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   });
   const [stayPaymentMethod, setStayPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
   const [bookedStayId, setBookedStayId] = useState<string | null>(null);
+  const [transferVehicle, setTransferVehicle] = useState('Executive van');
+  const [transferDestination, setTransferDestination] = useState('');
+  const [giftFulfillment, setGiftFulfillment] = useState<'room' | 'lobby'>('room');
+  const [giftCart, setGiftCart] = useState<Record<string, number>>({});
+  const [giftOrder, setGiftOrder] = useState<{ items: typeof GIFT_PRODUCTS[number][]; total: number; paymentStatus: 'charged-to-room' | 'paid'; paymentMethod: 'room' | 'card' | 'gcash' | 'maya' } | null>(null);
+  const [checkoutPayment, setCheckoutPayment] = useState<'room' | 'pay-now' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
+  const [transferBooking, setTransferBooking] = useState<{
+    destination: string;
+    pickupLocation: string;
+    arrivalDate: string;
+    arrivalTime: string;
+    flightNumber: string;
+    passengers: string;
+    luggage: string;
+    vehicle: string;
+    specialRequests: string;
+    paymentMethod: 'room' | 'card' | 'gcash' | 'maya';
+    paymentStatus: 'charged-to-room' | 'paid';
+  } | null>(null);
   /** The reservation the lookup produced, held between the form and the
       confirmation so both show the guest's own reference rather than a
       fixture's. */
   const [lookupBooking, setLookupBooking] = useState<Booking | null>(null);
+
   /** Prototype only: put strict reference matching back, to demo not-found. */
   const [strictLookup, setStrictLookup] = useState(false);
   const [profileMatch, setProfileMatch] = useState<ProfileMatch | null>(null);
-  const [verifyChannel, setVerifyChannel] = useState<'email' | 'mobile'>('email');
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
 
@@ -1128,11 +1147,28 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     return () => window.clearTimeout(timeout);
   }, [roomReadyNotificationBookingId, roomReadyNotificationFocused]);
 
+  useEffect(() => {
+    if (!scanSuccessToast) return;
+
+    const timeout = window.setTimeout(() => setScanSuccessToast(false), 4_000);
+    return () => window.clearTimeout(timeout);
+  }, [scanSuccessToast]);
+
   const go = (next: ActiveScreen) => {
+    if (['restaurant-cart', 'gift-order-cart', 'service-booking', 'transfer-booking'].includes(next)) {
+      setCheckoutPayment(null);
+      setPaymentMethod(null);
+    }
     setHistory((items) => [...items, activeScreen]);
     setActiveScreen(next);
     setScrolled(false);
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  };
+
+  const goToCheckout = (next: ActiveScreen) => {
+    setCheckoutPayment(null);
+    setPaymentMethod(null);
+    go(next);
   };
 
   const back = () => {
@@ -1145,21 +1181,54 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const sendQuickMessage = (body: string) => {
+    setChatDraft('');
     const state = online ? 'Sent' : 'Will send when connected';
     setChatMessages((messages) => [...messages, { from: 'guest', body, state }]);
     if (!online) return;
     setSending(true);
     window.setTimeout(() => {
-      setChatMessages((messages) => [...messages, { from: 'desk', body: body.includes('towel') ? `We’ll bring two fresh towels to ${contextRoom.toLowerCase()} shortly.` : 'Thanks. The front desk has received your request.', state: 'Seen' }]);
+      const catalogRequest = /see the menu and order|see the available products|see the available options/i.test(body);
+      const establishment = body.match(/from (.+?)\.$/i)?.[1] ?? 'the establishment';
+      const catalogImages = catalogRequest
+        ? body.includes('products')
+          ? GIFT_PRODUCTS.slice(0, 2).map((product) => product.image)
+          : [getMenuItemImage('a1b-calamari'), getMenuItemImage('a1b-ribeye')]
+        : undefined;
+      const deskReply = body.includes('towel')
+        ? `We’ll bring two fresh towels to ${contextRoom.toLowerCase()} shortly.`
+        : catalogRequest
+          ? `Here is the current ${establishment} ${body.includes('products') ? 'product catalog' : 'menu'} and ordering information. Please send the item names and quantities you would like to order.`
+          : 'Thanks. The front desk has received your request.';
+      setChatMessages((messages) => [...messages, { from: 'desk', body: deskReply, state: 'Seen', images: catalogImages }]);
       setSending(false);
     }, 850);
   };
 
-  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history'].includes(activeScreen);
+  const openExtensionChat = () => {
+    setChatDraft('Hi! I’d like to ask if I can extend my stay for one more night. Is my current room available, and how much would the additional night cost?');
+    go('chat');
+  };
+
+  const openLateCheckoutChat = () => {
+    setChatDraft('Hi! I’d like to request a later checkout time. Is late checkout available, and are there any additional fees?');
+    go('chat');
+  };
+
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history'].includes(activeScreen);
   const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
+  const checkedOutNav = Boolean(primaryBooking && describeStayStatus(primaryBooking).status === 'checked-out');
   const eligibleRoomReadyBooking = primaryBooking && canReportRoomReady(primaryBooking)
+    ? primaryBooking
+    : undefined;
+  /*
+    Nothing in the guest-facing app ever gives a `pending` booking a room
+    number -- the PMS does that, off-app, on its own schedule. Without a way
+    to fire that event here, "Assigned" and "Ready" were unreachable except by
+    editing fixture data directly.
+  */
+  const eligibleRoomAssignBooking = primaryBooking && describeRoomAssignment(primaryBooking).state === 'pending'
     ? primaryBooking
     : undefined;
   const roomReadyNotificationBooking = roomReadyNotificationBookingId
@@ -1171,6 +1240,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const displayBooking = primaryBooking ?? lookupBooking ?? MOCK_SESSION.bookings[0]!;
   const contextBooking = primaryBooking ?? displayBooking;
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
+  const roomChargeTarget = contextBooking.roomNumber ? contextRoom : 'your room';
   const contextService = session.serviceBookings.find(
     (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
   );
@@ -1204,6 +1274,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }));
     setRoomReadyNotificationFocused(false);
     setRoomReadyNotificationBookingId(eligibleRoomReadyBooking.id);
+  };
+
+  const simulateRoomAssignment = () => {
+    if (!eligibleRoomAssignBooking || !online) return;
+
+    setSession((current) => ({
+      ...current,
+      bookings: current.bookings.map((booking) =>
+        booking.id === eligibleRoomAssignBooking.id
+          ? { ...booking, roomNumber: '512', roomAssignment: 'assigned' }
+          : booking,
+      ),
+    }));
   };
 
   const openRoomReadyStay = () => {
@@ -1241,6 +1324,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setDiningOrderError('Add at least one item before placing your order');
       return;
     }
+    if (!checkoutPayment) {
+      setDiningOrderError('Choose how you would like to pay before placing your order');
+      return;
+    }
+    if (checkoutPayment === 'pay-now' && !paymentMethod) {
+      setDiningOrderError('Choose a payment method to continue');
+      return;
+    }
 
     const scheduledFor = diningMethod === 'delivery'
       ? diningTiming === 'asap'
@@ -1258,6 +1349,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       scheduledDate: PROTOTYPE_TODAY,
       amount: cartSummary.formattedTotal,
       status: 'confirmed',
+      provider: 'Operated by the hotel',
+      paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
+      paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
       diningOrder: {
         venueId: venue.id,
         venueName: venue.name,
@@ -1265,7 +1359,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         fulfillment,
       },
     };
-    const newFolioTotal = formatPesoAmount(parsePesoAmount(session.folioTotal) + cartSummary.total);
+    const newFolioTotal = checkoutPayment === 'room'
+      ? formatPesoAmount(parsePesoAmount(session.folioTotal) + cartSummary.total)
+      : session.folioTotal;
 
     setSession((current) => ({
       ...current,
@@ -1275,6 +1371,35 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setRestaurantCarts((carts) => ({ ...carts, [venue.id]: {} }));
     setDiningOrderError(null);
     go('dining-order-confirmation');
+  };
+
+  const changeGiftQuantity = (productName: string, delta: number) => {
+    setGiftCart((cart) => ({ ...cart, [productName]: Math.max(0, (cart[productName] ?? 0) + delta) }));
+  };
+
+  const confirmGiftOrder = () => {
+    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+    const items = GIFT_PRODUCTS.filter((product) => (giftCart[product.name] ?? 0) > 0);
+    const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (giftCart[product.name] ?? 0), 0);
+    if (!booking || !isStayUnderWay(booking) || !booking.roomNumber || !items.length) return;
+    if (!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)) return;
+    const fulfillment = giftFulfillment === 'room' ? `Deliver to Room ${booking.roomNumber}` : 'Pick up at the lobby';
+    const serviceBooking: ServiceBooking = {
+      id: `gift-order-${session.serviceBookings.length + 1}`,
+      bookingId: booking.id,
+      title: 'Gifts & Souvenirs',
+      scheduledFor: `${fulfillment} · Today`,
+      scheduledDate: PROTOTYPE_TODAY,
+      amount: formatPesoAmount(total),
+      status: 'confirmed',
+      provider: 'Operated by the hotel',
+      paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
+      paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
+    };
+    setSession((current) => ({ ...current, serviceBookings: [serviceBooking, ...current.serviceBookings], folioTotal: checkoutPayment === 'room' ? formatPesoAmount(parsePesoAmount(current.folioTotal) + total) : current.folioTotal }));
+    setGiftOrder({ items, total, paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid', paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card' });
+    setGiftCart({});
+    go('gift-order-confirmation');
   };
 
   /*
@@ -1296,10 +1421,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const pastStays = session.pastStays;
   const scannerReducedMotion = usePrefersReducedMotion();
   const [autoDetectScans, setAutoDetectScans] = useState(true);
-  /** Marks the scan icon while the one thing it unlocks is still locked. */
-  const scanPending = Boolean(
-    primaryBooking && isStayUnderWay(primaryBooking) && !primaryBooking.roomVerification,
-  );
   const stayReview = session.reviews.find((review) => review.bookingId === contextBooking.id);
 
   const submitStayReview = (rating: StayReview['rating'], comment: string) => {
@@ -1333,7 +1454,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       return;
     }
     setSession((current) => verifyRoomPresence(current, primaryBooking.id, 'scan'));
-    go('room-qr-midstay');
+    setScanSuccessToast(true);
+    go('stay-overview');
   };
 
   /*
@@ -1375,7 +1497,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
-    go('service-booking');
+    goToCheckout('service-booking');
   };
 
   const confirmService = () => {
@@ -1391,6 +1513,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
+    if (!checkoutPayment) return;
+    if (checkoutPayment === 'pay-now' && !paymentMethod) return;
 
     const serviceBooking: ServiceBooking = {
       id: 'service-hilom-1',
@@ -1400,6 +1524,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       scheduledDate: PROTOTYPE_TODAY,
       amount: '₱2,400',
       status: 'confirmed',
+      provider: 'Operated by Sans Rival',
+      paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
+      paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
     };
 
     setSession((current) => {
@@ -1410,7 +1537,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ...current.serviceBookings.filter((service) => service.id !== serviceBooking.id),
           serviceBooking,
         ],
-        folioTotal: alreadyBooked
+        folioTotal: alreadyBooked || checkoutPayment === 'pay-now'
           ? current.folioTotal
           : formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(serviceBooking.amount)),
       };
@@ -1457,32 +1584,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
 
 
-  /**
-   * The one place identity becomes real. Applies whatever the guest was in the
-   * middle of, then asks the model where they belong.
-   */
-  const completeAuth = (authenticated: GuestSession) => {
-    const next = pendingIntent === 'link-room'
-      ? withActiveRoom(authenticated)
-      : pendingIntent === 'connect-booking'
-        ? connectBooking(authenticated)
-        : authenticated;
-
-    const destination: ActiveScreen = pendingIntent === 'link-room'
-      ? 'room-qr-midstay'
-      : getPostAuthScreen(next);
-
-    setSession(next);
-    setPendingIntent('none');
-    setCode('');
-    setCodeNotice(null);
-    go(destination);
-  };
-
   const claimBooking = () => {
     const next = connectBooking(session, lookupBooking ?? undefined);
     setSession(next);
-    go(getPostAuthScreen(next));
+    // A booking-first guest still needs the registration flow. Authenticated
+    // guests use the shared pre-arrival home after connecting another stay.
+    go(session.auth === 'authenticated' ? getPostAuthScreen() : 'guest-details');
   };
 
   /*
@@ -1515,7 +1622,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setSession(next);
     setHistory([]);
     setProfileMatch(null);
-    setPendingIntent('none');
     setCode('');
     setCodeNotice(null);
     setScrolled(false);
@@ -1571,7 +1677,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     */
     clearStoredSession();
     setSession(signOutSession());
-    setPendingIntent('none');
     setCode('');
     setCodeNotice(null);
     setHistory([]);
@@ -1648,8 +1753,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <WelcomeScreen
             online={online}
-            onSso={(method) => completeAuth(ssoSession(method))}
-            onBookingReference={() => go('identify-returning')}
+            onSso={(method) => {
+              setSession(ssoSession(method));
+              go('identify-returning');
+            }}
           />
         );
 
@@ -1960,8 +2067,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               onSubmit={(event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
                 const data = new FormData(event.currentTarget);
-                const match = findProfileByLookup(String(data.get('reentry-reference') ?? ''));
-                if (!match) {
+                const reference = String(data.get('reentry-reference') ?? '');
+                const lastName = String(data.get('reentry-last-name') ?? '').trim().toLowerCase();
+                const match = findProfileByLookup(reference);
+                if (!match || !lastName || !match.guestName.toLowerCase().endsWith(lastName)) {
                   go('no-booking');
                   return;
                 }
@@ -1978,6 +2087,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 helper="From a confirmation email, or the receipt for a stay you have finished"
                 required
               />
+              <Field label="Last name" name="reentry-last-name" placeholder="Santos" required />
               <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
                 Continue<ArrowRight aria-hidden="true" />
               </Button>
@@ -2005,21 +2115,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
 
-        const maskedEmail = maskEmail(GUEST_PROFILE.email);
-        const maskedMobile = maskMobile(GUEST_PROFILE.mobile);
-        const destination = verifyChannel === 'email' ? maskedEmail : maskedMobile;
-        const channels = [
-          { id: 'email' as const, label: 'Email', value: maskedEmail, icon: <EnvelopeSimple /> },
-          { id: 'mobile' as const, label: 'Mobile', value: maskedMobile, icon: <DeviceMobile /> },
-        ];
-
         return (
           <div className="guest-stack guest-stack--intro">
             <HeroIcon tone="dark"><ShieldCheck size={30} /></HeroIcon>
             <div className="guest-page-title">
               <p className="guest-eyebrow">Step 2 of 2</p>
-              <h1>Verify it&rsquo;s you</h1>
-              <p>We found a stay under that reference. We will send a code to the contact the property holds for it.</p>
+              <h1>Is this your booking?</h1>
+              <p>We found a stay under that reference. Confirm the details to open it in your account.</p>
             </div>
 
             <div className="guest-summary">
@@ -2028,52 +2130,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Guest" value={profileMatch.guestName} />
             </div>
 
-            <fieldset className="guest-channel-choice">
-              <legend>Where should the code go?</legend>
-              {channels.map((channel) => (
-                <label key={channel.id} className="guest-channel-choice__option">
-                  <input
-                    type="radio"
-                    name="verify-channel"
-                    value={channel.id}
-                    checked={verifyChannel === channel.id}
-                    onChange={() => setVerifyChannel(channel.id)}
-                  />
-                  <span className="guest-channel-choice__icon" aria-hidden="true">{channel.icon}</span>
-                  <span className="guest-channel-choice__text">
-                    <b>{channel.label}</b>
-                    <small>{channel.value}</small>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-
-            {codeNotice ? <Notice tone="warning" title={codeNotice}>Codes expire quickly, so the newest one is the only one that works.</Notice> : null}
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Verification needs a connection">We cannot check a code offline. Nothing has been opened yet.</Notice> : null}
-
-            <label className="guest-field guest-code-field" htmlFor="reentry-code">
-              <span>6-digit verification code</span>
-              <Input
-                id="reentry-code"
-                name="reentry-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                placeholder="123456"
-                value={code}
-                onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, ''))}
-              />
-            </label>
-
             <Button
               className="guest-button guest-button--primary"
               type="button"
-              disabled={code.length !== 6 || !online}
+              disabled={!online}
               onClick={completeReentry}
             >
-              Verify and open my account<ArrowRight aria-hidden="true" />
+              Yes, this is my booking<ArrowRight aria-hidden="true" />
             </Button>
-            <TextButton disabled={!online} onClick={() => setCodeNotice(`A new code is on its way to ${destination}`)}>Resend the code</TextButton>
             <TextButton onClick={() => go('identify-returning')}>Use a different booking</TextButton>
           </div>
         );
@@ -2213,6 +2277,41 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </ScreenIntro>
         );
 
+      case 'room-upgrades':
+        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">Current stay · Room {contextBooking.roomNumber}</p><h1>Available upgrades</h1><p>Explore rooms available for the rest of your stay.</p></div>{ROOM_UPGRADES.map((upgrade) => <article className="guest-upgrade-card" key={upgrade.id}><Image src={upgrade.image} alt="" width={900} height={360} /><div className="guest-upgrade-card__body"><div><h2>{upgrade.name}</h2><p>{upgrade.type}</p></div><p>{upgrade.features}</p><small>Up to {upgrade.guests} · {upgrade.transfer}</small><strong>{upgrade.price} additional for the remaining stay</strong><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSelectedUpgradeId(upgrade.id); go('room-upgrade-confirmation'); }}>Select room<ArrowRight /></Button></div></article>)}</div>;
+
+      case 'extend-stay': {
+        const nights = Math.max(1, countNightsBetween(contextBooking.checkOut, extensionDate));
+        const additional = nights * 5000;
+        const updatedTotal = parsePesoAmount(session.folioTotal || contextBooking.folioTotal || '₱10,250') + additional;
+        return <ScreenIntro eyebrow={`Current stay · Room ${contextBooking.roomNumber}`} title="Extend your stay" text="Keep your room and choose a new checkout date while availability lasts."><div className="guest-summary"><SummaryRow label="Current checkout" value={`${contextBooking.checkOut} · 12:00 PM`} /><SummaryRow label="Room availability" value={`Room ${contextBooking.roomNumber} available to extend`} /></div><label className="guest-field"><span>New checkout date</span><input type="date" value={extensionDate} min={contextBooking.checkOut} onChange={(event) => setExtensionDate(event.target.value)} /></label><div className="guest-summary"><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} /><SummaryRow label="Updated estimated stay total" value={formatPesoAmount(updatedTotal)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Extension policy">Extensions are subject to room availability and the hotel&rsquo;s current nightly rate. Confirming adds the additional amount to your room charges.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => go('extend-stay-review')}>Review extension<ArrowRight /></Button></ScreenIntro>;
+      }
+
+      case 'extend-stay-review': {
+        const nights = Math.max(1, countNightsBetween(contextBooking.checkOut, extensionDate));
+        const additional = nights * 5000;
+        return <ScreenIntro eyebrow="Review extension" title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, checkOut: extensionDate } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
+      }
+
+      case 'extend-stay-success':
+        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Booking updated" title="Stay extended" text={`Your stay now ends on ${extensionDate} at 12:00 PM. Your updated checkout date is reflected throughout the app.`}><Notice title="Same room confirmed">Room {contextBooking.roomNumber} remains yours through the new checkout date.</Notice>{primary('Back to My Stay', 'my-stay')}</ScreenIntro>;
+
+      case 'room-upgrade-confirmation': {
+        const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
+        return <ScreenIntro icon={<Bed size={30} />} eyebrow="Review room upgrade" title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, roomUpgrade: { status: 'preparing', newRoomNumber: upgrade.roomNumber, newRoomType: upgrade.name, additionalCost: upgrade.price, transferDeadline: upgrade.transferDeadline, transferTime: upgrade.transfer } } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(upgrade.price)) })); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+      }
+
+      case 'room-upgrade-success': {
+        const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
+        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Room change confirmed" title="Upgrade confirmed" text={`Your ${upgrade.name} is being prepared. You can keep using Room ${contextBooking.roomNumber} until the transfer is ready.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.name} · Room number coming soon`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /></div><Notice title="Your current room stays active">Room {contextBooking.roomNumber} remains available while the hotel prepares your upgrade.</Notice>{primary('Back to home', 'stay-overview')}</ScreenIntro>;
+      }
+
+      case 'room-transfer-details': {
+        const upgrade = contextBooking.roomUpgrade;
+        if (!upgrade) return primary('View my stay', 'my-stay');
+        return <ScreenIntro icon={<Bed size={30} />} eyebrow="Room transfer" title="Complete your room transfer" text="Both rooms remain available until you confirm the move."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.newRoomType} · Room ${upgrade.newRoomNumber}`} /><SummaryRow label="Transfer deadline" value={upgrade.transferDeadline} /><SummaryRow label="Transfer time" value={upgrade.transferTime} /></div><Notice title="Moving your belongings">Pack your belongings and contact the front desk if you need help transferring your bags.</Notice><Notice title="Keys">Collect or activate the new key at the front desk, then return your Room {contextBooking.roomNumber} key there.</Notice><button className="guest-list-row" type="button" onClick={() => go('chat')}><span><ChatCircleDots /></span><div><b>Contact the front desk</b><small>Chat with the hotel team about your transfer</small></div><CaretRight /></button><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomType: booking.roomUpgrade.newRoomType, roomNumber: booking.roomUpgrade.newRoomNumber, roomUpgrade: undefined } : booking) })); go('stay-overview'); }}>Confirm room transfer<ArrowRight /></Button></ScreenIntro>;
+      }
+
       case 'rate-detail': {
         /*
           Two separate sums, deliberately not added together. The room booking
@@ -2220,11 +2319,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           with the hotel at checkout. One combined total would hide which half
           the guest still owes.
         */
-        const roomCharges = getRoomCharges(session, displayBooking, contextRoom);
+        const roomCharges = getRoomCharges(session, displayBooking, roomChargeTarget);
         const bookingGuests = listBookingGuests(displayBooking, session);
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system.">
             <StayCard booking={displayBooking} />
+            <RoomExtensionCard booking={displayBooking} onExtend={openExtensionChat} />
 
             {/*
               The stay's own facts, before the money. This screen is what the
@@ -2303,7 +2403,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     ))}
                   </div>
                   <div className="guest-summary">
-                    <SummaryRow label={`Charged to ${contextRoom.toLowerCase()}`} value={sumRoomCharges(roomCharges)} strong />
+                    <SummaryRow label={`Charged to ${roomChargeTarget.toLowerCase()}`} value={sumRoomCharges(roomCharges)} strong />
                     <SummaryRow label="Settles" value="With the hotel at checkout" />
                   </div>
                 </>
@@ -2440,26 +2540,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           property needs a room to charge to and a guest standing in it, which
           is what the scan proves.
         */
-        const arrivalServices = SERVICES.filter((service) => isPreArrivalService(service.id));
+        const arrivalServices = [
+          ...SERVICES.filter((service) => isPreArrivalService(service.id)),
+          { id: 'early-check-in', name: 'Early check-in', price: 'Subject to hotel confirmation' },
+        ];
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
-              <p className="guest-eyebrow">{contextBooking.property} · {formatStayDateRange(contextBooking)}</p>
-              <h1>Arrange your arrival</h1>
-              <p>Booked ahead and paid by card. On-property services open once you scan the code in your room.</p>
+              <h1>Arrival services</h1>
+              <p>Explore arrival services at the hotel and arrange what you need before you arrive.</p>
             </div>
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
 
             <section>
-              <SectionHeading title="Getting here and settling in" />
               <div className="guest-list-group">
                 {arrivalServices.map((service) => (
                   <button
                     key={service.id}
                     className="guest-list-row"
                     type="button"
-                    onClick={() => go('service-booking')}
+                    onClick={() => service.id === 'transfer' ? go('transfer-booking') : service.id === 'early-check-in' ? go('early-check-in') : go('service-booking')}
                   >
                     {/*
                       A bare glyph per row, not four copies of the category
@@ -2482,24 +2583,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
             </section>
 
-            <section>
-              <SectionHeading title="Before you check in" />
-              <div className="guest-list-group">
-                <button className="guest-list-row" type="button" onClick={() => go('early-check-in')}>
-                  <span><ClockCountdown /></span>
-                  <div><b>Early check-in</b><small>Request an earlier room · Paid by card if charged</small></div>
-                  <CaretRight />
-                </button>
-                <button className="guest-list-row" type="button" onClick={() => go('chat')}>
-                  <span><ChatCircleDots /></span>
-                  <div><b>Ask the front desk</b><small>Anything else you need arranged ahead</small></div>
-                  <CaretRight />
-                </button>
-              </div>
-            </section>
-
-            <Notice title="The rest opens in your room">
-              Dining, spa, tours and hotel services are charged to your room, so they open once you scan the code in it.
+            <Notice title="Hotel confirmation">
+              Some arrival requests depend on hotel availability. We&rsquo;ll show whether a service is complimentary, paid by card, or needs confirmation before you book.
             </Notice>
           </div>
         );
@@ -2584,13 +2669,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
 
-        const featured = SERVICES.find((service) => service.id === 'spa')!;
         return (
           <div className="guest-stack guest-bookings-hub">
             <div className="guest-page-title">
-              <p className="guest-eyebrow">{contextBooking.property} · {contextRoom}</p>
               <h1>Explore</h1>
-              <p>Everything you can book during your stay.</p>
+              <p>Discover services, experiences, and offers for your stay.</p>
             </div>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
 
@@ -2599,35 +2682,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               booked lives in My Stay -- one screen answering both questions was
               what made the old hub send people back to Home to browse.
             */}
-            {/* One grid, driven by the on-property category list. */}
             <section>
-              <SectionHeading title="Categories" />
-              <div className="guest-category-grid">
-                {MINI_APP_CATEGORIES.map((cat) => (
-                  <ActionTile
-                    key={cat.id}
-                    icon={<CategoryIcon id={cat.id} />}
-                    label={cat.title}
-                    onClick={() => { setSelectedCategory(cat.id); go(cat.screen); }}
-                  />
+              <div className="guest-explore-catalog">
+                {[...MINI_APP_CATEGORIES.map((cat) => ({ id: cat.id, label: cat.title, cover: getCategoryCoverImage(cat.id) })), { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs', cover: { src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80', focalPoint: 'center' } }].map((item, index) => (
+                  <button key={item.id} type="button" className={`guest-explore-catalog__tile ${index === 4 ? 'guest-explore-catalog__tile--wide' : ''}`} onClick={() => { if (item.id === 'gifts-souvenirs') go('gifts-souvenirs'); else { setSelectedCategory(item.id as MiniAppCategoryId); go('category-listing'); } }}>
+                    <Image src={item.cover.src} alt="" fill sizes="(max-width: 720px) 50vw, 344px" style={{ objectPosition: item.cover.focalPoint }} />
+                    <span aria-hidden="true" />
+                    <b>{item.label}</b>
+                  </button>
                 ))}
               </div>
             </section>
 
             <section>
               <SectionHeading title="Featured on property" />
-              <div className="guest-featured-service">
-                <ServiceImage imageKey="spa" itemId="spa" variant="card" tone={featured.tone} icon={<Sparkle size={32} />} />
-                <div>
-                  <Tag>{featured.operator}</Tag>
-                  <h2>{featured.name}</h2>
-                  <p>Traditional Filipino therapeutic massage. {featured.price} · {featured.cutoff}.</p>
-                  <button onClick={() => go('vendor-service')}>View service<ArrowRight /></button>
-                </div>
-              </div>
+              <ExplorePromotions onOpenCategory={(category) => { if (category === 'gifts-souvenirs') { go('gifts-souvenirs'); } else { setSelectedCategory(category); go('category-listing'); } }} />
             </section>
-
-            <FeaturedRail onOpenCategory={(category) => { setSelectedCategory(category); go('category-listing'); }} />
           </div>
         );
       }
@@ -2638,53 +2708,53 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // Venues carry their price as `priceRange`; aliasing it lets the shared
         // filter/sort run over them unchanged.
         const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
-        const listingFilters = { operators: serviceOperators, types: serviceTypes, sort: serviceSort };
+        const listingFilters = { operators: [], types: serviceTypes, sort: serviceSort };
         const visibleVenues = filterServices(venueRows, listingFilters);
         const visibleServices = filterServices(categoryServices, listingFilters);
-        const servicesNarrowed = serviceOperators.length > 0 || serviceTypes.length > 0 || serviceSort !== 'recommended';
-        const clearServiceControls = () => { setServiceOperators([]); setServiceTypes([]); setServiceSort('recommended'); };
+        const servicesNarrowed = serviceTypes.length > 0 || serviceSort !== 'recommended';
+        const clearServiceControls = () => { setServiceTypes([]); setServiceSort('recommended'); };
         const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
         const buildFacets = (rows: readonly { operator: string; category: string }[]) => [
           { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [serviceSort], onChange: (next: string[]) => setServiceSort(next[0] as ListingSort) },
           ...(availableTypes(rows).length ? [{ key: 'type', label: 'Type', options: asOptions(availableTypes(rows)), selected: serviceTypes, onChange: setServiceTypes }] : []),
-          ...(availableOperators(rows).length ? [{ key: 'operator', label: 'Operator', options: asOptions(availableOperators(rows)), selected: serviceOperators, onChange: setServiceOperators }] : []),
         ];
+        const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
+        const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', services: 'Independent services available near the hotel.' };
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
-              <h1>{categoryData.title}</h1>
-              <p>{categoryData.subtitle}.</p>
+              <h1>{selectedCategory === 'dining' ? 'Food & Drinks' : categoryData.title}</h1>
+              <p>{categoryDescription[selectedCategory]}</p>
             </div>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved offerings">Live availability and booking require a connection.</Notice> : null}
 
             {selectedCategory === 'dining' ? (
               <>
+              <SectionHeading title="At the hotel" count={`${visibleVenues.length} options`} />
               <ListingControls
                 facets={buildFacets(venueRows)}
                 count={visibleVenues.length}
                 nouns={['venue', 'venues']}
                 narrowed={servicesNarrowed}
                 onClear={clearServiceControls}
+                showCount={false}
               />
               {visibleVenues.length ? (
-              <div className="guest-stack" style={{ gap: '12px' }}>
+              <div className="guest-food-restaurant-list">
                 {visibleVenues.map((res) => (
                   <button
                     key={res.id}
-                    className="guest-service-row"
+                    className="guest-food-restaurant-card"
                     type="button"
                     onClick={() => {
                       setSelectedRestaurantId(res.id);
-                      setSelectedMenuTab('all');
-                      setMenuSort('recommended');
-                      setMenuDietary([]);
                       go('restaurant-menu');
                     }}
                   >
-                    <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} itemId={res.id} categoryId="dining" variant="thumbnail" tone={res.tone} icon={<ForkKnife />} decorative />
-                    <div>
-                      <h2>{res.name}</h2>
-                      <p>{res.priceRange} · {res.hours}</p>
+                    <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} itemId={res.id} categoryId="dining" variant="card" tone={res.tone} icon={<ForkKnife />} decorative />
+                    <div className="guest-food-restaurant-card__body">
+                      <div className="guest-food-restaurant-card__title"><h2>{res.name}</h2><span>{res.priceRange}</span></div>
+                      <p>{res.category} · {res.hours}</p>
                       <small>{res.location}</small>
                     </div>
                     <CaretRight />
@@ -2696,15 +2766,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   Clear a filter to see all {RESTAURANTS.length} venues on property.
                 </Notice>
               )}
+              <NearbyRecommendations
+                categoryId={selectedCategory}
+                description={nearbyDescription[selectedCategory]}
+                onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }}
+              />
               </>
             ) : (
               <>
+              <SectionHeading title="At the hotel" count={`${visibleServices.length} options`} />
               <ListingControls
                 facets={buildFacets(categoryServices)}
                 count={visibleServices.length}
                 nouns={['service', 'services']}
                 narrowed={servicesNarrowed}
                 onClear={clearServiceControls}
+                showCount={false}
               />
               {visibleServices.length ? (
               <div className="guest-stack" style={{ gap: '12px' }}>
@@ -2735,142 +2812,39 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   Clear a filter to see all {categoryServices.length} services in this category.
                 </Notice>
               )}
+              <NearbyRecommendations
+                categoryId={selectedCategory}
+                description={nearbyDescription[selectedCategory]}
+                onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }}
+              />
               </>
             )}
           </div>
         );
       }
 
+      case 'gifts-souvenirs':
+        return <EstablishmentChatScreen kind="gift" booking={contextBooking} online={online} onChat={(message) => { setChatDraft(message); go('chat'); }} />;
+
+      case 'gift-order-cart':
+        return <GiftOrderCartScreen fulfillment={giftFulfillment} onFulfillmentChange={setGiftFulfillment} cart={giftCart} onChangeQuantity={changeGiftQuantity} onConfirm={confirmGiftOrder} onBack={() => go('gifts-souvenirs')} booking={contextBooking} payment={checkoutPayment} paymentMethod={paymentMethod} onPaymentChange={setCheckoutPayment} onPaymentMethodChange={setPaymentMethod} />;
+
+      case 'gift-order-confirmation':
+        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={giftOrder?.paymentStatus === 'paid' ? 'Order confirmed · paid' : 'Order confirmed · charged to room'} title="Your gifts are confirmed" text={giftOrder?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this order.' : 'Your hotel shop order has been added to your room charges.'}><div className="guest-summary"><SummaryRow label="Provider" value="Operated by the hotel" /><SummaryRow label="Items" value={`${giftOrder?.items.length ?? 0}`} /><SummaryRow label={giftOrder?.paymentStatus === 'paid' ? 'Paid' : 'Added to room charges'} value={giftOrder ? formatPesoAmount(giftOrder.total) : '₱0'} strong /><SummaryRow label="Fulfillment" value={giftFulfillment === 'room' ? `Deliver to ${contextRoom}` : 'Pick up at the lobby'} /></div><Notice title={giftOrder?.paymentStatus === 'paid' ? 'Payment successful' : 'Pay at checkout'}>{giftOrder?.paymentStatus === 'paid' ? `Paid with ${giftOrder.paymentMethod === 'gcash' ? 'GCash' : giftOrder.paymentMethod === 'maya' ? 'Maya' : 'Card'}.` : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>{giftOrder?.paymentStatus === 'charged-to-room' ? primary('View room charges', 'folio') : null}<TextButton onClick={() => go('gifts-souvenirs')}>Shop more gifts</TextButton></ScreenIntro>;
+
+      case 'nearby-establishment': {
+        const establishment = NEARBY_ESTABLISHMENTS.find((item) => item.id === selectedNearbyEstablishmentId) ?? NEARBY_ESTABLISHMENTS[0];
+        return establishment ? (
+          <NearbyEstablishmentScreen
+            establishment={establishment}
+            onBookRide={() => { setTransferDestination(establishment.name); go('transfer-booking'); }}
+          />
+        ) : null;
+      }
+
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        const dietaryFacets = availableDietaryTags(venue.menu);
-        const filteredMenu = filterMenu(venue.menu, { category: selectedMenuTab, dietary: menuDietary, sort: menuSort });
-        const menuNarrowed = menuDietary.length > 0 || menuSort !== 'recommended';
-        const clearMenuControls = () => { setMenuDietary([]); setMenuSort('recommended'); };
-        const venueCart = restaurantCarts[venue.id] ?? {};
-        const cartSummary = getVenueCartSummary(venue.menu, venueCart);
-        return (
-          <div className="guest-stack guest-restaurant-menu">
-            <ServiceImage
-              imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })}
-              itemId={venue.id}
-              categoryId="dining"
-              variant="card"
-              tone={venue.tone}
-              icon={<ForkKnife size={38} />}
-              decorative
-            />
-            <div className="guest-restaurant-hero">
-              <div className="guest-tag-row">
-                <Tag>{venue.operator}</Tag>
-                <Tag>{venue.hours}</Tag>
-              </div>
-              <h1>{venue.name}</h1>
-              <p>{venue.description}</p>
-              <div className="guest-restaurant-hero__meta">
-                <span><MapPin size={16} /> {venue.location}</span>
-                <span>·</span>
-                <span>Billed to {contextRoom.toLowerCase()}</span>
-              </div>
-            </div>
-
-            <div className="guest-menu-tabs" role="tablist" aria-label="Menu categories">
-              {(['all', 'starters', 'mains', 'desserts', 'drinks'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  role="tab"
-                  aria-selected={selectedMenuTab === tab}
-                  className={`guest-menu-tab ${selectedMenuTab === tab ? 'is-active' : ''}`}
-                  onClick={() => setSelectedMenuTab(tab)}
-                  type="button"
-                >
-                  {tab === 'all' ? 'All Items' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            <ListingControls
-              facets={[
-                { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [menuSort], onChange: (next: string[]) => setMenuSort(next[0] as ListingSort) },
-                ...(dietaryFacets.length ? [{
-                  key: 'dietary',
-                  label: 'Dietary',
-                  options: dietaryFacets.map((tag) => ({ value: tag, label: DIETARY_LABELS[tag] })),
-                  selected: menuDietary,
-                  onChange: (next: string[]) => setMenuDietary(next as DietaryTag[]),
-                }] : []),
-              ]}
-              count={filteredMenu.length}
-              nouns={['dish', 'dishes']}
-              narrowed={menuNarrowed}
-              onClear={clearMenuControls}
-            />
-
-            {filteredMenu.length ? (
-            <div className="guest-menu-grid">
-              {filteredMenu.map((item) => (
-                <div key={item.id} className="guest-menu-item-card">
-                  <div className="guest-menu-item-card__header">
-                    <div>
-                      {item.tag ? <Tag tone="positive">{item.tag}</Tag> : null}
-                      <h4>{item.name}</h4>
-                    </div>
-                    <span className="guest-menu-item-card__price">{item.price}</span>
-                  </div>
-                  <p>{item.description}</p>
-                  <div className="guest-menu-item-card__actions">
-                    <small>{venueCart[item.id] ? `${venueCart[item.id]} in this cart` : 'Add to venue cart'}</small>
-                    {venueCart[item.id] ? (
-                      <div className="guest-menu-quantity" aria-label={`${item.name} quantity`}>
-                        <button type="button" aria-label={`Decrease ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, -1)}><Minus aria-hidden="true" /></button>
-                        <output aria-live="polite">{venueCart[item.id]}</output>
-                        <button type="button" aria-label={`Increase ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, 1)}><Plus aria-hidden="true" /></button>
-                      </div>
-                    ) : (
-                      <Button className="guest-button guest-button--secondary guest-menu-add" type="button" aria-label={`Add ${item.name}`} onClick={() => changeCartQuantity(venue.id, item.id, 1)}>Add</Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            ) : (
-              <Notice title="No dishes match those filters">
-                {venue.name} has {venue.menu.length} dishes in total. Clear a filter to see the rest.
-              </Notice>
-            )}
-
-            {cartSummary.itemCount > 0 ? (
-              <button
-                className="guest-mini-cart"
-                type="button"
-                aria-label={`View ${venue.name} cart · ${cartSummary.itemCount} ${cartSummary.itemCount === 1 ? 'item' : 'items'} · ${cartSummary.formattedTotal}`}
-                onClick={() => go('restaurant-cart')}
-              >
-                <span><small>{venue.name} cart</small><b>{cartSummary.itemCount} {cartSummary.itemCount === 1 ? 'item' : 'items'}</b></span>
-                <strong>{cartSummary.formattedTotal}</strong>
-                <CaretRight aria-hidden="true" />
-              </button>
-            ) : null}
-
-            <div className="guest-summary">
-              <SummaryRow label="Property" value={contextBooking.property} />
-              <SummaryRow label="Room" value={contextRoom} />
-              <SummaryRow label="Billing" value="Settled at checkout" />
-            </div>
-
-            <Button
-              className="guest-button guest-button--primary"
-              type="button"
-              onClick={() => {
-                sendQuickMessage(`Hi, I would like to reserve a table at ${venue.name} for 2 guests tonight.`);
-                go('chat');
-              }}
-            >
-              Reserve a table via Front Desk<ArrowRight aria-hidden="true" />
-            </Button>
-            <TextButton onClick={() => go('category-listing')}>Back to {selectedCategory === 'dining' ? 'Food & Drink' : 'Services'}</TextButton>
-          </div>
-        );
+        return <EstablishmentChatScreen kind="restaurant" venue={venue} booking={contextBooking} online={online} onChat={(message) => { setChatDraft(message); go('chat'); }} />;
       }
 
       case 'restaurant-cart': {
@@ -2887,6 +2861,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <span>{cartSummary.itemCount} {cartSummary.itemCount === 1 ? 'item' : 'items'}</span>
               <strong>{cartSummary.formattedTotal}</strong>
             </div>
+            <p className="guest-provider-label">Operated by the hotel</p>
             <div className="guest-order-items">
               {cartSummary.items.map((item) => (
                 <div className="guest-order-item" key={item.id}>
@@ -2941,8 +2916,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ) : null}
             </fieldset>
             {diningOrderError ? <Notice tone={!online ? 'offline' : 'warning'} title={diningOrderError}>Your cart is saved. Review it and try again when you’re ready.</Notice> : null}
+            <PaymentChoice provider="Operated by the hotel" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} />
             <Notice title="Nothing is charged yet">Your room folio changes only after you review and place this order.</Notice>
-            <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0} onClick={confirmDiningOrder}>Place order and charge to room<ArrowRight aria-hidden="true" /></Button>
+            <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0 || !checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)} onClick={confirmDiningOrder}>{checkoutPayment === 'room' ? `Charge ${cartSummary.formattedTotal} to room` : checkoutPayment === 'pay-now' ? `Pay ${cartSummary.formattedTotal} now` : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button>
             <TextButton onClick={() => go('restaurant-menu')}>Add more from {venue.name}</TextButton>
           </div>
         );
@@ -2950,24 +2926,144 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'dining-order-confirmation': {
         const order = session.serviceBookings.find((service) => service.diningOrder && service.bookingId === contextBooking.id);
+        const paidNow = order?.paymentStatus === 'paid';
         return (
           <ScreenIntro
             icon={<CheckCircle size={30} />}
-            eyebrow="Order confirmed · charged at checkout"
+            eyebrow={paidNow ? 'Order confirmed · paid' : 'Order confirmed · charged to room'}
             title={order?.diningOrder?.fulfillment.method === 'pickup' ? 'Your order is confirmed' : 'Your order is on its way'}
             text={order?.scheduledFor ?? 'The establishment has received your order.'}
           >
             <div className="guest-summary">
               <SummaryRow label="Establishment" value={order?.diningOrder?.venueName ?? 'Food & Drink'} />
+              <SummaryRow label="Provider" value={order?.provider ?? 'Operated by the hotel'} />
               <SummaryRow label="Items" value={`${order?.diningOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0}`} />
-              <SummaryRow label="Added to room charges" value={order?.amount ?? '₱0'} strong />
+              <SummaryRow label={paidNow ? 'Paid' : 'Added to room charges'} value={order?.amount ?? '₱0'} strong />
             </div>
-            <Notice title="Pay at checkout">This order is now part of your personal room tab. No payment is due now.</Notice>
-            {primary('View room charges', 'folio')}
+            <Notice title={paidNow ? 'Payment successful' : 'Pay at checkout'}>{paidNow ? 'Your receipt is available in this order.' : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>
+            {!paidNow ? primary('View room charges', 'folio') : null}
             <TextButton onClick={() => go('category-listing')}>Order from another establishment</TextButton>
           </ScreenIntro>
         );
       }
+
+      case 'transfer-booking': {
+        const fare = transferVehicle === 'Private van' ? '₱1,800' : transferVehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200';
+        return (
+          <div className="guest-stack">
+            <div className="guest-page-title">
+              <p className="guest-eyebrow">{contextBooking.property} · Pre-arrival</p>
+              <h1>Book a hotel transfer</h1>
+              <p>Private transport operated by the hotel, from the airport or your arrival location.</p>
+            </div>
+            <form
+              className="guest-form"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                if (!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)) return;
+                const data = new FormData(event.currentTarget);
+                const fare = transferVehicle === 'Private van' ? '₱1,800' : transferVehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200';
+                const selectedPaymentMethod: 'room' | 'card' | 'gcash' | 'maya' = checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card';
+                const selectedPaymentStatus: 'charged-to-room' | 'paid' = checkoutPayment === 'room' ? 'charged-to-room' : 'paid';
+                const transfer = {
+                  destination: transferDestination,
+                  pickupLocation: String(data.get('transfer-pickup') ?? ''),
+                  arrivalDate: String(data.get('transfer-date') ?? ''),
+                  arrivalTime: String(data.get('transfer-time') ?? ''),
+                  flightNumber: String(data.get('transfer-flight') ?? ''),
+                  passengers: String(data.get('transfer-passengers') ?? ''),
+                  luggage: String(data.get('transfer-luggage') ?? ''),
+                  vehicle: transferVehicle,
+                  specialRequests: String(data.get('transfer-requests') ?? ''),
+                  paymentMethod: selectedPaymentMethod,
+                  paymentStatus: selectedPaymentStatus,
+                };
+                setTransferBooking({
+                  ...transfer,
+                });
+                setSession((current) => {
+                  const transferBooking: ServiceBooking = {
+                    id: `hotel-transfer-${contextBooking.id}`,
+                    bookingId: contextBooking.id,
+                    title: 'Hotel transfer',
+                    scheduledFor: `${transfer.arrivalDate} · ${transfer.arrivalTime}`,
+                    scheduledDate: transfer.arrivalDate,
+                    amount: fare,
+                    status: 'confirmed' as const,
+                    provider: 'Operated by the hotel',
+                    paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
+                    paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
+                  };
+                  const alreadyBooked = current.serviceBookings.some((service) => service.id === transferBooking.id);
+                  return {
+                    ...current,
+                    serviceBookings: [
+                      transferBooking,
+                      ...current.serviceBookings.filter((service) => service.id !== transferBooking.id),
+                    ],
+                    folioTotal: alreadyBooked || checkoutPayment === 'pay-now'
+                      ? current.folioTotal
+                      : formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(fare)),
+                  };
+                });
+                go('transfer-confirmation');
+              }}
+            >
+              {transferDestination ? <div className="guest-transfer-destination"><span>Destination</span><strong>{transferDestination}</strong><small>Added from the nearby recommendation</small></div> : null}
+              <Field label="Pick-up location" name="transfer-pickup" placeholder="Airport, hotel, or address" required />
+              <div className="guest-form__row">
+                <Field label="Arrival date" name="transfer-date" type="date" defaultValue={contextBooking.checkIn} required />
+                <Field label="Arrival time" name="transfer-time" type="time" defaultValue="10:00" required />
+              </div>
+              <Field label="Flight number (optional)" name="transfer-flight" placeholder="e.g. PR 286" />
+              <div className="guest-form__row">
+                <Field label="Passengers" name="transfer-passengers" type="number" defaultValue={String(contextBooking.guestCount)} min="1" required />
+                <Field label="Luggage count" name="transfer-luggage" type="number" defaultValue="2" min="0" required />
+              </div>
+              <SelectField label="Vehicle type" name="transfer-vehicle" value={transferVehicle} onValueChange={setTransferVehicle}>
+                <option>Hotel sedan</option>
+                <option>Hotel SUV</option>
+                <option>Executive van</option>
+                <option>Private van</option>
+              </SelectField>
+              <label className="guest-field" htmlFor="transfer-requests">
+                <span>Special requests (optional)</span>
+                <textarea id="transfer-requests" name="transfer-requests" rows={3} placeholder="Child seat, accessibility needs, or other requests" />
+              </label>
+              <div className="guest-transfer-fare">
+                <div><span>Fare</span><strong>{fare}</strong></div>
+                <small>Exact fare · operated by the hotel</small>
+              </div>
+              <PaymentChoice provider="Operated by the hotel" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} />
+              <Button className="guest-button guest-button--primary" type="submit" disabled={!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)}>{checkoutPayment === 'room' ? `Charge ${fare} to room` : checkoutPayment === 'pay-now' ? `Pay ${fare} now` : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button>
+            </form>
+          </div>
+        );
+      }
+
+      case 'transfer-confirmation':
+        return (
+          <ScreenIntro
+            icon={<Car size={30} />}
+            title="Your hotel transfer is booked"
+            text="The hotel is arranging your pick-up. Your confirmed fare and request have been sent to the hotel team."
+          >
+            <div className="guest-summary">
+              <SummaryRow label="Pick-up" value={transferBooking?.pickupLocation || 'Your arrival location'} />
+              {transferBooking?.destination ? <SummaryRow label="Destination" value={transferBooking.destination} /> : null}
+              <SummaryRow label="Arrival" value={`${transferBooking?.arrivalDate || contextBooking.checkIn} · ${transferBooking?.arrivalTime || '10:00'}`} />
+              <SummaryRow label="Passengers" value={transferBooking?.passengers || String(contextBooking.guestCount)} />
+              <SummaryRow label="Vehicle" value={transferBooking?.vehicle || 'Executive van'} />
+              <SummaryRow label="Provider" value="Operated by the hotel" />
+              <SummaryRow label={transferBooking?.paymentMethod === 'room' ? 'Charged to' : 'Payment status'} value={transferBooking?.paymentMethod === 'room' ? contextRoom : 'Paid'} />
+              <SummaryRow label="Fare" value={transferBooking ? (transferBooking.vehicle === 'Private van' ? '₱1,800' : transferBooking.vehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200') : '₱1,200'} strong />
+            </div>
+            <Notice title={`Added to ${contextRoom.toLowerCase()}`}>This hotel transfer is included in Additional charges and settles with your hotel folio at checkout.</Notice>
+            <Notice icon={<Car />} title="Driver details coming soon">The hotel will add your driver’s name, contact details, and vehicle plate here once they assign the transfer.</Notice>
+            <Notice title="Operated by the hotel">Your transfer is coordinated directly by {contextBooking.property}.</Notice>
+            {primary('View my stay', 'rate-detail')}
+          </ScreenIntro>
+        );
 
       case 'hotel-service':
         return <ServiceDetail kind="hotel" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
@@ -2976,10 +3072,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
 
       case 'service-booking':
-        return <FormScreen step="Charged to room" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Hilom signature massage" value="₱2,400" /><SummaryRow label="Property" value={contextBooking.property} /><SummaryRow label="Guest" value={session.guestName} /><SummaryRow label={contextRoom} value="Charge at checkout" /><SummaryRow label="Total added to folio" value="₱2,400" strong /></div><Button className="guest-button guest-button--primary" type="button" onClick={confirmService}>Confirm and charge to room<ArrowRight aria-hidden="true" /></Button></FormScreen>;
+        return <FormScreen step="Review and pay" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Category" value="Spa & wellness" /><SummaryRow label="Service" value="Hilom signature massage" /><SummaryRow label="Provider" value="Operated by Sans Rival" /><SummaryRow label="Total" value="₱2,400" strong /></div><PaymentChoice provider="Operated by Sans Rival" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} /><Button className="guest-button guest-button--primary" type="button" disabled={!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)} onClick={confirmService}>{checkoutPayment === 'room' ? 'Charge ₱2,400 to room' : checkoutPayment === 'pay-now' ? 'Pay ₱2,400 now' : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button></FormScreen>;
 
       case 'booking-confirmation':
-        return <ScreenIntro icon={<Check size={30} />} title="Your massage is booked" text={`The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The folio line remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Check size={30} />} title="Your massage is booked" text={contextService?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this booking.' : `The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><div className="guest-summary"><SummaryRow label="Provider" value={contextService?.provider ?? 'Operated by Sans Rival'} /><SummaryRow label={contextService?.paymentStatus === 'paid' ? 'Payment status' : 'Payment method'} value={contextService?.paymentStatus === 'paid' ? 'Paid' : 'Charged to room'} /></div><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The booking remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
 
       /*
         Two different reasons a booking cannot go through, and they used to
@@ -3058,56 +3154,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // block is absent rather than showing a confident zero. Read off the
         // dates, not `status`: the two disagree when a PMS has not caught up.
         const started = hasStayStarted(contextBooking);
-        const stayFolioTotal = session.folioTotal || contextBooking.folioTotal || '₱0';
-        const stayCharges = getRoomCharges(session, contextBooking, contextRoom);
-        const roomSoFar = started ? parsePesoAmount(stayFolioTotal) : 0;
-        const tripTotal = formatPesoAmount(roomSoFar);
 
-        /*
-          A stay that is over is a receipt, not a running total. "This stay so
-          far" is present tense about something finished, and it counted only
-          what was charged against the room -- so a settled stay reported a
-          room of ₱0 while still presenting a running total.
-        */
         const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
-        const finishedStay = checkedOut ? toFinishedStay(session, contextBooking) : undefined;
-        const finishedSummary = finishedStay ? summarisePastStay(finishedStay) : undefined;
 
         return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <h1>{contextBooking.property}</h1>
-              {/* The property is the subject; the label is the eyebrow. The
-                  line beneath says the guest is in it, which nothing on this
-                  screen said before. */}
-              <p className="guest-checked-in">
-                {/* The pulsing dot says "now". It has no business beside
-                    "Checked out". */}
-                {checkedOut ? null : <span className="guest-checked-in__dot" aria-hidden="true" />}
-                {describeStayStatus(contextBooking).status === 'checked-in'
-                  ? `Checked in · ${contextRoom}`
-                  : `${describeStayStatus(contextBooking).label} · ${contextRoom}`}
-              </p>
-            </div>
+          <div className="guest-stack guest-my-stay-page">
+            <div className="guest-my-stay-header"><h1>{contextBooking.property}</h1><div><b>Room {contextBooking.roomNumber ?? '—'}</b><Tag tone={checkedOut ? 'neutral' : 'positive'}>{checkedOut ? 'Checked out' : 'Checked in'}</Tag></div></div>
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
-            {/*
-              One line, not a stat grid. Home's hero already carries the
-              property, the dates, the room and a "View booking" row, so
-              repeating them here said nothing new and pushed the running total
-              -- the thing this screen exists to answer -- below the fold. What
-              is left is what Home does not say: where the stay sits in time,
-              and the reference details, behind one tap.
-            */}
-            <button className="guest-stay-context" type="button" onClick={() => go('rate-detail')}>
-              <span className="guest-stay-context__clock" aria-hidden="true"><ClockCountdown /></span>
-              <span className="guest-stay-context__text">
-                <b>{describeCheckoutCountdown(contextBooking)}</b>
-                <small>{formatStayDateRange(contextBooking)} · {contextBooking.guestCount} {contextBooking.guestCount === 1 ? 'guest' : 'guests'} · {contextBooking.source}</small>
-              </span>
-              <CaretRight />
-            </button>
+            <div className="guest-stay-context guest-checkout-card">
+              <button type="button" onClick={() => go('rate-detail')}>
+                <span className="guest-stay-context__clock" aria-hidden="true"><ClockCountdown /></span>
+                <span className="guest-stay-context__text"><b>{contextBooking.checkOut === '2026-11-12' ? 'Checks out tomorrow' : `Checkout on ${contextBooking.checkOut}`}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
+              </button>
+              {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions"><button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button><div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
+            </div>
 
             {checkedOut ? (
               /*
@@ -3123,46 +3185,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </p>
             ) : null}
 
-            {finishedStay && finishedSummary ? (
-              <section className="guest-stay-receipt">
-                <div className="guest-total-card">
-                  <span>This stay</span>
-                  <strong>{finishedStay.total}</strong>
-                  <small>
-                    {finishedStay.nights} {finishedStay.nights === 1 ? 'night' : 'nights'}
-                    {contextBooking.roomNumber ? ` · Room ${contextBooking.roomNumber}` : ''} · settled at checkout
-                  </small>
-                </div>
-
-                <div className="guest-summary">
-                  <SummaryRow label={`${finishedStay.roomType} · ${finishedStay.nights} ${finishedStay.nights === 1 ? 'night' : 'nights'}`} value={finishedStay.roomRate} />
-                  {finishedSummary.groups.map((group) => (
-                    <SummaryRow key={group.category} label={group.category} value={group.formattedTotal} />
-                  ))}
-                  <SummaryRow label="Total settled" value={finishedStay.total} strong />
-                </div>
-
-                <TextButton onClick={() => { setSelectedPastStayId(finishedStay.id); go('stay-detail'); }}>
-                  See every charge
-                </TextButton>
-              </section>
-            ) : started ? (
-              <div className="guest-running-total">
-                <div className="guest-total-card">
-                  <span>This stay so far</span>
-                  <strong>{tripTotal}</strong>
-                  <small>
-                    Settles with the hotel at checkout
-                  </small>
-                </div>
-                {started ? (
-                  <button className="guest-running-total__action" onClick={() => go('folio')} type="button">
-                    <span aria-hidden="true"><Receipt /></span>
-                    <span>Room charges<small>{stayCharges.length} {stayCharges.length === 1 ? 'line' : 'lines'}</small></span>
-                    <CaretRight />
-                  </button>
-                ) : null}
-              </div>
+            {started ? (
+              <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}><span><b>Room charges</b><small>View charges added to your room</small></span><span className="guest-my-stay-charges__view">View</span></button>
             ) : null}
 
             {/*
@@ -3181,8 +3205,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     onClick={() => setStayTab(tab)}
                     type="button"
                   >
-                    {tab === 'upcoming' ? 'Upcoming' : 'Past'}
-                    <span className="guest-tab__count">{tab === 'upcoming' ? stayEntries.upcoming.length : stayEntries.past.length}</span>
+                    {tab === 'upcoming' ? `Upcoming (${stayEntries.upcoming.length})` : `Past (${stayEntries.past.length})`}
                   </button>
                 ))}
               </div>
@@ -3198,8 +3221,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   ))}
                 </div>
               ) : (
-                <div className="guest-hub-empty">
-                  <h2>{stayTab === 'upcoming' ? 'Nothing booked yet' : 'Nothing here yet'}</h2>
+                <div className={`guest-hub-empty${stayTab === 'upcoming' && !started ? ' guest-hub-empty--services' : ''}`}>
+                  <h2>{stayTab === 'upcoming' && !started ? 'No upcoming services yet' : stayTab === 'upcoming' ? 'Nothing booked yet' : 'Nothing here yet'}</h2>
                   {/*
                     A stay that is over cannot be sold anything. This block
                     was inviting a checked-out guest to charge to a room they
@@ -3209,11 +3232,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <p>
                     {stayTab !== 'upcoming'
                       ? 'Bookings move here once they are done or cancelled.'
-                      : checkedOut
+                      : !started
+                        ? 'Services you book for your upcoming stay will appear here.'
+                        : checkedOut
                         ? 'Nothing was left open when you checked out.'
                         : `Dining, spa, tours, and hotel services are in Explore. Bookings are added to ${contextRoom.toLowerCase()} and settle at checkout.`}
                   </p>
-                  {stayTab === 'upcoming' && !checkedOut ? (
+                  {stayTab === 'upcoming' && !started ? (
+                    <Button className="guest-button guest-button--secondary" type="button" onClick={() => go('pre-arrival-services')}>
+                      Browse arrival services<ArrowRight aria-hidden="true" />
+                    </Button>
+                  ) : stayTab === 'upcoming' && !checkedOut ? (
                     <Button className="guest-button guest-button--primary" type="button" onClick={() => go('marketplace')}>
                       Explore on-property<ArrowRight aria-hidden="true" />
                     </Button>
@@ -3222,47 +3251,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               )}
             </section>
 
-            {/*
-              Docked. Reaching the front desk was the last row on a screen that
-              scrolls -- so the one action a guest wants when something is
-              wrong was the hardest thing here to reach. It now holds above the
-              tab bar, and the spacer keeps the last booking card clear of it.
-            */}
-            <div className="guest-dock-spacer" aria-hidden="true" />
-            {checkedOut ? (
-              /*
-                The front desk is demoted rather than dropped -- a guest still
-                chases a lost item or a billing query after checkout -- but it
-                is no longer the only thing a finished stay offers.
-              */
-              <div className="guest-dock guest-dock--single guest-dock--stacked">
-                <Button className="guest-button guest-button--primary" type="button" onClick={() => go('book-stay')}>
-                  Book another stay<ArrowRight aria-hidden="true" />
-                </Button>
-                {postStayWindow.deskOpen ? (
-                  <button className="guest-dock__quiet" data-testid="guest-front-desk-action" onClick={() => go('chat')} type="button">
-                    Message the front desk
-                  </button>
-                ) : stayReview ? (
-                  <p className="guest-dock__note">You rated this stay {stayReview.rating} out of 5. Thank you.</p>
-                ) : (
-                  <button className="guest-dock__quiet" onClick={() => go('stay-review')} type="button">
-                    Rate your stay
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="guest-dock guest-dock--single">
-                <button className="guest-dock__action" data-testid="guest-front-desk-action" onClick={() => go('chat')} type="button">
-                  <span className="guest-dock__glyph" aria-hidden="true"><ChatCircleDots /></span>
-                  <span className="guest-dock__label">
-                    <b>Message the front desk</b>
-                    <small>{online ? 'Usually replies in a few minutes' : 'Sends when you reconnect'}</small>
-                  </span>
-                  <CaretRight />
-                </button>
-              </div>
-            )}
           </div>
         );
       }
@@ -3410,13 +3398,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'folio': {
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom);
         const folioTotal = session.folioTotal || contextBooking.folioTotal || '₱0';
-        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">{contextBooking.property} · {contextRoom} · Last updated 2:14 PM</p><h1>Room charges</h1><p>These charges settle with the hotel at checkout.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-total-card"><span>Current room total</span><strong>{folioTotal}</strong><small>Booking room rate paid through {contextBooking.source}</small></div><div className="guest-folio">{folioCharges.map((charge) => <FolioItem key={charge.id} date={charge.date} title={charge.title} meta={charge.detail} amount={charge.amount} />)}</div><Notice title="Questions about a charge?">The front desk can explain or correct a folio line before checkout.</Notice>{primary('Ask the front desk', 'chat')}</div>;
+        const visibleCharges = folioCharges;
+        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div><div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
       }
 
       case 'chat':
       case 'chat-after-hours': {
         const afterHours = activeScreen === 'chat-after-hours';
-        return <div className="guest-chat"><div className="guest-chat__intro"><div><Tag tone={afterHours ? 'warning' : 'positive'}>{afterHours ? 'Outside staffed hours' : 'Front desk online'}</Tag><h1>Front desk</h1><p>{afterHours ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.` : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}</p></div></div>{!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}<div className="guest-quick-actions" aria-label="Quick requests"><button onClick={() => sendQuickMessage('Could we get two fresh towels, please?')}>Towels</button><button onClick={() => sendQuickMessage(`Please arrange housekeeping for ${contextRoom.toLowerCase()}.`)}>Housekeeping</button><button onClick={() => sendQuickMessage('Can we request a late checkout?')}>Late checkout</button><button onClick={() => sendQuickMessage('We need help arranging a transfer.')}>Transfers</button></div><div className="guest-messages" aria-live="polite">{chatMessages.map((message, index) => <div key={`${message.body}-${index}`} className={`guest-message guest-message--${message.from}`}><p>{message.body}</p>{message.state ? <small>{message.state}</small> : null}</div>)}{sending ? <div className="guest-message guest-message--desk guest-message--typing"><SpinnerGap className="guest-spin" /><span>Front desk is replying</span></div> : null}</div>{unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}<form className="guest-composer" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); const body = String(form.get('message') ?? '').trim(); if (body) sendQuickMessage(body); event.currentTarget.reset(); }}><label className="sr-only" htmlFor="message">Message the front desk</label><input id="message" name="message" placeholder="Ask the front desk" /><button aria-label="Send message" type="submit"><ArrowRight /></button></form></div>;
+        const chatDisabled = checkedOutNav && (simulatePostStayExpired || !postStayWindow.deskOpen);
+        const displayedChatMessages = chatDisabled ? [
+          { from: 'desk' as const, body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
+          { from: 'guest' as const, body: 'Could we get two fresh towels, please?', state: 'Seen' },
+          { from: 'desk' as const, body: `Of course — we’ll send two fresh towels to ${contextRoom.toLowerCase()} shortly.`, state: 'Seen' },
+        ] : chatMessages;
+        return <div className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''}`}><div className="guest-chat__intro"><div><Tag tone={chatDisabled ? 'neutral' : afterHours ? 'warning' : 'positive'}>{chatDisabled ? 'Chat unavailable' : afterHours ? 'Outside staffed hours' : 'Front desk online'}</Tag><h1>Front desk</h1><p>{chatDisabled ? 'The post-stay support window ended 24 hours after checkout.' : afterHours ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.` : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}</p></div></div>{chatDisabled ? <Notice tone="neutral" title="Chat is closed">For help after 24 hours, please contact the hotel directly.</Notice> : null}{!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}<div className="guest-quick-actions" aria-label="Quick requests">{['Towels', 'Housekeeping', 'Late checkout', 'Transfers'].map((label) => <button key={label} disabled={chatDisabled} onClick={() => sendQuickMessage(label === 'Towels' ? 'Could we get two fresh towels, please?' : label === 'Housekeeping' ? `Please arrange housekeeping for ${contextRoom.toLowerCase()}.` : label === 'Late checkout' ? 'Can we request a late checkout?' : 'We need help arranging a transfer.')}>{label}</button>)}</div><div className="guest-messages" aria-live="polite">{displayedChatMessages.map((message, index) => <div key={`${message.body}-${index}`} className={`guest-message guest-message--${message.from}`}><p>{message.body}</p>{message.images?.length ? <div className="guest-chat-catalog-images">{message.images.map((image) => <button key={image} type="button" onClick={() => setChatPreviewImage(image)}><Image src={image} alt="Current catalog" width={120} height={88} /></button>)}</div> : null}{message.state ? <small>{message.state}</small> : null}</div>)}{sending ? <div className="guest-message guest-message--desk guest-message--typing"><SpinnerGap className="guest-spin" /><span>Front desk is replying</span></div> : null}</div>{unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}<form className="guest-composer" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const body = chatDraft.trim(); if (body) sendQuickMessage(body); }}><label className="sr-only" htmlFor="message">Message the front desk</label><input id="message" name="message" value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} placeholder={chatDisabled ? 'Chat is unavailable' : 'Ask the front desk'} disabled={chatDisabled} /><button aria-label="Send message" type="submit" disabled={chatDisabled}><ArrowRight /></button></form>{chatPreviewImage ? <div className="guest-chat-image-preview" role="dialog" aria-label="Catalog preview" onClick={() => setChatPreviewImage(null)}><button type="button" aria-label="Close preview" onClick={() => setChatPreviewImage(null)}><X /></button><Image src={chatPreviewImage} alt="Catalog preview" fill sizes="90vw" /></div> : null}</div>;
       }
 
       case 'room-qr-midstay':
@@ -3559,6 +3554,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         online={online}
         stayState={getPrototypeStayState(session)}
         onStayStateChange={applyStayState}
+        onSimulateRoomAssignment={simulateRoomAssignment}
+        canSimulateRoomAssignment={Boolean(eligibleRoomAssignBooking)}
         onSimulateRoomReady={simulateRoomReady}
         canSimulateRoomReady={Boolean(eligibleRoomReadyBooking)}
         roomVerified={Boolean(primaryBooking?.roomVerification)}
@@ -3572,6 +3569,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onToggleAutoDetectScans={() => setAutoDetectScans((on) => !on)}
         strictLookup={strictLookup}
         onToggleStrictLookup={() => setStrictLookup((on) => !on)}
+        simulatePostStayExpired={simulatePostStayExpired}
+        onTogglePostStayExpired={() => setSimulatePostStayExpired((expired) => !expired)}
         onReset={resetPrototype}
       />
 
@@ -3586,6 +3585,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           }}
           onFocusChange={setRoomReadyNotificationFocused}
         />
+      ) : null}
+
+      {scanSuccessToast ? (
+        <ScanSuccessToast onDismiss={() => setScanSuccessToast(false)} />
       ) : null}
 
       <main className="guest-prototype guest-app">
@@ -3603,43 +3606,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             */}
             <div className="guest-appbar__side guest-appbar__side--end">
               {session.auth === 'authenticated' || session.bookings.length > 0 ? (
-                <>
-                  {/*
-                    The scan lives here because DESIGN.md's own rule puts
-                    actions in this slot and places in the tab bar -- and
-                    because as a list row on Home it was unfindable: a guest
-                    holding the code had to scroll past the stay card and the
-                    booking row to reach the one thing they were trying to do.
-                    A dot marks it while the room is still unverified, the same
-                    way the bell marks unread.
-                  */}
-                  {/*
-                    Only with a room to scan. No booking means no allocated
-                    room and therefore no code on any desk card, so the icon
-                    would open a viewfinder that could never succeed.
-                  */}
-                  {primaryBooking?.roomNumber ? (
-                    <button
-                      className="guest-icon-button guest-scan-action"
-                      type="button"
-                      data-testid="guest-scan-action"
-                      onClick={() => go('scan-room-code')}
-                      aria-label={scanPending ? 'Scan room code, room not yet verified' : 'Scan room code'}
-                    >
-                      <QrCode />
-                      {scanPending ? <span className="guest-bell__dot" aria-hidden="true" /> : null}
-                    </button>
-                  ) : null}
-                  <button
-                    className="guest-icon-button guest-bell"
-                    type="button"
-                    onClick={openNotifications}
-                    aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : 'Notifications'}
-                  >
-                    <Bell />
-                    {unreadNotifications ? <span className="guest-bell__dot" aria-hidden="true" /> : null}
-                  </button>
-                </>
+                <button
+                  className="guest-icon-button guest-bell"
+                  type="button"
+                  onClick={openNotifications}
+                  aria-label={unreadNotifications ? `Notifications, ${unreadNotifications} unread` : 'Notifications'}
+                >
+                  <Bell />
+                  {unreadNotifications ? <span className="guest-bell__dot" aria-hidden="true" /> : null}
+                </button>
               ) : null}
             </div>
           </header> : null}
@@ -3654,6 +3629,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           >
             {renderScreen()}
           </div>
+
+          {orderTrayOpen ? orderTrayOpen === 'restaurant' ? (() => {
+            const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
+            const summary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
+            return <OrderTray title="Your order" establishment={venue.name} items={summary.items.map((item) => ({ id: item.id, name: item.name, unitPrice: item.unitPrice, quantity: item.quantity, image: getMenuItemImage(item.id) }))} total={summary.formattedTotal} roomNumber={contextBooking.roomNumber} onChangeQuantity={(id, delta) => changeCartQuantity(venue.id, id, delta)} onClose={() => setOrderTrayOpen(null)} onCheckout={() => setOrderTrayStep((step) => step === 'tray' ? 'review' : step)} />;
+          })() : <OrderTray title="Your order" establishment="Gifts & Souvenirs" items={GIFT_PRODUCTS.filter((product) => (giftCart[product.name] ?? 0) > 0).map((product) => ({ id: product.name, name: product.name, unitPrice: product.price, quantity: giftCart[product.name] ?? 0, image: product.image }))} total={formatPesoAmount(GIFT_PRODUCTS.reduce((sum, product) => sum + parsePesoAmount(product.price) * (giftCart[product.name] ?? 0), 0))} roomNumber={contextBooking.roomNumber} onChangeQuantity={(id, delta) => changeGiftQuantity(id, delta)} onClose={() => setOrderTrayOpen(null)} onCheckout={() => setOrderTrayStep((step) => step === 'tray' ? 'review' : step)} /> : null}
 
           {showPrimaryNav ? (
             <nav className="guest-bottom-nav" aria-label="Primary navigation">
@@ -3676,8 +3657,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 genuinely do not exist yet. They appear, permanently, the
                 moment a booking is added.
               */}
-              {primaryBooking ? (
-                <>
+              {primaryBooking && !checkedOutNav && bookingSlot.screen !== 'pre-arrival-services' ? (
                   <NavButton
                     label={bookingSlot.label}
                     icon={bookingSlot.label === 'Arrival'
@@ -3686,14 +3666,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen}
                     onClick={() => go(bookingSlot.screen)}
                   />
-                  <NavButton
+              ) : null}
+              {primaryBooking ? (
+                <NavButton
                     label="My Stay"
                     icon={<Bed />}
                     active={MY_STAY_SCREENS.includes(activeScreen)}
                     onClick={() => go('my-stay')}
                   />
-                </>
               ) : null}
+              <NavButton
+                label="Chat"
+                icon={<ChatCircleDots />}
+                active={activeScreen === 'chat' || activeScreen === 'chat-after-hours'}
+                onClick={() => go('chat')}
+              />
               <NavButton
                 label="Profile"
                 icon={<UserCircle />}
@@ -3712,6 +3699,8 @@ function PrototypeControls({
   online,
   stayState,
   onStayStateChange,
+  onSimulateRoomAssignment,
+  canSimulateRoomAssignment,
   onSimulateRoomReady,
   canSimulateRoomReady,
   roomVerified,
@@ -3725,11 +3714,15 @@ function PrototypeControls({
   onToggleAutoDetectScans,
   strictLookup,
   onToggleStrictLookup,
+  simulatePostStayExpired,
+  onTogglePostStayExpired,
   onReset,
 }: {
   online: boolean;
   stayState: PrototypeStayState;
   onStayStateChange: (state: PrototypeStayState) => void;
+  onSimulateRoomAssignment: () => void;
+  canSimulateRoomAssignment: boolean;
   onSimulateRoomReady: () => void;
   canSimulateRoomReady: boolean;
   roomVerified: boolean;
@@ -3743,6 +3736,8 @@ function PrototypeControls({
   onToggleAutoDetectScans: () => void;
   strictLookup: boolean;
   onToggleStrictLookup: () => void;
+  simulatePostStayExpired: boolean;
+  onTogglePostStayExpired: () => void;
   onReset: () => void;
 }) {
   /*
@@ -3768,7 +3763,14 @@ function PrototypeControls({
   }
 
   return (
-    <aside className="guest-prototype-toolbar" role="region" aria-label="Prototype controls">
+    <div
+      className="guest-prototype-modal-backdrop"
+      data-testid="prototype-controls-backdrop"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) setOpen(false);
+      }}
+    >
+      <aside className="guest-prototype-toolbar" role="region" aria-label="Prototype controls">
       <div className="guest-prototype-toolbar__head">
         <div>
           <span>Prototype controls</span>
@@ -3815,6 +3817,11 @@ function PrototypeControls({
           usable -- which hid the switcher in exactly the states worth switching
           away from. It is a disabled row now, not a reason to hide the rig.
         */}
+        <button type="button" onClick={onSimulateRoomAssignment} disabled={!online || !canSimulateRoomAssignment}>
+          <Ticket aria-hidden="true" />
+          Simulate room assignment
+        </button>
+
         <button type="button" onClick={onSimulateRoomReady} disabled={!online || !canSimulateRoomReady}>
           <BellRinging aria-hidden="true" />
           Simulate room ready
@@ -3862,6 +3869,11 @@ function PrototypeControls({
             <Ticket aria-hidden="true" />
             {strictLookup ? 'Lookup: only real references' : 'Lookup: accepts anything'}
           </button>
+
+          <button type="button" onClick={onTogglePostStayExpired}>
+            <ClockCountdown aria-hidden="true" />
+            {simulatePostStayExpired ? 'Reset 24-hour chat window' : 'Simulate 24 hours after checkout'}
+          </button>
         </fieldset>
 
         <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
@@ -3869,7 +3881,8 @@ function PrototypeControls({
         </button>
       </div>
 
-    </aside>
+      </aside>
+    </div>
   );
 }
 
@@ -3917,6 +3930,18 @@ function RoomReadyNotification({
   );
 }
 
+function ScanSuccessToast({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <aside className="guest-toast" role="status" aria-live="polite">
+      <span className="guest-toast__icon" aria-hidden="true"><CheckCircle /></span>
+      <p>Room connected successfully. Your stay is now linked to the app.</p>
+      <button className="guest-toast__dismiss" type="button" onClick={onDismiss} aria-label="Dismiss notification">
+        <X aria-hidden="true" />
+      </button>
+    </aside>
+  );
+}
+
 type StayOverviewHomeProps = {
   session: GuestSession;
   booking?: Booking;
@@ -3927,7 +3952,6 @@ type StayOverviewHomeProps = {
 };
 
 function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOpenStay }: StayOverviewHomeProps) {
-  const [roomReadyDismissed, setRoomReadyDismissed] = useState(false);
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -3946,78 +3970,94 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
 
   if (variant === 'active') {
     const confirmedServices = session.serviceBookings.filter(
-      (service) => service.status === 'confirmed' && service.bookingId === booking.id,
+      (service) => service.status === 'confirmed' && service.bookingId === booking.id && service.scheduledDate >= PROTOTYPE_TODAY,
     );
     const roomLabel = booking.roomNumber ? `Room ${booking.roomNumber}` : 'Active room';
+    const roomUpgrade = booking.roomUpgrade;
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
         <section className="guest-stay-hero-card">
           <div className="guest-stay-hero-card__media">
-            <PropertyImage property={booking.property} aspectRatio="21/9" decorative />
+            <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
             <div className="guest-stay-hero-card__badges">
-              <Tag tone="positive">{describeStayStatus(booking).label}</Tag>
-              <span className="guest-tag guest-tag--dark">{roomLabel}</span>
+              <span className="guest-stay-hero-card__status guest-stay-hero-card__status--positive">Checked in</span>
+              <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">{roomLabel}</span>
             </div>
           </div>
           <div className="guest-stay-hero-card__body">
-            <p className="guest-eyebrow">{greetGuest(session.guestName, 'Your stay', booking.roomNumber)}</p>
+            <p className="guest-eyebrow">{greetGuest(session.guestName, 'Welcome', booking.roomNumber)}</p>
             <h1>{booking.property}</h1>
-            <div className="guest-stay-hero-card__chips">
-              <span>{booking.city}</span>
-            </div>
-            {/*
-              Dates and room live here, not in a separate "Stay details" grid.
-              One card answers where, when and which room, so the two facts
-              cannot drift apart across sections.
-            */}
             <div className="guest-stay-hero-card__stats">
               <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
-              <div><small>Room</small><b>{booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : booking.roomType}</b></div>
+              <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber ?? 'Assigned at arrival'}</b></div>
               <div><small>Guests</small><b>{describeParty(booking, session)}</b></div>
               <div><small>Nights</small><b>{countNights(booking)}</b></div>
             </div>
           </div>
           <div className="guest-stay-hero-card__actions">
             <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
+            <button className="guest-list-row" onClick={() => onNavigate('chat')} type="button"><span><ChatCircleDots /></span><div><b>Chat with the front desk</b><small>Usually replies in a few minutes</small></div><CaretRight /></button>
+            {!roomUpgrade && canOfferRoomUpgrade(booking) ? <button className="guest-list-row" onClick={() => onNavigate('room-upgrades')} type="button"><span><Bed /></span><div><b>Upgrade room</b><small>Explore available rooms for your current stay</small></div><CaretRight /></button> : null}
+            {roomUpgrade?.status === 'preparing' ? <div className="guest-room-upgrade-status"><b>Room upgrade in progress</b><span>{roomUpgrade.newRoomType} · Room number coming soon</span><p>We&rsquo;re preparing your upgraded room. You can continue using Room {booking.roomNumber} until your new room is ready.</p></div> : null}
+            {roomUpgrade?.status === 'ready' ? <div className="guest-room-transfer-preview"><div><small>Current room</small><b>Room {booking.roomNumber} · {booking.roomType}</b><span>Available until your room transfer is completed.</span></div><div><small>New room · Ready</small><b>Room {roomUpgrade.newRoomNumber} · {roomUpgrade.newRoomType}</b><span>Your upgraded room is ready. Complete the transfer before {roomUpgrade.transferDeadline}.</span></div><button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('room-transfer-details')}>View transfer details<ArrowRight /></button></div> : null}
           </div>
+          {/*
+            Only while it is the thing in the way. Once the room is verified
+            the scan is just an action, and it lives in the app bar where
+            every screen can reach it.
+          */}
+          {canUseOnPropertyServices(booking) ? null : (
+            <div className="guest-stay-hero-card__qr">
+              <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
+                <QrCode aria-hidden="true" />Scan your room code<ArrowRight aria-hidden="true" />
+              </Button>
+            </div>
+          )}
         </section>
-        {/*
-          Only while it is the thing in the way. Once the room is verified the
-          scan is just an action, and it lives in the app bar where every
-          screen can reach it -- repeating it here as a row was what made it
-          unfindable in the first place, one quiet line among many.
-        */}
-        {canUseOnPropertyServices(booking) ? null : (
-          <section className="guest-home-room-qr" aria-label="Room access">
-            <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
-              <QrCode aria-hidden="true" />Scan your room code<ArrowRight aria-hidden="true" />
-            </Button>
-          </section>
-        )}
-        <AnnouncementsSection />
+        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" onClick={() => onNavigate('my-stay')}><span><b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b><small>{confirmedServices[0].scheduledFor}</small><small>{confirmedServices[0].amount} · Charged to {roomLabel}</small></span><span className="guest-next-service-card__action">View details <CaretRight /></span></button></section> : null}
         <section>
-          <SectionHeading title="Categories" action="See all" onAction={() => onNavigate('marketplace')} />
-          <div className="guest-miniapp-row" role="group" aria-label="Experience categories">
-            {MINI_APP_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                className="guest-miniapp-tile"
-                onClick={() => {
-                  onSelectCategory(cat.id);
-                  onNavigate(cat.screen);
-                }}
-              >
-                <span className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
-                  <CategoryIcon id={cat.id} />
-                </span>
-                <span className="guest-miniapp-tile__label">{cat.shortTitle}</span>
-              </button>
-            ))}
+          <SectionHeading title="Make the most of your stay" />
+          <div className="guest-category-banners" role="group" aria-label="Experience categories">
+            {[
+              { id: 'dining', label: 'Food & Drinks' },
+              { id: 'spa', label: 'Spa & Wellness' },
+              { id: 'entertainment', label: 'Activities & Tours' },
+              { id: 'services', label: 'Hotel Services' },
+              { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs' },
+            ].map((item) => {
+              const cat = MINI_APP_CATEGORIES.find((category) => category.id === item.id);
+              const cover = item.id === 'gifts-souvenirs'
+                ? { src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80', focalPoint: 'center' }
+                : getCategoryCoverImage(cat!.id);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="guest-category-banner"
+                  onClick={() => {
+                    if (item.id === 'gifts-souvenirs') {
+                      onNavigate('gifts-souvenirs');
+                      return;
+                    }
+                    onSelectCategory(cat!.id);
+                    onNavigate(cat!.screen);
+                  }}
+                >
+                  <Image
+                    src={cover.src}
+                    alt=""
+                    fill
+                    sizes="(max-width: 720px) calc(100vw - 32px), 688px"
+                    style={{ objectPosition: cover.focalPoint }}
+                  />
+                  <span className="guest-category-banner__scrim" aria-hidden="true" />
+                  <span className="guest-category-banner__label">{item.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <FeaturedRail onOpenCategory={(category) => { onSelectCategory(category); onNavigate('category-listing'); }} />
         </section>
-        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('marketplace')} /><div className="guest-booking-card is-static"><div><h2>{confirmedServices[0].title}</h2><p>{confirmedServices[0].scheduledFor} · {confirmedServices[0].amount}</p><small>Added to {roomLabel.toLowerCase()} · settles at checkout</small></div></div></section> : null}
+        <AnnouncementsSection booking={booking} compact />
       </div>
     );
   }
@@ -4040,58 +4080,29 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
   if (variant === 'completed') {
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--completed" data-testid="guest-home-completed">
-        <div className="guest-page-title"><p className="guest-eyebrow">Welcome back, {session.guestName.split(' ')[0]}</p><h1>Your latest stay</h1><p>Reconnect another reservation whenever you’re ready.</p></div>
-        <div className="guest-home-booking guest-upcoming-card guest-home-booking--primary">
-          <div className="guest-upcoming-card__media">
-            <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
-            <div className="guest-upcoming-card__badges">
-              <Tag>Completed</Tag>
-            </div>
-          </div>
-          <div className="guest-upcoming-card__content">
-            <h2>{booking.property}</h2>
-            <p>{formatStayDateRange(booking)} · {booking.roomType}</p>
-            <small>Booking {booking.id}</small>
-          </div>
-        </div>
+        <div className="guest-page-title"><h1>Your latest stay</h1></div>
+        <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('book-stay')}>
+          <span className="guest-add-booking-card__glyph" aria-hidden="true"><Plus /></span>
+          <span className="guest-add-booking-card__text"><b>Book another stay</b><small>Find your next Cabana stay.</small></span>
+          <ArrowRight aria-hidden="true" />
+        </button>
         <Notice tone="positive" icon={<CheckCircle />} title="Stay complete">Your previous room charges were settled at checkout.</Notice>
-        <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('identify')}>Connect another stay<ArrowRight aria-hidden="true" /></Button>
+        <UpcomingBookingCard booking={booking} onNavigate={onNavigate} statusLabel="Checked out" showRoomBadge={false} hideEyebrow />
+        <section className="guest-before-you-go">
+          <SectionHeading title="Before you go" />
+          <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('transfer-booking')}><Car /><span><b>Need a ride to the airport?</b><small>Book a hotel vehicle for your departure.</small><strong>Book a ride <CaretRight /></strong></span></button>
+          <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('gifts-souvenirs')}><Gift /><span><b>Want something from the gift shop?</b><small>Pick up local treats and souvenirs before you leave.</small><strong>Browse gifts <CaretRight /></strong></span></button>
+        </section>
         <TextButton onClick={() => onNavigate('stay-history')}>View stay history</TextButton>
       </div>
     );
   }
 
   const roomAssignment = describeRoomAssignment(booking);
-  const stayStatus = describeStayStatus(booking);
 
   return (
     <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
-      <div className="guest-stay-hero-card">
-        <div className="guest-stay-hero-card__media">
-          <PropertyImage property={booking.property} aspectRatio="21/9" decorative />
-          <div className="guest-stay-hero-card__badges">
-            {/* Read off the window, not `status`: the badge said "Upcoming"
-                over a stay the dates had under way. */}
-            <Tag tone={stayStatus.status === 'checked-in' ? 'positive' : 'warning'}>{stayStatus.label}</Tag>
-            <span className="guest-tag guest-tag--dark">{booking.city}</span>
-          </div>
-        </div>
-        <div className="guest-stay-hero-card__body">
-          <p className="guest-eyebrow">{greetGuest(session.guestName, stayStatus.status === 'checked-in' ? 'Your stay' : 'Your next stay')}</p>
-          <h1>{booking.property}</h1>
-          <div className="guest-stay-hero-card__stats">
-            <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
-            <div><small>Room</small><b>{booking.roomNumber ? `${booking.roomType} · ${booking.roomNumber}` : `${booking.roomType} · Assigned at arrival`}</b></div>
-            {/* The booking shows who is on the stay, without an extra drill-in. */}
-            <div><small>Guests</small><b>{describeParty(booking, session)}</b></div>
-            <div><small>Nights</small><b>{countNights(booking)}</b></div>
-          </div>
-        </div>
-        {/* No folio row: a stay that has not started cannot have room charges. */}
-        <div className="guest-stay-hero-card__actions">
-          <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
-        </div>
-      </div>
+      <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} showUpgrade={canOfferRoomUpgrade(booking)} />
       {booking.preArrivalCompleted < booking.preArrivalTotal ? (
         <section className="guest-home-booking guest-home-booking--primary">
           <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>
@@ -4099,23 +4110,24 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
           <p>{booking.nextPreArrivalStep ?? 'Review your stay details before arrival.'}</p>
           <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('guest-details')}>Complete pre-arrival<ArrowRight aria-hidden="true" /></Button>
         </section>
-      ) : roomAssignment.state === 'ready' ? (
-        roomReadyDismissed ? null : (
-          <section className="guest-home-booking guest-home-booking--primary" data-testid="guest-room-ready-card">
+      ) : roomAssignment.state !== 'pending' ? (
+        booking.roomVerification ? null : (
+          <section className="guest-home-booking guest-home-booking--primary guest-room-ready-card" data-testid="guest-room-ready-card">
             <div className="guest-home-booking__heading">
-              <div><small>Your room</small><h2>{`Room ${booking.roomNumber ?? 'assigned'} is ready`}</h2></div>
-              <Tag tone="positive">Ready now</Tag>
+              <h2>{`Room ${booking.roomNumber ?? 'assigned'} is ready`}</h2>
             </div>
-            <p>Please proceed to the front desk to collect your key and check in to your room.</p>
-            {booking.honouredPreferences?.length ? (
-              <p className="guest-home-booking__note">Honoured: {booking.honouredPreferences.join(' · ')}</p>
-            ) : null}
+            <p className="guest-home-booking__room-type">
+              <b>{booking.roomType === 'King room' ? 'Deluxe King Room' : booking.roomType}</b>
+              <small>{(booking.honouredPreferences?.length ? booking.honouredPreferences : [session.roomPreferences.floor, session.roomPreferences.bed]).join(' · ')}</small>
+            </p>
+            <p>Your room is now ready. Once inside, scan the room code to connect your stay to the app.</p>
             <Button
               className="guest-button guest-button--primary"
               type="button"
-              onClick={() => setRoomReadyDismissed(true)}
+              data-testid="guest-room-qr-action"
+              onClick={() => onNavigate('scan-room-code')}
             >
-              I understand<ArrowRight aria-hidden="true" />
+              <QrCode aria-hidden="true" />Scan room code<ArrowRight aria-hidden="true" />
             </Button>
           </section>
         )
@@ -4126,9 +4138,6 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
             <Tag tone={roomAssignment.canGoUp ? 'positive' : undefined}>{roomAssignment.statusLabel}</Tag>
           </div>
           <p>{roomAssignment.detail}</p>
-          {roomAssignment.state !== 'pending' && booking.honouredPreferences?.length ? (
-            <p className="guest-home-booking__note">Honoured: {booking.honouredPreferences.join(' · ')}</p>
-          ) : null}
           {roomAssignment.action.tone === 'primary' ? (
             <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate(roomAssignment.action.screen)}>
               {roomAssignment.action.label}<ArrowRight aria-hidden="true" />
@@ -4138,29 +4147,63 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
           )}
         </section>
       )}
-      <AnnouncementsSection />
-      <section>
-        <SectionHeading title="Categories" action="See all" onAction={() => onNavigate('marketplace')} />
-        <div className="guest-miniapp-row" role="group" aria-label="Experience categories">
-          {MINI_APP_CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              className="guest-miniapp-tile"
-              onClick={() => {
-                onSelectCategory(cat.id);
-                onNavigate(cat.screen);
-              }}
-            >
-              <span className={`guest-miniapp-icon guest-miniapp-icon--${cat.tone}`} aria-hidden="true">
-                <CategoryIcon id={cat.id} />
-              </span>
-              <span className="guest-miniapp-tile__label">{cat.shortTitle}</span>
-            </button>
-          ))}
-        </div>
-        <FeaturedRail onOpenCategory={(category) => { onSelectCategory(category); onNavigate('category-listing'); }} />
-      </section>
+      {/*
+        Kept out of sight until the guest has scanned in: services on offer
+        are not a thing to browse before the room itself confirms they are
+        on property.
+      */}
+      {booking.roomVerification ? (
+        <section>
+          <SectionHeading title="Explore Nearby" action="See all" onAction={() => onNavigate('marketplace')} />
+          <div className="guest-category-catalog" role="group" aria-label="Experience categories">
+            {MINI_APP_CATEGORIES.map((cat) => {
+              const cover = getCategoryCoverImage(cat.id);
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className="guest-category-catalog__card"
+                  onClick={() => {
+                    onSelectCategory(cat.id);
+                    onNavigate(cat.screen);
+                  }}
+                >
+                  <Image
+                    src={cover.src}
+                    alt=""
+                    fill
+                    sizes="(max-width: 720px) calc(100vw - 32px), 688px"
+                    style={{ objectPosition: cover.focalPoint }}
+                  />
+                  <span className="guest-category-catalog__scrim" aria-hidden="true" />
+                  <span className="guest-category-catalog__label">{cat.shortTitle}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+      {!booking.roomVerification && booking.status === 'upcoming' ? (
+        <>
+          <button className="guest-transfer-card" type="button" onClick={() => onNavigate('transfer-booking')}>
+            <Car aria-hidden="true" />
+            <span>
+              <b>Need a ride to the hotel?</b>
+              <small>Book a private pick-up with the hotel.</small>
+            </span>
+            <CaretRight aria-hidden="true" />
+          </button>
+          <button className="guest-transfer-card" type="button" onClick={() => onNavigate('pre-arrival-services')}>
+            <Wrench aria-hidden="true" />
+            <span>
+              <b>More arrival services</b>
+              <small>Early check-in, luggage assistance, private driver, and celebration setup</small>
+            </span>
+            <CaretRight aria-hidden="true" />
+          </button>
+        </>
+      ) : null}
+      <AnnouncementsSection booking={booking} />
     </div>
   );
 }
@@ -4224,28 +4267,68 @@ function greetGuest(guestName: string, fallback: string, roomNumber?: string) {
   return roomNumber ? `Welcome, ${first} · Room ${roomNumber}` : `Welcome, ${first}`;
 }
 
-function AnnouncementsSection() {
+function AnnouncementsSection({ booking, compact = false }: { booking?: Booking; compact?: boolean }) {
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<PropertyAnnouncement | null>(null);
+  const [showAllUpdates, setShowAllUpdates] = useState(false);
+  const relevantAnnouncements = booking
+    ? PROPERTY_ANNOUNCEMENTS.filter((announcement) => (
+      announcement.important
+      && announcement.activeFrom <= booking.checkOut
+      && announcement.activeUntil >= booking.checkIn
+    ))
+    : [];
+
+  if (!relevantAnnouncements.length) return null;
+
+  const visibleAnnouncements = relevantAnnouncements.slice(0, 2);
+
   return (
     <section>
-      <SectionHeading title="From the property" />
+      <SectionHeading title="Updates for your stay" />
       <div className="guest-announcements">
-        {PROPERTY_ANNOUNCEMENTS.map((announcement) => (
-          <div key={announcement.id} className={`guest-announcement guest-announcement--${announcement.tone}`}>
+        {visibleAnnouncements.map((announcement) => (
+          <button
+            key={announcement.id}
+            type="button"
+            className={`guest-announcement guest-announcement--${announcement.tone}`}
+            onClick={() => setSelectedAnnouncement(announcement)}
+          >
             <span aria-hidden="true"><Megaphone /></span>
-            <div><b>{announcement.title}</b><p>{announcement.body}</p></div>
-          </div>
+            <div><b>{announcement.title}</b><p>{compact ? announcementPreview(announcement) : announcement.body}</p></div>
+            <CaretRight aria-hidden="true" />
+          </button>
         ))}
       </div>
+      {relevantAnnouncements.length > 2 ? <TextButton onClick={() => setShowAllUpdates(true)}>View all updates</TextButton> : null}
+      {selectedAnnouncement || showAllUpdates ? (
+        <div className="guest-announcement-detail" role="dialog" aria-modal="true" aria-labelledby="announcement-detail-title">
+          <div className="guest-announcement-detail__panel">
+            <button type="button" className="guest-announcement-detail__close" aria-label="Close update" onClick={() => { setSelectedAnnouncement(null); setShowAllUpdates(false); }}><X aria-hidden="true" /></button>
+            <Megaphone aria-hidden="true" />
+            {showAllUpdates ? (
+              <>
+                <h2 id="announcement-detail-title">Updates for your stay</h2>
+                {relevantAnnouncements.map((announcement) => <div key={announcement.id} className="guest-announcement-detail__item"><b>{announcement.title}</b><p>{announcement.body}</p></div>)}
+              </>
+            ) : (
+              <>
+                <h2 id="announcement-detail-title">{selectedAnnouncement?.title}</h2>
+                <p>{selectedAnnouncement?.body}</p>
+              </>
+            )}
+            <Button className="guest-button guest-button--primary" type="button" onClick={() => { setSelectedAnnouncement(null); setShowAllUpdates(false); }}>Done</Button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
 
-const STAY_ENTRY_ICONS: Record<MiniAppCategoryId, ReactNode> = {
-  dining: <ForkKnife />,
-  spa: <Sparkle />,
-  entertainment: <Ticket />,
-  services: <Storefront />,
-};
+function announcementPreview(announcement: PropertyAnnouncement) {
+  if (announcement.id === 'pool-maintenance') return 'The rooftop pool will reopen after weekly maintenance.';
+  if (announcement.id === 'cafe-early-opening') return 'Early breakfast is available for guests with morning departures.';
+  return announcement.body;
+}
 
 /**
  * One booking, as a card that names its parent first.
@@ -4256,34 +4339,18 @@ const STAY_ENTRY_ICONS: Record<MiniAppCategoryId, ReactNode> = {
  * ask.
  */
 function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => void }) {
-  /*
-    One surface, four lines. This card used to be three stacked bands -- a
-    tinted parent header, a body, a bordered footer -- which put twelve
-    horizontal rules down a screen of four bookings and buried the two things
-    a guest scans for. Title and amount now share a line, because "what is it"
-    and "what did it cost" are read together; the parent is a caption above
-    them, and the status sits opposite it where it does not compete.
-  */
+  const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
+  const when = `${entry.date === PROTOTYPE_TODAY ? 'Tonight' : date}${time ? ` · ${time}` : ''}`;
+  const showLocation = entry.title === 'Apartment 1B' || entry.title === 'Azotea Rooftop';
   const body = (
     <>
-      <span className="guest-stay-entry__parent">
-        <span aria-hidden="true">{STAY_ENTRY_ICONS[entry.category]}</span>
-        <span>{entry.parent}{entry.parentDetail ? <em> · {entry.parentDetail}</em> : null}</span>
-      </span>
-
       <span className="guest-stay-entry__headline">
         <h2>{entry.title}</h2>
         <strong>{entry.amount}</strong>
       </span>
-
-      <span className="guest-stay-entry__when">{entry.detail}</span>
-
-      {entry.settlement || onOpen ? (
-        <span className="guest-stay-entry__meta">
-          {entry.settlement ? <small>{entry.settlement}</small> : <span />}
-          {onOpen ? <span className="guest-stay-entry__action">View<CaretRight /></span> : null}
-        </span>
-      ) : null}
+      {showLocation && entry.parentDetail ? <span className="guest-stay-entry__location">{entry.parentDetail}</span> : null}
+      <span className="guest-stay-entry__when">{when}</span>
     </>
   );
 
@@ -4292,23 +4359,32 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
   return <button className="guest-stay-entry" type="button" data-status={entry.status} onClick={onOpen}>{body}</button>;
 }
 
-function UpcomingBookingCard({ booking, primary = false, onNavigate }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void }) {
+function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showUpgrade = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean; showUpgrade?: boolean }) {
   return (
-    <div className={`guest-home-booking guest-upcoming-card ${primary ? 'guest-home-booking--primary' : ''}`}>
-      <div className="guest-upcoming-card__media">
+    <section className="guest-stay-hero-card">
+      <div className="guest-stay-hero-card__media">
         <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
-        <div className="guest-upcoming-card__badges">
-          <Tag tone={primary ? 'positive' : 'neutral'}>{primary ? 'Next arrival' : 'Upcoming'}</Tag>
-          <span className="guest-tag guest-tag--dark">{booking.city}</span>
+        <div className="guest-stay-hero-card__badges">
+          <span className="guest-stay-hero-card__status">{statusLabel ?? (primary ? 'Next arrival' : 'Upcoming')}</span>
+          {showRoomBadge && booking.roomNumber ? <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">Room {booking.roomNumber}</span> : null}
         </div>
       </div>
-      <div className="guest-upcoming-card__content">
-        <h2>{booking.property}</h2>
-        <p>{formatStayDateRange(booking)} · {booking.roomType}</p>
-        <small>{booking.preArrivalCompleted} of {booking.preArrivalTotal} pre-arrival steps complete</small>
-        <Button className="guest-button guest-button--secondary" type="button" onClick={() => onNavigate('rate-detail')}>View booking<ArrowRight aria-hidden="true" /></Button>
+      <div className="guest-stay-hero-card__body">
+        {!hideEyebrow ? <p className="guest-eyebrow">{primary ? 'Your next stay' : 'Upcoming stay'}{booking.roomNumber ? ` · Room ${booking.roomNumber}` : ''}</p> : null}
+        <h1>{booking.property}</h1>
+        <div className="guest-stay-hero-card__stats">
+          <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
+          {booking.roomNumber ? <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber}</b></div> : null}
+          <div><small>Guests</small><b>{booking.guestCount} guests</b></div>
+          <div><small>Nights</small><b>{countNights(booking)}</b></div>
+        </div>
       </div>
-    </div>
+      <div className="guest-stay-hero-card__actions">
+        <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
+        <button className="guest-list-row" onClick={() => onNavigate('chat')} type="button"><span><ChatCircleDots /></span><div><b>Chat with the front desk</b><small>Usually replies in a few minutes</small></div><CaretRight /></button>
+        {showUpgrade ? <button className="guest-list-row" onClick={() => onNavigate('room-upgrades')} type="button"><span><Bed /></span><div><b>Upgrade room</b><small>Explore available rooms for your stay</small></div><CaretRight /></button> : null}
+      </div>
+    </section>
   );
 }
 
@@ -4538,6 +4614,12 @@ function StayCard({ booking }: { booking: Booking }) {
   );
 }
 
+function RoomExtensionCard({ booking, onExtend }: { booking: Booking; onExtend: () => void }) {
+  const eligible = booking.status === 'active' && booking.checkOut > PROTOTYPE_TODAY;
+  if (!eligible) return null;
+  return <section className="guest-extension-card"><div className="guest-extension-card__copy"><CalendarPlus /><div><b>Want to stay longer?</b><small>Ask the front desk if your room is available for another night.</small></div></div><Button className="guest-button guest-button--secondary" type="button" onClick={onExtend}>Ask about extending<ArrowRight /></Button></section>;
+}
+
 function StayMiniCard({ booking, status }: { booking: Booking; status: string }) {
   return <div className="guest-mini-stay"><span><House /></span><div><b>{booking.property}</b><small>{status}</small></div><CheckCircle /></div>;
 }
@@ -4590,6 +4672,26 @@ function FeaturedRail({ onOpenCategory }: { onOpenCategory: (category: MiniAppCa
       ))}
     </ul>
   );
+}
+
+void FeaturedRail;
+
+function ExplorePromotions({ onOpenCategory }: { onOpenCategory: (category: MiniAppCategoryId | 'gifts-souvenirs') => void }) {
+  const railRef = useRef<HTMLUListElement>(null);
+  const [active, setActive] = useState(0);
+  const promotions = [
+    { category: 'spa' as const, label: 'Spa offer', title: 'Relax with the Hilom Signature Massage', detail: 'Traditional Filipino massage from ₱2,400', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1200&q=80' },
+    { category: 'dining' as const, label: 'Dining offer', title: 'Dinner at Azotea Rooftop', detail: 'Ninth-floor dining with Manila views', image: 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1200&q=80' },
+    { category: 'entertainment' as const, label: 'Island tour', title: 'Make a day of it', detail: 'Curated island experiences from the hotel', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80' },
+    { category: 'gifts-souvenirs' as const, label: 'Gift shop', title: 'Take a little Cabana home', detail: 'Local treats and hotel gift bundles', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80' },
+  ];
+  const moveTo = (index: number) => { setActive(index); railRef.current?.children[index]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }); };
+  return <>
+    <ul className="guest-explore-promotions" ref={railRef} onScroll={(event) => { const target = event.currentTarget; const first = target.children[0] as HTMLElement | undefined; if (first) setActive(Math.round(target.scrollLeft / (first.offsetWidth + 10))); }}>
+      {promotions.map((promotion) => <li key={promotion.title}><button type="button" onClick={() => onOpenCategory(promotion.category)}><Image src={promotion.image} alt="" fill sizes="(max-width: 720px) calc(100vw - 48px), 640px" /><span aria-hidden="true" /><div><small>{promotion.label}</small><b>{promotion.title}</b><em>{promotion.detail}</em><strong>View offer <ArrowRight /></strong></div></button></li>)}
+    </ul>
+    <div className="guest-explore-promotions__dots" aria-label="Featured promotions">{promotions.map((promotion, index) => <button key={promotion.title} type="button" className={active === index ? 'is-active' : ''} aria-label={`Go to promotion ${index + 1}`} onClick={() => moveTo(index)} />)}</div>
+  </>;
 }
 
 /** One facet on the filter bar: a pill that opens a sheet of choices. */
@@ -4725,20 +4827,17 @@ function ListingControls({
   nouns,
   narrowed,
   onClear,
+  showCount = true,
 }: {
   facets: Facet[];
   count: number;
   nouns: [string, string];
   narrowed: boolean;
   onClear: () => void;
+  showCount?: boolean;
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
-  const open = facets.filter((facet) => openKey === 'all' || facet.key === openKey);
-  const activeFilterCount = facets.reduce((count, facet) => {
-    if (facet.single) return count + (facet.selected[0] !== facet.options[0]?.value ? 1 : 0);
-    return count + facet.selected.length;
-  }, 0);
-
+  const open = facets.filter((facet) => facet.key === openKey);
   const apply = (draft: Record<string, string[]>) => {
     for (const facet of facets) {
       const next = draft[facet.key];
@@ -4749,17 +4848,6 @@ function ListingControls({
   return (
     <div className="guest-listing-controls">
       <div className="guest-filter-bar">
-        <button
-          type="button"
-          className="guest-filter-bar__all"
-          aria-label={`All filters${narrowed ? ` · ${activeFilterCount} active` : ''}`}
-          aria-controls="guest-filter-sheet"
-          aria-expanded={openKey === 'all'}
-          data-active={narrowed || undefined}
-          onClick={() => setOpenKey('all')}
-        >
-          <SlidersHorizontal aria-hidden="true" />
-        </button>
         {facets.map((facet) => {
           const chosen = facet.selected;
           const active = facet.single ? chosen[0] !== facet.options[0]?.value : chosen.length > 0;
@@ -4782,10 +4870,10 @@ function ListingControls({
           );
         })}
       </div>
-      <p className="guest-listing-status">
-        <span aria-live="polite">{count} {count === 1 ? nouns[0] : nouns[1]}</span>
+      {showCount || narrowed ? <p className="guest-listing-status">
+        {showCount ? <span aria-live="polite">{count} {count === 1 ? nouns[0] : nouns[1]}</span> : null}
         {narrowed ? <button type="button" className="guest-listing-clear" onClick={onClear}>Clear</button> : null}
-      </p>
+      </p> : null}
       {openKey ? (
         <FilterSheet
           key={openKey}
@@ -4799,18 +4887,320 @@ function ListingControls({
   );
 }
 
-function SectionHeading({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
-  return <div className="guest-section-heading"><h2>{title}</h2>{action ? <button onClick={onAction}>{action}<CaretRight /></button> : null}</div>;
+function SectionHeading({ title, action, onAction, count }: { title: string; action?: string; onAction?: () => void; count?: string }) {
+  return <div className="guest-section-heading"><h2>{title}</h2>{count ? <span className="guest-section-heading__count">{count}</span> : action ? <button onClick={onAction}>{action}<CaretRight /></button> : null}</div>;
+}
+
+type NearbyEstablishment = {
+  id: string;
+  categoryId: MiniAppCategoryId | 'gifts';
+  name: string;
+  type: string;
+  distance: string;
+  description: string;
+  address: string;
+  hours: string;
+  contact?: string;
+  image: string;
+};
+
+const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = [
+  { id: 'kape-lab-manila', categoryId: 'dining' as const, name: 'Kape Lab Manila', type: 'Coffee & bakery', distance: '280 m away', description: 'Small-batch coffee, pastries, and early breakfast.', address: '142 Roxas Boulevard, Manila', hours: 'Daily · 6:00 AM–9:00 PM', contact: '+63 917 555 0142', image: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=80' },
+  { id: 'bayleaf-kitchen', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Independent neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: 'https://images.unsplash.com/photo-1515003190562-c5f5f8f1f4f5?auto=format&fit=crop&w=900&q=80' },
+  { id: 'sunset-roasters', categoryId: 'dining', name: 'Sunset Roasters', type: 'Coffee shop', distance: '850 m away', description: 'A relaxed independent café for coffee, tea, and light bites.', address: '77 Roxas Boulevard, Manila', hours: 'Daily · 7:00 AM–8:00 PM', contact: '+63 917 555 0187', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80' },
+  { id: 'hilot-house', categoryId: 'spa' as const, name: 'Hilot House', type: 'Independent wellness studio', distance: '450 m away', description: 'A neighborhood studio for traditional hilot and restorative treatments.', address: '18 Adriatico Street, Manila', hours: 'Mon–Sun · 10:00 AM–10:00 PM', contact: '+63 917 555 0198', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80' },
+  { id: 'bamboo-wellness', categoryId: 'spa', name: 'Bamboo Wellness Studio', type: 'Massage & wellness', distance: '700 m away', description: 'Independent therapists offering calming massages and wellness rituals.', address: '26 Pedro Gil Street, Manila', hours: 'Daily · 9:00 AM–9:00 PM', contact: '+63 917 555 0133', image: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80' },
+  { id: 'quiet-corner-yoga', categoryId: 'spa', name: 'Quiet Corner Yoga', type: 'Yoga studio', distance: '1 km away', description: 'Small group yoga and breathwork classes for all experience levels.', address: '41 Taft Avenue, Manila', hours: 'Mon–Sat · 7:00 AM–8:00 PM', contact: '+63 917 555 0175', image: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=900&q=80' },
+  { id: 'manila-heritage-walks', categoryId: 'entertainment' as const, name: 'Manila Heritage Walks', type: 'Local tours', distance: '1.2 km away', description: 'Independent walking tours through the city’s historic neighborhoods.', address: 'Plaza Roma, Intramuros, Manila', hours: 'Tours daily · 8:00 AM–5:00 PM', contact: '+63 917 555 0120', image: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=900&q=80' },
+  { id: 'sunset-bay-cruises', categoryId: 'entertainment', name: 'Sunset Bay Cruises', type: 'Harbor experience', distance: '2.4 km away', description: 'Independent sunset cruises with views across Manila Bay.', address: 'Harbor Square, Pasay City', hours: 'Daily departures · 4:00 PM–8:00 PM', contact: '+63 917 555 0154', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80' },
+  { id: 'intramuros-cycling', categoryId: 'entertainment', name: 'Intramuros Cycle Tours', type: 'Bike tours', distance: '1.8 km away', description: 'Independent guided bicycle tours through Intramuros and nearby streets.', address: 'General Luna Street, Intramuros, Manila', hours: 'Daily · 7:00 AM–6:00 PM', contact: '+63 917 555 0109', image: 'https://images.unsplash.com/photo-1529422643029-d4585747aaf2?auto=format&fit=crop&w=900&q=80' },
+  { id: 'escolta-craft-market', categoryId: 'services' as const, name: 'Escolta Craft Market', type: 'Handicrafts & gifts', distance: '900 m away', description: 'Independent makers offering local crafts, keepsakes, and small gifts.', address: 'Escolta Street, Binondo, Manila', hours: 'Fri–Sun · 10:00 AM–7:00 PM', contact: 'hello@escoltacraft.example', image: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=900&q=80' },
+  { id: 'manila-laundry-co', categoryId: 'services' as const, name: 'Manila Laundry Co.', type: 'Laundry service', distance: '500 m away', description: 'Independent wash-and-fold service with convenient hotel-area pickup.', address: '12 Harrison Street, Pasay City', hours: 'Daily · 8:00 AM–8:00 PM', contact: '+63 917 555 0181', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=900&q=80' },
+  { id: 'city-bike-rentals', categoryId: 'services' as const, name: 'City Bike Rentals', type: 'Bike rental', distance: '1.1 km away', description: 'Independent bicycle rentals for exploring the bay and nearby neighborhoods.', address: '88 M. H. del Pilar Street, Manila', hours: 'Daily · 7:00 AM–7:00 PM', contact: '+63 917 555 0147', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80' },
+  { id: 'manila-makers-market', categoryId: 'gifts', name: 'Manila Makers Market', type: 'Local crafts & souvenirs', distance: '750 m away', description: 'Independent makers offering keepsakes, home décor, and pasalubong.', address: '33 Escolta Street, Manila', hours: 'Tue–Sun · 10:00 AM–7:00 PM', contact: '+63 917 555 0116', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
+  { id: 'binondo-pasalubong', categoryId: 'gifts', name: 'Binondo Pasalubong House', type: 'Local delicacies', distance: '1.4 km away', description: 'Independent shop for regional snacks, sweets, and take-home treats.', address: '168 Ongpin Street, Binondo, Manila', hours: 'Daily · 9:00 AM–8:00 PM', contact: '+63 917 555 0128', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80' },
+  { id: 'artisan-home-studio', categoryId: 'gifts', name: 'Artisan Home Studio', type: 'Home décor & crafts', distance: '1.6 km away', description: 'Independent local artists’ studio with ceramics, candles, and small décor.', address: '52 Escolta Street, Manila', hours: 'Wed–Sun · 10:00 AM–6:00 PM', contact: '+63 917 555 0170', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=900&q=80' },
+];
+
+const ROOM_UPGRADES = [
+  { id: 'deluxe-king-512', name: 'Deluxe King Room', type: 'Higher-floor room', features: 'King bed · Bay view · Larger workspace', guests: '2 guests', price: '₱3,600', transfer: 'Ready now · About 15 minutes to transfer', transferDeadline: '6:00 PM today', roomNumber: '512', image: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80' },
+  { id: 'garden-suite-608', name: 'Garden Suite', type: 'Suite upgrade', features: 'King bed · Separate sitting area · Balcony', guests: '3 guests', price: '₱6,000', transfer: 'Ready in about 30 minutes', transferDeadline: '8:00 PM today', roomNumber: '608', image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80' },
+] as const;
+
+function canOfferRoomUpgrade(booking: Booking) {
+  return (booking.status === 'active' || booking.status === 'upcoming') && booking.checkOut > PROTOTYPE_TODAY;
+}
+
+function NearbyRecommendations({ categoryId, description, onSelect }: { categoryId: MiniAppCategoryId; description: string; onSelect: (id: string) => void }) {
+  const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
+  if (!recommendations.length) return null;
+  return <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">{description}</p><div className="guest-nearby-list">{recommendations.map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelect(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small><small>{item.distance}</small><p>{item.description}</p></span><CaretRight /></button>)}</div></section>;
+}
+
+function NearbyEstablishmentScreen({ establishment, onBookRide }: { establishment: NearbyEstablishment; onBookRide: () => void }) {
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(establishment.address)}`;
+  return <div className="guest-stack guest-establishment-detail">
+    <div className="guest-establishment-cover"><Image src={establishment.image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></div>
+    <div className="guest-page-title"><p className="guest-eyebrow">Nearby recommendation · Independently operated</p><h1>{establishment.name}</h1><p>{establishment.type} · {establishment.distance}</p></div>
+    <Notice title="Outside the hotel">This establishment is independently operated and is not part of the hotel.</Notice>
+    <p className="guest-establishment-description">{establishment.description}</p>
+    <div className="guest-summary"><SummaryRow label="Address" value={establishment.address} /><SummaryRow label="Distance" value={establishment.distance} /><SummaryRow label="Operating hours" value={establishment.hours} />{establishment.contact ? <SummaryRow label="Contact" value={establishment.contact} /> : null}</div>
+    <a className="guest-location-row" href={mapsUrl} target="_blank" rel="noreferrer"><MapPin /><span><b>{establishment.address}</b><small>View on Google Maps</small></span><CaretRight /></a>
+    <Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button>
+  </div>;
+}
+
+const GIFT_PRODUCTS = [
+  { group: 'Local Favorites', name: 'Artisan pasalubong box', price: '₱850', availability: 'Available today', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Local Favorites', name: 'Handwoven market tote', price: '₱680', availability: 'Limited stock', image: 'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Food & Treats', name: 'Single-origin Philippine coffee', price: '₱420', availability: 'Available today', image: 'https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Food & Treats', name: 'Dried mango & cacao set', price: '₱560', availability: 'Available today', image: 'https://images.unsplash.com/photo-1599599810694-57a3e2b5b2b2?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Hotel Exclusives', name: 'Cabana embroidered cap', price: '₱750', availability: 'Available today', image: 'https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Hotel Exclusives', name: 'Cabana slippers & shirt set', price: '₱1,250', availability: 'Available today', image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Crafts & Keepsakes', name: 'Handmade ceramic keepsake', price: '₱980', availability: 'Limited stock', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Crafts & Keepsakes', name: 'Postcard & magnet set', price: '₱280', availability: 'Available today', image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Gift Sets', name: 'Wellness bath set', price: '₱1,100', availability: 'Available today', image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Gift Sets', name: 'Seasonal Manila bundle', price: '₱1,450', availability: 'Limited edition', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=700&q=80' },
+] as const;
+
+const MENU_ITEM_IMAGE_URLS: Record<string, string> = {
+  'a1b-calamari': 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=600&q=80',
+  'a1b-ribeye': 'https://images.unsplash.com/photo-1546964124-0cce460f38ef?auto=format&fit=crop&w=600&q=80',
+  'a1b-1': 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=600&q=80',
+  'a1b-2': 'https://images.unsplash.com/photo-1546793665-c74683f339c1?auto=format&fit=crop&w=600&q=80',
+  'a1b-3': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=600&q=80',
+  'a1b-4': 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80',
+  'a1b-5': 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=600&q=80',
+  'a1b-6': 'https://images.unsplash.com/photo-1476124369491-eea7f0d3b5c5?auto=format&fit=crop&w=600&q=80',
+  'a1b-7': 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a5b0?auto=format&fit=crop&w=600&q=80',
+  'a1b-8': 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=600&q=80',
+  'a1b-9': 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=600&q=80',
+  'a1b-10': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=600&q=80',
+  'a1b-11': 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=600&q=80',
+  'ird-1': 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=600&q=80',
+  'ird-2': 'https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=600&q=80',
+  'ird-3': 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=600&q=80',
+  'ird-4': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80',
+  'ird-5': 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
+  'ird-6': 'https://images.unsplash.com/photo-1515003190562-c5f5f8f1f4f5?auto=format&fit=crop&w=600&q=80',
+  'ird-7': 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=600&q=80',
+  'ird-8': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80',
+};
+
+function getMenuItemImage(itemId: string, categoryId = 'dining') {
+  return MENU_ITEM_IMAGE_URLS[itemId] ?? getItemThumbnail(itemId, categoryId).src;
+}
+
+function PaymentChoice({ provider, roomNumber, value, method, onChange, onMethodChange }: { provider: string; roomNumber?: string; value: 'room' | 'pay-now' | null; method: 'card' | 'gcash' | 'maya' | null; onChange: (value: 'room' | 'pay-now') => void; onMethodChange: (value: 'card' | 'gcash' | 'maya') => void }) {
+  return <fieldset className="guest-payment-choice"><legend>How would you like to pay?</legend><p className="guest-provider-label">{provider}</p><div className="guest-payment-options">{roomNumber ? <button type="button" aria-pressed={value === 'room'} className={value === 'room' ? 'is-active' : ''} onClick={() => onChange('room')}><b>Charge to Room {roomNumber}</b><small>Add this purchase to your hotel bill and settle it at checkout.</small></button> : null}<button type="button" aria-pressed={value === 'pay-now'} className={value === 'pay-now' ? 'is-active' : ''} onClick={() => onChange('pay-now')}><b>Pay now</b><small>Pay securely using your preferred payment method.</small></button></div>{value === 'pay-now' ? <div className="guest-payment-method-sheet" role="dialog" aria-label="Payment methods"><b>Choose a payment method</b><button type="button" className={method === 'card' ? 'is-active' : ''} onClick={() => onMethodChange('card')}><CreditCard />Card</button><button type="button" className={method === 'gcash' ? 'is-active' : ''} onClick={() => onMethodChange('gcash')}>GCash</button><button type="button" className={method === 'maya' ? 'is-active' : ''} onClick={() => onMethodChange('maya')}>Maya</button></div> : null}</fieldset>;
+}
+
+type OrderTrayItem = { id: string; name: string; unitPrice: string; quantity: number; image: string };
+
+function LegacyOrderTray({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; quantity?: number; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
+  void title;
+  const [page, setPage] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [fulfillment, setFulfillment] = useState<'room' | 'pickup' | null>(null);
+  const [schedule, setSchedule] = useState<'asap' | 'later' | null>(null);
+  const [payment, setPayment] = useState<'room' | 'pay-now' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
+  const canChargeRoom = Boolean(roomNumber);
+  const canContinue = page === 2 ? Boolean(fulfillment) : page === 3 ? Boolean(schedule) : page === 4 ? Boolean(payment) && (payment !== 'pay-now' || Boolean(paymentMethod)) : true;
+  const goBack = () => setPage((current) => current === 1 ? 1 : (current - 1) as 1 | 2 | 3 | 4 | 5);
+  const next = () => setPage((current) => (current + 1) as 1 | 2 | 3 | 4 | 5);
+  return <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="guest-order-tray guest-order-tray--multipage" role="dialog" aria-modal="true" aria-labelledby="order-tray-title"><div className="guest-order-tray__header"><div>{page > 1 ? <button className="guest-order-tray__back" type="button" onClick={goBack} aria-label="Back"><ArrowLeft /></button> : null}<h2 id="order-tray-title">{page === 1 ? 'Your order' : page === 2 ? 'How would you like to receive your order?' : page === 3 ? (fulfillment === 'pickup' ? 'When would you like to pick it up?' : 'When would you like it delivered?') : page === 4 ? 'How would you like to pay?' : 'Review and confirm'}</h2><p>{establishment}</p></div><button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button></div>{page === 1 ? <><div className="guest-order-tray__items">{items.map((item) => <div className="guest-order-tray__item" key={item.id}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.unitPrice} each</small></span><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => onChangeQuantity(item.id, -1)}><Minus /></button><output>{item.quantity}</output><button type="button" aria-label={`Increase ${item.name}`} onClick={() => onChangeQuantity(item.id, 1)}><Plus /></button></div><button className="guest-order-tray__remove" type="button" onClick={() => onChangeQuantity(item.id, -item.quantity)}>Remove</button></div>)}</div><div className="guest-order-tray__total"><span>Items <b>{items.reduce((count, item) => count + item.quantity, 0)}</b></span><strong>Subtotal <b>{total}</b></strong></div><Button className="guest-button guest-button--primary" type="button" onClick={() => setPage(2)}>Checkout · {total}<ArrowRight /></Button></> : page === 2 ? <><div className="guest-tray-options"><button className={fulfillment === 'room' ? 'is-active' : ''} type="button" disabled={!canChargeRoom} onClick={() => setFulfillment('room')}><b>Deliver to room</b><small>{roomNumber ? `Room ${roomNumber}` : 'Room assignment required'}</small>{fulfillment === 'room' ? <Check /> : null}</button><button className={fulfillment === 'pickup' ? 'is-active' : ''} type="button" onClick={() => setFulfillment('pickup')}><b>Pick up</b><small>Hotel lobby</small>{fulfillment === 'pickup' ? <Check /> : null}</button></div><Button className="guest-button guest-button--primary" type="button" disabled={!canContinue} onClick={next}>Continue<ArrowRight /></Button></> : page === 3 ? <><div className="guest-tray-options guest-tray-options--stacked"><button className={schedule === 'asap' ? 'is-active' : ''} type="button" onClick={() => setSchedule('asap')}><b>As soon as possible</b><small>{fulfillment === 'pickup' ? 'Ready in about 20–30 minutes' : 'Estimated delivery in 30–40 minutes'}</small>{schedule === 'asap' ? <Check /> : null}</button><button className={schedule === 'later' ? 'is-active' : ''} type="button" onClick={() => setSchedule('later')}><b>Schedule for later</b><small>Choose an available date and time</small>{schedule === 'later' ? <Check /> : null}</button></div><Button className="guest-button guest-button--primary" type="button" disabled={!canContinue} onClick={next}>Continue<ArrowRight /></Button></> : page === 4 ? <><PaymentChoice provider={establishment} roomNumber={roomNumber} value={payment} method={paymentMethod} onChange={setPayment} onMethodChange={setPaymentMethod} /><Button className="guest-button guest-button--primary" type="button" disabled={!canContinue} onClick={next}>Review order<ArrowRight /></Button></> : <><div className="guest-order-tray__review"><SummaryRow label="Establishment" value={establishment} /><SummaryRow label="Items" value={`${items.reduce((count, item) => count + item.quantity, 0)}`} /><SummaryRow label="Fulfillment" value={fulfillment === 'room' ? `Deliver to room ${roomNumber}` : 'Pick up · Hotel lobby'} /><SummaryRow label="Schedule" value={schedule === 'asap' ? 'As soon as possible' : 'Scheduled for later'} /><SummaryRow label="Payment" value={payment === 'room' ? `Charge to Room ${roomNumber}` : `Pay now · ${paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'maya' ? 'Maya' : 'Card'}`} /><SummaryRow label="Subtotal" value={total} /><SummaryRow label="Total" value={total} strong /></div><Button className="guest-button guest-button--primary" type="button" onClick={onCheckout}>{payment === 'room' ? `Charge ${total} to room` : `Pay ${total} now`}<ArrowRight /></Button></>}</section></div>;
+}
+
+void LegacyOrderTray;
+void LegacyOrderTray2;
+void LegacyOrderTray3;
+
+function LegacyOrderTray3({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
+  const [page, setPage] = useState(1);
+  const [fulfillment, setFulfillment] = useState<'room' | 'pickup' | null>(null);
+  const [schedule, setSchedule] = useState<'asap' | 'later' | null>(null);
+  const [payment, setPayment] = useState<'room' | 'pay-now' | null>(null);
+  const [method, setMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
+  const count = items.reduce((sum, item) => sum + item.quantity, 0);
+  const ready = page === 2 ? Boolean(fulfillment) : page === 3 ? Boolean(schedule) : page === 4 ? Boolean(payment && (payment === 'room' || method)) : true;
+  const heading = page === 1 ? title : page === 2 ? 'Complete your order' : page === 3 ? (fulfillment === 'pickup' ? 'When would you like to pick it up?' : 'When would you like it delivered?') : page === 4 ? 'How would you like to pay?' : 'Review and confirm';
+  return <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="guest-order-tray guest-order-tray--multipage" role="dialog" aria-modal="true" aria-labelledby="order-tray-title"><header className="guest-order-tray__header"><div>{page > 1 ? <button className="guest-order-tray__back" type="button" onClick={() => setPage((current) => current - 1)} aria-label="Back"><ArrowLeft /></button> : null}<h2 id="order-tray-title">{heading}</h2>{page === 1 ? <p>{establishment}</p> : null}</div><button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button></header><div className="guest-order-tray__scroll">{page === 1 ? <><div className="guest-order-tray__items">{items.map((item) => <div className="guest-order-tray__item" key={item.id}><Image src={item.image} alt="" width={72} height={72} /><span><b>{item.name}</b><small>{item.unitPrice} each</small></span><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => onChangeQuantity(item.id, -1)}><Minus /></button><output>{item.quantity}</output><button type="button" aria-label={`Increase ${item.name}`} onClick={() => onChangeQuantity(item.id, 1)}><Plus /></button></div><button className="guest-order-tray__remove" type="button" onClick={() => onChangeQuantity(item.id, -item.quantity)}>Remove</button></div>)}</div></> : page === 2 ? <section className="guest-tray-page"><h3>How would you like to receive your order?</h3><div className="guest-tray-options"><button type="button" className={fulfillment === 'room' ? 'is-active' : ''} disabled={!roomNumber} onClick={() => setFulfillment('room')}><b>Deliver to room</b>{fulfillment === 'room' ? <Check /> : null}</button><button type="button" className={fulfillment === 'pickup' ? 'is-active' : ''} onClick={() => setFulfillment('pickup')}><b>Pick up</b>{fulfillment === 'pickup' ? <Check /> : null}</button></div></section> : page === 3 ? <section className="guest-tray-page"><div className="guest-tray-options guest-tray-options--stacked"><button type="button" className={schedule === 'asap' ? 'is-active' : ''} onClick={() => setSchedule('asap')}><b>As soon as possible</b><small>30–40 minutes</small>{schedule === 'asap' ? <Check /> : null}</button><button type="button" className={schedule === 'later' ? 'is-active' : ''} onClick={() => setSchedule('later')}><b>Schedule for later</b><small>Choose a date and time</small>{schedule === 'later' ? <Check /> : null}</button></div></section> : page === 4 ? <section className="guest-tray-page"><div className="guest-tray-options guest-tray-options--stacked"><button type="button" className={payment === 'room' ? 'is-active' : ''} disabled={!roomNumber} onClick={() => setPayment('room')}><b>Charge to Room {roomNumber}</b><small>Added to your hotel bill.</small>{payment === 'room' ? <Check /> : null}</button><button type="button" className={payment === 'pay-now' ? 'is-active' : ''} onClick={() => setPayment('pay-now')}><b>Pay now</b><small>Choose a payment method.</small>{payment === 'pay-now' ? <Check /> : null}</button></div>{payment === 'pay-now' ? <div className="guest-payment-method-sheet">{(['card', 'gcash', 'maya'] as const).map((option) => <button key={option} type="button" className={method === option ? 'is-active' : ''} onClick={() => setMethod(option)}>{option === 'card' ? 'Card' : option === 'gcash' ? 'GCash' : 'Maya'}</button>)}</div> : null}</section> : <section className="guest-tray-page guest-order-tray__review"><SummaryRow label="Establishment" value={establishment} /><SummaryRow label="Items" value={`${count}`} /><SummaryRow label="Fulfillment" value={fulfillment === 'room' ? `Deliver to room ${roomNumber}` : 'Pick up · Hotel lobby'} /><SummaryRow label="Schedule" value={schedule === 'asap' ? 'As soon as possible · 30–40 minutes' : 'Scheduled for later'} /><SummaryRow label="Payment" value={payment === 'room' ? `Charge to Room ${roomNumber}` : `Pay now · ${method ?? 'Card'}`} /><SummaryRow label="Subtotal" value={total} /><SummaryRow label="Total" value={total} strong /></section>}</div>{page === 1 ? <div className="guest-order-tray__total"><span>Items <b>{count}</b></span><strong>Subtotal <b>{total}</b></strong></div> : null}<footer className="guest-order-tray__footer"><Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => page === 5 ? onCheckout() : setPage((current) => current + 1)}>{page === 1 ? `Checkout · ${total}` : page === 5 ? (payment === 'room' ? `Charge ${total} to room` : `Pay ${total} now`) : page === 4 ? 'Review order' : 'Continue'}<ArrowRight /></Button></footer></section></div>;
+}
+
+function LegacyOrderTray2({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
+  void title;
+  const [page, setPage] = useState<1 | 2 | 3>(1);
+  const [fulfillment, setFulfillment] = useState<'room' | 'pickup' | null>(null);
+  const [schedule, setSchedule] = useState<'asap' | 'later' | null>(null);
+  const [payment, setPayment] = useState<'room' | 'pay-now' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
+  const itemCount = items.reduce((count, item) => count + item.quantity, 0);
+  const canContinue = Boolean(fulfillment && schedule && payment && (payment !== 'pay-now' || paymentMethod));
+  const back = () => setPage((current) => current === 1 ? 1 : (current - 1) as 1 | 2 | 3);
+  return <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="guest-order-tray guest-order-tray--multipage" role="dialog" aria-modal="true" aria-labelledby="order-tray-title"><header className="guest-order-tray__header"><div>{page > 1 ? <button className="guest-order-tray__back" type="button" onClick={back} aria-label="Back"><ArrowLeft /></button> : null}<h2 id="order-tray-title">{page === 1 ? 'Your order' : page === 2 ? 'Complete your order' : 'Review and confirm'}</h2><p>{establishment}</p></div><button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button></header>{page === 1 ? <><div className="guest-order-tray__items">{items.map((item) => <div className="guest-order-tray__item" key={item.id}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.unitPrice} each</small></span><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => onChangeQuantity(item.id, -1)}><Minus /></button><output>{item.quantity}</output><button type="button" aria-label={`Increase ${item.name}`} onClick={() => onChangeQuantity(item.id, 1)}><Plus /></button></div><button className="guest-order-tray__remove" type="button" onClick={() => onChangeQuantity(item.id, -item.quantity)}>Remove</button></div>)}</div><div className="guest-order-tray__total"><span>Items <b>{itemCount}</b></span><strong>Subtotal <b>{total}</b></strong></div><Button className="guest-button guest-button--primary" type="button" onClick={() => setPage(2)}>Checkout · {total}<ArrowRight /></Button></> : page === 2 ? <><div className="guest-tray-checkout"><section><h3>How would you like to receive your order?</h3><div className="guest-tray-options"><button className={fulfillment === 'room' ? 'is-active' : ''} type="button" disabled={!roomNumber} onClick={() => setFulfillment('room')}><b>Deliver to room</b><small>{roomNumber ? `Room ${roomNumber}` : 'Room assignment required'}</small>{fulfillment === 'room' ? <Check /> : null}</button><button className={fulfillment === 'pickup' ? 'is-active' : ''} type="button" onClick={() => setFulfillment('pickup')}><b>Pick up</b><small>Hotel lobby</small>{fulfillment === 'pickup' ? <Check /> : null}</button></div></section><section><h3>{fulfillment === 'pickup' ? 'When would you like to pick it up?' : 'When would you like it delivered?'}</h3><div className="guest-tray-options guest-tray-options--stacked"><button className={schedule === 'asap' ? 'is-active' : ''} type="button" disabled={!fulfillment} onClick={() => setSchedule('asap')}><b>As soon as possible</b><small>{fulfillment === 'pickup' ? 'Ready in about 20–30 minutes' : 'Estimated delivery in 30–40 minutes'}</small>{schedule === 'asap' ? <Check /> : null}</button><button className={schedule === 'later' ? 'is-active' : ''} type="button" disabled={!fulfillment} onClick={() => setSchedule('later')}><b>Schedule for later</b><small>Choose an available date and time</small>{schedule === 'later' ? <Check /> : null}</button></div></section><section><h3>How would you like to pay?</h3><PaymentChoice provider={establishment} roomNumber={roomNumber} value={payment} method={paymentMethod} onChange={setPayment} onMethodChange={setPaymentMethod} /></section></div><Button className="guest-button guest-button--primary" type="button" disabled={!canContinue} onClick={() => setPage(3)}>Review order<ArrowRight /></Button></> : <><div className="guest-order-tray__review"><SummaryRow label="Establishment" value={establishment} /><SummaryRow label="Items" value={`${itemCount}`} /><SummaryRow label="Fulfillment" value={fulfillment === 'room' ? `Deliver to room ${roomNumber}` : 'Pick up · Hotel lobby'} /><SummaryRow label="Schedule" value={schedule === 'asap' ? 'As soon as possible' : 'Scheduled for later'} /><SummaryRow label="Payment" value={payment === 'room' ? `Charge to Room ${roomNumber}` : `Pay now · ${paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'maya' ? 'Maya' : 'Card'}`} /><SummaryRow label="Total" value={total} strong /></div><Button className="guest-button guest-button--primary" type="button" onClick={onCheckout}>{payment === 'room' ? `Charge ${total} to room` : `Pay ${total} now`}<ArrowRight /></Button></>}</section></div>;
+}
+
+function OrderTray({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
+  void title;
+  const [page, setPage] = useState<'summary' | 'checkout' | 'review'>('summary');
+  const [fulfillment, setFulfillment] = useState<'room' | 'pickup' | null>(null);
+  const [schedule, setSchedule] = useState<'asap' | 'later' | null>(null);
+  const [scheduledDate, setScheduledDate] = useState('Today · Nov 11');
+  const [scheduledTime, setScheduledTime] = useState('7:30 PM');
+  const [payment, setPayment] = useState<'room' | 'pay-now' | null>(null);
+  const [method, setMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
+  const count = items.reduce((sum, item) => sum + item.quantity, 0);
+  const ready = Boolean(fulfillment && schedule && (schedule !== 'later' || (scheduledDate && scheduledTime)) && payment && (payment === 'room' || method));
+  const paymentLabel = method === 'gcash' ? 'GCash' : method === 'maya' ? 'Maya' : 'Card';
+
+  return (
+    <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="guest-order-tray guest-order-tray--multipage" role="dialog" aria-modal="true" aria-labelledby="order-tray-title">
+        <header className="guest-order-tray__header">
+          <div className="guest-order-tray__heading">
+            {page !== 'summary' ? <button className="guest-order-tray__back" type="button" onClick={() => setPage(page === 'review' ? 'checkout' : 'summary')} aria-label="Back"><ArrowLeft /></button> : null}
+            <div><h2 id="order-tray-title">{page === 'summary' ? 'Your order' : page === 'checkout' ? 'Complete your order' : 'Review and confirm'}</h2>{page === 'summary' ? <p>{establishment}</p> : page === 'checkout' ? <p>{establishment}</p> : null}</div>
+          </div>
+          <button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button>
+        </header>
+
+        <div className="guest-order-tray__scroll">
+          {page === 'summary' ? <div className="guest-tray-page">
+            <div className="guest-order-tray__items">{items.map((item) => <div className="guest-order-tray__item" key={item.id}>
+              <Image src={item.image} alt="" width={72} height={72} />
+              <span><b>{item.name}</b><small>{item.unitPrice} each</small></span>
+              <div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => onChangeQuantity(item.id, -1)}><Minus /></button><output>{item.quantity}</output><button type="button" aria-label={`Increase ${item.name}`} onClick={() => onChangeQuantity(item.id, 1)}><Plus /></button></div>
+              <button className="guest-order-tray__remove" type="button" onClick={() => onChangeQuantity(item.id, -item.quantity)}>Remove</button>
+            </div>)}</div>
+            <div className="guest-order-tray__total"><span>Items <b>{count}</b></span><strong>Subtotal <b>{total}</b></strong></div>
+          </div> : null}
+
+          {page === 'checkout' ? <div className="guest-tray-page guest-tray-checkout">
+            <section><h3>How would you like to receive your order?</h3><div className="guest-tray-options guest-tray-options--compact">
+              <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} disabled={!roomNumber} onClick={() => setFulfillment('room')}><b>Deliver to room</b>{fulfillment === 'room' ? <Check /> : null}</button>
+              <button type="button" className={fulfillment === 'pickup' ? 'is-active' : ''} onClick={() => setFulfillment('pickup')}><b>Pick up</b>{fulfillment === 'pickup' ? <Check /> : null}</button>
+            </div></section>
+            <section><h3>{fulfillment === 'pickup' ? 'When would you like to pick it up?' : 'When would you like it delivered?'}</h3><div className="guest-tray-options guest-tray-options--stacked guest-tray-options--compact">
+              <button type="button" disabled={!fulfillment} className={schedule === 'asap' ? 'is-active' : ''} onClick={() => setSchedule('asap')}><b>As soon as possible</b><small>30–40 minutes</small>{schedule === 'asap' ? <Check /> : null}</button>
+              <button type="button" disabled={!fulfillment} className={schedule === 'later' ? 'is-active' : ''} onClick={() => setSchedule('later')}><b>Schedule for later</b><small>Choose a date and time</small>{schedule === 'later' ? <Check /> : null}</button>
+            </div></section>
+            {schedule === 'later' ? <div className="guest-tray-schedule-picker"><div><span>Date</span><div className="guest-tray-schedule-options">{['Today · Nov 11', 'Tomorrow · Nov 12'].map((date) => <button key={date} type="button" className={scheduledDate === date ? 'is-active' : ''} onClick={() => setScheduledDate(date)}>{date}</button>)}</div></div><div><span>Time</span><div className="guest-tray-schedule-options">{['6:30 PM', '7:00 PM', '7:30 PM'].map((time) => <button key={time} type="button" className={scheduledTime === time ? 'is-active' : ''} onClick={() => setScheduledTime(time)}>{time}</button>)}</div></div></div> : null}
+            <section><h3>How would you like to pay?</h3><div className="guest-tray-options guest-tray-options--stacked guest-tray-options--compact">
+              {roomNumber ? <button type="button" className={payment === 'room' ? 'is-active' : ''} onClick={() => setPayment('room')}><b>Charge to Room {roomNumber}</b><small>Added to your hotel bill.</small>{payment === 'room' ? <Check /> : null}</button> : null}
+              <button type="button" className={payment === 'pay-now' ? 'is-active' : ''} onClick={() => setPayment('pay-now')}><b>Pay now</b><small>{method ? `Payment method: ${paymentLabel}` : 'Choose a payment method.'}</small>{payment === 'pay-now' ? <Check /> : null}</button>
+            </div>{payment === 'pay-now' ? <div className="guest-payment-method-sheet"><span>Payment method</span>{(['card', 'gcash', 'maya'] as const).map((option) => <button key={option} type="button" className={method === option ? 'is-active' : ''} onClick={() => setMethod(option)}>{option === 'card' ? 'Card' : option === 'gcash' ? 'GCash' : 'Maya'}</button>)}</div> : null}</section>
+            <div className="guest-order-tray__price-summary"><SummaryRow label="Items" value={`${count}`} /><SummaryRow label="Subtotal" value={total} strong /></div>
+          </div> : null}
+
+          {page === 'review' ? <div className="guest-tray-page guest-order-tray__review"><SummaryRow label="Establishment" value={establishment} /><SummaryRow label="Items" value={`${count}`} /><SummaryRow label="Fulfillment" value={fulfillment === 'room' ? `Deliver to room ${roomNumber}` : 'Pick up · Hotel lobby'} /><SummaryRow label="Schedule" value={schedule === 'asap' ? 'As soon as possible · 30–40 minutes' : `${scheduledDate} · ${scheduledTime}`} /><SummaryRow label="Payment" value={payment === 'room' ? `Charge to Room ${roomNumber}` : `Pay now · ${paymentLabel}`} /><SummaryRow label="Subtotal" value={total} /><SummaryRow label="Total" value={total} strong /></div> : null}
+        </div>
+
+        <footer className="guest-order-tray__footer"><Button className="guest-button guest-button--primary" type="button" disabled={page === 'checkout' && !ready} onClick={() => page === 'summary' ? setPage('checkout') : page === 'checkout' ? setPage('review') : onCheckout()}>{page === 'summary' ? 'Checkout' : page === 'checkout' ? 'Review order' : payment === 'room' ? `Charge ${total} to room` : `Pay ${total} now`}<ArrowRight /></Button></footer>
+      </section>
+    </div>
+  );
+}
+
+function GiftsSouvenirsScreen({ booking, fulfillment, cart, onChangeQuantity, onOpenCart, giftType, onGiftTypeChange, giftSort, onGiftSortChange, onSelectNearby }: { booking: Booking; fulfillment: 'room' | 'lobby'; cart: Record<string, number>; onChangeQuantity: (name: string, delta: number) => void; onOpenCart: () => void; giftType: string[]; onGiftTypeChange: (value: string[]) => void; giftSort: ListingSort; onGiftSortChange: (value: ListingSort) => void; onSelectNearby: (id: string) => void }) {
+  const groups = [...new Set(GIFT_PRODUCTS.map((product) => product.group))];
+  const displayedFulfillment = booking.status === 'completed' ? 'lobby' : fulfillment;
+  const visibleProducts = GIFT_PRODUCTS.filter((product) => !giftType.length || giftType.includes(product.group));
+  const giftFacets: Facet[] = [{ key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [giftSort], onChange: (next) => onGiftSortChange(next[0] as ListingSort) }, { key: 'type', label: 'Type', options: groups.map((group) => ({ value: group, label: group })), selected: giftType, onChange: onGiftTypeChange }];
+  return (
+    <div className="guest-stack guest-gifts-screen">
+      <div className="guest-establishment-cover">
+        <Image src={GIFT_PRODUCTS[0].image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" />
+      </div>
+      <div className="guest-page-title">
+        <p className="guest-eyebrow">Make the most of your stay</p>
+        <h1>Gifts &amp; Souvenirs</h1>
+        <p>Explore gifts and souvenirs available at the hotel and from nearby independent shops.</p>
+        <div className="guest-establishment-meta"><span>Operated by the hotel</span><span><MapPin size={15} /> The Henry Manila · Hotel lobby</span><span>Daily · 8:00 AM–10:00 PM</span></div>
+      </div>
+      <SectionHeading title="At the hotel" count={`${visibleProducts.length} options`} />
+      <ListingControls facets={giftFacets} count={visibleProducts.length} nouns={['option', 'options']} narrowed={giftType.length > 0 || giftSort !== 'recommended'} showCount={false} onClear={() => { onGiftTypeChange([]); onGiftSortChange('recommended'); }} />
+      {groups.map((group) => (
+        <section key={group}>
+          <SectionHeading title={group} />
+          <div className="guest-gift-grid">
+            {visibleProducts.filter((product) => product.group === group).map((product) => (
+                <article className="guest-gift-card" key={product.name}>
+                  <div className="guest-gift-card__thumb"><Image src={product.image} alt="" fill sizes="92px" /></div>
+                  <div><h2>{product.name}</h2><strong>{product.price}</strong><small>{product.availability} · {displayedFulfillment === 'room' ? 'Deliver to room' : 'Pick up at the lobby'}</small></div>
+                  <div className="guest-gift-card__actions">{cart[product.name] ? <div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output aria-live="polite">{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div> : <button className="guest-menu-add guest-menu-add--round" type="button" aria-label={`Add ${product.name}`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button>}</div>
+                </article>
+            ))}
+          </div>
+        </section>
+      ))}
+      {Object.values(cart).some((quantity) => quantity > 0) ? <button className="guest-mini-cart" type="button" onClick={onOpenCart}><span><small>Gift order</small><b>{Object.values(cart).reduce((sum, quantity) => sum + quantity, 0)} items</b></span><strong>{formatPesoAmount(GIFT_PRODUCTS.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0))}</strong><CaretRight /></button> : null}
+      <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">Nearby shops for gifts, local products, and souvenirs.</p><div className="guest-nearby-list">{NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === 'gifts').map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelectNearby(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small><small>{item.distance}</small><p>{item.description}</p></span><CaretRight /></button>)}</div></section>
+    </div>
+  );
+}
+
+void GiftsSouvenirsScreen;
+
+function GiftOrderCartScreen({ fulfillment, onFulfillmentChange, cart, onChangeQuantity, onConfirm, onBack, booking, payment, paymentMethod, onPaymentChange, onPaymentMethodChange }: { fulfillment: 'room' | 'lobby'; onFulfillmentChange: (value: 'room' | 'lobby') => void; cart: Record<string, number>; onChangeQuantity: (name: string, delta: number) => void; onConfirm: () => void; onBack: () => void; booking: Booking; payment: 'room' | 'pay-now' | null; paymentMethod: 'card' | 'gcash' | 'maya' | null; onPaymentChange: (value: 'room' | 'pay-now') => void; onPaymentMethodChange: (value: 'card' | 'gcash' | 'maya') => void }) {
+  const checkedOut = booking.status === 'completed';
+  const items = GIFT_PRODUCTS.filter((product) => (cart[product.name] ?? 0) > 0);
+  const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0);
+  return <div className="guest-stack guest-order-cart"><div className="guest-page-title"><p className="guest-eyebrow">Gifts &amp; Souvenirs</p><h1>Your gift order</h1><p>Review your items, choose fulfillment, and select how you&rsquo;d like to pay.</p></div><p className="guest-provider-label">Operated by the hotel</p><div className="guest-order-cart__summary"><span>{items.reduce((sum, product) => sum + (cart[product.name] ?? 0), 0)} items</span><strong>{formatPesoAmount(total)}</strong></div><div className="guest-order-items">{items.map((product) => <div className="guest-order-item" key={product.name}><div><b>{product.name}</b><small>{product.price} each</small></div><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output>{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div></div>)}</div><fieldset className="guest-fulfillment-options"><legend>How would you like your order?</legend><div>{!checkedOut ? <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} aria-pressed={fulfillment === 'room'} disabled={!booking.roomNumber} onClick={() => onFulfillmentChange('room')}><b>Deliver to room</b><small>{booking.roomNumber ? `Room ${booking.roomNumber}` : 'Room assignment required'}</small></button> : null}<button type="button" className={fulfillment === 'lobby' || checkedOut ? 'is-active' : ''} aria-pressed={fulfillment === 'lobby' || checkedOut} onClick={() => onFulfillmentChange('lobby')}><b>Pick up at the lobby</b><small>Hotel lobby</small></button></div></fieldset><PaymentChoice provider="Operated by the hotel" roomNumber={booking.roomNumber} value={payment} method={paymentMethod} onChange={onPaymentChange} onMethodChange={onPaymentMethodChange} /><Notice title="Nothing is charged yet">Your selected payment method is processed only after you place the order.</Notice><Button className="guest-button guest-button--primary" type="button" disabled={!items.length || (!checkedOut && fulfillment === 'room' && !booking.roomNumber) || !payment || (payment === 'pay-now' && !paymentMethod)} onClick={onConfirm}>{payment === 'room' ? `Charge ${formatPesoAmount(total)} to room` : payment === 'pay-now' ? `Pay ${formatPesoAmount(total)} now` : 'Choose how to pay'}<ArrowRight /></Button><TextButton onClick={onBack}>Continue shopping</TextButton></div>;
 }
 
 function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return <button className="guest-action-tile" onClick={onClick}><span>{icon}</span><b>{label}</b><CaretRight /></button>;
 }
 
+void ActionTile;
+
 function ServiceDetail({ kind, booking, online, onBook, onChat }: { kind: 'hotel' | 'vendor'; booking: Booking; online: boolean; onBook: () => void; onChat: () => void }) {
   const vendor = kind === 'vendor';
   const roomLabel = booking.roomNumber ? `room ${booking.roomNumber}` : 'your assigned room';
-  return <div className="guest-stack guest-service-detail"><ServiceImage imageKey={vendor ? 'spa' : 'dining'} itemId={vendor ? 'spa' : 'dining'} variant="card" tone={vendor ? 'sage' : 'sand'} icon={vendor ? <Sparkle size={38} /> : <ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{vendor ? 'Hilom signature massage' : 'In-room dining'}</h1><p>{vendor ? 'A 90-minute traditional Filipino therapeutic massage, delivered in the on-property spa.' : `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`}</p></div><div className="guest-summary"><SummaryRow label="Price" value={vendor ? '₱2,400' : 'From ₱450'} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Property" value={booking.property} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Settlement" value="Charge at checkout" /><SummaryRow label="Cancellation" value={vendor ? 'Up to 24 hours before' : 'Up to 2 hours before'} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" onClick={onBook}>{online ? (vendor ? 'Choose a time' : 'View menu and order') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}{vendor ? <div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div> : null}</div>;
+  return <div className="guest-stack guest-service-detail"><ServiceImage imageKey={vendor ? 'spa' : 'dining'} itemId={vendor ? 'spa' : 'dining'} variant="card" tone={vendor ? 'sage' : 'sand'} icon={vendor ? <Sparkle size={38} /> : <ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{vendor ? 'Hilom signature massage' : 'In-room dining'}</h1><p>{vendor ? 'A 90-minute traditional Filipino therapeutic massage, delivered in the on-property spa.' : `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`}</p></div><div className="guest-summary"><SummaryRow label="Price" value={vendor ? '₱2,400' : 'From ₱450'} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Provider" value={vendor ? 'Operated by Sans Rival' : 'Operated by the hotel'} /><SummaryRow label="Location" value={vendor ? 'Spa & wellness · The Henry Manila' : booking.property} /><SummaryRow label="Operating hours" value={vendor ? 'Daily · 9:00 AM–10:00 PM' : 'Daily · 6:30 AM–11:00 PM'} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Cancellation" value={vendor ? 'Up to 24 hours before' : 'Up to 2 hours before'} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" onClick={onBook}>{online ? (vendor ? 'Choose a time' : 'View menu and order') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}{vendor ? <div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div> : null}</div>;
+}
+
+function EstablishmentChatScreen({ kind, venue, booking, online, onChat }: { kind: 'restaurant' | 'gift'; venue?: RestaurantVenue; booking: Booking; online: boolean; onChat: (message: string) => void }) {
+  const restaurant = kind === 'restaurant';
+  const name = venue?.name ?? 'Cabana Gift Shop';
+  const provider = venue?.operator === 'Hotel operated' ? 'Operated by the hotel' : `Operated by ${venue?.operator ?? 'the hotel'}`;
+  const location = venue?.location ?? `${booking.property} · Hotel lobby`;
+  const hours = venue?.hours ?? 'Daily · 8:00 AM–10:00 PM';
+  const description = venue?.description ?? 'Pasalubong, keepsakes, and thoughtful gifts selected for your stay.';
+  const instructions = restaurant
+    ? 'Send the item names and quantities you would like in Chat. The front desk will confirm availability, fees, and payment before placing the order.'
+    : 'Ask the front desk for the current product list, prices, and delivery or pickup options.';
+  const message = restaurant
+    ? `Hi! I’d like to see the menu and order from ${name}.`
+    : `Hi! I’d like to see the available products from ${name}.`;
+
+  return <div className="guest-stack guest-establishment-chat-screen">{venue ? <ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<Storefront size={38} />} decorative /> : <div className="guest-establishment-chat-screen__cover"><Image src={GIFT_PRODUCTS[0].image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></div>}<div className="guest-page-title"><h1>{name}</h1><p>{description}</p><div className="guest-establishment-chat-screen__details"><span>{provider}</span><span>{location}</span><span>{hours}</span><span>{online ? 'Available · Confirm with the front desk' : 'Availability shown when connected'}</span></div></div><div className="guest-establishment-chat-screen__instructions"><b>How ordering works</b><p>{instructions}</p></div><button className="guest-button guest-button--primary" type="button" onClick={() => onChat(message)}>{restaurant ? 'View menu and order' : 'View products and order'}<ArrowRight /></button><TextButton onClick={() => onChat(message)}>Message the front desk</TextButton></div>;
+}
+
+function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge: ReturnType<typeof getRoomCharges>[number]; service?: ServiceBooking; roomLabel: string; onQuestion: (message: string) => void }) {
+  const isDining = Boolean(service?.diningOrder);
+  const isTransfer = /airport transfer/i.test(charge.title);
+  const rows = isTransfer
+    ? [
+        ['Pickup location', 'Airport'],
+        ['Destination', 'The Henry Manila'],
+        ['Pickup date and time', charge.detail],
+        ['Vehicle type', 'Hotel sedan'],
+        ['Passengers', '2 guests'],
+      ]
+    : isDining && service?.diningOrder
+      ? [
+          ...service.diningOrder.items.map((item) => [`${item.name} · ${item.quantity} × ${item.unitPrice}`, formatPesoAmount(parsePesoAmount(item.unitPrice) * item.quantity)]),
+          ['Delivery or pickup', service.diningOrder.fulfillment.method === 'delivery' ? `Deliver to ${roomLabel}` : 'Pick up · Hotel lobby'],
+          ['Delivery or pickup time', service.diningOrder.fulfillment.timing === 'asap' ? 'As soon as possible' : service.diningOrder.fulfillment.scheduledFor],
+        ]
+      : [
+          ['Selected service', charge.title],
+          ['Scheduled date and time', charge.detail],
+          ...(service?.title.toLowerCase().includes('massage') ? [['Duration', '90 minutes'], ['Service location', 'Spa & Wellness']] : []),
+        ];
+
+  return <div className="guest-folio-details"><h3>Order summary</h3><div className="guest-summary">{rows.map(([label, value]) => <SummaryRow key={label} label={label} value={value} />)}<SummaryRow label="Subtotal" value={charge.amount} /><SummaryRow label="Total" value={charge.amount} strong /><SummaryRow label="Payment method" value={`Charge to Room ${roomLabel}`} /><SummaryRow label="Status" value="Charged to room" /><SummaryRow label="Reference" value={`CHG-${charge.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`} /></div><button type="button" className="guest-folio-details__question" onClick={(event) => { event.stopPropagation(); onQuestion(`I have a question about the ${charge.title} charge. Could you help me review it?`); }}>Question about this charge? <ArrowRight /></button></div>;
 }
 
 function FolioItem({ date, title, meta, amount }: { date: string; title: string; meta: string; amount: string }) {

@@ -113,8 +113,11 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
-    // Home first. Dropping a guest straight into a reference field assumed
-    // they had the reference to hand; the lookup is now a choice on it.
+    expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+    expect(screen.getByText('Pre-arrival')).toBeInTheDocument();
+
+    // The lookup remains available as a secondary action on the pre-arrival
+    // home rather than replacing the booking-linked starting state.
     await user.click(screen.getByRole('button', { name: /Add a booking/ }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
@@ -774,8 +777,11 @@ describe('pre-arrival progress card', () => {
       }),
     ]);
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assigned} />);
-    expect(screen.getByText('Room 512 is yours')).toBeInTheDocument();
-    expect(screen.getByText(/moment it is ready/)).toBeInTheDocument();
+    expect(screen.getByText('Room 512 is ready')).toBeInTheDocument();
+    expect(screen.getByText('Deluxe King Room')).toBeInTheDocument();
+    expect(screen.getByText('Higher floor · King bed')).toBeInTheDocument();
+    expect(screen.queryByText('Your room')).toBeNull();
+    expect(screen.queryByText('Assigned')).toBeNull();
   });
 });
 
@@ -792,8 +798,8 @@ describe('room assignment through the flow', () => {
 
     // After: the property allocated one, and the app reports it rather than
     // claiming to have chosen it.
-    expect(screen.getByText('Room 512 is yours')).toBeInTheDocument();
-    expect(screen.getByText(/Honoured: Higher floor · King bed/)).toBeInTheDocument();
+    expect(screen.getByText('Room 512 is ready')).toBeInTheDocument();
+    expect(screen.getByText('Higher floor · King bed')).toBeInTheDocument();
     expect(screen.queryByText(/allocates rooms from its own inventory/)).toBeNull();
   });
 });
@@ -850,7 +856,7 @@ describe('room-ready notification', () => {
     expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent(
       'Please proceed to the front desk to collect your key and check in to your room.',
     );
-    expect(screen.getByRole('button', { name: 'I understand' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Scan room code' })).toBeInTheDocument();
   });
 
   it('disables the PMS simulation while offline', () => {
@@ -935,35 +941,14 @@ describe('room-ready notification', () => {
     expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent('Room 512 is ready');
   });
 
-  it('pauses automatic dismissal while focus is inside the push', () => {
-    vi.useFakeTimers();
-    try {
-      render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
+  it('keeps the room card focused on scanning instead of an acknowledgement flow', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
     openPrototypeControls();
-      openPrototypeControls();
     fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View stay' }));
 
-      const notification = screen.getByRole('region', { name: 'Room-ready notification' });
-      const viewStay = within(notification).getByRole('button', { name: 'View stay' });
-      fireEvent.focus(viewStay);
-      act(() => vi.advanceTimersByTime(8_000));
-
-      expect(screen.getByRole('region', { name: 'Room-ready notification' })).toBeInTheDocument();
-
-      const roomAction = screen.getByRole('button', { name: /I understand/ });
-      expect(screen.getByText(/Please proceed to the front desk to collect your key/)).toBeInTheDocument();
-      fireEvent.blur(viewStay, { relatedTarget: roomAction });
-      fireEvent.focus(roomAction);
-      act(() => vi.advanceTimersByTime(8_000));
-
-      expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();
-
-      // Dismisses the room ready card on home
-      fireEvent.click(roomAction);
-      expect(screen.queryByRole('button', { name: /I understand/ })).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(screen.getByRole('button', { name: 'Scan room code' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'I understand' })).toBeNull();
   });
 });
 
@@ -1806,7 +1791,7 @@ describe('home mini-apps and browsable restaurant menu', () => {
     render(<GuestAppPrototype initialScreen="marketplace" initialSession={activeSession} />);
 
     expect(screen.getByRole('heading', { name: 'Explore', level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Categories' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Explore Nearby' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Hilom signature massage' })).toBeInTheDocument();
     // The guest's own bookings live in My Trip. A catalogue that also listed
     // them is what made the old hub tell people to go elsewhere to browse.
@@ -2245,13 +2230,23 @@ describe('lifecycle gates', () => {
     expect(secondTab()).toHaveAccessibleName('Book again');
   });
 
-  it('keeps four destinations in the bar in every gate', () => {
+  it('keeps Chat available in the main navigation for every connected stay', () => {
     for (const session of [beforeArrival, arrivedUnverified, verified, settled]) {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={session} />);
       const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-      expect(within(nav).getAllByRole('button')).toHaveLength(4);
+      expect(within(nav).getAllByRole('button')).toHaveLength(5);
+      expect(within(nav).getByRole('button', { name: 'Chat' })).toBeInTheDocument();
       cleanup();
     }
+  });
+
+  it('opens the existing chat flow from the main navigation', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
+
+    await user.click(screen.getByRole('button', { name: 'Chat' }));
+
+    expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
   });
 
   it('offers arrival services before the stay opens, settling by card', async () => {
@@ -2416,20 +2411,29 @@ describe('signed-in home with no booking', () => {
   const returning = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
   const brandNew = createAccountSession('Ana Santos', 'ana@example.com', 'google');
 
-  it('lands on home after SSO rather than a bare lookup form', async () => {
+  it('lands on the signed-in, no-booking home after Google SSO', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
-    // The lookup is still reachable, but it is a choice now, not the wall a
-    // guest with no reference in hand used to hit with nowhere else to go.
-    // Signing in shows the guest what they have already stayed in, with the
-    // one action they are here for above it.
-    expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
+    // Apple keeps its upcoming booking; Google demonstrates the account-only
+    // starting state, past stays and "Add a booking" with no current stay.
+    expect(screen.getByTestId('guest-home-empty')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Previous stays' })).toBeInTheDocument();
+  });
+
+  it('keeps Apple SSO on the upcoming booking, not the no-booking home', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
+
+    expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+    expect(screen.getByText('Pre-arrival')).toBeInTheDocument();
   });
 
   it('shows the guest their recent stays and links to the full list', async () => {
@@ -2507,7 +2511,9 @@ describe('mock camera', () => {
 
       await act(async () => { vi.advanceTimersByTime(2500); });
 
-      expect(screen.getByRole('heading', { name: 'Your room is linked' })).toBeInTheDocument();
+      expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Room connected successfully. Your stay is now linked to the app.');
+      expect(screen.getByRole('heading', { name: 'Explore Nearby' })).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -2519,7 +2525,9 @@ describe('mock camera', () => {
 
     await user.click(screen.getByRole('button', { name: /Simulate a successful scan/ }));
 
-    expect(screen.getByRole('heading', { name: 'Your room is linked' })).toBeInTheDocument();
+    expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Room connected successfully. Your stay is now linked to the app.');
+    expect(screen.getByRole('heading', { name: 'Explore Nearby' })).toBeInTheDocument();
   });
 
   it('lets the guest back out without scanning', async () => {
@@ -2580,6 +2588,17 @@ describe('prototype controls', () => {
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
     expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
+  });
+
+  it('closes when the modal backdrop is selected', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+
+    await openControls(user);
+    await user.click(screen.getByTestId('prototype-controls-backdrop'));
+
+    expect(screen.queryByRole('region', { name: 'Prototype controls' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open prototype controls' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('holds the viewfinder open when auto-detect is off', async () => {
@@ -2667,6 +2686,72 @@ describe('scan discoverability', () => {
     expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
     expect(screen.getByTestId('guest-scan-action')).toBeInTheDocument();
   });
+
+  it('keeps service discovery in the category catalog instead of duplicating featured cards on home', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+
+    expect(screen.getByRole('heading', { name: 'Explore Nearby' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dining' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Spa' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tours' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Services' })).toBeInTheDocument();
+    expect(document.querySelector('.guest-featured-rail')).toBeNull();
+  });
+
+  it('places property announcements after the rest of the home content', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+
+    const nearby = screen.getByRole('heading', { name: 'Explore Nearby' });
+    const property = screen.getByRole('heading', { name: 'Updates for your stay' });
+    expect(nearby.compareDocumentPosition(property) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('offers a hotel transfer below pre-arrival and opens its booking form', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('pre-arrival')} />);
+
+    expect(screen.getByRole('heading', { name: 'Need a ride to the hotel?' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Book a hotel transfer/ }));
+
+    expect(screen.getByRole('heading', { name: 'Book a hotel transfer' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Pick-up location')).toBeInTheDocument();
+    expect(screen.getByLabelText('Arrival date')).toBeInTheDocument();
+    expect(screen.getByLabelText('Arrival time')).toBeInTheDocument();
+    expect(screen.getByLabelText('Flight number (optional)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Passengers')).toBeInTheDocument();
+    expect(screen.getByLabelText('Luggage count')).toBeInTheDocument();
+    expect(screen.getByLabelText('Vehicle type')).toBeInTheDocument();
+    expect(screen.getByLabelText('Special requests (optional)')).toBeInTheDocument();
+    expect(screen.getByText('Fare')).toBeInTheDocument();
+    expect(screen.getByText(/Hotel-operated/)).toBeInTheDocument();
+  });
+
+  it('opens a property update when selected', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
+
+    await user.click(screen.getByRole('button', { name: /Rooftop pool closed until 11:00 AM/ }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Rooftop pool closed until 11:00 AM' })).toBeInTheDocument();
+    expect(screen.getByText(/Azotea Rooftop remains open for drinks/)).toBeInTheDocument();
+  });
+
+  it('places Next up before Explore Nearby on the live home', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
+
+    const nextUp = screen.getByRole('heading', { name: 'Next up' });
+    const nearby = screen.getByRole('heading', { name: 'Explore Nearby' });
+    expect(nextUp.compareDocumentPosition(nearby) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('uses the catalog layout in the live home state', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
+
+    expect(screen.getByRole('heading', { name: 'Explore Nearby' })).toBeInTheDocument();
+    expect(document.querySelector('.guest-category-catalog')).toBeInTheDocument();
+    expect(document.querySelector('.guest-miniapp-row')).toBeNull();
+  });
 });
 
 describe('design tokens', () => {
@@ -2693,7 +2778,7 @@ describe('design tokens', () => {
 describe('navigation without a booking', () => {
   const noBooking = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
 
-  it('offers only the destinations that exist', () => {
+  it('keeps Chat available before a booking exists', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={noBooking} />);
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
 
@@ -2703,7 +2788,7 @@ describe('navigation without a booking', () => {
       guest their room was "still being assigned" -- of a booking they had
       never made.
     */
-    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Profile']);
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Chat', 'Profile']);
   });
 
   it('restores them once a booking exists', () => {

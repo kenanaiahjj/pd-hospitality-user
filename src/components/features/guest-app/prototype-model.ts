@@ -30,6 +30,17 @@ export type ScreenId =
   | 'prereg-queued'
   | 'marketplace'
   | 'category-listing'
+  | 'nearby-establishment'
+  | 'gifts-souvenirs'
+  | 'gift-order-cart'
+  | 'gift-order-confirmation'
+  | 'room-upgrades'
+  | 'room-upgrade-confirmation'
+  | 'room-upgrade-success'
+  | 'room-transfer-details'
+  | 'extend-stay'
+  | 'extend-stay-review'
+  | 'extend-stay-success'
   | 'hotel-service'
   | 'vendor-service'
   | 'restaurant-menu'
@@ -50,6 +61,8 @@ export type ScreenId =
   | 'stay-detail'
   | 'stay-entry'
   | 'pre-arrival-services'
+  | 'transfer-booking'
+  | 'transfer-confirmation'
   | 'stay-review'
   | 'scan-room-code'
   | 'stay-review-sent'
@@ -92,6 +105,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(22, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
   screen(23, 'Stay', 'marketplace', 'Explore'),
   screen(24, 'Stay', 'category-listing', 'Explore services'),
+  screen(59, 'Stay', 'nearby-establishment', 'Nearby recommendation'),
+  screen(58, 'Stay', 'gifts-souvenirs', 'Gifts & Souvenirs'),
   screen(25, 'Stay', 'hotel-service', 'In-room dining'),
   screen(26, 'Stay', 'vendor-service', 'Hilom signature massage'),
   screen(27, 'Stay', 'restaurant-menu', 'Menu & Dining'),
@@ -120,6 +135,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(50, 'Stay', 'book-stay-checkout', 'Confirm and pay'),
   screen(51, 'Stay', 'book-stay-confirmation', 'Stay booked'),
   screen(52, 'Pre-arrival', 'pre-arrival-services', 'Arrange your arrival'),
+  screen(56, 'Pre-arrival', 'transfer-booking', 'Book a hotel transfer'),
+  screen(57, 'Pre-arrival', 'transfer-confirmation', 'Transfer booked'),
   screen(53, 'Stay', 'stay-review', 'Rate your stay'),
   screen(54, 'Stay', 'stay-review-sent', 'Review sent'),
   screen(55, 'Entry', 'scan-room-code', 'Scan the room code'),
@@ -193,6 +210,14 @@ export type Booking = {
    * showed a room of zero.
    */
   roomRate?: string;
+  roomUpgrade?: {
+    status: 'preparing' | 'ready';
+    newRoomNumber: string;
+    newRoomType: string;
+    additionalCost: string;
+    transferDeadline: string;
+    transferTime: string;
+  };
 };
 
 /**
@@ -237,6 +262,9 @@ export type ServiceBooking = {
   scheduledDate: string;
   amount: string;
   status: 'confirmed' | 'cancelled' | 'completed';
+  provider?: string;
+  paymentStatus?: 'charged-to-room' | 'paid' | 'payment-pending' | 'pending-confirmation' | 'complimentary' | 'refunded';
+  paymentMethod?: 'room' | 'card' | 'gcash' | 'maya';
   diningOrder?: DiningOrderDetails;
 };
 
@@ -521,14 +549,16 @@ export function createAccountSession(
 }
 
 /**
- * Both SSO providers enter through the same prototype account state. The
- * identity service decides whether the account is new or returning; this
- * fixture represents the unlinked state that needs a booking next.
+ * The two SSO providers deliberately land on different account shapes, so the
+ * demo can show both starting states from the same sheet: Apple is the guest
+ * with an upcoming stay (the booking-linked pre-arrival experience), Google is
+ * the guest who is signed in but has nothing current (the two-tab home, with
+ * only past stays and "Add a booking").
  */
 export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
   /*
-    A returning guest with their history, and no booking attached.
-    
+    A returning guest with their history either way.
+
     Two things were wrong before. The name came back as "Apple Guest" /
     "Google Guest", which read as "Welcome back, Google" the moment home
     greeted anyone by name. And the session was built from ANONYMOUS_SESSION,
@@ -547,9 +577,10 @@ export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
   return {
     ...restoreProfileSession(),
     ...identity,
-    // No booking yet: the reference is the one thing SSO cannot supply.
-    bookings: [],
-    activeBookingId: undefined,
+    // Apple keeps the upcoming stay, so auth opens in pre-arrival state.
+    // Google has none, so auth opens on the signed-in, no-booking home.
+    bookings: method === 'apple' ? [UPCOMING_BOOKING_FIXTURE] : [],
+    activeBookingId: method === 'apple' ? UPCOMING_BOOKING_FIXTURE.id : undefined,
     serviceBookings: [],
     folioTotal: '₱0',
     authMethod: method,
@@ -661,25 +692,15 @@ export function connectBooking(session: GuestSession, booking: Booking = UPCOMIN
 }
 
 /**
- * Where a guest lands the moment their code is accepted. Ordered and total, so
- * the component never has to guess. A returning guest gets the short
- * `welcome-back` review; a new one goes through pre-arrival properly.
+ * Where a guest lands the moment authentication is accepted.
+ *
+ * The stay overview is the app's pre-arrival home: it shows the booking,
+ * progress, and the next action in one place. Keeping it as the shared
+ * post-auth destination means signup and login have the same starting state,
+ * regardless of whether the account is new or returning.
  */
-export function getPostAuthScreen(session: GuestSession): ScreenId {
-  const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
-  /*
-    Home, not the lookup form. SSO establishes identity, and sending that
-    guest straight to a reference-and-surname field assumed they had the
-    reference to hand -- a guest who signed in to look at what they spent
-    last March hit a wall with nothing else on it. Home carries their stays,
-    the lookup as a clear action, and the room scan as a second way in.
-  */
-  if (!booking) return 'stay-overview';
-
-  const preArrivalIncomplete = booking.preArrivalCompleted < booking.preArrivalTotal;
-  if (!preArrivalIncomplete) return 'stay-overview';
-
-  return session.accountStatus === 'returning' ? 'welcome-back' : 'guest-details';
+export function getPostAuthScreen(): ScreenId {
+  return 'stay-overview';
 }
 
 export function getPrimaryBooking(
@@ -1089,20 +1110,29 @@ export type PropertyAnnouncement = {
   title: string;
   body: string;
   tone: 'neutral' | 'positive' | 'warning';
+  important: boolean;
+  activeFrom: string;
+  activeUntil: string;
 };
 
 export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
   {
     id: 'announcement-pool',
     title: 'Rooftop pool closed until 11:00 AM',
-    body: 'Weekly maintenance. Azotea Rooftop stays open for drinks throughout.',
+    body: 'The rooftop pool will reopen at 11:00 AM after weekly maintenance. Azotea Rooftop remains open for drinks.',
     tone: 'warning',
+    important: true,
+    activeFrom: '2026-11-09',
+    activeUntil: '2026-11-12',
   },
   {
     id: 'announcement-breakfast',
-    title: 'Kape Manila Café now opens at 6:00 AM',
-    body: 'Earlier breakfast service for guests with morning departures.',
+    title: 'Kape Manila Café opens at 6:00 AM',
+    body: 'Early breakfast is available for guests with morning departures.',
     tone: 'neutral',
+    important: true,
+    activeFrom: '2026-11-09',
+    activeUntil: '2026-11-12',
   },
 ];
 
@@ -1263,8 +1293,8 @@ export function restoreProfileSession(): GuestSession {
  */
 export type PrototypeStayState =
   | 'signed-out'
+  | 'account-only'
   | 'pre-arrival'
-  | 'arrived-unverified'
   | 'live'
   | 'just-checked-out'
   | 'closed';
@@ -1281,7 +1311,7 @@ export type PrototypeStayState =
  */
 export function getPrototypeStayState(session: GuestSession): PrototypeStayState {
   const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
-  if (!booking) return 'signed-out';
+  if (!booking) return session.auth === 'authenticated' ? 'account-only' : 'signed-out';
 
   const { status } = describeStayStatus(booking);
   if (status === 'checked-out') {
@@ -1290,7 +1320,7 @@ export function getPrototypeStayState(session: GuestSession): PrototypeStayState
     return describePostStayWindow(booking).deskOpen ? 'just-checked-out' : 'closed';
   }
   if (status === 'checked-in') {
-    return canUseOnPropertyServices(booking) ? 'live' : 'arrived-unverified';
+    return 'live';
   }
   return 'pre-arrival';
 }
@@ -1552,8 +1582,8 @@ export const PROTOTYPE_STAY_STATES: Array<{
   detail: string;
 }> = [
   { id: 'signed-out', label: 'Signed out', detail: 'Welcome screen, nothing connected' },
+  { id: 'account-only', label: 'Signed in, no booking', detail: 'Has an account, no current stay' },
   { id: 'pre-arrival', label: 'Pre-arrival', detail: 'Booked, arrival services only' },
-  { id: 'arrived-unverified', label: 'Arrived, not scanned', detail: 'In the room, catalogue still shut' },
   { id: 'live', label: 'Live stay', detail: 'Scanned, charging to the folio' },
   { id: 'just-checked-out', label: 'Just checked out', detail: 'Settled, front desk open 24 hours' },
   { id: 'closed', label: 'Stay closed', detail: 'Desk window over, summary and review' },
@@ -1563,6 +1593,21 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
   if (state === 'signed-out') return { ...ANONYMOUS_SESSION };
 
   const profile = restoreProfileSession();
+
+  if (state === 'account-only') {
+    /*
+      An account the guest already has, with nothing current to show for it --
+      the two-tab home (Home, Profile) plus "Add a booking" and past stays,
+      not the bare welcome screen a first-time visitor gets.
+    */
+    return {
+      ...profile,
+      bookings: [],
+      activeBookingId: undefined,
+      serviceBookings: [],
+      folioTotal: '₱0',
+    };
+  }
 
   if (state === 'pre-arrival') {
     const booking: Booking = {
@@ -1576,33 +1621,6 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
       roomAssignment: 'pending',
       preArrivalCompleted: 2,
       preArrivalTotal: 4,
-      folioTotal: undefined,
-    };
-
-    return {
-      ...profile,
-      bookings: [booking],
-      activeBookingId: booking.id,
-      serviceBookings: [],
-      folioTotal: '₱0',
-    };
-  }
-
-  if (state === 'arrived-unverified') {
-    /*
-      On property, in the room, and nothing scanned yet. The one state the
-      old switcher could not reach, and the only one where the catalogue is
-      shut to a guest whose dates say the stay is under way.
-    */
-    const booking: Booking = {
-      ...UPCOMING_BOOKING_FIXTURE,
-      status: 'active',
-      roomNumber: '304',
-      roomAssignment: 'ready',
-      roomReadyAt: '2:15 PM',
-      preArrivalCompleted: 4,
-      preArrivalTotal: 4,
-      nextPreArrivalStep: undefined,
       folioTotal: undefined,
     };
 
@@ -1846,18 +1864,22 @@ export function getStayEntries(
       id: service.id,
       kind: service.diningOrder ? 'dining' : 'service',
       lines,
-      canCancel: service.status === 'confirmed' && !service.diningOrder,
+      canCancel: service.status === 'confirmed' && !service.diningOrder && service.scheduledDate >= PROTOTYPE_TODAY,
       title: service.title,
       detail: service.diningOrder
         ? `${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${service.scheduledFor}`
         : service.scheduledFor,
       amount: service.amount,
-      status: service.status,
+      // Past activity is a completed record in My Stay. Cancellation is only
+      // an actionable state while the booking is still current; once it has
+      // moved into history, the guest sees the same completed treatment as
+      // every other past activity.
+      status: service.status === 'cancelled' && service.scheduledDate < PROTOTYPE_TODAY ? 'completed' : service.status,
       // The hotel is the parent whether or not the venue is in the catalogue:
       // an on-property booking belongs to the property it was made at.
       parent: booking.property,
       parentDetail: venue?.location,
-      settlement: describeServiceSettlement(service.status, booking.roomNumber),
+      settlement: describeServiceSettlement(service.status === 'cancelled' && service.scheduledDate < PROTOTYPE_TODAY ? 'completed' : service.status, booking.roomNumber),
       category: service.diningOrder ? 'dining' : categoryOf(service.title),
       date: service.scheduledDate,
       /*
@@ -2128,7 +2150,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
   {
     id: 'dining',
     screen: 'category-listing',
-    title: 'Food & Drink',
+    title: 'Food & Drinks',
     shortTitle: 'Dining',
     subtitle: 'Restaurants, in-room dining, bars',
     badge: '3 venues',
@@ -2234,9 +2256,9 @@ export type RoomCharge = {
  * the app reports them rather than creating them.
  */
 const POSTED_ROOM_CHARGES: RoomCharge[] = [
-  { id: 'posted-transfer', date: 'NOV 9', title: 'Airport transfer', detail: 'Hotel arranged', amount: '₱1,200', category: 'Hotel services' },
-  { id: 'posted-dining', date: 'NOV 10', title: 'In-room dining', detail: 'Dinner · 2 guests', amount: '₱850', category: 'Dining' },
-  { id: 'posted-laundry', date: 'NOV 10', title: 'Laundry service', detail: 'Hotel operated', amount: '₱1,000', category: 'Hotel services' },
+  { id: 'posted-transfer', date: 'Nov 9', title: 'Airport transfer', detail: 'Nov 9 · 2:30 PM', amount: '₱1,200', category: 'Hotel services' },
+  { id: 'posted-dining', date: 'Nov 10', title: 'In-room dining', detail: 'Nov 10 · 7:00 PM', amount: '₱850', category: 'Dining' },
+  { id: 'posted-laundry', date: 'Nov 10', title: 'Laundry service', detail: 'Nov 10 · 10:30 AM', amount: '₱1,000', category: 'Hotel services' },
 ];
 
 /**
@@ -2248,19 +2270,24 @@ export function getRoomCharges(
   booking: Booking,
   roomLabel: string,
 ): RoomCharge[] {
+  void roomLabel;
   // A stay that has not started cannot have run anything up yet.
   const posted = booking.status === 'upcoming' ? [] : POSTED_ROOM_CHARGES;
   const booked = session.serviceBookings
     .filter((service) => service.bookingId === booking.id && service.status === 'confirmed')
-    .map((service) => ({
-      id: service.id,
-      date: 'NOV 11',
-      title: service.title,
-      detail: service.diningOrder
-        ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${service.scheduledFor} · settles at checkout`
-        : `${service.scheduledFor} · Added to ${roomLabel.toLowerCase()} · settles at checkout`,
-      amount: service.amount,
-    }));
+    .map((service) => {
+      const date = new Date(`${service.scheduledDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const time = service.scheduledFor.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
+      return {
+        id: service.id,
+        date,
+        title: service.title,
+        detail: service.diningOrder
+          ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${date} · ${time}`
+          : `${date} · ${time}`,
+        amount: service.amount,
+      };
+    });
   return [...posted, ...booked];
 }
 

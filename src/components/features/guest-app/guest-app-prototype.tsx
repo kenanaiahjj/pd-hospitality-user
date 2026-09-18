@@ -3827,16 +3827,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : null}
 
             {started ? (
-              <>
-                {/* "so far" is present tense, so it goes once the stay is over. */}
-                {!checkedOut ? (
-                  <div className="guest-folio-summary guest-my-stay-total">
-                    <div><span>This stay so far</span><small>Due at checkout</small></div>
-                    <strong>{session.folioTotal || contextBooking.folioTotal || '₱0'}</strong>
-                  </div>
-                ) : null}
-                <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}><span><b>Room charges</b><small>View charges added to your room</small></span><span className="guest-my-stay-charges__view">View</span></button>
-              </>
+              /*
+                The total rides on the Room charges row rather than standing
+                above it in a block of its own. What a guest owes is an
+                attribute of the charges, not a headline -- and stated alone it
+                is a number with nothing behind it, since the only thing that
+                answers "what is that made of" is the itemised folio one tap
+                away. After checkout the settled summary above already gives
+                the figure, so the row goes back to being a link.
+              */
+              <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}>
+                <span><b>Room charges</b><small>{checkedOut ? 'View charges added to your room' : 'Due at checkout'}</small></span>
+                <span className="guest-my-stay-charges__view">{checkedOut ? null : <strong>{session.folioTotal || contextBooking.folioTotal || '₱0'}</strong>}View</span>
+              </button>
             ) : null}
 
             {/*

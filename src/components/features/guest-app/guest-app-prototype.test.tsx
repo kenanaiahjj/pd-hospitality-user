@@ -2100,7 +2100,14 @@ describe('a finished stay on My Stay', () => {
   it('still shows the running total while the stay is live', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('live')} />);
 
-    expect(screen.getByText('This stay so far')).toBeInTheDocument();
+    /*
+      The total rides on the Room charges row now rather than heading the
+      screen. What this is for is unchanged: a live stay reports what is owed,
+      where a finished one reports what was settled.
+    */
+    const charges = screen.getByRole('button', { name: /Room charges/i });
+    expect(charges).toHaveTextContent('Due at checkout');
+    expect(charges).toHaveTextContent(/₱[\d,]+/);
     expect(screen.queryByRole('button', { name: /Book another stay/ })).toBeNull();
   });
 });

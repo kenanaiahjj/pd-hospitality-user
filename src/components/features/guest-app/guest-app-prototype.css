@@ -5302,10 +5302,23 @@
 }
 
 .guest-my-stay-charges__view {
+  display: grid;
   align-self: start;
+  justify-items: end;
+  gap: 2px;
   color: var(--guest-accent-strong);
   font-size: 13px;
   font-weight: 650;
+  text-align: right;
+}
+
+/* The amount sits above the affordance, in ink rather than accent: it is the
+   fact, and "View" is the invitation. */
+.guest-my-stay-charges__view strong {
+  color: var(--guest-ink);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* --------------------------------------------------------------------------
@@ -5387,14 +5400,6 @@
 }
 .guest-my-stay-page .guest-checkout-card__requests button > svg:last-child { margin-right: 2px; }
 .guest-my-stay-page .guest-checkout-card__requests button:focus-visible { border-radius: 12px; }
-
-.guest-my-stay-page .guest-my-stay-total {
-  padding: 0 4px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.guest-my-stay-page .guest-my-stay-total > strong { font-size: 22px; }
 
 .guest-my-stay-page .guest-my-stay-charges__row {
   grid-template-columns: minmax(0, 1fr) auto;

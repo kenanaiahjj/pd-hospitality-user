@@ -48,8 +48,15 @@ than rewriting the prompt.
 
 Two things make 42 badges read as one collection rather than 42 pictures:
 **shape encodes family, and enamel colour encodes family.** Only the icon
-changes within a family. The rose-gold rim and near-black navy field are
-identical on every single badge.
+changes within a family. The rose-gold rim is identical on every single badge.
+
+**The badge is a rim and an icon, and nothing in between.** There is no enamel
+field: the area inside the rim is fully transparent, so the app's canvas shows
+through it and the badge reads as a pin lying on the surface rather than a tile
+sitting on it. Roughly three quarters of every file is transparent. This is the
+whole of the difference from the first cut, which filled the interior with a
+dark navy field and a sunburst — that version photographed well on black and
+turned into a heavy dark disc everywhere it was actually used.
 
 | Family | What it tracks | Shape | Enamel |
 |---|---|---|---|
@@ -60,7 +67,13 @@ identical on every single badge.
 | **House** | behaviours the property values | rounded square | sage `#6FAE7C` |
 | **Venue** | per-venue recognition | capsule | deep rose `#B92159` |
 
-Reference palette: rose gold metal `#E0A090` → `#B76E79`, field `#1C1B24`.
+Reference palette: rose gold metal `#E0A090` → `#B76E79`. No field colour —
+everything inside the rim that is not the icon is alpha.
+
+These are the targets, not swatches taken off the files. The shipped set lands
+one step deeper than each value — `#ff6090` for taste, `#189090` for rhythm,
+`#1860c0` for place — because the glossy enamel shading darkens the mid-tones.
+Every hue is right; feed the table's values in and accept what comes back.
 
 **No text on any badge.** The app renders the badge name beneath the artwork in
 Asbir Sans — sharper, translatable, accessible, and free of the lettering
@@ -74,21 +87,21 @@ Run once. Pick the best result and use it as the reference image for all 42.
 
 ```
 A collection of six premium collectible achievement badges, arranged in a grid
-on a pure black background. Rendered as real physical die-struck hard-enamel
+on a plain white background. Rendered as real physical die-struck hard-enamel
 pins — tactile objects photographed in a studio, not flat illustrations.
 
 Identical construction on every badge:
 - A raised, polished ROSE GOLD metal rim with a 3D bevel and a fine inner step,
   catching a warm specular highlight along its upper edge
-- Inside the rim, a deep near-black navy enamel field (#1C1B24)
-- Behind the central motif, a subtle radiating sunburst of thin darker rays
-  fanning out from the centre
-- One bold, simplified, vector-clean icon centred in the field, filled with
-  glossy hard enamel in a single saturated colour, edged with a thin rose-gold
-  outline, with a crisp glossy specular highlight across its upper surface
-- Two or three small four-point sparkle glints in rose gold, scattered
-  asymmetrically in the field
-- A soft warm outer bloom where the metal catches the light
+- The area inside the rim is EMPTY — no enamel field, no fill, no panel, no
+  texture. The background shows straight through it. Only the rim and the icon
+  are drawn
+- One bold, simplified, vector-clean icon floating at the centre of that open
+  space, filled with glossy hard enamel in a single saturated colour, edged
+  with a fine darker outline, with a crisp glossy specular highlight across its
+  upper surface
+- The icon does not touch the rim
+- A soft contact shadow under the metal where it meets the surface
 
 The six badges, each a different shape and enamel colour:
 1. CIRCLE, hot pink enamel (#FF7EB3) — a fork and a knife crossed
@@ -100,11 +113,11 @@ The six badges, each a different shape and enamel colour:
 
 Style: glossy, jewel-like, premium. Slight three-quarter perspective so the
 metal reads as raised. Soft studio lighting, gentle bloom, rich reflections in
-the enamel. Clean simple iconography inside a richly rendered metal object.
-Cohesive set — same rim, same field, same lighting on all six.
+the enamel. Clean simple iconography held inside a richly rendered metal ring.
+Cohesive set — same rim, same open interior, same lighting on all six.
 
 Absolutely no text, no lettering, no numbers, no words anywhere.
-Square composition. Pure black background.
+Square composition. Plain white background, nothing behind the badges.
 ```
 
 ---
@@ -115,27 +128,27 @@ Attach the style sheet as a reference image. Substitute the three bracketed
 slots from the tables below.
 
 ```
-One single collectible achievement badge, centred on a pure black background,
+One single collectible achievement badge, centred on a plain white background,
 in exactly the style of the reference image.
 
 Construction:
 - A raised polished ROSE GOLD metal rim with a 3D bevel and fine inner step,
   catching a warm specular highlight along its upper edge
 - Shape of the badge: [SHAPE]
-- Inside the rim, a deep near-black navy enamel field (#1C1B24) with a subtle
-  radiating sunburst of thin darker rays fanning from the centre
-- Centred in the field: [ICON], bold and simplified, filled with glossy hard
-  enamel in [COLOUR], edged with a thin rose-gold outline, with a crisp glossy
-  specular highlight across its upper surface
-- Two or three small four-point rose-gold sparkle glints scattered
-  asymmetrically around the icon
-- Soft warm outer bloom on the metal
+- The area inside the rim is EMPTY — no enamel field, no fill, no panel, no
+  texture, no rays. The background shows straight through it
+- Floating at the centre of that open space: [ICON], bold and simplified,
+  filled with glossy hard enamel in [COLOUR], edged with a fine darker outline,
+  with a crisp glossy specular highlight across its upper surface
+- The icon does not touch the rim
+- Soft contact shadow under the metal
 
 Glossy, jewel-like, premium. Slight three-quarter perspective. Soft studio
 lighting. A real physical enamel pin, not a flat illustration.
 
-No text, no lettering, no numbers. Square composition. Pure black background.
-The icon must fill roughly 55% of the badge's inner field.
+No text, no lettering, no numbers. Square composition. Plain white background.
+The icon must fill roughly 45% of the badge's width, leaving the space between
+it and the rim open.
 ```
 
 ---
@@ -243,14 +256,31 @@ opacity: 0.55;
 
 42 assets, 84 states.
 
-**Generate large, downsample.** Request 1024px square; export to 192px — 4× the
-48px display size, which covers 3× screens with headroom.
+**Generate large, downsample.** The shipped set came in at 1254px square and
+was reduced to 512px on the way into `public/`. The largest medal renders at
+64px, which Next serves at 256, so 512 is 2× the biggest thing ever drawn and
+anything above it is weight with nothing to show for it — the originals were
+around 25× the pixels they would ever use, and 37MB became 7.7MB with nothing
+visible given up.
 
-**Transparency is required, not optional.** Pure black backgrounds composite
-badly onto the app's light neutral canvas. The outer bloom must be preserved as
-alpha rather than baked onto black, or every badge sits in a dark halo on a
-white surface. If the model cannot emit transparency, key the black out and
-rebuild the bloom as alpha in post.
+**Transparency is required, not optional, and it is most of the file.** It is
+not only the outside of the badge: the interior is transparent too, so the
+canvas shows through the ring. Expect 70–80% of every file to be alpha — the
+shipped set measures 71% to 80%. A file that is much more opaque than that has
+a field in it and is the wrong cut.
+
+**The app's own medal chrome stands down for artwork.** `BadgeMedal` draws a
+fallback when a badge has no art — a rose-gold rim gradient, padding, and a
+family `clip-path`, with the capsule stretched to 1.6× width. All of it is
+wrong under a finished asset, which brings its own rim and its own silhouette:
+the gradient fills the open interior with a gold disc, a clip-path cut from
+different geometry than the drawn one shaves the corners off the shape it means
+to follow, and the 1.6 stretch pulls a square file apart. `rewards.css` turns
+the lot off with `.badge-medal[data-shape]:has(img)` — and it carries
+`[data-shape]` deliberately, because the shape rules select on that attribute
+and a bare `:has(img)` loses the specificity contest to them silently. If art
+ever starts looking clipped or gold-filled, read the computed `clip-path` off
+the element before believing the stylesheet.
 
 **Naming.** `public/badges/<id>.png`, using the `id` column above.
 

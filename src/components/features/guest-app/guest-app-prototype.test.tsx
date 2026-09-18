@@ -152,14 +152,13 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
-  it('uses Google SSO from Get started to reach the booking-linked home', async () => {
+  it('uses Google SSO from Get started to reach booking lookup', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
     expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
-    await user.click(screen.getByRole('button', { name: /Add a booking/ }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
@@ -221,8 +220,66 @@ describe('GuestAppPrototype', () => {
     expect(within(sheet).getByRole('heading', { name: 'Get started' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Log in with email' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
-    expect(screen.queryByText(/Create your account|Already have an account|Don't have an account|Log in/)).toBeNull();
+    expect(screen.queryByText(/Create your account|Already have an account|Don't have an account/)).toBeNull();
+  });
+
+  it('opens email login from the Get started sheet', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.click(screen.getByRole('button', { name: 'Log in with email' }));
+
+    expect(screen.getByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Email *')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull();
+  });
+
+  it('moves from email login to a six-digit OTP and then to booking lookup', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.click(screen.getByRole('button', { name: 'Log in with email' }));
+    const email = screen.getByLabelText('Email *');
+    expect(email).toHaveAttribute('autocomplete', 'email');
+    expect(email).toHaveAttribute('spellcheck', 'false');
+    await user.type(email, 'guest@example.com');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
+
+    const code = screen.getByLabelText('6-digit code *');
+    expect(code).toHaveAttribute('inputmode', 'numeric');
+    expect(code).toHaveAttribute('autocomplete', 'one-time-code');
+
+    await user.type(code, '123456');
+    await user.click(screen.getByRole('button', { name: 'Verify' }));
+
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
+  });
+
+  it('keeps an invalid OTP on the verification screen with an accessible error', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.click(screen.getByRole('button', { name: 'Log in with email' }));
+    await user.type(screen.getByLabelText('Email *'), 'guest@example.com');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.type(screen.getByLabelText('6-digit code *'), '123');
+    await user.click(screen.getByRole('button', { name: 'Verify' }));
+
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter the 6-digit code.');
+    const invalidCode = screen.getByRole('textbox', { name: /6-digit code/ });
+    expect(invalidCode).toHaveAttribute('aria-invalid', 'true');
+    expect(invalidCode).toHaveAttribute('spellcheck', 'false');
+    expect(invalidCode).toHaveFocus();
   });
 
   it('disables both SSO providers when the connection is offline', async () => {
@@ -523,18 +580,20 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByText(/Welcome,\s*$/)).toBeNull();
   });
 
-  it('keeps four stable app destinations and no separate account group', () => {
+  it('keeps five stable app destinations and no separate account group', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     // Charges and booking moved onto the stay card, so home has no account
     // group left to hold -- the profile is a destination of its own now.
     expect(screen.queryByRole('group', { name: 'Your account' })).toBeNull();
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
-    // Four, as DESIGN.md specifies. The front desk is a row inside My Stay.
-    expect(navigation.querySelectorAll('button')).toHaveLength(4);
+    // Five, including the always-available front desk chat. The front desk
+    // remains a row inside My Stay as well, rather than becoming an account
+    // group.
+    expect(navigation.querySelectorAll('button')).toHaveLength(5);
     expect(within(navigation).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['Home', 'Explore', 'My Stay', 'Profile']);
-    expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull();
+      .toEqual(['Home', 'Explore', 'My Stay', 'Chat', 'Profile']);
+    expect(screen.getByRole('button', { name: 'Chat' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Wallet' })).toBeNull();
   });
 
@@ -670,22 +729,19 @@ describe('guest account and entry flows', () => {
     expect(screen.queryByTestId('guest-home-active')).toBeNull();
 
     /*
-      The lookup is not offered here, and that is the point. `ssoSession`
-      returns a guest the estate already knows, reservation included, so
-      "Add a booking" lives on the no-booking home -- putting it here asked
-      someone holding a booking to go and look it up.
+    Apple returns a guest the estate already knows, reservation included, so
+    the booking-linked home opens directly without a lookup step.
     */
     expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
-  it('routes Google SSO from the unified screen to the booking-linked home', async () => {
+  it('routes Google SSO from the unified screen to booking lookup', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
-    await user.click(screen.getByRole('button', { name: /Add a booking/ }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
@@ -740,10 +796,8 @@ describe('guest account and entry flows', () => {
     expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     /*
-      The lookup is not offered here, and that is the point. `ssoSession`
-      returns a guest the estate already knows, reservation included, so
-      "Add a booking" lives on the no-booking home -- putting it here asked
-      someone holding a booking to go and look it up.
+      Apple returns a guest the estate already knows, reservation included, so
+      the booking-linked home opens directly without a lookup step.
     */
     expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
@@ -1485,6 +1539,27 @@ describe('my stay', () => {
     expect(screen.getByText('Checks out tomorrow')).toBeInTheDocument();
   });
 
+  it('uses one restrained glass layer and a pink selected tab state', () => {
+    expect(guestStyles).toMatch(/\.guest-my-stay-page\s*\{[\s\S]*?gap:\s*20px;/);
+    expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-checkout-card\s*\{[\s\S]*?border-radius:\s*22px;[\s\S]*?box-shadow:\s*0 18px 40px oklch\(0\.25 0\.02 330 \/ 0\.1\);/);
+    expect(guestStyles).toContain('.guest-my-stay-page .guest-checkout-card {');
+    expect(guestStyles).toContain('-webkit-backdrop-filter: blur(18px) saturate(1.12);');
+    expect(guestStyles).toContain('backdrop-filter: blur(18px) saturate(1.12);');
+    expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-my-stay-charges__row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
+    expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-tabs\s*\{[\s\S]*?border-radius:\s*18px;[\s\S]*?background:\s*var\(--guest-surface\);/);
+    expect(guestStyles).toContain('.guest-my-stay-page .guest-tab::after { display: none; }');
+    expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-tab\[aria-selected='true'\]\s*\{[\s\S]*?background:\s*var\(--guest-soft\);/);
+    expect(guestStyles).toContain('.guest-my-stay-page .guest-stay-entry {');
+    expect(guestStyles).toContain('.guest-my-stay-page .guest-stay-entries { animation: none; }');
+  });
+
+  it('does not show checkout before the scheduled checkout day', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
+
+    expect(screen.queryByRole('button', { name: 'Check out now' })).toBeNull();
+    expect(screen.getByRole('button', { name: /Request late checkout/ })).toBeInTheDocument();
+  });
+
   it('omits the running total before a stay has started', () => {
     const upcoming = sessionFor(
       [makeBooking({ id: 'soon', status: 'upcoming', checkIn: '2026-11-14', checkOut: '2026-11-17' })],
@@ -2154,6 +2229,82 @@ describe('lifecycle gates', () => {
     expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
   });
 
+  it('keeps back navigation and hides the primary nav to focus Chat', () => {
+    for (const initialScreen of ['chat', 'chat-after-hours'] as const) {
+      render(<GuestAppPrototype initialScreen={initialScreen} initialSession={verified} />);
+
+      expect(screen.getByRole('button', { name: 'Go back' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('opens chat in welcome mode with the front desk identity and five prompt actions', () => {
+    render(<GuestAppPrototype initialScreen="chat" initialSession={verified} />);
+
+    const chat = screen.getByRole('region', { name: 'Front desk conversation' });
+    expect(chat).toHaveAttribute('data-chat-mode', 'welcome');
+    expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How can we help with your stay?', level: 2 })).toBeInTheDocument();
+
+    for (const label of ['Towels', 'Housekeeping', 'Late checkout', 'Room issue', 'Transfers']) {
+      expect(within(chat).getByRole('button', { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it('changes to conversation mode after a prompt sends through the existing path', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="chat" initialSession={verified} />);
+
+    await user.click(screen.getByRole('button', { name: 'Room issue' }));
+
+    expect(screen.getByRole('region', { name: 'Front desk conversation' })).toHaveAttribute('data-chat-mode', 'conversation');
+    expect(screen.getByText(/There’s an issue in room 304/)).toBeInTheDocument();
+    expect(screen.getByText('Sent')).toBeInTheDocument();
+  });
+
+  it('keeps glass materials targeted to chat context and composer', () => {
+    expect(guestStyles).toMatch(/\.guest-chat__context\s*\{[\s\S]*?background: var\(--guest-paper\)/);
+    expect(guestStyles).toMatch(/\.guest-composer\s*\{[\s\S]*?background: var\(--guest-paper\)/);
+    expect(guestStyles).toContain('backdrop-filter: blur(18px) saturate(1.12);');
+    expect(guestStyles).toContain('scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px);');
+    expect(guestStyles).toMatch(/\.guest-typing-dots i\s*\{[\s\S]*?animation: guest-typing-pulse/);
+    expect(guestStyles).toMatch(/\.guest-typing-dots i \{ animation: none; \}/);
+  });
+
+  it('docks the focused chat composer to the device edge', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-screen--chat\s*\{[^}]*padding-bottom:\s*0;/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-screen--chat \.guest-composer\s*\{[\s\S]*?bottom:\s*0;/,
+    );
+  });
+
+  it('marks a new front-desk reply on Chat when the guest is elsewhere', () => {
+    vi.useFakeTimers();
+    try {
+      render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Room issue' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+
+      act(() => { vi.advanceTimersByTime(850); });
+
+      const unreadChat = screen.getByRole('button', { name: 'Chat, new message' });
+      expect(unreadChat).toBeInTheDocument();
+      expect(unreadChat.querySelector('.guest-bottom-nav__badge')).toBeInTheDocument();
+
+      fireEvent.click(unreadChat);
+      expect(screen.getByRole('button', { name: 'Go back' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Chat, new message' })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('offers arrival services before the stay opens, settling by card', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
@@ -2448,18 +2599,16 @@ describe('signed-in home with no booking', () => {
   const returning = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
   const brandNew = createAccountSession('Ana Santos', 'ana@example.com', 'google');
 
-  it('lands on the signed-in, no-booking home after Google SSO', async () => {
+  it('starts the signed-in, no-booking flow at booking lookup after Google SSO', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
-    // Apple keeps its upcoming booking; Google demonstrates the account-only
-    // starting state, past stays and "Add a booking" with no current stay.
-    expect(screen.getByTestId('guest-home-empty')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Previous stays' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
   });
 
   it('keeps Apple SSO on the upcoming booking, not the no-booking home', async () => {
@@ -2811,7 +2960,7 @@ describe('design tokens', () => {
 describe('navigation without a booking', () => {
   const noBooking = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
 
-  it('keeps Chat available before a booking exists', () => {
+  it('hides Chat before a booking exists', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={noBooking} />);
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
 
@@ -2821,7 +2970,20 @@ describe('navigation without a booking', () => {
       guest their room was "still being assigned" -- of a booking they had
       never made.
     */
-    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Chat', 'Profile']);
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Profile']);
+  });
+
+  it('starts the signed-in no-booking control state at booking lookup', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('radio', { name: /Signed in, no booking/ }));
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
   });
 
   it('restores them once a booking exists', () => {
@@ -2831,7 +2993,7 @@ describe('navigation without a booking', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     expect(within(nav).getAllByRole('button').map((b) => b.textContent))
-      .toEqual(['Home', 'Explore', 'My Stay', 'Profile']);
+      .toEqual(['Home', 'Explore', 'My Stay', 'Chat', 'Profile']);
   });
 
   it('never answers a guest with no booking with a room-allocation wall', () => {
@@ -2850,6 +3012,152 @@ describe('tab bar spacing', () => {
     // Home and Profile bunched against the left edge.
     expect(guestStyles).toMatch(/\.guest-bottom-nav\s*\{[^}]*grid-auto-columns:\s*1fr/);
     expect(guestStyles).not.toMatch(/\.guest-bottom-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4/);
+  });
+});
+
+describe('floating tab bar styling', () => {
+  it('keeps the five destination labels visible beneath their icons', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\s*\{[^}]*grid-template-rows:\s*36px\s+auto/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button small\s*\{[^}]*position:\s*static[^}]*width:\s*auto[^}]*height:\s*auto[^}]*overflow:\s*visible/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button small\s*\{[^}]*clip:\s*auto[^}]*clip-path:\s*none/,
+    );
+  });
+
+  it('uses a pale pink icon highlight instead of an underline', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\s*\{[^}]*grid-template-rows:\s*36px\s+auto\s*;/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\[aria-current='page'\]\s+span\s*\{\s*background:\s*var\(--guest-soft\);\s*\}/,
+    );
+    expect(guestStyles).not.toContain('.guest-bottom-nav button::after');
+  });
+
+  it('uses Hugeicons 24px glyphs for the primary destinations', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    const icons = Array.from(nav.querySelectorAll('svg'));
+
+    expect(icons).toHaveLength(5);
+    expect(icons.every((icon) => icon.getAttribute('viewBox') === '0 0 24 24')).toBe(true);
+  });
+
+  it('uses the rounded reference glyph for Home', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
+
+    const homeButton = screen.getByRole('button', { name: 'Home' });
+
+    expect(homeButton.querySelector('path[d="M16 17H8"]')).toBeInTheDocument();
+  });
+
+  it('uses a neutral red badge for unread front-desk messages', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav__badge\s*\{[^}]*background:\s*var\(--guest-danger\)/,
+    );
+  });
+
+  it('uses a centered elevated capsule instead of a full-width strip', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav\s*\{[^}]*width:\s*min\(calc\(100%\s*-\s*24px\),\s*408px\)/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav\s*\{[^}]*border-radius:\s*var\(--guest-radius-pill\)/,
+    );
+    expect(guestStyles).toMatch(/\.guest-bottom-nav\s*\{[^}]*box-shadow:\s*var\(--shadow-md\)/);
+  });
+
+  it('uses a translucent frosted surface for the floating capsule', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav\s*\{[^}]*background:\s*rgb\(255\s+255\s+255\s*\/\s*0\.76\)/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav\s*\{[^}]*backdrop-filter:\s*blur\(22px\)\s+saturate\(1\.18\)/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav\s*\{[^}]*-webkit-backdrop-filter:\s*blur\(22px\)\s+saturate\(1\.18\)/,
+    );
+  });
+
+  it('settles the floating capsule into place when it appears', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav\s*\{[^}]*animation:\s*guest-bottom-nav-in\s+220ms\s+var\(--ease-out\)\s+both/,
+    );
+    expect(guestStyles).toMatch(
+      /@keyframes guest-bottom-nav-in\s*\{[^}]*from\s*\{[^}]*opacity:\s*0[^}]*transform:\s*translateX\(-50%\)\s+translateY\(10px\)/,
+    );
+  });
+
+  it('gives the active destination a restrained lift instead of jumping states', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button span\s*\{[^}]*transition:\s*background-color\s+var\(--duration-fast\)\s+ease,\s*transform\s+180ms\s+var\(--ease-out\)/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\[aria-current='page'\]\s+span\s*\{[^}]*transform:\s*translateY\(-1px\)\s+scale\(1\.04\)/,
+    );
+  });
+
+  it('keeps the navbar motion to a fade when reduced motion is preferred', () => {
+    expect(guestStyles).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)\s*\{\s+\.guest-bottom-nav\s*\{\s*animation:\s*guest-bottom-nav-fade\s+180ms\s+ease\s+both;\s*\}/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\[aria-current='page'\]\s+span\s*\{[^}]*transform:\s*none;/,
+    );
+  });
+
+  it('overlays the capsule so content can continue behind it', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-device\s*\{[^}]*position:\s*relative[^}]*\}/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-screen\.has-nav\s*\{[^}]*padding-bottom:\s*calc\(var\(--guest-nav-h\)\s*\+\s*env\(safe-area-inset-bottom\)\s*\+\s*24px\)/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav\s*\{[^}]*position:\s*absolute[^}]*bottom:\s*calc\(8px\s*\+\s*env\(safe-area-inset-bottom\)\)[^}]*left:\s*50%[^}]*transform:\s*translateX\(-50%\)/,
+    );
+    expect(guestStyles).not.toMatch(
+      /\.guest-bottom-nav\s*\{[^}]*flex:\s*0 0 auto/,
+    );
+  });
+
+  it('adds the screen inset only when the floating nav is rendered', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={ANONYMOUS_SESSION} />);
+
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+    expect(screen.getByRole('main').querySelector('.guest-screen')).not.toHaveClass('has-nav');
+  });
+
+  it('keeps destination labels visible and accessible', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button small\s*\{[^}]*position:\s*static[^}]*white-space:\s*nowrap/,
+    );
+  });
+
+  it('uses ink for the active label and a pale pink active icon', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\[aria-current='page'\]\s*\{[^}]*color:\s*var\(--guest-ink\)/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\[aria-current='page'\]\s+span\s*\{\s*background:\s*var\(--guest-soft\);\s*\}/,
+    );
+  });
+
+  it('keeps each icon tab at a touch-sized target', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\s*\{[^}]*min-width:\s*44px[^}]*min-height:\s*48px/,
+    );
+  });
+
+  it('removes capsule motion when reduced motion is preferred', () => {
+    expect(guestStyles).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\) \{\s+\.guest-bottom-nav button,\s+\.guest-bottom-nav button span \{\s*transition:\s*none;\s*\}\s+\.guest-bottom-nav button:active \{\s*transform:\s*none;\s*\}\s+\}/,
+    );
   });
 });
 

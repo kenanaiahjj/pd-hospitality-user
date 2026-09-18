@@ -31,7 +31,6 @@ import {
   SignOut,
   CaretDown,
   Sparkle,
-  SpinnerGap,
   Storefront,
   Ticket,
   ShieldCheck,
@@ -79,6 +78,7 @@ import {
   hasStayStarted,
   isStayUnderWay,
   getPostAuthScreen,
+  emailLoginSession,
   getPrimaryBooking,
   getVenueCartSummary,
   getRoomCharges,
@@ -196,6 +196,14 @@ type ActiveScreen = ScreenId | 'entry-hub';
 
 const isChatScreen = (screen: ActiveScreen) => screen === 'chat' || screen === 'chat-after-hours';
 
+type ChatMessage = {
+  from: 'guest' | 'desk';
+  body: string;
+  state?: string;
+  images?: string[];
+  attachment?: ChatAttachment;
+};
+
 type ChatQuickAction = {
   label: string;
   message: (room: string) => string;
@@ -282,8 +290,6 @@ const MY_STAY_SCREENS: ActiveScreen[] = [
   'stay-review',
   'stay-review-sent',
   'folio',
-  'chat',
-  'chat-after-hours',
   'cancel-before-cutoff',
   'cancel-after-cutoff',
   'room-qr-midstay',
@@ -296,6 +302,8 @@ type FieldProps = {
   name: string;
   type?: string;
   placeholder?: string;
+  autoComplete?: string;
+  spellCheck?: boolean;
   defaultValue?: string;
   helper?: string;
   required?: boolean;
@@ -305,7 +313,7 @@ type FieldProps = {
   min?: string;
 };
 
-function Field({ label, name, type = 'text', placeholder, defaultValue, helper, required, value, onValueChange, min }: FieldProps) {
+function Field({ label, name, type = 'text', placeholder, autoComplete, spellCheck, defaultValue, helper, required, value, onValueChange, min }: FieldProps) {
   const helperId = helper ? `${name}-helper` : undefined;
   const controlled = value !== undefined;
   return (
@@ -316,6 +324,8 @@ function Field({ label, name, type = 'text', placeholder, defaultValue, helper, 
         name={name}
         type={type}
         placeholder={placeholder}
+        autoComplete={autoComplete}
+        spellCheck={spellCheck}
         min={min}
         {...(controlled
           ? { value, onChange: (event: FormEvent<HTMLInputElement>) => onValueChange?.(event.currentTarget.value) }
@@ -646,10 +656,12 @@ function SsoSheet({
   online,
   onClose,
   onSso,
+  onEmailLogin,
 }: {
   online: boolean;
   onClose: () => void;
   onSso: (method: AuthMethod) => void;
+  onEmailLogin: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -690,7 +702,7 @@ function SsoSheet({
           </button>
         </div>
         <div className="guest-sheet__body guest-sso-sheet__body">
-          <p className="guest-sso-sheet__lede">Use Apple or Google to access your stay and room services.</p>
+          <p className="guest-sso-sheet__lede">Use Apple, Google, or your email to access your stay and room services.</p>
           {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Getting started needs a connection">A connection is required to continue.</Notice> : null}
           <div className="guest-auth-actions">
             <Button
@@ -711,6 +723,9 @@ function SsoSheet({
               <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
             </Button>
           </div>
+          <TextButton onClick={() => { close(); onEmailLogin(); }} disabled={!online}>
+            Log in with email
+          </TextButton>
         </div>
       </div>
     </dialog>
@@ -720,9 +735,11 @@ function SsoSheet({
 function WelcomeScreen({
   online,
   onSso,
+  onEmailLogin,
 }: {
   online: boolean;
   onSso: (method: AuthMethod) => void;
+  onEmailLogin: () => void;
 }) {
   const pager = useWelcomePager();
   const [ssoOpen, setSsoOpen] = useState(false);
@@ -765,7 +782,7 @@ function WelcomeScreen({
           </div>
         </div>
       </section>
-      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} /> : null}
+      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onEmailLogin={onEmailLogin} /> : null}
     </>
   );
 }
@@ -1041,10 +1058,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [justEarned, setJustEarned] = useState<string[]>([]);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
   const [online, setOnline] = useState(initialOnline ?? true);
-  const [, setCode] = useState('');
-  const [, setCodeNotice] = useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [codeNotice, setCodeNotice] = useState<string | null>(null);
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ from: 'guest' | 'desk'; body: string; state?: string; images?: string[]; attachment?: ChatAttachment }>>([
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?' },
   ]);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
@@ -1353,7 +1372,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail'].includes(activeScreen);
-  const showPrimaryNav = showNav && (session.auth === 'authenticated' || session.bookings.length > 0);
+  const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
   const checkedOutNav = Boolean(primaryBooking && describeStayStatus(primaryBooking).status === 'checked-out');
@@ -1803,7 +1822,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setSession(next);
     // A booking-first guest still needs the registration flow. Authenticated
     // guests use the shared pre-arrival home after connecting another stay.
-    go(session.auth === 'authenticated' ? getPostAuthScreen() : 'guest-details');
+    go(session.auth === 'authenticated' ? getPostAuthScreen(next) : 'guest-details');
   };
 
   /*
@@ -1839,7 +1858,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setCode('');
     setCodeNotice(null);
     setScrolled(false);
-    setActiveScreen(state === 'signed-out' ? 'entry-hub' : 'stay-overview');
+    setActiveScreen(
+      state === 'signed-out'
+        ? 'entry-hub'
+        : state === 'account-only'
+          ? 'identify'
+          : 'stay-overview',
+    );
   };
 
   /*
@@ -1961,6 +1986,159 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     </ScreenIntro>
   );
 
+  const renderChatScreen = (afterHours: boolean) => {
+    const chatDisabled = checkedOutNav && (simulatePostStayExpired || !postStayWindow.deskOpen);
+    const displayedChatMessages: ChatMessage[] = chatDisabled ? [
+      { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
+      { from: 'guest', body: 'Could we get two fresh towels, please?', state: 'Seen' },
+      { from: 'desk', body: `Of course — we’ll send two fresh towels to ${contextRoom.toLowerCase()} shortly.`, state: 'Seen' },
+    ] : chatMessages;
+    const chatStarted = displayedChatMessages.some((message) => message.from === 'guest');
+    const statusTone = chatDisabled ? 'neutral' : afterHours ? 'warning' : 'positive';
+
+    return (
+      <div
+        className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''} ${chatStarted ? 'guest-chat--conversation' : 'guest-chat--welcome'}`}
+        data-chat-mode={chatStarted ? 'conversation' : 'welcome'}
+        role="region"
+        aria-label="Front desk conversation"
+      >
+        <div className="guest-chat__context">
+          <div className="guest-chat__identity">
+            <span className={`guest-chat__mark guest-chat__mark--${chatDisabled ? 'closed' : afterHours ? 'after-hours' : 'online'}`} aria-hidden="true"><ChatCircleDots /></span>
+            <div className="guest-chat__identity-copy">
+              <h1>Front desk</h1>
+              <span>{contextBooking.property}</span>
+            </div>
+            <Tag tone={statusTone}>
+              {chatDisabled ? 'Chat unavailable' : afterHours ? 'Outside staffed hours' : 'Front desk online'}
+            </Tag>
+          </div>
+          <p className="guest-chat__response-time">
+            {chatDisabled
+              ? 'The post-stay support window ended 24 hours after checkout.'
+              : afterHours
+                ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.`
+                : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}
+          </p>
+        </div>
+
+        {chatDisabled ? <Notice tone="neutral" title="Chat is closed">For help after 24 hours, please contact the hotel directly.</Notice> : null}
+        {!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}
+
+        {!chatStarted && !chatDisabled ? (
+          <div className="guest-chat__welcome" aria-labelledby="guest-chat-welcome-title">
+            <span className="guest-chat__welcome-mark" aria-hidden="true"><ChatCircleDots /></span>
+            <p className="guest-eyebrow">Here for your stay</p>
+            <h2 id="guest-chat-welcome-title">How can we help with your stay?</h2>
+            <p>Send a request and the front desk will take it from there.</p>
+          </div>
+        ) : null}
+
+        <div className="guest-messages" aria-label="Conversation" aria-live="polite">
+          {displayedChatMessages.map((message, index) => {
+            const continued = displayedChatMessages[index - 1]?.from === message.from;
+            return (
+              <div
+                key={`${message.body}-${index}`}
+                className={`guest-message guest-message--${message.from}${continued ? ' guest-message--continued' : ''}`}
+              >
+                <p>{message.body}</p>
+                {message.attachment ? (
+                  message.attachment.kind === 'image' ? (
+                    <button
+                      className="guest-message__attachment guest-message__attachment--image"
+                      type="button"
+                      aria-label={message.attachment.name}
+                      onClick={(event) => openChatImagePreview(message.attachment!.url, event.currentTarget)}
+                    >
+                      <Image
+                        src={message.attachment.url}
+                        alt={message.attachment.name}
+                        width={220}
+                        height={160}
+                        unoptimized
+                      />
+                    </button>
+                  ) : (
+                    <div className="guest-message__attachment guest-message__attachment--audio">
+                      <audio
+                        controls
+                        src={message.attachment.url}
+                        aria-label={`Voice message · ${formatChatDuration(message.attachment.duration ?? 0)}`}
+                      />
+                    </div>
+                  )
+                ) : null}
+                {message.images?.length ? (
+                  <div className="guest-chat-catalog-images">
+                    {message.images.map((image) => (
+                      <button key={image} type="button" onClick={(event) => openChatImagePreview(image, event.currentTarget)}>
+                        <Image src={image} alt="Current catalog" width={120} height={88} />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {message.state ? <small>{message.state}</small> : null}
+              </div>
+            );
+          })}
+          {sending ? (
+            <div className="guest-message guest-message--desk guest-message--typing" role="status">
+              <span className="guest-typing-dots" aria-hidden="true"><i /><i /><i /></span>
+              <span>Front desk is replying</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="guest-quick-actions" aria-label="Quick requests">
+          <span className="guest-quick-actions__label">Start with a request</span>
+          <div className="guest-quick-actions__rail">
+            {CHAT_QUICK_ACTIONS.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                disabled={chatDisabled}
+                onClick={() => sendQuickMessage(action.message(contextRoom))}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
+        <ChatComposer
+          disabled={chatDisabled}
+          draft={chatDraft}
+          onDraftChange={setChatDraft}
+          onSubmit={({ body, attachment }) => sendChatMessage(body, attachment)}
+        />
+        {chatPreviewImage ? (
+          <div
+            className="guest-chat-image-preview"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Image preview"
+            tabIndex={-1}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) closeChatImagePreview();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Tab') {
+                event.preventDefault();
+                chatPreviewCloseRef.current?.focus();
+              }
+            }}
+          >
+            <button ref={chatPreviewCloseRef} type="button" aria-label="Close preview" onClick={closeChatImagePreview}><X /></button>
+            <Image src={chatPreviewImage} alt="Catalog preview" fill sizes="90vw" unoptimized={chatPreviewImage.startsWith('blob:')} />
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderScreen = () => {
     switch (activeScreen) {
       case 'entry-hub':
@@ -1977,11 +2155,113 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 holding, and the lookup stopped being the secondary action it
                 was specified as.
               */
-              setSession(ssoSession(method));
-              go(getPostAuthScreen());
+              const next = ssoSession(method);
+              setSession(next);
+              go(getPostAuthScreen(next));
+            }}
+            onEmailLogin={() => {
+              setPendingEmail('');
+              setCode('');
+              setCodeNotice(null);
+              go('sign-in');
             }}
           />
         );
+
+      case 'sign-in':
+        return (
+          <ScreenIntro title="Log in" text="Use the email connected to your Cabana account.">
+            <form
+              className="guest-form"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                const form = new FormData(event.currentTarget);
+                setPendingEmail(String(form.get('login-email') ?? '').trim());
+                setCode('');
+                setCodeNotice(null);
+                go('verify-code');
+              }}
+            >
+              <Field
+                label="Email"
+                name="login-email"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                spellCheck={false}
+                required
+              />
+              <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
+                Continue<ArrowRight aria-hidden="true" />
+              </Button>
+            </form>
+            {!online ? <Notice tone="offline" title="Log in needs a connection">Reconnect to receive a code.</Notice> : null}
+            <TextButton onClick={() => go('entry-hub')}>Back to welcome</TextButton>
+          </ScreenIntro>
+        );
+
+      case 'verify-code': {
+        if (!pendingEmail) {
+          return (
+            <ScreenIntro title="Start again" text="Enter your email to receive a new verification code.">
+              {primary('Log in with email', 'sign-in')}
+            </ScreenIntro>
+          );
+        }
+
+        return (
+          <ScreenIntro
+            title="Check your email"
+            text={`We sent a 6-digit code to ${pendingEmail}.`}
+          >
+            <form
+              className="guest-form"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                if (!/^\d{6}$/.test(code)) {
+                  setCodeNotice('Enter the 6-digit code.');
+                  codeInputRef.current?.focus();
+                  return;
+                }
+
+                const next = emailLoginSession(pendingEmail);
+                setSession(next);
+                setPendingEmail('');
+                setCode('');
+                setCodeNotice(null);
+                go(getPostAuthScreen(next));
+              }}
+            >
+              <label className="guest-field guest-code-field" htmlFor="login-code">
+                <span>6-digit code *</span>
+                <Input
+                  ref={codeInputRef}
+                  id="login-code"
+                  name="login-code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  spellCheck={false}
+                  maxLength={6}
+                  value={code}
+                  onChange={(event) => {
+                    setCode(event.currentTarget.value.replace(/\D/g, '').slice(0, 6));
+                    setCodeNotice(null);
+                  }}
+                  aria-describedby={codeNotice ? 'login-code-error' : undefined}
+                  aria-invalid={codeNotice ? 'true' : undefined}
+                  required
+                />
+                {codeNotice ? <span id="login-code-error" role="alert">{codeNotice}</span> : null}
+              </label>
+              <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
+                Verify<ArrowRight aria-hidden="true" />
+              </Button>
+            </form>
+            {!online ? <Notice tone="offline" title="Verification needs a connection">Reconnect to continue.</Notice> : null}
+            <TextButton onClick={() => go('sign-in')}>Use a different email</TextButton>
+          </ScreenIntro>
+        );
+      }
 
       case 'connect-booking':
         return renderBookingLookup();
@@ -3687,127 +3967,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'chat':
-      case 'chat-after-hours': {
-        const afterHours = activeScreen === 'chat-after-hours';
-        const chatDisabled = checkedOutNav && (simulatePostStayExpired || !postStayWindow.deskOpen);
-        const displayedChatMessages: Array<{
-          from: 'guest' | 'desk';
-          body: string;
-          state?: string;
-          images?: string[];
-          attachment?: ChatAttachment;
-        }> = chatDisabled ? [
-          { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
-          { from: 'guest', body: 'Could we get two fresh towels, please?', state: 'Seen' },
-          { from: 'desk', body: `Of course — we’ll send two fresh towels to ${contextRoom.toLowerCase()} shortly.`, state: 'Seen' },
-        ] : chatMessages;
+        return renderChatScreen(false);
 
-        return (
-          <div className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''}`}>
-            <div className="guest-chat__intro">
-              <div>
-                <Tag tone={chatDisabled ? 'neutral' : afterHours ? 'warning' : 'positive'}>
-                  {chatDisabled ? 'Chat unavailable' : afterHours ? 'Outside staffed hours' : 'Front desk online'}
-                </Tag>
-                <h1>Front desk</h1>
-                <p>
-                  {chatDisabled
-                    ? 'The post-stay support window ended 24 hours after checkout.'
-                    : afterHours
-                      ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.`
-                      : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}
-                </p>
-              </div>
-            </div>
-            {chatDisabled ? <Notice tone="neutral" title="Chat is closed">For help after 24 hours, please contact the hotel directly.</Notice> : null}
-            {!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}
-            <div className="guest-quick-actions" aria-label="Quick requests">
-              {CHAT_QUICK_ACTIONS.map((action) => (
-                <button
-                  key={action.label}
-                  type="button"
-                  disabled={chatDisabled}
-                  onClick={() => sendQuickMessage(action.message(contextRoom))}
-                >
-                  {action.label}
-                </button>
-              ))}
-            </div>
-            <div className="guest-messages" aria-live="polite">
-              {displayedChatMessages.map((message, index) => (
-                <div key={`${message.body}-${index}`} className={`guest-message guest-message--${message.from}`}>
-                  <p>{message.body}</p>
-                  {message.attachment ? (
-                    message.attachment.kind === 'image' ? (
-                      <button
-                        className="guest-message__attachment guest-message__attachment--image"
-                        type="button"
-                        aria-label={message.attachment.name}
-                        onClick={(event) => openChatImagePreview(message.attachment!.url, event.currentTarget)}
-                      >
-                        <Image
-                          src={message.attachment.url}
-                          alt={message.attachment.name}
-                          width={220}
-                          height={160}
-                          unoptimized
-                        />
-                      </button>
-                    ) : (
-                      <div className="guest-message__attachment guest-message__attachment--audio">
-                        <audio
-                          controls
-                          src={message.attachment.url}
-                          aria-label={`Voice message · ${formatChatDuration(message.attachment.duration ?? 0)}`}
-                        />
-                      </div>
-                    )
-                  ) : null}
-                  {message.images?.length ? (
-                    <div className="guest-chat-catalog-images">
-                      {message.images.map((image) => (
-                        <button key={image} type="button" onClick={(event) => openChatImagePreview(image, event.currentTarget)}>
-                          <Image src={image} alt="Current catalog" width={120} height={88} />
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                  {message.state ? <small>{message.state}</small> : null}
-                </div>
-              ))}
-              {sending ? <div className="guest-message guest-message--desk guest-message--typing"><SpinnerGap className="guest-spin" /><span>Front desk is replying</span></div> : null}
-            </div>
-            {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
-            <ChatComposer
-              disabled={chatDisabled}
-              draft={chatDraft}
-              onDraftChange={setChatDraft}
-              onSubmit={({ body, attachment }) => sendChatMessage(body, attachment)}
-            />
-            {chatPreviewImage ? (
-              <div
-                className="guest-chat-image-preview"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Image preview"
-                tabIndex={-1}
-                onClick={(event) => {
-                  if (event.target === event.currentTarget) closeChatImagePreview();
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Tab') {
-                    event.preventDefault();
-                    chatPreviewCloseRef.current?.focus();
-                  }
-                }}
-              >
-                <button ref={chatPreviewCloseRef} type="button" aria-label="Close preview" onClick={closeChatImagePreview}><X /></button>
-                <Image src={chatPreviewImage} alt="Catalog preview" fill sizes="90vw" unoptimized={chatPreviewImage.startsWith('blob:')} />
-              </div>
-            ) : null}
-          </div>
-        );
-      }
+      case 'chat-after-hours':
+        return renderChatScreen(true);
 
       case 'room-qr-midstay':
         return (
@@ -4119,7 +4282,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </header> : null}
 
           <div
-            className={`guest-screen ${showNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''}`}
+            className={`guest-screen ${showPrimaryNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''} ${isChatScreen(activeScreen) ? 'guest-screen--chat' : ''}`}
             key={activeScreen}
             onScroll={(event) => {
               const next = event.currentTarget.scrollTop > 4;
@@ -4174,13 +4337,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     onClick={() => go('my-stay')}
                   />
               ) : null}
-              <NavButton
-                label="Chat"
-                icon={<GuestNavIcon icon={HugeChatIcon} />}
-                active={activeScreen === 'chat' || activeScreen === 'chat-after-hours'}
-                unread={hasUnreadChat}
-                onClick={() => go('chat')}
-              />
+              {primaryBooking ? (
+                <NavButton
+                  label="Chat"
+                  icon={<GuestNavIcon icon={HugeChatIcon} />}
+                  active={false}
+                  unread={hasUnreadChat}
+                  onClick={() => go('chat')}
+                />
+              ) : null}
               <NavButton
                 label="Profile"
                 icon={<GuestNavIcon icon={HugeProfileIcon} />}

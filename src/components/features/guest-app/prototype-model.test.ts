@@ -59,6 +59,7 @@ import {
   parsePesoAmount,
   signInSession,
   ssoSession,
+  emailLoginSession,
   signOutSession,
 } from './prototype-model';
 import type { Booking, RoomVerification } from './prototype-model';
@@ -71,14 +72,15 @@ describe('guest app prototype model', () => {
   it('contains the complete stay-only screen inventory', () => {
     // Exact, not a floor: adding a screen should be something someone notices.
     // 57 before rewards, plus `rewards` and `reward-detail`.
-    expect(SCREENS).toHaveLength(59);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(59);
+    expect(SCREENS).toHaveLength(61);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(61);
     // The Arrival surface: what a guest can book before they are in the room.
     expect(SCREENS.find((s) => s.id === 'pre-arrival-services')?.group).toBe('Pre-arrival');
     // Get started is the welcome-screen trigger and SSO bottom sheet, not a
     // navigable page in the guest app.
     expect(SCREENS.some((screen) => (screen.id as string) === 'get-started')).toBe(false);
-    expect(SCREENS.some((screen) => (screen.id as string) === 'sign-in')).toBe(false);
+    expect(SCREENS.find((screen) => screen.id === 'sign-in')?.title).toBe('Log in');
+    expect(SCREENS.find((screen) => screen.id === 'verify-code')?.title).toBe('Check your email');
     expect(SCREENS.some((screen) => (screen.id as string) === 'create-account')).toBe(false);
     expect(SCREENS.find((s) => s.id === 'stay-entry')?.title).toBe('Booking receipt');
     expect(SCREENS.find((s) => s.id === 'stay-detail')?.group).toBe('Account');
@@ -373,6 +375,20 @@ describe('account sessions', () => {
     expect(session.bookings.length).toBeGreaterThan(0);
   });
 
+  it('creates an authenticated email session with no current booking', () => {
+    const session = emailLoginSession('guest@example.com');
+
+    expect(session).toMatchObject({
+      auth: 'authenticated',
+      accountStatus: 'returning',
+      authMethod: 'email',
+      email: 'guest@example.com',
+      activeBookingId: undefined,
+    });
+    expect(session.bookings).toEqual([]);
+    expect(session.pastStays.length).toBeGreaterThan(0);
+  });
+
   it('signs out back to the anonymous shape', () => {
     expect(signOutSession()).toEqual(ANONYMOUS_SESSION);
   });
@@ -387,8 +403,12 @@ describe('account sessions', () => {
 });
 
 describe('getPostAuthScreen', () => {
-  it('is the shared pre-arrival home, for every account and booking shape', () => {
-    expect(getPostAuthScreen()).toBe('stay-overview');
+  it('routes an authenticated account with no booking to the booking lookup', () => {
+    expect(getPostAuthScreen(emailLoginSession('guest@example.com'))).toBe('identify');
+  });
+
+  it('keeps a booking-linked account on the stay home after authentication', () => {
+    expect(getPostAuthScreen(ssoSession('apple'))).toBe('stay-overview');
   });
 });
 

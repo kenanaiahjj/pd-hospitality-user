@@ -2,6 +2,8 @@ export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
 
 export type ScreenId =
   | 'connect-booking'
+  | 'sign-in'
+  | 'verify-code'
   | 'room-qr-landing'
   | 'wifi-landing'
   | 'identify'
@@ -144,6 +146,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(53, 'Stay', 'stay-review', 'Rate your stay'),
   screen(54, 'Stay', 'stay-review-sent', 'Review sent'),
   screen(55, 'Entry', 'scan-room-code', 'Scan the room code'),
+  screen(72, 'Entry', 'sign-in', 'Log in'),
+  screen(73, 'Entry', 'verify-code', 'Check your email'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -298,7 +302,7 @@ export type AuthState = 'anonymous' | 'authenticated';
 /** Drives the "onboarding if new" branch. `none` is the signed-out shape. */
 export type AccountStatus = 'none' | 'new' | 'returning';
 
-export type AuthMethod = 'apple' | 'google';
+export type AuthMethod = 'apple' | 'google' | 'email';
 
 export type RoomPreferences = {
   floor: string;
@@ -638,9 +642,8 @@ export function createAccountSession(
 /**
  * The two SSO providers deliberately land on different account shapes, so the
  * demo can show both starting states from the same sheet: Apple is the guest
- * with an upcoming stay (the booking-linked pre-arrival experience), Google is
- * the guest who is signed in but has nothing current (the two-tab home, with
- * only past stays and "Add a booking").
+ * with an upcoming stay (the booking-linked pre-arrival experience), while
+ * Google is signed in without a current booking and starts at booking lookup.
  */
 export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
   /*
@@ -665,12 +668,20 @@ export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
     ...restoreProfileSession(),
     ...identity,
     // Apple keeps the upcoming stay, so auth opens in pre-arrival state.
-    // Google has none, so auth opens on the signed-in, no-booking home.
+    // Google has none, so auth opens at booking lookup.
     bookings: method === 'apple' ? [UPCOMING_BOOKING_FIXTURE] : [],
     activeBookingId: method === 'apple' ? UPCOMING_BOOKING_FIXTURE.id : undefined,
     serviceBookings: [],
     folioTotal: '₱0',
     authMethod: method,
+  };
+}
+
+export function emailLoginSession(email: string): GuestSession {
+  return {
+    ...ssoSession('google'),
+    email: email.trim(),
+    authMethod: 'email',
   };
 }
 
@@ -781,13 +792,14 @@ export function connectBooking(session: GuestSession, booking: Booking = UPCOMIN
 /**
  * Where a guest lands the moment authentication is accepted.
  *
- * The stay overview is the app's pre-arrival home: it shows the booking,
- * progress, and the next action in one place. Keeping it as the shared
- * post-auth destination means signup and login have the same starting state,
- * regardless of whether the account is new or returning.
+ * Booking-linked accounts open on the stay overview. An authenticated account
+ * without a current booking starts at lookup so the next action is to connect
+ * a stay, not to render stay-only surfaces without a reservation.
  */
-export function getPostAuthScreen(): ScreenId {
-  return 'stay-overview';
+export function getPostAuthScreen(session: GuestSession): ScreenId {
+  return session.auth === 'authenticated' && session.bookings.length === 0
+    ? 'identify'
+    : 'stay-overview';
 }
 
 export function getPrimaryBooking(

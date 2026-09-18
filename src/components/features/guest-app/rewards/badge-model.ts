@@ -259,7 +259,24 @@ const none = (): string[] => [];
  * itself from its family's shape and enamel instead, which is why the set can
  * sit empty without a hole appearing anywhere.
  */
-export const ARTWORK_READY: readonly string[] = [];
+export const ARTWORK_READY: readonly string[] = [
+  /* Taste */
+  'foodie', 'caffeine', 'sundowner', 'night-owl', 'early-riser', 'room-service',
+  'homegrown', 'wellness', 'well-groomed', 'in-training', 'culture', 'outdoors',
+  'sea-legs', 'maker',
+  /* Company */
+  'solo', 'pair', 'family', 'group', 'business', 'host',
+  /* Rhythm */
+  'weekender', 'long-stay', 'direct-booker', 'switched', 'planner', 'spontaneous',
+  'regular', 'pre-checked',
+  /* Place */
+  'island-hopper', 'estate-explorer', 'archipelago', 'luzon-to-mindanao',
+  'full-estate', 'new-opening', 'homecoming',
+  /* House */
+  'scanned-in', 'good-notes', 'self-sufficient', 'first-look',
+  /* Venue */
+  'venue-regular', 'venue-opener', 'menu-explorer',
+];
 
 const DEFINITIONS: BadgeDefinition[] = [
   /* Taste — what the feed and story rail should lead with. */

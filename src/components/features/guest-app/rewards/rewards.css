@@ -100,6 +100,28 @@
 }
 
 /*
+  Artwork is a finished medal, not a picture to be mounted in one.
+
+  Every file draws its own rose-gold bezel and its own family silhouette on
+  transparency -- a capsule is a wide pill letterboxed inside a square canvas,
+  not a wide file -- so all of the chrome above has to stand down where there
+  is art. Left on, the rim gradient fills the enamel with a gold disc, a
+  clip-path cut from different geometry than the drawn one shaves the corners
+  off the shape it is meant to follow, and the capsule's 1.6 stretch pulls a
+  square asset apart. The chrome is for the drawn fallback, and only for it.
+
+  Specificity, not just order: `[data-shape]` is carried here because the shape
+  rules select on it, and `:has(img)` alone loses to them.
+*/
+.badge-medal[data-shape]:has(img) {
+  inline-size: var(--medal-size);
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  clip-path: none;
+}
+
+/*
   One asset per badge, two states. Greying the earned artwork costs nothing and
   keeps a locked badge legible as the same object -- which is what makes it
   something to go and get rather than something absent.

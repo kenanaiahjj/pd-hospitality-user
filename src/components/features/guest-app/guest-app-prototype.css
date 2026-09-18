@@ -5,13 +5,11 @@
    ========================================================================== */
 
 .guest-prototype-stage {
-  /*
-    The tab bar's height, shared by everything that sits on top of it -- the
-    docked bars and the mini cart inside the device, and the prototype toolbar
-    beside it. Declared here because that is the nearest ancestor of all of
-    them.
-  */
-  --guest-nav-h: 64px;
+  /* The capsule is 64px high with an 8px breathing gap beneath it. In-app
+     docks and the screen's scroll inset use this footprint so they stop above
+     the capsule rather than hiding behind it; the safe-area inset is added at
+     each bottom offset. */
+  --guest-nav-h: 72px;
 
   min-height: 100dvh;
   background: var(--ds-background);
@@ -459,11 +457,13 @@
 .guest-app :focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
 
 /* --------------------------------------------------------------------------
-   Frame: navigation bar, scrolling content, tab bar. No overlap, no magic
-   offsets — each one is a flex row of the device column.
+   Frame: app bar, scrolling content, and a floating tab bar. The tab bar
+   overlays the screen so content remains visible around it; the screen owns
+   the scroll inset needed to reach its last item.
    -------------------------------------------------------------------------- */
 
 .guest-device {
+  position: relative;
   display: flex;
   height: 100svh;
   min-height: 560px;
@@ -573,49 +573,138 @@
 }
 .guest-screen::-webkit-scrollbar { display: none; }
 
+/* Keep the final content reachable above the overlay without creating an
+   opaque full-width row beneath it. While the screen scrolls, content can pass
+   behind the capsule just like it does behind native floating navigation. */
+.guest-screen.has-nav {
+  padding-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 24px);
+}
+
+.guest-screen--chat {
+  display: flex;
+  flex-direction: column;
+  /* Chat intentionally hides the primary nav, so it owns the device edge. */
+  padding-bottom: 0;
+}
+.guest-screen--chat > .guest-chat { flex: 1 1 auto; min-height: 0; }
+
 @keyframes guest-screen-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-/* The frame is three flex rows, so nothing ever scrolls under this bar. A
-   translucent blur here would be a costly effect with nothing behind it to
-   blur, so the surface is honest: solid paper and one hairline. */
+/* The capsule is an overlay inside the device frame. It no longer consumes a
+   flex row, so the screen can continue behind it and the shadow has breathing
+   room above the device edge. */
 .guest-bottom-nav {
+  position: absolute;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  left: 50%;
   z-index: var(--z-nav);
   display: grid;
-  flex: 0 0 auto;
-  /*
-    However many slots there are, not four. The count is not fixed: a guest
-    with no booking has no Explore and no My Stay, and `repeat(4, 1fr)` left
-    those two columns empty, so a two-slot bar bunched against the left edge.
-  */
+  width: min(calc(100% - 24px), 408px);
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  min-height: var(--guest-nav-h);
-  padding: 6px var(--app-inset) calc(10px + env(safe-area-inset-bottom));
-  border-top: 1px solid color-mix(in oklch, var(--guest-line) 72%, transparent);
-  background: var(--guest-paper);
+  align-items: center;
+  min-height: 64px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: var(--guest-radius-pill);
+  background: rgb(255 255 255 / 0.76);
+  -webkit-backdrop-filter: blur(22px) saturate(1.18);
+  backdrop-filter: blur(22px) saturate(1.18);
+  box-shadow: var(--shadow-md);
+  transform: translateX(-50%);
+  animation: guest-bottom-nav-in 220ms var(--ease-out) both;
 }
+
+@keyframes guest-bottom-nav-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 .guest-bottom-nav button {
+  position: relative;
   display: grid;
+  width: 100%;
+  min-width: 44px;
   min-height: 48px;
+  grid-template-rows: 36px auto;
   place-content: center;
   justify-items: center;
-  gap: 4px;
+  gap: 1px;
+  padding: 1px 6px 0;
   border: 0;
-  border-radius: var(--guest-radius-sm);
+  border-radius: var(--guest-radius-pill);
   background: transparent;
   color: var(--guest-subtle);
   touch-action: manipulation;
-  transition: color var(--duration-fast) ease, transform var(--duration-press) var(--ease-out);
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease,
+    transform var(--duration-press) var(--ease-out);
 }
 .guest-bottom-nav button:active { transform: scale(0.94); }
-.guest-bottom-nav button span { display: grid; place-items: center; }
-.guest-bottom-nav button svg { width: 23px; height: 23px; }
-.guest-bottom-nav button small { font-size: 11px; font-weight: 600; letter-spacing: 0; }
-.guest-bottom-nav button[aria-current='page'] { color: var(--guest-accent-strong); }
-.guest-bottom-nav button[aria-current='page'] small { font-weight: 650; }
+.guest-bottom-nav button span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  transition: background-color var(--duration-fast) ease, transform 180ms var(--ease-out);
+}
+.guest-bottom-nav button svg { width: 24px; height: 24px; }
+.guest-bottom-nav button small {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: nowrap;
+  border: 0;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.1;
+}
+.guest-bottom-nav__badge {
+  position: absolute;
+  top: 3px;
+  right: calc(50% - 18px);
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--guest-paper);
+  border-radius: 50%;
+  background: var(--guest-danger);
+}
+.guest-bottom-nav button[aria-current='page'] {
+  color: var(--guest-ink);
+}
+.guest-bottom-nav button[aria-current='page'] span { background: var(--guest-soft); }
+.guest-bottom-nav button[aria-current='page'] span { transform: translateY(-1px) scale(1.04); }
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-bottom-nav button:hover:not([aria-current='page']) {
+    background: var(--guest-surface);
+    color: var(--guest-ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-bottom-nav button,
+  .guest-bottom-nav button span { transition: none; }
+  .guest-bottom-nav button:active { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-bottom-nav { animation: guest-bottom-nav-fade 180ms ease both; }
+  .guest-bottom-nav button[aria-current='page'] span { transform: none; }
+}
+
+@keyframes guest-bottom-nav-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 /* --------------------------------------------------------------------------
    Type
@@ -1250,7 +1339,7 @@
 .guest-fieldset legend { font-size: 13px; font-weight: 650; letter-spacing: -0.005em; }
 .guest-field input,
 .guest-field select,
-.guest-composer input {
+.guest-composer__text-input {
   width: 100%;
   min-height: 52px;
   padding: 0 16px;
@@ -1274,12 +1363,12 @@
 }
 .guest-field input:focus,
 .guest-field select:focus,
-.guest-composer input:focus {
+.guest-composer__text-input:focus {
   border-color: var(--guest-accent-strong);
   box-shadow: 0 0 0 3px color-mix(in oklch, var(--guest-accent) 30%, transparent);
 }
 .guest-field input::placeholder,
-.guest-composer input::placeholder { color: var(--guest-subtle); }
+.guest-composer__text-input::placeholder { color: var(--guest-subtle); }
 .guest-field small { color: var(--guest-muted); font-size: 12px; line-height: 1.4; }
 
 .guest-fieldset { display: grid; gap: 4px; margin: 0; padding: 8px 16px 12px; border: 0; border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
@@ -1685,73 +1774,183 @@
    Chat
    -------------------------------------------------------------------------- */
 
-.guest-chat { display: flex; min-height: 100%; flex-direction: column; gap: 16px; }
-.guest-chat__intro { display: grid; gap: 6px; }
-.guest-chat__intro > div { display: grid; gap: 4px; }
-.guest-chat h1 { margin: 4px 0 2px; }
+.guest-chat { display: flex; min-width: 0; min-height: 100%; flex-direction: column; gap: 14px; padding-top: 4px; }
 
-/* Bleeds to the gutter so a chip that continues past the fold is clearly
-   scrollable, instead of looking like a word clipped by the viewport. */
+/* The context is the first of two intentional glass surfaces. It stays quiet
+   while scrolling so the desk identity remains available without becoming a
+   second app bar. */
+.guest-chat__context {
+  position: sticky;
+  top: -12px;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  margin: -12px calc(-1 * var(--app-inset)) 0;
+  padding: 14px var(--app-inset) 12px;
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-md);
+}
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .guest-chat__context {
+    background: rgb(255 255 255 / 0.78);
+    -webkit-backdrop-filter: blur(18px) saturate(1.12);
+    backdrop-filter: blur(18px) saturate(1.12);
+  }
+}
+.guest-chat__identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.guest-chat__mark,
+.guest-chat__welcome-mark {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--guest-soft);
+  color: var(--guest-brand);
+}
+.guest-chat__mark::after {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--guest-paper);
+  border-radius: 50%;
+  background: var(--guest-positive);
+  content: '';
+}
+.guest-chat__mark--after-hours::after { background: var(--guest-warning); }
+.guest-chat__mark--closed::after { background: var(--guest-subtle); }
+.guest-chat__mark svg { width: 22px; height: 22px; }
+.guest-chat__identity-copy { display: grid; min-width: 0; gap: 1px; }
+.guest-chat__identity-copy h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.018em; line-height: 1.15; }
+.guest-chat__identity-copy > span { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-chat__identity > .guest-tag { justify-self: end; white-space: nowrap; }
+.guest-chat__response-time { max-width: 52ch; margin: 0 0 0 50px; color: var(--guest-muted); font-size: 12px; line-height: 1.4; }
+
+.guest-chat__welcome {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 22px 8px 4px;
+  text-align: center;
+}
+.guest-chat__welcome-mark { width: 34px; height: 34px; margin-bottom: 4px; background: var(--guest-chip); color: var(--guest-muted); }
+.guest-chat__welcome-mark svg { width: 18px; height: 18px; }
+.guest-chat__welcome h2 { max-width: 18ch; margin: 0; font-size: 24px; letter-spacing: -0.022em; line-height: 1.12; text-wrap: balance; }
+.guest-chat__welcome > p:last-child { max-width: 32ch; margin: 0; color: var(--guest-muted); }
+
+/* Keep the label anchored while the request rail can scroll independently on
+   a narrow screen. Welcome mode keeps all five requests visible as a group. */
 .guest-quick-actions {
+  display: grid;
+  gap: 8px;
+  margin-inline: 0;
+}
+.guest-quick-actions__label { padding-inline: var(--app-inset); color: var(--guest-subtle); font-size: 12px; font-weight: 650; letter-spacing: 0.01em; }
+.guest-quick-actions__rail {
   display: flex;
+  align-items: center;
   gap: 8px;
   overflow-x: auto;
   margin-inline: calc(-1 * var(--app-inset));
   padding: 2px var(--app-inset);
+  scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px);
   scroll-padding-inline: var(--app-inset);
   scroll-snap-type: x proximity;
   scrollbar-width: none;
 }
-.guest-quick-actions::-webkit-scrollbar { display: none; }
-.guest-quick-actions button { scroll-snap-align: start; }
+.guest-quick-actions__rail::-webkit-scrollbar { display: none; }
+.guest-quick-actions__rail button { scroll-snap-align: start; }
 .guest-quick-actions button {
   flex: 0 0 auto;
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 14px;
   border: 1px solid var(--guest-line-strong);
-  border-radius: var(--guest-radius-pill);
+  border-radius: var(--guest-radius-field);
   background: var(--guest-paper);
+  color: var(--guest-ink);
   font-size: 14px;
   font-weight: 600;
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease,
     border-color var(--duration-fast) ease;
+  touch-action: manipulation;
 }
 .guest-quick-actions button:active { transform: scale(0.96); }
+.guest-chat--welcome .guest-quick-actions__label { padding-inline: 0; text-align: center; }
+.guest-chat--welcome .guest-quick-actions__rail {
+  flex-wrap: wrap;
+  justify-content: center;
+  overflow: visible;
+  margin-inline: 0;
+  padding: 0;
+}
 
 /* A conversation sits at the bottom of its container and grows upward, the
-   way every messaging surface does. Before this the first reply floated in
-   the middle of an empty column. */
-.guest-messages { display: flex; flex: 1; flex-direction: column; justify-content: flex-end; gap: 8px; padding: 4px 0 8px; }
-.guest-message { display: grid; max-width: 80%; gap: 4px; }
-.guest-message p {
-  margin: 0;
-  padding: 10px 14px;
-  /* One tight corner points at the speaker; the rest stay on the shape scale. */
-  border-radius: var(--guest-radius-lg) var(--guest-radius-lg) var(--guest-radius-lg) 6px;
-  background: var(--guest-paper);
-  box-shadow: var(--shadow-xs);
-  font-size: 15px;
-  line-height: 1.4;
-}
+   way every messaging surface does. Welcome mode keeps the greeting compact
+   so the composer can still sit near the bottom of a phone viewport. */
+.guest-messages { display: flex; min-height: 0; flex: 1; flex-direction: column; justify-content: flex-end; gap: 10px; padding: 8px 0 4px; scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px); }
+.guest-chat--welcome .guest-messages { flex: 0 0 auto; align-items: center; padding-bottom: 0; }
+.guest-chat--conversation .guest-messages { padding-bottom: 28px; }
+.guest-message { display: grid; max-width: 80%; gap: 4px; animation: guest-message-in 180ms var(--ease-out) both; }
+.guest-message p { margin: 0; padding: 10px 14px; border-radius: var(--guest-radius-lg); background: var(--guest-paper); font-size: 15px; line-height: 1.4; }
+.guest-message--desk p { border: 1px solid var(--guest-line); }
 .guest-message small { color: var(--guest-subtle); font-size: 11px; }
 .guest-message--guest { align-self: flex-end; justify-items: end; }
-.guest-message--guest p { border-radius: var(--guest-radius-lg) var(--guest-radius-lg) 6px var(--guest-radius-lg); background: var(--guest-accent); color: var(--guest-on-accent); box-shadow: none; }
+.guest-message--guest p { background: var(--guest-invert); color: var(--guest-on-invert); }
+.guest-message--guest small { color: var(--guest-on-invert-muted); }
+.guest-message--continued.guest-message--desk p { border-top-left-radius: 8px; }
+.guest-message--continued.guest-message--guest p { border-top-right-radius: 8px; }
+.guest-chat--welcome .guest-message { max-width: min(92%, 360px); }
+.guest-chat--welcome .guest-message--desk p { padding: 0; border: 0; background: transparent; color: var(--guest-muted); text-align: center; }
 .guest-message--typing { display: flex; max-width: none; align-items: center; gap: 8px; color: var(--guest-muted); font-size: 13px; }
-.guest-message--typing svg { width: 15px; height: 15px; }
-.guest-spin { animation: guest-spin 800ms linear infinite; }
-@keyframes guest-spin { to { transform: rotate(360deg); } }
+.guest-typing-dots { display: inline-flex; align-items: center; gap: 3px; }
+.guest-typing-dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; animation: guest-typing-pulse 900ms var(--ease-in-out) infinite; }
+.guest-typing-dots i:nth-child(2) { animation-delay: 120ms; }
+.guest-typing-dots i:nth-child(3) { animation-delay: 240ms; }
+@keyframes guest-message-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes guest-typing-pulse { 0%, 60%, 100% { opacity: 0.34; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
 
 .guest-composer {
   position: sticky;
-  bottom: 0;
+  bottom: calc(env(safe-area-inset-bottom) + 10px);
+  z-index: 3;
   display: grid;
-  grid-template-columns: 1fr auto;
   gap: 8px;
-  padding: 10px 0 2px;
-  background: linear-gradient(to bottom, transparent, var(--guest-canvas) 22%);
+  margin-inline: calc(-1 * var(--app-inset));
+  padding: 10px;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-md);
+  scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px);
 }
-.guest-composer input { min-width: 0; border-radius: var(--guest-radius-pill); }
-.guest-composer button {
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .guest-composer {
+    background: rgb(255 255 255 / 0.78);
+    -webkit-backdrop-filter: blur(18px) saturate(1.12);
+    backdrop-filter: blur(18px) saturate(1.12);
+  }
+}
+.guest-screen--chat .guest-composer {
+  bottom: 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+.guest-composer__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.guest-composer__text-input { min-width: 0; border-color: transparent; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
+.guest-composer__text-input:focus { background: var(--guest-paper); }
+.guest-composer__submit {
   display: grid;
   width: 52px;
   height: 52px;
@@ -1762,13 +1961,117 @@
   color: var(--guest-on-accent);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
 }
-.guest-composer button { box-shadow: 0 1px 2px oklch(0.5 0.19 347 / 0.16), 0 4px 12px oklch(0.5 0.19 347 / 0.18); touch-action: manipulation; }
-.guest-composer button:active { transform: scale(0.94); }
-.guest-composer button:focus-visible { outline-color: var(--guest-ink); }
-.guest-composer button svg { width: 20px; height: 20px; }
-.guest-chat--disabled .guest-composer input { border-color: var(--guest-line); background: var(--guest-sunken); color: var(--guest-subtle); cursor: not-allowed; }
-.guest-chat--disabled .guest-composer input::placeholder { color: var(--guest-muted); }
-.guest-chat--disabled .guest-composer button { background: var(--guest-subtle); color: var(--guest-paper); box-shadow: none; cursor: not-allowed; }
+.guest-composer__submit { box-shadow: 0 1px 2px oklch(0.5 0.19 347 / 0.16), 0 4px 12px oklch(0.5 0.19 347 / 0.18); touch-action: manipulation; }
+.guest-composer__submit:active { transform: scale(0.94); }
+.guest-composer__submit:focus-visible,
+.guest-composer__tool:focus-visible,
+.guest-composer__recording-control:focus-visible,
+.guest-composer__remove:focus-visible,
+.guest-composer__cancel:focus-visible { outline-color: var(--guest-ink); }
+.guest-composer__submit svg,
+.guest-composer__tool svg,
+.guest-composer__recording-control svg,
+.guest-composer__remove svg { width: 20px; height: 20px; }
+.guest-composer__tool,
+.guest-composer__recording-control,
+.guest-composer__remove {
+  display: grid;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--guest-line-strong);
+  border-radius: 50%;
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+  touch-action: manipulation;
+}
+.guest-composer__tool:active,
+.guest-composer__recording-control:active,
+.guest-composer__remove:active,
+.guest-composer__cancel:active { transform: scale(0.96); }
+.guest-composer__pending {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-surface);
+}
+.guest-composer__pending img {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+.guest-composer__pending audio { min-width: 0; width: 100%; height: 36px; }
+.guest-composer__pending-name {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+  color: var(--guest-ink);
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guest-composer__recording {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  color: var(--guest-accent-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+.guest-composer__recording > span { margin-right: auto; font-variant-numeric: tabular-nums; }
+.guest-composer__cancel {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--guest-muted);
+  font-size: 13px;
+  font-weight: 650;
+  touch-action: manipulation;
+}
+.guest-composer__status {
+  color: var(--guest-accent-strong);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.guest-message__attachment {
+  overflow: hidden;
+  margin-top: 8px;
+  border-radius: var(--guest-radius-md);
+}
+.guest-message__attachment--image {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: var(--guest-surface);
+}
+.guest-message__attachment--image img {
+  display: block;
+  width: min(220px, 100%);
+  height: auto;
+  outline: 1px solid oklch(0 0 0 / 0.1);
+}
+.guest-message__attachment--audio { padding: 6px; background: var(--guest-surface); }
+.guest-message__attachment--audio audio { display: block; width: min(260px, 100%); }
+.guest-chat--disabled .guest-composer__text-input { border-color: var(--guest-line); background: var(--guest-sunken); color: var(--guest-subtle); cursor: not-allowed; }
+.guest-chat--disabled .guest-composer__text-input::placeholder { color: var(--guest-muted); }
+.guest-chat--disabled .guest-composer__submit,
+.guest-chat--disabled .guest-composer__tool { background: var(--guest-subtle); color: var(--guest-paper); box-shadow: none; cursor: not-allowed; }
+.guest-chat--disabled .guest-composer__tool { border-color: var(--guest-subtle); }
 
 /* --------------------------------------------------------------------------
    Entry
@@ -1825,7 +2128,8 @@
   .guest-sheet__panel,
   .guest-sheet::backdrop { animation-duration: 1ms; }
   .guest-screen { animation: guest-screen-fade var(--duration-fast) ease both; }
-  .guest-spin { animation-duration: 1600ms; }
+  .guest-message,
+  .guest-typing-dots i { animation: none; }
   .guest-welcome__splash { animation: none; opacity: 0; visibility: hidden; }
   .guest-welcome__art { animation: none; opacity: 1; }
   .guest-welcome__art-track,
@@ -4200,8 +4504,7 @@
   content: '';
 }
 
-/* The tab bar already clears it, and a pseudo here would sit over the labels. */
-.guest-bottom-nav button::after { content: none; }
+/* Nav buttons use their pseudo-element for the active-state indicator. */
 
 /* --------------------------------------------------------------------------
    Front desk grant
@@ -4861,6 +5164,10 @@
   background: var(--guest-paper);
   color: var(--guest-ink);
 }
+.guest-chat-image-preview > button:focus-visible {
+  outline: 2px solid var(--guest-paper);
+  outline-offset: 3px;
+}
 
 .guest-chat-image-preview > button svg {
   width: 20px;
@@ -5222,4 +5529,422 @@
   color: var(--guest-accent-strong);
   font-size: 13px;
   font-weight: 650;
+}
+
+/* --------------------------------------------------------------------------
+   My Stay: premium layered context.
+   The checkout surface is the single glass layer; the rest stays quiet.
+   -------------------------------------------------------------------------- */
+
+.guest-my-stay-page {
+  gap: 20px;
+  padding-top: 4px;
+}
+
+.guest-my-stay-page .guest-my-stay-header {
+  gap: 7px;
+  padding: 4px 2px 0;
+}
+
+.guest-my-stay-page .guest-my-stay-header h1 {
+  font-size: 30px;
+  letter-spacing: -0.03em;
+}
+
+.guest-my-stay-page .guest-my-stay-header > div { gap: 9px; }
+.guest-my-stay-page .guest-my-stay-header > div b {
+  color: var(--guest-muted);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.guest-my-stay-page .guest-my-stay-header .guest-tag {
+  border: 1px solid color-mix(in oklch, var(--guest-brand) 14%, transparent);
+}
+
+.guest-my-stay-page .guest-checkout-card {
+  gap: 14px;
+  padding: 18px;
+  border-color: rgb(255 255 255 / 0.72);
+  border-radius: 22px;
+  background: var(--guest-paper);
+  box-shadow: 0 18px 40px oklch(0.25 0.02 330 / 0.1);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .guest-my-stay-page .guest-checkout-card {
+    background: rgb(255 255 255 / 0.76);
+    -webkit-backdrop-filter: blur(18px) saturate(1.12);
+    backdrop-filter: blur(18px) saturate(1.12);
+  }
+}
+
+.guest-my-stay-page .guest-stay-context > button:first-child { min-height: 50px; }
+.guest-my-stay-page .guest-stay-context__clock {
+  width: 40px;
+  height: 40px;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--guest-brand) 10%, transparent);
+}
+.guest-my-stay-page .guest-stay-context__text { gap: 4px; }
+.guest-my-stay-page .guest-stay-context__text b { font-size: 16px; }
+.guest-my-stay-page .guest-stay-context__text small { font-size: 13px; }
+
+.guest-my-stay-page .guest-checkout-card__actions { gap: 12px; }
+.guest-my-stay-page .guest-checkout-card__requests {
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top-color: color-mix(in oklch, var(--guest-line) 78%, transparent);
+}
+.guest-my-stay-page .guest-checkout-card__requests button {
+  min-height: 64px;
+  gap: 12px;
+  padding: 12px 2px;
+}
+.guest-my-stay-page .guest-checkout-card__requests button > svg:first-child {
+  width: 18px;
+  height: 18px;
+  padding: 8px;
+  border-radius: 50%;
+  background: var(--guest-soft);
+  box-sizing: content-box;
+}
+.guest-my-stay-page .guest-checkout-card__requests button > svg:last-child { margin-right: 2px; }
+.guest-my-stay-page .guest-checkout-card__requests button:focus-visible { border-radius: 12px; }
+
+.guest-my-stay-page .guest-my-stay-total {
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.guest-my-stay-page .guest-my-stay-total > strong { font-size: 22px; }
+
+.guest-my-stay-page .guest-my-stay-charges__row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 64px;
+  padding: 14px 16px;
+  border-color: var(--guest-line);
+  border-radius: 18px;
+  background: var(--guest-surface);
+  box-shadow: none;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.guest-my-stay-page .guest-my-stay-charges__row > span:first-child {
+  width: auto;
+  place-items: initial;
+  color: inherit;
+}
+.guest-my-stay-page .guest-my-stay-charges__row > span:first-child b { font-size: 15px; font-weight: 700; }
+.guest-my-stay-page .guest-my-stay-charges__view { padding: 6px 0; }
+
+.guest-my-stay-page .guest-tabs {
+  gap: 4px;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--guest-line);
+  border-radius: 18px;
+  background: var(--guest-surface);
+}
+.guest-my-stay-page .guest-tab {
+  flex: 1;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--guest-radius-pill);
+  color: var(--guest-muted);
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+.guest-my-stay-page .guest-tab::after { display: none; }
+.guest-my-stay-page .guest-tab[aria-selected='true'] {
+  background: var(--guest-soft);
+  color: var(--guest-accent-strong);
+  box-shadow: 0 1px 2px oklch(0.25 0.02 330 / 0.08);
+}
+
+.guest-my-stay-page .guest-stay-entries {
+  gap: 10px;
+  margin-top: 12px;
+}
+.guest-my-stay-page .guest-stay-entry {
+  min-height: 96px;
+  padding: 16px;
+  border: 1px solid var(--guest-line);
+  border-radius: 20px;
+  background: var(--guest-paper);
+  box-shadow: 0 8px 24px oklch(0.25 0.02 330 / 0.07);
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+.guest-my-stay-page .guest-stay-entry:not(.is-static):hover {
+  border-color: var(--guest-line-strong);
+  box-shadow: 0 10px 28px oklch(0.25 0.02 330 / 0.1);
+}
+.guest-my-stay-page .guest-stay-entry[data-status='cancelled'] { box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-my-stay-page .guest-stay-entries { animation: none; }
+  .guest-my-stay-page .guest-checkout-card,
+  .guest-my-stay-page .guest-my-stay-charges__row,
+  .guest-my-stay-page .guest-stay-entry,
+  .guest-my-stay-page .guest-tab { transition: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Explore → ordering: venue browse, menu carousel, full-screen menu viewer
+
+   Taken from codex/ordering-menu-chat-flow. Appended rather than merged: that
+   branch forked 44 commits back, so its copy of this file predates the
+   promotion and would have dropped 126 lines of current styles.
+   -------------------------------------------------------------------------- */
+.guest-explore-subcategories { display: flex; gap: 8px; margin: 4px 0 2px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
+
+.guest-explore-subcategories::-webkit-scrollbar { display: none; }
+
+.guest-explore-subcategories button { flex: 0 0 auto; border: 1px solid var(--guest-line); border-radius: 999px; background: var(--guest-surface); color: var(--guest-muted); padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+.guest-explore-subcategories button.is-active { border-color: var(--guest-accent); background: var(--guest-soft); color: var(--guest-brand); }
+
+.guest-restaurant-browse {
+  gap: 16px;
+  padding-bottom: 88px;
+}
+
+.guest-restaurant-browse__details {
+  display: grid;
+  gap: 6px;
+  color: var(--guest-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.guest-restaurant-browse__details span:first-child {
+  color: var(--guest-ink);
+  font-weight: 650;
+}
+
+.guest-restaurant-browse__tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -2px;
+  padding: 2px;
+  scrollbar-width: none;
+}
+
+.guest-restaurant-browse__tabs::-webkit-scrollbar { display: none; }
+
+.guest-restaurant-browse__tabs button {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--guest-muted);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.guest-restaurant-browse__tabs button.is-active {
+  border-bottom-color: var(--guest-accent-strong);
+  color: var(--guest-ink);
+}
+
+.guest-restaurant-browse__items {
+  display: grid;
+  border-top: 1px solid var(--guest-line);
+}
+
+.guest-restaurant-browse__items article {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--guest-line);
+}
+
+.guest-restaurant-browse__items article > div {
+  display: grid;
+  gap: 7px;
+}
+
+.guest-restaurant-browse__item-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.guest-restaurant-browse__item-title h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guest-restaurant-browse__item-title strong {
+  flex: 0 0 auto;
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-restaurant-browse__items .guest-tag {
+  justify-self: start;
+}
+
+.guest-restaurant-browse__items p {
+  margin: 0;
+  color: var(--guest-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.guest-restaurant-browse__cta {
+  position: fixed;
+  z-index: 4;
+  right: 16px;
+  /* `--guest-nav-h`, not the `--guest-nav-height` the branch invented: that
+     token is defined nowhere and only worked off its fallback. */
+  bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 12px);
+  left: 16px;
+  max-width: 688px;
+  margin: 0 auto;
+}
+
+.guest-restaurant-browse__cta .guest-button {
+  width: 100%;
+  box-shadow: var(--shadow-md);
+}
+
+.guest-restaurant-menu-image-section {
+  display: grid;
+  gap: 10px;
+}
+
+.guest-restaurant-menu-image-section h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.guest-restaurant-menu-carousel {
+  display: grid;
+  gap: 10px;
+}
+
+.guest-restaurant-menu-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 430px;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  text-align: left;
+}
+
+.guest-restaurant-menu-image img {
+  object-fit: contain;
+  background: var(--guest-surface);
+}
+
+.guest-restaurant-menu-dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+
+.guest-restaurant-menu-dots button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--guest-line-strong);
+}
+
+.guest-restaurant-menu-dots button.is-active {
+  background: var(--guest-accent-strong);
+}
+
+.guest-restaurant-menu-viewer {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: oklch(0.16 0.02 320 / 0.9);
+}
+
+.guest-restaurant-menu-viewer__image {
+  position: relative;
+  width: min(92vw, 720px);
+  height: min(82vh, 900px);
+  overflow: hidden;
+}
+
+.guest-restaurant-menu-viewer__image img {
+  object-fit: contain;
+  transition: transform 180ms ease;
+}
+
+.guest-restaurant-menu-viewer__close,
+.guest-restaurant-menu-viewer__prev,
+.guest-restaurant-menu-viewer__next,
+.guest-restaurant-menu-viewer__zoom button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+}
+
+.guest-restaurant-menu-viewer__close {
+  position: absolute;
+  z-index: 1;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+}
+
+.guest-restaurant-menu-viewer__prev,
+.guest-restaurant-menu-viewer__next {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translateY(-50%);
+}
+
+.guest-restaurant-menu-viewer__prev { left: 16px; }
+
+.guest-restaurant-menu-viewer__next { right: 16px; }
+
+.guest-restaurant-menu-viewer__zoom {
+  position: absolute;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--guest-paper);
+}
+
+.guest-restaurant-menu-viewer__zoom button {
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+}
+
+.guest-restaurant-menu-viewer__zoom span {
+  min-width: 44px;
+  color: var(--guest-muted);
+  font-size: 12px;
+  text-align: center;
 }

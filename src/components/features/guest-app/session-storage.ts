@@ -17,6 +17,13 @@ import type { GuestSession } from './prototype-model';
  * the gate -- worse than starting them fresh.
  * v5: stay history moves onto the session, so a v4 record has no `pastStays`
  * for the home screen to map over.
+ *
+ * Rewards did NOT bump this. Every earlier bump existed because a screen began
+ * mapping over something the old shape does not carry, so an old record would
+ * have reached a `.map()` on `undefined`. `rewards` is the first addition whose
+ * absence has an answer that is both obvious and true -- a guest who has
+ * redeemed nothing and muted nothing -- and `getRewards` supplies it. Bumping
+ * would have discarded every stored session to gain that default.
  */
 export const SESSION_STORAGE_KEY = 'cabana.guest-session.v5';
 
@@ -68,6 +75,14 @@ function isStoredSession(value: unknown): value is GuestSession {
     && Array.isArray(value.pastStays)
     && isObject(value.roomPreferences)
     && Array.isArray((value.roomPreferences as Record<string, unknown>).accessibility)
+    /*
+      Absent is fine and means a record written before rewards existed -- the
+      only field here that is optional rather than required, because it is the
+      only one whose default is both obvious and true. Present but not an
+      object is not: that reaches `.mutedBadges.includes(...)` on the badge
+      shelf and takes the screen down.
+    */
+    && (value.rewards === undefined || isObject(value.rewards))
   );
 }
 

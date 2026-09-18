@@ -113,6 +113,8 @@ import {
   DEFAULT_REBOOK_CHECK_IN,
   DEFAULT_REBOOK_CHECK_OUT,
   GUEST_PROFILE,
+  maskEmail,
+  maskMobile,
   applyPrototypeStayState,
   getPrototypeStayState,
   PROTOTYPE_STAY_STATES,
@@ -2633,14 +2635,57 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Guest" value={profileMatch.guestName} />
             </div>
 
-            <Button
-              className="guest-button guest-button--primary"
-              type="button"
-              disabled={!online}
-              onClick={completeReentry}
+            {/*
+              Masked, and masked for a reason: holding a booking reference is
+              not yet proof of anything, so this has to show the guest we
+              reached the right person without telling an unknown party what
+              their address is. Enough to recognise your own contact details,
+              and no more.
+            */}
+            <div className="guest-summary">
+              <SummaryRow label="Email" value={maskEmail(GUEST_PROFILE.email)} />
+              <SummaryRow label="Mobile" value={maskMobile(GUEST_PROFILE.mobile)} />
+            </div>
+
+            <form
+              className="guest-form"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                if (!/^\d{6}$/.test(code)) {
+                  setCodeNotice('Enter the 6-digit code.');
+                  return;
+                }
+                completeReentry();
+              }}
             >
-              Yes, this is my booking<ArrowRight aria-hidden="true" />
-            </Button>
+              <label className="guest-field guest-code-field" htmlFor="reentry-code">
+                <span>6-digit verification code *</span>
+                <Input
+                  id="reentry-code"
+                  name="reentry-code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  spellCheck={false}
+                  maxLength={6}
+                  value={code}
+                  onChange={(event) => {
+                    setCode(event.currentTarget.value.replace(/\D/g, '').slice(0, 6));
+                    setCodeNotice(null);
+                  }}
+                  aria-describedby={codeNotice ? 'reentry-code-error' : undefined}
+                  aria-invalid={codeNotice ? 'true' : undefined}
+                  required
+                />
+                {codeNotice ? <span id="reentry-code-error" role="alert">{codeNotice}</span> : null}
+              </label>
+              <Button
+                className="guest-button guest-button--primary"
+                type="submit"
+                disabled={!online || !/^\d{6}$/.test(code)}
+              >
+                Verify and open my account<ArrowRight aria-hidden="true" />
+              </Button>
+            </form>
             <TextButton onClick={() => go('identify-returning')}>Use a different booking</TextButton>
           </div>
         );

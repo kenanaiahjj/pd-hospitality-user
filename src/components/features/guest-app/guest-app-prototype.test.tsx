@@ -1857,6 +1857,9 @@ describe('booking-reference re-entry', () => {
   */
   const enterReference = async (user: ReturnType<typeof userEvent.setup>, reference: string) => {
     await user.type(screen.getByLabelText(/Booking or confirmation number/), reference);
+    // The surname is half the match: a reference alone names a stay, not a
+    // person, and the screen has required both since re-entry shipped.
+    await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: /^Continue/ }));
   };
 

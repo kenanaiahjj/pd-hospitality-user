@@ -3,6 +3,23 @@
 import { BadgeMedal } from './badge-medal';
 import type { BadgeProgress } from './badge-model';
 
+/*
+  One badge, and the case for it.
+
+  A badge derived from spend is a profile, and a profile that appears
+  unannounced reads as surveillance however flattering it is. So this leads
+  with the bookings behind the inference and offers the guest a way to say no
+  -- which makes it something they can argue with rather than a verdict handed
+  down.
+
+  The correction has to be real. Muting removes the badge from derivation
+  entirely rather than hiding it in a view, so it stays gone across a reload
+  and cannot quietly keep counting.
+
+  (Carried from `badge-sheet.tsx`, a modal that did this job before the premium
+  pass gave it a screen of its own. The reasoning outlived the dialog.)
+*/
+
 export type BadgeDetailProps = {
   row: BadgeProgress;
   onMute: (badgeId: string) => void;

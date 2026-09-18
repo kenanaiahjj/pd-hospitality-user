@@ -6095,10 +6095,8 @@
 .guest-message__attachment,
 .points-apply__start,
 .guest-prototype-toolbar__reset,
-.badge-sheet__mute,
 .guest-badge-detail__mute,
 .guest-companion-remove,
-.badge-sheet__close,
 .guest-announcement-detail__close,
 .guest-order-tray__back,
 .guest-order-tray__close,
@@ -6133,14 +6131,12 @@
 .guest-message__attachment:active,
 .points-apply__start:active,
 .guest-prototype-toolbar__reset:active,
-.badge-sheet__mute:active,
 .guest-badge-detail__mute:active,
 .guest-companion-remove:active {
   transform: scale(0.97);
 }
 
 /* Icon-sized: closes, steppers, carousel arrows. */
-.badge-sheet__close:active,
 .guest-announcement-detail__close:active,
 .guest-order-tray__back:active,
 .guest-order-tray__close:active,
@@ -6173,10 +6169,8 @@
   .guest-message__attachment:active,
   .points-apply__start:active,
   .guest-prototype-toolbar__reset:active,
-  .badge-sheet__mute:active,
   .guest-badge-detail__mute:active,
   .guest-companion-remove:active,
-  .badge-sheet__close:active,
   .guest-announcement-detail__close:active,
   .guest-order-tray__back:active,
   .guest-order-tray__close:active,

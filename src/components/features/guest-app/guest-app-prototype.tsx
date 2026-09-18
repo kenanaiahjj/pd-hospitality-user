@@ -3375,6 +3375,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
         const checkoutIsDue = contextBooking.checkOut <= PROTOTYPE_TODAY;
+        /*
+          The same object `stay-detail` renders, built from the live booking
+          rather than from `PAST_STAYS` -- a stay that ended this morning has
+          not settled into history yet, and the guest still wants the receipt.
+        */
+        const settledStay = checkedOut ? toFinishedStay(session, contextBooking) : null;
 
         return (
           <div className="guest-stack guest-my-stay-page">
@@ -3404,8 +3410,38 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </p>
             ) : null}
 
+            {/*
+              A finished stay reads as a receipt, not as a live screen with
+              nothing on it. The room line is the point: before this the screen
+              could only report what was charged *against* the room, so a stay
+              that cost ₱18,600 to sleep in showed a room of nothing.
+            */}
+            {settledStay ? (
+              <section className="guest-settled-summary">
+                <SectionHeading title="This stay" />
+                <p className="guest-settled-summary__status">Settled at checkout</p>
+                <div className="guest-summary">
+                  <SummaryRow label={`${settledStay.roomType} · ${settledStay.nights} nights`} value={settledStay.roomRate} />
+                  <SummaryRow label="Total settled" value={settledStay.total} strong />
+                </div>
+                <Button className="guest-button guest-button--secondary" type="button" onClick={() => { setSelectedPastStayId(contextBooking.id); go('stay-detail'); }}>
+                  View settled stay<ArrowRight aria-hidden="true" />
+                </Button>
+                <TextButton onClick={() => go('book-stay')}>Book another stay</TextButton>
+              </section>
+            ) : null}
+
             {started ? (
-              <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}><span><b>Room charges</b><small>View charges added to your room</small></span><span className="guest-my-stay-charges__view">View</span></button>
+              <>
+                {/* "so far" is present tense, so it goes once the stay is over. */}
+                {!checkedOut ? (
+                  <div className="guest-folio-summary guest-my-stay-total">
+                    <div><span>This stay so far</span><small>Due at checkout</small></div>
+                    <strong>{session.folioTotal || contextBooking.folioTotal || '₱0'}</strong>
+                  </div>
+                ) : null}
+                <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}><span><b>Room charges</b><small>View charges added to your room</small></span><span className="guest-my-stay-charges__view">View</span></button>
+              </>
             ) : null}
 
             {/*

@@ -1964,7 +1964,7 @@ describe('a finished stay on My Stay', () => {
     expect(screen.getByText('This stay')).toBeInTheDocument();
     // "so far" is present tense about something that is over.
     expect(screen.queryByText('This stay so far')).toBeNull();
-    expect(screen.getByText(/settled at checkout/)).toBeInTheDocument();
+    expect(screen.getByText('Settled at checkout')).toBeInTheDocument();
   });
 
   /*

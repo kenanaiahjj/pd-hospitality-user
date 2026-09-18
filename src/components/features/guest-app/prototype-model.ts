@@ -2432,6 +2432,13 @@ export type RestaurantVenue = {
   name: string;
   category: string;
   operator: string;
+  /**
+   * What the card says a venue costs.
+   *
+   * "Menu in Chat" rather than a from-price: the menu is a photograph the
+   * front desk sends, so a number on the card would promise a price list the
+   * app does not hold.
+   */
   priceRange: string;
   hours: string;
   /** The hotel this venue sits inside. Its parent in the estate. */
@@ -2453,7 +2460,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'Apartment 1B',
     category: 'Restaurant & Bar',
     operator: 'Hotel operated',
-    priceRange: 'From ₱550',
+    priceRange: 'Menu in Chat',
     hours: '6:30 AM – 11:00 PM',
     property: 'The Henry Manila',
     location: 'Ground floor courtyard',
@@ -2578,7 +2585,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'In-Room Dining',
     category: 'Dining',
     operator: 'Hotel operated',
-    priceRange: 'From ₱450',
+    priceRange: 'Menu in Chat',
     hours: '24 hours daily',
     property: 'The Henry Manila',
     location: 'Delivered to your room',
@@ -2657,7 +2664,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'The Poolside Bar',
     category: 'Bar & Lounge',
     operator: 'Hotel operated',
-    priceRange: 'From ₱350',
+    priceRange: 'Menu in Chat',
     hours: '11:00 AM – 12:00 MN',
     property: 'The Henry Manila',
     location: 'Second floor pool deck',
@@ -2706,7 +2713,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'Kape Manila Café',
     category: 'Café & Bakery',
     operator: 'Hotel operated',
-    priceRange: 'From ₱180',
+    priceRange: 'Menu in Chat',
     hours: '6:00 AM – 8:00 PM',
     property: 'The Henry Manila',
     location: 'Lobby, beside reception',
@@ -2781,7 +2788,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'Azotea Rooftop',
     category: 'Fine Dining',
     operator: 'Hotel operated',
-    priceRange: 'From ₱1,200',
+    priceRange: 'Menu in Chat',
     hours: '5:30 PM – 12:00 MN',
     property: 'The Henry Manila',
     location: 'Ninth floor terrace',

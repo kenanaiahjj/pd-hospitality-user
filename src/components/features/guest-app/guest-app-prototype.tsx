@@ -1061,6 +1061,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [extensionDate, setExtensionDate] = useState('2026-11-14');
   const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  const [exploreSubcategory, setExploreSubcategory] = useState('All');
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
   const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | 'gifts' | null>(null);
   const [, setOrderTrayStep] = useState<'tray' | 'review'>('tray');
@@ -1311,7 +1312,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       const catalogImages = catalogRequest
         ? messageBody.includes('products')
           ? GIFT_PRODUCTS.slice(0, 2).map((product) => product.image)
-          : [getMenuItemImage('a1b-calamari'), getMenuItemImage('a1b-ribeye')]
+          : undefined
         : undefined;
       const deskReply = messageBody.includes('towel')
         ? `We’ll bring two fresh towels to ${contextRoom.toLowerCase()} shortly.`
@@ -1325,6 +1326,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const sendQuickMessage = (body: string) => sendChatMessage(body);
+
+  /* Ordering opens the chat already knowing which venue it is about. */
+  const openRestaurantChat = (venue: RestaurantVenue) => {
+    const systemMessage = `Ordering from ${venue.name}`;
+    const menuMessage = `Ordering support for ${venue.name} is ready. Send the item names, quantities, and any special requests when you’re ready to order.`;
+    if (!chatMessages.some((message) => message.body === systemMessage)) {
+      setChatMessages((messages) => [
+        ...messages,
+        { from: 'desk', body: systemMessage, state: 'System' },
+        { from: 'desk', body: menuMessage, state: 'Seen' },
+      ]);
+    }
+    setChatDraft(`I’d like to order from ${venue.name}.`);
+    go('chat');
+  };
 
   const openExtensionChat = () => {
     setChatDraft('Hi! I’d like to ask if I can extend my stay for one more night. Is my current room available, and how much would the additional night cost?');
@@ -2927,8 +2943,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // filter/sort run over them unchanged.
         const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
         const listingFilters = { operators: [], types: serviceTypes, sort: serviceSort };
-        const visibleVenues = filterServices(venueRows, listingFilters);
-        const visibleServices = filterServices(categoryServices, listingFilters);
+        const subcategories: Record<MiniAppCategoryId, string[]> = {
+          dining: ['All', 'Breakfast & Brunch', 'Filipino & International', 'Spanish', 'Asian Fusion', 'Pizza & Pasta', 'Desserts & Café'],
+          spa: ['All', 'Massage', 'Body Treatments', 'Beauty & Grooming', 'Mind & Movement'],
+          entertainment: ['All', 'Manila Highlights', 'Culture & Heritage', 'Nature & Waterfalls', 'Islands & Marine Life', 'Day Trips'],
+          services: ['All', 'Transportation', 'Guest Assistance', 'Room & Luggage', 'Laundry & Housekeeping', 'Celebrations'],
+        };
+        const options = subcategories[selectedCategory];
+        const selectedSubcategory = options.includes(exploreSubcategory) ? exploreSubcategory : 'All';
+        const matchesSubcategory = (row: { category: string }) => selectedSubcategory === 'All' || row.category === selectedSubcategory;
+        const visibleVenues = filterServices(venueRows, listingFilters).filter(matchesSubcategory);
+        const visibleServices = filterServices(categoryServices, listingFilters).filter(matchesSubcategory);
         const servicesNarrowed = serviceTypes.length > 0 || serviceSort !== 'recommended';
         const clearServiceControls = () => { setServiceTypes([]); setServiceSort('recommended'); };
         const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
@@ -2945,6 +2970,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <p>{categoryDescription[selectedCategory]}</p>
             </div>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved offerings">Live availability and booking require a connection.</Notice> : null}
+
+            <div className="guest-scroll-row guest-explore-subcategories" aria-label="Explore subcategories">
+              {options.map((option) => <button key={option} type="button" className={selectedSubcategory === option ? 'is-active' : ''} onClick={() => setExploreSubcategory(option)}>{option}</button>)}
+            </div>
 
             {selectedCategory === 'dining' ? (
               <>
@@ -2971,7 +3000,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   >
                     <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} itemId={res.id} categoryId="dining" variant="card" tone={res.tone} icon={<ForkKnife />} decorative />
                     <div className="guest-food-restaurant-card__body">
-                      <div className="guest-food-restaurant-card__title"><h2>{res.name}</h2><span>{res.priceRange}</span></div>
+                      <div className="guest-food-restaurant-card__title"><h2>{res.name}</h2></div>
                       <p>{res.category} · {res.hours}</p>
                       <small>{res.location}</small>
                     </div>
@@ -3062,7 +3091,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        return <EstablishmentChatScreen kind="restaurant" venue={venue} booking={contextBooking} online={online} onChat={(message) => { setChatDraft(message); go('chat'); }} />;
+        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} />;
       }
 
       case 'restaurant-cart': {
@@ -5238,7 +5267,7 @@ type NearbyEstablishment = {
   categoryId: MiniAppCategoryId | 'gifts';
   name: string;
   type: string;
-  distance: string;
+  distance?: string;
   description: string;
   address: string;
   hours: string;
@@ -5276,17 +5305,17 @@ function canOfferRoomUpgrade(booking: Booking) {
 function NearbyRecommendations({ categoryId, description, onSelect }: { categoryId: MiniAppCategoryId; description: string; onSelect: (id: string) => void }) {
   const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
   if (!recommendations.length) return null;
-  return <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">{description}</p><div className="guest-nearby-list">{recommendations.map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelect(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small><small>{item.distance}</small><p>{item.description}</p></span><CaretRight /></button>)}</div></section>;
+  return <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">{description}</p><div className="guest-nearby-list">{recommendations.map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelect(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small>{item.distance ? <small>{item.distance}</small> : null}<p>{item.description}</p></span><CaretRight /></button>)}</div></section>;
 }
 
 function NearbyEstablishmentScreen({ establishment, onBookRide }: { establishment: NearbyEstablishment; onBookRide: () => void }) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(establishment.address)}`;
   return <div className="guest-stack guest-establishment-detail">
     <div className="guest-establishment-cover"><Image src={establishment.image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></div>
-    <div className="guest-page-title"><p className="guest-eyebrow">Nearby recommendation · Independently operated</p><h1>{establishment.name}</h1><p>{establishment.type} · {establishment.distance}</p></div>
+    <div className="guest-page-title"><p className="guest-eyebrow">Nearby recommendation · Independently operated</p><h1>{establishment.name}</h1><p>{establishment.type}</p></div>
     <Notice title="Outside the hotel">This establishment is independently operated and is not part of the hotel.</Notice>
     <p className="guest-establishment-description">{establishment.description}</p>
-    <div className="guest-summary"><SummaryRow label="Address" value={establishment.address} /><SummaryRow label="Distance" value={establishment.distance} /><SummaryRow label="Operating hours" value={establishment.hours} />{establishment.contact ? <SummaryRow label="Contact" value={establishment.contact} /> : null}</div>
+    <div className="guest-summary"><SummaryRow label="Address" value={establishment.address} /><SummaryRow label="Operating hours" value={establishment.hours} />{establishment.contact ? <SummaryRow label="Contact" value={establishment.contact} /> : null}</div>
     <a className="guest-location-row" href={mapsUrl} target="_blank" rel="noreferrer"><MapPin /><span><b>{establishment.address}</b><small>View on Google Maps</small></span><CaretRight /></a>
     <Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button>
   </div>;
@@ -5476,7 +5505,7 @@ function GiftsSouvenirsScreen({ booking, fulfillment, cart, onChangeQuantity, on
         </section>
       ))}
       {Object.values(cart).some((quantity) => quantity > 0) ? <button className="guest-mini-cart" type="button" onClick={onOpenCart}><span><small>Gift order</small><b>{Object.values(cart).reduce((sum, quantity) => sum + quantity, 0)} items</b></span><strong>{formatPesoAmount(GIFT_PRODUCTS.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0))}</strong><CaretRight /></button> : null}
-      <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">Nearby shops for gifts, local products, and souvenirs.</p><div className="guest-nearby-list">{NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === 'gifts').map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelectNearby(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small><small>{item.distance}</small><p>{item.description}</p></span><CaretRight /></button>)}</div></section>
+      <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">Nearby shops for gifts, local products, and souvenirs.</p><div className="guest-nearby-list">{NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === 'gifts').map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelectNearby(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small>{item.distance ? <small>{item.distance}</small> : null}<p>{item.description}</p></span><CaretRight /></button>)}</div></section>
     </div>
   );
 }
@@ -5517,6 +5546,32 @@ function EstablishmentChatScreen({ kind, venue, booking, online, onChat }: { kin
     : `Hi! I’d like to see the available products from ${name}.`;
 
   return <div className="guest-stack guest-establishment-chat-screen">{venue ? <ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<Storefront size={38} />} decorative /> : <div className="guest-establishment-chat-screen__cover"><Image src={GIFT_PRODUCTS[0].image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></div>}<div className="guest-page-title"><h1>{name}</h1><p>{description}</p><div className="guest-establishment-chat-screen__details"><span>{provider}</span><span>{location}</span><span>{hours}</span><span>{online ? 'Available · Confirm with the front desk' : 'Availability shown when connected'}</span></div></div><div className="guest-establishment-chat-screen__instructions"><b>How ordering works</b><p>{instructions}</p></div><button className="guest-button guest-button--primary" type="button" onClick={() => onChat(message)}>{restaurant ? 'View menu and order' : 'View products and order'}<ArrowRight /></button><TextButton onClick={() => onChat(message)}>Message the front desk</TextButton></div>;
+}
+
+const RESTAURANT_MENU_IMAGE_PAGES = [
+  '/menus/restaurant-menu-page-1.png',
+  '/menus/restaurant-menu-page-2.png',
+  '/menus/restaurant-menu-page-3.png',
+];
+
+const getRestaurantMenuImages = (venue: RestaurantVenue) => {
+  void venue;
+  return RESTAURANT_MENU_IMAGE_PAGES;
+};
+
+function RestaurantMenuScreen({ venue, onOrder }: { venue: RestaurantVenue; onOrder: () => void }) {
+  const [page, setPage] = useState(0);
+  const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const menuImages = getRestaurantMenuImages(venue);
+  const currentImage = menuImages[page] ?? menuImages[0];
+
+  const openPreview = () => {
+    setPreviewZoom(1);
+    setPreviewOpen(true);
+  };
+
+  return <div className="guest-stack guest-restaurant-browse"><ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{venue.name}</h1><p>{venue.description}</p><div className="guest-restaurant-browse__details"><span>{venue.operator}</span><span>{venue.location}</span><span>{venue.hours}</span><span>Available · Confirm current menu in Chat</span></div></div><section className="guest-restaurant-menu-image-section"><h2>Menu</h2><div className="guest-restaurant-menu-carousel"><button type="button" className="guest-restaurant-menu-image" onClick={openPreview} aria-label={`Open menu page ${page + 1}`}><Image src={currentImage} alt={`${venue.name} menu page ${page + 1}`} fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></button>{menuImages.length > 1 ? <div className="guest-restaurant-menu-dots" aria-label="Menu pages">{menuImages.map((image, index) => <button key={image} type="button" aria-label={`Show menu page ${index + 1}`} aria-current={page === index} className={page === index ? 'is-active' : ''} onClick={() => setPage(index)} />)}</div> : null}</div></section><div className="guest-restaurant-browse__cta"><button className="guest-button guest-button--primary" type="button" onClick={onOrder}>Order from {venue.name}<ArrowRight /></button></div>{previewOpen ? <div className="guest-restaurant-menu-viewer" role="dialog" aria-modal="true" aria-label={`${venue.name} menu preview`} onClick={() => setPreviewOpen(false)}><button type="button" className="guest-restaurant-menu-viewer__close" aria-label="Close menu preview" onClick={() => setPreviewOpen(false)}><X /></button>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__prev" aria-label="Previous menu page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current - 1 + menuImages.length) % menuImages.length); }}><ArrowLeft /></button> : null}<div className="guest-restaurant-menu-viewer__image" onClick={(event) => event.stopPropagation()}><Image src={currentImage} alt={`${venue.name} menu preview`} fill sizes="92vw" style={{ transform: `scale(${previewZoom})` }} /></div>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__next" aria-label="Next menu page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current + 1) % menuImages.length); }}><ArrowRight /></button> : null}<div className="guest-restaurant-menu-viewer__zoom"><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.max(1, zoom - 0.25)); }}>−</button><span>{Math.round(previewZoom * 100)}%</span><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.min(2.5, zoom + 0.25)); }}>+</button></div></div> : null}</div>;
 }
 
 function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge: ReturnType<typeof getRoomCharges>[number]; service?: ServiceBooking; roomLabel: string; onQuestion: (message: string) => void }) {

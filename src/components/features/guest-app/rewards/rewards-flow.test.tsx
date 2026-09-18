@@ -50,10 +50,13 @@ describe('BadgeMedal', () => {
     }
   });
 
-  it('says a badge is unearned rather than only showing it greyed', () => {
+  it('uses a lock treatment for unearned badges', () => {
     render(<BadgeMedal badge={{ ...anyBadge, art: undefined }} earned={false} />);
 
-    expect(screen.getByRole('img', { name: /not yet earned/i })).toBeInTheDocument();
+    const medal = screen.getByRole('img', { name: /not yet earned/i });
+    expect(medal).toHaveClass('badge-medal--locked');
+    expect(medal.querySelector('.badge-medal__locked-field')).not.toBeNull();
+    expect(medal.querySelector('.badge-medal__lock')).not.toBeNull();
   });
 
   it('carries its family, so shape and enamel come from one place', () => {
@@ -154,7 +157,7 @@ describe('BadgeShelf', () => {
 
     expect(screen.getByText('13 earned')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Nearly there' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'In progress' })).toBeInTheDocument();
   });
 
   it('shows every badge exactly once', () => {
@@ -169,21 +172,21 @@ describe('BadgeShelf', () => {
     otherwise each be read out, so the medal is decorative and the button
     carries name, requirement and progress together.
   */
-  it('announces an in-progress badge as one thing', () => {
+  it('announces an in-progress badge as one non-interactive thing', () => {
     renderShelf();
 
-    expect(screen.getByRole('button', {
+    expect(screen.getByRole('group', {
       name: 'Culture — Two museums or heritage walks, 1 of 2',
     })).toBeInTheDocument();
   });
 
-  it('opens a badge from its row', async () => {
+  it('does not make an in-progress badge tappable', () => {
     const onOpenBadge = renderShelf();
 
     const rows = screen.getAllByTestId('badge-progress-row');
-    await userEvent.click(within(rows[0]!).getByRole('button'));
 
-    expect(onOpenBadge).toHaveBeenCalledWith('homegrown');
+    expect(within(rows[0]!).queryByRole('button')).not.toBeInTheDocument();
+    expect(onOpenBadge).not.toHaveBeenCalled();
   });
 });
 
@@ -210,28 +213,31 @@ describe('the door from Profile', () => {
   it('registers Rewards as a screen of the app', () => {
     expect(SCREENS.find((screenEntry) => screenEntry.id === 'rewards')).toMatchObject({
       group: 'Account',
-      title: 'Points and badges',
+      title: 'Achievements',
     });
   });
 
   it('opens the hub from Profile and derives everything on the spot', async () => {
     render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
 
-    const door = screen.getByRole('button', { name: /points and badges/i });
-    expect(within(door).getByText(/37,220 points · 13 badges/)).toBeInTheDocument();
+    const door = screen.getByRole('button', { name: /achievements/i });
+    expect(within(door).getByText(/13 badges · 37,220 points/)).toBeInTheDocument();
 
     await userEvent.click(door);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Points and badges' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Your achievements' })).toBeInTheDocument();
     expect(screen.getByText('37,220')).toBeInTheDocument();
     expect(screen.getByText('13 earned')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
+    expect(document.querySelector('.guest-achievements-overview')).toBeInTheDocument();
+    expect(document.querySelector('.guest-achievements-overview__image')).toBeInTheDocument();
+    expect(document.querySelector('.guest-achievements-points')).toBeInTheDocument();
   });
 
   /* Rewards lives inside Profile, so the bar must not lose its highlight. */
   it('keeps the Profile tab current while rewards is open', async () => {
     render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
-    await userEvent.click(screen.getByRole('button', { name: /points and badges/i }));
+    await userEvent.click(screen.getByRole('button', { name: /achievements/i }));
 
     const profileTab = screen.getByRole('button', { name: /^profile$/i });
     expect(profileTab).toHaveAttribute('aria-current', 'page');
@@ -239,10 +245,10 @@ describe('the door from Profile', () => {
 });
 
 
-describe('the badge sheet', () => {
+describe('the badge detail page', () => {
   const openRewards = async () => {
     render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
-    await userEvent.click(screen.getByRole('button', { name: /points and badges/i }));
+    await userEvent.click(screen.getByRole('button', { name: /achievements/i }));
   };
 
   /*
@@ -255,10 +261,11 @@ describe('the badge sheet', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Foodie' }));
 
-    const sheet = screen.getByRole('dialog');
-    expect(within(sheet).getByRole('heading', { name: 'Foodie' })).toBeInTheDocument();
-    expect(within(sheet).getByText('Dinner for two · Azotea Rooftop')).toBeInTheDocument();
-    expect(within(sheet).getByText('Drinks and snacks · The Poolside Bar')).toBeInTheDocument();
+    const detail = screen.getByTestId('badge-detail');
+    expect(within(detail).getByRole('heading', { level: 1, name: 'Foodie' })).toBeInTheDocument();
+    expect(within(detail).getByText('Dinner for two · Azotea Rooftop')).toBeInTheDocument();
+    expect(within(detail).getByText('Drinks and snacks · The Poolside Bar')).toBeInTheDocument();
+    expect(detail.querySelector('.badge-medal--shimmer')).toBeInTheDocument();
   });
 
   it('lets the guest deny it, and the badge leaves every surface', async () => {
@@ -288,29 +295,33 @@ describe('the badge sheet', () => {
     await userEvent.click(screen.getByRole('button', { name: /turn this off/i }));
 
     await userEvent.click(screen.getByRole('button', { name: /^profile$/i }));
-    await userEvent.click(screen.getByRole('button', { name: /points and badges/i }));
+    await userEvent.click(screen.getByRole('button', { name: /achievements/i }));
 
     expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
     expect(screen.getByText('12 earned')).toBeInTheDocument();
   });
 
-  it('says what is left on a badge still in progress', async () => {
+  it('shows what is left on a badge still in progress without opening it', async () => {
     await openRewards();
 
-    await userEvent.click(screen.getByRole('button', { name: /^Culture/ }));
+    const cultureRow = screen.getAllByTestId('badge-progress-row').find((row) => (
+      within(row).queryByText('Culture')
+    ));
 
-    const sheet = screen.getByRole('dialog');
-    expect(within(sheet).getByText('1 of 2')).toBeInTheDocument();
-    expect(within(sheet).getByText(/one more/i)).toBeInTheDocument();
+    expect(cultureRow).toBeDefined();
+    expect(within(cultureRow!).getByText(/1\s+of\s+2/)).toBeInTheDocument();
+    expect(within(cultureRow!).getByText('Two museums or heritage walks')).toBeInTheDocument();
+    expect(within(cultureRow!).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('badge-detail')).not.toBeInTheDocument();
   });
 
-  it('closes without changing anything', async () => {
+  it('goes back without changing anything', async () => {
     await openRewards();
     await userEvent.click(screen.getByRole('button', { name: 'Foodie' }));
 
-    await userEvent.click(screen.getByRole('button', { name: /close/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Go back' }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('badge-detail')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
   });
 });
@@ -374,7 +385,7 @@ describe('RewardDetail', () => {
 describe('redeeming from the app', () => {
   const openRewards = async () => {
     render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
-    await userEvent.click(screen.getByRole('button', { name: /points and badges/i }));
+    await userEvent.click(screen.getByRole('button', { name: /achievements/i }));
   };
 
   it('registers the reward detail as a screen', () => {

@@ -121,14 +121,66 @@
   clip-path: none;
 }
 
-/*
-  One asset per badge, two states. Greying the earned artwork costs nothing and
-  keeps a locked badge legible as the same object -- which is what makes it
-  something to go and get rather than something absent.
-*/
+/* A locked badge is a destination, not a failed image load: dark enamel, a
+   soft family-colored bloom, and one unambiguous lock. */
 .badge-medal--locked {
-  filter: grayscale(1) brightness(0.45);
-  opacity: 0.55;
+  filter: none;
+  opacity: 1;
+}
+
+.badge-medal__locked-field {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: hidden;
+  background: #201f24;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+}
+
+.badge-medal__locked-field::before {
+  position: absolute;
+  inset: -24%;
+  content: '';
+  background:
+    radial-gradient(
+      circle at 32% 38%,
+      color-mix(in srgb, var(--medal-enamel) 78%, #ffb1b8) 0 14%,
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 72% 62%,
+      color-mix(in srgb, var(--medal-enamel) 58%, #c6a3d7) 0 16%,
+      transparent 44%
+    ),
+    radial-gradient(
+      circle at 52% 82%,
+      color-mix(in srgb, var(--medal-enamel) 52%, #f0c1a4) 0 12%,
+      transparent 38%
+    );
+  filter: blur(18px);
+  opacity: 0.78;
+  transform: scale(1.12);
+}
+
+.badge-medal__locked-field::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.08), transparent 42% 68%, rgb(0 0 0 / 0.26)),
+    rgb(21 20 25 / 0.18);
+  pointer-events: none;
+}
+
+.badge-medal__lock {
+  position: relative;
+  z-index: 1;
+  inline-size: 32%;
+  block-size: 32%;
+  color: #f0f0d7;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.3));
 }
 
 /* --------------------------------------------------------------------------
@@ -474,6 +526,323 @@
 }
 
 /* --------------------------------------------------------------------------
+   Full-page badge detail
+
+   A badge is a small piece of content worth celebrating, so it gets a real
+   destination rather than a temporary overlay. The light sweep is deliberately
+   restrained: it gives the medal a living, enamel-like highlight without
+   turning the achievement page into a decorative effects demo.
+   -------------------------------------------------------------------------- */
+
+.guest-badge-detail {
+  gap: 18px;
+  padding-block-end: 16px;
+}
+
+.guest-badge-detail__header {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  min-block-size: 40px;
+}
+
+.guest-badge-detail__header > div {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.guest-badge-detail__header span {
+  color: var(--guest-muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.guest-badge-detail__header strong {
+  color: var(--guest-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.guest-badge-detail__hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 20px 20px 12px;
+  overflow: hidden;
+  background: transparent;
+  color: var(--guest-ink);
+}
+
+.guest-badge-detail__hero::before {
+  display: none;
+}
+
+.guest-badge-detail__hero::after {
+  display: none;
+}
+
+.guest-badge-detail__medal {
+  display: grid;
+  place-items: center;
+  inline-size: 230px;
+  block-size: 164px;
+  margin-block-end: 3px;
+}
+
+.guest-badge-detail__medal.is-earned {
+  transform-origin: 50% 72%;
+  will-change: transform;
+  animation: guest-badge-detail-medal-drift 6.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.guest-badge-detail__medal > .badge-medal {
+  z-index: 1;
+}
+
+/* One narrow specular pass, clipped by the medal's own silhouette. */
+.badge-medal--shimmer { overflow: hidden; }
+.badge-medal--shimmer::after {
+  position: absolute;
+  z-index: 2;
+  inset-block: -35%;
+  inset-inline-start: -45%;
+  inline-size: 38%;
+  content: '';
+  background: linear-gradient(105deg, transparent 0 22%, rgb(255 255 255 / 0.14) 35%, rgb(255 255 255 / 0.92) 50%, rgb(255 255 255 / 0.14) 66%, transparent 78%);
+  filter: blur(0.35px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-150%) skewX(-16deg);
+  animation: guest-badge-detail-shine 6s cubic-bezier(0.2, 0.72, 0.25, 1) infinite;
+}
+
+.badge-medal[data-shape='circle'].badge-medal--shimmer { clip-path: circle(50%); }
+.badge-medal[data-shape='shield'].badge-medal--shimmer {
+  clip-path: polygon(50% 0%, 100% 14%, 100% 62%, 50% 100%, 0% 62%, 0% 14%);
+}
+.badge-medal[data-shape='hexagon'].badge-medal--shimmer {
+  clip-path: polygon(50% 0%, 94% 25%, 94% 75%, 50% 100%, 6% 75%, 6% 25%);
+}
+.badge-medal[data-shape='pentagon'].badge-medal--shimmer {
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+}
+.badge-medal[data-shape='square'].badge-medal--shimmer {
+  border-radius: calc(var(--medal-size) / 3.4);
+}
+.badge-medal[data-shape='capsule'].badge-medal--shimmer {
+  inline-size: calc(var(--medal-size) * 1.6);
+  border-radius: var(--radius-pill, 999px);
+}
+
+.guest-badge-detail__eyebrow {
+  color: var(--guest-brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.guest-badge-detail__hero h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.guest-badge-detail__hero p {
+  max-inline-size: 30ch;
+  margin: 0;
+  color: var(--guest-muted);
+  font-size: 15px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.guest-badge-detail__proof {
+  display: grid;
+  gap: 16px;
+  padding: 16px 0 4px;
+  border-block: 1px solid var(--guest-line);
+  background: transparent;
+}
+
+.guest-badge-detail__section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-inline: 2px;
+}
+
+.guest-badge-detail__section-head > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.guest-badge-detail__section-head span {
+  color: var(--guest-muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.guest-badge-detail__section-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.026em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.guest-badge-detail__section-head > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  color: var(--guest-brand);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-badge-detail__section-head > strong::before {
+  inline-size: 7px;
+  block-size: 7px;
+  content: '';
+  border-radius: 50%;
+  background: var(--guest-accent-strong);
+  box-shadow: 0 0 0 3px var(--guest-soft);
+}
+
+.guest-badge-detail__evidence {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-sunken);
+  overflow: hidden;
+}
+
+.guest-badge-detail__evidence li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-block-size: 54px;
+  padding: 11px 14px 11px 38px;
+  color: var(--guest-ink);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.guest-badge-detail__evidence li::before {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 14px;
+  inline-size: 6px;
+  block-size: 6px;
+  content: '';
+  border-radius: 50%;
+  background: var(--guest-accent-strong);
+  box-shadow: 0 0 0 3px var(--guest-soft);
+  transform: translateY(-50%);
+}
+
+.guest-badge-detail__evidence li + li { border-block-start: 1px solid var(--guest-line); }
+
+.guest-badge-detail__progress {
+  display: grid;
+  gap: 12px;
+}
+
+.guest-badge-detail__progress > div {
+  display: grid;
+  gap: 4px;
+}
+
+.guest-badge-detail__progress b {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-badge-detail__progress div span {
+  color: var(--guest-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.guest-badge-detail__track {
+  display: block;
+  block-size: 7px;
+  overflow: hidden;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-line);
+}
+
+.guest-badge-detail__track i {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--guest-brand), var(--guest-accent-strong));
+}
+
+.guest-badge-detail__mute {
+  justify-self: start;
+  min-block-size: 44px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  color: var(--guest-accent-strong);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@keyframes guest-badge-detail-shine {
+  0%, 38% {
+    opacity: 0;
+    transform: translateX(-150%) skewX(-16deg);
+  }
+  47% { opacity: 0.72; }
+  58%, 100% {
+    opacity: 0;
+    transform: translateX(420%) skewX(-16deg);
+  }
+}
+
+@keyframes guest-badge-detail-medal-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-0.8deg); }
+  50% { transform: translate3d(0, -5px, 0) rotate(0.8deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-medal--shimmer::after,
+  .guest-badge-detail__medal.is-earned {
+    animation: none;
+  }
+
+  .badge-medal--shimmer::after {
+    opacity: 0.1;
+    transform: translateX(-8%) skewX(-16deg);
+  }
+}
+
+/* --------------------------------------------------------------------------
    The reward menu
 
    Two prices per row on purpose. The gap between what the floor charges and
@@ -686,3 +1055,417 @@
 }
 
 .stay-earned b { color: var(--ink, oklch(0.16 0.012 275)); font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------------
+   Achievements hub
+
+   The rewards route is a profile surface first. The collection leads, while
+   points and redemption stay available below it as practical stay benefits.
+   These rules are scoped so the booking and folio points controls keep their
+   quieter, task-specific treatment.
+   -------------------------------------------------------------------------- */
+
+.guest-achievements-page {
+  gap: 18px;
+  padding-bottom: 8px;
+}
+
+.guest-achievements-intro { gap: 5px; }
+
+.guest-achievements-intro__eyebrow,
+.guest-achievements-overview__eyebrow,
+.guest-achievements-section-title > div > span {
+  margin: 0;
+  color: var(--guest-brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.guest-achievements-overview {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  overflow: hidden;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-invert);
+  color: var(--guest-on-invert);
+  box-shadow: var(--shadow-md);
+}
+
+.guest-achievements-overview::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  background:
+    radial-gradient(circle at 100% 0%, rgb(255 125 179 / 0.18) 0 22%, transparent 62%),
+    linear-gradient(140deg, rgb(25 18 26 / 0.68), rgb(91 39 74 / 0.48));
+  pointer-events: none;
+}
+
+.guest-achievements-overview__image {
+  position: absolute !important;
+  z-index: 0;
+  inset: -12px !important;
+  width: calc(100% + 24px) !important;
+  height: calc(100% + 24px) !important;
+  max-width: none;
+  object-fit: cover;
+  filter: blur(7px) saturate(0.88) brightness(0.78);
+  opacity: 0.95;
+  transform: scale(1.05);
+}
+
+.guest-achievements-overview > *:not(.guest-achievements-overview__image) {
+  position: relative;
+  z-index: 2;
+}
+
+.guest-achievements-overview__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.guest-achievements-overview__top > div { min-width: 0; }
+
+.guest-achievements-overview__eyebrow { color: var(--guest-on-invert-muted); }
+
+.guest-achievements-overview h2 {
+  margin: 6px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.026em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.guest-achievements-overview__top > div > p:last-child {
+  margin: 7px 0 0;
+  color: var(--guest-on-invert-muted);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.guest-achievements-overview__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid rgb(255 255 255 / 0.18);
+}
+
+.guest-achievements-overview__stats div { display: grid; gap: 3px; }
+
+.guest-achievements-overview__stats b {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-achievements-overview__stats span {
+  color: var(--guest-on-invert-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.guest-achievements-overview__next {
+  display: grid;
+  gap: 10px;
+  padding: 13px 14px;
+  border-radius: var(--guest-radius-md);
+  background: rgb(255 255 255 / 0.11);
+}
+
+.guest-achievements-overview__next-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.guest-achievements-overview__next-head > div { display: grid; gap: 3px; min-width: 0; }
+
+.guest-achievements-overview__next-head span,
+.guest-achievements-overview__next-head small { color: var(--guest-on-invert-muted); font-size: 12px; }
+
+.guest-achievements-overview__next-head b { font-size: 15px; font-weight: 650; }
+
+.guest-achievements-overview__next-head strong {
+  flex: 0 0 auto;
+  color: var(--guest-on-invert-muted);
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-achievements-overview__track {
+  display: block;
+  block-size: 4px;
+  border-radius: var(--guest-radius-pill);
+  background: rgb(255 255 255 / 0.2);
+  overflow: hidden;
+}
+
+.guest-achievements-overview__track i {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--guest-accent);
+}
+
+.guest-achievements-page .badge-shelf,
+.guest-achievements-points,
+.guest-achievements-page .reward-menu {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  box-shadow: var(--shadow-sm);
+}
+
+.guest-achievements-page .badge-shelf__heading,
+.guest-achievements-page .reward-menu__heading {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+}
+
+.guest-achievements-page .badge-shelf__heading small {
+  padding: 5px 8px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-soft);
+  color: var(--guest-brand);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.guest-achievements-page .badge-shelf__subheading {
+  margin: 2px 0 0;
+  color: var(--guest-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.guest-achievements-page .badge-shelf__held {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.guest-achievements-page .badge-shelf__held li > * {
+  inline-size: 100%;
+  min-block-size: 88px;
+  gap: 7px;
+  padding: 10px 4px 8px;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-surface);
+  color: var(--guest-ink);
+}
+
+.guest-achievements-page .badge-shelf__held span {
+  overflow-wrap: anywhere;
+  color: var(--guest-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.guest-achievements-page .badge-shelf__held .badge-medal {
+  animation: guest-earned-badge-float 6.8s ease-in-out infinite;
+  transform-origin: 50% 72%;
+}
+
+.guest-achievements-page .badge-shelf__held li:nth-child(3n + 2) .badge-medal {
+  animation-delay: -2.2s;
+}
+
+.guest-achievements-page .badge-shelf__held li:nth-child(3n) .badge-medal {
+  animation-delay: -4.4s;
+}
+
+.guest-achievements-page .badge-shelf__held li > button:active { transform: scale(0.96); }
+
+.guest-achievements-page .badge-shelf__rows {
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-sunken);
+  overflow: hidden;
+}
+
+.guest-achievements-page .badge-shelf__rows li > * {
+  min-block-size: 68px;
+  padding: 10px;
+}
+
+.guest-achievements-page .badge-shelf__rows li > * > div { min-width: 0; }
+
+.guest-achievements-page .badge-shelf__rows b { font-size: 14px; font-weight: 650; }
+
+.guest-achievements-page .badge-shelf__rows small {
+  overflow-wrap: anywhere;
+  color: var(--guest-muted);
+  font-size: 12px;
+}
+
+.guest-achievements-page .badge-shelf__count {
+  color: var(--guest-muted);
+  font-size: 12px;
+}
+
+.guest-achievements-page .badge-shelf__track {
+  block-size: 4px;
+  margin-block-start: 7px;
+  background: var(--guest-line);
+}
+
+.guest-achievements-page .badge-shelf__track i { background: var(--guest-muted); }
+.guest-achievements-page .badge-shelf__track.is-near i { background: var(--guest-accent-strong); }
+
+.guest-achievements-page .badge-shelf__family {
+  display: grid;
+  gap: 7px;
+  padding-top: 4px;
+}
+
+.guest-achievements-page .badge-shelf__empty { color: var(--guest-muted); }
+
+.guest-achievements-section-title {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.guest-achievements-section-title > div { display: grid; gap: 5px; min-width: 0; }
+
+.guest-achievements-section-title h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.guest-achievements-section-title > strong {
+  flex: 0 0 auto;
+  padding-top: 1px;
+  color: var(--guest-brand);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-achievements-points .points-wallet { gap: 10px; }
+
+.guest-achievements-points .points-wallet__balance b {
+  font-size: 38px;
+  letter-spacing: -0.03em;
+}
+
+.guest-achievements-points .points-wallet__balance span,
+.guest-achievements-points .points-wallet__expiry { color: var(--guest-muted); }
+
+.guest-achievements-points .points-wallet__buys,
+.guest-achievements-points .points-wallet__next {
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-sunken);
+}
+
+.guest-achievements-points .points-wallet__buys span,
+.guest-achievements-points .points-wallet__buys small,
+.guest-achievements-points .points-wallet__next small { color: var(--guest-muted); }
+
+.guest-achievements-points .points-wallet__nearest { background: var(--guest-soft); }
+
+.guest-achievements-points .points-wallet__heading {
+  margin-top: 7px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.guest-achievements-points .points-wallet__ledger {
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-sunken);
+  overflow: hidden;
+}
+
+.guest-achievements-points .points-wallet__ledger li + li { border-block-start-color: var(--guest-line); }
+.guest-achievements-points .points-wallet__ledger small { color: var(--guest-muted); }
+.guest-achievements-points .points-wallet__expiry { line-height: 1.4; }
+
+.guest-achievements-page .reward-menu__rows {
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-sunken);
+  overflow: hidden;
+}
+
+.guest-achievements-page .reward-menu__rows li > button { padding: 13px 12px; }
+.guest-achievements-page .reward-menu__rows li + li { border-block-start-color: var(--guest-line); }
+.guest-achievements-page .reward-menu__rows small { color: var(--guest-muted); }
+
+.guest-achievements-page .estate-map {
+  gap: 14px;
+  padding: 18px;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-sunken);
+}
+
+.guest-achievements-page .estate-map__heading {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+}
+
+.guest-achievements-page .estate-map__heading small { color: var(--guest-muted); }
+
+.guest-achievements-page .estate-map__group {
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-achievements-page .badge-shelf__held li > button:hover {
+    background: var(--guest-paper);
+    transform: translateY(-2px);
+  }
+
+  .guest-achievements-page .badge-shelf__held li > button:hover .badge-medal {
+    animation-play-state: paused;
+    transform: translateY(-1px) rotate(0deg);
+  }
+
+  .guest-achievements-points .points-wallet__buys:hover,
+  .guest-achievements-points .points-wallet__next:hover,
+  .guest-achievements-page .reward-menu__rows li > button:hover:not(:disabled) {
+    background: var(--guest-surface);
+  }
+}
+
+@keyframes guest-earned-badge-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-0.6deg); }
+  50% { transform: translate3d(0, -2px, 0) rotate(0.6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-achievements-page .badge-shelf__held .badge-medal {
+    animation: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .guest-achievements-page .badge-shelf__held { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

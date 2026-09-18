@@ -87,7 +87,6 @@ import {
   filterServices,
   LISTING_SORTS,
   type ListingSort,
-  sumRoomCharges,
   canReportRoomReady,
   markRoomReady,
   describeRoomAssignment,
@@ -145,6 +144,7 @@ import {
   getItemThumbnail,
   getItemCardImage,
   getCategoryCoverImage,
+  type ServiceImageDefinition,
   type ServiceImageKey,
 } from './service-images';
 import {
@@ -160,9 +160,11 @@ import {
   buildSearchIndex,
   buildStories,
 } from './promoted';
+import type { Story } from './promoted';
+import { storyImage } from './promoted/story-imagery';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
 import {
-  BadgeSheet,
+  BadgeDetail,
   BadgeShelf,
   EstateMap,
   PointsApply,
@@ -277,6 +279,141 @@ const EXPLORE_BANNERS = buildBanners();
 const EXPLORE_CATEGORIES = buildCategoryCards();
 const EXPLORE_SEARCH_INDEX = buildSearchIndex();
 const EXPLORE_DECK = buildFeaturedDeck();
+
+type HomeStoryCategoryId = MiniAppCategoryId | 'gifts-souvenirs';
+
+const HOME_GIFT_STORY_IMAGE: ServiceImageDefinition = {
+  src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80',
+  alt: 'Wrapped gift box with a ribbon',
+  focalPoint: 'center',
+};
+
+const createHomeStory = ({
+  categoryId,
+  title,
+  subtitle,
+  price,
+  cta,
+  frames,
+  headlines,
+  details,
+  postedHoursAgo,
+}: {
+  categoryId: HomeStoryCategoryId;
+  title: string;
+  subtitle: string;
+  price: string;
+  cta: string;
+  frames: ServiceImageDefinition[];
+  headlines: string[];
+  details: string[];
+  postedHoursAgo: number;
+}): Story => ({
+  id: `home-${categoryId}`,
+  title,
+  subtitle,
+  price,
+  cta,
+  cover: frames[0]!,
+  slides: frames.map((image, index) => ({
+    headline: headlines[index] ?? title.toUpperCase(),
+    detail: details[index],
+    image,
+  })),
+  author: {
+    name: 'The Henry',
+    kind: 'property',
+    image: getPropertyImage('The Henry Manila'),
+  },
+  postedHoursAgo,
+  livesForHours: 24,
+});
+
+const HOME_CATEGORY_STORIES: Record<HomeStoryCategoryId, Story> = {
+  dining: createHomeStory({
+    categoryId: 'dining',
+    title: 'Food & Drinks',
+    subtitle: 'The Henry Manila',
+    price: 'From ₱180',
+    cta: 'Explore Food & Drinks',
+    frames: [
+      storyImage('apartment-1b'),
+      storyImage('poolside-bar'),
+      storyImage('cafe'),
+    ],
+    headlines: ['MAKE A TABLE OF IT', 'DINNER, THEN ONE MORE', 'SLOW MORNINGS START HERE'],
+    details: ['Filipino favorites, easy lunches, and late-night bites.', 'Stay for sunset drinks at the poolside bar.', 'Coffee, pastries, and a softer start to the day.'],
+    postedHoursAgo: 1,
+  }),
+  spa: createHomeStory({
+    categoryId: 'spa',
+    title: 'Spa & Wellness',
+    subtitle: 'Hilom Spa & Wellness',
+    price: 'From ₱900',
+    cta: 'Explore Spa & Wellness',
+    frames: [
+      storyImage('spa'),
+      storyImage('scrub'),
+      storyImage('couples-massage'),
+    ],
+    headlines: ['RESET YOUR PACE', 'A LITTLE TIME TO YOURSELF', 'MAKE IT A SHARED RITUAL'],
+    details: ['Signature massages and quiet treatments, just steps from your room.', 'Body rituals that make an afternoon feel longer.', 'A slower way to spend the stay together.'],
+    postedHoursAgo: 2,
+  }),
+  entertainment: createHomeStory({
+    categoryId: 'entertainment',
+    title: 'Activities & Tours',
+    subtitle: 'Curated by The Henry',
+    price: 'From ₱850',
+    cta: 'Explore Activities & Tours',
+    frames: [
+      storyImage('tour'),
+      storyImage('sunset-cruise'),
+      storyImage('heritage-walk'),
+    ],
+    headlines: ['MAKE A DAY OF IT', 'MEET THE SUNSET OUTSIDE', 'SEE THE CITY DIFFERENTLY'],
+    details: ['Island days, local guides, and easy ways to get out and explore.', 'The golden-hour plan is already waiting.', 'Stories, streets, and the places worth taking your time with.'],
+    postedHoursAgo: 3,
+  }),
+  services: createHomeStory({
+    categoryId: 'services',
+    title: 'Hotel Services',
+    subtitle: 'The Henry Manila',
+    price: 'From ₱250',
+    cta: 'Explore Hotel Services',
+    frames: [
+      storyImage('pool'),
+      storyImage('business-centre'),
+      storyImage('gym'),
+    ],
+    headlines: ['MAKE THE STAY EASIER', 'GET OUT, YOUR WAY', 'ONE LESS THING TO THINK ABOUT'],
+    details: ['Transfers, rentals, and the practical help that keeps plans moving.', 'Bikes and scooters for a little more freedom.', 'Fresh clothes and small conveniences, handled.'],
+    postedHoursAgo: 4,
+  }),
+  'gifts-souvenirs': createHomeStory({
+    categoryId: 'gifts-souvenirs',
+    title: 'Gifts & Souvenirs',
+    subtitle: 'The Henry Manila',
+    price: 'From ₱350',
+    cta: 'Explore Gifts & Souvenirs',
+    frames: [
+      HOME_GIFT_STORY_IMAGE,
+      storyImage('dining'),
+      HOME_GIFT_STORY_IMAGE,
+    ],
+    headlines: ['TAKE A LITTLE HOME', 'A THOUGHTFUL EXTRA', 'KEEP THE STAY CLOSE'],
+    details: ['Local treats and small keepsakes for the people you came to see.', 'Add a little celebration before you check out.', 'A gift is one more way to remember the place.'],
+    postedHoursAgo: 5,
+  }),
+};
+
+const HOME_STORY_CATEGORIES: ReadonlyArray<{ id: HomeStoryCategoryId; label: string }> = [
+  { id: 'dining', label: 'Food & Drinks' },
+  { id: 'spa', label: 'Spa & Wellness' },
+  { id: 'entertainment', label: 'Activities & Tours' },
+  { id: 'services', label: 'Hotel Services' },
+  { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs' },
+];
 
 /** One glyph per arrival service, so the column reads as four things. */
 const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
@@ -1050,8 +1187,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
   const activeScreenRef = useRef(activeScreen);
   const [session, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
-  /* Which badge's sheet is open. A sheet, not a screen: it floats over the hub
-     rather than replacing it, so closing it returns the guest where they were. */
+  /* The selected badge is rendered by the full-page achievement detail route. */
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
   /* Which reward the detail screen is showing. */
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
@@ -1096,6 +1232,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
   const [scanSuccessToast, setScanSuccessToast] = useState(false);
   const [openExploreStoryId, setOpenExploreStoryId] = useState<string | null>(null);
+  const [openHomeStoryId, setOpenHomeStoryId] = useState<HomeStoryCategoryId | null>(null);
   const [exploreIntroPlaying, setExploreIntroPlaying] = useState(false);
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
   /*
@@ -1374,7 +1511,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('chat');
   };
 
-  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1403,7 +1540,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const contextBooking = primaryBooking ?? displayBooking;
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
-  const roomChargeTarget = contextBooking.roomNumber ? contextRoom : 'your room';
   const contextService = session.serviceBookings.find(
     (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
   );
@@ -1707,6 +1843,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     closeExploreStory();
     const itemId = storyId.replace(/^(?:venue|service)-/, '');
     openExploreItem(itemId);
+  };
+
+  const openHomeStory = (categoryId: HomeStoryCategoryId) => {
+    if (!HOME_CATEGORY_STORIES[categoryId]) return;
+    setOpenHomeStoryId(categoryId);
+  };
+
+  const closeHomeStory = () => setOpenHomeStoryId(null);
+
+  const bookHomeStory = (storyId: string) => {
+    const categoryId = (Object.keys(HOME_CATEGORY_STORIES) as HomeStoryCategoryId[])
+      .find((id) => HOME_CATEGORY_STORIES[id].id === storyId);
+    if (!categoryId) return;
+
+    closeHomeStory();
+    if (categoryId === 'gifts-souvenirs') {
+      go('gifts-souvenirs');
+      return;
+    }
+    setSelectedCategory(categoryId);
+    go('category-listing');
   };
 
   const confirmService = () => {
@@ -2708,7 +2865,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
 
       case 'guest-details':
         return <FormScreen step="1 of 4" title="Your details" text="These details are sent securely to the property for registration."><Field label="Full name" name="guest-name" defaultValue="Ana Santos" required /><Field label="Nationality" name="nationality" defaultValue="Filipino" /><Field label="Email" name="guest-email" type="email" defaultValue="ana@example.com" /><Field label="Mobile" name="guest-mobile" type="tel" defaultValue="+63 917 555 0142" />{primary('Continue to ID', 'id-capture')}</FormScreen>;
@@ -2863,12 +3020,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'rate-detail': {
         /*
-          Two separate sums, deliberately not added together. The room booking
-          is prepaid through the OTA; everything below it is unpaid and settles
-          with the hotel at checkout. One combined total would hide which half
-          the guest still owes.
+          Booking detail owns the reservation and prepaid rate. Additional
+          hotel charges belong to My Stay, where the guest can review the folio
+          and what settles at checkout.
         */
-        const roomCharges = getRoomCharges(session, displayBooking, roomChargeTarget);
         const bookingGuests = listBookingGuests(displayBooking, session);
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system.">
@@ -2941,24 +3096,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Booking total" value="₱20,160" strong />
               <SummaryRow label={`Paid through ${displayBooking.source}`} value="₱20,160" />
               </div>
-            </section>
-            <section>
-              <SectionHeading title="Additional charges" action="Room charges" onAction={() => go('folio')} />
-              {roomCharges.length ? (
-                <>
-                  <div className="guest-folio">
-                    {roomCharges.map((charge) => (
-                      <FolioItem key={charge.id} date={charge.date} title={charge.title} meta={charge.detail} amount={charge.amount} />
-                    ))}
-                  </div>
-                  <div className="guest-summary">
-                    <SummaryRow label={`Charged to ${roomChargeTarget.toLowerCase()}`} value={sumRoomCharges(roomCharges)} strong />
-                    <SummaryRow label="Settles" value="With the hotel at checkout" />
-                  </div>
-                </>
-              ) : (
-                <Notice title="Nothing charged yet">Dining, spa and hotel services you book on property are added here and settle at checkout.</Notice>
-              )}
             </section>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live hotel data">Availability, rates, and payment details require a connection.</Notice> : null}
           </ScreenIntro>
@@ -3826,22 +3963,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </section>
             ) : null}
 
-            {started ? (
-              /*
-                The total rides on the Room charges row rather than standing
-                above it in a block of its own. What a guest owes is an
-                attribute of the charges, not a headline -- and stated alone it
-                is a number with nothing behind it, since the only thing that
-                answers "what is that made of" is the itemised folio one tap
-                away. After checkout the settled summary above already gives
-                the figure, so the row goes back to being a link.
-              */
-              <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}>
-                <span><b>Room charges</b><small>{checkedOut ? 'View charges added to your room' : 'Due at checkout'}</small></span>
-                <span className="guest-my-stay-charges__view">{checkedOut ? null : <strong>{session.folioTotal || contextBooking.folioTotal || '₱0'}</strong>}View</span>
-              </button>
-            ) : null}
-
             {/*
               Tabbed, not two stacked sections. Past bookings are reference
               material a guest consults occasionally; stacking them under the
@@ -4075,35 +4196,56 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'profile':
         return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
+          <div className="guest-stack guest-profile-page">
+            <div className="guest-page-title guest-profile-intro">
+              <p className="guest-profile-kicker">Guest profile</p>
               <h1>{session.guestName || 'Profile'}</h1>
               <p>Recognized across all 13 participating properties.</p>
             </div>
-            <div className="guest-profile-card">
-              <div className="guest-avatar">
-                {(session.guestName || 'Guest').split(' ').map((part) => part[0]).slice(0, 2).join('')}
+            <section className="guest-profile-card guest-profile-identity" aria-label="Guest identity">
+              <div className="guest-profile-identity__top">
+                <div className="guest-avatar guest-profile-identity__avatar">
+                  {(session.guestName || 'Guest').split(' ').map((part) => part[0]).slice(0, 2).join('')}
+                </div>
+                <div className="guest-profile-identity__body">
+                  <span className="guest-profile-identity__label">Cabana guest</span>
+                  <b>{session.email || 'No email on file'}</b>
+                  <span>+63 917 555 0142</span>
+                </div>
               </div>
-              <div>
-                <b>{session.email || 'No email on file'}</b>
-                <span>+63 917 555 0142</span>
-                <small>Passport on file · ends 4821</small>
+              <div className="guest-profile-identity__footer">
+                <div className="guest-profile-identity__document">
+                  <span className="guest-profile-identity__document-mark" aria-hidden="true" />
+                  <span><b>Passport on file</b><small>Ends 4821</small></span>
+                </div>
+                <span className="guest-profile-identity__document-status">On file</span>
               </div>
-            </div>
-            <button className="guest-list-row" onClick={() => go('rewards')}>
-              <span><Sparkle /></span>
-              <div>
-                <b>Points and badges</b>
-                <small>{pointsBalance(session).toLocaleString('en-US')} points · {earnedBadges(session).length} badges</small>
+            </section>
+            <section className="guest-profile-section" aria-labelledby="guest-profile-account-heading">
+              <div className="guest-profile-section__header">
+                <div>
+                  <p className="guest-profile-section__eyebrow">Personal space</p>
+                  <h2 id="guest-profile-account-heading">Your account</h2>
+                </div>
+                <span className="guest-profile-section__mark" aria-hidden="true"><Sparkle /></span>
               </div>
-              <CaretRight />
-            </button>
-            <button className="guest-list-row" onClick={() => go('stay-history')}>
-              <span><SuitcaseRolling /></span>
-              <div><b>Stay history</b><small>3 stays across 2 properties</small></div>
-              <CaretRight />
-            </button>
-            <button className="guest-list-row" type="button" aria-label="Sign out" onClick={signOut}>
+              <div className="guest-profile-action-list">
+                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('rewards')}>
+                  <span><Sparkle /></span>
+                  <div>
+                    <b>Achievements</b>
+                    <small>{earnedBadges(session).length} badges · {pointsBalance(session).toLocaleString('en-US')} points</small>
+                  </div>
+                  <CaretRight />
+                </button>
+                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('stay-history')}>
+                  <span><SuitcaseRolling /></span>
+                  <div><b>Stay history</b><small>3 stays across 2 properties</small></div>
+                  <CaretRight />
+                </button>
+              </div>
+            </section>
+            <button className="guest-list-row guest-profile-signout" type="button" aria-label="Sign out" onClick={signOut}>
               <span><SignOut /></span>
               <div><b>Sign out</b><small>Return to the welcome screen</small></div>
               <CaretRight />
@@ -4121,37 +4263,97 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const balance = pointsBalance(session);
         const nearly = nearlyEarnedBadges(session);
         const badges = badgeProgress(session);
-        const openBadge = badges.find((row) => row.definition.id === openBadgeId);
+        const earned = earnedBadges(session);
+        const nextBadge = nearly[0];
+        const nextBadgeProgress = nextBadge
+          ? Math.min(nextBadge.count / nextBadge.definition.threshold, 1)
+          : 1;
+        const achievementBackdrop = getPropertyImage('The Henry Manila');
         const openReward = (rewardId: string) => {
           setSelectedRewardId(rewardId);
           go('reward-detail');
         };
 
         return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <h1>Points and badges</h1>
-              <p>Earned across every property you have stayed at.</p>
+          <div className="guest-stack guest-achievements-page">
+            <div className="guest-page-title guest-achievements-intro">
+              <span className="guest-achievements-intro__eyebrow">Your Cabana story</span>
+              <h1>Your achievements</h1>
+              <p>Collect the stays, places, and moments that make each stay yours.</p>
             </div>
 
-            <PointsWallet
-              balance={balance}
-              affordable={affordableRewards(balance)}
-              nextUp={REWARD_MENU.find((reward) => reward.points > balance)}
-              ledger={buildPointsLedger(session)}
-              expiry={pointsExpiry(session)}
-              nearest={nearly[0]}
-              onOpenReward={openReward}
-            />
+            <section className="guest-achievements-overview" aria-labelledby="guest-achievements-overview-heading">
+              <Image
+                className="guest-achievements-overview__image"
+                src={achievementBackdrop.src}
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 720px) calc(100vw - 32px), 688px"
+                style={{ objectPosition: achievementBackdrop.focalPoint }}
+              />
+              <div className="guest-achievements-overview__top">
+                <div>
+                  <p className="guest-achievements-overview__eyebrow">Your collection</p>
+                  <h2 id="guest-achievements-overview-heading">Every stay leaves a mark.</h2>
+                  <p>{earned.length} earned across {badges.length} achievements.</p>
+                </div>
+              </div>
 
-            <RewardMenu rewards={REWARD_MENU} balance={balance} onOpenReward={openReward} />
+              <div className="guest-achievements-overview__stats" aria-label="Achievement summary">
+                <div><b>{earned.length}</b><span>earned</span></div>
+                <div><b>{badges.length - earned.length}</b><span>to discover</span></div>
+                <div><b>{nearly.length}</b><span>in progress</span></div>
+              </div>
+
+              {nextBadge ? (
+                <div className="guest-achievements-overview__next">
+                  <div className="guest-achievements-overview__next-head">
+                    <div>
+                      <span>Next to unlock</span>
+                      <b>{nextBadge.definition.name}</b>
+                      <small>{nextBadge.definition.requirement}</small>
+                    </div>
+                    <strong>{nextBadge.count} / {nextBadge.definition.threshold}</strong>
+                  </div>
+                  <span className="guest-achievements-overview__track" aria-hidden="true">
+                    <i style={{ inlineSize: `${nextBadgeProgress * 100}%` }} />
+                  </span>
+                </div>
+              ) : null}
+            </section>
 
             <BadgeShelf
-              earned={earnedBadges(session)}
+              earned={earned}
               nearly={nearly}
               all={badges}
-              onOpenBadge={setOpenBadgeId}
+              onOpenBadge={(badgeId) => {
+                setOpenBadgeId(badgeId);
+                go('badge-detail');
+              }}
             />
+
+            <section className="guest-achievements-points" aria-labelledby="guest-achievements-points-heading">
+              <div className="guest-achievements-section-title">
+                <div>
+                  <span>Cabana points</span>
+                  <h2 id="guest-achievements-points-heading">Make your stay go further.</h2>
+                </div>
+                <strong>{balance.toLocaleString('en-US')} pts</strong>
+              </div>
+
+              <PointsWallet
+                balance={balance}
+                affordable={affordableRewards(balance)}
+                nextUp={REWARD_MENU.find((reward) => reward.points > balance)}
+                ledger={buildPointsLedger(session)}
+                expiry={pointsExpiry(session)}
+                nearest={nextBadge}
+                onOpenReward={openReward}
+              />
+            </section>
+
+            <RewardMenu rewards={REWARD_MENU} balance={balance} onOpenReward={openReward} />
 
             <EstateMap
               visitedCities={[
@@ -4160,16 +4362,43 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ]}
             />
 
-            {openBadge ? (
-              <BadgeSheet
-                row={openBadge}
-                /* Muting rewrites the session, so the correction is persisted
-                   by the same effect that persists everything else. */
-                onMute={(badgeId) => setSession(muteBadge(session, badgeId))}
-                onClose={() => setOpenBadgeId(null)}
-              />
-            ) : null}
           </div>
+        );
+      }
+
+      case 'badge-detail': {
+        const badge = badgeProgress(session).find((row) => row.definition.id === openBadgeId);
+
+        if (!badge) {
+          return (
+            <div className="guest-stack guest-badge-detail guest-badge-detail--empty">
+              <div className="guest-badge-detail__header">
+                <span aria-hidden="true" />
+                <span>Achievement</span>
+                <span aria-hidden="true" />
+              </div>
+              <div className="guest-page-title">
+                <h1>Achievement not found</h1>
+                <p>Return to your collection to choose another badge.</p>
+              </div>
+              <button className="guest-button guest-button--primary" type="button" onClick={() => go('rewards')}>
+                View achievements
+                <ArrowRight aria-hidden="true" />
+              </button>
+            </div>
+          );
+        }
+
+        return (
+          <BadgeDetail
+            row={badge}
+            /* Muting rewrites the session, so the correction is persisted by
+               the same effect that persists everything else. */
+            onMute={(badgeId) => {
+              setSession((current) => muteBadge(current, badgeId));
+              back();
+            }}
+          />
         );
       }
 
@@ -4356,29 +4585,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               duplication this pass removed elsewhere.
             */}
             <div className="guest-appbar__side guest-appbar__side--end">
-              {/*
-                The scan is an action, not a destination, so it sits beside the
-                bell rather than taking a tab. It used to be a row on Home below
-                the stay card and the booking row -- which meant a guest standing
-                in the room, holding the code, could not find the one thing they
-                were trying to do. Here it is reachable from every screen.
-
-                It needs a stay under way to be worth offering: with no booking
-                there is no allocated room, so the viewfinder would open on a
-                code that could never resolve to anything.
-              */}
-              {primaryBooking && isStayUnderWay(primaryBooking) ? (
-                <button
-                  className="guest-icon-button guest-appbar__scan"
-                  type="button"
-                  data-testid="guest-room-qr-action"
-                  onClick={() => go('scan-room-code')}
-                  aria-label={primaryBooking.roomVerification ? 'Scan room code' : 'Scan room code, room not yet verified'}
-                >
-                  <QrCode />
-                  {primaryBooking.roomVerification ? null : <span className="guest-bell__dot" aria-hidden="true" />}
-                </button>
-              ) : null}
               {session.auth === 'authenticated' || session.bookings.length > 0 ? (
                 <button
                   className="guest-icon-button guest-bell"
@@ -4403,6 +4609,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           >
             {renderScreen()}
           </div>
+
+          {openHomeStoryId ? (
+            <StoryViewer
+              story={HOME_CATEGORY_STORIES[openHomeStoryId]}
+              onClose={closeHomeStory}
+              onBook={bookHomeStory}
+              onFinished={closeHomeStory}
+            />
+          ) : null}
 
           {orderTrayOpen ? orderTrayOpen === 'restaurant' ? (() => {
             const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
@@ -4461,7 +4676,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <NavButton
                 label="Profile"
                 icon={<GuestNavIcon icon={HugeProfileIcon} />}
-                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards' || activeScreen === 'reward-detail'}
+                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
                 onClick={() => go('profile')}
               />
             </nav>
@@ -4725,10 +4940,11 @@ type StayOverviewHomeProps = {
   online?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
   onSelectCategory: (cat: MiniAppCategoryId) => void;
+  onOpenStory: (categoryId: HomeStoryCategoryId) => void;
   onOpenStay: (id: string) => void;
 };
 
-function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOpenStay }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOpenStory, onOpenStay }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -4753,35 +4969,44 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
     const roomUpgrade = booking.roomUpgrade;
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
-        <section className="guest-stay-hero-card">
+        <section className="guest-stay-hero-card guest-home-active-hero">
           <div className="guest-stay-hero-card__media">
-            <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
+            <PropertyImage property={booking.property} aspectRatio="2.1" decorative />
             <div className="guest-stay-hero-card__badges">
               <span className="guest-stay-hero-card__status guest-stay-hero-card__status--positive">Checked in</span>
               <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">{roomLabel}</span>
             </div>
           </div>
           <div className="guest-stay-hero-card__body">
-            <p className="guest-eyebrow">{greetGuest(session.guestName, 'Welcome', booking.roomNumber)}</p>
+            <p className="guest-eyebrow">{greetGuest(session.guestName, 'Welcome')}</p>
             <h1>{booking.property}</h1>
             <div className="guest-stay-hero-card__stats">
               <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
-              <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber ?? 'Assigned at arrival'}</b></div>
+              <div><small>Room</small><b>{booking.roomType}</b></div>
               <div><small>Guests</small><b>{describeParty(booking, session)}</b></div>
               <div><small>Nights</small><b>{countNights(booking)}</b></div>
             </div>
+            <button className="guest-stay-hero-card__booking" onClick={() => onNavigate('rate-detail')} type="button">
+              <span><Ticket /></span>
+              <span><b>View booking</b><small>Rate, policies and confirmation</small></span>
+              <CaretRight />
+            </button>
+            {!roomUpgrade && booking.checkOut > PROTOTYPE_TODAY ? (
+              <button className="guest-stay-hero-card__booking guest-stay-hero-card__booking--upgrade" onClick={() => onNavigate('room-upgrades')} type="button">
+                <span><Bed /></span>
+                <span><b>Upgrade room</b><small>Explore available rooms</small></span>
+                <CaretRight />
+              </button>
+            ) : null}
           </div>
-          <div className="guest-stay-hero-card__actions">
-            <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
-            <button className="guest-list-row" onClick={() => onNavigate('chat')} type="button"><span><ChatCircleDots /></span><div><b>Chat with the front desk</b><small>Usually replies in a few minutes</small></div><CaretRight /></button>
-            {!roomUpgrade && canOfferRoomUpgrade(booking) ? <button className="guest-list-row" onClick={() => onNavigate('room-upgrades')} type="button"><span><Bed /></span><div><b>Upgrade room</b><small>Explore available rooms for your current stay</small></div><CaretRight /></button> : null}
+          {roomUpgrade ? <div className="guest-stay-hero-card__actions">
             {roomUpgrade?.status === 'preparing' ? <div className="guest-room-upgrade-status"><b>Room upgrade in progress</b><span>{roomUpgrade.newRoomType} · Room number coming soon</span><p>We&rsquo;re preparing your upgraded room. You can continue using Room {booking.roomNumber} until your new room is ready.</p></div> : null}
             {roomUpgrade?.status === 'ready' ? <div className="guest-room-transfer-preview"><div><small>Current room</small><b>Room {booking.roomNumber} · {booking.roomType}</b><span>Available until your room transfer is completed.</span></div><div><small>New room · Ready</small><b>Room {roomUpgrade.newRoomNumber} · {roomUpgrade.newRoomType}</b><span>Your upgraded room is ready. Complete the transfer before {roomUpgrade.transferDeadline}.</span></div><button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('room-transfer-details')}>View transfer details<ArrowRight /></button></div> : null}
-          </div>
+          </div> : null}
           {/*
-            Only while it is the thing in the way. Once the room is verified
-            the scan is just an action, and it lives in the app bar where
-            every screen can reach it.
+            Keep the room-code prompt beside the room context while the stay
+            is still waiting for verification. Once the room is verified,
+            repeating the action here would add noise to the stay overview.
           */}
           {canUseOnPropertyServices(booking) ? null : (
             <div className="guest-stay-hero-card__qr">
@@ -4792,43 +5017,27 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
           )}
         </section>
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" onClick={() => onNavigate('my-stay')}><span><b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b><small>{confirmedServices[0].scheduledFor}</small><small>{confirmedServices[0].amount} · Charged to {roomLabel}</small></span><span className="guest-next-service-card__action">View details <CaretRight /></span></button></section> : null}
-        <section>
+        <section className="guest-home-discovery">
           <SectionHeading title="Make the most of your stay" />
-          <div className="guest-category-banners" role="group" aria-label="Experience categories">
-            {[
-              { id: 'dining', label: 'Food & Drinks' },
-              { id: 'spa', label: 'Spa & Wellness' },
-              { id: 'entertainment', label: 'Activities & Tours' },
-              { id: 'services', label: 'Hotel Services' },
-              { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs' },
-            ].map((item) => {
-              const cat = MINI_APP_CATEGORIES.find((category) => category.id === item.id);
-              const cover = item.id === 'gifts-souvenirs'
-                ? { src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80', focalPoint: 'center' }
-                : getCategoryCoverImage(cat!.id);
+          <div className="discover__rail guest-home-stories" role="group" aria-label="Stay stories">
+            {HOME_STORY_CATEGORIES.map((item) => {
+              const story = HOME_CATEGORY_STORIES[item.id];
               return (
                 <button
                   key={item.id}
                   type="button"
-                  className="guest-category-banner"
-                  onClick={() => {
-                    if (item.id === 'gifts-souvenirs') {
-                      onNavigate('gifts-souvenirs');
-                      return;
-                    }
-                    onSelectCategory(cat!.id);
-                    onNavigate(cat!.screen);
-                  }}
+                  className="discover__story guest-home-story"
+                  aria-label={item.label}
+                  title={`Open ${item.label} story`}
+                  onClick={() => onOpenStory(item.id)}
                 >
-                  <Image
-                    src={cover.src}
-                    alt=""
-                    fill
-                    sizes="(max-width: 720px) calc(100vw - 32px), 688px"
-                    style={{ objectPosition: cover.focalPoint }}
-                  />
-                  <span className="guest-category-banner__scrim" aria-hidden="true" />
-                  <span className="guest-category-banner__label">{item.label}</span>
+                  <span className="discover__story-ring">
+                    <span className="discover__story-art">
+                      <Image src={story.cover.src} alt="" fill sizes="68px" style={{ objectPosition: story.cover.focalPoint }} />
+                    </span>
+                  </span>
+                  <b>{item.label}</b>
+                  <small aria-hidden="true">Story</small>
                 </button>
               );
             })}
@@ -5145,7 +5354,7 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
   return <button className="guest-stay-entry" type="button" data-status={entry.status} onClick={onOpen}>{body}</button>;
 }
 
-function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showUpgrade = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean; showUpgrade?: boolean }) {
+function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean }) {
   return (
     <section className="guest-stay-hero-card">
       <div className="guest-stay-hero-card__media">
@@ -5161,14 +5370,14 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel
         <div className="guest-stay-hero-card__stats">
           <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
           {booking.roomNumber ? <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber}</b></div> : null}
-          <div><small>Guests</small><b>{booking.guestCount} guests</b></div>
-          <div><small>Nights</small><b>{countNights(booking)}</b></div>
-        </div>
+        <div><small>Guests</small><b>{booking.guestCount} guests</b></div>
+        <div><small>Nights</small><b>{countNights(booking)}</b></div>
       </div>
-      <div className="guest-stay-hero-card__actions">
-        <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
-        <button className="guest-list-row" onClick={() => onNavigate('chat')} type="button"><span><ChatCircleDots /></span><div><b>Chat with the front desk</b><small>Usually replies in a few minutes</small></div><CaretRight /></button>
-        {showUpgrade ? <button className="guest-list-row" onClick={() => onNavigate('room-upgrades')} type="button"><span><Bed /></span><div><b>Upgrade room</b><small>Explore available rooms for your stay</small></div><CaretRight /></button> : null}
+      <button className="guest-stay-hero-card__booking" onClick={() => onNavigate('rate-detail')} type="button">
+        <span><Ticket /></span>
+        <span><b>View booking</b><small>Rate, policies and confirmation</small></span>
+        <CaretRight />
+      </button>
       </div>
     </section>
   );
@@ -5584,10 +5793,6 @@ const ROOM_UPGRADES = [
   { id: 'garden-suite-608', name: 'Garden Suite', type: 'Suite upgrade', features: 'King bed · Separate sitting area · Balcony', guests: '3 guests', price: '₱6,000', transfer: 'Ready in about 30 minutes', transferDeadline: '8:00 PM today', roomNumber: '608', image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80' },
 ] as const;
 
-function canOfferRoomUpgrade(booking: Booking) {
-  return (booking.status === 'active' || booking.status === 'upcoming') && booking.checkOut > PROTOTYPE_TODAY;
-}
-
 function NearbyRecommendations({ categoryId, description, onSelect }: { categoryId: MiniAppCategoryId; description: string; onSelect: (id: string) => void }) {
   const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
   if (!recommendations.length) return null;
@@ -5884,10 +6089,6 @@ function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge:
         ];
 
   return <div className="guest-folio-details"><h3>Order summary</h3><div className="guest-summary">{rows.map(([label, value]) => <SummaryRow key={label} label={label} value={value} />)}<SummaryRow label="Subtotal" value={charge.amount} /><SummaryRow label="Total" value={charge.amount} strong /><SummaryRow label="Payment method" value={`Charge to Room ${roomLabel}`} /><SummaryRow label="Status" value="Charged to room" /><SummaryRow label="Reference" value={`CHG-${charge.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`} /></div><button type="button" className="guest-folio-details__question" onClick={(event) => { event.stopPropagation(); onQuestion(`I have a question about the ${charge.title} charge. Could you help me review it?`); }}>Question about this charge? <ArrowRight /></button></div>;
-}
-
-function FolioItem({ date, title, meta, amount }: { date: string; title: string; meta: string; amount: string }) {
-  return <div className="guest-folio-item"><span>{date}</span><div><b>{title}</b><small>{meta}</small></div><strong>{amount}</strong></div>;
 }
 
 /** "March 14–17, 2026" -- one month named once when the stay does not cross one. */

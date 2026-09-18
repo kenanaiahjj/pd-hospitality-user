@@ -1507,6 +1507,127 @@
    colour. */
 .guest-avatar { display: grid; flex: 0 0 auto; width: 52px; height: 52px; place-items: center; border-radius: 50%; background: var(--guest-brand); color: var(--ds-on-ink); font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
 
+.guest-profile-page { gap: 18px; padding-bottom: 8px; }
+.guest-profile-intro { gap: 5px; }
+.guest-profile-kicker,
+.guest-profile-section__eyebrow {
+  margin: 0;
+  color: var(--guest-brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.guest-profile-identity {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in oklch, var(--guest-soft) 90%, transparent) 0 30%, transparent 68%),
+    var(--guest-paper);
+  box-shadow: var(--shadow-md);
+}
+.guest-profile-identity__top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+.guest-profile-identity__avatar {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--guest-brand), var(--guest-accent-pressed));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2), 0 5px 12px oklch(0.3 0.06 351 / 0.16);
+  font-size: 20px;
+}
+.guest-profile-identity__body { display: grid; gap: 3px; min-width: 0; }
+.guest-profile-identity__body b {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.008em;
+}
+.guest-profile-identity__body > span:not(.guest-profile-identity__label) { color: var(--guest-muted); font-size: 13px; }
+.guest-profile-identity__label { color: var(--guest-brand); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.guest-profile-identity__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--guest-line);
+}
+.guest-profile-card.guest-profile-identity > .guest-profile-identity__footer { display: flex; flex: initial; gap: 12px; }
+.guest-profile-identity__document { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.guest-profile-identity__document-mark { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--guest-positive); box-shadow: 0 0 0 4px var(--guest-positive-soft); }
+.guest-profile-identity__document > span:last-child { display: grid; gap: 1px; min-width: 0; }
+.guest-profile-identity__document b { font-size: 13px; font-weight: 650; }
+.guest-profile-identity__document small { color: var(--guest-muted); font-size: 12px; }
+.guest-profile-identity__document-status {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-positive-soft);
+  color: var(--guest-positive);
+  font-size: 11px;
+  font-weight: 700;
+}
+.guest-profile-section { display: grid; gap: 10px; }
+.guest-profile-section__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-inline: 2px; }
+.guest-profile-section__header > div { display: grid; gap: 4px; }
+.guest-profile-section__header h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.018em; }
+.guest-profile-section__mark { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: var(--guest-soft); color: var(--guest-brand); }
+.guest-profile-section__mark svg { width: 16px; height: 16px; }
+.guest-profile-action-list { overflow: hidden; border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-sm); }
+.guest-profile-action-list .guest-list-row {
+  min-height: 74px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.guest-profile-action-list .guest-list-row + .guest-list-row { border-top: 1px solid var(--guest-line); }
+.guest-profile-action-list .guest-list-row > span { color: var(--guest-brand); }
+.guest-profile-action-list .guest-list-row:active { background: var(--guest-sunken); transform: none; }
+.guest-profile-signout {
+  border: 1px solid var(--guest-line);
+  background: transparent;
+  box-shadow: none;
+}
+.guest-profile-signout > span { color: var(--guest-danger); }
+.guest-profile-signout:active { background: var(--guest-danger-soft); }
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-profile-action-list .guest-list-row:hover { background: var(--guest-surface); }
+  .guest-profile-signout:hover { border-color: color-mix(in oklch, var(--guest-danger) 32%, var(--guest-line)); background: var(--guest-danger-soft); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .guest-profile-page > .guest-profile-intro,
+  .guest-profile-page > .guest-profile-identity,
+  .guest-profile-page > .guest-profile-section,
+  .guest-profile-page > .guest-profile-signout {
+    animation: guest-profile-rise 240ms var(--ease-out) both;
+  }
+  .guest-profile-page > .guest-profile-identity { animation-delay: 30ms; }
+  .guest-profile-page > .guest-profile-section { animation-delay: 60ms; }
+  .guest-profile-page > .guest-profile-signout { animation-delay: 90ms; }
+}
+
+@keyframes guest-profile-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-profile-page > .guest-profile-intro,
+  .guest-profile-page > .guest-profile-identity,
+  .guest-profile-page > .guest-profile-section,
+  .guest-profile-page > .guest-profile-signout { animation: none; }
+}
+
 .guest-stay-card {
   overflow: hidden;
   border-radius: var(--guest-radius-md);
@@ -2379,6 +2500,33 @@
 .guest-category-banner__scrim { position: absolute; inset: 0; background: linear-gradient(0deg, rgb(0 0 0 / 0.58), rgb(0 0 0 / 0.04) 72%); }
 .guest-category-banner__label { position: absolute; right: 16px; bottom: 14px; left: 16px; color: #fff; font-size: 16px; font-weight: 650; line-height: 1.25; text-align: left; text-shadow: 0 1px 3px rgb(0 0 0 / 0.3); }
 
+.guest-home-discovery { display: grid; gap: 12px; }
+.guest-home-stories {
+  gap: 14px;
+  padding-top: 1px;
+  padding-bottom: 6px;
+}
+.guest-home-story {
+  width: 82px;
+  padding: 0;
+  color: var(--guest-ink);
+  cursor: pointer;
+  transition: transform 220ms var(--ease-out);
+}
+.guest-home-story .discover__story-ring { padding: 3px; }
+.guest-home-story .discover__story-art {
+  width: 70px;
+  height: 94px;
+  border-radius: 20px;
+}
+.guest-home-story b { font-size: 12px; }
+.guest-home-story small { font-size: 10px; letter-spacing: 0.02em; }
+.guest-home-story:focus-visible {
+  outline: 2px solid var(--guest-accent-strong);
+  outline-offset: 4px;
+  border-radius: 22px;
+}
+
 .guest-next-service-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2399,6 +2547,16 @@
 .guest-next-service-card small { color: var(--guest-muted); font-size: 13px; line-height: 1.3; }
 .guest-next-service-card__action { display: inline-flex; align-items: center; gap: 3px; color: var(--guest-brand); font-size: 13px; font-weight: 650; white-space: nowrap; }
 .guest-next-service-card__action svg { width: 16px; height: 16px; }
+.guest-home-next-service { display: grid; gap: 10px; }
+.guest-next-service-card {
+  min-height: 92px;
+  border-radius: var(--guest-radius-md);
+  box-shadow: none;
+  transition: transform var(--duration-press) var(--ease-out),
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+.guest-next-service-card:active { transform: scale(0.98); }
 
 @media (hover: hover) and (pointer: fine) {
   .guest-category-catalog__card:hover img { transform: scale(1.03); }
@@ -2573,6 +2731,50 @@
   line-height: 1.25;
   text-wrap: pretty;
 }
+.guest-stay-hero-card__booking {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  margin-top: 13px;
+  padding: 11px 0 0;
+  border: 0;
+  border-top: 1px solid var(--guest-line);
+  background: transparent;
+  color: var(--guest-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--duration-fast) ease, transform var(--duration-press) var(--ease-out);
+}
+.guest-stay-hero-card__booking:active { transform: scale(0.99); }
+.guest-stay-hero-card__booking:focus-visible {
+  outline: 2px solid var(--guest-accent-strong);
+  outline-offset: 3px;
+}
+.guest-stay-hero-card__booking > span:first-child {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  color: var(--guest-accent-strong);
+}
+.guest-stay-hero-card__booking > span:first-child svg { width: 19px; height: 19px; }
+.guest-stay-hero-card__booking > span:nth-child(2) { display: grid; gap: 2px; min-width: 0; }
+.guest-stay-hero-card__booking b { font-size: 14px; font-weight: 700; }
+.guest-stay-hero-card__booking small { color: var(--guest-muted); font-size: 12px; }
+.guest-stay-hero-card__booking > svg { width: 16px; height: 16px; color: var(--guest-subtle); }
+.guest-stay-hero-card__booking--upgrade {
+  min-height: 40px;
+  margin-top: 4px;
+  padding-top: 0;
+  border-top: 0;
+}
+.guest-stay-hero-card__booking--upgrade > span:first-child { color: var(--guest-muted); }
+.guest-stay-hero-card__booking--upgrade b { font-size: 13px; }
+.guest-stay-hero-card__booking--upgrade small { font-size: 11px; }
 /* Footer rows sit flush inside the card, so they drop their own chrome and
    take a hairline instead -- same treatment as .guest-list-group. */
 .guest-stay-hero-card__actions .guest-list-row {
@@ -2598,6 +2800,60 @@
 .guest-stay-hero-card__qr {
   padding: 14px;
   border-top: 1px solid var(--guest-line);
+}
+
+.guest-home-active-hero {
+  border-color: transparent;
+  border-radius: var(--guest-radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.guest-home-active-hero .guest-stay-hero-card__body { gap: 4px; padding: 13px 16px 11px; }
+.guest-home-active-hero .guest-stay-hero-card__body h1 {
+  font-size: 22px;
+  letter-spacing: -0.026em;
+}
+.guest-home-active-hero .guest-stay-hero-card__stats {
+  gap: 8px 14px;
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid var(--guest-line);
+}
+.guest-home-active-hero .guest-stay-hero-card__booking {
+  min-height: 44px;
+  margin-top: 9px;
+  padding-top: 8px;
+}
+.guest-home-active-hero .guest-stay-hero-card__booking--upgrade {
+  min-height: 36px;
+  margin-top: 2px;
+  padding-top: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .guest-home-booking--active > .guest-home-active-hero,
+  .guest-home-booking--active > .guest-home-next-service,
+  .guest-home-booking--active > .guest-home-discovery {
+    animation: guest-home-rise 260ms var(--ease-out) both;
+  }
+  .guest-home-booking--active > .guest-home-next-service { animation-delay: 35ms; }
+  .guest-home-booking--active > .guest-home-discovery { animation-delay: 70ms; }
+}
+@keyframes guest-home-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (hover: hover) and (pointer: fine) {
+  .guest-home-story:hover { transform: translateY(-2px); }
+  .guest-stay-hero-card__booking:hover { color: var(--guest-accent-strong); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guest-home-booking--active > .guest-home-active-hero,
+  .guest-home-booking--active > .guest-home-next-service,
+  .guest-home-booking--active > .guest-home-discovery { animation: none; }
+  .guest-home-story { transition: none; }
+  .guest-home-story:hover,
+  .guest-home-story:active,
+  .guest-stay-hero-card__booking:active { transform: none; }
 }
 
 /* --------------------------------------------------------------------------
@@ -3701,10 +3957,6 @@
    rather than the 40px target -- centred on the bell's top-right corner, it
    reads as part of the icon instead of floating in the padding. */
 .guest-bell { position: relative; }
-/* Carries the same unread dot as the bell, for the same reason: while the room
-   is unverified the scan is the one thing standing between this guest and the
-   rest of the app, and a bare glyph does not say so. */
-.guest-appbar__scan { position: relative; }
 .guest-bell__dot {
   position: absolute;
   top: 9px;

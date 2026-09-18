@@ -66,7 +66,46 @@ every screen" is a stated product intent, not an implementation detail. The
 front-desk trio is complicated by the other session **currently adding a Chat
 tab**, which moves that affordance again — those three should wait for it.
 
-## Group C — cascades, safe to fix (50)
+## Correction — Group C was wrong (2026-09-18)
+
+Working through it turned up a second regression of the same kind as the SSO
+one, and then the pattern behind both.
+
+**The finished-stay treatment on My Stay is gone.** Its plan
+(`docs/superpowers/plans/2026-09-11-finished-stay-summary-and-rebooking.md`)
+opens: *"On a finished stay, My Stay reads as a settled receipt — the stay
+total including the room, with the docked action becoming `Book another
+stay`."* It was marked ✅ Complete on 2026-09-11. A guest who checks out now
+sees a live-stay screen with an empty "Upcoming (0)" and no receipt; the only
+link out goes to the folio.
+
+`git log -S` places it exactly: `4257752` (the promotion) added those strings,
+and **`420c356` — "refactor: preserve main flow wiring in promotions" —
+removed them.** The commit named for preserving the main flow is the one that
+dropped it.
+
+So the shape of this whole file is not "stale tests". It is:
+
+> The promotion reorganised the app and dropped several shipped features. The
+> suite has been correctly reporting that ever since, and it reads as noise
+> because nobody sorted it.
+
+Confirmed lost so far, each with a shipped spec behind it:
+
+| Feature | Tests | Spec |
+|---|---|---|
+| SSO lands on the booking-linked home | 4 | fixed in `c06717a` |
+| Finished-stay receipt + rebook on My Stay | 4–5 | `2026-09-11-finished-stay-summary-and-rebooking` |
+| Scan reachable from every screen | 3 | scan discoverability |
+| Front desk docked above the tab bar | 3 | `13e9c32` |
+| Post-stay review entry point | 3 | moved onto "Check out now" |
+
+**Editing these assertions to match the app would erase the evidence.** They
+should be treated as a restore-or-drop decision per feature, not as test
+maintenance. Roughly 17 of the 51 are in this class; the rest really are copy
+and path drift.
+
+## Group C — cascades, safe to fix (was 50, now ~34)
 
 The rest. The target exists, the path to it changed. These are mechanical once
 the path is traced: SSO entry, menu filters and sorts, folio totals, profile

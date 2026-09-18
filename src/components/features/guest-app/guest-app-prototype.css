@@ -5439,7 +5439,9 @@
   .guest-my-stay-page .guest-my-stay-charges__row,
   .guest-my-stay-page .guest-stay-entry,
   .guest-my-stay-page .guest-tab { transition: none; }
+}
 
+/* --------------------------------------------------------------------------
    Explore → ordering: venue browse, menu carousel, full-screen menu viewer
 
    Taken from codex/ordering-menu-chat-flow. Appended rather than merged: that

@@ -3701,6 +3701,10 @@
    rather than the 40px target -- centred on the bell's top-right corner, it
    reads as part of the icon instead of floating in the padding. */
 .guest-bell { position: relative; }
+/* Carries the same unread dot as the bell, for the same reason: while the room
+   is unverified the scan is the one thing standing between this guest and the
+   rest of the app, and a bare glyph does not say so. */
+.guest-appbar__scan { position: relative; }
 .guest-bell__dot {
   position: absolute;
   top: 9px;

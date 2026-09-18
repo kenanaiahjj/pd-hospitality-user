@@ -4296,6 +4296,29 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               duplication this pass removed elsewhere.
             */}
             <div className="guest-appbar__side guest-appbar__side--end">
+              {/*
+                The scan is an action, not a destination, so it sits beside the
+                bell rather than taking a tab. It used to be a row on Home below
+                the stay card and the booking row -- which meant a guest standing
+                in the room, holding the code, could not find the one thing they
+                were trying to do. Here it is reachable from every screen.
+
+                It needs a stay under way to be worth offering: with no booking
+                there is no allocated room, so the viewfinder would open on a
+                code that could never resolve to anything.
+              */}
+              {primaryBooking && isStayUnderWay(primaryBooking) ? (
+                <button
+                  className="guest-icon-button guest-appbar__scan"
+                  type="button"
+                  data-testid="guest-room-qr-action"
+                  onClick={() => go('scan-room-code')}
+                  aria-label={primaryBooking.roomVerification ? 'Scan room code' : 'Scan room code, room not yet verified'}
+                >
+                  <QrCode />
+                  {primaryBooking.roomVerification ? null : <span className="guest-bell__dot" aria-hidden="true" />}
+                </button>
+              ) : null}
               {session.auth === 'authenticated' || session.bookings.length > 0 ? (
                 <button
                   className="guest-icon-button guest-bell"
@@ -4702,7 +4725,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
           */}
           {canUseOnPropertyServices(booking) ? null : (
             <div className="guest-stay-hero-card__qr">
-              <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
+              <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-row" onClick={() => onNavigate('scan-room-code')}>
                 <QrCode aria-hidden="true" />Scan your room code<ArrowRight aria-hidden="true" />
               </Button>
             </div>
@@ -4818,7 +4841,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
             <Button
               className="guest-button guest-button--primary"
               type="button"
-              data-testid="guest-room-qr-action"
+              data-testid="guest-room-qr-row"
               onClick={() => onNavigate('scan-room-code')}
             >
               <QrCode aria-hidden="true" />Scan room code<ArrowRight aria-hidden="true" />

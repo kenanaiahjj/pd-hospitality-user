@@ -467,7 +467,7 @@ describe('GuestAppPrototype', () => {
 
     // The row is gone for a verified stay -- the app bar carries the scan
     // from every screen, which is what made it findable.
-    expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
+    expect(screen.queryByTestId('guest-room-qr-row')).toBeNull();
     await user.click(screen.getByTestId('guest-room-qr-action'));
 
     expect(screen.getByRole('heading', { name: 'Place QR code in the frame' })).toBeInTheDocument();
@@ -2665,7 +2665,7 @@ describe('signed-in home with no booking', () => {
       that could not succeed.
     */
     expect(screen.queryByRole('button', { name: /Scan a room code/ })).toBeNull();
-    expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
+    expect(screen.queryByTestId('guest-room-qr-row')).toBeNull();
     // Including the app bar, which would otherwise open a viewfinder that
     // could never resolve to anything.
     expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
@@ -2683,7 +2683,7 @@ describe('mock camera', () => {
 
     // One quiet row among several was the wrong weight for the single thing
     // standing between this guest and the rest of the app.
-    expect(screen.getByTestId('guest-room-qr-action')).toHaveClass('guest-button--primary');
+    expect(screen.getByTestId('guest-room-qr-row')).toHaveClass('guest-button--primary');
   });
 
   it('opens a viewfinder rather than a page of text', async () => {
@@ -2872,7 +2872,7 @@ describe('scan discoverability', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
     // Repeating it on Home is what buried it; the app bar carries it now.
-    expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
+    expect(screen.queryByTestId('guest-room-qr-row')).toBeNull();
     expect(screen.getByTestId('guest-room-qr-action')).toBeInTheDocument();
   });
 

@@ -5068,10 +5068,16 @@
    repeated provider/status copy, just the decision-ready details. */
 .guest-stay-entry {
   grid-template-columns: minmax(0, 1fr) auto;
+  /* Parent first: the card names which building it is in before it names
+     itself, because that is the question a guest moving between properties
+     actually has. Settlement sits last, where it reads as a footnote to the
+     price rather than competing with it. */
   grid-template-areas:
+    "parent parent"
     "headline headline"
     "location location"
-    "when chevron";
+    "when chevron"
+    "settlement settlement";
   min-height: 88px;
   gap: 4px 12px;
   padding: 16px;
@@ -5109,6 +5115,20 @@
   overflow: hidden;
   color: var(--guest-muted);
   font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guest-stay-entry .guest-stay-entry__parent { grid-area: parent; }
+
+/* Only rendered when it is news -- a cancellation that cost nothing, a charge
+   already settled. Quiet, because the card's own price is the loud part. */
+.guest-stay-entry__settlement {
+  grid-area: settlement;
+  overflow: hidden;
+  color: var(--guest-subtle);
+  font-size: 12.5px;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;

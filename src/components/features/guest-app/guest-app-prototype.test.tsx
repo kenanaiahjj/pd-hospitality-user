@@ -457,8 +457,13 @@ describe('GuestAppPrototype', () => {
     // Room charges belong to My Stay; Home should not duplicate the folio entry point.
     expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
     expect(screen.getByTestId('guest-room-qr-action')).toBeInTheDocument();
-    // The front desk moved off the tab bar and into My Trip.
-    expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull();
+    /*
+      The front desk was taken off the tab bar once, on the argument that a tab
+      is for a place you return to. The nav revamp put it back as one of four
+      destinations, and that is now the only route to it -- the docked action
+      on My Stay went when it became the same journey twice.
+    */
+    expect(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /^Chat/ })).toBeInTheDocument();
   });
 
   it('keeps the room QR action on the arrived guest home', async () => {
@@ -494,11 +499,17 @@ describe('GuestAppPrototype', () => {
       />,
     );
 
-    expect(screen.getByText(/room 512/i)).toBeInTheDocument();
-    expect(screen.getByText(/charge at checkout/i)).toBeInTheDocument();
-    expect(screen.queryByText(/gcash|maya|card/i)).toBeNull();
+    /*
+      The point is that a guest with a verified room never has to produce a
+      card. Settling to the room is offered by name, and the payment methods
+      stay behind "Pay now" -- they are not part of this path.
+    */
+    expect(screen.getByRole('button', { name: /Charge to Room 512/i })).toBeInTheDocument();
+    expect(screen.getByText(/settle it at checkout/i)).toBeInTheDocument();
+    expect(screen.queryByText(/gcash|maya/i)).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: /confirm and charge to room/i }));
+    await user.click(screen.getByRole('button', { name: /Charge to Room 512/i }));
+    await user.click(screen.getByRole('button', { name: /^Charge .* to room/i }));
 
     expect(await screen.findByRole('heading', { name: /your massage is booked/i })).toBeInTheDocument();
     expect(screen.getByText(/added to room 512/i)).toBeInTheDocument();
@@ -2321,7 +2332,9 @@ describe('lifecycle gates', () => {
 
     await user.click(secondTab());
 
-    expect(screen.getByRole('heading', { name: 'Arrange your arrival' })).toBeInTheDocument();
+    // The screen kept its job and changed its name in `8144c6c`; "Arrange your
+    // arrival" is now the button that reaches it from a blocked booking.
+    expect(screen.getByRole('heading', { name: 'Arrival services' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Airport transfer/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Private car & driver/ })).toBeInTheDocument();
     // The gate's whole point: nothing here can reach a room that has no guest in it.
@@ -2398,6 +2411,9 @@ describe('lifecycle gates', () => {
     expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
     expect(screen.getByText(/can't scan the code in room 304/i)).toBeInTheDocument();
 
+    // Chat is focused: the tab bar is deliberately absent there, so leaving is
+    // the app bar's job rather than the nav's.
+    await user.click(screen.getByRole('button', { name: 'Go back' }));
     await user.click(secondTab());
     expect(screen.getByRole('heading', { name: 'The front desk has your request' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Categories' })).toBeNull();
@@ -2411,6 +2427,8 @@ describe('lifecycle gates', () => {
     await user.click(screen.getByRole('button', { name: /I can.{1,3}t scan/ }));
     await user.click(screen.getByRole('button', { name: /Confirm .* in room 304/i }));
 
+    // As above: out of the focused chat before the tab bar is there to use.
+    await user.click(screen.getByRole('button', { name: 'Go back' }));
     await user.click(secondTab());
     expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
   });

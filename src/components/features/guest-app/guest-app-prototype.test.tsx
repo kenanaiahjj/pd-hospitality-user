@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import userEvent from '@testing-library/user-event';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
 import {
@@ -184,7 +184,9 @@ describe('GuestAppPrototype', () => {
 
     await user.keyboard('{Escape}');
 
-    expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull();
+    // The dialog closes at once; the node outlives it by the length of the
+    // exit transition, so this waits for the removal rather than the dismissal.
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull());
     expect(trigger).toHaveFocus();
   });
 
@@ -230,6 +232,8 @@ describe('GuestAppPrototype', () => {
     expect(within(sheet).getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Log in with email' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Log in with email' })).toHaveClass('guest-button--primary');
+    expect(within(sheet).getByRole('button', { name: 'Log in as guest' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
     expect(screen.queryByText(/Create your account|Already have an account|Don't have an account/)).toBeNull();
   });
@@ -244,6 +248,19 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('heading', { name: 'Log in' })).toBeInTheDocument();
     expect(screen.getByLabelText('Email *')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull();
+  });
+
+  it('opens booking lookup for guests from the Get started sheet', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype />);
+
+    await user.click(screen.getByRole('button', { name: 'Get started' }));
+    await user.click(screen.getByRole('button', { name: 'Log in as guest' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
   });
 
   it('moves from email login to a six-digit OTP and then to booking lookup', async () => {
@@ -1082,7 +1099,11 @@ describe('menu and service listing controls', () => {
     expect(screen.getByRole('radio', { name: 'Recommended' })).toBeChecked();
 
     await user.click(screen.getByRole('button', { name: 'Apply' }));
-    expect(screen.getByRole('button', { name: 'Recommended' })).toHaveAttribute('aria-expanded', 'false');
+    // The sheet is dismissed at once and unmounts once it has finished leaving,
+    // so the pill reports collapsed a frame or two after the click.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Recommended' })).toHaveAttribute('aria-expanded', 'false'),
+    );
   });
 
   it('filters a service category by operator', async () => {

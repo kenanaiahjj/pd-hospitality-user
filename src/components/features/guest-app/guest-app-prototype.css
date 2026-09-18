@@ -3233,10 +3233,47 @@
   background: none;
   overflow: visible;
 }
+/*
+  Enter and exit, both, without a line of JavaScript.
+
+  `display` and `overlay` are discrete properties: they flip rather than
+  interpolate, which is why a closing <dialog> normally vanishes mid-animation
+  and why this sheet used to. `allow-discrete` holds both at their old value
+  for the duration, so the panel is still on screen -- and still in the top
+  layer -- long enough to travel back down. `@starting-style` supplies the
+  first frame on open, which is the half `animation` was doing before.
+
+  Transitions rather than keyframes on purpose: a guest who dismisses a sheet
+  and immediately reopens it retargets from wherever the panel had got to,
+  where a keyframe would snap to the start and replay.
+*/
+.guest-sheet {
+  transition:
+    opacity 260ms var(--ease-out),
+    overlay 280ms allow-discrete,
+    display 280ms allow-discrete;
+  opacity: 0;
+}
+
+.guest-sheet[open] { opacity: 1; }
+
+@starting-style {
+  .guest-sheet[open] { opacity: 0; }
+}
+
 .guest-sheet:not([open]) { display: none; }
 .guest-sheet::backdrop {
-  background: oklch(0 0 0 / 0.42);
-  animation: guest-sheet-fade var(--duration-base) var(--ease-out) both;
+  background: oklch(0 0 0 / 0);
+  transition:
+    background-color 260ms var(--ease-out),
+    overlay 280ms allow-discrete,
+    display 280ms allow-discrete;
+}
+
+.guest-sheet[open]::backdrop { background: oklch(0 0 0 / 0.42); }
+
+@starting-style {
+  .guest-sheet[open]::backdrop { background: oklch(0 0 0 / 0); }
 }
 .guest-sheet__panel {
   position: fixed;
@@ -3251,8 +3288,28 @@
   background: var(--guest-paper);
   /* The drawer curve, not the general one: this panel travels most of a
      screen height, and --ease-out lands it a touch too abruptly at that
-     distance. */
-  animation: guest-sheet-rise 320ms var(--ease-drawer) both;
+     distance. Percentage travel, so it works at any sheet height.
+
+     Out is faster than in, and on the plain curve. Opening is the system
+     presenting something and can afford to be unhurried; closing is answering
+     a guest who has already decided, and should get out of the way. */
+  transform: translateY(100%);
+  transition: transform 220ms var(--ease-out);
+}
+
+.guest-sheet[open] .guest-sheet__panel {
+  transform: translateY(0);
+  transition: transform 320ms var(--ease-drawer);
+}
+
+/* The fade and the backdrop stay -- they are what says a sheet is now in front
+   of everything. Only the travel goes. */
+@media (prefers-reduced-motion: reduce) {
+  .guest-sheet__panel,
+  .guest-sheet[open] .guest-sheet__panel {
+    transform: none;
+    transition: none;
+  }
 }
 .guest-sheet__grip {
   width: 38px;
@@ -3325,11 +3382,6 @@
 .guest-sheet__foot { padding: 10px 20px 0; box-shadow: inset 0 1px 0 var(--guest-line); }
 .guest-sheet__foot .guest-button { width: 100%; }
 
-@keyframes guest-sheet-rise {
-  from { transform: translateY(8%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-@keyframes guest-sheet-fade { from { opacity: 0; } to { opacity: 1; } }
 
 .guest-listing-controls {
   display: grid;

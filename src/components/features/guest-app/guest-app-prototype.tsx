@@ -56,6 +56,7 @@ import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { WELCOME_ILLUSTRATIONS } from './illustrations';
+import { afterSheetExit } from './sheet-exit';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
@@ -798,11 +799,13 @@ function SsoSheet({
   onClose,
   onSso,
   onEmailLogin,
+  onGuestLogin,
 }: {
   online: boolean;
   onClose: () => void;
   onSso: (method: AuthMethod) => void;
   onEmailLogin: () => void;
+  onGuestLogin: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -843,7 +846,7 @@ function SsoSheet({
           </button>
         </div>
         <div className="guest-sheet__body guest-sso-sheet__body">
-          <p className="guest-sso-sheet__lede">Use Apple, Google, or your email to access your stay and room services.</p>
+          <p className="guest-sso-sheet__lede">Choose how to access your stay.</p>
           {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Getting started needs a connection">A connection is required to continue.</Notice> : null}
           <div className="guest-auth-actions">
             <Button
@@ -863,10 +866,23 @@ function SsoSheet({
             >
               <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
             </Button>
+            <Button
+              className="guest-button guest-button--primary guest-sso-button"
+              type="button"
+              disabled={!online}
+              onClick={() => { close(); onEmailLogin(); }}
+            >
+              Log in with email<ArrowRight aria-hidden="true" />
+            </Button>
           </div>
-          <TextButton onClick={() => { close(); onEmailLogin(); }} disabled={!online}>
-            Log in with email
-          </TextButton>
+          <Button
+            className="guest-button guest-button--secondary guest-sso-button guest-sso-sheet__guest-action"
+            type="button"
+            disabled={!online}
+            onClick={() => { close(); onGuestLogin(); }}
+          >
+            Log in as guest<ArrowRight aria-hidden="true" />
+          </Button>
         </div>
       </div>
     </dialog>
@@ -877,18 +893,26 @@ function WelcomeScreen({
   online,
   onSso,
   onEmailLogin,
+  onGuestLogin,
 }: {
   online: boolean;
   onSso: (method: AuthMethod) => void;
   onEmailLogin: () => void;
+  onGuestLogin: () => void;
 }) {
   const pager = useWelcomePager();
   const [ssoOpen, setSsoOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const closeSso = () => {
-    setSsoOpen(false);
+    /*
+      Focus goes back the moment the sheet is dismissed -- to a guest it is
+      already gone, and waiting on the animation to hand focus over would put a
+      third of a second of nothing between the keypress and the answer. Only
+      the node itself lingers, long enough to travel back down.
+    */
     triggerRef.current?.focus();
+    afterSheetExit(() => setSsoOpen(false));
   };
 
   return (
@@ -923,7 +947,7 @@ function WelcomeScreen({
           </div>
         </div>
       </section>
-      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onEmailLogin={onEmailLogin} /> : null}
+      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onEmailLogin={onEmailLogin} onGuestLogin={onGuestLogin} /> : null}
     </>
   );
 }
@@ -2332,6 +2356,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               setCode('');
               setCodeNotice(null);
               go('sign-in');
+            }}
+            onGuestLogin={() => {
+              go('identify');
             }}
           />
         );
@@ -5766,7 +5793,7 @@ function ListingControls({
           key={openKey}
           title={openKey === 'all' ? 'Filters' : open[0]!.label}
           facets={open}
-          onClose={() => setOpenKey(null)}
+          onClose={() => afterSheetExit(() => setOpenKey(null))}
           onApply={apply}
         />
       ) : null}

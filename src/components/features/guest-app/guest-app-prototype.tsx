@@ -5073,7 +5073,6 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
                     </span>
                   </span>
                   <b>{item.label}</b>
-                  <small aria-hidden="true">Story</small>
                 </button>
               );
             })}

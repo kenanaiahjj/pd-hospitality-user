@@ -2519,6 +2519,21 @@
   height: 94px;
   border-radius: 20px;
 }
+
+/*
+  Two lines reserved whether or not the title needs them. "Activities & Tours"
+  wraps and the others do not, so without this the row's baseline stepped down
+  under one card and the whole rail read as crooked.
+*/
+.guest-home-story b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  min-height: calc(2 * 1.25em);
+  overflow: hidden;
+  line-height: 1.25;
+  text-wrap: balance;
+}
 .guest-home-story b { font-size: 12px; }
 .guest-home-story small { font-size: 10px; letter-spacing: 0.02em; }
 .guest-home-story:focus-visible {

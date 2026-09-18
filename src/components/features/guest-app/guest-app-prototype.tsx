@@ -71,6 +71,7 @@ import {
   verifyRoomPresence,
   findBookingByLookup,
   describeStayStatus,
+  describeCheckoutCountdown,
   formatPesoAmount,
   getHomeVariant,
   getNotifications,
@@ -3738,14 +3739,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <div className="guest-stack guest-my-stay-page">
-            <div className="guest-my-stay-header"><h1>{contextBooking.property}</h1><div><b>Room {contextBooking.roomNumber ?? '—'}</b><Tag tone={checkedOut ? 'neutral' : 'positive'}>{checkedOut ? 'Checked out' : 'Checked in'}</Tag></div></div>
+            {/*
+              Status and room as one line, because they are one fact: where
+              this guest is and how far through. Two elements side by side read
+              as two unrelated labels.
+            */}
+            <div className="guest-my-stay-header"><h1>{contextBooking.property}</h1><div><b>{describeStayStatus(contextBooking).label} · Room {contextBooking.roomNumber ?? '—'}</b></div></div>
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
             <div className="guest-stay-context guest-checkout-card">
               <button type="button" onClick={() => go('rate-detail')}>
                 <span className="guest-stay-context__clock" aria-hidden="true"><ClockCountdown /></span>
-                <span className="guest-stay-context__text"><b>{contextBooking.checkOut === '2026-11-12' ? 'Checks out tomorrow' : `Checkout on ${contextBooking.checkOut}`}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
+                {/*
+                  The helper, not a hardcoded date. Comparing against
+                  '2026-11-12' meant every other stay fell through to a raw
+                  ISO date, and a stay before arrival was told when it checks
+                  out rather than when it begins.
+                */}
+                <span className="guest-stay-context__text"><b>{describeCheckoutCountdown(contextBooking)}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
               </button>
               {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions">{checkoutIsDue ? <button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button> : null}<div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
             </div>
@@ -5104,14 +5116,22 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
   const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
   const when = `${entry.date === PROTOTYPE_TODAY ? 'Tonight' : date}${time ? ` · ${time}` : ''}`;
-  const showLocation = entry.title === 'Apartment 1B' || entry.title === 'Azotea Rooftop';
   const body = (
     <>
+      {/*
+        Named from the entry, not from a list of titles. This was an allowlist
+        of two -- 'Apartment 1B' and 'Azotea Rooftop' -- so every other venue
+        in a growing catalogue silently lost the line that says which building
+        it is in, which is the question the card exists to answer.
+      */}
+      <span className="guest-stay-entry__parent">
+        <span aria-hidden="true"><Storefront /></span>
+        <span>{entry.parentDetail ? `${entry.parent} · ${entry.parentDetail}` : entry.parent}</span>
+      </span>
       <span className="guest-stay-entry__headline">
         <h2>{entry.title}</h2>
         <strong>{entry.amount}</strong>
       </span>
-      {showLocation && entry.parentDetail ? <span className="guest-stay-entry__location">{entry.parentDetail}</span> : null}
       <span className="guest-stay-entry__when">{when}</span>
     </>
   );

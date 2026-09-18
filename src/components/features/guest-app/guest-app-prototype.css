@@ -5089,3 +5089,264 @@
   font-size: 13px;
   font-weight: 650;
 }
+
+/* --------------------------------------------------------------------------
+   Explore → ordering: venue browse, menu carousel, full-screen menu viewer
+
+   Taken from codex/ordering-menu-chat-flow. Appended rather than merged: that
+   branch forked 44 commits back, so its copy of this file predates the
+   promotion and would have dropped 126 lines of current styles.
+   -------------------------------------------------------------------------- */
+.guest-explore-subcategories { display: flex; gap: 8px; margin: 4px 0 2px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
+
+.guest-explore-subcategories::-webkit-scrollbar { display: none; }
+
+.guest-explore-subcategories button { flex: 0 0 auto; border: 1px solid var(--guest-line); border-radius: 999px; background: var(--guest-surface); color: var(--guest-muted); padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+.guest-explore-subcategories button.is-active { border-color: var(--guest-accent); background: var(--guest-soft); color: var(--guest-brand); }
+
+.guest-restaurant-browse {
+  gap: 16px;
+  padding-bottom: 88px;
+}
+
+.guest-restaurant-browse__details {
+  display: grid;
+  gap: 6px;
+  color: var(--guest-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.guest-restaurant-browse__details span:first-child {
+  color: var(--guest-ink);
+  font-weight: 650;
+}
+
+.guest-restaurant-browse__tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -2px;
+  padding: 2px;
+  scrollbar-width: none;
+}
+
+.guest-restaurant-browse__tabs::-webkit-scrollbar { display: none; }
+
+.guest-restaurant-browse__tabs button {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--guest-muted);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.guest-restaurant-browse__tabs button.is-active {
+  border-bottom-color: var(--guest-accent-strong);
+  color: var(--guest-ink);
+}
+
+.guest-restaurant-browse__items {
+  display: grid;
+  border-top: 1px solid var(--guest-line);
+}
+
+.guest-restaurant-browse__items article {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--guest-line);
+}
+
+.guest-restaurant-browse__items article > div {
+  display: grid;
+  gap: 7px;
+}
+
+.guest-restaurant-browse__item-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.guest-restaurant-browse__item-title h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guest-restaurant-browse__item-title strong {
+  flex: 0 0 auto;
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-restaurant-browse__items .guest-tag {
+  justify-self: start;
+}
+
+.guest-restaurant-browse__items p {
+  margin: 0;
+  color: var(--guest-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.guest-restaurant-browse__cta {
+  position: fixed;
+  z-index: 4;
+  right: 16px;
+  /* `--guest-nav-h`, not the `--guest-nav-height` the branch invented: that
+     token is defined nowhere and only worked off its fallback. */
+  bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 12px);
+  left: 16px;
+  max-width: 688px;
+  margin: 0 auto;
+}
+
+.guest-restaurant-browse__cta .guest-button {
+  width: 100%;
+  box-shadow: var(--shadow-md);
+}
+
+.guest-restaurant-menu-image-section {
+  display: grid;
+  gap: 10px;
+}
+
+.guest-restaurant-menu-image-section h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.guest-restaurant-menu-carousel {
+  display: grid;
+  gap: 10px;
+}
+
+.guest-restaurant-menu-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 430px;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  text-align: left;
+}
+
+.guest-restaurant-menu-image img {
+  object-fit: contain;
+  background: var(--guest-surface);
+}
+
+.guest-restaurant-menu-dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+}
+
+.guest-restaurant-menu-dots button {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--guest-line-strong);
+}
+
+.guest-restaurant-menu-dots button.is-active {
+  background: var(--guest-accent-strong);
+}
+
+.guest-restaurant-menu-viewer {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: oklch(0.16 0.02 320 / 0.9);
+}
+
+.guest-restaurant-menu-viewer__image {
+  position: relative;
+  width: min(92vw, 720px);
+  height: min(82vh, 900px);
+  overflow: hidden;
+}
+
+.guest-restaurant-menu-viewer__image img {
+  object-fit: contain;
+  transition: transform 180ms ease;
+}
+
+.guest-restaurant-menu-viewer__close,
+.guest-restaurant-menu-viewer__prev,
+.guest-restaurant-menu-viewer__next,
+.guest-restaurant-menu-viewer__zoom button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+}
+
+.guest-restaurant-menu-viewer__close {
+  position: absolute;
+  z-index: 1;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+}
+
+.guest-restaurant-menu-viewer__prev,
+.guest-restaurant-menu-viewer__next {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  transform: translateY(-50%);
+}
+
+.guest-restaurant-menu-viewer__prev { left: 16px; }
+
+.guest-restaurant-menu-viewer__next { right: 16px; }
+
+.guest-restaurant-menu-viewer__zoom {
+  position: absolute;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--guest-paper);
+}
+
+.guest-restaurant-menu-viewer__zoom button {
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+}
+
+.guest-restaurant-menu-viewer__zoom span {
+  min-width: 44px;
+  color: var(--guest-muted);
+  font-size: 12px;
+  text-align: center;
+}

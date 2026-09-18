@@ -3720,6 +3720,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : null}
 
             {/*
+              Once the desk closes the stay is over, and asking for the rating
+              is the only thing left to do here -- so this is where it is asked,
+              not buried behind "Check out now", which a checked-out guest has
+              no reason to press again. Asked once: a rating already given is
+              reported back rather than re-requested.
+            */}
+            {checkedOut && !postStayWindow.deskOpen ? (
+              stayReview ? (
+                <p className="guest-desk-window">
+                  <Check aria-hidden="true" />
+                  You rated this stay {stayReview.rating} out of 5.
+                </p>
+              ) : (
+                <Button className="guest-button guest-button--secondary" type="button" onClick={() => go('stay-review')}>
+                  Rate your stay<ArrowRight aria-hidden="true" />
+                </Button>
+              )
+            ) : null}
+
+            {/*
               A finished stay reads as a receipt, not as a live screen with
               nothing on it. The room line is the point: before this the screen
               could only report what was charged *against* the room, so a stay
@@ -3731,6 +3751,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <p className="guest-settled-summary__status">Settled at checkout</p>
                 <div className="guest-summary">
                   <SummaryRow label={`${settledStay.roomType} · ${settledStay.nights} nights`} value={settledStay.roomRate} />
+                  {/*
+                    What the money went on, not just what it came to. The room
+                    line alone made a stay with a spa day and three dinners read
+                    identically to one where nobody left the room. The itemised
+                    ledger stays one tap away on the settled stay.
+                  */}
+                  {summarisePastStay(settledStay).groups.map((group) => (
+                    <SummaryRow key={group.category} label={group.category} value={group.formattedTotal} />
+                  ))}
                   <SummaryRow label="Total settled" value={settledStay.total} strong />
                 </div>
                 <Button className="guest-button guest-button--secondary" type="button" onClick={() => { setSelectedPastStayId(contextBooking.id); go('stay-detail'); }}>

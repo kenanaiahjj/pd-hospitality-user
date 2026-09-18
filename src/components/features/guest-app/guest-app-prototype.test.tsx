@@ -1572,16 +1572,19 @@ describe('my stay', () => {
     expect(screen.getByText('Checks in in 3 days')).toBeInTheDocument();
   });
 
-  it('docks the front desk above the tab bar rather than burying it', async () => {
+  it('keeps the front desk one tap from My Stay', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
-    // It was the last row on a scrolling screen, so the one action a guest
-    // wants when something is wrong was the hardest thing here to reach.
-    const desk = screen.getByRole('button', { name: /Message the front desk/ });
-    expect(desk.closest('.guest-dock')).not.toBeNull();
-
-    await user.click(desk);
+    /*
+      This used to assert a docked button above the tab bar: as the last row on
+      a scrolling screen, the one action a guest wants when something is wrong
+      was the hardest thing here to reach. The Chat tab now reaches it from the
+      same viewport, so a dock would be the same route twice. What the test is
+      for -- the desk is one tap away, not a scroll away -- is unchanged.
+    */
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    await user.click(within(nav).getByRole('button', { name: /^Chat/ }));
 
     expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
   });
@@ -2061,12 +2064,16 @@ describe('a finished stay on My Stay', () => {
     expect(screen.getByRole('button', { name: /Book another stay/ })).toBeInTheDocument();
   });
 
-  it('keeps the front desk reachable for the 24 hours after checkout', () => {
+  it('keeps the front desk reachable for the 24 hours after checkout', async () => {
+    const user = userEvent.setup();
     // Reachability is now a property of the window, not of being checked out:
     // `finished` above is a stay whose desk window has already closed.
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('just-checked-out')} />);
 
-    expect(screen.getByRole('button', { name: 'Message the front desk' })).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    await user.click(within(nav).getByRole('button', { name: /^Chat/ }));
+
+    expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
   });
 
   it('keeps the tabs so upcoming and past services stay distinct', () => {
@@ -2409,8 +2416,7 @@ describe('lifecycle gates', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
 
-    await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getAllByRole('button')[2]);
-    await user.click(screen.getByTestId('guest-front-desk-action'));
+    await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /^Chat/ }));
 
     expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
   });
@@ -2538,13 +2544,14 @@ describe('post-stay front desk window', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={justCheckedOut} />);
 
     expect(screen.getByText(/Front desk open for another \d+ hours?/)).toBeInTheDocument();
-    expect(screen.getByTestId('guest-front-desk-action')).toBeInTheDocument();
+    // The Chat tab is the route while the window is open; it goes disabled, not
+    // missing, once the window closes.
+    expect(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /^Chat/ })).toBeInTheDocument();
   });
 
   it('closes the desk once the window is over and offers a review instead', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={closed} />);
 
-    expect(screen.queryByTestId('guest-front-desk-action')).toBeNull();
     expect(screen.getByText('Front desk chat closed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rate your stay' })).toBeInTheDocument();
   });

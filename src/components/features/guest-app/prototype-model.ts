@@ -364,8 +364,8 @@ export const ANONYMOUS_SESSION: GuestSession = {
 export const PAST_STAYS: PastStay[] = [
   {
     id: 'HEN-CEBU-260314',
-    property: 'The Henry Cebu',
-    city: 'Cebu',
+    property: 'The Henry Manila',
+    city: 'Manila',
     checkIn: '2026-03-14',
     checkOut: '2026-03-17',
     nights: 3,
@@ -375,11 +375,11 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Direct booking',
     roomRate: '₱18,600',
     charges: [
-      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness' },
+      { id: 'c1', parent: 'The Henry Manila', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness' },
       { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining' },
-      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours' },
+      { id: 'c3', parent: 'The Henry Manila', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours' },
       { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining' },
-      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services' },
+      { id: 'c5', parent: 'The Henry Manila', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services' },
     ],
     total: '₱37,390',
   },
@@ -398,14 +398,14 @@ export const PAST_STAYS: PastStay[] = [
     charges: [
       { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining' },
       { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services' },
-      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours' },
+      { id: 'd3', parent: 'The Henry Manila', title: 'Manila heritage walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours' },
     ],
     total: '₱14,150',
   },
   {
     id: 'HEN-CEBU-250508',
-    property: 'The Henry Cebu',
-    city: 'Cebu',
+    property: 'The Henry Manila',
+    city: 'Manila',
     checkIn: '2025-05-08',
     checkOut: '2025-05-10',
     nights: 2,
@@ -416,7 +416,7 @@ export const PAST_STAYS: PastStay[] = [
     roomRate: '₱11,200',
     charges: [
       { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining' },
-      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness' },
+      { id: 'e2', parent: 'The Henry Manila', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness' },
     ],
     total: '₱13,820',
   },
@@ -441,8 +441,8 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'HEN-CEBU-240615',
       guestName: 'Ana Santos',
-      property: 'The Henry Cebu',
-      city: 'Cebu',
+      property: 'The Henry Manila',
+      city: 'Manila',
       status: 'completed',
       checkIn: '2026-06-15',
       checkOut: '2026-06-18',
@@ -494,7 +494,7 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-tour-1',
       bookingId: 'HEN-241109',
-      title: 'Binondo food crawl',
+      title: 'Manila food walk',
       scheduledFor: 'Thursday · November 13 · 9:00 AM',
       scheduledDate: '2026-11-13',
       amount: '₱4,400',
@@ -835,7 +835,7 @@ export function canUseOnPropertyServices(
  * The only path that writes the verification fact.
  *
  * Maps one booking, never the session. A session holds several bookings
- * across properties -- `MOCK_SESSION` carries Manila and Cebu -- and a scan
+ * across properties -- `MOCK_SESSION` carries Manila and Manila -- and a scan
  * in one says nothing about the other. A session-level flag here would unlock
  * room charging against a room the guest has never seen.
  */
@@ -1376,8 +1376,8 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
   },
   {
     id: 'cebu',
-    name: 'The Henry Cebu',
-    city: 'Cebu',
+    name: 'The Henry Manila',
+    city: 'Manila',
     referenceCode: 'CEBU',
     tagline: 'Pool deck, Azotea rooftop, ten minutes from Mactan',
     roomTypes: [
@@ -1387,10 +1387,10 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
   },
   {
     id: 'dumaguete',
-    name: 'The Henry Dumaguete',
-    city: 'Dumaguete',
+    name: 'The Henry Manila',
+    city: 'Manila',
     referenceCode: 'DGTE',
-    tagline: 'Quiet sea-facing wing, walking distance to Rizal Boulevard',
+    tagline: 'Quiet sea-facing wing, walking distance to Manila waterfront',
     roomTypes: [
       { id: 'dumaguete-deluxe', name: 'Deluxe room', detail: '26 sqm · Sea view · Sleeps 2', nightlyRate: '₱4,900', maxGuests: 2 },
       { id: 'dumaguete-suite', name: 'Corner suite', detail: '40 sqm · Balcony · Sleeps 4', nightlyRate: '₱7,600', maxGuests: 4 },
@@ -2330,7 +2330,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'Apartment 1B',
     category: 'Restaurant & Bar',
     operator: 'Hotel operated',
-    priceRange: 'From ₱550',
+    priceRange: 'Menu in Chat',
     hours: '6:30 AM – 11:00 PM',
     property: 'The Henry Manila',
     location: 'Ground floor courtyard',
@@ -2454,10 +2454,10 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'In-Room Dining',
     category: 'Dining',
     operator: 'Hotel operated',
-    priceRange: 'From ₱450',
+    priceRange: 'Menu in Chat',
     hours: '24 hours daily',
     property: 'The Henry Manila',
-    location: 'Delivered to your room',
+    location: 'Ground floor courtyard',
     description: 'Comforting Filipino favorites, breakfast sets, and late-night cravings brought directly to your door.',
     cutoff: '2-hour cancellation cutoff',
     tone: 'sand',
@@ -2532,10 +2532,10 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'The Poolside Bar',
     category: 'Bar & Lounge',
     operator: 'Hotel operated',
-    priceRange: 'From ₱350',
+    priceRange: 'Menu in Chat',
     hours: '11:00 AM – 12:00 MN',
     property: 'The Henry Manila',
-    location: 'Second floor pool deck',
+    location: 'Ground floor courtyard',
     description: 'Tropical cocktails, artisanal spirits, local craft brews, and savory tapas by the pool.',
     cutoff: 'Walk-in or call front desk',
     tone: 'clay',
@@ -2567,7 +2567,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
       },
       {
         id: 'bar-4',
-        name: 'Cebu Mango Sour',
+        name: 'Manila Mango Sour',
         description: 'Bourbon, fresh mango purée, calamansi, egg white foam, bitters.',
         price: '₱410',
         category: 'drinks',
@@ -2577,13 +2577,13 @@ export const RESTAURANTS: RestaurantVenue[] = [
   },
   {
     id: 'cafe',
-    name: 'Kape Manila Café',
+    name: 'Kape Lab Manila',
     category: 'Café & Bakery',
     operator: 'Hotel operated',
-    priceRange: 'From ₱180',
+    priceRange: 'Menu in Chat',
     hours: '6:00 AM – 8:00 PM',
     property: 'The Henry Manila',
-    location: 'Lobby, beside reception',
+    location: 'Ground floor courtyard',
     description: 'Single-origin Philippine coffee, morning pastries, and all-day light plates by the lobby garden.',
     cutoff: 'Walk-in & takeaway',
     tone: 'sand',
@@ -2654,10 +2654,10 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'Azotea Rooftop',
     category: 'Fine Dining',
     operator: 'Hotel operated',
-    priceRange: 'From ₱1,200',
+    priceRange: 'Menu in Chat',
     hours: '5:30 PM – 12:00 MN',
     property: 'The Henry Manila',
-    location: 'Ninth floor terrace',
+    location: 'Ground floor courtyard',
     description: 'A tasting-led rooftop kitchen working Philippine produce over live fire, with the bay on three sides.',
     cutoff: '24-hour cancellation cutoff',
     tone: 'clay',
@@ -2735,10 +2735,10 @@ export const RESTAURANTS: RestaurantVenue[] = [
 export const SERVICES = [
   /* Dining -- the venues themselves live in RESTAURANTS; these are the rows
      the Home rail and cross-category search read. */
-  { id: 'dining', name: 'In-room dining', category: 'Dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱450', cutoff: '2-hour cancellation cutoff', tone: 'sand' },
+  { id: 'dining', name: 'In-Room Dining', category: 'Dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱450', cutoff: '2-hour cancellation cutoff', tone: 'sand' },
   { id: 'restaurant', name: 'Apartment 1B', category: 'Restaurant & bar', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱550', cutoff: '2-hour cancellation cutoff', tone: 'clay' },
-  { id: 'poolside-bar', name: 'The Poolside Bar & Lounge', category: 'Bar & Lounge', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱350', cutoff: 'Walk-in & lounge', tone: 'clay' },
-  { id: 'cafe', name: 'Kape Manila Café', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
+  { id: 'poolside-bar', name: 'The Poolside Bar', category: 'Bar & Lounge', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱350', cutoff: 'Walk-in & lounge', tone: 'clay' },
+  { id: 'cafe', name: 'Kape Lab Manila', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
   { id: 'rooftop', name: 'Azotea Rooftop', category: 'Fine dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱1,200', cutoff: '24-hour cancellation cutoff', tone: 'clay' },
 
   /* Spa & wellness */

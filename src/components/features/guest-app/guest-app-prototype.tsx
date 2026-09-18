@@ -984,6 +984,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [extensionDate, setExtensionDate] = useState('2026-11-14');
   const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  const [exploreSubcategory, setExploreSubcategory] = useState('All');
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
   const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | 'gifts' | null>(null);
   const [, setOrderTrayStep] = useState<'tray' | 'review'>('tray');
@@ -1192,7 +1193,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       const catalogImages = catalogRequest
         ? body.includes('products')
           ? GIFT_PRODUCTS.slice(0, 2).map((product) => product.image)
-          : [getMenuItemImage('a1b-calamari'), getMenuItemImage('a1b-ribeye')]
+          : undefined
         : undefined;
       const deskReply = body.includes('towel')
         ? `We’ll bring two fresh towels to ${contextRoom.toLowerCase()} shortly.`
@@ -1202,6 +1203,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setChatMessages((messages) => [...messages, { from: 'desk', body: deskReply, state: 'Seen', images: catalogImages }]);
       setSending(false);
     }, 850);
+  };
+
+  const openRestaurantChat = (venue: RestaurantVenue) => {
+    const systemMessage = `Ordering from ${venue.name}`;
+    const menuMessage = `Ordering support for ${venue.name} is ready. Send the item names, quantities, and any special requests when you’re ready to order.`;
+    if (!chatMessages.some((message) => message.body === systemMessage)) {
+      setChatMessages((messages) => [
+        ...messages,
+        { from: 'desk', body: systemMessage, state: 'System' },
+        { from: 'desk', body: menuMessage, state: 'Seen' },
+      ]);
+    }
+    setChatDraft(`I’d like to order from ${venue.name}.`);
+    go('chat');
   };
 
   const openExtensionChat = () => {
@@ -2144,7 +2159,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'lookup-fallback':
-        return <ScreenIntro title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Dumaguete</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
+        return <ScreenIntro title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="dumaguete"><option value="dumaguete">The Henry Manila</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
 
       case 'front-desk-assist':
         return <ScreenIntro icon={<ChatCircleDots size={30} />} title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
@@ -2240,7 +2255,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'repeat-review':
         return (
           <ScreenIntro
-            eyebrow="Saved from your Cebu stay"
+            eyebrow="Saved from your Manila stay"
             title="Review, then confirm"
             text="Everything is pre-filled. Change only what’s different this time."
           >
@@ -2709,8 +2724,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // filter/sort run over them unchanged.
         const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
         const listingFilters = { operators: [], types: serviceTypes, sort: serviceSort };
-        const visibleVenues = filterServices(venueRows, listingFilters);
-        const visibleServices = filterServices(categoryServices, listingFilters);
+        const subcategories: Record<MiniAppCategoryId, string[]> = {
+          dining: ['All', 'Breakfast & Brunch', 'Filipino & International', 'Spanish', 'Asian Fusion', 'Pizza & Pasta', 'Desserts & Café'],
+          spa: ['All', 'Massage', 'Body Treatments', 'Beauty & Grooming', 'Mind & Movement'],
+          entertainment: ['All', 'Manila Highlights', 'Culture & Heritage', 'Nature & Waterfalls', 'Islands & Marine Life', 'Day Trips'],
+          services: ['All', 'Transportation', 'Guest Assistance', 'Room & Luggage', 'Laundry & Housekeeping', 'Celebrations'],
+        };
+        const options = subcategories[selectedCategory];
+        const selectedSubcategory = options.includes(exploreSubcategory) ? exploreSubcategory : 'All';
+        const matchesSubcategory = (row: { category: string }) => selectedSubcategory === 'All' || row.category === selectedSubcategory;
+        const visibleVenues = filterServices(venueRows, listingFilters).filter(matchesSubcategory);
+        const visibleServices = filterServices(categoryServices, listingFilters).filter(matchesSubcategory);
         const servicesNarrowed = serviceTypes.length > 0 || serviceSort !== 'recommended';
         const clearServiceControls = () => { setServiceTypes([]); setServiceSort('recommended'); };
         const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
@@ -2727,6 +2751,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <p>{categoryDescription[selectedCategory]}</p>
             </div>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved offerings">Live availability and booking require a connection.</Notice> : null}
+
+            <div className="guest-scroll-row guest-explore-subcategories" aria-label="Explore subcategories">
+              {options.map((option) => <button key={option} type="button" className={selectedSubcategory === option ? 'is-active' : ''} onClick={() => setExploreSubcategory(option)}>{option}</button>)}
+            </div>
 
             {selectedCategory === 'dining' ? (
               <>
@@ -2753,7 +2781,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   >
                     <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} itemId={res.id} categoryId="dining" variant="card" tone={res.tone} icon={<ForkKnife />} decorative />
                     <div className="guest-food-restaurant-card__body">
-                      <div className="guest-food-restaurant-card__title"><h2>{res.name}</h2><span>{res.priceRange}</span></div>
+                      <div className="guest-food-restaurant-card__title"><h2>{res.name}</h2></div>
                       <p>{res.category} · {res.hours}</p>
                       <small>{res.location}</small>
                     </div>
@@ -2844,7 +2872,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        return <EstablishmentChatScreen kind="restaurant" venue={venue} booking={contextBooking} online={online} onChat={(message) => { setChatDraft(message); go('chat'); }} />;
+        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} />;
       }
 
       case 'restaurant-cart': {
@@ -4896,7 +4924,7 @@ type NearbyEstablishment = {
   categoryId: MiniAppCategoryId | 'gifts';
   name: string;
   type: string;
-  distance: string;
+  distance?: string;
   description: string;
   address: string;
   hours: string;
@@ -4905,21 +4933,19 @@ type NearbyEstablishment = {
 };
 
 const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = [
-  { id: 'kape-lab-manila', categoryId: 'dining' as const, name: 'Kape Lab Manila', type: 'Coffee & bakery', distance: '280 m away', description: 'Small-batch coffee, pastries, and early breakfast.', address: '142 Roxas Boulevard, Manila', hours: 'Daily · 6:00 AM–9:00 PM', contact: '+63 917 555 0142', image: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=80' },
-  { id: 'bayleaf-kitchen', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Independent neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: 'https://images.unsplash.com/photo-1515003190562-c5f5f8f1f4f5?auto=format&fit=crop&w=900&q=80' },
-  { id: 'sunset-roasters', categoryId: 'dining', name: 'Sunset Roasters', type: 'Coffee shop', distance: '850 m away', description: 'A relaxed independent café for coffee, tea, and light bites.', address: '77 Roxas Boulevard, Manila', hours: 'Daily · 7:00 AM–8:00 PM', contact: '+63 917 555 0187', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80' },
-  { id: 'hilot-house', categoryId: 'spa' as const, name: 'Hilot House', type: 'Independent wellness studio', distance: '450 m away', description: 'A neighborhood studio for traditional hilot and restorative treatments.', address: '18 Adriatico Street, Manila', hours: 'Mon–Sun · 10:00 AM–10:00 PM', contact: '+63 917 555 0198', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80' },
-  { id: 'bamboo-wellness', categoryId: 'spa', name: 'Bamboo Wellness Studio', type: 'Massage & wellness', distance: '700 m away', description: 'Independent therapists offering calming massages and wellness rituals.', address: '26 Pedro Gil Street, Manila', hours: 'Daily · 9:00 AM–9:00 PM', contact: '+63 917 555 0133', image: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80' },
-  { id: 'quiet-corner-yoga', categoryId: 'spa', name: 'Quiet Corner Yoga', type: 'Yoga studio', distance: '1 km away', description: 'Small group yoga and breathwork classes for all experience levels.', address: '41 Taft Avenue, Manila', hours: 'Mon–Sat · 7:00 AM–8:00 PM', contact: '+63 917 555 0175', image: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=900&q=80' },
-  { id: 'manila-heritage-walks', categoryId: 'entertainment' as const, name: 'Manila Heritage Walks', type: 'Local tours', distance: '1.2 km away', description: 'Independent walking tours through the city’s historic neighborhoods.', address: 'Plaza Roma, Intramuros, Manila', hours: 'Tours daily · 8:00 AM–5:00 PM', contact: '+63 917 555 0120', image: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=900&q=80' },
-  { id: 'sunset-bay-cruises', categoryId: 'entertainment', name: 'Sunset Bay Cruises', type: 'Harbor experience', distance: '2.4 km away', description: 'Independent sunset cruises with views across Manila Bay.', address: 'Harbor Square, Pasay City', hours: 'Daily departures · 4:00 PM–8:00 PM', contact: '+63 917 555 0154', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80' },
-  { id: 'intramuros-cycling', categoryId: 'entertainment', name: 'Intramuros Cycle Tours', type: 'Bike tours', distance: '1.8 km away', description: 'Independent guided bicycle tours through Intramuros and nearby streets.', address: 'General Luna Street, Intramuros, Manila', hours: 'Daily · 7:00 AM–6:00 PM', contact: '+63 917 555 0109', image: 'https://images.unsplash.com/photo-1529422643029-d4585747aaf2?auto=format&fit=crop&w=900&q=80' },
-  { id: 'escolta-craft-market', categoryId: 'services' as const, name: 'Escolta Craft Market', type: 'Handicrafts & gifts', distance: '900 m away', description: 'Independent makers offering local crafts, keepsakes, and small gifts.', address: 'Escolta Street, Binondo, Manila', hours: 'Fri–Sun · 10:00 AM–7:00 PM', contact: 'hello@escoltacraft.example', image: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=900&q=80' },
-  { id: 'manila-laundry-co', categoryId: 'services' as const, name: 'Manila Laundry Co.', type: 'Laundry service', distance: '500 m away', description: 'Independent wash-and-fold service with convenient hotel-area pickup.', address: '12 Harrison Street, Pasay City', hours: 'Daily · 8:00 AM–8:00 PM', contact: '+63 917 555 0181', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=900&q=80' },
-  { id: 'city-bike-rentals', categoryId: 'services' as const, name: 'City Bike Rentals', type: 'Bike rental', distance: '1.1 km away', description: 'Independent bicycle rentals for exploring the bay and nearby neighborhoods.', address: '88 M. H. del Pilar Street, Manila', hours: 'Daily · 7:00 AM–7:00 PM', contact: '+63 917 555 0147', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80' },
-  { id: 'manila-makers-market', categoryId: 'gifts', name: 'Manila Makers Market', type: 'Local crafts & souvenirs', distance: '750 m away', description: 'Independent makers offering keepsakes, home décor, and pasalubong.', address: '33 Escolta Street, Manila', hours: 'Tue–Sun · 10:00 AM–7:00 PM', contact: '+63 917 555 0116', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
-  { id: 'binondo-pasalubong', categoryId: 'gifts', name: 'Binondo Pasalubong House', type: 'Local delicacies', distance: '1.4 km away', description: 'Independent shop for regional snacks, sweets, and take-home treats.', address: '168 Ongpin Street, Binondo, Manila', hours: 'Daily · 9:00 AM–8:00 PM', contact: '+63 917 555 0128', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80' },
-  { id: 'artisan-home-studio', categoryId: 'gifts', name: 'Artisan Home Studio', type: 'Home décor & crafts', distance: '1.6 km away', description: 'Independent local artists’ studio with ceramics, candles, and small décor.', address: '52 Escolta Street, Manila', hours: 'Wed–Sun · 10:00 AM–6:00 PM', contact: '+63 917 555 0170', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=900&q=80' },
+  { id: 'hayahay', categoryId: 'dining', name: 'Kape Lab Manila', type: 'Nearby · Independent establishment', description: 'Manila waterfront dining, drinks, and sunset views.', address: 'Manila', hours: 'Check current hours on map', image: 'https://images.unsplash.com/photo-1515003190562-c5f5f8f1f4f5?auto=format&fit=crop&w=900&q=80' },
+  { id: 'lantaw', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Nearby · Independent establishment', description: 'Local Filipino dishes in a relaxed open-air setting.', address: 'Manila', hours: 'Check current hours on map', image: 'https://images.unsplash.com/photo-1515003190562-c5f5f8f1f4f5?auto=format&fit=crop&w=900&q=80' },
+  { id: 'gabbys', categoryId: 'dining', name: "Sunset Roasters", type: 'Nearby · Independent establishment', description: 'Independent bistro serving comfort food and café favorites.', address: 'Manila', hours: 'Check current hours on map', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80' },
+  { id: 'adamo', categoryId: 'dining', name: 'Hilot House', type: 'Nearby · Independent establishment', description: 'Independent Manila dining recommendation.', address: 'Manila', hours: 'Check current hours on map', image: 'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80' },
+  { id: 'grand-royal-spa', categoryId: 'spa', name: 'Hilot House', type: 'Nearby · Independent establishment', description: 'Massage and wellness treatments.', address: 'Manila', hours: 'Check current hours on map', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80' },
+  { id: 'vero-spa', categoryId: 'spa', name: 'Vero Massage Clinic & Spa', type: 'Nearby · Independent establishment', description: 'Massage and wellness treatments.', address: 'Manila', hours: 'Check current hours on map', image: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80' },
+  { id: 'rizal-boulevard', categoryId: 'entertainment', name: 'Manila waterfront', type: 'Nearby · Independent experience', description: 'A quick city experience along Manila’s waterfront.', address: 'Manila', hours: 'Check locally', image: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=900&q=80' },
+  { id: 'balinsasayao', categoryId: 'entertainment', name: 'Manila nature park', type: 'Nearby · Independent experience', description: 'Nature and lake views in Manila.', address: 'Manila', hours: 'Check locally', image: 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=900&q=80' },
+  { id: 'apo-island', categoryId: 'entertainment', name: 'Island day tour', type: 'Nearby · Independent experience', description: 'Island and marine-life day trip option.', address: 'Manila', hours: 'Check locally', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80' },
+  { id: 'car-van-rental', categoryId: 'services', name: 'Car and van rental', type: 'Nearby · Independent service', description: 'Map-based rental recommendations around Manila.', address: 'Manila', hours: 'Check current availability on map', image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=80' },
+  { id: 'scooter-rental', categoryId: 'services', name: 'Scooter rental', type: 'Nearby · Independent service', description: 'Map-based scooter rental recommendations.', address: 'Manila', hours: 'Check current availability on map', image: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=80' },
+  { id: 'public-market', categoryId: 'gifts', name: 'Manila makers market', type: 'Nearby · Independent establishment', description: 'Local delicacies and everyday market finds.', address: 'Manila', hours: 'Check current hours on map', image: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=900&q=80' },
+  { id: 'sidlakang-negros', categoryId: 'gifts', name: 'Artisan Home Studio', type: 'Nearby · Independent establishment', description: 'Negros crafts, local products, and souvenirs.', address: 'Manila', hours: 'Check current hours on map', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
 ];
 
 const ROOM_UPGRADES = [
@@ -4934,17 +4960,17 @@ function canOfferRoomUpgrade(booking: Booking) {
 function NearbyRecommendations({ categoryId, description, onSelect }: { categoryId: MiniAppCategoryId; description: string; onSelect: (id: string) => void }) {
   const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
   if (!recommendations.length) return null;
-  return <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">{description}</p><div className="guest-nearby-list">{recommendations.map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelect(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small><small>{item.distance}</small><p>{item.description}</p></span><CaretRight /></button>)}</div></section>;
+  return <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">{description}</p><div className="guest-nearby-list">{recommendations.map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelect(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small>{item.distance ? <small>{item.distance}</small> : null}<p>{item.description}</p></span><CaretRight /></button>)}</div></section>;
 }
 
 function NearbyEstablishmentScreen({ establishment, onBookRide }: { establishment: NearbyEstablishment; onBookRide: () => void }) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(establishment.address)}`;
   return <div className="guest-stack guest-establishment-detail">
     <div className="guest-establishment-cover"><Image src={establishment.image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></div>
-    <div className="guest-page-title"><p className="guest-eyebrow">Nearby recommendation · Independently operated</p><h1>{establishment.name}</h1><p>{establishment.type} · {establishment.distance}</p></div>
+    <div className="guest-page-title"><p className="guest-eyebrow">Nearby recommendation · Independently operated</p><h1>{establishment.name}</h1><p>{establishment.type}</p></div>
     <Notice title="Outside the hotel">This establishment is independently operated and is not part of the hotel.</Notice>
     <p className="guest-establishment-description">{establishment.description}</p>
-    <div className="guest-summary"><SummaryRow label="Address" value={establishment.address} /><SummaryRow label="Distance" value={establishment.distance} /><SummaryRow label="Operating hours" value={establishment.hours} />{establishment.contact ? <SummaryRow label="Contact" value={establishment.contact} /> : null}</div>
+    <div className="guest-summary"><SummaryRow label="Address" value={establishment.address} /><SummaryRow label="Operating hours" value={establishment.hours} />{establishment.contact ? <SummaryRow label="Contact" value={establishment.contact} /> : null}</div>
     <a className="guest-location-row" href={mapsUrl} target="_blank" rel="noreferrer"><MapPin /><span><b>{establishment.address}</b><small>View on Google Maps</small></span><CaretRight /></a>
     <Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button>
   </div>;
@@ -5134,7 +5160,7 @@ function GiftsSouvenirsScreen({ booking, fulfillment, cart, onChangeQuantity, on
         </section>
       ))}
       {Object.values(cart).some((quantity) => quantity > 0) ? <button className="guest-mini-cart" type="button" onClick={onOpenCart}><span><small>Gift order</small><b>{Object.values(cart).reduce((sum, quantity) => sum + quantity, 0)} items</b></span><strong>{formatPesoAmount(GIFT_PRODUCTS.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0))}</strong><CaretRight /></button> : null}
-      <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">Nearby shops for gifts, local products, and souvenirs.</p><div className="guest-nearby-list">{NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === 'gifts').map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelectNearby(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small><small>{item.distance}</small><p>{item.description}</p></span><CaretRight /></button>)}</div></section>
+      <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">Nearby shops for gifts, local products, and souvenirs.</p><div className="guest-nearby-list">{NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === 'gifts').map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelectNearby(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small>{item.distance ? <small>{item.distance}</small> : null}<p>{item.description}</p></span><CaretRight /></button>)}</div></section>
     </div>
   );
 }
@@ -5175,6 +5201,32 @@ function EstablishmentChatScreen({ kind, venue, booking, online, onChat }: { kin
     : `Hi! I’d like to see the available products from ${name}.`;
 
   return <div className="guest-stack guest-establishment-chat-screen">{venue ? <ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<Storefront size={38} />} decorative /> : <div className="guest-establishment-chat-screen__cover"><Image src={GIFT_PRODUCTS[0].image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></div>}<div className="guest-page-title"><h1>{name}</h1><p>{description}</p><div className="guest-establishment-chat-screen__details"><span>{provider}</span><span>{location}</span><span>{hours}</span><span>{online ? 'Available · Confirm with the front desk' : 'Availability shown when connected'}</span></div></div><div className="guest-establishment-chat-screen__instructions"><b>How ordering works</b><p>{instructions}</p></div><button className="guest-button guest-button--primary" type="button" onClick={() => onChat(message)}>{restaurant ? 'View menu and order' : 'View products and order'}<ArrowRight /></button><TextButton onClick={() => onChat(message)}>Message the front desk</TextButton></div>;
+}
+
+const RESTAURANT_MENU_IMAGE_PAGES = [
+  '/menus/restaurant-menu-page-1.png',
+  '/menus/restaurant-menu-page-2.png',
+  '/menus/restaurant-menu-page-3.png',
+];
+
+const getRestaurantMenuImages = (venue: RestaurantVenue) => {
+  void venue;
+  return RESTAURANT_MENU_IMAGE_PAGES;
+};
+
+function RestaurantMenuScreen({ venue, onOrder }: { venue: RestaurantVenue; onOrder: () => void }) {
+  const [page, setPage] = useState(0);
+  const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const menuImages = getRestaurantMenuImages(venue);
+  const currentImage = menuImages[page] ?? menuImages[0];
+
+  const openPreview = () => {
+    setPreviewZoom(1);
+    setPreviewOpen(true);
+  };
+
+  return <div className="guest-stack guest-restaurant-browse"><ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{venue.name}</h1><p>{venue.description}</p><div className="guest-restaurant-browse__details"><span>{venue.operator}</span><span>{venue.location}</span><span>{venue.hours}</span><span>Available · Confirm current menu in Chat</span></div></div><section className="guest-restaurant-menu-image-section"><h2>Menu</h2><div className="guest-restaurant-menu-carousel"><button type="button" className="guest-restaurant-menu-image" onClick={openPreview} aria-label={`Open menu page ${page + 1}`}><Image src={currentImage} alt={`${venue.name} menu page ${page + 1}`} fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></button>{menuImages.length > 1 ? <div className="guest-restaurant-menu-dots" aria-label="Menu pages">{menuImages.map((image, index) => <button key={image} type="button" aria-label={`Show menu page ${index + 1}`} aria-current={page === index} className={page === index ? 'is-active' : ''} onClick={() => setPage(index)} />)}</div> : null}</div></section><div className="guest-restaurant-browse__cta"><button className="guest-button guest-button--primary" type="button" onClick={onOrder}>Order from {venue.name}<ArrowRight /></button></div>{previewOpen ? <div className="guest-restaurant-menu-viewer" role="dialog" aria-modal="true" aria-label={`${venue.name} menu preview`} onClick={() => setPreviewOpen(false)}><button type="button" className="guest-restaurant-menu-viewer__close" aria-label="Close menu preview" onClick={() => setPreviewOpen(false)}><X /></button>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__prev" aria-label="Previous menu page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current - 1 + menuImages.length) % menuImages.length); }}><ArrowLeft /></button> : null}<div className="guest-restaurant-menu-viewer__image" onClick={(event) => event.stopPropagation()}><Image src={currentImage} alt={`${venue.name} menu preview`} fill sizes="92vw" style={{ transform: `scale(${previewZoom})` }} /></div>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__next" aria-label="Next menu page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current + 1) % menuImages.length); }}><ArrowRight /></button> : null}<div className="guest-restaurant-menu-viewer__zoom"><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.max(1, zoom - 0.25)); }}>−</button><span>{Math.round(previewZoom * 100)}%</span><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.min(2.5, zoom + 0.25)); }}>+</button></div></div> : null}</div>;
 }
 
 function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge: ReturnType<typeof getRoomCharges>[number]; service?: ServiceBooking; roomLabel: string; onQuestion: (message: string) => void }) {

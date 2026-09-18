@@ -2859,11 +2859,12 @@
 /* --------------------------------------------------------------------------
    Welcome screen: branded splash, then a quiet account-first introduction.
    -------------------------------------------------------------------------- */
-.guest-device.is-welcome { background: #fff; }
+.guest-device.is-welcome { background: var(--guest-paper); }
 
 .guest-screen--welcome {
   padding: 0;
   overflow: hidden;
+  background: var(--guest-paper);
 }
 
 .guest-welcome {
@@ -2893,13 +2894,16 @@
   position: relative;
   display: flex;
   width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
   min-height: 100%;
   flex-direction: column;
-  padding: max(42px, env(safe-area-inset-top)) 24px max(24px, calc(18px + env(safe-area-inset-bottom)));
+  padding: max(30px, env(safe-area-inset-top)) 20px max(20px, calc(16px + env(safe-area-inset-bottom)));
 }
 
 .guest-welcome__brand {
-  align-self: center;
+  align-self: flex-start;
+  margin-left: 2px;
   color: var(--guest-brand);
 }
 
@@ -2940,8 +2944,12 @@
      when the cap makes it narrower than the column AND overflows it evenly
      when it is wider, where a fixed -24px only ever gets one of those right. */
   align-self: center;
-  width: min(calc(100% + 48px), var(--welcome-art));
+  width: min(calc(100% + 24px), var(--welcome-art));
   margin-block: auto;
+  padding: 18px 18px 8px;
+  border-radius: var(--guest-radius-xl);
+  background: color-mix(in oklch, var(--guest-canvas) 78%, var(--guest-soft));
+  isolation: isolate;
   /* Clips the steps waiting either side of the current one. */
   overflow: hidden;
   /* Claim horizontal drags for paging, leave vertical scrolling to the page. */
@@ -2949,6 +2957,19 @@
   user-select: none;
   opacity: 0;
   animation: guest-welcome-pager-in var(--duration-base) var(--ease-out) 1020ms forwards;
+}
+
+/* A soft light field gives the transparent line art a place to live. It stays
+   inside the hero frame, so the rest of the welcome screen remains quiet. */
+.guest-welcome__art::before {
+  position: absolute;
+  inset: 12% 15% 16%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklch, var(--guest-accent) 30%, white) 0%, transparent 70%);
+  content: '';
+  filter: blur(20px);
+  opacity: 0.68;
 }
 
 /* One row of full-width steps, slid sideways. Transform-only, so the slide
@@ -3051,10 +3072,10 @@
 .guest-welcome__step-title {
   margin: 0;
   color: var(--guest-ink);
-  font-size: 30px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 730;
   line-height: 1.1;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 
@@ -3062,7 +3083,7 @@
 @media (max-height: 720px) {
   .guest-welcome__art { --welcome-art: 230px; }
   .guest-welcome__steps { margin-bottom: 16px; }
-  .guest-welcome__step-title { font-size: 26px; }
+  .guest-welcome__step-title { font-size: 27px; }
 }
 
 .guest-app .guest-welcome__action {
@@ -3228,7 +3249,10 @@
   padding: 8px 0 max(14px, env(safe-area-inset-bottom));
   border-radius: var(--guest-radius-xl) var(--guest-radius-xl) 0 0;
   background: var(--guest-paper);
-  animation: guest-sheet-rise var(--duration-base) var(--ease-out) both;
+  /* The drawer curve, not the general one: this panel travels most of a
+     screen height, and --ease-out lands it a touch too abruptly at that
+     distance. */
+  animation: guest-sheet-rise 320ms var(--ease-drawer) both;
 }
 .guest-sheet__grip {
   width: 38px;
@@ -3278,7 +3302,7 @@
 .guest-sso-sheet__body { padding-top: 4px; }
 .guest-sso-sheet__lede { margin: 0 0 18px; color: var(--guest-muted); line-height: 1.5; text-wrap: pretty; }
 .guest-sso-sheet .guest-auth-actions { gap: 10px; margin-top: 0; }
-.guest-sso-sheet .guest-text-button { margin-top: 8px; }
+.guest-sso-sheet__guest-action { margin-top: 10px; }
 .guest-sheet__group { margin: 0 0 6px; padding: 0; border: 0; }
 .guest-sheet__group legend {
   padding: 12px 0 2px;
@@ -5981,4 +6005,134 @@
   color: var(--guest-muted);
   font-size: 12px;
   text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Press feedback
+
+   Thirty pressable things in this app had no press state. Every one of them
+   moved when tapped on a real device -- because the browser's own tap
+   highlight is all that answered -- and the difference between a surface that
+   acknowledges a press and one that waits for the next screen is most of what
+   "responsive" means on a phone.
+
+   Three weights, matching what was already here rather than inventing a
+   fourth: 0.94 for icon-sized controls, where a small target needs a visible
+   amount; 0.97 for text and inline controls; 0.99 for cards and rows, which
+   are large enough that anything more reads as a squash.
+
+   Transform only. `scale` takes the children with it, so a card's image, its
+   title and its price all press together as one object.
+   -------------------------------------------------------------------------- */
+
+.guest-food-restaurant-card,
+.guest-nearby-card,
+.guest-property-card,
+.guest-after-checkout-card,
+.guest-transfer-card,
+.guest-folio-card__header,
+.guest-restaurant-menu-image,
+.guest-tab,
+.discover__all,
+.guest-folio-details__question,
+.guest-folio-help,
+.guest-listing-clear,
+.guest-sheet__clear,
+.guest-menu-add,
+.guest-order-tray__remove,
+.guest-message__attachment,
+.points-apply__start,
+.guest-prototype-toolbar__reset,
+.badge-sheet__mute,
+.guest-badge-detail__mute,
+.guest-companion-remove,
+.badge-sheet__close,
+.guest-announcement-detail__close,
+.guest-order-tray__back,
+.guest-order-tray__close,
+.guest-prototype-toolbar__close,
+.guest-restaurant-menu-viewer__close,
+.guest-restaurant-menu-viewer__next,
+.guest-restaurant-menu-viewer__prev,
+.guest-sso-sheet__close {
+  transition: transform var(--duration-press) var(--ease-out);
+}
+
+/* Cards and rows: large surfaces, small amount. */
+.guest-food-restaurant-card:active,
+.guest-nearby-card:active,
+.guest-property-card:active,
+.guest-after-checkout-card:active,
+.guest-transfer-card:active,
+.guest-folio-card__header:active,
+.guest-restaurant-menu-image:active {
+  transform: scale(0.99);
+}
+
+/* Text and inline controls. */
+.guest-tab:active,
+.discover__all:active,
+.guest-folio-details__question:active,
+.guest-folio-help:active,
+.guest-listing-clear:active,
+.guest-sheet__clear:active,
+.guest-menu-add:active,
+.guest-order-tray__remove:active,
+.guest-message__attachment:active,
+.points-apply__start:active,
+.guest-prototype-toolbar__reset:active,
+.badge-sheet__mute:active,
+.guest-badge-detail__mute:active,
+.guest-companion-remove:active {
+  transform: scale(0.97);
+}
+
+/* Icon-sized: closes, steppers, carousel arrows. */
+.badge-sheet__close:active,
+.guest-announcement-detail__close:active,
+.guest-order-tray__back:active,
+.guest-order-tray__close:active,
+.guest-prototype-toolbar__close:active,
+.guest-restaurant-menu-viewer__close:active,
+.guest-restaurant-menu-viewer__next:active,
+.guest-restaurant-menu-viewer__prev:active,
+.guest-sso-sheet__close:active {
+  transform: scale(0.94);
+}
+
+/* A press is movement, so it goes -- but the transition stays, because what is
+   removed is the travel, not the acknowledgement. */
+@media (prefers-reduced-motion: reduce) {
+  .guest-food-restaurant-card:active,
+  .guest-nearby-card:active,
+  .guest-property-card:active,
+  .guest-after-checkout-card:active,
+  .guest-transfer-card:active,
+  .guest-folio-card__header:active,
+  .guest-restaurant-menu-image:active,
+  .guest-tab:active,
+  .discover__all:active,
+  .guest-folio-details__question:active,
+  .guest-folio-help:active,
+  .guest-listing-clear:active,
+  .guest-sheet__clear:active,
+  .guest-menu-add:active,
+  .guest-order-tray__remove:active,
+  .guest-message__attachment:active,
+  .points-apply__start:active,
+  .guest-prototype-toolbar__reset:active,
+  .badge-sheet__mute:active,
+  .guest-badge-detail__mute:active,
+  .guest-companion-remove:active,
+  .badge-sheet__close:active,
+  .guest-announcement-detail__close:active,
+  .guest-order-tray__back:active,
+  .guest-order-tray__close:active,
+  .guest-prototype-toolbar__close:active,
+  .guest-restaurant-menu-viewer__close:active,
+  .guest-restaurant-menu-viewer__next:active,
+  .guest-restaurant-menu-viewer__prev:active,
+  .guest-sso-sheet__close:active {
+    transform: none;
+  }
 }

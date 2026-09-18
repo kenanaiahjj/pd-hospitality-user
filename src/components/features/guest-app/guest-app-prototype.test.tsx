@@ -1065,50 +1065,30 @@ describe('menu and service listing controls', () => {
     await user.click(screen.getByRole('button', { name: 'Apply' }));
   };
 
-  it('narrows a menu by diet and reports how much is left', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+  /*
+    Two tests stood here: `narrows a menu by diet and reports how much is left`
+    and `sorts a menu by price without losing the category tab`. Both drove a
+    venue's dish list -- category tabs, a Dietary facet, a price sort, an
+    "N dishes" count.
 
-    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
-    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
+    That surface is gone. `restaurant-menu` shows photographs of the physical
+    menu in a carousel with a zoom viewer, and ordering goes through Chat, which
+    is the same move that retired the venue cart suite in `af08506`. Every venue
+    now carries `priceRange: 'Menu in Chat'`, so there is not even a price left
+    to sort on. Rewriting the assertions would have invented a screen.
 
-    expect(screen.getByText('13 dishes')).toBeInTheDocument();
-    // Seafood is on this menu, so the facet offers it.
-    await choose(user, 'Dietary', [{ role: 'checkbox', name: 'Seafood' }]);
-
-    expect(screen.getByText('2 dishes')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Crispy Calamari' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Grilled Angus Ribeye' })).toBeNull();
-
-    // Two diets narrow rather than widen, and nothing is both.
-    await choose(user, /Seafood/, [{ role: 'checkbox', name: 'Vegetarian' }]);
-    expect(screen.getByText('0 dishes')).toBeInTheDocument();
-    expect(screen.getByText('No dishes match those filters')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Clear' }));
-    expect(screen.getByText('13 dishes')).toBeInTheDocument();
-  });
-
-  it('sorts a menu by price without losing the category tab', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
-
-    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
-    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
-    await user.click(screen.getByRole('tab', { name: 'Mains' }));
-    await choose(user, 'Recommended', [{ role: 'radio', name: 'Lowest price' }]);
-
-    const prices = screen.getAllByText(/^₱[\d,]+$/).map((el) => Number(el.textContent!.replace(/[^\d]/g, '')));
-    expect(prices).toEqual([...prices].sort((a, b) => a - b));
-    expect(screen.getByText('5 dishes')).toBeInTheDocument();
-  });
+    What survives of them is below: the filter sheet's own behaviour, which the
+    service listings still have, tested there instead.
+  */
 
   it('announces which filter sheet is open', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
-    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
+    // The sheet is the subject, not the screen that opens it. It used to be
+    // reached through a venue's dish list, which is menu photographs now; the
+    // service listings carry the same controls.
+    await openHomeStory(user, 'Spa & Wellness');
 
     const sortButton = screen.getByRole('button', { name: 'Recommended' });
     expect(sortButton).toHaveAttribute('aria-expanded', 'false');
@@ -1123,8 +1103,7 @@ describe('menu and service listing controls', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
-    await user.click(screen.getByRole('button', { name: /Apartment 1B/i }));
+    await openHomeStory(user, 'Spa & Wellness');
     await user.click(screen.getByRole('button', { name: 'Recommended' }));
 
     const clearAll = screen.getByRole('button', { name: 'Clear all' });
@@ -1148,24 +1127,37 @@ describe('menu and service listing controls', () => {
     const spa = SERVICES.filter((service) => service.categoryId === 'spa');
     const hotelRun = spa.filter((service) => service.operator === 'Hotel operated');
 
-    await user.click(screen.getByRole('button', { name: 'Spa' }));
-    expect(screen.getByText(`${spa.length} services`)).toBeInTheDocument();
+    await openHomeStory(user, 'Spa & Wellness');
+    // The count moved onto the section heading and lost its typed noun: every
+    // listing says "options" now, whether it holds services, venues or gifts.
+    expect(screen.getByText(`${spa.length} options`)).toBeInTheDocument();
 
     await choose(user, 'Operator', [{ role: 'checkbox', name: 'Hotel operated' }]);
     // Derived, not pinned: the catalogue will keep growing.
-    expect(screen.getByText(`${hotelRun.length} ${hotelRun.length === 1 ? 'service' : 'services'}`)).toBeInTheDocument();
+    expect(screen.getByText(`${hotelRun.length} options`)).toBeInTheDocument();
   });
 
   it('gives the dining venue list the same controls', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: 'Food & Drinks' }));
-    expect(screen.getByText(`${RESTAURANTS.length} venues`)).toBeInTheDocument();
+    await openHomeStory(user, 'Food & Drinks');
+    expect(screen.getByText(`${RESTAURANTS.length} options`)).toBeInTheDocument();
 
-    await choose(user, 'Recommended', [{ role: 'radio', name: 'Lowest price' }]);
-    const names = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(names[0]).toBe('Kape Manila Café');
+    /*
+      The controls, not a price ordering. Every venue now carries
+      `priceRange: 'Menu in Chat'` — the list stopped quoting prices when
+      ordering moved into the conversation — so sorting by price has nothing to
+      sort on and cannot be asserted. Narrowing still works and is still the
+      point of the bar.
+    */
+    expect(screen.getByRole('button', { name: 'Recommended' })).toBeInTheDocument();
+    await choose(user, 'Type', [{ role: 'checkbox', name: 'Café & Bakery' }]);
+
+    const names = [...document.querySelectorAll('.guest-food-restaurant-list h2')]
+      .map((h) => h.textContent);
+    expect(names).toContain('Kape Manila Café');
+    expect(names.length).toBeLessThan(RESTAURANTS.length);
   });
 });
 
@@ -1321,55 +1313,22 @@ describe('booking lookup', () => {
   });
 });
 
-describe('folio accumulation', () => {
-  // Services need an assigned room, so the reference booking gets one. The
-  // seeded massage is dropped: it is the very booking these tests make.
-  const roomedSession: GuestSession = {
-    ...MOCK_SESSION,
-    serviceBookings: MOCK_SESSION.serviceBookings.filter((service) => service.id !== 'service-hilom-1'),
-    folioTotal: '₱12,730',
-    bookings: MOCK_SESSION.bookings.map((booking, index) =>
-      index === 0
-        ? {
-            ...booking,
-            roomNumber: '512',
-            roomAssignment: 'assigned' as const,
-            // Booking anything on property means the guest is in the room.
-            roomVerification: { method: 'scan' as const, at: '2026-11-11' },
-          }
-        : booking),
-  };
+/*
+  `folio accumulation` stood here: two tests that booked a massage and read the
+  running total back off My Stay, guarding a real bug in which `folioTotal` was
+  overwritten with a hardcoded ₱5,450 instead of being added to.
 
-  const bookMassage = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByRole('button', { name: 'Explore' }));
-    await user.click(screen.getByRole('button', { name: /Spa & Wellness/ }));
-    await user.click(screen.getByRole('button', { name: /Hilom signature massage/ }));
-    await user.click(screen.getByRole('button', { name: /Choose a time/ }));
-    await user.click(screen.getByRole('button', { name: /Confirm and charge to room/ }));
-  };
+  My Stay no longer carries a running total -- the Room charges row and its
+  figure were removed deliberately -- and for a service there is no route to the
+  folio at all, so the number these asserted is not on screen anywhere. The
+  accumulation itself still happens, inline in `confirmService` rather than in
+  the model, so there is no unit to move the guard down to either.
 
-  it('adds a service to the running folio instead of replacing it', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={roomedSession} />);
-    await bookMassage(user);
-    await user.click(screen.getByRole('button', { name: 'My Stay' }));
-
-    // The seeded folio is ₱12,730; the massage is ₱2,400. It used to be
-    // overwritten with a hardcoded ₱5,450.
-    expect(screen.getByText('₱15,130')).toBeInTheDocument();
-  });
-
-  it('charges a re-booked service once', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={roomedSession} />);
-    await bookMassage(user);
-    await bookMassage(user);
-    await user.click(screen.getByRole('button', { name: 'My Stay' }));
-
-    // The booking replaces the previous one, so the charge must not stack.
-    expect(screen.getByText('₱15,130')).toBeInTheDocument();
-  });
-});
+  Retired rather than rewritten: an assertion pointed at a surface that does not
+  exist is worse than an absent one. If the running total comes back, or the
+  arithmetic moves into `prototype-model.ts` where it can be tested directly,
+  this is the guard to restore -- `git show 19a95fe` has both tests intact.
+*/
 
 describe('booking receipt', () => {
   it('itemises a dining order rather than only counting it', async () => {
@@ -1719,16 +1678,6 @@ describe('pre-arrival onboarding flow', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm everything' }));
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
   });
-
-  it('presents the profile as a layered identity hub', () => {
-    render(<GuestAppPrototype initialScreen="profile" initialSession={MOCK_SESSION} />);
-
-    expect(document.querySelector('.guest-profile-page')).toBeInTheDocument();
-    expect(document.querySelector('.guest-profile-identity')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Your account' })).toBeInTheDocument();
-    expect(screen.getByText('Passport on file')).toBeInTheDocument();
-    expect(document.querySelector('.guest-profile-action-list')).toBeInTheDocument();
-  });
 });
 
 describe('guest profile', () => {
@@ -1742,6 +1691,16 @@ describe('guest profile', () => {
     expect(screen.queryByText('King bed')).toBeNull();
     expect(screen.getByText('Stay history')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+  });
+
+  it('presents the profile as a layered identity hub', () => {
+    render(<GuestAppPrototype initialScreen="profile" initialSession={MOCK_SESSION} />);
+
+    expect(document.querySelector('.guest-profile-page')).toBeInTheDocument();
+    expect(document.querySelector('.guest-profile-identity')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your account' })).toBeInTheDocument();
+    expect(screen.getByText('Passport on file')).toBeInTheDocument();
+    expect(document.querySelector('.guest-profile-action-list')).toBeInTheDocument();
   });
 });
 
@@ -2944,18 +2903,21 @@ describe('scan discoverability', () => {
   it('keeps service discovery in the category catalog instead of duplicating featured cards on home', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
-    expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
+    expect(document.querySelector('.guest-home-stories')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Food & Drinks' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Spa' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tours' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Services' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Spa & Wellness' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Activities & Tours' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hotel Services' })).toBeInTheDocument();
     expect(document.querySelector('.guest-featured-rail')).toBeNull();
   });
 
   it('places property announcements after the rest of the home content', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
-    const nearby = screen.getByRole('heading', { name: 'Explore Nearby' });
+    // "Explore Nearby" is still the heading on the pre-arrival home; the live
+    // one calls the same section "Make the most of your stay".
+    const nearby = screen.getByRole('heading', { name: 'Make the most of your stay' });
     const property = screen.getByRole('heading', { name: 'Updates for your stay' });
     expect(nearby.compareDocumentPosition(property) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -2964,20 +2926,28 @@ describe('scan discoverability', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('pre-arrival')} />);
 
-    expect(screen.getByRole('heading', { name: 'Need a ride to the hotel?' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Book a hotel transfer/ }));
+    // The offer is the card itself now, not a heading over a separate CTA.
+    const transfer = screen.getByRole('button', { name: /Need a ride to the hotel/ });
+    await user.click(transfer);
 
     expect(screen.getByRole('heading', { name: 'Book a hotel transfer' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Pick-up location')).toBeInTheDocument();
-    expect(screen.getByLabelText('Arrival date')).toBeInTheDocument();
-    expect(screen.getByLabelText('Arrival time')).toBeInTheDocument();
-    expect(screen.getByLabelText('Flight number (optional)')).toBeInTheDocument();
-    expect(screen.getByLabelText('Passengers')).toBeInTheDocument();
-    expect(screen.getByLabelText('Luggage count')).toBeInTheDocument();
-    expect(screen.getByLabelText('Vehicle type')).toBeInTheDocument();
-    expect(screen.getByLabelText('Special requests (optional)')).toBeInTheDocument();
+    /*
+      Matched loosely because `Field` appends " *" to anything required, so the
+      five mandatory fields here label as "Pick-up location *" and an exact
+      string never finds them.
+    */
+    expect(screen.getByLabelText(/^Pick-up location/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Arrival date/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Arrival time/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Flight number/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Passengers/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Luggage count/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Vehicle type/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Special requests/)).toBeInTheDocument();
     expect(screen.getByText('Fare')).toBeInTheDocument();
-    expect(screen.getByText(/Hotel-operated/)).toBeInTheDocument();
+    // Who runs it, beside the price: the screen says it twice, on the fare and
+    // again on the payment choice, so this only asserts that it is said.
+    expect(screen.getAllByText(/operated by the hotel/i).length).toBeGreaterThan(0);
   });
 
   it('opens a property update when selected', async () => {
@@ -2986,24 +2956,29 @@ describe('scan discoverability', () => {
 
     await user.click(screen.getByRole('button', { name: /Rooftop pool closed until 11:00 AM/ }));
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Rooftop pool closed until 11:00 AM' })).toBeInTheDocument();
-    expect(screen.getByText(/Azotea Rooftop remains open for drinks/)).toBeInTheDocument();
+    // Scoped to the dialog: the compact list now shows the body as a preview,
+    // so the same sentence is on the page twice while the sheet is open.
+    const sheet = screen.getByRole('dialog');
+    expect(sheet).toBeInTheDocument();
+    expect(within(sheet).getByRole('heading', { name: 'Rooftop pool closed until 11:00 AM' })).toBeInTheDocument();
+    expect(within(sheet).getByText(/Azotea Rooftop remains open for drinks/)).toBeInTheDocument();
   });
 
   it('places Next up before Explore Nearby on the live home', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
 
     const nextUp = screen.getByRole('heading', { name: 'Next up' });
-    const nearby = screen.getByRole('heading', { name: 'Explore Nearby' });
+    const nearby = screen.getByRole('heading', { name: 'Make the most of your stay' });
     expect(nextUp.compareDocumentPosition(nearby) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('uses the catalog layout in the live home state', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
 
-    expect(screen.getByRole('heading', { name: 'Explore Nearby' })).toBeInTheDocument();
-    expect(document.querySelector('.guest-category-catalog')).toBeInTheDocument();
+    // Discovery is one section of its own, not cards loose on the page. It was
+    // `.guest-category-catalog`; the premium pass rebuilt it as a story rail.
+    expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
+    expect(document.querySelector('.guest-home-discovery')).toBeInTheDocument();
     expect(document.querySelector('.guest-miniapp-row')).toBeNull();
   });
 });

@@ -83,6 +83,7 @@ import {
   getPrimaryBooking,
   getVenueCartSummary,
   getRoomCharges,
+  availableOperators,
   availableTypes,
   filterServices,
   LISTING_SORTS,
@@ -1219,6 +1220,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [extensionDate, setExtensionDate] = useState('2026-11-14');
   const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  /*
+    Who runs a thing is the question a guest actually asks of a listing -- the
+    hotel itself, or somebody renting space in it. `filterServices` has always
+    taken `operators`; the facet feeding it went in `420c356` and left the
+    argument hardcoded to an empty array.
+  */
+  const [serviceOperators, setServiceOperators] = useState<string[]>([]);
   const [exploreSubcategory, setExploreSubcategory] = useState('All');
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
   const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | 'gifts' | null>(null);
@@ -3405,7 +3413,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // Venues carry their price as `priceRange`; aliasing it lets the shared
         // filter/sort run over them unchanged.
         const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
-        const listingFilters = { operators: [], types: serviceTypes, sort: serviceSort };
+        const listingFilters = { operators: serviceOperators, types: serviceTypes, sort: serviceSort };
         const subcategories: Record<MiniAppCategoryId, string[]> = {
           dining: ['All', 'Breakfast & Brunch', 'Filipino & International', 'Spanish', 'Asian Fusion', 'Pizza & Pasta', 'Desserts & Café'],
           spa: ['All', 'Massage', 'Body Treatments', 'Beauty & Grooming', 'Mind & Movement'],
@@ -3417,11 +3425,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const matchesSubcategory = (row: { category: string }) => selectedSubcategory === 'All' || row.category === selectedSubcategory;
         const visibleVenues = filterServices(venueRows, listingFilters).filter(matchesSubcategory);
         const visibleServices = filterServices(categoryServices, listingFilters).filter(matchesSubcategory);
-        const servicesNarrowed = serviceTypes.length > 0 || serviceSort !== 'recommended';
-        const clearServiceControls = () => { setServiceTypes([]); setServiceSort('recommended'); };
+        const servicesNarrowed = serviceOperators.length > 0 || serviceTypes.length > 0 || serviceSort !== 'recommended';
+        const clearServiceControls = () => { setServiceOperators([]); setServiceTypes([]); setServiceSort('recommended'); };
         const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
         const buildFacets = (rows: readonly { operator: string; category: string }[]) => [
           { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [serviceSort], onChange: (next: string[]) => setServiceSort(next[0] as ListingSort) },
+          ...(availableOperators(rows).length ? [{ key: 'operator', label: 'Operator', options: asOptions(availableOperators(rows)), selected: serviceOperators, onChange: setServiceOperators }] : []),
           ...(availableTypes(rows).length ? [{ key: 'type', label: 'Type', options: asOptions(availableTypes(rows)), selected: serviceTypes, onChange: setServiceTypes }] : []),
         ];
         const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
@@ -5052,7 +5061,13 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--multiple" data-testid="guest-home-multiple-upcoming">
         <div className="guest-page-title"><h1>Upcoming stays</h1><p>Keep every reservation in one place. Your nearest arrival is shown first.</p></div>
-        <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} />
+        {/*
+        The label carries the truth the variant cannot. `getHomeVariant` keys
+        off `status`, so the reference stay stays on the upcoming home with a
+        window that already contains today -- and without this the card told a
+        guest mid-stay that their arrival was still to come.
+      */}
+      <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} statusLabel={describeStayStatus(booking).label} />
         <section>
           <SectionHeading title="More upcoming stays" />
           <div className="guest-home-booking-list">
@@ -5088,7 +5103,13 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
 
   return (
     <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
-      <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} showUpgrade={canOfferRoomUpgrade(booking)} />
+      {/*
+        The label carries the truth the variant cannot. `getHomeVariant` keys
+        off `status`, so the reference stay stays on the upcoming home with a
+        window that already contains today -- and without this the card told a
+        guest mid-stay that their arrival was still to come.
+      */}
+      <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} statusLabel={describeStayStatus(booking).label} />
       {booking.preArrivalCompleted < booking.preArrivalTotal ? (
         <section className="guest-home-booking guest-home-booking--primary">
           <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>

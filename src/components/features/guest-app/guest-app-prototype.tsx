@@ -56,6 +56,7 @@ import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { WELCOME_ILLUSTRATIONS } from './illustrations';
+import { afterSheetExit } from './sheet-exit';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
@@ -71,6 +72,7 @@ import {
   verifyRoomPresence,
   findBookingByLookup,
   describeStayStatus,
+  describeCheckoutCountdown,
   formatPesoAmount,
   getHomeVariant,
   getNotifications,
@@ -82,11 +84,11 @@ import {
   getPrimaryBooking,
   getVenueCartSummary,
   getRoomCharges,
+  availableOperators,
   availableTypes,
   filterServices,
   LISTING_SORTS,
   type ListingSort,
-  sumRoomCharges,
   canReportRoomReady,
   markRoomReady,
   describeRoomAssignment,
@@ -113,6 +115,8 @@ import {
   DEFAULT_REBOOK_CHECK_IN,
   DEFAULT_REBOOK_CHECK_OUT,
   GUEST_PROFILE,
+  maskEmail,
+  maskMobile,
   applyPrototypeStayState,
   getPrototypeStayState,
   PROTOTYPE_STAY_STATES,
@@ -142,6 +146,7 @@ import {
   getItemThumbnail,
   getItemCardImage,
   getCategoryCoverImage,
+  type ServiceImageDefinition,
   type ServiceImageKey,
 } from './service-images';
 import {
@@ -157,9 +162,11 @@ import {
   buildSearchIndex,
   buildStories,
 } from './promoted';
+import type { Story } from './promoted';
+import { storyImage } from './promoted/story-imagery';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
 import {
-  BadgeSheet,
+  BadgeDetail,
   BadgeShelf,
   EstateMap,
   PointsApply,
@@ -274,6 +281,141 @@ const EXPLORE_BANNERS = buildBanners();
 const EXPLORE_CATEGORIES = buildCategoryCards();
 const EXPLORE_SEARCH_INDEX = buildSearchIndex();
 const EXPLORE_DECK = buildFeaturedDeck();
+
+type HomeStoryCategoryId = MiniAppCategoryId | 'gifts-souvenirs';
+
+const HOME_GIFT_STORY_IMAGE: ServiceImageDefinition = {
+  src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80',
+  alt: 'Wrapped gift box with a ribbon',
+  focalPoint: 'center',
+};
+
+const createHomeStory = ({
+  categoryId,
+  title,
+  subtitle,
+  price,
+  cta,
+  frames,
+  headlines,
+  details,
+  postedHoursAgo,
+}: {
+  categoryId: HomeStoryCategoryId;
+  title: string;
+  subtitle: string;
+  price: string;
+  cta: string;
+  frames: ServiceImageDefinition[];
+  headlines: string[];
+  details: string[];
+  postedHoursAgo: number;
+}): Story => ({
+  id: `home-${categoryId}`,
+  title,
+  subtitle,
+  price,
+  cta,
+  cover: frames[0]!,
+  slides: frames.map((image, index) => ({
+    headline: headlines[index] ?? title.toUpperCase(),
+    detail: details[index],
+    image,
+  })),
+  author: {
+    name: 'The Henry',
+    kind: 'property',
+    image: getPropertyImage('The Henry Manila'),
+  },
+  postedHoursAgo,
+  livesForHours: 24,
+});
+
+const HOME_CATEGORY_STORIES: Record<HomeStoryCategoryId, Story> = {
+  dining: createHomeStory({
+    categoryId: 'dining',
+    title: 'Food & Drinks',
+    subtitle: 'The Henry Manila',
+    price: 'From ₱180',
+    cta: 'Explore Food & Drinks',
+    frames: [
+      storyImage('apartment-1b'),
+      storyImage('poolside-bar'),
+      storyImage('cafe'),
+    ],
+    headlines: ['MAKE A TABLE OF IT', 'DINNER, THEN ONE MORE', 'SLOW MORNINGS START HERE'],
+    details: ['Filipino favorites, easy lunches, and late-night bites.', 'Stay for sunset drinks at the poolside bar.', 'Coffee, pastries, and a softer start to the day.'],
+    postedHoursAgo: 1,
+  }),
+  spa: createHomeStory({
+    categoryId: 'spa',
+    title: 'Spa & Wellness',
+    subtitle: 'Hilom Spa & Wellness',
+    price: 'From ₱900',
+    cta: 'Explore Spa & Wellness',
+    frames: [
+      storyImage('spa'),
+      storyImage('scrub'),
+      storyImage('couples-massage'),
+    ],
+    headlines: ['RESET YOUR PACE', 'A LITTLE TIME TO YOURSELF', 'MAKE IT A SHARED RITUAL'],
+    details: ['Signature massages and quiet treatments, just steps from your room.', 'Body rituals that make an afternoon feel longer.', 'A slower way to spend the stay together.'],
+    postedHoursAgo: 2,
+  }),
+  entertainment: createHomeStory({
+    categoryId: 'entertainment',
+    title: 'Activities & Tours',
+    subtitle: 'Curated by The Henry',
+    price: 'From ₱850',
+    cta: 'Explore Activities & Tours',
+    frames: [
+      storyImage('tour'),
+      storyImage('sunset-cruise'),
+      storyImage('heritage-walk'),
+    ],
+    headlines: ['MAKE A DAY OF IT', 'MEET THE SUNSET OUTSIDE', 'SEE THE CITY DIFFERENTLY'],
+    details: ['Island days, local guides, and easy ways to get out and explore.', 'The golden-hour plan is already waiting.', 'Stories, streets, and the places worth taking your time with.'],
+    postedHoursAgo: 3,
+  }),
+  services: createHomeStory({
+    categoryId: 'services',
+    title: 'Hotel Services',
+    subtitle: 'The Henry Manila',
+    price: 'From ₱250',
+    cta: 'Explore Hotel Services',
+    frames: [
+      storyImage('pool'),
+      storyImage('business-centre'),
+      storyImage('gym'),
+    ],
+    headlines: ['MAKE THE STAY EASIER', 'GET OUT, YOUR WAY', 'ONE LESS THING TO THINK ABOUT'],
+    details: ['Transfers, rentals, and the practical help that keeps plans moving.', 'Bikes and scooters for a little more freedom.', 'Fresh clothes and small conveniences, handled.'],
+    postedHoursAgo: 4,
+  }),
+  'gifts-souvenirs': createHomeStory({
+    categoryId: 'gifts-souvenirs',
+    title: 'Gifts & Souvenirs',
+    subtitle: 'The Henry Manila',
+    price: 'From ₱350',
+    cta: 'Explore Gifts & Souvenirs',
+    frames: [
+      HOME_GIFT_STORY_IMAGE,
+      storyImage('dining'),
+      HOME_GIFT_STORY_IMAGE,
+    ],
+    headlines: ['TAKE A LITTLE HOME', 'A THOUGHTFUL EXTRA', 'KEEP THE STAY CLOSE'],
+    details: ['Local treats and small keepsakes for the people you came to see.', 'Add a little celebration before you check out.', 'A gift is one more way to remember the place.'],
+    postedHoursAgo: 5,
+  }),
+};
+
+const HOME_STORY_CATEGORIES: ReadonlyArray<{ id: HomeStoryCategoryId; label: string }> = [
+  { id: 'dining', label: 'Food & Drinks' },
+  { id: 'spa', label: 'Spa & Wellness' },
+  { id: 'entertainment', label: 'Activities & Tours' },
+  { id: 'services', label: 'Hotel Services' },
+  { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs' },
+];
 
 /** One glyph per arrival service, so the column reads as four things. */
 const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
@@ -657,11 +799,13 @@ function SsoSheet({
   onClose,
   onSso,
   onEmailLogin,
+  onGuestLogin,
 }: {
   online: boolean;
   onClose: () => void;
   onSso: (method: AuthMethod) => void;
   onEmailLogin: () => void;
+  onGuestLogin: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -702,7 +846,7 @@ function SsoSheet({
           </button>
         </div>
         <div className="guest-sheet__body guest-sso-sheet__body">
-          <p className="guest-sso-sheet__lede">Use Apple, Google, or your email to access your stay and room services.</p>
+          <p className="guest-sso-sheet__lede">Choose how to access your stay.</p>
           {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Getting started needs a connection">A connection is required to continue.</Notice> : null}
           <div className="guest-auth-actions">
             <Button
@@ -722,10 +866,23 @@ function SsoSheet({
             >
               <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
             </Button>
+            <Button
+              className="guest-button guest-button--primary guest-sso-button"
+              type="button"
+              disabled={!online}
+              onClick={() => { close(); onEmailLogin(); }}
+            >
+              Log in with email<ArrowRight aria-hidden="true" />
+            </Button>
           </div>
-          <TextButton onClick={() => { close(); onEmailLogin(); }} disabled={!online}>
-            Log in with email
-          </TextButton>
+          <Button
+            className="guest-button guest-button--secondary guest-sso-button guest-sso-sheet__guest-action"
+            type="button"
+            disabled={!online}
+            onClick={() => { close(); onGuestLogin(); }}
+          >
+            Log in as guest<ArrowRight aria-hidden="true" />
+          </Button>
         </div>
       </div>
     </dialog>
@@ -736,18 +893,26 @@ function WelcomeScreen({
   online,
   onSso,
   onEmailLogin,
+  onGuestLogin,
 }: {
   online: boolean;
   onSso: (method: AuthMethod) => void;
   onEmailLogin: () => void;
+  onGuestLogin: () => void;
 }) {
   const pager = useWelcomePager();
   const [ssoOpen, setSsoOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const closeSso = () => {
-    setSsoOpen(false);
+    /*
+      Focus goes back the moment the sheet is dismissed -- to a guest it is
+      already gone, and waiting on the animation to hand focus over would put a
+      third of a second of nothing between the keypress and the answer. Only
+      the node itself lingers, long enough to travel back down.
+    */
     triggerRef.current?.focus();
+    afterSheetExit(() => setSsoOpen(false));
   };
 
   return (
@@ -782,7 +947,7 @@ function WelcomeScreen({
           </div>
         </div>
       </section>
-      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onEmailLogin={onEmailLogin} /> : null}
+      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onEmailLogin={onEmailLogin} onGuestLogin={onGuestLogin} /> : null}
     </>
   );
 }
@@ -1047,8 +1212,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
   const activeScreenRef = useRef(activeScreen);
   const [session, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
-  /* Which badge's sheet is open. A sheet, not a screen: it floats over the hub
-     rather than replacing it, so closing it returns the guest where they were. */
+  /* The selected badge is rendered by the full-page achievement detail route. */
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
   /* Which reward the detail screen is showing. */
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
@@ -1080,6 +1244,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [extensionDate, setExtensionDate] = useState('2026-11-14');
   const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  /*
+    Who runs a thing is the question a guest actually asks of a listing -- the
+    hotel itself, or somebody renting space in it. `filterServices` has always
+    taken `operators`; the facet feeding it went in `420c356` and left the
+    argument hardcoded to an empty array.
+  */
+  const [serviceOperators, setServiceOperators] = useState<string[]>([]);
   const [exploreSubcategory, setExploreSubcategory] = useState('All');
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
   const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | 'gifts' | null>(null);
@@ -1093,6 +1264,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
   const [scanSuccessToast, setScanSuccessToast] = useState(false);
   const [openExploreStoryId, setOpenExploreStoryId] = useState<string | null>(null);
+  const [openHomeStoryId, setOpenHomeStoryId] = useState<HomeStoryCategoryId | null>(null);
   const [exploreIntroPlaying, setExploreIntroPlaying] = useState(false);
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
   /*
@@ -1371,7 +1543,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('chat');
   };
 
-  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1400,7 +1572,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const contextBooking = primaryBooking ?? displayBooking;
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
-  const roomChargeTarget = contextBooking.roomNumber ? contextRoom : 'your room';
   const contextService = session.serviceBookings.find(
     (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
   );
@@ -1704,6 +1875,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     closeExploreStory();
     const itemId = storyId.replace(/^(?:venue|service)-/, '');
     openExploreItem(itemId);
+  };
+
+  const openHomeStory = (categoryId: HomeStoryCategoryId) => {
+    if (!HOME_CATEGORY_STORIES[categoryId]) return;
+    setOpenHomeStoryId(categoryId);
+  };
+
+  const closeHomeStory = () => setOpenHomeStoryId(null);
+
+  const bookHomeStory = (storyId: string) => {
+    const categoryId = (Object.keys(HOME_CATEGORY_STORIES) as HomeStoryCategoryId[])
+      .find((id) => HOME_CATEGORY_STORIES[id].id === storyId);
+    if (!categoryId) return;
+
+    closeHomeStory();
+    if (categoryId === 'gifts-souvenirs') {
+      go('gifts-souvenirs');
+      return;
+    }
+    setSelectedCategory(categoryId);
+    go('category-listing');
   };
 
   const confirmService = () => {
@@ -2164,6 +2356,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               setCode('');
               setCodeNotice(null);
               go('sign-in');
+            }}
+            onGuestLogin={() => {
+              go('identify');
             }}
           />
         );
@@ -2633,14 +2828,57 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Guest" value={profileMatch.guestName} />
             </div>
 
-            <Button
-              className="guest-button guest-button--primary"
-              type="button"
-              disabled={!online}
-              onClick={completeReentry}
+            {/*
+              Masked, and masked for a reason: holding a booking reference is
+              not yet proof of anything, so this has to show the guest we
+              reached the right person without telling an unknown party what
+              their address is. Enough to recognise your own contact details,
+              and no more.
+            */}
+            <div className="guest-summary">
+              <SummaryRow label="Email" value={maskEmail(GUEST_PROFILE.email)} />
+              <SummaryRow label="Mobile" value={maskMobile(GUEST_PROFILE.mobile)} />
+            </div>
+
+            <form
+              className="guest-form"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                if (!/^\d{6}$/.test(code)) {
+                  setCodeNotice('Enter the 6-digit code.');
+                  return;
+                }
+                completeReentry();
+              }}
             >
-              Yes, this is my booking<ArrowRight aria-hidden="true" />
-            </Button>
+              <label className="guest-field guest-code-field" htmlFor="reentry-code">
+                <span>6-digit verification code *</span>
+                <Input
+                  id="reentry-code"
+                  name="reentry-code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  spellCheck={false}
+                  maxLength={6}
+                  value={code}
+                  onChange={(event) => {
+                    setCode(event.currentTarget.value.replace(/\D/g, '').slice(0, 6));
+                    setCodeNotice(null);
+                  }}
+                  aria-describedby={codeNotice ? 'reentry-code-error' : undefined}
+                  aria-invalid={codeNotice ? 'true' : undefined}
+                  required
+                />
+                {codeNotice ? <span id="reentry-code-error" role="alert">{codeNotice}</span> : null}
+              </label>
+              <Button
+                className="guest-button guest-button--primary"
+                type="submit"
+                disabled={!online || !/^\d{6}$/.test(code)}
+              >
+                Verify and open my account<ArrowRight aria-hidden="true" />
+              </Button>
+            </form>
             <TextButton onClick={() => go('identify-returning')}>Use a different booking</TextButton>
           </div>
         );
@@ -2662,7 +2900,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
 
       case 'guest-details':
         return <FormScreen step="1 of 4" title="Your details" text="These details are sent securely to the property for registration."><Field label="Full name" name="guest-name" defaultValue="Ana Santos" required /><Field label="Nationality" name="nationality" defaultValue="Filipino" /><Field label="Email" name="guest-email" type="email" defaultValue="ana@example.com" /><Field label="Mobile" name="guest-mobile" type="tel" defaultValue="+63 917 555 0142" />{primary('Continue to ID', 'id-capture')}</FormScreen>;
@@ -2793,36 +3031,34 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'extend-stay-review': {
         const nights = Math.max(1, countNightsBetween(contextBooking.checkOut, extensionDate));
         const additional = nights * 5000;
-        return <ScreenIntro eyebrow="Review extension" title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, checkOut: extensionDate } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
+        return <ScreenIntro title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, checkOut: extensionDate } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
       }
 
       case 'extend-stay-success':
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Booking updated" title="Stay extended" text={`Your stay now ends on ${extensionDate} at 12:00 PM. Your updated checkout date is reflected throughout the app.`}><Notice title="Same room confirmed">Room {contextBooking.roomNumber} remains yours through the new checkout date.</Notice>{primary('Back to My Stay', 'my-stay')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} title="Stay extended" text={`Your stay now ends on ${extensionDate} at 12:00 PM. Your updated checkout date is reflected throughout the app.`}><Notice title="Same room confirmed">Room {contextBooking.roomNumber} remains yours through the new checkout date.</Notice>{primary('Back to My Stay', 'my-stay')}</ScreenIntro>;
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<Bed size={30} />} eyebrow="Review room upgrade" title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, roomUpgrade: { status: 'preparing', newRoomNumber: upgrade.roomNumber, newRoomType: upgrade.name, additionalCost: upgrade.price, transferDeadline: upgrade.transferDeadline, transferTime: upgrade.transfer } } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(upgrade.price)) })); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, roomUpgrade: { status: 'preparing', newRoomNumber: upgrade.roomNumber, newRoomType: upgrade.name, additionalCost: upgrade.price, transferDeadline: upgrade.transferDeadline, transferTime: upgrade.transfer } } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(upgrade.price)) })); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
       }
 
       case 'room-upgrade-success': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow="Room change confirmed" title="Upgrade confirmed" text={`Your ${upgrade.name} is being prepared. You can keep using Room ${contextBooking.roomNumber} until the transfer is ready.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.name} · Room number coming soon`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /></div><Notice title="Your current room stays active">Room {contextBooking.roomNumber} remains available while the hotel prepares your upgrade.</Notice>{primary('Back to home', 'stay-overview')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} title="Upgrade confirmed" text={`Your ${upgrade.name} is being prepared. You can keep using Room ${contextBooking.roomNumber} until the transfer is ready.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.name} · Room number coming soon`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /></div><Notice title="Your current room stays active">Room {contextBooking.roomNumber} remains available while the hotel prepares your upgrade.</Notice>{primary('Back to home', 'stay-overview')}</ScreenIntro>;
       }
 
       case 'room-transfer-details': {
         const upgrade = contextBooking.roomUpgrade;
         if (!upgrade) return primary('View my stay', 'my-stay');
-        return <ScreenIntro icon={<Bed size={30} />} eyebrow="Room transfer" title="Complete your room transfer" text="Both rooms remain available until you confirm the move."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.newRoomType} · Room ${upgrade.newRoomNumber}`} /><SummaryRow label="Transfer deadline" value={upgrade.transferDeadline} /><SummaryRow label="Transfer time" value={upgrade.transferTime} /></div><Notice title="Moving your belongings">Pack your belongings and contact the front desk if you need help transferring your bags.</Notice><Notice title="Keys">Collect or activate the new key at the front desk, then return your Room {contextBooking.roomNumber} key there.</Notice><button className="guest-list-row" type="button" onClick={() => go('chat')}><span><ChatCircleDots /></span><div><b>Contact the front desk</b><small>Chat with the hotel team about your transfer</small></div><CaretRight /></button><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomType: booking.roomUpgrade.newRoomType, roomNumber: booking.roomUpgrade.newRoomNumber, roomUpgrade: undefined } : booking) })); go('stay-overview'); }}>Confirm room transfer<ArrowRight /></Button></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Complete your room transfer" text="Both rooms remain available until you confirm the move."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.newRoomType} · Room ${upgrade.newRoomNumber}`} /><SummaryRow label="Transfer deadline" value={upgrade.transferDeadline} /><SummaryRow label="Transfer time" value={upgrade.transferTime} /></div><Notice title="Moving your belongings">Pack your belongings and contact the front desk if you need help transferring your bags.</Notice><Notice title="Keys">Collect or activate the new key at the front desk, then return your Room {contextBooking.roomNumber} key there.</Notice><button className="guest-list-row" type="button" onClick={() => go('chat')}><span><ChatCircleDots /></span><div><b>Contact the front desk</b><small>Chat with the hotel team about your transfer</small></div><CaretRight /></button><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomType: booking.roomUpgrade.newRoomType, roomNumber: booking.roomUpgrade.newRoomNumber, roomUpgrade: undefined } : booking) })); go('stay-overview'); }}>Confirm room transfer<ArrowRight /></Button></ScreenIntro>;
       }
 
       case 'rate-detail': {
         /*
-          Two separate sums, deliberately not added together. The room booking
-          is prepaid through the OTA; everything below it is unpaid and settles
-          with the hotel at checkout. One combined total would hide which half
-          the guest still owes.
+          Booking detail owns the reservation and prepaid rate. Additional
+          hotel charges belong to My Stay, where the guest can review the folio
+          and what settles at checkout.
         */
-        const roomCharges = getRoomCharges(session, displayBooking, roomChargeTarget);
         const bookingGuests = listBookingGuests(displayBooking, session);
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system.">
@@ -2895,24 +3131,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Booking total" value="₱20,160" strong />
               <SummaryRow label={`Paid through ${displayBooking.source}`} value="₱20,160" />
               </div>
-            </section>
-            <section>
-              <SectionHeading title="Additional charges" action="Room charges" onAction={() => go('folio')} />
-              {roomCharges.length ? (
-                <>
-                  <div className="guest-folio">
-                    {roomCharges.map((charge) => (
-                      <FolioItem key={charge.id} date={charge.date} title={charge.title} meta={charge.detail} amount={charge.amount} />
-                    ))}
-                  </div>
-                  <div className="guest-summary">
-                    <SummaryRow label={`Charged to ${roomChargeTarget.toLowerCase()}`} value={sumRoomCharges(roomCharges)} strong />
-                    <SummaryRow label="Settles" value="With the hotel at checkout" />
-                  </div>
-                </>
-              ) : (
-                <Notice title="Nothing charged yet">Dining, spa and hotel services you book on property are added here and settle at checkout.</Notice>
-              )}
             </section>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live hotel data">Availability, rates, and payment details require a connection.</Notice> : null}
           </ScreenIntro>
@@ -3222,7 +3440,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // Venues carry their price as `priceRange`; aliasing it lets the shared
         // filter/sort run over them unchanged.
         const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
-        const listingFilters = { operators: [], types: serviceTypes, sort: serviceSort };
+        const listingFilters = { operators: serviceOperators, types: serviceTypes, sort: serviceSort };
         const subcategories: Record<MiniAppCategoryId, string[]> = {
           dining: ['All', 'Breakfast & Brunch', 'Filipino & International', 'Spanish', 'Asian Fusion', 'Pizza & Pasta', 'Desserts & Café'],
           spa: ['All', 'Massage', 'Body Treatments', 'Beauty & Grooming', 'Mind & Movement'],
@@ -3234,11 +3452,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const matchesSubcategory = (row: { category: string }) => selectedSubcategory === 'All' || row.category === selectedSubcategory;
         const visibleVenues = filterServices(venueRows, listingFilters).filter(matchesSubcategory);
         const visibleServices = filterServices(categoryServices, listingFilters).filter(matchesSubcategory);
-        const servicesNarrowed = serviceTypes.length > 0 || serviceSort !== 'recommended';
-        const clearServiceControls = () => { setServiceTypes([]); setServiceSort('recommended'); };
+        const servicesNarrowed = serviceOperators.length > 0 || serviceTypes.length > 0 || serviceSort !== 'recommended';
+        const clearServiceControls = () => { setServiceOperators([]); setServiceTypes([]); setServiceSort('recommended'); };
         const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
         const buildFacets = (rows: readonly { operator: string; category: string }[]) => [
           { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [serviceSort], onChange: (next: string[]) => setServiceSort(next[0] as ListingSort) },
+          ...(availableOperators(rows).length ? [{ key: 'operator', label: 'Operator', options: asOptions(availableOperators(rows)), selected: serviceOperators, onChange: setServiceOperators }] : []),
           ...(availableTypes(rows).length ? [{ key: 'type', label: 'Type', options: asOptions(availableTypes(rows)), selected: serviceTypes, onChange: setServiceTypes }] : []),
         ];
         const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
@@ -3693,14 +3912,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <div className="guest-stack guest-my-stay-page">
-            <div className="guest-my-stay-header"><h1>{contextBooking.property}</h1><div><b>Room {contextBooking.roomNumber ?? '—'}</b><Tag tone={checkedOut ? 'neutral' : 'positive'}>{checkedOut ? 'Checked out' : 'Checked in'}</Tag></div></div>
+            {/*
+              Status and room as one line, because they are one fact: where
+              this guest is and how far through. Two elements side by side read
+              as two unrelated labels.
+            */}
+            <div className="guest-my-stay-header"><h1>{contextBooking.property}</h1><div><b>{describeStayStatus(contextBooking).label} · Room {contextBooking.roomNumber ?? '—'}</b></div></div>
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
             <div className="guest-stay-context guest-checkout-card">
               <button type="button" onClick={() => go('rate-detail')}>
                 <span className="guest-stay-context__clock" aria-hidden="true"><ClockCountdown /></span>
-                <span className="guest-stay-context__text"><b>{contextBooking.checkOut === '2026-11-12' ? 'Checks out tomorrow' : `Checkout on ${contextBooking.checkOut}`}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
+                {/*
+                  The helper, not a hardcoded date. Comparing against
+                  '2026-11-12' meant every other stay fell through to a raw
+                  ISO date, and a stay before arrival was told when it checks
+                  out rather than when it begins.
+                */}
+                <span className="guest-stay-context__text"><b>{describeCheckoutCountdown(contextBooking)}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
               </button>
               {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions">{checkoutIsDue ? <button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button> : null}<div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
             </div>
@@ -3720,6 +3950,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : null}
 
             {/*
+              Once the desk closes the stay is over, and asking for the rating
+              is the only thing left to do here -- so this is where it is asked,
+              not buried behind "Check out now", which a checked-out guest has
+              no reason to press again. Asked once: a rating already given is
+              reported back rather than re-requested.
+            */}
+            {checkedOut && !postStayWindow.deskOpen ? (
+              stayReview ? (
+                <p className="guest-desk-window">
+                  <Check aria-hidden="true" />
+                  You rated this stay {stayReview.rating} out of 5.
+                </p>
+              ) : (
+                <Button className="guest-button guest-button--secondary" type="button" onClick={() => go('stay-review')}>
+                  Rate your stay<ArrowRight aria-hidden="true" />
+                </Button>
+              )
+            ) : null}
+
+            {/*
               A finished stay reads as a receipt, not as a live screen with
               nothing on it. The room line is the point: before this the screen
               could only report what was charged *against* the room, so a stay
@@ -3731,6 +3981,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <p className="guest-settled-summary__status">Settled at checkout</p>
                 <div className="guest-summary">
                   <SummaryRow label={`${settledStay.roomType} · ${settledStay.nights} nights`} value={settledStay.roomRate} />
+                  {/*
+                    What the money went on, not just what it came to. The room
+                    line alone made a stay with a spa day and three dinners read
+                    identically to one where nobody left the room. The itemised
+                    ledger stays one tap away on the settled stay.
+                  */}
+                  {summarisePastStay(settledStay).groups.map((group) => (
+                    <SummaryRow key={group.category} label={group.category} value={group.formattedTotal} />
+                  ))}
                   <SummaryRow label="Total settled" value={settledStay.total} strong />
                 </div>
                 <Button className="guest-button guest-button--secondary" type="button" onClick={() => { setSelectedPastStayId(contextBooking.id); go('stay-detail'); }}>
@@ -3738,19 +3997,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </Button>
                 <TextButton onClick={() => go('book-stay')}>Book another stay</TextButton>
               </section>
-            ) : null}
-
-            {started ? (
-              <>
-                {/* "so far" is present tense, so it goes once the stay is over. */}
-                {!checkedOut ? (
-                  <div className="guest-folio-summary guest-my-stay-total">
-                    <div><span>This stay so far</span><small>Due at checkout</small></div>
-                    <strong>{session.folioTotal || contextBooking.folioTotal || '₱0'}</strong>
-                  </div>
-                ) : null}
-                <button type="button" className="guest-my-stay-charges__toggle guest-my-stay-charges__row" onClick={() => go('folio')}><span><b>Room charges</b><small>View charges added to your room</small></span><span className="guest-my-stay-charges__view">View</span></button>
-              </>
             ) : null}
 
             {/*
@@ -3986,35 +4232,56 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'profile':
         return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
+          <div className="guest-stack guest-profile-page">
+            <div className="guest-page-title guest-profile-intro">
+              <p className="guest-profile-kicker">Guest profile</p>
               <h1>{session.guestName || 'Profile'}</h1>
               <p>Recognized across all 13 participating properties.</p>
             </div>
-            <div className="guest-profile-card">
-              <div className="guest-avatar">
-                {(session.guestName || 'Guest').split(' ').map((part) => part[0]).slice(0, 2).join('')}
+            <section className="guest-profile-card guest-profile-identity" aria-label="Guest identity">
+              <div className="guest-profile-identity__top">
+                <div className="guest-avatar guest-profile-identity__avatar">
+                  {(session.guestName || 'Guest').split(' ').map((part) => part[0]).slice(0, 2).join('')}
+                </div>
+                <div className="guest-profile-identity__body">
+                  <span className="guest-profile-identity__label">Cabana guest</span>
+                  <b>{session.email || 'No email on file'}</b>
+                  <span>+63 917 555 0142</span>
+                </div>
               </div>
-              <div>
-                <b>{session.email || 'No email on file'}</b>
-                <span>+63 917 555 0142</span>
-                <small>Passport on file · ends 4821</small>
+              <div className="guest-profile-identity__footer">
+                <div className="guest-profile-identity__document">
+                  <span className="guest-profile-identity__document-mark" aria-hidden="true" />
+                  <span><b>Passport on file</b><small>Ends 4821</small></span>
+                </div>
+                <span className="guest-profile-identity__document-status">On file</span>
               </div>
-            </div>
-            <button className="guest-list-row" onClick={() => go('rewards')}>
-              <span><Sparkle /></span>
-              <div>
-                <b>Points and badges</b>
-                <small>{pointsBalance(session).toLocaleString('en-US')} points · {earnedBadges(session).length} badges</small>
+            </section>
+            <section className="guest-profile-section" aria-labelledby="guest-profile-account-heading">
+              <div className="guest-profile-section__header">
+                <div>
+                  <p className="guest-profile-section__eyebrow">Personal space</p>
+                  <h2 id="guest-profile-account-heading">Your account</h2>
+                </div>
+                <span className="guest-profile-section__mark" aria-hidden="true"><Sparkle /></span>
               </div>
-              <CaretRight />
-            </button>
-            <button className="guest-list-row" onClick={() => go('stay-history')}>
-              <span><SuitcaseRolling /></span>
-              <div><b>Stay history</b><small>3 stays across 2 properties</small></div>
-              <CaretRight />
-            </button>
-            <button className="guest-list-row" type="button" aria-label="Sign out" onClick={signOut}>
+              <div className="guest-profile-action-list">
+                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('rewards')}>
+                  <span><Sparkle /></span>
+                  <div>
+                    <b>Achievements</b>
+                    <small>{earnedBadges(session).length} badges · {pointsBalance(session).toLocaleString('en-US')} points</small>
+                  </div>
+                  <CaretRight />
+                </button>
+                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('stay-history')}>
+                  <span><SuitcaseRolling /></span>
+                  <div><b>Stay history</b><small>3 stays across 2 properties</small></div>
+                  <CaretRight />
+                </button>
+              </div>
+            </section>
+            <button className="guest-list-row guest-profile-signout" type="button" aria-label="Sign out" onClick={signOut}>
               <span><SignOut /></span>
               <div><b>Sign out</b><small>Return to the welcome screen</small></div>
               <CaretRight />
@@ -4032,37 +4299,97 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const balance = pointsBalance(session);
         const nearly = nearlyEarnedBadges(session);
         const badges = badgeProgress(session);
-        const openBadge = badges.find((row) => row.definition.id === openBadgeId);
+        const earned = earnedBadges(session);
+        const nextBadge = nearly[0];
+        const nextBadgeProgress = nextBadge
+          ? Math.min(nextBadge.count / nextBadge.definition.threshold, 1)
+          : 1;
+        const achievementBackdrop = getPropertyImage('The Henry Manila');
         const openReward = (rewardId: string) => {
           setSelectedRewardId(rewardId);
           go('reward-detail');
         };
 
         return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <h1>Points and badges</h1>
-              <p>Earned across every property you have stayed at.</p>
+          <div className="guest-stack guest-achievements-page">
+            <div className="guest-page-title guest-achievements-intro">
+              <span className="guest-achievements-intro__eyebrow">Your Cabana story</span>
+              <h1>Your achievements</h1>
+              <p>Collect the stays, places, and moments that make each stay yours.</p>
             </div>
 
-            <PointsWallet
-              balance={balance}
-              affordable={affordableRewards(balance)}
-              nextUp={REWARD_MENU.find((reward) => reward.points > balance)}
-              ledger={buildPointsLedger(session)}
-              expiry={pointsExpiry(session)}
-              nearest={nearly[0]}
-              onOpenReward={openReward}
-            />
+            <section className="guest-achievements-overview" aria-labelledby="guest-achievements-overview-heading">
+              <Image
+                className="guest-achievements-overview__image"
+                src={achievementBackdrop.src}
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 720px) calc(100vw - 32px), 688px"
+                style={{ objectPosition: achievementBackdrop.focalPoint }}
+              />
+              <div className="guest-achievements-overview__top">
+                <div>
+                  <p className="guest-achievements-overview__eyebrow">Your collection</p>
+                  <h2 id="guest-achievements-overview-heading">Every stay leaves a mark.</h2>
+                  <p>{earned.length} earned across {badges.length} achievements.</p>
+                </div>
+              </div>
 
-            <RewardMenu rewards={REWARD_MENU} balance={balance} onOpenReward={openReward} />
+              <div className="guest-achievements-overview__stats" aria-label="Achievement summary">
+                <div><b>{earned.length}</b><span>earned</span></div>
+                <div><b>{badges.length - earned.length}</b><span>to discover</span></div>
+                <div><b>{nearly.length}</b><span>in progress</span></div>
+              </div>
+
+              {nextBadge ? (
+                <div className="guest-achievements-overview__next">
+                  <div className="guest-achievements-overview__next-head">
+                    <div>
+                      <span>Next to unlock</span>
+                      <b>{nextBadge.definition.name}</b>
+                      <small>{nextBadge.definition.requirement}</small>
+                    </div>
+                    <strong>{nextBadge.count} / {nextBadge.definition.threshold}</strong>
+                  </div>
+                  <span className="guest-achievements-overview__track" aria-hidden="true">
+                    <i style={{ inlineSize: `${nextBadgeProgress * 100}%` }} />
+                  </span>
+                </div>
+              ) : null}
+            </section>
 
             <BadgeShelf
-              earned={earnedBadges(session)}
+              earned={earned}
               nearly={nearly}
               all={badges}
-              onOpenBadge={setOpenBadgeId}
+              onOpenBadge={(badgeId) => {
+                setOpenBadgeId(badgeId);
+                go('badge-detail');
+              }}
             />
+
+            <section className="guest-achievements-points" aria-labelledby="guest-achievements-points-heading">
+              <div className="guest-achievements-section-title">
+                <div>
+                  <span>Cabana points</span>
+                  <h2 id="guest-achievements-points-heading">Make your stay go further.</h2>
+                </div>
+                <strong>{balance.toLocaleString('en-US')} pts</strong>
+              </div>
+
+              <PointsWallet
+                balance={balance}
+                affordable={affordableRewards(balance)}
+                nextUp={REWARD_MENU.find((reward) => reward.points > balance)}
+                ledger={buildPointsLedger(session)}
+                expiry={pointsExpiry(session)}
+                nearest={nextBadge}
+                onOpenReward={openReward}
+              />
+            </section>
+
+            <RewardMenu rewards={REWARD_MENU} balance={balance} onOpenReward={openReward} />
 
             <EstateMap
               visitedCities={[
@@ -4071,16 +4398,43 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ]}
             />
 
-            {openBadge ? (
-              <BadgeSheet
-                row={openBadge}
-                /* Muting rewrites the session, so the correction is persisted
-                   by the same effect that persists everything else. */
-                onMute={(badgeId) => setSession(muteBadge(session, badgeId))}
-                onClose={() => setOpenBadgeId(null)}
-              />
-            ) : null}
           </div>
+        );
+      }
+
+      case 'badge-detail': {
+        const badge = badgeProgress(session).find((row) => row.definition.id === openBadgeId);
+
+        if (!badge) {
+          return (
+            <div className="guest-stack guest-badge-detail guest-badge-detail--empty">
+              <div className="guest-badge-detail__header">
+                <span aria-hidden="true" />
+                <span>Achievement</span>
+                <span aria-hidden="true" />
+              </div>
+              <div className="guest-page-title">
+                <h1>Achievement not found</h1>
+                <p>Return to your collection to choose another badge.</p>
+              </div>
+              <button className="guest-button guest-button--primary" type="button" onClick={() => go('rewards')}>
+                View achievements
+                <ArrowRight aria-hidden="true" />
+              </button>
+            </div>
+          );
+        }
+
+        return (
+          <BadgeDetail
+            row={badge}
+            /* Muting rewrites the session, so the correction is persisted by
+               the same effect that persists everything else. */
+            onMute={(badgeId) => {
+              setSession((current) => muteBadge(current, badgeId));
+              back();
+            }}
+          />
         );
       }
 
@@ -4292,6 +4646,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {renderScreen()}
           </div>
 
+          {openHomeStoryId ? (
+            <StoryViewer
+              story={HOME_CATEGORY_STORIES[openHomeStoryId]}
+              onClose={closeHomeStory}
+              onBook={bookHomeStory}
+              onFinished={closeHomeStory}
+            />
+          ) : null}
+
           {orderTrayOpen ? orderTrayOpen === 'restaurant' ? (() => {
             const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
             const summary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
@@ -4349,7 +4712,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <NavButton
                 label="Profile"
                 icon={<GuestNavIcon icon={HugeProfileIcon} />}
-                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards' || activeScreen === 'reward-detail'}
+                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
                 onClick={() => go('profile')}
               />
             </nav>
@@ -4613,10 +4976,11 @@ type StayOverviewHomeProps = {
   online?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
   onSelectCategory: (cat: MiniAppCategoryId) => void;
+  onOpenStory: (categoryId: HomeStoryCategoryId) => void;
   onOpenStay: (id: string) => void;
 };
 
-function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOpenStay }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOpenStory, onOpenStay }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -4641,82 +5005,74 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
     const roomUpgrade = booking.roomUpgrade;
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
-        <section className="guest-stay-hero-card">
+        <section className="guest-stay-hero-card guest-home-active-hero">
           <div className="guest-stay-hero-card__media">
-            <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
+            <PropertyImage property={booking.property} aspectRatio="2.1" decorative />
             <div className="guest-stay-hero-card__badges">
               <span className="guest-stay-hero-card__status guest-stay-hero-card__status--positive">Checked in</span>
               <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">{roomLabel}</span>
             </div>
           </div>
           <div className="guest-stay-hero-card__body">
-            <p className="guest-eyebrow">{greetGuest(session.guestName, 'Welcome', booking.roomNumber)}</p>
+            <p className="guest-eyebrow">{greetGuest(session.guestName, 'Welcome')}</p>
             <h1>{booking.property}</h1>
             <div className="guest-stay-hero-card__stats">
               <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
-              <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber ?? 'Assigned at arrival'}</b></div>
+              <div><small>Room</small><b>{booking.roomType}</b></div>
               <div><small>Guests</small><b>{describeParty(booking, session)}</b></div>
               <div><small>Nights</small><b>{countNights(booking)}</b></div>
             </div>
+            <button className="guest-stay-hero-card__booking" onClick={() => onNavigate('rate-detail')} type="button">
+              <span><Ticket /></span>
+              <span><b>View booking</b><small>Rate, policies and confirmation</small></span>
+              <CaretRight />
+            </button>
+            {!roomUpgrade && booking.checkOut > PROTOTYPE_TODAY ? (
+              <button className="guest-stay-hero-card__booking guest-stay-hero-card__booking--upgrade" onClick={() => onNavigate('room-upgrades')} type="button">
+                <span><Bed /></span>
+                <span><b>Upgrade room</b><small>Explore available rooms</small></span>
+                <CaretRight />
+              </button>
+            ) : null}
           </div>
-          <div className="guest-stay-hero-card__actions">
-            <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
-            <button className="guest-list-row" onClick={() => onNavigate('chat')} type="button"><span><ChatCircleDots /></span><div><b>Chat with the front desk</b><small>Usually replies in a few minutes</small></div><CaretRight /></button>
-            {!roomUpgrade && canOfferRoomUpgrade(booking) ? <button className="guest-list-row" onClick={() => onNavigate('room-upgrades')} type="button"><span><Bed /></span><div><b>Upgrade room</b><small>Explore available rooms for your current stay</small></div><CaretRight /></button> : null}
+          {roomUpgrade ? <div className="guest-stay-hero-card__actions">
             {roomUpgrade?.status === 'preparing' ? <div className="guest-room-upgrade-status"><b>Room upgrade in progress</b><span>{roomUpgrade.newRoomType} · Room number coming soon</span><p>We&rsquo;re preparing your upgraded room. You can continue using Room {booking.roomNumber} until your new room is ready.</p></div> : null}
             {roomUpgrade?.status === 'ready' ? <div className="guest-room-transfer-preview"><div><small>Current room</small><b>Room {booking.roomNumber} · {booking.roomType}</b><span>Available until your room transfer is completed.</span></div><div><small>New room · Ready</small><b>Room {roomUpgrade.newRoomNumber} · {roomUpgrade.newRoomType}</b><span>Your upgraded room is ready. Complete the transfer before {roomUpgrade.transferDeadline}.</span></div><button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('room-transfer-details')}>View transfer details<ArrowRight /></button></div> : null}
-          </div>
+          </div> : null}
           {/*
-            Only while it is the thing in the way. Once the room is verified
-            the scan is just an action, and it lives in the app bar where
-            every screen can reach it.
+            Keep the room-code prompt beside the room context while the stay
+            is still waiting for verification. Once the room is verified,
+            repeating the action here would add noise to the stay overview.
           */}
           {canUseOnPropertyServices(booking) ? null : (
             <div className="guest-stay-hero-card__qr">
-              <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-action" onClick={() => onNavigate('scan-room-code')}>
+              <Button className="guest-button guest-button--primary" type="button" data-testid="guest-room-qr-row" onClick={() => onNavigate('scan-room-code')}>
                 <QrCode aria-hidden="true" />Scan your room code<ArrowRight aria-hidden="true" />
               </Button>
             </div>
           )}
         </section>
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" onClick={() => onNavigate('my-stay')}><span><b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b><small>{confirmedServices[0].scheduledFor}</small><small>{confirmedServices[0].amount} · Charged to {roomLabel}</small></span><span className="guest-next-service-card__action">View details <CaretRight /></span></button></section> : null}
-        <section>
+        <section className="guest-home-discovery">
           <SectionHeading title="Make the most of your stay" />
-          <div className="guest-category-banners" role="group" aria-label="Experience categories">
-            {[
-              { id: 'dining', label: 'Food & Drinks' },
-              { id: 'spa', label: 'Spa & Wellness' },
-              { id: 'entertainment', label: 'Activities & Tours' },
-              { id: 'services', label: 'Hotel Services' },
-              { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs' },
-            ].map((item) => {
-              const cat = MINI_APP_CATEGORIES.find((category) => category.id === item.id);
-              const cover = item.id === 'gifts-souvenirs'
-                ? { src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80', focalPoint: 'center' }
-                : getCategoryCoverImage(cat!.id);
+          <div className="discover__rail guest-home-stories" role="group" aria-label="Stay stories">
+            {HOME_STORY_CATEGORIES.map((item) => {
+              const story = HOME_CATEGORY_STORIES[item.id];
               return (
                 <button
                   key={item.id}
                   type="button"
-                  className="guest-category-banner"
-                  onClick={() => {
-                    if (item.id === 'gifts-souvenirs') {
-                      onNavigate('gifts-souvenirs');
-                      return;
-                    }
-                    onSelectCategory(cat!.id);
-                    onNavigate(cat!.screen);
-                  }}
+                  className="discover__story guest-home-story"
+                  aria-label={item.label}
+                  title={`Open ${item.label} story`}
+                  onClick={() => onOpenStory(item.id)}
                 >
-                  <Image
-                    src={cover.src}
-                    alt=""
-                    fill
-                    sizes="(max-width: 720px) calc(100vw - 32px), 688px"
-                    style={{ objectPosition: cover.focalPoint }}
-                  />
-                  <span className="guest-category-banner__scrim" aria-hidden="true" />
-                  <span className="guest-category-banner__label">{item.label}</span>
+                  <span className="discover__story-ring">
+                    <span className="discover__story-art">
+                      <Image src={story.cover.src} alt="" fill sizes="68px" style={{ objectPosition: story.cover.focalPoint }} />
+                    </span>
+                  </span>
+                  <b>{item.label}</b>
                 </button>
               );
             })}
@@ -4731,7 +5087,13 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--multiple" data-testid="guest-home-multiple-upcoming">
         <div className="guest-page-title"><h1>Upcoming stays</h1><p>Keep every reservation in one place. Your nearest arrival is shown first.</p></div>
-        <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} />
+        {/*
+        The label carries the truth the variant cannot. `getHomeVariant` keys
+        off `status`, so the reference stay stays on the upcoming home with a
+        window that already contains today -- and without this the card told a
+        guest mid-stay that their arrival was still to come.
+      */}
+      <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} statusLabel={describeStayStatus(booking).label} />
         <section>
           <SectionHeading title="More upcoming stays" />
           <div className="guest-home-booking-list">
@@ -4767,7 +5129,13 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
 
   return (
     <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
-      <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} showUpgrade={canOfferRoomUpgrade(booking)} />
+      {/*
+        The label carries the truth the variant cannot. `getHomeVariant` keys
+        off `status`, so the reference stay stays on the upcoming home with a
+        window that already contains today -- and without this the card told a
+        guest mid-stay that their arrival was still to come.
+      */}
+      <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} statusLabel={describeStayStatus(booking).label} />
       {booking.preArrivalCompleted < booking.preArrivalTotal ? (
         <section className="guest-home-booking guest-home-booking--primary">
           <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>
@@ -4789,7 +5157,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
             <Button
               className="guest-button guest-button--primary"
               type="button"
-              data-testid="guest-room-qr-action"
+              data-testid="guest-room-qr-row"
               onClick={() => onNavigate('scan-room-code')}
             >
               <QrCode aria-hidden="true" />Scan room code<ArrowRight aria-hidden="true" />
@@ -5007,15 +5375,24 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
   const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
   const when = `${entry.date === PROTOTYPE_TODAY ? 'Tonight' : date}${time ? ` · ${time}` : ''}`;
-  const showLocation = entry.title === 'Apartment 1B' || entry.title === 'Azotea Rooftop';
   const body = (
     <>
+      {/*
+        Named from the entry, not from a list of titles. This was an allowlist
+        of two -- 'Apartment 1B' and 'Azotea Rooftop' -- so every other venue
+        in a growing catalogue silently lost the line that says which building
+        it is in, which is the question the card exists to answer.
+      */}
+      <span className="guest-stay-entry__parent">
+        <span aria-hidden="true"><Storefront /></span>
+        <span>{entry.parentDetail ? `${entry.parent} · ${entry.parentDetail}` : entry.parent}</span>
+      </span>
       <span className="guest-stay-entry__headline">
         <h2>{entry.title}</h2>
         <strong>{entry.amount}</strong>
       </span>
-      {showLocation && entry.parentDetail ? <span className="guest-stay-entry__location">{entry.parentDetail}</span> : null}
       <span className="guest-stay-entry__when">{when}</span>
+      {entry.settlement ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
     </>
   );
 
@@ -5024,7 +5401,7 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
   return <button className="guest-stay-entry" type="button" data-status={entry.status} onClick={onOpen}>{body}</button>;
 }
 
-function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showUpgrade = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean; showUpgrade?: boolean }) {
+function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean }) {
   return (
     <section className="guest-stay-hero-card">
       <div className="guest-stay-hero-card__media">
@@ -5040,14 +5417,14 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel
         <div className="guest-stay-hero-card__stats">
           <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
           {booking.roomNumber ? <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber}</b></div> : null}
-          <div><small>Guests</small><b>{booking.guestCount} guests</b></div>
-          <div><small>Nights</small><b>{countNights(booking)}</b></div>
-        </div>
+        <div><small>Guests</small><b>{booking.guestCount} guests</b></div>
+        <div><small>Nights</small><b>{countNights(booking)}</b></div>
       </div>
-      <div className="guest-stay-hero-card__actions">
-        <button className="guest-list-row" onClick={() => onNavigate('rate-detail')} type="button"><span><Ticket /></span><div><b>View booking</b><small>Rate, policies and confirmation</small></div><CaretRight /></button>
-        <button className="guest-list-row" onClick={() => onNavigate('chat')} type="button"><span><ChatCircleDots /></span><div><b>Chat with the front desk</b><small>Usually replies in a few minutes</small></div><CaretRight /></button>
-        {showUpgrade ? <button className="guest-list-row" onClick={() => onNavigate('room-upgrades')} type="button"><span><Bed /></span><div><b>Upgrade room</b><small>Explore available rooms for your stay</small></div><CaretRight /></button> : null}
+      <button className="guest-stay-hero-card__booking" onClick={() => onNavigate('rate-detail')} type="button">
+        <span><Ticket /></span>
+        <span><b>View booking</b><small>Rate, policies and confirmation</small></span>
+        <CaretRight />
+      </button>
       </div>
     </section>
   );
@@ -5415,7 +5792,7 @@ function ListingControls({
           key={openKey}
           title={openKey === 'all' ? 'Filters' : open[0]!.label}
           facets={open}
-          onClose={() => setOpenKey(null)}
+          onClose={() => afterSheetExit(() => setOpenKey(null))}
           onApply={apply}
         />
       ) : null}
@@ -5462,10 +5839,6 @@ const ROOM_UPGRADES = [
   { id: 'deluxe-king-512', name: 'Deluxe King Room', type: 'Higher-floor room', features: 'King bed · Bay view · Larger workspace', guests: '2 guests', price: '₱3,600', transfer: 'Ready now · About 15 minutes to transfer', transferDeadline: '6:00 PM today', roomNumber: '512', image: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80' },
   { id: 'garden-suite-608', name: 'Garden Suite', type: 'Suite upgrade', features: 'King bed · Separate sitting area · Balcony', guests: '3 guests', price: '₱6,000', transfer: 'Ready in about 30 minutes', transferDeadline: '8:00 PM today', roomNumber: '608', image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80' },
 ] as const;
-
-function canOfferRoomUpgrade(booking: Booking) {
-  return (booking.status === 'active' || booking.status === 'upcoming') && booking.checkOut > PROTOTYPE_TODAY;
-}
 
 function NearbyRecommendations({ categoryId, description, onSelect }: { categoryId: MiniAppCategoryId; description: string; onSelect: (id: string) => void }) {
   const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
@@ -5763,10 +6136,6 @@ function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge:
         ];
 
   return <div className="guest-folio-details"><h3>Order summary</h3><div className="guest-summary">{rows.map(([label, value]) => <SummaryRow key={label} label={label} value={value} />)}<SummaryRow label="Subtotal" value={charge.amount} /><SummaryRow label="Total" value={charge.amount} strong /><SummaryRow label="Payment method" value={`Charge to Room ${roomLabel}`} /><SummaryRow label="Status" value="Charged to room" /><SummaryRow label="Reference" value={`CHG-${charge.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`} /></div><button type="button" className="guest-folio-details__question" onClick={(event) => { event.stopPropagation(); onQuestion(`I have a question about the ${charge.title} charge. Could you help me review it?`); }}>Question about this charge? <ArrowRight /></button></div>;
-}
-
-function FolioItem({ date, title, meta, amount }: { date: string; title: string; meta: string; amount: string }) {
-  return <div className="guest-folio-item"><span>{date}</span><div><b>{title}</b><small>{meta}</small></div><strong>{amount}</strong></div>;
 }
 
 /** "March 14–17, 2026" -- one month named once when the stay does not cross one. */

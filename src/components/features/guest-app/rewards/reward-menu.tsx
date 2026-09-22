@@ -30,7 +30,7 @@ export type RewardMenuProps = {
 export function RewardMenu({ rewards, balance, onOpenReward }: RewardMenuProps) {
   return (
     <section className="reward-menu">
-      <h2 className="reward-menu__heading">What points are for</h2>
+      <h2 className="reward-menu__heading">Ways to redeem</h2>
 
       <ul className="reward-menu__rows">
         {rewards.map((reward) => {

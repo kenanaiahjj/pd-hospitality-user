@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     // the repo and its findings drown out real ones.
     ".claude/**",
     ".worktrees/**",
+    // Build output, same problem: `vercel build` writes minified bundles here
+    // and every one of them trips no-this-alias and no-unused-expressions.
+    // Twenty errors, none of them ours, enough to fail the verification gate.
+    ".vercel/**",
   ]),
 ]);
 

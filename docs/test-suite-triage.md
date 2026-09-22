@@ -6,6 +6,12 @@ as of `c06717a`. Every other file in the suite is green (455 passing).
 Written because "fix the failing tests" turned out to hide three very different
 problems, and only one of them is safe to fix without a product ruling.
 
+> **Status 2026-09-18 (`b2a61a3`): 37 failing, 486 passing.** The lost-feature
+> class below is closed — every restore-or-drop decision has been made and
+> carried out. What remains is Group C only: path and copy drift, no product
+> risk. Read *Resolution* at the foot of this file before the groups above it,
+> which are kept as the record of how the features were found.
+
 ## The headline
 
 **Almost nothing here is a stale selector.** Of the strings these tests look
@@ -121,3 +127,62 @@ are counts that moved with the catalogue, and `"This stay so far"` /
 2. Fix Group C, which is the bulk and carries no product risk.
 3. Leave the front-desk half of Group B until the Chat tab lands.
 4. Treat the scan trio as a bug report, not a test failure.
+
+## Resolution (2026-09-18)
+
+Every feature in the lost class has now been ruled on. 49 failing at the start
+of the pass, 37 at the end; the twelve closed here are all of the ones that were
+waiting on a decision.
+
+| Feature | Ruling | Where |
+|---|---|---|
+| SSO lands on the booking-linked home | restored | `c06717a` |
+| Finished-stay receipt + rebook | restored | `bcf260e` |
+| In-app dining carts (Group A) | dropped, superseded by the enquiry screen | `af08506` |
+| Post-stay review entry point | restored | `1be09a8` |
+| Receipt shows what the money went on | restored | `1be09a8` |
+| Front desk docked above the tab bar | **dropped**, see below | `1be09a8` |
+| Scan reachable from every screen | restored | `b2a61a3` |
+
+### The dock is the one that did not come back
+
+Two shipped designs disagreed, and the later one won. The nav IA spec argued
+that *"`Chat` spends a permanent destination on one action"* and docked the
+front desk instead. The nav revamp then shipped a Chat tab anyway, on the rule
+that *"two routes to one screen from one viewport is the duplication this pass
+removed elsewhere"* — and a dock firing the same `go('chat')` sixty pixels above
+that tab is exactly what the rule forbids.
+
+So the four tests keep their subject — the desk is one tap away, not one scroll
+— and drop the mechanism. If the Chat tab is ever taken back out, the dock is
+the thing to restore, not the rule.
+
+### Two of these were tests that could never have passed
+
+Worth naming, because grepping for a testid will not find them. The
+`guest-scan-action` → `guest-room-qr-action` rename collapsed two distinct
+affordances into a single id, leaving assertions of the form
+
+```js
+expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
+expect(screen.getByTestId('guest-room-qr-action')).toBeInTheDocument();
+```
+
+— the same element absent and present in consecutive lines. No app state
+satisfies that. Their comments preserved the intent (*"the row is gone for a
+verified stay; the app bar carries the scan"*), so the Home card went back to
+its own id, `guest-room-qr-row`, and the assertions became sayable again.
+
+A test that contradicts itself reads exactly like a test that is merely failing.
+Where an id was renamed to match another, check whether it was the *only* thing
+carrying that name first.
+
+### What is left
+
+All 37 are Group C. The target exists, the path to it changed: menu filters and
+sorts, folio totals, profile re-entry, announcements, Explore Nearby headings,
+booking-reference re-entry. Two need a value rather than a path — `13 dishes`
+and `5 venues` moved with the catalogue — and `"This stay so far"` / `"All
+Items"` remain the only genuinely deleted strings.
+
+Nothing in what remains needs a product ruling.

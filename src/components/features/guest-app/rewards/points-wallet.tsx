@@ -99,7 +99,7 @@ export function PointsWallet({
         </div>
       ) : null}
 
-      <h2 className="points-wallet__heading">How you earned it</h2>
+      <h2 className="points-wallet__heading">Recent activity</h2>
       <ul className="points-wallet__ledger">
         {ledger.map((entry) => (
           <li key={entry.id}>

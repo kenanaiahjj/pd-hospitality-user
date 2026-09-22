@@ -5,7 +5,7 @@ import {
   Baby, Bank, Barbell, BookOpen, Briefcase, CalendarCheck, CalendarPlus, ChatText,
   Coffee, Compass, Confetti as ConfettiGlyph, CookingPot, DeviceMobile, Door, Eye,
   Flower, ForkKnife, Globe, Hammer, Handshake, HourglassHigh, House, Island,
-  Lightning, MapTrifold, Martini, MoonStars, Mountains, NavigationArrow, QrCode,
+  Lightning, Lock, MapTrifold, Martini, MoonStars, Mountains, NavigationArrow, QrCode,
   Repeat, Scissors, SealCheck, Sparkle, Star, Storefront, SunHorizon, Tray, User,
   Users, UsersThree, Waves,
 } from '@phosphor-icons/react';
@@ -66,8 +66,10 @@ export const glyphFor = (name: string): Icon | undefined => GLYPHS[name];
 export type BadgeMedalProps = {
   badge: BadgeDefinition;
   earned: boolean;
-  /** 28 inline · 48 in grids and rows · 64 in the sheet. */
-  size?: 28 | 48 | 64;
+  /** 28 inline · 48 in grids and rows · 64 in the legacy sheet · 144 on detail. */
+  size?: 28 | 48 | 64 | 112 | 144;
+  /** Adds a clipped light sweep to the medal artwork itself. */
+  shimmer?: boolean;
   /**
    * Hidden from assistive technology, for a medal inside something already
    * named. Two announcements of the same badge is worse than one: a button
@@ -76,13 +78,13 @@ export type BadgeMedalProps = {
   decorative?: boolean;
 };
 
-export function BadgeMedal({ badge, earned, size = 48, decorative = false }: BadgeMedalProps) {
+export function BadgeMedal({ badge, earned, size = 48, shimmer = false, decorative = false }: BadgeMedalProps) {
   const family = BADGE_FAMILIES[badge.family];
   const Glyph = GLYPHS[badge.glyph];
 
   return (
     <span
-      className={`badge-medal${earned ? '' : ' badge-medal--locked'}`}
+      className={`badge-medal${earned ? '' : ' badge-medal--locked'}${shimmer ? ' badge-medal--shimmer' : ''}`}
       data-family={badge.family}
       data-shape={family.shape}
       {...(decorative
@@ -101,7 +103,11 @@ export function BadgeMedal({ badge, earned, size = 48, decorative = false }: Bad
         '--medal-enamel': family.enamel,
       } as React.CSSProperties}
     >
-      {badge.art ? (
+      {!earned ? (
+        <span className="badge-medal__locked-field">
+          <Lock className="badge-medal__lock" weight="fill" aria-hidden="true" />
+        </span>
+      ) : badge.art ? (
         <Image src={badge.art} alt="" width={size * 4} height={size * 4} />
       ) : (
         <span className="badge-medal__field">

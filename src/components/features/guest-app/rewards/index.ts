@@ -1,7 +1,7 @@
 export { BadgeMedal, glyphFor } from './badge-medal';
 export type { BadgeMedalProps } from './badge-medal';
-export { BadgeSheet } from './badge-sheet';
-export type { BadgeSheetProps } from './badge-sheet';
+export { BadgeDetail } from './badge-detail';
+export type { BadgeDetailProps } from './badge-detail';
 export { BadgeShelf } from './badge-shelf';
 export type { BadgeShelfProps } from './badge-shelf';
 export { EstateMap } from './estate-map';

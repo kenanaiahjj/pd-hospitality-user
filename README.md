@@ -13,16 +13,24 @@ layers, and interaction contracts.
 ## Getting started
 
 **Prerequisites** — Node.js `>=20.9` (Next 16's floor; developed on 24.x) and npm.
-No database, no external services: the boilerplate boots against a public
-placeholder API.
+No database and no external services at runtime: the app boots against a public
+placeholder API. Installing, however, needs one credential. The icons come from
+`@hugeicons-pro`, a licensed registry that `.npmrc` points the scope at, and npm
+reads the token from the **shell** environment — `.env.local` is loaded by Next
+long after `npm install` has already failed. Export it first:
 
 ```bash
-git clone https://github.com/lmfventures/templify.git
-cd templify
+git clone https://github.com/kenanaiahjj/pd-hospitality-user.git
+cd pd-hospitality-user
+export HUGEICONS_LICENSE_KEY="..."   # from the Hugeicons account
 npm install
 cp .env.example .env.local
 npm run dev
 ```
+
+Without the key `npm install` stops on a 401 from `npm.hugeicons.com` for
+`@hugeicons-pro/core-stroke-rounded`. On Vercel, set the same variable in the
+project's environment so build-time installs can resolve the scope.
 
 Open http://localhost:3000 for the guest app. Open
 http://localhost:3000/components for the 36-pattern design-system gallery. The
@@ -40,6 +48,7 @@ surfacing on the first request. Copy `.env.example` and adjust:
 | `API_BASE_URL` | yes | `https://jsonplaceholder.typicode.com` (from `.env.example`) | Upstream the server-side client calls. Must be a valid URL. |
 | `API_TOKEN` | no | — | Bearer token for the upstream. Server-only — never prefix it `NEXT_PUBLIC_`. |
 | `NEXT_PUBLIC_APP_URL` | no | `http://localhost:3000` | Public origin, used for absolute internal fetches during SSR. |
+| `HUGEICONS_LICENSE_KEY` | install-time | — | Token for the private `@hugeicons-pro` registry (see `.npmrc`). Read by npm from the shell, **not** by `src/config/env.ts` — it is not in the zod schema and setting it in `.env.local` has no effect. |
 
 Adding a variable means editing the schema in `src/config/env.ts` *and*
 `.env.example` in the same commit — the parse is the only gate.

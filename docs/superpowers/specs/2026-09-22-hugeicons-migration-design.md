@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Review` |
+| **Status** | `Approved` |
 | **Created** | 2026-09-22 |
 | **Updated** | 2026-09-22 |
 | **Owner** | Ken |

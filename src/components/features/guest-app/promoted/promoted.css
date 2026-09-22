@@ -441,6 +441,16 @@
   gap: 18px;
   align-content: start;
 }
+.discover__section { position: relative; padding-top: 32px; }
+.discover__section::before { display: none; }
+.discover__section--stories { padding-top: 0; padding-bottom: 24px; }
+.discover__section--stories::before { display: none; }
+.discover__section--promotions { display: grid; gap: 12px; margin-top: 16px; }
+.discover__section--all { margin-top: 0; }
+.discover__label { color: var(--guest-accent-strong); font-size: 11px; font-weight: 600; letter-spacing: .09em; line-height: 1.2; text-transform: uppercase; }
+.discover__heading-row { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.discover__heading-row > div { min-width: 0; }
+.discover__view-all { flex: 0 0 auto; margin-bottom: 2px; border: 0; background: none; color: var(--guest-accent-strong); font: inherit; font-size: 13px; font-weight: 650; }
 /*
   DESIGN.md's screen title, finally applied in full: 30px / 700 / -0.022em,
   balanced, and set at display leading.
@@ -660,6 +670,7 @@
   close.
 */
 .categories__card.is-lead { grid-column: 1 / -1; min-height: 188px; }
+.categories__card.is-full { grid-column: 1 / -1; min-height: 132px; }
 .categories__card:last-child:nth-child(even) { grid-column: 1 / -1; min-height: 132px; }
 
 .categories__card:active { transform: scale(0.985); }
@@ -754,6 +765,7 @@
   is the catalogue. Same typography, different claim.
 */
 .discover__head { display: grid; gap: 2px; margin-bottom: 12px; }
+.discover__head--catalog { gap: 8px; }
 .discover__head h2 {
   margin: 0;
   font-size: 17px;
@@ -983,6 +995,9 @@
 .deck__done-copy { display: grid; gap: 4px; }
 .deck__done-copy b { font-size: 17px; font-weight: 700; }
 .deck__done-copy small { color: var(--guest-subtle); font-size: 13px; line-height: 1.45; }
+.deck__dots { display: flex; justify-content: center; gap: 6px; margin-top: 2px; }
+.deck__dots button { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 999px; background: var(--guest-line-strong); }
+.deck__dots button.is-active { width: 20px; background: var(--guest-accent-strong); }
 
 /*
   Reduced motion keeps the decision and drops the choreography: cards cut

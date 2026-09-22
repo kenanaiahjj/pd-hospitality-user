@@ -1,6 +1,6 @@
 'use client';
 
-import { CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { MagnifyingGlass, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useState, type ReactNode } from 'react';
 import { AskAnswer, AskSuggestions } from './ask-panel';
@@ -28,12 +28,13 @@ export type DiscoverFeedProps = {
    */
   property?: string;
   stories: Story[];
-  banners: DiscoverBanner[];
+  /** Legacy banner input retained for harness compatibility; promotions now live in the deck. */
+  banners?: DiscoverBanner[];
   categories: CategoryCard[];
   /** Everything bookable, for the search field. */
   searchIndex: SearchableItem[];
   onOpenStory: (storyId: string) => void;
-  onOpenBanner: (bannerId: string) => void;
+  onOpenBanner?: (bannerId: string) => void;
   onOpenItem: (itemId: string) => void;
   onOpenCategory: (categoryId: string) => void;
   onBrowseAll: () => void;
@@ -44,17 +45,14 @@ export type DiscoverFeedProps = {
 export function DiscoverFeed({
   property = 'The Henry Manila',
   stories,
-  banners,
   categories,
   searchIndex,
   onOpenStory,
-  onOpenBanner,
   onOpenItem,
   onOpenCategory,
   onBrowseAll,
   deck,
 }: DiscoverFeedProps) {
-  const [lead, ...rest] = banners;
   const [query, setQuery] = useState('');
 
   /*
@@ -165,7 +163,7 @@ export function DiscoverFeed({
         which is one of the three jobs the pink is allowed to do.
       */}
       {stories.length ? (
-        <section aria-label="Posts from the property">
+        <section className="discover__section discover__section--stories" aria-label="Posts from the property">
           <div className="discover__head">
             <h2>Posted today</h2>
             {/* Says why a ring turns amber, which nothing else on the screen
@@ -213,7 +211,7 @@ export function DiscoverFeed({
         which is the same as not shipping it.
       */}
       {deck ? (
-        <section className="discover__deck" aria-label="Featured">
+        <section className="discover__section discover__deck" aria-label="Featured">
           <div className="discover__head">
             <h2>Featured</h2>
             {/* "Swipe through" is gone: the pile is visibly stacked and
@@ -233,13 +231,18 @@ export function DiscoverFeed({
         the question is asked. The photograph is masked into the gradient
         rather than boxed inside it, so the card reads as one object.
       */}
-      <section aria-label="Categories">
-        <div className="discover__head">
+      <section className="discover__section discover__section--catalog" aria-label="Categories">
+        <div className="discover__head discover__head--catalog">
+          <div className="discover__heading-row">
+            <div>
           {/* Marriott and Hyatt both say "hotel", plainly, and list the
               nouns. It is the least clever option and the one a guest reads
               without translating. */}
           <h2>Everything at the hotel</h2>
-          <p>Dining, spa, tours and services.</p>
+          <p>Browse dining, wellness, experiences and guest services.</p>
+            </div>
+            <button className="discover__view-all" type="button" onClick={onBrowseAll}>View all</button>
+          </div>
         </div>
         <div className="categories">
           {categories.map((category, i) => {
@@ -250,11 +253,11 @@ export function DiscoverFeed({
               blurry hero on the one card the layout is built to make
               biggest.
             */
-            const spans = i === 0 || (i === categories.length - 1 && categories.length % 2 === 0);
+            const spans = i === 0 || category.id === 'services' || category.id === 'gifts-souvenirs';
             return (
             <button
               key={category.id}
-              className={`categories__card${i === 0 ? ' is-lead' : ''}`}
+              className={`categories__card${i === 0 ? ' is-lead' : ''}${spans && i !== 0 ? ' is-full' : ''}`}
               type="button"
               onClick={() => onOpenCategory(category.id)}
             >
@@ -269,7 +272,6 @@ export function DiscoverFeed({
               </span>
               <span className="categories__copy">
                 <b>{category.title}</b>
-                <small>{category.count} to book{i === 0 ? ` · ${category.subtitle}` : ''}</small>
               </span>
             </button>
             );
@@ -277,58 +279,6 @@ export function DiscoverFeed({
         </div>
       </section>
 
-      {lead ? (
-        <button
-          className="discover__hero"
-          type="button"
-          onClick={() => onOpenBanner(lead.id)}
-        >
-          <Image
-            src={lead.image.src}
-            alt=""
-            fill
-            sizes="480px"
-            style={{ objectPosition: lead.image.focalPoint }}
-          />
-          <span className="discover__wash" aria-hidden="true" />
-          <span className="discover__hero-copy">
-            <small>{lead.eyebrow}</small>
-            <b>{lead.headline}</b>
-            <span>{lead.meta}</span>
-          </span>
-        </button>
-      ) : null}
-
-      <section aria-label="Featured">
-        <div className="discover__grid">
-          {rest.map((banner) => (
-            <button
-              key={banner.id}
-              className="discover__card"
-              type="button"
-              onClick={() => onOpenBanner(banner.id)}
-            >
-              <Image
-                src={banner.image.src}
-                alt=""
-                fill
-                sizes="240px"
-                style={{ objectPosition: banner.image.focalPoint }}
-              />
-              <span className="discover__wash" aria-hidden="true" />
-              <span className="discover__card-copy">
-                <small>{banner.eyebrow}</small>
-                <b>{banner.headline}</b>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <button className="discover__all" type="button" onClick={onBrowseAll}>
-        <span><b>See the full list</b><small>Every service, with prices</small></span>
-        <CaretRight aria-hidden="true" />
-      </button>
       </>
       )}
     </div>

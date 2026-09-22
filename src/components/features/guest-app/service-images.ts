@@ -83,7 +83,7 @@ export const PROPERTY_IMAGES: Record<PropertyImageKey, ServiceImageDefinition> =
   },
   cebu: {
     src: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=1200&q=82',
-    alt: 'The Henry Manila artsy boutique hotel exterior and balcony',
+    alt: 'The Henry Cebu artsy boutique hotel exterior and balcony',
     focalPoint: '50% 45%',
   },
   dumaguete: {
@@ -247,12 +247,12 @@ export const ITEM_THUMBNAIL_IMAGES: Record<string, ServiceImageDefinition> = {
   },
   'heritage-walk': {
     src: 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=600&q=80',
-    alt: 'Colonial Spanish stone archway in historic Manila',
+    alt: 'Colonial Spanish stone archway in historic Intramuros',
     focalPoint: '50% 50%',
   },
   'food-crawl': {
     src: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80',
-    alt: 'Steaming bamboo dim sum baskets in Manila',
+    alt: 'Steaming bamboo dim sum baskets in vibrant Binondo Chinatown',
     focalPoint: '50% 50%',
   },
   'sunset-cruise': {

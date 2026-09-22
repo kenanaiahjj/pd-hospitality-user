@@ -2,6 +2,8 @@ export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
 
 export type ScreenId =
   | 'connect-booking'
+  | 'sign-in'
+  | 'verify-code'
   | 'room-qr-landing'
   | 'wifi-landing'
   | 'identify'
@@ -30,6 +32,7 @@ export type ScreenId =
   | 'prereg-queued'
   | 'marketplace'
   | 'category-listing'
+  | 'nearby-recommendations'
   | 'nearby-establishment'
   | 'gifts-souvenirs'
   | 'gift-order-cart'
@@ -66,6 +69,8 @@ export type ScreenId =
   | 'stay-review'
   | 'scan-room-code'
   | 'stay-review-sent'
+  | 'rewards'
+  | 'reward-detail'
   | 'notifications';
 
 export type PrototypeScreen = {
@@ -105,7 +110,10 @@ export const SCREENS: PrototypeScreen[] = [
   screen(22, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
   screen(23, 'Stay', 'marketplace', 'Explore'),
   screen(24, 'Stay', 'category-listing', 'Explore services'),
+  screen(62, 'Stay', 'nearby-recommendations', 'Nearby recommendations'),
   screen(59, 'Stay', 'nearby-establishment', 'Nearby recommendation'),
+  screen(60, 'Account', 'rewards', 'Points and badges'),
+  screen(61, 'Account', 'reward-detail', 'Redeem a reward'),
   screen(58, 'Stay', 'gifts-souvenirs', 'Gifts & Souvenirs'),
   screen(25, 'Stay', 'hotel-service', 'In-room dining'),
   screen(26, 'Stay', 'vendor-service', 'Hilom signature massage'),
@@ -140,6 +148,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(53, 'Stay', 'stay-review', 'Rate your stay'),
   screen(54, 'Stay', 'stay-review-sent', 'Review sent'),
   screen(55, 'Entry', 'scan-room-code', 'Scan the room code'),
+  screen(72, 'Entry', 'sign-in', 'Log in'),
+  screen(73, 'Entry', 'verify-code', 'Check your email'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -260,6 +270,27 @@ export type ServiceBooking = {
    * had happened.
    */
   scheduledDate: string;
+  /**
+   * The hour of `scheduledFor`, 0-23.
+   *
+   * `scheduledFor` is prose and `scheduledDate` is a day, so neither can answer
+   * "was this an evening booking". Carried explicitly rather than parsed back
+   * out of the prose: a regex over "Tonight · November 11 · 7:30 PM" returns a
+   * confident wrong answer the first time the copy changes.
+   */
+  scheduledHour?: number;
+  /** ISO date the guest made the booking, as distinct from when it happens. */
+  bookedAt?: string;
+  /**
+   * What was booked, as `SERVICES[].id`.
+   *
+   * Carried rather than matched back from `title`. `categoryLabelFor` already
+   * matches on name, and a name match silently reclassifies everything the day
+   * a service is renamed -- which is exactly the drift badges cannot tolerate,
+   * since a badge that quietly stops counting looks to the guest like one that
+   * was taken away.
+   */
+  serviceId?: string;
   amount: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   provider?: string;
@@ -273,12 +304,40 @@ export type AuthState = 'anonymous' | 'authenticated';
 /** Drives the "onboarding if new" branch. `none` is the signed-out shape. */
 export type AccountStatus = 'none' | 'new' | 'returning';
 
-export type AuthMethod = 'apple' | 'google';
+export type AuthMethod = 'apple' | 'google' | 'email';
 
 export type RoomPreferences = {
   floor: string;
   bed: string;
   accessibility: string[];
+};
+
+/** One reward taken off the menu, and what it cost. */
+export type PointsRedemption = {
+  id: string;
+  rewardId: string;
+  title: string;
+  points: number;
+  /** ISO date. */
+  redeemedAt: string;
+};
+
+/**
+ * The only rewards state worth persisting.
+ *
+ * Points earned and badges held are derived from the stay history every time
+ * they are read. A stored balance would be a second source of truth drifting
+ * from the stays it claims to summarise -- the failure `roomNumber` and the
+ * room assignment state already have a comment about -- and it would survive
+ * the prototype's stay-state switch incorrectly, so flipping to a guest with
+ * no history would leave their points behind.
+ *
+ * What cannot be derived is what the guest spent, and which inferences they
+ * told us to stop making. That is what is kept.
+ */
+export type RewardsState = {
+  redemptions: PointsRedemption[];
+  mutedBadges: string[];
 };
 
 export type GuestSession = {
@@ -304,7 +363,26 @@ export type GuestSession = {
    * request again.
    */
   unlockRequest?: UnlockRequest;
+  /**
+   * Redemptions and badge opt-outs. Everything else about rewards is derived.
+   *
+   * Optional because it is purely additive: a session stored before rewards
+   * existed restores as a guest who has redeemed nothing and muted nothing,
+   * which is true. Read it through `getRewards` rather than directly.
+   */
+  rewards?: RewardsState;
 };
+
+/**
+ * The rewards slice, defaulted.
+ *
+ * Every read goes through here so that `SESSION_STORAGE_KEY` can stay at v5:
+ * bumping it would discard every stored session to gain a default these two
+ * lines already supply.
+ */
+export function getRewards(session: GuestSession): RewardsState {
+  return session.rewards ?? { redemptions: [], mutedBadges: [] };
+}
 
 export type HomeVariant =
   | 'active'
@@ -364,8 +442,8 @@ export const ANONYMOUS_SESSION: GuestSession = {
 export const PAST_STAYS: PastStay[] = [
   {
     id: 'HEN-CEBU-260314',
-    property: 'The Henry Manila',
-    city: 'Manila',
+    property: 'The Henry Cebu',
+    city: 'Cebu',
     checkIn: '2026-03-14',
     checkOut: '2026-03-17',
     nights: 3,
@@ -375,11 +453,11 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Direct booking',
     roomRate: '₱18,600',
     charges: [
-      { id: 'c1', parent: 'The Henry Manila', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness' },
-      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining' },
-      { id: 'c3', parent: 'The Henry Manila', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours' },
-      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining' },
-      { id: 'c5', parent: 'The Henry Manila', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services' },
+      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness', hour: 14, serviceId: 'spa' },
+      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining', hour: 19, serviceId: 'rooftop' },
+      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours', hour: 8, serviceId: 'tour' },
+      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining', serviceId: 'cafe' },
+      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services', hour: 11, serviceId: 'transfer' },
     ],
     total: '₱37,390',
   },
@@ -396,16 +474,16 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Agoda',
     roomRate: '₱9,800',
     charges: [
-      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining' },
-      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services' },
-      { id: 'd3', parent: 'The Henry Manila', title: 'Manila heritage walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours' },
+      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining', hour: 20, serviceId: 'restaurant' },
+      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services', serviceId: 'laundry' },
+      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours', hour: 9, serviceId: 'heritage-walk' },
     ],
     total: '₱14,150',
   },
   {
     id: 'HEN-CEBU-250508',
-    property: 'The Henry Manila',
-    city: 'Manila',
+    property: 'The Henry Cebu',
+    city: 'Cebu',
     checkIn: '2025-05-08',
     checkOut: '2025-05-10',
     nights: 2,
@@ -415,8 +493,8 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Booking.com',
     roomRate: '₱11,200',
     charges: [
-      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining' },
-      { id: 'e2', parent: 'The Henry Manila', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness' },
+      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining', serviceId: 'poolside-bar' },
+      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness', hour: 16, serviceId: 'reflexology' },
     ],
     total: '₱13,820',
   },
@@ -441,8 +519,8 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'HEN-CEBU-240615',
       guestName: 'Ana Santos',
-      property: 'The Henry Manila',
-      city: 'Manila',
+      property: 'The Henry Cebu',
+      city: 'Cebu',
       status: 'completed',
       checkIn: '2026-06-15',
       checkOut: '2026-06-18',
@@ -467,6 +545,9 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-hilom-1',
       bookingId: 'HEN-241109',
+      serviceId: 'spa',
+      scheduledHour: 13,
+      bookedAt: '2026-11-09',
       title: 'Hilom signature massage',
       scheduledFor: 'Wednesday · November 12 · 1:30 PM',
       scheduledDate: '2026-11-12',
@@ -476,6 +557,9 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-rooftop-1',
       bookingId: 'HEN-241109',
+      serviceId: 'rooftop',
+      scheduledHour: 19,
+      bookedAt: '2026-11-11',
       title: 'Azotea Rooftop',
       scheduledFor: 'Tonight · November 11 · 7:30 PM',
       scheduledDate: '2026-11-11',
@@ -494,7 +578,10 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-tour-1',
       bookingId: 'HEN-241109',
-      title: 'Manila food walk',
+      serviceId: 'food-crawl',
+      scheduledHour: 9,
+      bookedAt: '2026-11-02',
+      title: 'Binondo food crawl',
       scheduledFor: 'Thursday · November 13 · 9:00 AM',
       scheduledDate: '2026-11-13',
       amount: '₱4,400',
@@ -503,6 +590,9 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-dining-past',
       bookingId: 'HEN-241109',
+      serviceId: 'restaurant',
+      scheduledHour: 20,
+      bookedAt: '2026-11-10',
       title: 'Apartment 1B',
       scheduledFor: 'Yesterday · November 10 · 8:00 PM',
       scheduledDate: '2026-11-10',
@@ -518,6 +608,9 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-cafe-cancelled',
       bookingId: 'HEN-241109',
+      serviceId: 'cafe',
+      scheduledHour: 7,
+      bookedAt: '2026-11-09',
       title: 'Kape Manila Café',
       scheduledFor: 'Monday · November 9 · 7:00 AM',
       scheduledDate: '2026-11-09',
@@ -551,9 +644,8 @@ export function createAccountSession(
 /**
  * The two SSO providers deliberately land on different account shapes, so the
  * demo can show both starting states from the same sheet: Apple is the guest
- * with an upcoming stay (the booking-linked pre-arrival experience), Google is
- * the guest who is signed in but has nothing current (the two-tab home, with
- * only past stays and "Add a booking").
+ * with an upcoming stay (the booking-linked pre-arrival experience), while
+ * Google is signed in without a current booking and starts at booking lookup.
  */
 export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
   /*
@@ -578,12 +670,20 @@ export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
     ...restoreProfileSession(),
     ...identity,
     // Apple keeps the upcoming stay, so auth opens in pre-arrival state.
-    // Google has none, so auth opens on the signed-in, no-booking home.
+    // Google has none, so auth opens at booking lookup.
     bookings: method === 'apple' ? [UPCOMING_BOOKING_FIXTURE] : [],
     activeBookingId: method === 'apple' ? UPCOMING_BOOKING_FIXTURE.id : undefined,
     serviceBookings: [],
     folioTotal: '₱0',
     authMethod: method,
+  };
+}
+
+export function emailLoginSession(email: string): GuestSession {
+  return {
+    ...ssoSession('google'),
+    email: email.trim(),
+    authMethod: 'email',
   };
 }
 
@@ -694,13 +794,14 @@ export function connectBooking(session: GuestSession, booking: Booking = UPCOMIN
 /**
  * Where a guest lands the moment authentication is accepted.
  *
- * The stay overview is the app's pre-arrival home: it shows the booking,
- * progress, and the next action in one place. Keeping it as the shared
- * post-auth destination means signup and login have the same starting state,
- * regardless of whether the account is new or returning.
+ * Booking-linked accounts open on the stay overview. An authenticated account
+ * without a current booking starts at lookup so the next action is to connect
+ * a stay, not to render stay-only surfaces without a reservation.
  */
-export function getPostAuthScreen(): ScreenId {
-  return 'stay-overview';
+export function getPostAuthScreen(session: GuestSession): ScreenId {
+  return session.auth === 'authenticated' && session.bookings.length === 0
+    ? 'identify'
+    : 'stay-overview';
 }
 
 export function getPrimaryBooking(
@@ -835,7 +936,7 @@ export function canUseOnPropertyServices(
  * The only path that writes the verification fact.
  *
  * Maps one booking, never the session. A session holds several bookings
- * across properties -- `MOCK_SESSION` carries Manila and Manila -- and a scan
+ * across properties -- `MOCK_SESSION` carries Manila and Cebu -- and a scan
  * in one says nothing about the other. A session-level flag here would unlock
  * room charging against a room the guest has never seen.
  */
@@ -1154,6 +1255,13 @@ export type PastStayCharge = {
   detail: string;
   amount: string;
   category: 'Dining' | 'Spa & wellness' | 'Tours' | 'Hotel services';
+  /**
+   * The hour it happened, 0-23. Absent where the charge has no single time --
+   * three mornings of breakfast, a same-day laundry pickup.
+   */
+  hour?: number;
+  /** What it was, as `SERVICES[].id`. Absent on anything off-catalogue. */
+  serviceId?: string;
 };
 
 export type PastStay = {
@@ -1349,6 +1457,14 @@ export type EstateProperty = {
    */
   referenceCode: string;
   tagline: string;
+  /**
+   * Which of the three island groups. Required, not inferred from `city`: a
+   * city-to-group lookup is a second table that silently returns nothing for
+   * the next property added.
+   */
+  islandGroup: 'luzon' | 'visayas' | 'mindanao';
+  /** ISO date the property opened. */
+  openedOn?: string;
   roomTypes: PropertyRoomType[];
 };
 
@@ -1368,6 +1484,8 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
     city: 'Manila',
     referenceCode: 'MNL',
     tagline: 'Post-war villas and garden courtyards in Pasay',
+    islandGroup: 'luzon',
+    openedOn: '2019-03-01',
     roomTypes: [
       { id: 'manila-king', name: 'King room', detail: '32 sqm · Courtyard view · Sleeps 2', nightlyRate: '₱6,200', maxGuests: 2 },
       { id: 'manila-suite', name: 'Garden suite', detail: '48 sqm · Private terrace · Sleeps 3', nightlyRate: '₱9,400', maxGuests: 3 },
@@ -1376,10 +1494,12 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
   },
   {
     id: 'cebu',
-    name: 'The Henry Manila',
-    city: 'Manila',
+    name: 'The Henry Cebu',
+    city: 'Cebu',
     referenceCode: 'CEBU',
     tagline: 'Pool deck, Azotea rooftop, ten minutes from Mactan',
+    islandGroup: 'visayas',
+    openedOn: '2022-06-15',
     roomTypes: [
       { id: 'cebu-deluxe', name: 'Deluxe room', detail: '28 sqm · Pool view · Sleeps 2', nightlyRate: '₱5,600', maxGuests: 2 },
       { id: 'cebu-suite', name: 'Garden suite', detail: '44 sqm · Ground floor garden · Sleeps 3', nightlyRate: '₱8,800', maxGuests: 3 },
@@ -1390,7 +1510,9 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
     name: 'The Henry Manila',
     city: 'Manila',
     referenceCode: 'DGTE',
-    tagline: 'Quiet sea-facing wing, walking distance to Manila waterfront',
+    tagline: 'Quiet sea-facing wing, walking distance to Rizal Boulevard',
+    islandGroup: 'visayas',
+    openedOn: '2026-09-01',
     roomTypes: [
       { id: 'dumaguete-deluxe', name: 'Deluxe room', detail: '26 sqm · Sea view · Sleeps 2', nightlyRate: '₱4,900', maxGuests: 2 },
       { id: 'dumaguete-suite', name: 'Corner suite', detail: '40 sqm · Balcony · Sleeps 4', nightlyRate: '₱7,600', maxGuests: 4 },
@@ -1520,6 +1642,8 @@ export function toFinishedStay(session: GuestSession, booking: Booking): PastSta
       title: service.title,
       detail: service.scheduledFor,
       category: categoryLabelFor(service.title),
+      serviceId: service.serviceId,
+      hour: service.scheduledHour,
       amount: service.amount,
     });
   }
@@ -1757,6 +1881,10 @@ export type StayEntry = {
   id: string;
   kind: StayEntryKind;
   title: string;
+  /** Amenity or vendor shown as the leading line on booking cards. */
+  vendor?: string;
+  /** Service, package, or experience shown beneath the vendor. */
+  serviceLabel?: string;
   /** When it happens, and what it costs. */
   detail: string;
   amount: string;
@@ -1815,12 +1943,12 @@ export function hasStayStarted(booking: Booking, today: string = PROTOTYPE_TODAY
 const describeServiceSettlement = (
   status: ServiceBooking['status'],
   roomNumber?: string,
+  serviceId?: string,
 ): string | undefined => {
-  const room = roomNumber ? `room ${roomNumber}` : 'your room';
+  const room = roomNumber ? `Room ${roomNumber}` : 'your room';
   if (status === 'cancelled') return 'Cancelled · not charged';
-  if (status === 'completed') return `Completed · charged to ${room}`;
-  // Still ahead: the running total already says where this lands.
-  return undefined;
+  if (serviceId === 'rooftop') return 'Pay at the venue';
+  return `Charged to ${room}`;
 };
 
 export function getStayEntries(
@@ -1866,6 +1994,14 @@ export function getStayEntries(
       lines,
       canCancel: service.status === 'confirmed' && !service.diningOrder && service.scheduledDate >= PROTOTYPE_TODAY,
       title: service.title,
+      vendor: service.diningOrder?.venueName ?? (service.serviceId === 'food-crawl' ? 'Binondo Food Crawl' : booking.property),
+      serviceLabel: service.serviceId === 'rooftop'
+        ? 'Ninth Floor Terrace'
+        : service.serviceId === 'food-crawl'
+          ? 'Guided food tour'
+          : service.title === 'Hilom signature massage'
+            ? 'Hilom Signature Massage'
+            : service.title,
       detail: service.diningOrder
         ? `${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${service.scheduledFor}`
         : service.scheduledFor,
@@ -1879,7 +2015,17 @@ export function getStayEntries(
       // an on-property booking belongs to the property it was made at.
       parent: booking.property,
       parentDetail: venue?.location,
-      settlement: describeServiceSettlement(service.status === 'cancelled' && service.scheduledDate < PROTOTYPE_TODAY ? 'completed' : service.status, booking.roomNumber),
+      /*
+        The real status, never the grouped one.
+
+        The line above deliberately files a past cancellation under `completed`
+        so My Stay's history reads in one voice -- but that is a decision about
+        where a card sits, and this is a statement about money. Sharing the
+        coercion made the app tell a guest that a service they cancelled had
+        been charged to their room, which is the one thing a folio line must
+        never get wrong.
+      */
+      settlement: describeServiceSettlement(service.status, booking.roomNumber, service.serviceId),
       category: service.diningOrder ? 'dining' : categoryOf(service.title),
       date: service.scheduledDate,
       /*
@@ -2312,6 +2458,13 @@ export type RestaurantVenue = {
   name: string;
   category: string;
   operator: string;
+  /**
+   * What the card says a venue costs.
+   *
+   * "Menu in Chat" rather than a from-price: the menu is a photograph the
+   * front desk sends, so a number on the card would promise a price list the
+   * app does not hold.
+   */
   priceRange: string;
   hours: string;
   /** The hotel this venue sits inside. Its parent in the estate. */
@@ -2321,12 +2474,15 @@ export type RestaurantVenue = {
   description: string;
   cutoff: string;
   tone: string;
+  /** ISO date the venue was first listed in the app. */
+  listedOn?: string;
   menu: MenuItem[];
 };
 
 export const RESTAURANTS: RestaurantVenue[] = [
   {
     id: 'apartment-1b',
+    listedOn: '2021-04-12',
     name: 'Apartment 1B',
     category: 'Restaurant & Bar',
     operator: 'Hotel operated',
@@ -2451,13 +2607,14 @@ export const RESTAURANTS: RestaurantVenue[] = [
   },
   {
     id: 'dining',
+    listedOn: '2019-03-01',
     name: 'In-Room Dining',
     category: 'Dining',
     operator: 'Hotel operated',
     priceRange: 'Menu in Chat',
     hours: '24 hours daily',
     property: 'The Henry Manila',
-    location: 'Ground floor courtyard',
+    location: 'Delivered to your room',
     description: 'Comforting Filipino favorites, breakfast sets, and late-night cravings brought directly to your door.',
     cutoff: '2-hour cancellation cutoff',
     tone: 'sand',
@@ -2529,13 +2686,14 @@ export const RESTAURANTS: RestaurantVenue[] = [
   },
   {
     id: 'poolside-bar',
+    listedOn: '2022-07-01',
     name: 'The Poolside Bar',
     category: 'Bar & Lounge',
     operator: 'Hotel operated',
     priceRange: 'Menu in Chat',
     hours: '11:00 AM – 12:00 MN',
     property: 'The Henry Manila',
-    location: 'Ground floor courtyard',
+    location: 'Second floor pool deck',
     description: 'Tropical cocktails, artisanal spirits, local craft brews, and savory tapas by the pool.',
     cutoff: 'Walk-in or call front desk',
     tone: 'clay',
@@ -2567,7 +2725,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
       },
       {
         id: 'bar-4',
-        name: 'Manila Mango Sour',
+        name: 'Cebu Mango Sour',
         description: 'Bourbon, fresh mango purée, calamansi, egg white foam, bitters.',
         price: '₱410',
         category: 'drinks',
@@ -2577,13 +2735,14 @@ export const RESTAURANTS: RestaurantVenue[] = [
   },
   {
     id: 'cafe',
-    name: 'Kape Lab Manila',
+    listedOn: '2020-11-03',
+    name: 'Kape Manila Café',
     category: 'Café & Bakery',
     operator: 'Hotel operated',
     priceRange: 'Menu in Chat',
     hours: '6:00 AM – 8:00 PM',
     property: 'The Henry Manila',
-    location: 'Ground floor courtyard',
+    location: 'Lobby, beside reception',
     description: 'Single-origin Philippine coffee, morning pastries, and all-day light plates by the lobby garden.',
     cutoff: 'Walk-in & takeaway',
     tone: 'sand',
@@ -2651,13 +2810,14 @@ export const RESTAURANTS: RestaurantVenue[] = [
   },
   {
     id: 'rooftop',
+    listedOn: '2026-10-20',
     name: 'Azotea Rooftop',
     category: 'Fine Dining',
     operator: 'Hotel operated',
     priceRange: 'Menu in Chat',
     hours: '5:30 PM – 12:00 MN',
     property: 'The Henry Manila',
-    location: 'Ground floor courtyard',
+    location: 'Ninth floor terrace',
     description: 'A tasting-led rooftop kitchen working Philippine produce over live fire, with the bay on three sides.',
     cutoff: '24-hour cancellation cutoff',
     tone: 'clay',
@@ -2735,10 +2895,10 @@ export const RESTAURANTS: RestaurantVenue[] = [
 export const SERVICES = [
   /* Dining -- the venues themselves live in RESTAURANTS; these are the rows
      the Home rail and cross-category search read. */
-  { id: 'dining', name: 'In-Room Dining', category: 'Dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱450', cutoff: '2-hour cancellation cutoff', tone: 'sand' },
+  { id: 'dining', name: 'In-room dining', category: 'Dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱450', cutoff: '2-hour cancellation cutoff', tone: 'sand' },
   { id: 'restaurant', name: 'Apartment 1B', category: 'Restaurant & bar', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱550', cutoff: '2-hour cancellation cutoff', tone: 'clay' },
-  { id: 'poolside-bar', name: 'The Poolside Bar', category: 'Bar & Lounge', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱350', cutoff: 'Walk-in & lounge', tone: 'clay' },
-  { id: 'cafe', name: 'Kape Lab Manila', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
+  { id: 'poolside-bar', name: 'The Poolside Bar & Lounge', category: 'Bar & Lounge', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱350', cutoff: 'Walk-in & lounge', tone: 'clay' },
+  { id: 'cafe', name: 'Kape Manila Café', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
   { id: 'rooftop', name: 'Azotea Rooftop', category: 'Fine dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱1,200', cutoff: '24-hour cancellation cutoff', tone: 'clay' },
 
   /* Spa & wellness */

@@ -383,7 +383,7 @@ export function searchCatalogue(index: SearchableItem[], query: string): Searcha
  * promise eleven things and open onto four.
  */
 export type CategoryCard = {
-  id: MiniAppCategoryId;
+  id: MiniAppCategoryId | 'gifts-souvenirs';
   /** Uppercased at the type level, not in CSS -- screen readers read the
       text, and shouting is a design decision, not a data one. */
   title: string;
@@ -401,7 +401,7 @@ const CATEGORY_FACE: Record<string, string> = {
 };
 
 export function buildCategoryCards(): CategoryCard[] {
-  return MINI_APP_CATEGORIES.map((category) => ({
+  const categoryCards = MINI_APP_CATEGORIES.map((category) => ({
     id: category.id,
     title: category.title,
     subtitle: category.subtitle,
@@ -410,6 +410,16 @@ export function buildCategoryCards(): CategoryCard[] {
       : SERVICES.filter((s) => s.categoryId === category.id).length,
     image: storyImage(CATEGORY_FACE[category.id] ?? 'spa'),
   }));
+  return [
+    ...categoryCards,
+    {
+      id: 'gifts-souvenirs' as const,
+      title: 'Gifts & Souvenirs',
+      subtitle: 'Local treats, keepsakes and thoughtful gifts',
+      count: 5,
+      image: storyImage('cafe'),
+    },
+  ];
 }
 
 /**
@@ -460,8 +470,9 @@ export type FeaturedCard = {
   So the deck is a list, in order, and everything in it has a photograph of
   its own and a reason someone wrote. A test holds both.
 */
-const FEATURED: Array<{ id: string; reason: FeaturedReason }> = [
-  { id: 'spa', reason: { kind: 'popular', label: 'Most booked this week' } },
+const FEATURED: Array<{ id: string; title?: string; reason: FeaturedReason }> = [
+  { id: 'rooftop', title: 'Sunset on the ninth floor', reason: { kind: 'hotel-pick', label: 'Tonight at the resort' } },
+  { id: 'spa', title: 'Ninety minutes to yourself', reason: { kind: 'popular', label: 'Most booked this week' } },
   { id: 'sunset-cruise', reason: { kind: 'stay-context', label: 'Tomorrow, before checkout' } },
   { id: 'hot-stone', reason: { kind: 'popular', label: 'Books out by Friday' } },
   { id: 'food-crawl', reason: { kind: 'hotel-pick', label: 'Picked by the hotel' } },
@@ -473,7 +484,7 @@ const FEATURED: Array<{ id: string; reason: FeaturedReason }> = [
 ];
 
 export function buildFeaturedDeck(): FeaturedCard[] {
-  return FEATURED.flatMap(({ id, reason }) => {
+  return FEATURED.flatMap(({ id, reason, title }) => {
     const service = SERVICES.find((entry) => entry.id === id);
     /* Belt and braces: a card with no picture of its own would be the
        nineteen-identical-photos bug coming back one card at a time. */
@@ -481,7 +492,7 @@ export function buildFeaturedDeck(): FeaturedCard[] {
 
     return [{
       id: service.id,
-      title: service.name,
+      title: title ?? service.name,
       category: service.category,
       price: service.price,
       /* The account that runs it. "Third-party on property" is a contract

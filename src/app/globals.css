@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Keep framework development controls out of the guest-facing preview. */
+nextjs-portal,
+.nextjs-portal { display: none !important; }
+
 @font-face {
   font-family: "Asbir Sans";
   src: url("/fonts/AsbirSans-Variable.woff2") format("woff2");

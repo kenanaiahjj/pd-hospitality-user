@@ -122,13 +122,10 @@ const roomRateFor = (stay: PastStay): RoomEarnSource =>
 /** What one settled stay earned: its room at its own rate, then everything on it. */
 export function earnedForStay(stay: PastStay): number {
   const room = pointsFor(stay.roomRate, POINTS_PER_100[roomRateFor(stay)]);
-  /*
-    Every charge earns at the in-app rate. A settled stay does not record how
-    each line was booked, so this credits a few the property posted itself --
-    a shipped ledger carries the origin per charge and pays 0 for those.
-  */
   const extras = stay.charges.reduce(
-    (sum, charge) => sum + pointsFor(charge.amount, POINTS_PER_100['in-app-booking']),
+    (sum, charge) => charge.pointsSource === 'in-app-booking'
+      ? sum + pointsFor(charge.amount, POINTS_PER_100['in-app-booking'])
+      : sum,
     0,
   );
   return room + extras;
@@ -167,6 +164,21 @@ export function buildPointsLedger(session: GuestSession): PointsEntry[] {
     paying for both would pay twice for one massage.
   */
   const settled = new Set(session.pastStays.map((stay) => stay.id));
+
+  for (const booking of session.bookings) {
+    if (settled.has(booking.id)) continue;
+
+    for (const charge of booking.inAppCharges ?? []) {
+      entries.push({
+        id: `booking-charge-${charge.id}`,
+        date: charge.date,
+        title: charge.title,
+        detail: charge.detail,
+        source: 'in-app-booking',
+        points: pointsFor(charge.amount, POINTS_PER_100['in-app-booking']),
+      });
+    }
+  }
 
   for (const service of session.serviceBookings) {
     // Nothing is owed for something the guest called off.

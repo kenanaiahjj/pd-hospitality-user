@@ -2494,53 +2494,6 @@
   background: var(--ds-pink-soft);
   color: var(--ds-pink-strong);
 }
-/* --------------------------------------------------------------------------
-   Category catalog -- one full-bleed photo per category, stacked, instead of
-   the small icon grid. The label sits over a scrim baked into the photo
-   itself, the way a travel app's own catalog reads.
-   -------------------------------------------------------------------------- */
-.guest-category-catalog {
-  display: grid;
-  gap: 10px;
-  margin-top: 4px;
-}
-.guest-category-catalog__card {
-  position: relative;
-  display: block;
-  aspect-ratio: 16/9;
-  width: 100%;
-  overflow: hidden;
-  border: 0;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-sunken);
-  cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out);
-}
-.guest-category-catalog__card img {
-  object-fit: cover;
-}
-.guest-category-catalog__card:active {
-  transform: scale(0.98);
-}
-.guest-category-catalog__card:focus-visible {
-  outline: 2px solid var(--guest-accent-strong);
-  outline-offset: 2px;
-}
-.guest-category-catalog__scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(0deg, rgb(0 0 0 / 0.55) 0%, rgb(0 0 0 / 0) 45%);
-}
-.guest-category-catalog__label {
-  position: absolute;
-  left: 14px;
-  bottom: 12px;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.012em;
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
-}
 .guest-explore-catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .guest-explore-catalog__tile { position: relative; display: flex; min-height: 148px; overflow: hidden; align-items: flex-end; padding: 14px; border: 0; border-radius: var(--guest-radius-md); background: var(--guest-sunken); text-align: left; }
 .guest-explore-catalog__tile--wide { grid-column: 1 / -1; min-height: 148px; }
@@ -2687,11 +2640,6 @@
     border-color var(--duration-fast) ease;
 }
 .guest-next-service-card:active { transform: scale(0.98); }
-
-@media (hover: hover) and (pointer: fine) {
-  .guest-category-catalog__card:hover img { transform: scale(1.03); }
-  .guest-category-catalog__card img { transition: transform var(--duration-fast) ease; }
-}
 
 /* --------------------------------------------------------------------------
    Featured rail

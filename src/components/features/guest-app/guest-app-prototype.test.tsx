@@ -494,7 +494,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
   });
 
-  it('shows room settlement and confirms a service without a payment method', async () => {
+  it('shows room settlement and confirms an in-stay service without a payment method', async () => {
     const user = userEvent.setup();
     const active = makeBooking({
       id: 'active',
@@ -522,6 +522,7 @@ describe('GuestAppPrototype', () => {
     */
     expect(screen.getByRole('button', { name: /Charge to Room 512/i })).toBeInTheDocument();
     expect(screen.getByText(/settle it at checkout/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pay now/i })).toBeNull();
     expect(screen.queryByText(/gcash|maya/i)).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /Charge to Room 512/i }));
@@ -532,7 +533,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText(/hotel folio at checkout/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
-    expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /Room charges.*₱5,450.*View receipt/ })).toBeInTheDocument();
   });
 
   it('turns early check-in into a room-charge request without payment choices', () => {
@@ -589,7 +590,7 @@ describe('GuestAppPrototype', () => {
 
     await user.click(screen.getByRole('button', { name: 'Home' }));
     await user.click(screen.getByRole('button', { name: 'My Stay' }));
-    expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /Room charges.*₱3,050.*View receipt/ })).toBeInTheDocument();
   });
 
   it('falls back to a stay label when no entry path captured a name', () => {
@@ -1306,23 +1307,6 @@ describe('booking lookup', () => {
   */
 });
 
-/*
-  `folio accumulation` stood here: two tests that booked a massage and read the
-  running total back off My Stay, guarding a real bug in which `folioTotal` was
-  overwritten with a hardcoded ₱5,450 instead of being added to.
-
-  My Stay no longer carries a running total -- the Room charges row and its
-  figure were removed deliberately -- and for a service there is no route to the
-  folio at all, so the number these asserted is not on screen anywhere. The
-  accumulation itself still happens, inline in `confirmService` rather than in
-  the model, so there is no unit to move the guard down to either.
-
-  Retired rather than rewritten: an assertion pointed at a surface that does not
-  exist is worse than an absent one. If the running total comes back, or the
-  arithmetic moves into `prototype-model.ts` where it can be tested directly,
-  this is the guard to restore -- `git show 19a95fe` has both tests intact.
-*/
-
 describe('booking receipt', () => {
   it('itemises a dining order rather than only counting it', async () => {
     const user = userEvent.setup();
@@ -1445,12 +1429,22 @@ describe('my stay', () => {
 
     expect(screen.getByRole('heading', { name: 'The Henry Manila', level: 1 })).toBeInTheDocument();
     expect(screen.getByText(/Checked in · Room/)).toBeInTheDocument();
-    // The folio remains a separate destination; My Stay opens on the stay
-    // itself rather than leading with a duplicate charges row.
-    expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /Room charges.*₱3,050.*View receipt/ })).toBeInTheDocument();
     // Upcoming and Past are tabs now, not stacked sections.
     expect(screen.getByRole('tab', { name: /Upcoming/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: /Past/ })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('opens the detailed room-charge receipt from My Stay', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: /Room charges.*View receipt/ }));
+
+    expect(screen.getByRole('heading', { name: 'Room charges', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('Current total')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Airport transfer/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /In-room dining/ })).toBeInTheDocument();
   });
 
   it('names the parent property on each booking card', () => {
@@ -1544,7 +1538,7 @@ describe('my stay', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={upcoming} />);
 
     // No folio can exist yet, so the block is absent rather than showing zero.
-    expect(screen.queryByRole('heading', { name: 'Running total' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
     expect(screen.getByText('Checks in in 3 days')).toBeInTheDocument();
   });
 
@@ -2093,12 +2087,12 @@ describe('a finished stay on My Stay', () => {
     expect(screen.getByRole('tab', { name: /Past/ })).toBeInTheDocument();
   });
 
-  it('keeps the folio out of the initial My Stay surface', () => {
+  it('shows the current folio total on a live My Stay surface', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('live')} />);
 
-    // The folio remains a separate destination instead of opening on a
-    // duplicate charges row.
-    expect(screen.queryByRole('button', { name: /Room charges/i })).toBeNull();
+    const charges = screen.getByRole('button', { name: /Room charges/i });
+    expect(charges).toHaveTextContent('Due at checkout');
+    expect(charges).toHaveTextContent('₱14,550');
     expect(screen.queryByRole('button', { name: /Book another stay/ })).toBeNull();
   });
 });
@@ -2229,6 +2223,21 @@ describe('lifecycle gates', () => {
     expect(secondTab()).toHaveAccessibleName('Book again');
   });
 
+  it('keeps stay stories behind the room QR unlock', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+
+    expect(screen.getByTestId('guest-room-qr-row')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Make the most of your stay' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Stay stories' })).toBeNull();
+
+    cleanup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+
+    expect(screen.queryByTestId('guest-room-qr-row')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Stay stories' })).toBeInTheDocument();
+  });
+
   it('keeps Chat available in the main navigation for every connected stay', () => {
     for (const session of [beforeArrival, arrivedUnverified, verified, settled]) {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={session} />);
@@ -2324,7 +2333,7 @@ describe('lifecycle gates', () => {
     }
   });
 
-  it('offers arrival services before the stay opens, settling by card', async () => {
+  it('offers card-only arrival services before a room is assigned', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
 
@@ -2339,6 +2348,27 @@ describe('lifecycle gates', () => {
     expect(screen.queryByText(/Charge to room/i)).toBeNull();
     expect(screen.getAllByText(/Paid by card/i).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Hilom signature massage/ })).toBeNull();
+  });
+
+  it('offers a hotel-arranged ride request once a room is assigned', () => {
+    render(<GuestAppPrototype initialScreen="transfer-booking" initialSession={assignedSession} />);
+
+    expect(screen.getByRole('heading', { name: 'Book a ride' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Trip summary' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'When would you like to leave?' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Passengers' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Request a ride/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pay now/i })).toBeNull();
+  });
+
+  it('routes the ride request through front-desk chat', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="transfer-booking" initialSession={assignedSession} />);
+
+    await user.click(screen.getByRole('button', { name: /Request a ride/ }));
+
+    expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
+    expect(screen.getByText(/request a ride from/i)).toBeInTheDocument();
   });
 
   it('locks the catalogue for a guest who has arrived and not scanned', async () => {
@@ -2903,6 +2933,26 @@ describe('scan discoverability', () => {
     expect(screen.getByRole('button', { name: 'Activities & Tours' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hotel Services' })).toBeInTheDocument();
     expect(document.querySelector('.guest-featured-rail')).toBeNull();
+  });
+
+  it('uses the story rail after room verification on a booking still marked upcoming', () => {
+    const verifiedUpcoming = sessionFor([
+      makeBooking({
+        id: 'verified-upcoming',
+        status: 'upcoming',
+        roomNumber: '512',
+        roomAssignment: 'ready',
+        preArrivalCompleted: 4,
+        preArrivalTotal: 4,
+        roomVerification: { method: 'scan', at: '2026-11-11' },
+      }),
+    ], { activeBookingId: 'verified-upcoming' });
+
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verifiedUpcoming} />);
+
+    expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
+    expect(document.querySelector('.guest-home-stories')).toBeInTheDocument();
+    expect(document.querySelector('.guest-category-catalog')).toBeNull();
   });
 
   it('places property announcements after the rest of the home content', () => {

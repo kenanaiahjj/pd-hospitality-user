@@ -26,6 +26,41 @@ describe('earning', () => {
     expect(earnedForStay(PAST_STAYS[1]!)).toBe(4110);
   });
 
+  it('does not pay points for a charge posted by the property', () => {
+    const [posted, ...booked] = PAST_STAYS[0]!.charges;
+    const stay = {
+      ...PAST_STAYS[0]!,
+      charges: [
+        { ...posted!, pointsSource: 'property-posted' as const },
+        ...booked,
+      ],
+    };
+
+    // The direct room rate and the remaining four in-app charges still earn.
+    expect(earnedForStay(stay)).toBe(22370 - 2400);
+  });
+
+  it('pays points for room upgrades and extensions booked in the app', () => {
+    const booking = {
+      ...MOCK_SESSION.bookings[0]!,
+      roomVerification: undefined,
+      preArrivalCompleted: 0,
+      preArrivalTotal: 0,
+      inAppCharges: [
+        { id: 'upgrade-1', title: 'Room upgrade', detail: 'Deluxe King Room', amount: '₱3,600', date: '2026-11-11' },
+        { id: 'extension-1', title: 'Stay extension', detail: '1 additional night', amount: '₱5,000', date: '2026-11-11' },
+      ],
+    };
+    const session = {
+      ...MOCK_SESSION,
+      bookings: [booking],
+      pastStays: [],
+      serviceBookings: [],
+    };
+
+    expect(pointsBalance(session)).toBe(4_300);
+  });
+
   /*
     Floored per line, not on the stay's total. A guest earns on each
     transaction, and summing first quietly pays for the fractions of every

@@ -55,6 +55,8 @@ import {
   getOfflineAction,
   getPostAuthScreen,
   getVenueCartSummary,
+  getRoomCharges,
+  getRoomChargesTotal,
   markRoomReady,
   parsePesoAmount,
   signInSession,
@@ -1194,6 +1196,24 @@ describe('a finished stay read as a receipt', () => {
     expect(stay.total).toBe('₱24,050');
   });
 
+  it('keeps app-booked room changes visible and rewardable', () => {
+    const withRoomCharge = {
+      ...booking,
+      inAppCharges: [{
+        id: 'upgrade-1',
+        title: 'Room upgrade',
+        detail: 'Deluxe King Room · Room 512',
+        amount: '₱3,600',
+        date: '2026-11-11',
+      }],
+    };
+    const liveCharges = getRoomCharges(session, withRoomCharge, 'Room 304');
+    const settledCharge = toFinishedStay(session, withRoomCharge).charges.find((charge) => charge.id === 'upgrade-1');
+
+    expect(liveCharges.find((charge) => charge.id === 'upgrade-1')?.amount).toBe('₱3,600');
+    expect(settledCharge?.pointsSource).toBe('in-app-booking');
+  });
+
   it('leaves a cancelled service off the receipt', () => {
     const withCancelled = {
       ...session,
@@ -1216,6 +1236,64 @@ describe('a finished stay read as a receipt', () => {
 
     expect(summary.groups.map((group) => group.category)).toContain('Hotel services');
     expect(summary.extras).toBe('₱14,550');
+  });
+});
+
+describe('room charge ledger', () => {
+  it('uses the same chargeable lines for the receipt and its total', () => {
+    const booking: Booking = {
+      ...UPCOMING_BOOKING_FIXTURE,
+      status: 'active',
+      roomNumber: '304',
+    };
+    const session = {
+      ...MOCK_SESSION,
+      bookings: [booking],
+      activeBookingId: booking.id,
+      folioTotal: '₱999,999',
+      serviceBookings: [
+        {
+          id: 'completed-room-service',
+          bookingId: booking.id,
+          title: 'Completed room service',
+          scheduledFor: 'Yesterday · November 10 · 8:00 PM',
+          scheduledDate: '2026-11-10',
+          amount: '₱2,400',
+          status: 'completed' as const,
+          paymentStatus: 'charged-to-room' as const,
+        },
+        {
+          id: 'paid-transfer',
+          bookingId: booking.id,
+          title: 'Paid airport transfer',
+          scheduledFor: 'November 11 · 10:00 AM',
+          scheduledDate: '2026-11-11',
+          amount: '₱1,800',
+          status: 'confirmed' as const,
+          paymentStatus: 'paid' as const,
+        },
+        {
+          id: 'pending-transfer',
+          bookingId: booking.id,
+          title: 'Pending airport transfer',
+          scheduledFor: 'November 11 · 11:00 AM',
+          scheduledDate: '2026-11-11',
+          amount: '₱1,500',
+          status: 'confirmed' as const,
+          paymentStatus: 'pending-confirmation' as const,
+        },
+      ],
+    };
+
+    const charges = getRoomCharges(session, booking, 'Room 304');
+
+    expect(charges.map((charge) => charge.id)).toEqual([
+      'posted-transfer',
+      'posted-dining',
+      'posted-laundry',
+      'completed-room-service',
+    ]);
+    expect(getRoomChargesTotal(session, booking, 'Room 304')).toBe('₱5,450');
   });
 });
 

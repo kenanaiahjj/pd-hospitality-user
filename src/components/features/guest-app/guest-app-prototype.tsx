@@ -84,6 +84,7 @@ import {
   getPrimaryBooking,
   getVenueCartSummary,
   getRoomCharges,
+  getRoomChargesTotal,
   availableOperators,
   availableTypes,
   filterServices,
@@ -107,6 +108,7 @@ import {
   toFinishedStay,
   createStayBooking,
   addStayBooking,
+  addInAppBookingCharge,
   quoteStay,
   countNightsBetween,
   propertyFromRate,
@@ -123,6 +125,7 @@ import {
   parsePesoAmount,
   PAST_STAYS,
   type Booking,
+  type InAppBookingCharge,
   type ProfileMatch,
   type PrototypeStayState,
   type GuestNotification,
@@ -145,7 +148,6 @@ import {
   getServiceImageKey,
   getItemThumbnail,
   getItemCardImage,
-  getCategoryCoverImage,
   type ServiceImageDefinition,
   type ServiceImageKey,
 } from './service-images';
@@ -1693,12 +1695,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setDiningOrderError('Add at least one item before placing your order');
       return;
     }
-    if (!checkoutPayment) {
+    if (checkoutPayment !== 'room') {
       setDiningOrderError('Choose how you would like to pay before placing your order');
-      return;
-    }
-    if (checkoutPayment === 'pay-now' && !paymentMethod) {
-      setDiningOrderError('Choose a payment method to continue');
       return;
     }
 
@@ -1719,8 +1717,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       amount: cartSummary.formattedTotal,
       status: 'confirmed',
       provider: 'Operated by the hotel',
-      paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
-      paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
+      paymentStatus: 'charged-to-room',
+      paymentMethod: 'room',
       diningOrder: {
         venueId: venue.id,
         venueName: venue.name,
@@ -1728,9 +1726,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         fulfillment,
       },
     };
-    const newFolioTotal = checkoutPayment === 'room'
-      ? formatPesoAmount(parsePesoAmount(session.folioTotal) + cartSummary.total)
-      : session.folioTotal;
+    const newFolioTotal = formatPesoAmount(parsePesoAmount(session.folioTotal) + cartSummary.total);
 
     setSession((current) => ({
       ...current,
@@ -1751,7 +1747,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const items = GIFT_PRODUCTS.filter((product) => (giftCart[product.name] ?? 0) > 0);
     const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (giftCart[product.name] ?? 0), 0);
     if (!booking || !isStayUnderWay(booking) || !booking.roomNumber || !items.length) return;
-    if (!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)) return;
+    if (checkoutPayment !== 'room') return;
     const fulfillment = giftFulfillment === 'room' ? `Deliver to Room ${booking.roomNumber}` : 'Pick up at the lobby';
     const serviceBooking: ServiceBooking = {
       id: `gift-order-${session.serviceBookings.length + 1}`,
@@ -1762,11 +1758,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       amount: formatPesoAmount(total),
       status: 'confirmed',
       provider: 'Operated by the hotel',
-      paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
-      paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
+      paymentStatus: 'charged-to-room',
+      paymentMethod: 'room',
     };
-    setSession((current) => ({ ...current, serviceBookings: [serviceBooking, ...current.serviceBookings], folioTotal: checkoutPayment === 'room' ? formatPesoAmount(parsePesoAmount(current.folioTotal) + total) : current.folioTotal }));
-    setGiftOrder({ items, total, paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid', paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card' });
+    setSession((current) => ({ ...current, serviceBookings: [serviceBooking, ...current.serviceBookings], folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + total) }));
+    setGiftOrder({ items, total, paymentStatus: 'charged-to-room', paymentMethod: 'room' });
     setGiftCart({});
     go('gift-order-confirmation');
   };
@@ -1949,8 +1945,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
-    if (!checkoutPayment) return;
-    if (checkoutPayment === 'pay-now' && !paymentMethod) return;
+    if (checkoutPayment !== 'room') return;
 
     const serviceBooking: ServiceBooking = {
       id: 'service-hilom-1',
@@ -1965,8 +1960,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       amount: formatPesoAmount(SERVICE_PRICE - pesosOff(appliedPoints)),
       status: 'confirmed',
       provider: 'Operated by Sans Rival',
-      paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
-      paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
+      paymentStatus: 'charged-to-room',
+      paymentMethod: 'room',
     };
 
     const alreadyBooked = session.serviceBookings.some((service) => service.id === serviceBooking.id);
@@ -1976,7 +1971,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         ...session.serviceBookings.filter((service) => service.id !== serviceBooking.id),
         serviceBooking,
       ],
-      folioTotal: alreadyBooked || checkoutPayment === 'pay-now'
+      folioTotal: alreadyBooked
         ? session.folioTotal
         : formatPesoAmount(parsePesoAmount(session.folioTotal) + parsePesoAmount(serviceBooking.amount)),
     };
@@ -2924,7 +2919,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onSelectCategory={(cat) => setSelectedCategory(cat)} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
 
       case 'guest-details':
         return <FormScreen step="1 of 4" title="Your details" text="These details are sent securely to the property for registration."><Field label="Full name" name="guest-name" defaultValue="Ana Santos" required /><Field label="Nationality" name="nationality" defaultValue="Filipino" /><Field label="Email" name="guest-email" type="email" defaultValue="ana@example.com" /><Field label="Mobile" name="guest-mobile" type="tel" defaultValue="+63 917 555 0142" />{primary('Continue to ID', 'id-capture')}</FormScreen>;
@@ -3055,20 +3050,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'extend-stay-review': {
         const nights = Math.max(1, countNightsBetween(contextBooking.checkOut, extensionDate));
         const additional = nights * 5000;
-        return <ScreenIntro title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, checkOut: extensionDate } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
+        return <ScreenIntro title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { const extensionCharge: InAppBookingCharge = { id: `stay-extension-${contextBooking.id}-${extensionDate}`, title: 'Stay extension', detail: `${nights} additional ${nights === 1 ? 'night' : 'nights'}`, amount: formatPesoAmount(additional), date: PROTOTYPE_TODAY }; setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? addInAppBookingCharge({ ...booking, checkOut: extensionDate }, extensionCharge) : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
       }
 
       case 'extend-stay-success':
-        return <ScreenIntro icon={<CheckCircle size={30} />} title="Stay extended" text={`Your stay now ends on ${extensionDate} at 12:00 PM. Your updated checkout date is reflected throughout the app.`}><Notice title="Same room confirmed">Room {contextBooking.roomNumber} remains yours through the new checkout date.</Notice>{primary('Back to My Stay', 'my-stay')}</ScreenIntro>;
+        {
+          const extensionCharge = contextBooking.inAppCharges?.find((charge) => charge.id === `stay-extension-${contextBooking.id}-${extensionDate}`);
+          return <ScreenIntro icon={<CheckCircle size={30} />} title="Stay extended" text={`Your stay now ends on ${extensionDate} at 12:00 PM. Your updated checkout date is reflected throughout the app.`}><PointsEarned points={extensionCharge ? Math.floor(parsePesoAmount(extensionCharge.amount) / 100) * 50 : 0} badges={[]} /><Notice title="Same room confirmed">Room {contextBooking.roomNumber} remains yours through the new checkout date.</Notice>{primary('Back to My Stay', 'my-stay')}</ScreenIntro>;
+        }
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<Bed size={30} />} title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? { ...booking, roomUpgrade: { status: 'preparing', newRoomNumber: upgrade.roomNumber, newRoomType: upgrade.name, additionalCost: upgrade.price, transferDeadline: upgrade.transferDeadline, transferTime: upgrade.transfer } } : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(upgrade.price)) })); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { const upgradeCharge: InAppBookingCharge = { id: `room-upgrade-${contextBooking.id}-${upgrade.id}`, title: 'Room upgrade', detail: `${upgrade.name} · Room ${upgrade.roomNumber}`, amount: upgrade.price, date: PROTOTYPE_TODAY }; setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? addInAppBookingCharge({ ...booking, roomUpgrade: { status: 'preparing', newRoomNumber: upgrade.roomNumber, newRoomType: upgrade.name, additionalCost: upgrade.price, transferDeadline: upgrade.transferDeadline, transferTime: upgrade.transfer } }, upgradeCharge) : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(upgrade.price)) })); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
       }
 
       case 'room-upgrade-success': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<CheckCircle size={30} />} title="Upgrade confirmed" text={`Your ${upgrade.name} is being prepared. You can keep using Room ${contextBooking.roomNumber} until the transfer is ready.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.name} · Room number coming soon`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /></div><Notice title="Your current room stays active">Room {contextBooking.roomNumber} remains available while the hotel prepares your upgrade.</Notice>{primary('Back to home', 'stay-overview')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} title="Upgrade confirmed" text={`Your ${upgrade.name} is being prepared. You can keep using Room ${contextBooking.roomNumber} until the transfer is ready.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.name} · Room number coming soon`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /></div><PointsEarned points={Math.floor(parsePesoAmount(upgrade.price) / 100) * 50} badges={[]} /><Notice title="Your current room stays active">Room {contextBooking.roomNumber} remains available while the hotel prepares your upgrade.</Notice>{primary('Back to home', 'stay-overview')}</ScreenIntro>;
       }
 
       case 'room-transfer-details': {
@@ -3288,6 +3286,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ...SERVICES.filter((service) => isPreArrivalService(service.id)),
           { id: 'early-check-in', name: 'Early check-in', price: 'Subject to hotel confirmation' },
         ];
+        const arrivalPaymentCopy = contextBooking.roomNumber
+          ? 'Charge to room or pay now'
+          : 'Paid by card';
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
@@ -3319,7 +3320,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       {/* A complimentary thing is not paid by anything.
                           Saying "Paid by card" under it reads as a charge the
                           guest cannot find. */}
-                      <small>{service.price === 'Complimentary' ? 'Complimentary' : `${service.price} · Paid by card`}</small>
+                      <small>{service.price === 'Complimentary' ? 'Complimentary' : `${service.price} · ${arrivalPaymentCopy}`}</small>
                     </div>
                     <CaretRight />
                   </button>
@@ -3328,7 +3329,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </section>
 
             <Notice title="Hotel confirmation">
-              Some arrival requests depend on hotel availability. We&rsquo;ll show whether a service is complimentary, paid by card, or needs confirmation before you book.
+              Some arrival requests depend on hotel availability. If your room is assigned, eligible services can be charged to your room or paid now. We&rsquo;ll show whether a service is complimentary or needs hotel confirmation before you book.
             </Notice>
           </div>
         );
@@ -3617,7 +3618,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <GiftOrderCartScreen fulfillment={giftFulfillment} onFulfillmentChange={setGiftFulfillment} cart={giftCart} onChangeQuantity={changeGiftQuantity} onConfirm={confirmGiftOrder} onBack={() => go('gifts-souvenirs')} booking={contextBooking} payment={checkoutPayment} paymentMethod={paymentMethod} onPaymentChange={setCheckoutPayment} onPaymentMethodChange={setPaymentMethod} />;
 
       case 'gift-order-confirmation':
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={giftOrder?.paymentStatus === 'paid' ? 'Order confirmed · paid' : 'Order confirmed · charged to room'} title="Your gifts are confirmed" text={giftOrder?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this order.' : 'Your hotel shop order has been added to your room charges.'}><div className="guest-summary"><SummaryRow label="Provider" value="Operated by the hotel" /><SummaryRow label="Items" value={`${giftOrder?.items.length ?? 0}`} /><SummaryRow label={giftOrder?.paymentStatus === 'paid' ? 'Paid' : 'Added to room charges'} value={giftOrder ? formatPesoAmount(giftOrder.total) : '₱0'} strong /><SummaryRow label="Fulfillment" value={giftFulfillment === 'room' ? `Deliver to ${contextRoom}` : 'Pick up at the lobby'} /></div><Notice title={giftOrder?.paymentStatus === 'paid' ? 'Payment successful' : 'Pay at checkout'}>{giftOrder?.paymentStatus === 'paid' ? `Paid with ${giftOrder.paymentMethod === 'gcash' ? 'GCash' : giftOrder.paymentMethod === 'maya' ? 'Maya' : 'Card'}.` : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>{giftOrder?.paymentStatus === 'charged-to-room' ? primary('View room charges', 'folio') : null}<TextButton onClick={() => go('gifts-souvenirs')}>Shop more gifts</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={giftOrder?.paymentStatus === 'paid' ? 'Order confirmed · paid' : 'Order confirmed · charged to room'} title="Your gifts are confirmed" text={giftOrder?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this order.' : 'Your hotel shop order has been added to your room charges.'}><div className="guest-summary"><SummaryRow label="Provider" value="Operated by the hotel" /><SummaryRow label="Items" value={`${giftOrder?.items.length ?? 0}`} /><SummaryRow label={giftOrder?.paymentStatus === 'paid' ? 'Paid' : 'Added to room charges'} value={giftOrder ? formatPesoAmount(giftOrder.total) : '₱0'} strong /><SummaryRow label="Fulfillment" value={giftFulfillment === 'room' ? `Deliver to ${contextRoom}` : 'Pick up at the lobby'} /></div><PointsEarned points={giftOrder ? Math.floor(giftOrder.total / 100) * 50 : 0} badges={[]} /><Notice title={giftOrder?.paymentStatus === 'paid' ? 'Payment successful' : 'Pay at checkout'}>{giftOrder?.paymentStatus === 'paid' ? `Paid with ${giftOrder.paymentMethod === 'gcash' ? 'GCash' : giftOrder.paymentMethod === 'maya' ? 'Maya' : 'Card'}.` : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>{giftOrder?.paymentStatus === 'charged-to-room' ? primary('View room charges', 'folio') : null}<TextButton onClick={() => go('gifts-souvenirs')}>Shop more gifts</TextButton></ScreenIntro>;
 
       case 'nearby-recommendations':
         return <NearbyRecommendationsPage categoryId={selectedCategory} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
@@ -3707,9 +3708,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ) : null}
             </fieldset>
             {diningOrderError ? <Notice tone={!online ? 'offline' : 'warning'} title={diningOrderError}>Your cart is saved. Review it and try again when you’re ready.</Notice> : null}
-            <PaymentChoice provider="Operated by the hotel" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} />
+            <PaymentChoice allowPayNow={false} provider="Operated by the hotel" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} />
             <Notice title="Nothing is charged yet">Your room folio changes only after you review and place this order.</Notice>
-            <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0 || !checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)} onClick={confirmDiningOrder}>{checkoutPayment === 'room' ? `Charge ${cartSummary.formattedTotal} to room` : checkoutPayment === 'pay-now' ? `Pay ${cartSummary.formattedTotal} now` : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button>
+            <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0 || checkoutPayment !== 'room'} onClick={confirmDiningOrder}>{checkoutPayment === 'room' ? `Charge ${cartSummary.formattedTotal} to room` : 'Choose Charge to Room'}<ArrowRight aria-hidden="true" /></Button>
             <TextButton onClick={() => go('restaurant-menu')}>Add more from {venue.name}</TextButton>
           </div>
         );
@@ -3731,6 +3732,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Items" value={`${order?.diningOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0}`} />
               <SummaryRow label={paidNow ? 'Paid' : 'Added to room charges'} value={order?.amount ?? '₱0'} strong />
             </div>
+            <PointsEarned points={order ? Math.floor(parsePesoAmount(order.amount) / 100) * 50 : 0} badges={[]} />
             <Notice title={paidNow ? 'Payment successful' : 'Pay at checkout'}>{paidNow ? 'Your receipt is available in this order.' : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>
             {!paidNow ? primary('View room charges', 'folio') : null}
             <TextButton onClick={() => go('category-listing')}>Order from another establishment</TextButton>
@@ -3770,6 +3772,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'transfer-confirmation':
+        {
+          const transferPaidNow = transferBooking?.paymentStatus === 'paid';
+          const transferAmount = transferBooking?.vehicle === 'Private van'
+            ? 1800
+            : transferBooking?.vehicle === 'Hotel SUV'
+              ? 1500
+              : 1200;
         return (
           <ScreenIntro
             icon={<Car size={30} />}
@@ -3783,15 +3792,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Passengers" value={transferBooking?.passengers || String(contextBooking.guestCount)} />
               <SummaryRow label="Vehicle" value={transferBooking?.vehicle || 'Executive van'} />
               <SummaryRow label="Provider" value="Operated by the hotel" />
-              <SummaryRow label={transferBooking?.paymentMethod === 'room' ? 'Charged to' : 'Payment status'} value={transferBooking?.paymentMethod === 'room' ? contextRoom : 'Paid'} />
+              <SummaryRow label={transferPaidNow ? 'Payment status' : 'Charged to'} value={transferPaidNow ? 'Paid' : contextRoom} />
               <SummaryRow label="Fare" value={transferBooking ? (transferBooking.vehicle === 'Private van' ? '₱1,800' : transferBooking.vehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200') : '₱1,200'} strong />
             </div>
-            <Notice title={`Added to ${contextRoom.toLowerCase()}`}>This hotel transfer is included in Additional charges and settles with your hotel folio at checkout.</Notice>
+            <PointsEarned points={Math.floor(transferAmount / 100) * 50} badges={[]} />
+            <Notice title={transferPaidNow ? 'Payment successful' : `Added to ${contextRoom.toLowerCase()}`}>{transferPaidNow ? 'Your receipt is available in this booking.' : 'This hotel transfer is included in Additional charges and settles with your hotel folio at checkout.'}</Notice>
             <Notice icon={<Car />} title="Driver details coming soon">The hotel will add your driver’s name, contact details, and vehicle plate here once they assign the transfer.</Notice>
             <Notice title="Operated by the hotel">Your transfer is coordinated directly by {contextBooking.property}.</Notice>
             {primary('View my stay', 'rate-detail')}
           </ScreenIntro>
         );
+        }
 
       case 'hotel-service':
         return <ServiceDetail kind="hotel" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
@@ -3800,7 +3811,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => openServiceBooking()} onChat={() => go('chat')} />;
 
       case 'service-booking':
-        return <FormScreen step="Review and pay" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Category" value="Spa & wellness" /><SummaryRow label="Service" value="Hilom signature massage" /><SummaryRow label="Provider" value="Operated by Sans Rival" /><SummaryRow label="Total" value={serviceCharge} strong /></div><PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(SERVICE_PRICE)} applied={appliedPoints} onChange={setAppliedPoints} /><PaymentChoice provider="Operated by Sans Rival" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} /><Button className="guest-button guest-button--primary" type="button" disabled={!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)} onClick={confirmService}>{checkoutPayment === 'room' ? `Charge ${serviceCharge} to room` : checkoutPayment === 'pay-now' ? `Pay ${serviceCharge} now` : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button></FormScreen>;
+        return <FormScreen step="Review and pay" title="Choose a time" text={`Live availability is shown for Hilom signature massage at ${contextBooking.property}.`}><div className="guest-date-strip"><button aria-pressed="false"><small>MON</small><b>10</b></button><button className="is-active" aria-pressed="true"><small>TUE</small><b>11</b></button><button aria-pressed="false"><small>WED</small><b>12</b></button></div><fieldset className="guest-fieldset"><legend>Available times</legend><div className="guest-chip-grid"><button type="button">10:00 AM</button><button className="is-active" type="button">1:30 PM</button><button type="button">4:00 PM</button></div></fieldset><SelectField label="Guests" name="party-size" defaultValue="1"><option value="1">1 guest</option><option value="2">2 guests</option></SelectField><div className="guest-summary"><SummaryRow label="Category" value="Spa & wellness" /><SummaryRow label="Service" value="Hilom signature massage" /><SummaryRow label="Provider" value="Operated by Sans Rival" /><SummaryRow label="Total" value={serviceCharge} strong /></div><PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(SERVICE_PRICE)} applied={appliedPoints} onChange={setAppliedPoints} /><PaymentChoice allowPayNow={false} provider="Operated by Sans Rival" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} /><Button className="guest-button guest-button--primary" type="button" disabled={!checkoutPayment} onClick={confirmService}>{checkoutPayment === 'room' ? `Charge ${serviceCharge} to room` : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button></FormScreen>;
 
       case 'booking-confirmation':
         return <ScreenIntro icon={<Check size={30} />} title="Your massage is booked" text={contextService?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this booking.' : `The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}><div className="guest-ticket"><div><small>{contextService?.scheduledFor ?? 'Tuesday · November 11 · 1:30 PM'}</small><h2>1:30 PM</h2><p>{contextService?.title ?? 'Hilom signature massage'} · 1 guest</p></div><Tag>Confirmed</Tag></div><div className="guest-summary"><SummaryRow label="Provider" value={contextService?.provider ?? 'Operated by Sans Rival'} /><SummaryRow label={contextService?.paymentStatus === 'paid' ? 'Payment status' : 'Payment method'} value={contextService?.paymentStatus === 'paid' ? 'Paid' : 'Charged to room'} /></div><PointsEarned points={contextService ? Math.floor(parsePesoAmount(contextService.amount) / 100) * 50 : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} /><Notice title="Cancellation cutoff">Cancel yourself until 1:30 PM on November 10. After that, contact the front desk. The booking remains.</Notice>{primary('View my stay', 'my-stay')}<TextButton onClick={() => go('marketplace')}>Book another service</TextButton></ScreenIntro>;
@@ -3885,6 +3896,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
         const checkoutIsDue = contextBooking.checkOut <= PROTOTYPE_TODAY;
+        const currentFolioTotal = getRoomChargesTotal(session, contextBooking, contextRoom);
         /*
           The same object `stay-detail` renders, built from the live booking
           rather than from `PAST_STAYS` -- a stay that ended this morning has
@@ -3979,6 +3991,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </Button>
                 <TextButton onClick={() => go('book-stay')}>Book another stay</TextButton>
               </section>
+            ) : null}
+
+            {started && !checkedOut && parsePesoAmount(currentFolioTotal) > 0 ? (
+              <button
+                type="button"
+                className="guest-my-stay-charges__toggle guest-my-stay-charges__row"
+                data-testid="guest-room-charges-summary"
+                onClick={() => go('folio')}
+              >
+                <span><b>Room charges</b><small>Due at checkout</small></span>
+                <span className="guest-my-stay-charges__view"><strong>{currentFolioTotal}</strong><small>View receipt <CaretRight aria-hidden="true" /></small></span>
+              </button>
             ) : null}
 
             {/*
@@ -4199,7 +4223,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'folio': {
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom);
-        const folioTotal = session.folioTotal || contextBooking.folioTotal || '₱0';
+        const folioTotal = getRoomChargesTotal(session, contextBooking, contextRoom);
         const visibleCharges = folioCharges;
         return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} off this bill</small></span><CaretRight aria-hidden="true" /></button> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
       }
@@ -4967,12 +4991,41 @@ type StayOverviewHomeProps = {
   booking?: Booking;
   online?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
-  onSelectCategory: (cat: MiniAppCategoryId) => void;
   onOpenStory: (categoryId: HomeStoryCategoryId) => void;
   onOpenStay: (id: string) => void;
 };
 
-function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOpenStory, onOpenStay }: StayOverviewHomeProps) {
+function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: HomeStoryCategoryId) => void; onSeeAll?: () => void }) {
+  return (
+    <section className="guest-home-discovery">
+      <SectionHeading title="Make the most of your stay" action={onSeeAll ? 'See all' : undefined} onAction={onSeeAll} />
+      <div className="discover__rail guest-home-stories" role="group" aria-label="Stay stories">
+        {HOME_STORY_CATEGORIES.map((item) => {
+          const story = HOME_CATEGORY_STORIES[item.id];
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="discover__story guest-home-story"
+              aria-label={item.label}
+              title={`Open ${item.label} story`}
+              onClick={() => onOpenStory(item.id)}
+            >
+              <span className="discover__story-ring">
+                <span className="discover__story-art">
+                  <Image src={story.cover.src} alt="" fill sizes="68px" style={{ objectPosition: story.cover.focalPoint }} />
+                </span>
+              </span>
+              <b>{item.label}</b>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -5045,31 +5098,33 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
           )}
         </section>
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" onClick={() => onNavigate('my-stay')}><span className="guest-next-service-card__details"><b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b><small>{confirmedServices[0].scheduledFor}</small><small>{confirmedServices[0].amount} · Charged to {roomLabel}</small></span><span className="guest-next-service-card__action">View details <CaretRight aria-hidden="true" /></span></button></section> : null}
-        <section className="guest-home-discovery">
-          <SectionHeading title="Make the most of your stay" />
-          <div className="discover__rail guest-home-stories" role="group" aria-label="Stay stories">
-            {HOME_STORY_CATEGORIES.map((item) => {
-              const story = HOME_CATEGORY_STORIES[item.id];
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="discover__story guest-home-story"
-                  aria-label={item.label}
-                  title={`Open ${item.label} story`}
-                  onClick={() => onOpenStory(item.id)}
-                >
-                  <span className="discover__story-ring">
-                    <span className="discover__story-art">
-                      <Image src={story.cover.src} alt="" fill sizes="68px" style={{ objectPosition: story.cover.focalPoint }} />
+        {canUseOnPropertyServices(booking) ? (
+          <section className="guest-home-discovery">
+            <SectionHeading title="Make the most of your stay" />
+            <div className="discover__rail guest-home-stories" role="group" aria-label="Stay stories">
+              {HOME_STORY_CATEGORIES.map((item) => {
+                const story = HOME_CATEGORY_STORIES[item.id];
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="discover__story guest-home-story"
+                    aria-label={item.label}
+                    title={`Open ${item.label} story`}
+                    onClick={() => onOpenStory(item.id)}
+                  >
+                    <span className="discover__story-ring">
+                      <span className="discover__story-art">
+                        <Image src={story.cover.src} alt="" fill sizes="68px" style={{ objectPosition: story.cover.focalPoint }} />
+                      </span>
                     </span>
-                  </span>
-                  <b>{item.label}</b>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+                    <b>{item.label}</b>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
         <AnnouncementsSection booking={booking} compact />
       </div>
     );
@@ -5177,37 +5232,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
         are not a thing to browse before the room itself confirms they are
         on property.
       */}
-      {booking.roomVerification ? (
-        <section className="guest-home-nearby">
-          <SectionHeading title="Explore Nearby" action="See all" onAction={() => onNavigate('marketplace')} />
-          <div className="guest-category-catalog" role="group" aria-label="Experience categories">
-            {MINI_APP_CATEGORIES.map((cat) => {
-              const cover = getCategoryCoverImage(cat.id);
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  className="guest-category-catalog__card"
-                  onClick={() => {
-                    onSelectCategory(cat.id);
-                    onNavigate(cat.screen);
-                  }}
-                >
-                  <Image
-                    src={cover.src}
-                    alt=""
-                    fill
-                    sizes="(max-width: 720px) calc(100vw - 32px), 688px"
-                    style={{ objectPosition: cover.focalPoint }}
-                  />
-                  <span className="guest-category-catalog__scrim" aria-hidden="true" />
-                  <span className="guest-category-catalog__label">{cat.shortTitle}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+      {booking.roomVerification ? <HomeStoryRail onOpenStory={onOpenStory} onSeeAll={() => onNavigate('marketplace')} /> : null}
       {!booking.roomVerification && booking.status === 'upcoming' ? (
         <>
           <button className="guest-transfer-card" type="button" onClick={() => onNavigate('transfer-booking')}>
@@ -5942,8 +5967,8 @@ function getMenuItemImage(itemId: string, categoryId = 'dining') {
   return MENU_ITEM_IMAGE_URLS[itemId] ?? getItemThumbnail(itemId, categoryId).src;
 }
 
-function PaymentChoice({ provider, roomNumber, value, method, onChange, onMethodChange }: { provider: string; roomNumber?: string; value: 'room' | 'pay-now' | null; method: 'card' | 'gcash' | 'maya' | null; onChange: (value: 'room' | 'pay-now') => void; onMethodChange: (value: 'card' | 'gcash' | 'maya') => void }) {
-  return <fieldset className="guest-payment-choice"><legend>How would you like to pay?</legend><p className="guest-provider-label">{provider}</p><div className="guest-payment-options">{roomNumber ? <button type="button" aria-pressed={value === 'room'} className={value === 'room' ? 'is-active' : ''} onClick={() => onChange('room')}><b>Charge to Room {roomNumber}</b><small>Add this purchase to your hotel bill and settle it at checkout.</small></button> : null}<button type="button" aria-pressed={value === 'pay-now'} className={value === 'pay-now' ? 'is-active' : ''} onClick={() => onChange('pay-now')}><b>Pay now</b><small>Pay securely using your preferred payment method.</small></button></div>{value === 'pay-now' ? <div className="guest-payment-method-sheet" role="dialog" aria-label="Payment methods"><b>Choose a payment method</b><button type="button" className={method === 'card' ? 'is-active' : ''} onClick={() => onMethodChange('card')}><CreditCard />Card</button><button type="button" className={method === 'gcash' ? 'is-active' : ''} onClick={() => onMethodChange('gcash')}>GCash</button><button type="button" className={method === 'maya' ? 'is-active' : ''} onClick={() => onMethodChange('maya')}>Maya</button></div> : null}</fieldset>;
+function PaymentChoice({ provider, roomNumber, value, method, allowPayNow = true, onChange, onMethodChange }: { provider: string; roomNumber?: string; value: 'room' | 'pay-now' | null; method: 'card' | 'gcash' | 'maya' | null; allowPayNow?: boolean; onChange: (value: 'room' | 'pay-now') => void; onMethodChange: (value: 'card' | 'gcash' | 'maya') => void }) {
+  return <fieldset className="guest-payment-choice"><legend>How would you like to pay?</legend><p className="guest-provider-label">{provider}</p><div className="guest-payment-options">{roomNumber ? <button type="button" aria-pressed={value === 'room'} className={value === 'room' ? 'is-active' : ''} onClick={() => onChange('room')}><b>Charge to Room {roomNumber}</b><small>Add this purchase to your hotel bill and settle it at checkout.</small></button> : null}{allowPayNow ? <button type="button" aria-pressed={value === 'pay-now'} className={value === 'pay-now' ? 'is-active' : ''} onClick={() => onChange('pay-now')}><b>Pay now</b><small>Pay securely using your preferred payment method.</small></button> : null}</div>{allowPayNow && value === 'pay-now' ? <div className="guest-payment-method-sheet" role="dialog" aria-label="Payment methods"><b>Choose a payment method</b><button type="button" className={method === 'card' ? 'is-active' : ''} onClick={() => onMethodChange('card')}><CreditCard />Card</button><button type="button" className={method === 'gcash' ? 'is-active' : ''} onClick={() => onMethodChange('gcash')}>GCash</button><button type="button" className={method === 'maya' ? 'is-active' : ''} onClick={() => onMethodChange('maya')}>Maya</button></div> : null}</fieldset>;
 }
 
 type OrderTrayItem = { id: string; name: string; unitPrice: string; quantity: number; image: string };
@@ -6096,7 +6121,7 @@ function GiftOrderCartScreen({ fulfillment, onFulfillmentChange, cart, onChangeQ
   const checkedOut = booking.status === 'completed';
   const items = GIFT_PRODUCTS.filter((product) => (cart[product.name] ?? 0) > 0);
   const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0);
-  return <div className="guest-stack guest-order-cart"><div className="guest-page-title"><p className="guest-eyebrow">Gifts &amp; Souvenirs</p><h1>Your gift order</h1><p>Review your items, choose fulfillment, and select how you&rsquo;d like to pay.</p></div><p className="guest-provider-label">Operated by the hotel</p><div className="guest-order-cart__summary"><span>{items.reduce((sum, product) => sum + (cart[product.name] ?? 0), 0)} items</span><strong>{formatPesoAmount(total)}</strong></div><div className="guest-order-items">{items.map((product) => <div className="guest-order-item" key={product.name}><div><b>{product.name}</b><small>{product.price} each</small></div><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output>{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div></div>)}</div><fieldset className="guest-fulfillment-options"><legend>How would you like your order?</legend><div>{!checkedOut ? <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} aria-pressed={fulfillment === 'room'} disabled={!booking.roomNumber} onClick={() => onFulfillmentChange('room')}><b>Deliver to room</b><small>{booking.roomNumber ? `Room ${booking.roomNumber}` : 'Room assignment required'}</small></button> : null}<button type="button" className={fulfillment === 'lobby' || checkedOut ? 'is-active' : ''} aria-pressed={fulfillment === 'lobby' || checkedOut} onClick={() => onFulfillmentChange('lobby')}><b>Pick up at the lobby</b><small>Hotel lobby</small></button></div></fieldset><PaymentChoice provider="Operated by the hotel" roomNumber={booking.roomNumber} value={payment} method={paymentMethod} onChange={onPaymentChange} onMethodChange={onPaymentMethodChange} /><Notice title="Nothing is charged yet">Your selected payment method is processed only after you place the order.</Notice><Button className="guest-button guest-button--primary" type="button" disabled={!items.length || (!checkedOut && fulfillment === 'room' && !booking.roomNumber) || !payment || (payment === 'pay-now' && !paymentMethod)} onClick={onConfirm}>{payment === 'room' ? `Charge ${formatPesoAmount(total)} to room` : payment === 'pay-now' ? `Pay ${formatPesoAmount(total)} now` : 'Choose how to pay'}<ArrowRight /></Button><TextButton onClick={onBack}>Continue shopping</TextButton></div>;
+  return <div className="guest-stack guest-order-cart"><div className="guest-page-title"><p className="guest-eyebrow">Gifts &amp; Souvenirs</p><h1>Your gift order</h1><p>Review your items, choose fulfillment, and select how you&rsquo;d like to pay.</p></div><p className="guest-provider-label">Operated by the hotel</p><div className="guest-order-cart__summary"><span>{items.reduce((sum, product) => sum + (cart[product.name] ?? 0), 0)} items</span><strong>{formatPesoAmount(total)}</strong></div><div className="guest-order-items">{items.map((product) => <div className="guest-order-item" key={product.name}><div><b>{product.name}</b><small>{product.price} each</small></div><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output>{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div></div>)}</div><fieldset className="guest-fulfillment-options"><legend>How would you like your order?</legend><div>{!checkedOut ? <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} aria-pressed={fulfillment === 'room'} disabled={!booking.roomNumber} onClick={() => onFulfillmentChange('room')}><b>Deliver to room</b><small>{booking.roomNumber ? `Room ${booking.roomNumber}` : 'Room assignment required'}</small></button> : null}<button type="button" className={fulfillment === 'lobby' || checkedOut ? 'is-active' : ''} aria-pressed={fulfillment === 'lobby' || checkedOut} onClick={() => onFulfillmentChange('lobby')}><b>Pick up at the lobby</b><small>Hotel lobby</small></button></div></fieldset><PaymentChoice allowPayNow={false} provider="Operated by the hotel" roomNumber={booking.roomNumber} value={payment} method={paymentMethod} onChange={onPaymentChange} onMethodChange={onPaymentMethodChange} /><Notice title="Nothing is charged yet">Your room folio changes only after you place the order.</Notice><Button className="guest-button guest-button--primary" type="button" disabled={!items.length || (!checkedOut && fulfillment === 'room' && !booking.roomNumber) || !payment} onClick={onConfirm}>{payment === 'room' ? `Charge ${formatPesoAmount(total)} to room` : 'Choose how to pay'}<ArrowRight /></Button><TextButton onClick={onBack}>Continue shopping</TextButton></div>;
 }
 
 function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {

@@ -156,6 +156,15 @@ export const SCREENS: PrototypeScreen[] = [
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
 
+export type InAppBookingCharge = {
+  id: string;
+  title: string;
+  detail: string;
+  amount: string;
+  /** ISO date on which the guest confirmed the charge. */
+  date: string;
+};
+
 export type Booking = {
   id: string;
   /**
@@ -222,6 +231,12 @@ export type Booking = {
    * showed a room of zero.
    */
   roomRate?: string;
+  /**
+   * App-booked room charges that are not service bookings, such as a room
+   * upgrade or an extension. Keeping these separate from `folioTotal` makes
+   * their reward eligibility auditable and survives a room transfer.
+   */
+  inAppCharges?: InAppBookingCharge[];
   roomUpgrade?: {
     status: 'preparing' | 'ready';
     newRoomNumber: string;
@@ -455,11 +470,11 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Direct booking',
     roomRate: '₱18,600',
     charges: [
-      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness', hour: 14, serviceId: 'spa' },
-      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining', hour: 19, serviceId: 'rooftop' },
-      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours', hour: 8, serviceId: 'tour' },
-      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining', serviceId: 'cafe' },
-      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services', hour: 11, serviceId: 'transfer' },
+      { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness', hour: 14, serviceId: 'spa', pointsSource: 'in-app-booking' },
+      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining', hour: 19, serviceId: 'rooftop', pointsSource: 'in-app-booking' },
+      { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours', hour: 8, serviceId: 'tour', pointsSource: 'in-app-booking' },
+      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining', serviceId: 'cafe', pointsSource: 'in-app-booking' },
+      { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services', hour: 11, serviceId: 'transfer', pointsSource: 'in-app-booking' },
     ],
     total: '₱37,390',
   },
@@ -476,9 +491,9 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Agoda',
     roomRate: '₱9,800',
     charges: [
-      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining', hour: 20, serviceId: 'restaurant' },
-      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services', serviceId: 'laundry' },
-      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours', hour: 9, serviceId: 'heritage-walk' },
+      { id: 'd1', parent: 'Apartment 1B', title: 'Dinner', detail: 'Oct 2 · 8:00 PM · Ground floor courtyard', amount: '₱1,850', category: 'Dining', hour: 20, serviceId: 'restaurant', pointsSource: 'in-app-booking' },
+      { id: 'd2', parent: 'The Henry Manila', title: 'Laundry service', detail: 'Oct 3 · Same-day', amount: '₱1,000', category: 'Hotel services', serviceId: 'laundry', pointsSource: 'in-app-booking' },
+      { id: 'd3', parent: 'The Henry Manila', title: 'Old Manila cultural walk', detail: 'Oct 3 · 9:00 AM', amount: '₱1,500', category: 'Tours', hour: 9, serviceId: 'heritage-walk', pointsSource: 'in-app-booking' },
     ],
     total: '₱14,150',
   },
@@ -495,8 +510,8 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Booking.com',
     roomRate: '₱11,200',
     charges: [
-      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining', serviceId: 'poolside-bar' },
-      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness', hour: 16, serviceId: 'reflexology' },
+      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining', serviceId: 'poolside-bar', pointsSource: 'in-app-booking' },
+      { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness', hour: 16, serviceId: 'reflexology', pointsSource: 'in-app-booking' },
     ],
     total: '₱13,820',
   },
@@ -1264,6 +1279,8 @@ export type PastStayCharge = {
   hour?: number;
   /** What it was, as `SERVICES[].id`. Absent on anything off-catalogue. */
   serviceId?: string;
+  /** Property-posted charges earn nothing; app-booked charges earn points. */
+  pointsSource?: 'in-app-booking' | 'property-posted';
 };
 
 export type PastStay = {
@@ -1612,6 +1629,30 @@ export function addStayBooking(session: GuestSession, booking: Booking): GuestSe
   };
 }
 
+export function addInAppBookingCharge(
+  booking: Booking,
+  charge: InAppBookingCharge,
+): Booking {
+  return {
+    ...booking,
+    inAppCharges: [
+      ...(booking.inAppCharges ?? []).filter((existing) => existing.id !== charge.id),
+      charge,
+    ],
+  };
+}
+
+/**
+ * A service belongs on the room folio only when it is still a room charge.
+ * Older fixture rows omit `paymentStatus`, so an absent value keeps the
+ * legacy room-folio behavior while card-paid, pending and complimentary rows
+ * stay out of the receipt.
+ */
+function isChargedToRoom(service: ServiceBooking): boolean {
+  return service.status !== 'cancelled'
+    && (service.paymentStatus === undefined || service.paymentStatus === 'charged-to-room');
+}
+
 /**
  * A finished `Booking` rendered as the `PastStay` it has become, so the receipt
  * on My Stay and the one on `stay-detail` are the same object and read alike.
@@ -1632,11 +1673,24 @@ export function toFinishedStay(session: GuestSession, booking: Booking): PastSta
       detail: posted.detail,
       amount: posted.amount,
       category: posted.category ?? 'Hotel services',
+      pointsSource: 'property-posted',
+    });
+  }
+
+  for (const charge of booking.inAppCharges ?? []) {
+    charges.push({
+      id: charge.id,
+      parent: booking.property,
+      title: charge.title,
+      detail: charge.detail,
+      amount: charge.amount,
+      category: 'Hotel services',
+      pointsSource: 'in-app-booking',
     });
   }
 
   for (const service of session.serviceBookings) {
-    if (service.bookingId !== booking.id || service.status === 'cancelled') continue;
+    if (service.bookingId !== booking.id || !isChargedToRoom(service)) continue;
 
     charges.push({
       id: service.id,
@@ -1647,6 +1701,7 @@ export function toFinishedStay(session: GuestSession, booking: Booking): PastSta
       serviceId: service.serviceId,
       hour: service.scheduledHour,
       amount: service.amount,
+      pointsSource: 'in-app-booking',
     });
   }
 
@@ -2396,6 +2451,8 @@ export type RoomCharge = {
   amount: string;
   /** Where it belongs once the stay is settled and grouped into a receipt. */
   category?: PastStayCharge['category'];
+  /** Whether this line can earn points after settlement. */
+  pointsSource?: PastStayCharge['pointsSource'];
 };
 
 /**
@@ -2404,9 +2461,9 @@ export type RoomCharge = {
  * the app reports them rather than creating them.
  */
 const POSTED_ROOM_CHARGES: RoomCharge[] = [
-  { id: 'posted-transfer', date: 'Nov 9', title: 'Airport transfer', detail: 'Nov 9 · 2:30 PM', amount: '₱1,200', category: 'Hotel services' },
-  { id: 'posted-dining', date: 'Nov 10', title: 'In-room dining', detail: 'Nov 10 · 7:00 PM', amount: '₱850', category: 'Dining' },
-  { id: 'posted-laundry', date: 'Nov 10', title: 'Laundry service', detail: 'Nov 10 · 10:30 AM', amount: '₱1,000', category: 'Hotel services' },
+  { id: 'posted-transfer', date: 'Nov 9', title: 'Airport transfer', detail: 'Nov 9 · 2:30 PM', amount: '₱1,200', category: 'Hotel services', pointsSource: 'property-posted' },
+  { id: 'posted-dining', date: 'Nov 10', title: 'In-room dining', detail: 'Nov 10 · 7:00 PM', amount: '₱850', category: 'Dining', pointsSource: 'property-posted' },
+  { id: 'posted-laundry', date: 'Nov 10', title: 'Laundry service', detail: 'Nov 10 · 10:30 AM', amount: '₱1,000', category: 'Hotel services', pointsSource: 'property-posted' },
 ];
 
 /**
@@ -2420,9 +2477,10 @@ export function getRoomCharges(
 ): RoomCharge[] {
   void roomLabel;
   // A stay that has not started cannot have run anything up yet.
-  const posted = booking.status === 'upcoming' ? [] : POSTED_ROOM_CHARGES;
-  const booked = session.serviceBookings
-    .filter((service) => service.bookingId === booking.id && service.status === 'confirmed')
+  const hasKnownFolio = parsePesoAmount(session.folioTotal || booking.folioTotal || '₱0') > 0;
+  const posted = booking.status === 'upcoming' || !hasKnownFolio ? [] : POSTED_ROOM_CHARGES;
+  const booked: RoomCharge[] = session.serviceBookings
+    .filter((service) => service.bookingId === booking.id && isChargedToRoom(service))
     .map((service) => {
       const date = new Date(`${service.scheduledDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const time = service.scheduledFor.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
@@ -2434,13 +2492,32 @@ export function getRoomCharges(
           ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${date} · ${time}`
           : `${date} · ${time}`,
         amount: service.amount,
+        pointsSource: 'in-app-booking' as const,
       };
     });
-  return [...posted, ...booked];
+  const bookingCharges: RoomCharge[] = (booking.inAppCharges ?? []).map((charge) => ({
+    id: charge.id,
+    date: new Date(`${charge.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    title: charge.title,
+    detail: charge.detail,
+    amount: charge.amount,
+    category: 'Hotel services' as const,
+    pointsSource: 'in-app-booking' as const,
+  }));
+  return [...posted, ...bookingCharges, ...booked];
 }
 
 export const sumRoomCharges = (charges: RoomCharge[]) =>
   formatPesoAmount(charges.reduce((sum, charge) => sum + parsePesoAmount(charge.amount), 0));
+
+/** The amount shown beside a receipt must be the sum of the lines in it. */
+export function getRoomChargesTotal(
+  session: GuestSession,
+  booking: Booking,
+  roomLabel: string,
+): string {
+  return sumRoomCharges(getRoomCharges(session, booking, roomLabel));
+}
 
 export function getVenueCartSummary(menu: MenuItem[], quantities: Record<string, number>) {
   const items = menu.flatMap((item) => {

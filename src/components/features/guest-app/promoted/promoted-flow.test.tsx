@@ -5,7 +5,7 @@ import { DiscoverFeed } from './discover-feed';
 import { RoomScanner } from './room-scanner';
 import { RoomUnlocked } from './room-unlocked';
 import { SwipeDeck } from './swipe-deck';
-import type { CategoryCard, DiscoverBanner, FeaturedCard, SearchableItem, Story } from './story-model';
+import type { CategoryCard, FeaturedCard, SearchableItem, Story } from './story-model';
 
 const image = {
   src: '/experiments/photo-1566073771259-6a8506099945.jpg',
@@ -24,14 +24,6 @@ const story: Story = {
   author: { name: 'Hilom Spa', kind: 'venue', image },
   postedHoursAgo: 2,
   livesForHours: 24,
-};
-
-const banner: DiscoverBanner = {
-  id: 'banner-spa',
-  eyebrow: 'Today',
-  headline: 'A quiet hour',
-  meta: 'Hilom Spa · ₱2,400',
-  image,
 };
 
 const category: CategoryCard = {
@@ -138,7 +130,6 @@ describe('promoted discovery feed', () => {
   it('keeps every discovery action on an explicit host callback', async () => {
     const user = userEvent.setup();
     const onOpenStory = vi.fn();
-    const onOpenBanner = vi.fn();
     const onOpenItem = vi.fn();
     const onOpenCategory = vi.fn();
     const onBrowseAll = vi.fn();
@@ -147,11 +138,9 @@ describe('promoted discovery feed', () => {
       <DiscoverFeed
         property="The Henry Manila"
         stories={[story]}
-        banners={[banner]}
         categories={[category]}
         searchIndex={[item]}
         onOpenStory={onOpenStory}
-        onOpenBanner={onOpenBanner}
         onOpenItem={onOpenItem}
         onOpenCategory={onOpenCategory}
         onBrowseAll={onBrowseAll}
@@ -161,13 +150,11 @@ describe('promoted discovery feed', () => {
 
     expect(screen.getByRole('heading', { name: 'What’s on at The Henry Manila' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Hilom Spa, posted 2h ago/ }));
-    await user.click(screen.getByRole('button', { name: /A quiet hour/ }));
     await user.click(screen.getByRole('button', { name: /Spa & Wellness/ }));
     await user.click(screen.getByRole('button', { name: /Press Enter to open/ }));
-    await user.click(screen.getByRole('button', { name: /See the full list/ }));
+    await user.click(screen.getByRole('button', { name: 'View all' }));
 
     expect(onOpenStory).toHaveBeenCalledWith('story-spa');
-    expect(onOpenBanner).toHaveBeenCalledWith('banner-spa');
     expect(onOpenCategory).toHaveBeenCalledWith('spa');
     expect(onOpenItem).toHaveBeenCalledWith('spa');
     expect(onBrowseAll).toHaveBeenCalledOnce();

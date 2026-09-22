@@ -71,9 +71,10 @@ import {
 describe('guest app prototype model', () => {
   it('contains the complete stay-only screen inventory', () => {
     // Exact, not a floor: adding a screen should be something someone notices.
-    // 57 before rewards, plus `rewards`, `reward-detail`, and `badge-detail`.
-    expect(SCREENS).toHaveLength(62);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(62);
+    // 57 before rewards and nearby recommendations, plus `rewards`,
+    // `reward-detail`, and `badge-detail`.
+    expect(SCREENS).toHaveLength(63);
+    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(63);
     // The Arrival surface: what a guest can book before they are in the room.
     expect(SCREENS.find((s) => s.id === 'pre-arrival-services')?.group).toBe('Pre-arrival');
     // Get started is the welcome-screen trigger and SSO bottom sheet, not a
@@ -91,6 +92,7 @@ describe('guest app prototype model', () => {
     expect(SCREENS.some((s) => (s.id as string) === 'my-bookings')).toBe(false);
     expect(SCREENS.find((s) => s.id === 'notifications')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'marketplace')?.title).toBe('Explore');
+    expect(SCREENS.find((s) => s.id === 'nearby-recommendations')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'restaurant-menu')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'restaurant-cart')?.group).toBe('Stay');
     expect(SCREENS.find((s) => s.id === 'dining-order-confirmation')?.group).toBe('Stay');

@@ -2555,7 +2555,7 @@ describe('post-stay front desk window', () => {
     render(<GuestAppPrototype initialScreen="chat" initialSession={closed} />);
 
     expect(screen.getByRole('button', { name: 'Towels' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Attach an image' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Open attachment menu' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Start voice recording' })).toBeDisabled();
   });
 
@@ -2923,24 +2923,13 @@ describe('scan discoverability', () => {
     const transfer = screen.getByRole('button', { name: /Need a ride to the hotel/ });
     await user.click(transfer);
 
-    expect(screen.getByRole('heading', { name: 'Book a hotel transfer' })).toBeInTheDocument();
-    /*
-      Matched loosely because `Field` appends " *" to anything required, so the
-      five mandatory fields here label as "Pick-up location *" and an exact
-      string never finds them.
-    */
-    expect(screen.getByLabelText(/^Pick-up location/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Arrival date/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Arrival time/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Flight number/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Passengers/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Luggage count/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Vehicle type/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Special requests/)).toBeInTheDocument();
-    expect(screen.getByText('Fare')).toBeInTheDocument();
-    // Who runs it, beside the price: the screen says it twice, on the fare and
-    // again on the payment choice, so this only asserts that it is said.
-    expect(screen.getAllByText(/operated by the hotel/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Book a ride' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Trip summary' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'When would you like to leave?' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Now' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Schedule for later' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Passengers' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Request a ride/ })).toBeInTheDocument();
   });
 
   it('opens a property update when selected', async () => {

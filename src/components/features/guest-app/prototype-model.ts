@@ -32,6 +32,7 @@ export type ScreenId =
   | 'prereg-queued'
   | 'marketplace'
   | 'category-listing'
+  | 'nearby-recommendations'
   | 'nearby-establishment'
   | 'gifts-souvenirs'
   | 'gift-order-cart'
@@ -110,6 +111,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(22, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
   screen(23, 'Stay', 'marketplace', 'Explore'),
   screen(24, 'Stay', 'category-listing', 'Explore services'),
+  screen(62, 'Stay', 'nearby-recommendations', 'Nearby recommendations'),
   screen(59, 'Stay', 'nearby-establishment', 'Nearby recommendation'),
   screen(60, 'Account', 'rewards', 'Achievements'),
   screen(61, 'Account', 'reward-detail', 'Redeem a reward'),
@@ -1881,6 +1883,10 @@ export type StayEntry = {
   id: string;
   kind: StayEntryKind;
   title: string;
+  /** Amenity or vendor shown as the leading line on booking cards. */
+  vendor?: string;
+  /** Service, package, or experience shown beneath the vendor. */
+  serviceLabel?: string;
   /** When it happens, and what it costs. */
   detail: string;
   amount: string;
@@ -1990,6 +1996,14 @@ export function getStayEntries(
       lines,
       canCancel: service.status === 'confirmed' && !service.diningOrder && service.scheduledDate >= PROTOTYPE_TODAY,
       title: service.title,
+      vendor: service.diningOrder?.venueName ?? (service.serviceId === 'food-crawl' ? 'Binondo Food Crawl' : booking.property),
+      serviceLabel: service.serviceId === 'rooftop'
+        ? 'Ninth Floor Terrace'
+        : service.serviceId === 'food-crawl'
+          ? 'Guided food tour'
+          : service.title === 'Hilom signature massage'
+            ? 'Hilom Signature Massage'
+            : service.title,
       detail: service.diningOrder
         ? `${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${service.scheduledFor}`
         : service.scheduledFor,

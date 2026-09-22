@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Microphone, Paperclip, Stop, TrashSimple } from '@phosphor-icons/react';
+import { ArrowUp, Camera, CaretRight, Images, MapPin, Microphone, Plus, Stop, TrashSimple, Waveform } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 
@@ -29,6 +29,8 @@ type ChatComposerProps = {
   draft: string;
   onDraftChange: (value: string) => void;
   onSubmit: (payload: ChatComposerSubmit) => void;
+  placeholder?: string;
+  autoFocus?: boolean;
 };
 
 const formatDuration = (seconds: number) => {
@@ -37,11 +39,12 @@ const formatDuration = (seconds: number) => {
   return `${minutes}:${remainder}`;
 };
 
-export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit }: ChatComposerProps) {
+export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit, placeholder, autoFocus = false }: ChatComposerProps) {
   const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -50,6 +53,7 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit 
   const recordingSecondsRef = useRef(0);
   const pendingAttachmentRef = useRef<ChatAttachment | null>(null);
   const mountedRef = useRef(true);
+  const composerRef = useRef<HTMLFormElement | null>(null);
 
   const releaseStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -251,9 +255,32 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit 
   };
 
   const canSend = Boolean(draft.trim() || pendingAttachment);
+  const hasInput = Boolean(draft || pendingAttachment);
+  const openFilePicker = () => {
+    setAttachmentMenuOpen(false);
+    fileInputRef.current?.click();
+  };
+
+  useEffect(() => {
+    if (!attachmentMenuOpen) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAttachmentMenuOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [attachmentMenuOpen]);
+
+  useEffect(() => {
+    if (!attachmentMenuOpen) return undefined;
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (event.target instanceof Node && !composerRef.current?.contains(event.target)) setAttachmentMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePress);
+  }, [attachmentMenuOpen]);
 
   return (
-    <form className="guest-composer" onSubmit={handleSubmit}>
+    <form ref={composerRef} className="guest-composer" onSubmit={handleSubmit}>
       {pendingAttachment ? (
         <div className="guest-composer__pending" role="region" aria-label="Pending attachment">
           {pendingAttachment.kind === 'image' ? (
@@ -301,15 +328,24 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit 
 
       {mediaError ? <div className="guest-composer__status" role="status" aria-live="polite">{mediaError}</div> : null}
 
+      {attachmentMenuOpen ? (
+        <div className="guest-composer__menu" role="menu" aria-label="Message attachments">
+          <button type="button" role="menuitem" onClick={openFilePicker} disabled={disabled || isRecording}><Camera aria-hidden="true" /><span>Camera</span><CaretRight aria-hidden="true" /></button>
+          <button type="button" role="menuitem" onClick={openFilePicker} disabled={disabled || isRecording}><Images aria-hidden="true" /><span>Photos</span><CaretRight aria-hidden="true" /></button>
+          <button type="button" role="menuitem" onClick={() => setAttachmentMenuOpen(false)} disabled={disabled || isRecording}><MapPin aria-hidden="true" /><span>Location</span><CaretRight aria-hidden="true" /></button>
+          <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); void startRecording(); }} disabled={disabled || isRecording}><Waveform aria-hidden="true" /><span>Audio</span><CaretRight aria-hidden="true" /></button>
+        </div>
+      ) : null}
+
       <div className="guest-composer__row">
         <button
           className="guest-composer__tool"
           type="button"
-          aria-label="Attach an image"
+          aria-label={attachmentMenuOpen ? 'Close attachment menu' : 'Open attachment menu'}
           disabled={disabled || isRecording}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => setAttachmentMenuOpen((open) => !open)}
         >
-          <Paperclip aria-hidden="true" />
+          <Plus aria-hidden="true" />
         </button>
         <input
           ref={fileInputRef}
@@ -328,20 +364,21 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit 
           name="message"
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
-          placeholder={disabled ? 'Chat is unavailable' : 'Ask the front desk'}
+          placeholder={disabled ? 'Chat is unavailable' : placeholder ?? 'Ask the front desk'}
+          autoFocus={autoFocus}
           disabled={disabled || isRecording}
         />
-        <button
+          <button
           className="guest-composer__submit"
           type="submit"
-          aria-label={canSend ? 'Send message' : 'Start voice recording'}
-          disabled={disabled || isRecording}
-          onClick={canSend ? undefined : (event) => {
+          aria-label={canSend ? 'Send message' : hasInput ? 'Enter a message' : 'Start voice recording'}
+          disabled={disabled || isRecording || (hasInput && !canSend)}
+          onClick={canSend || hasInput ? undefined : (event) => {
             event.preventDefault();
             void startRecording();
           }}
         >
-          {canSend ? <ArrowRight aria-hidden="true" /> : <Microphone aria-hidden="true" />}
+          {canSend ? <ArrowUp aria-hidden="true" /> : hasInput ? <ArrowUp aria-hidden="true" /> : <Microphone aria-hidden="true" />}
         </button>
       </div>
     </form>

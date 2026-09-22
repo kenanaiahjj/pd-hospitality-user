@@ -43,6 +43,7 @@ import {
   WifiSlash,
   X,
 } from '@phosphor-icons/react';
+import Image from 'next/image';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import {
   BedSingle02Icon as HugeBedSingleIcon,
@@ -52,8 +53,7 @@ import {
   PlusSignIcon as HugeBookAgainIcon,
   UserRoundIcon as HugeProfileIcon,
 } from '@hugeicons-pro/core-stroke-rounded';
-import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { WELCOME_ILLUSTRATIONS } from './illustrations';
 import { afterSheetExit } from './sheet-exit';
@@ -156,7 +156,6 @@ import {
   StoryViewer,
   SwipeDeck,
   SwipeStoryViewer,
-  buildBanners,
   buildCategoryCards,
   buildFeaturedDeck,
   buildSearchIndex,
@@ -243,6 +242,7 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
   'transfer-confirmation',
   'marketplace',
   'category-listing',
+  'nearby-recommendations',
   'nearby-establishment',
   'gifts-souvenirs',
   'gift-order-cart',
@@ -277,7 +277,6 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
 const SCAN_DETECT_MS = 2000;
 
 const EXPLORE_STORIES = buildStories();
-const EXPLORE_BANNERS = buildBanners();
 const EXPLORE_CATEGORIES = buildCategoryCards();
 const EXPLORE_SEARCH_INDEX = buildSearchIndex();
 const EXPLORE_DECK = buildFeaturedDeck();
@@ -1208,6 +1207,18 @@ function AdditionalGuestsScreen({
   );
 }
 
+function ChatMenuGallery({ images, onOpen }: { images: string[]; onOpen: (image: string, trigger: HTMLButtonElement) => void }) {
+  return (
+    <div className="guest-chat-menu-gallery" aria-label={`${images.length} menu images`}>
+      {images.map((image, index) => (
+        <button key={image} type="button" onClick={(event) => onOpen(image, event.currentTarget)} aria-label={`Open menu image ${index + 1}`}>
+          <Image src={image} alt={`Current menu image ${index + 1}`} width={180} height={240} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function GuestAppPrototype({ initialSession, initialScreen, initialOnline }: GuestAppPrototypeProps = {}) {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
   const activeScreenRef = useRef(activeScreen);
@@ -1227,9 +1238,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [codeNotice, setCodeNotice] = useState<string | null>(null);
   const codeInputRef = useRef<HTMLInputElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?' },
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatOrderVenue, setChatOrderVenue] = useState<string | null>(null);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [chatDraft, setChatDraft] = useState('');
   const [chatPreviewImage, setChatPreviewImage] = useState<string | null>(null);
@@ -1295,6 +1305,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [bookedStayId, setBookedStayId] = useState<string | null>(null);
   const [transferVehicle, setTransferVehicle] = useState('Executive van');
   const [transferDestination, setTransferDestination] = useState('');
+  const [transferDestinationAddress, setTransferDestinationAddress] = useState('');
+  const [rideWhen, setRideWhen] = useState<'now' | 'later'>('now');
+  const [rideDate, setRideDate] = useState('');
+  const [rideTime, setRideTime] = useState('10:00');
+  const [ridePassengers, setRidePassengers] = useState(2);
   const [giftFulfillment, setGiftFulfillment] = useState<'room' | 'lobby'>('room');
   const [giftCart, setGiftCart] = useState<Record<string, number>>({});
   const [giftOrder, setGiftOrder] = useState<{ items: typeof GIFT_PRODUCTS[number][]; total: number; paymentStatus: 'charged-to-room' | 'paid'; paymentMethod: 'room' | 'card' | 'gcash' | 'maya' } | null>(null);
@@ -1520,17 +1535,40 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   /* Ordering opens the chat already knowing which venue it is about. */
   const openRestaurantChat = (venue: RestaurantVenue) => {
-    const systemMessage = `Ordering from ${venue.name}`;
-    const menuMessage = `Ordering support for ${venue.name} is ready. Send the item names, quantities, and any special requests when you’re ready to order.`;
-    if (!chatMessages.some((message) => message.body === systemMessage)) {
+    const guestMessage = `I’d like to order from ${venue.name}.`;
+    const genericWelcome = 'Good afternoon, Ana. How can we help with your stay?';
+    setChatOrderVenue(venue.name);
+    setChatDraft('');
+    setChatMessages((messages) => [
+      ...(messages.length === 1 && messages[0].body === genericWelcome ? [] : messages),
+      { from: 'guest', body: guestMessage, state: 'Sent' },
+    ]);
+    setSending(true);
+    go('chat');
+    window.setTimeout(() => {
+      const menuImages = getRestaurantMenuImages(venue);
       setChatMessages((messages) => [
         ...messages,
-        { from: 'desk', body: systemMessage, state: 'System' },
-        { from: 'desk', body: menuMessage, state: 'Seen' },
+        { from: 'desk', body: 'Of course. What would you like to order?', state: 'Seen', images: menuImages },
+        { from: 'desk', body: 'Send the item names, quantities, and any special requests.', state: 'Seen' },
       ]);
-    }
-    setChatDraft(`I’d like to order from ${venue.name}.`);
+      setSending(false);
+    }, 850);
+  };
+
+  const openRideRequestChat = () => {
+    const destination = transferDestination || 'your selected destination';
+    const schedule = rideWhen === 'later' && rideDate && rideTime ? ` for ${rideDate} at ${rideTime}` : '';
+    const guestMessage = `I’d like to request a ride from ${contextBooking.property} to ${destination} for ${ridePassengers} ${ridePassengers === 1 ? 'guest' : 'guests'}${schedule}.`;
+    setChatOrderVenue(null);
+    setChatDraft('');
+    setChatMessages((messages) => [...messages, { from: 'guest', body: guestMessage, state: 'Sent' }]);
+    setSending(true);
     go('chat');
+    window.setTimeout(() => {
+      setChatMessages((messages) => [...messages, { from: 'desk', body: 'Thanks. We’ll confirm availability, vehicle details, estimated fare, and pickup instructions here shortly.', state: 'Seen' }]);
+      setSending(false);
+    }, 850);
   };
 
   const openExtensionChat = () => {
@@ -1543,7 +1581,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('chat');
   };
 
-  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -2178,56 +2216,45 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     </ScreenIntro>
   );
 
-  const renderChatScreen = (afterHours: boolean) => {
+  const renderChatScreen = () => {
     const chatDisabled = checkedOutNav && (simulatePostStayExpired || !postStayWindow.deskOpen);
+    const restaurantChat = Boolean(chatOrderVenue);
     const displayedChatMessages: ChatMessage[] = chatDisabled ? [
       { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
       { from: 'guest', body: 'Could we get two fresh towels, please?', state: 'Seen' },
       { from: 'desk', body: `Of course — we’ll send two fresh towels to ${contextRoom.toLowerCase()} shortly.`, state: 'Seen' },
     ] : chatMessages;
     const chatStarted = displayedChatMessages.some((message) => message.from === 'guest');
-    const statusTone = chatDisabled ? 'neutral' : afterHours ? 'warning' : 'positive';
 
     return (
       <div
-        className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''} ${chatStarted ? 'guest-chat--conversation' : 'guest-chat--welcome'}`}
+        className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''}${restaurantChat ? ' guest-chat--restaurant' : ''} ${chatStarted ? 'guest-chat--conversation' : 'guest-chat--welcome'}`}
         data-chat-mode={chatStarted ? 'conversation' : 'welcome'}
         role="region"
         aria-label="Front desk conversation"
       >
         <div className="guest-chat__context">
           <div className="guest-chat__identity">
-            <span className={`guest-chat__mark guest-chat__mark--${chatDisabled ? 'closed' : afterHours ? 'after-hours' : 'online'}`} aria-hidden="true"><ChatCircleDots /></span>
+            <button className="guest-chat__back" type="button" onClick={history.length ? back : () => go('stay-overview')} aria-label="Go back"><ArrowLeft aria-hidden="true" /></button>
             <div className="guest-chat__identity-copy">
               <h1>Front desk</h1>
-              <span>{contextBooking.property}</span>
+              <span>{restaurantChat ? contextBooking.property : 'The Henry Manila'}</span>
             </div>
-            <Tag tone={statusTone}>
-              {chatDisabled ? 'Chat unavailable' : afterHours ? 'Outside staffed hours' : 'Front desk online'}
-            </Tag>
           </div>
-          <p className="guest-chat__response-time">
-            {chatDisabled
-              ? 'The post-stay support window ended 24 hours after checkout.'
-              : afterHours
-                ? `Messages send now. The team responds from 6:00 AM for ${contextBooking.property}.`
-                : `Shared property inbox for ${contextBooking.property} · Usually replies in a few minutes.`}
-          </p>
         </div>
 
         {chatDisabled ? <Notice tone="neutral" title="Chat is closed">For help after 24 hours, please contact the hotel directly.</Notice> : null}
         {!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}
 
-        {!chatStarted && !chatDisabled ? (
-          <div className="guest-chat__welcome" aria-labelledby="guest-chat-welcome-title">
-            <span className="guest-chat__welcome-mark" aria-hidden="true"><ChatCircleDots /></span>
-            <p className="guest-eyebrow">Here for your stay</p>
-            <h2 id="guest-chat-welcome-title">How can we help with your stay?</h2>
-            <p>Send a request and the front desk will take it from there.</p>
-          </div>
-        ) : null}
+        {restaurantChat ? <p className="guest-chat__order-context">Ordering from {chatOrderVenue}</p> : null}
 
         <div className="guest-messages" aria-label="Conversation" aria-live="polite">
+          {!chatStarted && !chatDisabled && !restaurantChat ? (
+            <div className="guest-chat__welcome" aria-labelledby="guest-chat-welcome-title">
+              <p>Good afternoon, Ana.</p>
+              <h2 id="guest-chat-welcome-title">How can we help with your stay?</h2>
+            </div>
+          ) : null}
           {displayedChatMessages.map((message, index) => {
             const continued = displayedChatMessages[index - 1]?.from === message.from;
             return (
@@ -2263,15 +2290,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   )
                 ) : null}
                 {message.images?.length ? (
-                  <div className="guest-chat-catalog-images">
-                    {message.images.map((image) => (
-                      <button key={image} type="button" onClick={(event) => openChatImagePreview(image, event.currentTarget)}>
-                        <Image src={image} alt="Current catalog" width={120} height={88} />
-                      </button>
-                    ))}
-                  </div>
+                  <ChatMenuGallery images={message.images} onOpen={openChatImagePreview} />
                 ) : null}
-                {message.state ? <small>{message.state}</small> : null}
+                {message.from === 'guest' && message.state ? <small>{message.state}</small> : null}
               </div>
             );
           })}
@@ -2281,22 +2302,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <span>Front desk is replying</span>
             </div>
           ) : null}
-        </div>
-
-        <div className="guest-quick-actions" aria-label="Quick requests">
-          <span className="guest-quick-actions__label">Start with a request</span>
-          <div className="guest-quick-actions__rail">
-            {CHAT_QUICK_ACTIONS.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                disabled={chatDisabled}
-                onClick={() => sendQuickMessage(action.message(contextRoom))}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
+          {!restaurantChat ? (
+            <div className="guest-quick-actions" aria-label="Popular requests">
+              <span className="guest-quick-actions__label">Popular requests</span>
+              <div className="guest-quick-actions__rail">
+                {CHAT_QUICK_ACTIONS.map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    disabled={chatDisabled}
+                    onClick={() => sendQuickMessage(action.message(contextRoom))}
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
@@ -2304,6 +2326,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           disabled={chatDisabled}
           draft={chatDraft}
           onDraftChange={setChatDraft}
+          placeholder={restaurantChat ? 'Type your order…' : undefined}
+          autoFocus={restaurantChat}
           onSubmit={({ body, attachment }) => sendChatMessage(body, attachment)}
         />
         {chatPreviewImage ? (
@@ -2496,7 +2520,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'book-stay':
         return (
-          <div className="guest-stack">
+          <div className="guest-stack guest-category-listing">
             <div className="guest-page-title">
               <p className="guest-eyebrow">Book another stay</p>
               <h1>Where to next?</h1>
@@ -2885,7 +2909,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'lookup-fallback':
-        return <ScreenIntro title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Dumaguete</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
+        return <ScreenIntro title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Manila</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
 
       case 'front-desk-assist':
         return <ScreenIntro icon={<ChatCircleDots size={30} />} title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
@@ -3415,13 +3439,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <DiscoverFeed
             property={contextBooking.property}
             stories={EXPLORE_STORIES}
-            banners={EXPLORE_BANNERS}
             categories={EXPLORE_CATEGORIES}
             searchIndex={EXPLORE_SEARCH_INDEX}
             onOpenStory={openExploreStory}
-            onOpenBanner={openExploreItem}
             onOpenItem={openExploreItem}
             onOpenCategory={(categoryId) => {
+              if (categoryId === 'gifts-souvenirs') {
+                go('gifts-souvenirs');
+                return;
+              }
               setSelectedCategory(categoryId as MiniAppCategoryId);
               go('category-listing');
             }}
@@ -3442,14 +3468,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
         const listingFilters = { operators: serviceOperators, types: serviceTypes, sort: serviceSort };
         const subcategories: Record<MiniAppCategoryId, string[]> = {
-          dining: ['All', 'Breakfast & Brunch', 'Filipino & International', 'Spanish', 'Asian Fusion', 'Pizza & Pasta', 'Desserts & Café'],
+          dining: ['All', 'Breakfast & Brunch', 'Filipino & International', 'Spanish', 'Asian', 'Pizza & Pasta', 'Desserts & Café'],
           spa: ['All', 'Massage', 'Body Treatments', 'Beauty & Grooming', 'Mind & Movement'],
           entertainment: ['All', 'Manila Highlights', 'Culture & Heritage', 'Nature & Waterfalls', 'Islands & Marine Life', 'Day Trips'],
           services: ['All', 'Transportation', 'Guest Assistance', 'Room & Luggage', 'Laundry & Housekeeping', 'Celebrations'],
         };
         const options = subcategories[selectedCategory];
         const selectedSubcategory = options.includes(exploreSubcategory) ? exploreSubcategory : 'All';
-        const matchesSubcategory = (row: { category: string }) => selectedSubcategory === 'All' || row.category === selectedSubcategory;
+        const matchesSubcategory = (row: { category: string }) => {
+          if (selectedSubcategory === 'All') return true;
+          if (selectedSubcategory === 'Filipino & International') return row.category.includes('Filipino') || row.category === 'Dining';
+          if (selectedSubcategory === 'Asian') return row.category.includes('Asian');
+          if (selectedSubcategory === 'Desserts & Café') return row.category.includes('Café') || row.category.includes('Dessert');
+          return row.category === selectedSubcategory;
+        };
         const visibleVenues = filterServices(venueRows, listingFilters).filter(matchesSubcategory);
         const visibleServices = filterServices(categoryServices, listingFilters).filter(matchesSubcategory);
         const servicesNarrowed = serviceOperators.length > 0 || serviceTypes.length > 0 || serviceSort !== 'recommended';
@@ -3463,7 +3495,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
         const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', services: 'Independent services available near the hotel.' };
         return (
-          <div className="guest-stack">
+          <div className="guest-stack guest-category-listing">
             <div className="guest-page-title">
               <h1>{selectedCategory === 'dining' ? 'Food & Drinks' : categoryData.title}</h1>
               <p>{categoryDescription[selectedCategory]}</p>
@@ -3477,6 +3509,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {selectedCategory === 'dining' ? (
               <>
               <SectionHeading title="At the hotel" count={`${visibleVenues.length} options`} />
+              <p className="guest-catalog-section-description">Dining available at The Henry Hotel Manila.</p>
               <ListingControls
                 facets={buildFacets(venueRows)}
                 count={visibleVenues.length}
@@ -3486,24 +3519,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 showCount={false}
               />
               {visibleVenues.length ? (
-              <div className="guest-food-restaurant-list">
+              <div className="guest-food-restaurant-list guest-catalog-option-list">
                 {visibleVenues.map((res) => (
                   <button
                     key={res.id}
-                    className="guest-food-restaurant-card"
+                    className="guest-catalog-option-card"
                     type="button"
                     onClick={() => {
                       setSelectedRestaurantId(res.id);
                       go('restaurant-menu');
                     }}
                   >
-                    <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} itemId={res.id} categoryId="dining" variant="card" tone={res.tone} icon={<ForkKnife />} decorative />
-                    <div className="guest-food-restaurant-card__body">
-                      <div className="guest-food-restaurant-card__title"><h2>{res.name}</h2></div>
-                      <p>{res.category} · {res.hours}</p>
+                    <div className="guest-catalog-option-card__media">
+                      <ServiceImage imageKey={getServiceImageKey({ id: res.id, categoryId: 'dining' })} itemId={res.id} categoryId="dining" variant="card" tone={res.tone} icon={<ForkKnife />} decorative />
+                      <h2 className="guest-catalog-option-card__name">{res.name}</h2>
+                    </div>
+                    <div className="guest-catalog-option-card__details">
+                      <p>{res.category}</p>
+                      <small>{res.hours}</small>
                       <small>{res.location}</small>
                     </div>
-                    <CaretRight />
                   </button>
                 ))}
               </div>
@@ -3515,12 +3550,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <NearbyRecommendations
                 categoryId={selectedCategory}
                 description={nearbyDescription[selectedCategory]}
+                onViewAll={() => go('nearby-recommendations')}
                 onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }}
               />
               </>
             ) : (
               <>
               <SectionHeading title="At the hotel" count={`${visibleServices.length} options`} />
+              <p className="guest-catalog-section-description">{categoryData.title} available at The Henry Hotel Manila.</p>
               <ListingControls
                 facets={buildFacets(categoryServices)}
                 count={visibleServices.length}
@@ -3530,11 +3567,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 showCount={false}
               />
               {visibleServices.length ? (
-              <div className="guest-stack" style={{ gap: '12px' }}>
+              <div className="guest-stack guest-catalog-option-list" style={{ gap: '16px' }}>
                 {visibleServices.map((service) => (
                   <button
                     key={service.id}
-                    className="guest-service-row"
+                    className="guest-catalog-option-card"
                     type="button"
                     onClick={() => {
                       if (service.id === 'spa' || service.id === 'scrub') {
@@ -3544,12 +3581,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       }
                     }}
                   >
-                    <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="thumbnail" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <Compass /> : <Storefront />} decorative />
-                    <div>
-                      <h2>{service.name}</h2>
-                      <p>{service.price} · {service.category}</p>
+                    <div className="guest-catalog-option-card__media">
+                      <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="card" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <Compass /> : <Storefront />} decorative />
+                      <h2 className="guest-catalog-option-card__name">{service.name}</h2>
                     </div>
-                    <CaretRight />
+                    <div className="guest-catalog-option-card__details">
+                      <p>{service.category}</p>
+                      <small>{service.cutoff}</small>
+                      <small>{service.operator}</small>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -3561,6 +3601,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <NearbyRecommendations
                 categoryId={selectedCategory}
                 description={nearbyDescription[selectedCategory]}
+                onViewAll={() => go('nearby-recommendations')}
                 onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }}
               />
               </>
@@ -3578,19 +3619,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'gift-order-confirmation':
         return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={giftOrder?.paymentStatus === 'paid' ? 'Order confirmed · paid' : 'Order confirmed · charged to room'} title="Your gifts are confirmed" text={giftOrder?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this order.' : 'Your hotel shop order has been added to your room charges.'}><div className="guest-summary"><SummaryRow label="Provider" value="Operated by the hotel" /><SummaryRow label="Items" value={`${giftOrder?.items.length ?? 0}`} /><SummaryRow label={giftOrder?.paymentStatus === 'paid' ? 'Paid' : 'Added to room charges'} value={giftOrder ? formatPesoAmount(giftOrder.total) : '₱0'} strong /><SummaryRow label="Fulfillment" value={giftFulfillment === 'room' ? `Deliver to ${contextRoom}` : 'Pick up at the lobby'} /></div><Notice title={giftOrder?.paymentStatus === 'paid' ? 'Payment successful' : 'Pay at checkout'}>{giftOrder?.paymentStatus === 'paid' ? `Paid with ${giftOrder.paymentMethod === 'gcash' ? 'GCash' : giftOrder.paymentMethod === 'maya' ? 'Maya' : 'Card'}.` : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>{giftOrder?.paymentStatus === 'charged-to-room' ? primary('View room charges', 'folio') : null}<TextButton onClick={() => go('gifts-souvenirs')}>Shop more gifts</TextButton></ScreenIntro>;
 
+      case 'nearby-recommendations':
+        return <NearbyRecommendationsPage categoryId={selectedCategory} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
+
       case 'nearby-establishment': {
         const establishment = NEARBY_ESTABLISHMENTS.find((item) => item.id === selectedNearbyEstablishmentId) ?? NEARBY_ESTABLISHMENTS[0];
         return establishment ? (
           <NearbyEstablishmentScreen
             establishment={establishment}
-            onBookRide={() => { setTransferDestination(establishment.name); go('transfer-booking'); }}
+            onBack={back}
+            onBookRide={() => { setTransferDestination(establishment.name); setTransferDestinationAddress(establishment.address); setRidePassengers(contextBooking.guestCount); go('transfer-booking'); }}
           />
         ) : null;
       }
 
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} />;
+        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} onBack={() => go('category-listing')} onNotifications={() => go('notifications')} />;
       }
 
       case 'restaurant-cart': {
@@ -3694,94 +3739,31 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'transfer-booking': {
-        const fare = transferVehicle === 'Private van' ? '₱1,800' : transferVehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200';
         return (
-          <div className="guest-stack">
+          <div className="guest-stack guest-ride-request-page">
             <div className="guest-page-title">
-              <p className="guest-eyebrow">{contextBooking.property} · Pre-arrival</p>
-              <h1>Book a hotel transfer</h1>
-              <p>Private transport operated by the hotel, from the airport or your arrival location.</p>
+              <p className="guest-eyebrow">{contextBooking.property}</p>
+              <h1>Book a ride</h1>
+              <p>Request a hotel-arranged ride to your selected destination.</p>
             </div>
-            <form
-              className="guest-form"
-              onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                event.preventDefault();
-                if (!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)) return;
-                const data = new FormData(event.currentTarget);
-                const fare = transferVehicle === 'Private van' ? '₱1,800' : transferVehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200';
-                const selectedPaymentMethod: 'room' | 'card' | 'gcash' | 'maya' = checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card';
-                const selectedPaymentStatus: 'charged-to-room' | 'paid' = checkoutPayment === 'room' ? 'charged-to-room' : 'paid';
-                const transfer = {
-                  destination: transferDestination,
-                  pickupLocation: String(data.get('transfer-pickup') ?? ''),
-                  arrivalDate: String(data.get('transfer-date') ?? ''),
-                  arrivalTime: String(data.get('transfer-time') ?? ''),
-                  flightNumber: String(data.get('transfer-flight') ?? ''),
-                  passengers: String(data.get('transfer-passengers') ?? ''),
-                  luggage: String(data.get('transfer-luggage') ?? ''),
-                  vehicle: transferVehicle,
-                  specialRequests: String(data.get('transfer-requests') ?? ''),
-                  paymentMethod: selectedPaymentMethod,
-                  paymentStatus: selectedPaymentStatus,
-                };
-                setTransferBooking({
-                  ...transfer,
-                });
-                setSession((current) => {
-                  const transferBooking: ServiceBooking = {
-                    id: `hotel-transfer-${contextBooking.id}`,
-                    bookingId: contextBooking.id,
-                    title: 'Hotel transfer',
-                    scheduledFor: `${transfer.arrivalDate} · ${transfer.arrivalTime}`,
-                    scheduledDate: transfer.arrivalDate,
-                    amount: fare,
-                    status: 'confirmed' as const,
-                    provider: 'Operated by the hotel',
-                    paymentStatus: checkoutPayment === 'room' ? 'charged-to-room' : 'paid',
-                    paymentMethod: checkoutPayment === 'room' ? 'room' : paymentMethod ?? 'card',
-                  };
-                  const alreadyBooked = current.serviceBookings.some((service) => service.id === transferBooking.id);
-                  return {
-                    ...current,
-                    serviceBookings: [
-                      transferBooking,
-                      ...current.serviceBookings.filter((service) => service.id !== transferBooking.id),
-                    ],
-                    folioTotal: alreadyBooked || checkoutPayment === 'pay-now'
-                      ? current.folioTotal
-                      : formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(fare)),
-                  };
-                });
-                go('transfer-confirmation');
-              }}
-            >
-              {transferDestination ? <div className="guest-transfer-destination"><span>Destination</span><strong>{transferDestination}</strong><small>Added from the nearby recommendation</small></div> : null}
-              <Field label="Pick-up location" name="transfer-pickup" placeholder="Airport, hotel, or address" required />
-              <div className="guest-form__row">
-                <Field label="Arrival date" name="transfer-date" type="date" defaultValue={contextBooking.checkIn} required />
-                <Field label="Arrival time" name="transfer-time" type="time" defaultValue="10:00" required />
-              </div>
-              <Field label="Flight number (optional)" name="transfer-flight" placeholder="e.g. PR 286" />
-              <div className="guest-form__row">
-                <Field label="Passengers" name="transfer-passengers" type="number" defaultValue={String(contextBooking.guestCount)} min="1" required />
-                <Field label="Luggage count" name="transfer-luggage" type="number" defaultValue="2" min="0" required />
-              </div>
-              <SelectField label="Vehicle type" name="transfer-vehicle" value={transferVehicle} onValueChange={setTransferVehicle}>
-                <option>Hotel sedan</option>
-                <option>Hotel SUV</option>
-                <option>Executive van</option>
-                <option>Private van</option>
-              </SelectField>
-              <label className="guest-field" htmlFor="transfer-requests">
-                <span>Special requests (optional)</span>
-                <textarea id="transfer-requests" name="transfer-requests" rows={3} placeholder="Child seat, accessibility needs, or other requests" />
-              </label>
-              <div className="guest-transfer-fare">
-                <div><span>Fare</span><strong>{fare}</strong></div>
-                <small>Exact fare · operated by the hotel</small>
-              </div>
-              <PaymentChoice provider="Operated by the hotel" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} />
-              <Button className="guest-button guest-button--primary" type="submit" disabled={!checkoutPayment || (checkoutPayment === 'pay-now' && !paymentMethod)}>{checkoutPayment === 'room' ? `Charge ${fare} to room` : checkoutPayment === 'pay-now' ? `Pay ${fare} now` : 'Choose how to pay'}<ArrowRight aria-hidden="true" /></Button>
+            <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); openRideRequestChat(); }}>
+              <section className="guest-ride-summary" aria-label="Trip summary">
+                <div><small>From</small><strong>{contextBooking.property}</strong></div>
+                <div><small>To</small><strong>{transferDestination || 'Selected destination'}</strong><span>{transferDestinationAddress}</span></div>
+              </section>
+              <fieldset className="guest-ride-choice">
+                <legend>When would you like to leave?</legend>
+                <div className="guest-ride-choice__segmented">
+                  <button type="button" className={rideWhen === 'now' ? 'is-active' : ''} onClick={() => setRideWhen('now')}>Now</button>
+                  <button type="button" className={rideWhen === 'later' ? 'is-active' : ''} onClick={() => setRideWhen('later')}>Schedule for later</button>
+                </div>
+              </fieldset>
+              {rideWhen === 'later' ? <div className="guest-form__row guest-ride-schedule"><Field label="Date" name="ride-date" type="date" value={rideDate} onValueChange={setRideDate} required /><Field label="Time" name="ride-time" type="time" value={rideTime} onValueChange={setRideTime} required /></div> : null}
+              <fieldset className="guest-ride-passengers">
+                <legend>Passengers</legend>
+                <div className="guest-ride-stepper"><button type="button" aria-label="Decrease passengers" onClick={() => setRidePassengers((count) => Math.max(1, count - 1))}>−</button><output>{ridePassengers}</output><button type="button" aria-label="Increase passengers" onClick={() => setRidePassengers((count) => count + 1)}>+</button></div>
+              </fieldset>
+              <Button className="guest-button guest-button--primary" type="submit">Request a ride<ArrowRight aria-hidden="true" /></Button>
             </form>
           </div>
         );
@@ -4022,13 +4004,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
               {visibleStayEntries.length ? (
                 <div className="guest-stay-entries" key={stayTab}>
-                  {visibleStayEntries.map((entry) => (
-                    <StayEntryCard
-                      key={entry.id}
-                      entry={entry}
-                      onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }}
-                    />
-                  ))}
+                  {stayTab === 'upcoming' && visibleStayEntries.length > 1
+                      ? Object.entries(visibleStayEntries.reduce<Record<string, StayEntry[]>>((groups, entry) => {
+                        (groups[entry.date] ??= []).push(entry);
+                        return groups;
+                      }, {})).map(([date, entries]) => (
+                        <section className="guest-stay-entries__date-group" key={date}>
+                          <h2>{new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h2>
+                          <div className="guest-stay-entries__date-group-cards">{entries.map((entry) => <StayEntryCard key={entry.id} entry={entry} showWhen={false} onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }} />)}</div>
+                        </section>
+                      ))
+                    : visibleStayEntries.map((entry) => (
+                        <StayEntryCard
+                          key={entry.id}
+                          entry={entry}
+                          onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }}
+                        />
+                      ))}
                 </div>
               ) : (
                 <div className={`guest-hub-empty${stayTab === 'upcoming' && !started ? ' guest-hub-empty--services' : ''}`}>
@@ -4213,10 +4205,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'chat':
-        return renderChatScreen(false);
+        return renderChatScreen();
 
       case 'chat-after-hours':
-        return renderChatScreen(true);
+        return renderChatScreen();
 
       case 'room-qr-midstay':
         return (
@@ -4609,7 +4601,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       <main className="guest-prototype guest-app">
         <section className={`guest-device ${isWelcome ? 'is-welcome' : ''}`} aria-label="Cabana guest app">
-          {!isWelcome ? <header className="guest-appbar" data-scrolled={scrolled}>
+          {!isWelcome && activeScreen !== 'restaurant-menu' && activeScreen !== 'nearby-establishment' && !isChatScreen(activeScreen) ? <header className="guest-appbar" data-scrolled={scrolled}>
             <div className="guest-appbar__side">
               {activeScreen !== 'stay-overview' ? <button className="guest-icon-button guest-icon-button--back" type="button" onClick={history.length ? back : () => go('stay-overview')} aria-label="Go back"><ArrowLeft /></button> : <span className="guest-brand"><CabanaLockup className="guest-brand__lockup" /><span className="sr-only">Cabana</span></span>}
             </div>
@@ -4636,7 +4628,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </header> : null}
 
           <div
-            className={`guest-screen ${showPrimaryNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''} ${isChatScreen(activeScreen) ? 'guest-screen--chat' : ''}`}
+            className={`guest-screen ${showPrimaryNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''} ${isChatScreen(activeScreen) ? 'guest-screen--chat' : ''} ${activeScreen === 'restaurant-menu' || activeScreen === 'nearby-establishment' ? 'guest-screen--hero' : ''}`}
             key={activeScreen}
             onScroll={(event) => {
               const next = event.currentTarget.scrollTop > 4;
@@ -5052,7 +5044,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
             </div>
           )}
         </section>
-        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" onClick={() => onNavigate('my-stay')}><span><b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b><small>{confirmedServices[0].scheduledFor}</small><small>{confirmedServices[0].amount} · Charged to {roomLabel}</small></span><span className="guest-next-service-card__action">View details <CaretRight /></span></button></section> : null}
+        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" onClick={() => onNavigate('my-stay')}><span className="guest-next-service-card__details"><b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b><small>{confirmedServices[0].scheduledFor}</small><small>{confirmedServices[0].amount} · Charged to {roomLabel}</small></span><span className="guest-next-service-card__action">View details <CaretRight aria-hidden="true" /></span></button></section> : null}
         <section className="guest-home-discovery">
           <SectionHeading title="Make the most of your stay" />
           <div className="discover__rail guest-home-stories" role="group" aria-label="Stay stories">
@@ -5186,7 +5178,7 @@ function StayOverviewHome({ session, booking, onNavigate, onSelectCategory, onOp
         on property.
       */}
       {booking.roomVerification ? (
-        <section>
+        <section className="guest-home-nearby">
           <SectionHeading title="Explore Nearby" action="See all" onAction={() => onNavigate('marketplace')} />
           <div className="guest-category-catalog" role="group" aria-label="Experience categories">
             {MINI_APP_CATEGORIES.map((cat) => {
@@ -5371,7 +5363,7 @@ function announcementPreview(announcement: PropertyAnnouncement) {
  * that was; "The Henry Manila · Ninth floor terrace" answers it before they
  * ask.
  */
-function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => void }) {
+function StayEntryCard({ entry, onOpen, showWhen = true }: { entry: StayEntry; onOpen?: () => void; showWhen?: boolean }) {
   const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
   const when = `${entry.date === PROTOTYPE_TODAY ? 'Tonight' : date}${time ? ` · ${time}` : ''}`;
@@ -5391,7 +5383,7 @@ function StayEntryCard({ entry, onOpen }: { entry: StayEntry; onOpen?: () => voi
         <h2>{entry.title}</h2>
         <strong>{entry.amount}</strong>
       </span>
-      <span className="guest-stay-entry__when">{when}</span>
+      {showWhen ? <span className="guest-stay-entry__when">{when}</span> : null}
       {entry.settlement ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
     </>
   );
@@ -5819,7 +5811,7 @@ type NearbyEstablishment = {
 
 const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = [
   { id: 'kape-lab-manila', categoryId: 'dining' as const, name: 'Kape Lab Manila', type: 'Coffee & bakery', distance: '280 m away', description: 'Small-batch coffee, pastries, and early breakfast.', address: '142 Roxas Boulevard, Manila', hours: 'Daily · 6:00 AM–9:00 PM', contact: '+63 917 555 0142', image: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=80' },
-  { id: 'bayleaf-kitchen', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Independent neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: 'https://images.unsplash.com/photo-1515003190562-c5f5f8f1f4f5?auto=format&fit=crop&w=900&q=80' },
+  { id: 'bayleaf-kitchen', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Independent neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: '/experiments/bayleaf-kitchen.jpg' },
   { id: 'sunset-roasters', categoryId: 'dining', name: 'Sunset Roasters', type: 'Coffee shop', distance: '850 m away', description: 'A relaxed independent café for coffee, tea, and light bites.', address: '77 Roxas Boulevard, Manila', hours: 'Daily · 7:00 AM–8:00 PM', contact: '+63 917 555 0187', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80' },
   { id: 'hilot-house', categoryId: 'spa' as const, name: 'Hilot House', type: 'Independent wellness studio', distance: '450 m away', description: 'A neighborhood studio for traditional hilot and restorative treatments.', address: '18 Adriatico Street, Manila', hours: 'Mon–Sun · 10:00 AM–10:00 PM', contact: '+63 917 555 0198', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80' },
   { id: 'bamboo-wellness', categoryId: 'spa', name: 'Bamboo Wellness Studio', type: 'Massage & wellness', distance: '700 m away', description: 'Independent therapists offering calming massages and wellness rituals.', address: '26 Pedro Gil Street, Manila', hours: 'Daily · 9:00 AM–9:00 PM', contact: '+63 917 555 0133', image: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80' },
@@ -5827,7 +5819,7 @@ const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = [
   { id: 'manila-heritage-walks', categoryId: 'entertainment' as const, name: 'Manila Heritage Walks', type: 'Local tours', distance: '1.2 km away', description: 'Independent walking tours through the city’s historic neighborhoods.', address: 'Plaza Roma, Intramuros, Manila', hours: 'Tours daily · 8:00 AM–5:00 PM', contact: '+63 917 555 0120', image: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=900&q=80' },
   { id: 'sunset-bay-cruises', categoryId: 'entertainment', name: 'Sunset Bay Cruises', type: 'Harbor experience', distance: '2.4 km away', description: 'Independent sunset cruises with views across Manila Bay.', address: 'Harbor Square, Pasay City', hours: 'Daily departures · 4:00 PM–8:00 PM', contact: '+63 917 555 0154', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80' },
   { id: 'intramuros-cycling', categoryId: 'entertainment', name: 'Intramuros Cycle Tours', type: 'Bike tours', distance: '1.8 km away', description: 'Independent guided bicycle tours through Intramuros and nearby streets.', address: 'General Luna Street, Intramuros, Manila', hours: 'Daily · 7:00 AM–6:00 PM', contact: '+63 917 555 0109', image: 'https://images.unsplash.com/photo-1529422643029-d4585747aaf2?auto=format&fit=crop&w=900&q=80' },
-  { id: 'escolta-craft-market', categoryId: 'services' as const, name: 'Escolta Craft Market', type: 'Handicrafts & gifts', distance: '900 m away', description: 'Independent makers offering local crafts, keepsakes, and small gifts.', address: 'Escolta Street, Binondo, Manila', hours: 'Fri–Sun · 10:00 AM–7:00 PM', contact: 'hello@escoltacraft.example', image: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=900&q=80' },
+  { id: 'escolta-craft-market', categoryId: 'services' as const, name: 'Escota Craft Market', type: 'Handicrafts & gifts', distance: '900 m away', description: 'Independent makers offering local crafts, keepsakes, and small gifts.', address: 'Escota Street, Binondo, Manila', hours: 'Friday–Sunday · 10:00 AM–7:00 PM', contact: '+63 917 123 4567', image: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=900&q=80' },
   { id: 'manila-laundry-co', categoryId: 'services' as const, name: 'Manila Laundry Co.', type: 'Laundry service', distance: '500 m away', description: 'Independent wash-and-fold service with convenient hotel-area pickup.', address: '12 Harrison Street, Pasay City', hours: 'Daily · 8:00 AM–8:00 PM', contact: '+63 917 555 0181', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=900&q=80' },
   { id: 'city-bike-rentals', categoryId: 'services' as const, name: 'City Bike Rentals', type: 'Bike rental', distance: '1.1 km away', description: 'Independent bicycle rentals for exploring the bay and nearby neighborhoods.', address: '88 M. H. del Pilar Street, Manila', hours: 'Daily · 7:00 AM–7:00 PM', contact: '+63 917 555 0147', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80' },
   { id: 'manila-makers-market', categoryId: 'gifts', name: 'Manila Makers Market', type: 'Local crafts & souvenirs', distance: '750 m away', description: 'Independent makers offering keepsakes, home décor, and pasalubong.', address: '33 Escolta Street, Manila', hours: 'Tue–Sun · 10:00 AM–7:00 PM', contact: '+63 917 555 0116', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
@@ -5840,22 +5832,72 @@ const ROOM_UPGRADES = [
   { id: 'garden-suite-608', name: 'Garden Suite', type: 'Suite upgrade', features: 'King bed · Separate sitting area · Balcony', guests: '3 guests', price: '₱6,000', transfer: 'Ready in about 30 minutes', transferDeadline: '8:00 PM today', roomNumber: '608', image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80' },
 ] as const;
 
-function NearbyRecommendations({ categoryId, description, onSelect }: { categoryId: MiniAppCategoryId; description: string; onSelect: (id: string) => void }) {
-  const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
-  if (!recommendations.length) return null;
-  return <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">{description}</p><div className="guest-nearby-list">{recommendations.map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelect(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small>{item.distance ? <small>{item.distance}</small> : null}<p>{item.description}</p></span><CaretRight /></button>)}</div></section>;
+function canOfferRoomUpgrade(booking: Booking) {
+  return (booking.status === 'active' || booking.status === 'upcoming') && booking.checkOut > PROTOTYPE_TODAY;
 }
 
-function NearbyEstablishmentScreen({ establishment, onBookRide }: { establishment: NearbyEstablishment; onBookRide: () => void }) {
+function NearbyRecommendationCard({ item, onSelect }: { item: NearbyEstablishment; onSelect: (id: string) => void }) {
+  return <button className="guest-catalog-option-card guest-catalog-option-card--nearby" type="button" onClick={() => onSelect(item.id)}><div className="guest-catalog-option-card__media"><Image src={item.image} alt="" fill sizes="(max-width: 720px) 84vw, 540px" /><span className="guest-catalog-option-card__name">{item.name}</span></div><div className="guest-catalog-option-card__details"><p>{item.type}</p>{item.distance ? <small>{item.distance}</small> : null}<small>{item.address}</small></div></button>;
+}
+
+function NearbyRecommendations({ categoryId, description, onViewAll, onSelect }: { categoryId: MiniAppCategoryId; description: string; onViewAll: () => void; onSelect: (id: string) => void }) {
+  const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
+  const curated = recommendations.slice(0, 4);
+  const railRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const updateIndex = () => {
+    const rail = railRef.current;
+    const card = rail?.querySelector<HTMLElement>('.guest-catalog-option-card');
+    if (!rail || !card) return;
+    setActiveIndex(Math.min(curated.length - 1, Math.max(0, Math.round(rail.scrollLeft / (card.offsetWidth + 12)))));
+  };
+  const goTo = (index: number) => railRef.current?.children[index]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+  if (!recommendations.length) return null;
+  return <section className="guest-nearby-section"><div className="guest-nearby-heading"><h2>Nearby recommendations</h2><button type="button" onClick={onViewAll}>View all</button></div><p className="guest-nearby-description">{description}</p><div ref={railRef} className="guest-nearby-carousel" onScroll={updateIndex}>{curated.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div><div className="guest-nearby-dots" aria-label="Nearby recommendations pages">{curated.map((item, index) => <button key={item.id} type="button" className={activeIndex === index ? 'is-active' : ''} aria-label={`Show nearby recommendation ${index + 1}`} aria-current={activeIndex === index} onClick={() => goTo(index)} />)}</div></section>;
+}
+
+function NearbyRecommendationsPage({ categoryId, onSelect }: { categoryId: MiniAppCategoryId; onSelect: (id: string) => void }) {
+  const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
+  return <div className="guest-stack guest-nearby-page"><div className="guest-page-title"><h1>Nearby recommendations</h1><p>Independent places close to The Henry Hotel Manila.</p></div><div className="guest-nearby-page__list">{recommendations.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div></div>;
+}
+
+function NearbyEstablishmentScreen({ establishment, onBack, onBookRide }: { establishment: NearbyEstablishment; onBack: () => void; onBookRide: () => void }) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(establishment.address)}`;
-  return <div className="guest-stack guest-establishment-detail">
-    <div className="guest-establishment-cover"><Image src={establishment.image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></div>
-    <div className="guest-page-title"><p className="guest-eyebrow">Nearby recommendation · Independently operated</p><h1>{establishment.name}</h1><p>{establishment.type}</p></div>
-    <Notice title="Outside the hotel">This establishment is independently operated and is not part of the hotel.</Notice>
-    <p className="guest-establishment-description">{establishment.description}</p>
-    <div className="guest-summary"><SummaryRow label="Address" value={establishment.address} /><SummaryRow label="Operating hours" value={establishment.hours} />{establishment.contact ? <SummaryRow label="Contact" value={establishment.contact} /> : null}</div>
-    <a className="guest-location-row" href={mapsUrl} target="_blank" rel="noreferrer"><MapPin /><span><b>{establishment.address}</b><small>View on Google Maps</small></span><CaretRight /></a>
-    <Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button>
+  return <div className="guest-stack guest-nearby-detail">
+    <section className="guest-nearby-detail__hero" aria-label={`${establishment.name} overview`}>
+      <Image src={establishment.image} alt="" fill sizes="100vw" priority />
+      <div className="guest-nearby-detail__scrim" aria-hidden="true" />
+      <button className="guest-nearby-detail__control guest-nearby-detail__back" type="button" onClick={onBack} aria-label="Back"><ArrowLeft /></button>
+      <button className="guest-nearby-detail__control guest-nearby-detail__notifications" type="button" onClick={() => undefined} aria-label="Notifications"><Bell /></button>
+      <div className="guest-nearby-detail__hero-copy">
+        <h1>{establishment.name}</h1>
+        <div className="guest-nearby-detail__tags" aria-label="Recommendation details"><span>Handicrafts &amp; Gifts</span><span>Independent</span></div>
+      </div>
+    </section>
+
+    <section className="guest-nearby-detail__location" aria-label="Location">
+      <div className="guest-nearby-detail__address"><MapPin aria-hidden="true" /><span>{establishment.address}</span></div>
+      <a href={mapsUrl} target="_blank" rel="noreferrer">View on Google Maps <ArrowRight aria-hidden="true" /></a>
+      <div className="guest-nearby-detail__hours"><small>Operating hours</small><b>{establishment.hours}</b></div>
+    </section>
+
+    <section className="guest-nearby-detail__about">
+      <h2>About</h2>
+      <p>{establishment.description} Discover thoughtful local pieces from independent makers, with a rotating selection of keepsakes and small gifts that are easy to bring home from Manila.</p>
+      <div className="guest-nearby-detail__contact"><small>Contact</small><a href="tel:+639171234567">+63 917 123 4567</a></div>
+    </section>
+
+    <section className="guest-nearby-detail__good-to-know">
+      <h2>Good to know</h2>
+      <div className="guest-nearby-detail__facts">
+        <span><Storefront aria-hidden="true" /><b>Independently operated</b></span>
+        <span><House aria-hidden="true" /><b>Outside the hotel</b></span>
+        <span><Gift aria-hidden="true" /><b>Local handicrafts and gifts</b></span>
+        <span><Clock aria-hidden="true" /><b>Around 15 minutes from the hotel</b></span>
+      </div>
+    </section>
+
+    <div className="guest-nearby-detail__cta"><Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button></div>
   </div>;
 }
 
@@ -6097,19 +6139,88 @@ const getRestaurantMenuImages = (venue: RestaurantVenue) => {
   return RESTAURANT_MENU_IMAGE_PAGES;
 };
 
-function RestaurantMenuScreen({ venue, onOrder }: { venue: RestaurantVenue; onOrder: () => void }) {
+function RestaurantMenuScreen({ venue, onOrder, onBack, onNotifications }: { venue: RestaurantVenue; onOrder: () => void; onBack: () => void; onNotifications: () => void }) {
   const [page, setPage] = useState(0);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const suppressPreview = useRef(false);
   const menuImages = getRestaurantMenuImages(venue);
   const currentImage = menuImages[page] ?? menuImages[0];
+  const aboutText = `${venue.description} Settle in for an unhurried meal surrounded by the hotel’s signature garden atmosphere, with thoughtful service and a menu that moves easily from morning plates to evening drinks.`;
 
   const openPreview = () => {
+    if (suppressPreview.current) {
+      suppressPreview.current = false;
+      return;
+    }
     setPreviewZoom(1);
     setPreviewOpen(true);
   };
 
-  return <div className="guest-stack guest-restaurant-browse"><ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{venue.name}</h1><p>{venue.description}</p><div className="guest-restaurant-browse__details"><span>{venue.operator}</span><span>{venue.location}</span><span>{venue.hours}</span><span>Available · Confirm current menu in Chat</span></div></div><section className="guest-restaurant-menu-image-section"><h2>Menu</h2><div className="guest-restaurant-menu-carousel"><button type="button" className="guest-restaurant-menu-image" onClick={openPreview} aria-label={`Open menu page ${page + 1}`}><Image src={currentImage} alt={`${venue.name} menu page ${page + 1}`} fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></button>{menuImages.length > 1 ? <div className="guest-restaurant-menu-dots" aria-label="Menu pages">{menuImages.map((image, index) => <button key={image} type="button" aria-label={`Show menu page ${index + 1}`} aria-current={page === index} className={page === index ? 'is-active' : ''} onClick={() => setPage(index)} />)}</div> : null}</div></section><div className="guest-restaurant-browse__cta"><button className="guest-button guest-button--primary" type="button" onClick={onOrder}>Order from {venue.name}<ArrowRight /></button></div>{previewOpen ? <div className="guest-restaurant-menu-viewer" role="dialog" aria-modal="true" aria-label={`${venue.name} menu preview`} onClick={() => setPreviewOpen(false)}><button type="button" className="guest-restaurant-menu-viewer__close" aria-label="Close menu preview" onClick={() => setPreviewOpen(false)}><X /></button>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__prev" aria-label="Previous menu page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current - 1 + menuImages.length) % menuImages.length); }}><ArrowLeft /></button> : null}<div className="guest-restaurant-menu-viewer__image" onClick={(event) => event.stopPropagation()}><Image src={currentImage} alt={`${venue.name} menu preview`} fill sizes="92vw" style={{ transform: `scale(${previewZoom})` }} /></div>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__next" aria-label="Next menu page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current + 1) % menuImages.length); }}><ArrowRight /></button> : null}<div className="guest-restaurant-menu-viewer__zoom"><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.max(1, zoom - 0.25)); }}>−</button><span>{Math.round(previewZoom * 100)}%</span><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.min(2.5, zoom + 0.25)); }}>+</button></div></div> : null}</div>;
+  const handleMenuTouchStart = (event: ReactTouchEvent<HTMLButtonElement>) => {
+    touchStartX.current = event.changedTouches[0]?.clientX ?? null;
+  };
+
+  const handleMenuTouchEnd = (event: ReactTouchEvent<HTMLButtonElement>) => {
+    const start = touchStartX.current;
+    const end = event.changedTouches[0]?.clientX;
+    touchStartX.current = null;
+    if (start === null || end === undefined || menuImages.length < 2) return;
+    const delta = end - start;
+    if (Math.abs(delta) < 44) return;
+    suppressPreview.current = true;
+    setPage((current) => delta < 0 ? Math.min(menuImages.length - 1, current + 1) : Math.max(0, current - 1));
+  };
+
+  return (
+    <div className="guest-stack guest-restaurant-browse guest-restaurant-browse--premium">
+      <section className="guest-restaurant-hero" aria-label={`${venue.name} overview`}>
+        <ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<ForkKnife size={38} />} decorative />
+        <div className="guest-restaurant-hero__scrim" aria-hidden="true" />
+        <button className="guest-restaurant-hero__control guest-restaurant-hero__back" type="button" onClick={onBack} aria-label="Back"><ArrowLeft /></button>
+        <button className="guest-restaurant-hero__control guest-restaurant-hero__notifications" type="button" onClick={onNotifications} aria-label="Notifications"><Bell /></button>
+        <div className="guest-restaurant-hero__copy">
+          <h1>{venue.name}</h1>
+          <div className="guest-restaurant-top-tags" aria-label="Restaurant details">
+            <span>{venue.category}</span>{venue.id === 'apartment-1b' ? <span>Breakfast</span> : null}<span>{venue.operator}</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="guest-restaurant-quick-info" aria-label="Quick information">
+        <span className="guest-restaurant-quick-info__location"><MapPin aria-hidden="true" />{venue.location}</span>
+        <div><span><small>Hours</small><b>{venue.hours}</b></span><span><small>Availability</small><b>Open now</b></span></div>
+      </section>
+
+      <section className="guest-restaurant-about">
+        <h2>About</h2>
+        <p className={aboutExpanded ? 'is-expanded' : ''}>{aboutText}</p>
+        <button className="guest-restaurant-about__read-more" type="button" onClick={() => setAboutExpanded((expanded) => !expanded)}>{aboutExpanded ? 'Show less' : 'Read more'}</button>
+      </section>
+
+      <section className="guest-restaurant-good-to-know">
+        <h2>Good to know</h2>
+        <div className="guest-restaurant-good-to-know__grid">
+          {venue.operator.includes('Hotel') ? <span><Storefront aria-hidden="true" /><b>Hotel operated</b></span> : null}
+          {venue.cutoff.includes('reservation') || venue.cutoff.includes('24-hour') ? <span><CalendarPlus aria-hidden="true" /><b>Reservations recommended</b></span> : null}
+          {venue.menu.some((item) => item.dietary?.length) ? <span><Sparkle aria-hidden="true" /><b>Dietary requests available</b></span> : null}
+          {venue.description.toLowerCase().includes('garden') ? <span><House aria-hidden="true" /><b>Garden seating</b></span> : null}
+        </div>
+      </section>
+
+      <section className="guest-restaurant-menu-image-section guest-restaurant-additional-info">
+        <h2>Additional information</h2>
+        <p>View the latest information provided by the hotel.</p>
+        <div className="guest-restaurant-menu-carousel"><button type="button" className="guest-restaurant-menu-image" onClick={openPreview} onTouchStart={handleMenuTouchStart} onTouchEnd={handleMenuTouchEnd} aria-label={`Open information page ${page + 1}; swipe left or right to change page`}><Image src={currentImage} alt={`${venue.name} information page ${page + 1}`} fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></button>{menuImages.length > 1 ? <div className="guest-restaurant-menu-pagination"><div className="guest-restaurant-menu-dots" aria-label="Information pages">{menuImages.map((image, index) => <button key={image} type="button" aria-label={`Show information page ${index + 1}`} aria-current={page === index} className={page === index ? 'is-active' : ''} onClick={() => setPage(index)} />)}</div></div> : null}</div>
+      </section>
+
+      <div className="guest-restaurant-browse__cta"><button className="guest-button guest-button--primary" type="button" onClick={onOrder}>Order from {venue.name}<ArrowRight /></button></div>
+
+      {previewOpen ? <div className="guest-restaurant-menu-viewer" role="dialog" aria-modal="true" aria-label={`${venue.name} information preview`} onClick={() => setPreviewOpen(false)}><button type="button" className="guest-restaurant-menu-viewer__close" aria-label="Close information preview" onClick={() => setPreviewOpen(false)}><X /></button>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__prev" aria-label="Previous information page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current - 1 + menuImages.length) % menuImages.length); }}><ArrowLeft /></button> : null}<div className="guest-restaurant-menu-viewer__image" onClick={(event) => event.stopPropagation()}><Image src={currentImage} alt={`${venue.name} information preview`} fill sizes="92vw" style={{ transform: `scale(${previewZoom})` }} /></div>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__next" aria-label="Next information page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current + 1) % menuImages.length); }}><ArrowRight /></button> : null}<div className="guest-restaurant-menu-viewer__zoom"><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.max(1, zoom - 0.25)); }}>−</button><span>{Math.round(previewZoom * 100)}%</span><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.min(2.5, zoom + 0.25)); }}>+</button></div></div> : null}
+    </div>
+  );
 }
 
 function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge: ReturnType<typeof getRoomCharges>[number]; service?: ServiceBooking; roomLabel: string; onQuestion: (message: string) => void }) {

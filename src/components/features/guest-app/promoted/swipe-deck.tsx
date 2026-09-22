@@ -64,6 +64,7 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
     cardRef.current?.focus();
   }, [order]);
   const visible = order.slice(0, WINDOW);
+  const currentIndex = Math.max(0, items.findIndex((item) => item.id === order[0]));
 
   const paint = useCallback(() => {
     const el = cardRef.current;
@@ -259,6 +260,11 @@ export function SwipeDeck({ items, onOpen }: SwipeDeckProps) {
           );
         })}
       </div>
+      {items.length > 1 ? (
+        <div className="deck__dots" aria-label="Featured promotions">
+          {items.map((item, index) => <button key={item.id} type="button" className={index === currentIndex ? 'is-active' : ''} aria-label={`Show ${item.title}`} aria-current={index === currentIndex} onClick={() => setOrder([item.id, ...order.filter((id) => id !== item.id)])} />)}
+        </div>
+      ) : null}
 
     </div>
   );

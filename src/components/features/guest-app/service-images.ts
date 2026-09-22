@@ -88,7 +88,7 @@ export const PROPERTY_IMAGES: Record<PropertyImageKey, ServiceImageDefinition> =
   },
   dumaguete: {
     src: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=82',
-    alt: 'The Henry Dumaguete tropical coastal resort and grounds',
+    alt: 'The Henry Manila tropical coastal resort and grounds',
     focalPoint: '50% 55%',
   },
   default: {

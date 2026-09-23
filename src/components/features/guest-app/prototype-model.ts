@@ -308,6 +308,8 @@ export type ServiceBooking = {
    * was taken away.
    */
   serviceId?: string;
+  /** How many guests the booking is for, when the form asked. */
+  partySize?: number;
   amount: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   provider?: string;
@@ -2038,6 +2040,12 @@ export type StayEntry = {
   lines: StayReceiptLine[];
   /** Whether the guest can still cancel this themselves. */
   canCancel: boolean;
+  /**
+   * Where the money went. Arrival services before the scan are paid by card
+   * and some things cost nothing, so "charged to your room" is one answer of
+   * three rather than a safe default.
+   */
+  paidBy: 'room' | 'card' | 'complimentary';
   /** Where tapping it goes, when it goes anywhere. */
   screen?: ScreenId;
 };
@@ -2062,13 +2070,32 @@ export function hasStayStarted(booking: Booking, today: string = PROTOTYPE_TODAY
 /**
  * Splits on-property bookings into what is still ahead and what is behind.
  */
+const PAYMENT_METHOD_LABELS: Record<NonNullable<ServiceBooking['paymentMethod']>, string> = {
+  room: 'your room',
+  card: 'card',
+  gcash: 'GCash',
+  maya: 'Maya',
+};
+
+/** Where a booking's money went, as the receipt states it. */
+export function describeServicePaidBy(service: Pick<ServiceBooking, 'paymentStatus'>): StayEntry['paidBy'] {
+  if (service.paymentStatus === 'complimentary') return 'complimentary';
+  if (service.paymentStatus === 'paid') return 'card';
+  return 'room';
+}
+
 const describeServiceSettlement = (
-  status: ServiceBooking['status'],
+  service: Pick<ServiceBooking, 'status' | 'paymentStatus' | 'paymentMethod'>,
   roomNumber?: string,
 ): string | undefined => {
   const room = roomNumber ? `room ${roomNumber}` : 'your room';
-  if (status === 'cancelled') return 'Cancelled · not charged';
-  if (status === 'completed') return `Completed · charged to ${room}`;
+  const paidBy = describeServicePaidBy(service);
+  if (service.status === 'cancelled') return paidBy === 'card' ? 'Cancelled · refunded' : 'Cancelled · not charged';
+  // Paid up front or free: said on every card, because the running room
+  // total above the list is not where this one landed.
+  if (paidBy === 'card') return `Paid with ${PAYMENT_METHOD_LABELS[service.paymentMethod ?? 'card']}`;
+  if (paidBy === 'complimentary') return 'Complimentary';
+  if (service.status === 'completed') return `Completed · charged to ${room}`;
   // Still ahead: the running total already says where this lands.
   return undefined;
 };
@@ -2147,7 +2174,8 @@ export function getStayEntries(
         been charged to their room, which is the one thing a folio line must
         never get wrong.
       */
-      settlement: describeServiceSettlement(service.status, booking.roomNumber),
+      settlement: describeServiceSettlement(service, booking.roomNumber),
+      paidBy: describeServicePaidBy(service),
       category: service.diningOrder ? 'dining' : categoryOf(service.title),
       date: service.scheduledDate,
       /*
@@ -2398,6 +2426,143 @@ export type CancellationState = 'self-service' | 'front-desk';
 
 export function getCancellationState(hoursUntilService: number, cutoffHours: number): CancellationState {
   return hoursUntilService >= cutoffHours ? 'self-service' : 'front-desk';
+}
+
+/* --------------------------------------------------------------------------
+   Booking a service
+
+   The booking form used to sell one thing -- the Hilom massage at ₱2,400 --
+   whatever the guest had tapped, so a hot stone therapy, an airport transfer
+   and a luggage hold all confirmed as "Your massage is booked". Everything
+   here is read off the service the guest actually chose.
+   -------------------------------------------------------------------------- */
+
+/** Times the booking form offers; there is no live availability behind them. */
+export const SERVICE_TIMES = ['10:00 AM', '1:30 PM', '4:00 PM'] as const;
+
+/**
+ * Whether this guest can book this service now, whichever way it is paid.
+ *
+ * On-property services need the verified room, because they are charged to it.
+ * The arrival roster is the exception by design: getting there and what waits
+ * in the room can be booked -- and paid by card -- from the moment a booking
+ * exists until the stay is over, which is what makes the scan mean something
+ * for everything else.
+ */
+export function canBookService(booking: Booking, serviceId: string, today: string = PROTOTYPE_TODAY): boolean {
+  if (canUseOnPropertyServices(booking, today)) return true;
+  return isPreArrivalService(serviceId) && describeGuestGate(booking, today).gate !== 'post-stay';
+}
+
+/** How a booking of this service settles for this guest, right now. */
+export function describeServicePayment(
+  booking: Booking,
+  price: string,
+  today: string = PROTOTYPE_TODAY,
+): 'room' | 'card' | 'complimentary' {
+  if (parsePesoAmount(price) === 0) return 'complimentary';
+  return canUseOnPropertyServices(booking, today) ? 'room' : 'card';
+}
+
+/** Who a guest is dealing with, said the same way on the form and the receipt. */
+export function describeServiceProvider(service: { id: string; operator: string }): string {
+  // The one partner the catalogue names, as its detail page always has.
+  if (service.id === 'spa') return 'Operated by Sans Rival';
+  if (service.operator === 'Hotel operated') return 'Operated by the hotel';
+  if (service.operator === 'Hotel arranged') return 'Arranged by the hotel';
+  if (service.operator === 'Curated guide') return 'Run by a guide the hotel works with';
+  return 'Operated by a partner on property';
+}
+
+const MS_PER_DAY = 86_400_000;
+const utcDate = (isoDate: string) => new Date(Date.parse(`${isoDate}T00:00:00Z`));
+const shiftIsoDate = (isoDate: string, days: number) =>
+  new Date(Date.parse(`${isoDate}T00:00:00Z`) + days * MS_PER_DAY).toISOString().slice(0, 10);
+
+/**
+ * The days a service can be booked for: from today -- or from arrival day, for
+ * a stay that has not begun -- up to checkout, three at most. The strip it
+ * feeds used to be three fixed chips, one of them a day already gone.
+ */
+export function bookableServiceDays(booking: Booking, today: string = PROTOTYPE_TODAY): string[] {
+  const days: string[] = [];
+  for (
+    let day = booking.checkIn > today ? booking.checkIn : today;
+    day <= booking.checkOut && days.length < 3;
+    day = shiftIsoDate(day, 1)
+  ) {
+    days.push(day);
+  }
+  return days;
+}
+
+/**
+ * "WED" and "11" for the strip, "Wednesday · November 11" for prose. Derived,
+ * never typed: the hand-written weekdays were a calendar year out, which put
+ * Wednesday the 11th down as a Tuesday. Formatted in UTC because the ISO date
+ * is a calendar day, not an instant.
+ */
+export function formatServiceDay(isoDate: string) {
+  const date = utcDate(isoDate);
+  const format = (options: Intl.DateTimeFormatOptions) => date.toLocaleDateString('en-US', { ...options, timeZone: 'UTC' });
+  return {
+    weekday: format({ weekday: 'short' }).toUpperCase(),
+    day: format({ day: 'numeric' }),
+    long: `${format({ weekday: 'long' })} · ${format({ month: 'long', day: 'numeric' })}`,
+  };
+}
+
+/** "1:30 PM" as 13 and 30. */
+export function parseClockTime(time: string): { hour: number; minute: number } {
+  const match = time.match(/(\d{1,2}):(\d{2})\s*([AP]M)/i);
+  if (!match) return { hour: 12, minute: 0 };
+  const hour = Number(match[1]) % 12 + (match[3]!.toUpperCase() === 'PM' ? 12 : 0);
+  return { hour, minute: Number(match[2]) };
+}
+
+/** Hours of notice a provider asks for, when its cutoff is stated as one. */
+export function cancellationCutoffHours(cutoff: string): number | null {
+  const hours = cutoff.match(/(\d+)-hour cancellation cutoff/)?.[1];
+  return hours ? Number(hours) : null;
+}
+
+/*
+  The prototype clock has a date and no time of day. As with the post-stay
+  window, "now" is noon on it.
+*/
+const PROTOTYPE_NOW_HOUR = 12;
+
+/** Hours from the prototype's now until a booking starts; negative once it has. */
+export function hoursUntilService(
+  service: Pick<ServiceBooking, 'scheduledDate' | 'scheduledFor' | 'scheduledHour'>,
+  today: string = PROTOTYPE_TODAY,
+): number {
+  const { hour, minute } = parseClockTime(service.scheduledFor);
+  const days = dayIndex(service.scheduledDate) - dayIndex(today);
+  return days * 24 + (service.scheduledHour ?? hour) + minute / 60 - PROTOTYPE_NOW_HOUR;
+}
+
+/**
+ * What the confirmation says about cancelling, from the provider's cutoff and
+ * the slot actually booked. It was one sentence naming November 10 as the
+ * deadline, whatever had been booked for whenever.
+ */
+export function describeCancellationWindow(
+  cutoff: string,
+  service: Pick<ServiceBooking, 'scheduledDate' | 'scheduledFor' | 'scheduledHour'>,
+  today: string = PROTOTYPE_TODAY,
+): string {
+  const cutoffHours = cancellationCutoffHours(cutoff);
+  if (cutoffHours === null) return 'Changes to this booking go through the front desk. The booking remains.';
+  if (getCancellationState(hoursUntilService(service, today), cutoffHours) === 'front-desk') {
+    return `This is inside the provider’s ${cutoffHours}-hour cutoff, so changes go through the front desk. The booking remains.`;
+  }
+
+  const { hour, minute } = parseClockTime(service.scheduledFor);
+  const deadline = new Date(utcDate(service.scheduledDate).getTime() + ((service.scheduledHour ?? hour) * 60 + minute - cutoffHours * 60) * 60_000);
+  const time = deadline.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+  const day = deadline.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+  return `Cancel yourself until ${time} on ${day}. After that, contact the front desk. The booking remains.`;
 }
 
 export type MiniAppCategoryId = 'dining' | 'spa' | 'entertainment' | 'services';

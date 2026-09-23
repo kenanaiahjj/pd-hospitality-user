@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyRoomUpgrade,
+  bookableServiceDays,
+  canBookService,
+  describeCancellationWindow,
+  describeServicePayment,
+  formatServiceDay,
+  hoursUntilService,
+  parseClockTime,
   canUseOnPropertyServices,
   verifyRoomPresence,
   requestFrontDeskUnlock,
@@ -1432,6 +1439,56 @@ describe('applyRoomUpgrade', () => {
 
     expect(next).toBe(session);
     expect(next.bookings[0]!.roomUpgrade).toBeUndefined();
+  });
+});
+
+describe('booking a service', () => {
+  const soon = { ...UPCOMING_BOOKING_FIXTURE, checkIn: '2026-11-20', checkOut: '2026-11-23' };
+
+  it('lets the arrival roster book before the scan, and nothing else', () => {
+    expect(canBookService(soon, 'private-car')).toBe(true);
+    expect(canBookService(soon, 'luggage')).toBe(true);
+    expect(canBookService(soon, 'spa')).toBe(false);
+    expect(canBookService(liveBooking(), 'spa')).toBe(false);
+    expect(canBookService(liveBooking({ roomVerification: verification }), 'spa')).toBe(true);
+    // Over is over, arrival service or not.
+    expect(canBookService(liveBooking({ status: 'completed' }), 'private-car')).toBe(false);
+  });
+
+  it('settles by room only once the room is verified', () => {
+    expect(describeServicePayment(soon, '₱4,800 / day')).toBe('card');
+    expect(describeServicePayment(liveBooking({ roomVerification: verification }), '₱1,200')).toBe('room');
+    expect(describeServicePayment(soon, 'Complimentary')).toBe('complimentary');
+  });
+
+  it('offers the days left in the stay, from arrival day for one not yet begun', () => {
+    expect(bookableServiceDays(liveBooking())).toEqual(['2026-11-11', '2026-11-12']);
+    expect(bookableServiceDays(soon)).toEqual(['2026-11-20', '2026-11-21', '2026-11-22']);
+  });
+
+  // The fixtures were written against 2025, which put Wednesday the 11th down
+  // as a Tuesday.
+  it('names the weekdays 2026 actually has', () => {
+    expect(formatServiceDay('2026-11-11')).toEqual({ weekday: 'WED', day: '11', long: 'Wednesday · November 11' });
+    expect(formatServiceDay('2026-11-20').long).toBe('Friday · November 20');
+  });
+
+  it('reads a clock time', () => {
+    expect(parseClockTime('1:30 PM')).toEqual({ hour: 13, minute: 30 });
+    expect(parseClockTime('12:00 PM')).toEqual({ hour: 12, minute: 0 });
+    expect(parseClockTime('10:00 AM')).toEqual({ hour: 10, minute: 0 });
+  });
+
+  it('states the cancellation deadline for the slot booked', () => {
+    const tomorrow = { scheduledDate: '2026-11-12', scheduledFor: 'Thursday · November 12 · 4:00 PM', scheduledHour: 16 };
+    expect(hoursUntilService(tomorrow)).toBe(28);
+    expect(describeCancellationWindow('24-hour cancellation cutoff', tomorrow)).toBe(
+      'Cancel yourself until 4:00 PM on November 11. After that, contact the front desk. The booking remains.',
+    );
+
+    const later = { scheduledDate: '2026-11-11', scheduledFor: 'Wednesday · November 11 · 4:00 PM', scheduledHour: 16 };
+    expect(describeCancellationWindow('24-hour cancellation cutoff', later)).toMatch(/inside the provider’s 24-hour cutoff/);
+    expect(describeCancellationWindow('Same-day service', later)).toMatch(/go through the front desk/);
   });
 });
 

@@ -527,7 +527,7 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: /Charge to Room 512/i }));
     await user.click(screen.getByRole('button', { name: /^Charge .* to room/i }));
 
-    expect(await screen.findByRole('heading', { name: /your massage is booked/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Hilom signature massage is booked/i })).toBeInTheDocument();
     expect(screen.getByText(/added to room 512/i)).toBeInTheDocument();
     expect(screen.getByText(/hotel folio at checkout/i)).toBeInTheDocument();
 
@@ -564,12 +564,19 @@ describe('GuestAppPrototype', () => {
         initialSession={sessionFor([active], {
           activeBookingId: 'active',
           folioTotal: '₱5,450',
+          /*
+            Tomorrow, clear of the provider's 24-hour cutoff: cancelling it is
+            the guest's own call. The same massage at 1:30 today is inside the
+            cutoff, which is the front desk's -- covered below.
+          */
           serviceBookings: [{
             id: 'service-hilom-1',
             bookingId: 'active',
             title: 'Hilom signature massage',
-            scheduledFor: 'Tuesday · November 11 · 1:30 PM',
-            scheduledDate: '2026-11-11',
+            serviceId: 'spa',
+            scheduledFor: 'Thursday · November 12 · 1:30 PM',
+            scheduledDate: '2026-11-12',
+            scheduledHour: 13,
             amount: '₱2,400',
             status: 'confirmed',
           }],
@@ -590,6 +597,70 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: 'Home' }));
     await user.click(screen.getByRole('button', { name: 'My Stay' }));
     expect(screen.getByRole('button', { name: /Room charges/i })).not.toHaveTextContent('₱3,050');
+  });
+
+  /*
+    Every "Change or cancel" used to open the self-service screen -- eyebrow
+    fixed at "30 hours before service" -- and cancel the Hilom massage whatever
+    had been opened. Inside the provider's cutoff the change is the desk's.
+  */
+  it('sends a change inside the provider cutoff to the front desk', async () => {
+    const user = userEvent.setup();
+    const active = makeBooking({ id: 'active', status: 'active', roomNumber: '512', roomVerification: { method: 'scan', at: '2026-11-11' } });
+    render(
+      <GuestAppPrototype
+        initialScreen="my-stay"
+        initialSession={sessionFor([active], {
+          activeBookingId: 'active',
+          serviceBookings: [{
+            id: 'service-today',
+            bookingId: 'active',
+            title: 'Hilom signature massage',
+            serviceId: 'spa',
+            scheduledFor: 'Wednesday · November 11 · 4:00 PM',
+            scheduledDate: '2026-11-11',
+            scheduledHour: 16,
+            amount: '₱2,400',
+            status: 'confirmed',
+          }],
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /hilom signature massage/i }));
+    await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
+
+    expect(screen.getByRole('heading', { name: 'Contact the front desk to change this' })).toBeInTheDocument();
+    expect(screen.getByText('4 hours before service')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cancel service/i })).toBeNull();
+  });
+
+  it('cancels the booking that was opened, not the massage', async () => {
+    const user = userEvent.setup();
+    const active = makeBooking({ id: 'active', status: 'active', roomNumber: '512', roomVerification: { method: 'scan', at: '2026-11-11' } });
+    const massage = {
+      id: 'service-hilom-1', bookingId: 'active', title: 'Hilom signature massage', serviceId: 'spa',
+      scheduledFor: 'Thursday · November 12 · 1:30 PM', scheduledDate: '2026-11-12', scheduledHour: 13, amount: '₱2,400', status: 'confirmed' as const,
+    };
+    const walk = {
+      id: 'service-walk', bookingId: 'active', title: 'Old Manila cultural walk', serviceId: 'heritage-walk',
+      scheduledFor: 'Thursday · November 12 · 4:00 PM', scheduledDate: '2026-11-12', scheduledHour: 16, amount: '₱1,500', status: 'confirmed' as const,
+    };
+    render(
+      <GuestAppPrototype
+        initialScreen="my-stay"
+        initialSession={sessionFor([active], { activeBookingId: 'active', serviceBookings: [massage, walk] })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Old Manila cultural walk/i }));
+    await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
+    expect(screen.getByText(/Old Manila cultural walk · ₱1,500/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /cancel service/i }));
+
+    // The massage is still ahead; only the walk moved to Past.
+    expect(screen.getByRole('tab', { name: /Upcoming \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /hilom signature massage/i })).toBeInTheDocument();
   });
 
   it('falls back to a stay label when no entry path captured a name', () => {
@@ -2135,6 +2206,105 @@ describe('booking another stay', () => {
 /* --------------------------------------------------------------------------
    Lifecycle gates
    -------------------------------------------------------------------------- */
+
+describe('booking the service the guest picked', () => {
+  /*
+    The form sold one thing -- the Hilom massage at ₱2,400 -- whatever had been
+    tapped, so a hot stone therapy, an airport transfer and a luggage hold all
+    confirmed as "Your massage is booked", and the arrival roster had no way to
+    pay at all before a room existed.
+  */
+  const inStay = sessionFor(
+    [makeBooking({ id: 'live', status: 'active', roomNumber: '304', roomVerification: { method: 'scan', at: '2026-11-11' } })],
+    {
+      activeBookingId: 'live',
+      serviceBookings: [{
+        id: 'service-hilom-1', bookingId: 'live', title: 'Hilom signature massage', serviceId: 'spa',
+        scheduledFor: 'Thursday · November 12 · 1:30 PM', scheduledDate: '2026-11-12', scheduledHour: 13,
+        amount: '₱2,400', status: 'confirmed', paymentStatus: 'charged-to-room', paymentMethod: 'room',
+      }],
+    },
+  );
+  const beforeArrival = sessionFor(
+    [makeBooking({ id: 'soon', checkIn: '2026-11-20', checkOut: '2026-11-23' })],
+    { activeBookingId: 'soon' },
+  );
+
+  it('books the listing that was tapped, alongside what is already booked', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={inStay} />);
+
+    await openHomeStory(user, 'Spa & Wellness');
+    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+
+    expect(screen.getByText(/Live availability is shown for Hot stone therapy/)).toBeInTheDocument();
+    expect(screen.queryByText(/Hilom signature massage/)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /Charge to Room 304/i }));
+    await user.click(screen.getByRole('button', { name: 'Charge ₱3,200 to room' }));
+    expect(screen.getByRole('heading', { name: 'Hot stone therapy is booked' })).toBeInTheDocument();
+
+    // The massage already on the stay is still there, at its own time.
+    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    expect(screen.getByRole('button', { name: /Hot stone therapy/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /hilom signature massage/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Upcoming \(2\)/ })).toBeInTheDocument();
+  });
+
+  it('books an arrival service by card before there is a room to charge', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
+
+    await user.click(screen.getByRole('button', { name: /Private car & driver/ }));
+
+    expect(screen.getByText(/Live availability is shown for Private car & driver/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Charge to Room/i })).toBeNull();
+    // The stay's own days, with the weekdays 2026 actually has.
+    expect(screen.getByRole('button', { name: 'Friday · November 20' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: /Pay now/ }));
+    await user.click(screen.getByRole('button', { name: 'Card' }));
+    await user.click(screen.getByRole('button', { name: 'Pay ₱4,800' }));
+
+    expect(screen.getByRole('heading', { name: 'Private car & driver is booked' })).toBeInTheDocument();
+    expect(screen.getByText(/Paid with card, direct to the hotel/)).toBeInTheDocument();
+    expect(screen.queryByText(/added to room/i)).toBeNull();
+  });
+
+  it('books a complimentary arrival service without asking how to pay', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
+
+    await user.click(screen.getByRole('button', { name: /Luggage storage & delivery/ }));
+    expect(screen.queryByRole('group', { name: /How would you like to pay/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Book Luggage storage & delivery' }));
+
+    expect(screen.getByRole('heading', { name: 'Luggage storage & delivery is booked' })).toBeInTheDocument();
+    expect(screen.getByText(/Complimentary, so there is nothing to pay/)).toBeInTheDocument();
+  });
+
+  it('still keeps on-property services behind the scan', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="vendor-service" initialSession={beforeArrival} />);
+
+    await user.click(screen.getByRole('button', { name: /Choose a time/ }));
+
+    expect(screen.getByRole('heading', { name: 'On-property services open when you check in' })).toBeInTheDocument();
+  });
+
+  it('finds the booking already made when the same slot is confirmed again', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
+
+    await user.click(screen.getByRole('button', { name: /Luggage storage & delivery/ }));
+    await user.click(screen.getByRole('button', { name: 'Book Luggage storage & delivery' }));
+    await user.click(screen.getByRole('button', { name: 'Go back' }));
+    await user.click(screen.getByRole('button', { name: 'Book Luggage storage & delivery' }));
+    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+
+    expect(screen.getAllByRole('button', { name: /Luggage storage & delivery/ })).toHaveLength(1);
+  });
+});
 
 describe('lifecycle gates', () => {
   const arrivedUnverified = sessionFor(

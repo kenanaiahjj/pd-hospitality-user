@@ -429,7 +429,12 @@ const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
   celebration: <Sparkle />,
 };
 
-type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out';
+/*
+  `scanned-early` is not a booking failure but a scan one: the right code before
+  the stay has started. It shares the screen because the answer is the same
+  place -- arrival services now, the room on arrival day.
+*/
+type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out' | 'scanned-early';
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
   'my-stay',
@@ -1483,6 +1488,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
   };
 
+  /** `go` without leaving the current screen in history, for steps Back should skip. */
+  const replaceScreen = (next: ActiveScreen) => {
+    if (isChatScreen(next)) setHasUnreadChat(false);
+    setActiveScreen(next);
+    setScrolled(false);
+    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  };
+
   const goToCheckout = (next: ActiveScreen) => {
     setCheckoutPayment(null);
     setPaymentMethod(null);
@@ -1808,13 +1821,29 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       using the code as a way *in* -- the property still has to match them to
       a reservation, which is the surname step on `room-qr-landing`.
     */
+    /*
+      Every outcome replaces the viewfinder rather than stacking on it. It is a
+      step, not a place: Back onto it would have it read the code again, and
+      the guest would land on the result a second time.
+    */
     if (!primaryBooking) {
-      go('room-qr-landing');
+      replaceScreen('room-qr-landing');
+      return;
+    }
+    /*
+      A third outcome: the right code at the wrong time. Before the stay starts
+      -- or after it ends -- nobody is in the room, so the model refuses to
+      record presence, and this says why instead of announcing an unlock that
+      did not happen.
+    */
+    if (!isStayUnderWay(primaryBooking)) {
+      setBookingBlockedReason(primaryBooking.status === 'completed' ? 'checked-out' : 'scanned-early');
+      replaceScreen('booking-blocked');
       return;
     }
     setSession((current) => verifyRoomPresence(current, primaryBooking.id, 'scan'));
     setScanSuccessToast(true);
-    go('room-qr-midstay');
+    replaceScreen('room-qr-midstay');
   };
 
   /*
@@ -3831,6 +3860,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
 
+        if (bookingBlockedReason === 'scanned-early') {
+          return (
+            <ScreenIntro
+              icon={<ClockCountdown size={30} />}
+              eyebrow={contextBooking.property}
+              title="Scan again when you arrive"
+              text={`The code confirms you are in the room, so it opens your stay from ${formatStayDateRange(contextBooking).split('–')[0]}. Until then, arrival services are ready to book.`}
+            >
+              <Notice title="Nothing has changed yet">Dining, spa and charging to your room open once you scan in during your stay.</Notice>
+              {primary('Arrange your arrival', 'pre-arrival-services')}
+              <TextButton onClick={() => go('chat')}>Message the front desk</TextButton>
+            </ScreenIntro>
+          );
+        }
+
         if (bookingBlockedReason === 'checked-out') {
           return (
             <ScreenIntro
@@ -4585,7 +4629,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         canSimulateRoomReady={Boolean(eligibleRoomReadyBooking)}
         roomVerified={Boolean(primaryBooking?.roomVerification)}
         onToggleRoomVerified={toggleRoomVerified}
-        canToggleRoomVerified={Boolean(primaryBooking)}
+        canToggleRoomVerified={Boolean(primaryBooking && (primaryBooking.roomVerification || isStayUnderWay(primaryBooking)))}
         hasHistory={pastStays.length > 0}
         onToggleHistory={toggleHistory}
         hasReview={session.reviews.some((review) => review.bookingId === contextBooking.id)}
@@ -5201,15 +5245,27 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
               <b>{booking.roomType === 'King room' ? 'Deluxe King Room' : booking.roomType}</b>
               <small>{(booking.honouredPreferences?.length ? booking.honouredPreferences : [session.roomPreferences.floor, session.roomPreferences.bed]).join(' · ')}</small>
             </p>
-            <p>Your room is now ready. Once inside, scan the room code to connect your stay to the app.</p>
-            <Button
-              className="guest-button guest-button--primary"
-              type="button"
-              data-testid="guest-room-qr-row"
-              onClick={() => onNavigate('scan-room-code')}
-            >
-              <QrCode aria-hidden="true" />Scan room code<ArrowRight aria-hidden="true" />
-            </Button>
+            {/*
+              The scan is only offered while it can succeed. Days out, a button
+              to scan a code the guest cannot be standing next to either fails
+              or, before the model refused it, "unlocked" a stay that had not
+              begun.
+            */}
+            {isStayUnderWay(booking) ? (
+              <>
+                <p>Your room is now ready. Once inside, scan the room code to connect your stay to the app.</p>
+                <Button
+                  className="guest-button guest-button--primary"
+                  type="button"
+                  data-testid="guest-room-qr-row"
+                  onClick={() => onNavigate('scan-room-code')}
+                >
+                  <QrCode aria-hidden="true" />Scan room code<ArrowRight aria-hidden="true" />
+                </Button>
+              </>
+            ) : (
+              <p>{`Held for your arrival on ${formatStayDateRange(booking).split('–')[0]}. Once you are in the room, scan the code on the desk card to connect your stay to the app.`}</p>
+            )}
           </section>
         )
       ) : (

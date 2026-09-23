@@ -963,6 +963,15 @@ export function verifyRoomPresence(
   method: RoomVerification['method'],
   today: string = PROTOTYPE_TODAY,
 ): GuestSession {
+  /*
+    Presence means in the room, during the stay. A code scanned days before
+    the window opens -- or after checkout -- says nothing about where the guest
+    is, and recording it would have the gate open on arrival day without
+    anyone having been in the room.
+  */
+  const booking = session.bookings.find((item) => item.id === bookingId);
+  if (!booking || !isStayUnderWay(booking, today)) return session;
+
   return {
     ...session,
     bookings: session.bookings.map((booking) => (

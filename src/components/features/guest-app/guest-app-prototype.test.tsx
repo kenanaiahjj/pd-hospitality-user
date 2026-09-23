@@ -2799,6 +2799,71 @@ describe('mock camera', () => {
 
     expect(screen.queryByTestId('room-scanner')).toBeNull();
   });
+
+  /*
+    The viewfinder is a step. Left in history, Back from the unlocked screen
+    landed on it again and it read the code a second time.
+  */
+  it('leaves the viewfinder out of history once it has read the code', async () => {
+    vi.useFakeTimers();
+    try {
+      render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+      fireEvent.click(screen.getByTestId('guest-room-qr-row'));
+      await act(async () => { vi.advanceTimersByTime(2500); });
+      expect(screen.getByRole('heading', { name: 'You’re all set' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+
+      expect(screen.queryByTestId('room-scanner')).toBeNull();
+      expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('scanning outside the stay window', () => {
+  // Room assigned, pre-registration done, arrival nine days out.
+  const early = sessionFor(
+    [makeBooking({
+      id: 'soon',
+      checkIn: '2026-11-20',
+      checkOut: '2026-11-23',
+      roomNumber: '512',
+      roomAssignment: 'assigned',
+      preArrivalCompleted: 4,
+      preArrivalTotal: 4,
+    })],
+    { activeBookingId: 'soon' },
+  );
+
+  it('holds the room card without a scan until the stay starts', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={early} />);
+
+    expect(screen.getByText('Room 512 is ready')).toBeInTheDocument();
+    expect(screen.queryByTestId('guest-room-qr-row')).toBeNull();
+    expect(screen.getByText(/Held for your arrival on Nov 20/)).toBeInTheDocument();
+  });
+
+  /*
+    It used to announce "You're all set. Everything at the hotel is open to
+    you" and award the scan points nine days early, while every service stayed
+    locked -- and the verification it stored would have opened the gate on
+    arrival day with nobody having scanned in.
+  */
+  it('answers an early scan with the date instead of an unlock', async () => {
+    vi.useFakeTimers();
+    try {
+      render(<GuestAppPrototype initialScreen="scan-room-code" initialSession={early} />);
+      await act(async () => { vi.advanceTimersByTime(2500); });
+
+      expect(screen.getByRole('heading', { name: 'Scan again when you arrive' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'You’re all set' })).toBeNull();
+      expect(screen.queryByText(/Room connected successfully/)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('prototype controls', () => {

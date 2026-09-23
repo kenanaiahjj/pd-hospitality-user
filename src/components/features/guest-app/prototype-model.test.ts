@@ -1373,6 +1373,21 @@ describe('verifyRoomPresence', () => {
     expect(cebu?.roomVerification).toBeUndefined();
   });
 
+  /*
+    A code scanned before the stay window opens, or after checkout, proves
+    nothing about who is in the room -- and a verification recorded a month
+    early would have the gate open on arrival day with no scan at all.
+  */
+  it('records nothing outside the stay window', () => {
+    const session = { ...MOCK_SESSION, bookings: [liveBooking()], activeBookingId: liveBooking().id };
+
+    expect(verifyRoomPresence(session, liveBooking().id, 'scan', '2026-11-01')).toBe(session);
+    expect(verifyRoomPresence(session, liveBooking().id, 'scan', '2026-11-20')).toBe(session);
+
+    const settled = { ...session, bookings: [liveBooking({ status: 'completed' })] };
+    expect(verifyRoomPresence(settled, liveBooking().id, 'front-desk', '2026-11-11')).toBe(settled);
+  });
+
   it('clears any pending unlock request once presence is proven', () => {
     const requested = requestFrontDeskUnlock(MOCK_SESSION, 'HEN-241109', '2026-11-11');
     expect(requested.unlockRequest?.bookingId).toBe('HEN-241109');

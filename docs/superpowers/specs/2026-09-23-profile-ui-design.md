@@ -1,6 +1,6 @@
 # Profile polish and pre-arrival passport autofill
 
-**Status:** Profile polish approved by the user on 2026-09-23. Passport simulation details are ready for review.
+**Status:** Profile polish and passport simulation approved by the user on 2026-09-23.
 
 ## Goal
 

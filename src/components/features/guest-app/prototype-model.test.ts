@@ -628,7 +628,7 @@ describe('notifications', () => {
     id: 'service-hilom-1',
     bookingId: 'HEN-241109',
     title: 'Hilom signature massage',
-    scheduledFor: 'Tuesday · November 11 · 1:30 PM',
+    scheduledFor: 'Wednesday · November 11 · 1:30 PM',
     scheduledDate: '2026-11-11',
     amount: '₱2,400',
     status: 'confirmed' as const,

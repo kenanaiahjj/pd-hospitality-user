@@ -284,7 +284,7 @@ export type ServiceBooking = {
   id: string;
   bookingId: string;
   title: string;
-  /** Human-readable, for display: "Tuesday · November 11 · 1:30 PM". */
+  /** Human-readable, for display: "Wednesday · November 11 · 1:30 PM". */
   scheduledFor: string;
   /**
    * The same moment, sortable. `scheduledFor` is prose and cannot be compared,
@@ -574,7 +574,7 @@ export const MOCK_SESSION: GuestSession = {
       scheduledHour: 13,
       bookedAt: '2026-11-09',
       title: 'Hilom signature massage',
-      scheduledFor: 'Wednesday · November 12 · 1:30 PM',
+      scheduledFor: 'Thursday · November 12 · 1:30 PM',
       scheduledDate: '2026-11-12',
       amount: '₱2,400',
       status: 'confirmed',
@@ -607,8 +607,10 @@ export const MOCK_SESSION: GuestSession = {
       scheduledHour: 9,
       bookedAt: '2026-11-02',
       title: 'Binondo food crawl',
-      scheduledFor: 'Thursday · November 13 · 9:00 AM',
-      scheduledDate: '2026-11-13',
+      // Checkout morning, not the day after: a room charge has to fall inside
+      // the stay it is charged to.
+      scheduledFor: 'Thursday · November 12 · 9:00 AM',
+      scheduledDate: '2026-11-12',
       amount: '₱4,400',
       status: 'confirmed',
     },

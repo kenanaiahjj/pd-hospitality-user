@@ -391,6 +391,21 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
   });
 
+  // Both buttons used to do the same thing, so asking for an 11:00 AM room went nowhere.
+  it('records an early check-in request, and only when one was asked for', async () => {
+    const user = userEvent.setup();
+    const upcoming = sessionFor([makeBooking({ id: 'soon', checkIn: '2026-11-20', checkOut: '2026-11-23' })], { activeBookingId: 'soon' });
+    render(<GuestAppPrototype initialScreen="early-check-in" initialSession={upcoming} />);
+
+    await user.click(screen.getByRole('button', { name: 'Request early check-in' }));
+    expect(screen.getByText('Early check-in requested · 11:00 AM')).toBeInTheDocument();
+
+    cleanup();
+    render(<GuestAppPrototype initialScreen="early-check-in" initialSession={upcoming} />);
+    await user.click(screen.getByRole('button', { name: 'Keep standard 3:00 PM' }));
+    expect(screen.queryByText(/Early check-in requested/)).toBeNull();
+  });
+
   it('opens the upcoming home immediately after online pre-arrival completion', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="early-check-in" initialSession={MOCK_SESSION} />);

@@ -5555,6 +5555,12 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
           )}
         </section>
       )}
+      {/* The request the last pre-arrival step sent, so asking and declining no longer look the same. */}
+      {booking.earlyCheckIn && !hasStayStarted(booking) ? (
+        <Notice icon={<Clock />} title={`Early check-in requested · ${booking.earlyCheckIn.time}`}>
+          The hotel confirms availability before you arrive. If it is approved, {booking.earlyCheckIn.fee} goes on your room at checkout.
+        </Notice>
+      ) : null}
       {/*
         Kept out of sight until the guest has scanned in: services on offer
         are not a thing to browse before the room itself confirms they are

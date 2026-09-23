@@ -3328,6 +3328,54 @@ export function filterServices<T extends { operator: string; category: string; p
  * resolved against SERVICES so a featured card can never name or price a
  * service differently from its own listing.
  */
+/**
+ * The chips over each category listing, and what each one holds -- by id.
+ *
+ * The chips used to match their own label against a listing's category name,
+ * which found nothing for 17 of 21 of them ("Massage" is not "Spa & massage"),
+ * so most emptied the list and told the guest to clear a filter that did not
+ * exist. A chip now shows only when it holds something at the hotel.
+ */
+export const LISTING_SUBCATEGORIES: Record<MiniAppCategoryId, ReadonlyArray<{ label: string; ids: readonly string[] }>> = {
+  dining: [
+    { label: 'Breakfast & Brunch', ids: ['apartment-1b', 'dining', 'cafe'] },
+    { label: 'Filipino & International', ids: ['dining', 'rooftop', 'apartment-1b'] },
+    { label: 'Bars & Lounges', ids: ['poolside-bar', 'apartment-1b', 'rooftop'] },
+    { label: 'Desserts & Café', ids: ['cafe'] },
+  ],
+  spa: [
+    { label: 'Massage', ids: ['spa', 'hot-stone', 'couples-massage', 'reflexology'] },
+    { label: 'Body Treatments', ids: ['scrub'] },
+    { label: 'Beauty & Grooming', ids: ['facial', 'mani-pedi', 'barber'] },
+    { label: 'Mind & Movement', ids: [] },
+  ],
+  entertainment: [
+    { label: 'Manila Highlights', ids: ['heritage-walk', 'food-crawl', 'sunset-cruise', 'museum-pass'] },
+    { label: 'Culture & Heritage', ids: ['heritage-walk', 'food-crawl', 'museum-pass', 'cooking-class'] },
+    { label: 'Islands & Marine Life', ids: ['tour', 'diving'] },
+    { label: 'Day Trips', ids: ['tour'] },
+    { label: 'Live Entertainment', ids: ['music', 'film-night'] },
+  ],
+  services: [
+    { label: 'Transportation', ids: ['transfer', 'private-car', 'rental', 'scooter'] },
+    { label: 'Guest Assistance', ids: ['babysitting', 'meeting-room', 'doctor', 'trainer'] },
+    { label: 'Room & Luggage', ids: ['luggage'] },
+    { label: 'Laundry & Housekeeping', ids: ['laundry'] },
+    { label: 'Celebrations', ids: ['celebration'] },
+  ],
+};
+
+/** "All", then every chip that holds at least one of these listings. */
+export function listingSubcategories(categoryId: MiniAppCategoryId, rows: readonly { id: string }[]): string[] {
+  const present = new Set(rows.map((row) => row.id));
+  return ['All', ...LISTING_SUBCATEGORIES[categoryId].filter((chip) => chip.ids.some((id) => present.has(id))).map((chip) => chip.label)];
+}
+
+export function matchesListingSubcategory(categoryId: MiniAppCategoryId, label: string, row: { id: string }): boolean {
+  if (label === 'All') return true;
+  return LISTING_SUBCATEGORIES[categoryId].find((chip) => chip.label === label)?.ids.includes(row.id) ?? false;
+}
+
 export const FEATURED_SERVICE_IDS = ['spa', 'restaurant', 'tour', 'transfer'] as const;
 
 export const getFeaturedServices = () =>

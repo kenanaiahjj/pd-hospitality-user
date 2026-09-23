@@ -112,6 +112,8 @@ import {
   addStayBooking,
   addInAppBookingCharge,
   applyRoomUpgrade,
+  listingSubcategories,
+  matchesListingSubcategory,
   bookableServiceDays,
   canBookService,
   cancellationCutoffHours,
@@ -3646,21 +3648,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'category-listing': {
         const categoryData = MINI_APP_CATEGORIES.find((cat) => cat.id === selectedCategory) ?? MINI_APP_CATEGORIES[0];
         const categoryServices = SERVICES.filter((s) => s.categoryId === selectedCategory);
-        const subcategories: Record<MiniAppCategoryId, string[]> = {
-          dining: ['All', 'Breakfast & Brunch', 'Filipino & International', 'Spanish', 'Asian', 'Pizza & Pasta', 'Desserts & Café'],
-          spa: ['All', 'Massage', 'Body Treatments', 'Beauty & Grooming', 'Mind & Movement'],
-          entertainment: ['All', 'Manila Highlights', 'Culture & Heritage', 'Nature & Waterfalls', 'Islands & Marine Life', 'Day Trips'],
-          services: ['All', 'Transportation', 'Guest Assistance', 'Room & Luggage', 'Laundry & Housekeeping', 'Celebrations'],
-        };
-        const options = subcategories[selectedCategory];
+        const options = listingSubcategories(selectedCategory, selectedCategory === 'dining' ? RESTAURANTS : categoryServices);
         const selectedSubcategory = options.includes(exploreSubcategory) ? exploreSubcategory : 'All';
-        const matchesSubcategory = (row: { category: string }) => {
-          if (selectedSubcategory === 'All') return true;
-          if (selectedSubcategory === 'Filipino & International') return row.category.includes('Filipino') || row.category === 'Dining';
-          if (selectedSubcategory === 'Asian') return row.category.includes('Asian');
-          if (selectedSubcategory === 'Desserts & Café') return row.category.includes('Café') || row.category.includes('Dessert');
-          return row.category === selectedSubcategory;
-        };
+        const matchesSubcategory = (row: { id: string }) => matchesListingSubcategory(selectedCategory, selectedSubcategory, row);
         const visibleVenues = RESTAURANTS.filter(matchesSubcategory);
         const visibleServices = categoryServices.filter(matchesSubcategory);
         const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
@@ -3706,8 +3696,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 ))}
               </div>
               ) : (
-                <Notice title="No venues match those filters">
-                  Clear a filter to see all {RESTAURANTS.length} venues on property.
+                <Notice title={`Nothing under ${selectedSubcategory} at the hotel`}>
+                  <TextButton onClick={() => setExploreSubcategory('All')}>{`See all ${RESTAURANTS.length} venues`}</TextButton>
                 </Notice>
               )}
               <NearbyRecommendations
@@ -3755,8 +3745,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 ))}
               </div>
               ) : (
-                <Notice title="No services match those filters">
-                  Clear a filter to see all {categoryServices.length} services in this category.
+                <Notice title={`Nothing under ${selectedSubcategory} at the hotel`}>
+                  <TextButton onClick={() => setExploreSubcategory('All')}>{`See all ${categoryServices.length} services`}</TextButton>
                 </Notice>
               )}
               <NearbyRecommendations

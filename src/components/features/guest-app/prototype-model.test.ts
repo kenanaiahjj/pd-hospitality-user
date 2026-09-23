@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyRoomUpgrade,
+  listingSubcategories,
+  matchesListingSubcategory,
   bookableServiceDays,
   canBookService,
   describeCancellationWindow,
@@ -1489,6 +1491,20 @@ describe('booking a service', () => {
     const later = { scheduledDate: '2026-11-11', scheduledFor: 'Wednesday · November 11 · 4:00 PM', scheduledHour: 16 };
     expect(describeCancellationWindow('24-hour cancellation cutoff', later)).toMatch(/inside the provider’s 24-hour cutoff/);
     expect(describeCancellationWindow('Same-day service', later)).toMatch(/go through the front desk/);
+  });
+});
+
+describe('listing subcategory chips', () => {
+  // They matched their label against category names, which emptied the list
+  // for 17 of 21 chips.
+  it('shows only chips that hold something, and every one it shows does', () => {
+    for (const categoryId of ['dining', 'spa', 'entertainment', 'services'] as const) {
+      const rows = categoryId === 'dining' ? RESTAURANTS : SERVICES.filter((service) => service.categoryId === categoryId);
+      for (const chip of listingSubcategories(categoryId, rows)) {
+        expect(rows.some((row) => matchesListingSubcategory(categoryId, chip, row)), `${categoryId} › ${chip}`).toBe(true);
+      }
+    }
+    expect(listingSubcategories('spa', SERVICES.filter((service) => service.categoryId === 'spa'))).not.toContain('Mind & Movement');
   });
 });
 

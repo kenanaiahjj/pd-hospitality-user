@@ -381,6 +381,10 @@
     right: 12px;
     bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom));
     width: min(300px, calc(100% - 24px));
+    /* Lifted above the tab bar, so the desktop cap (100dvh - 32px) no longer
+       fits: on an 812px phone the head, close button included, sat 40px above
+       the top of the screen. Cap it to the room actually left. */
+    max-height: calc(100dvh - var(--guest-nav-h) - env(safe-area-inset-bottom) - 16px);
   }
 }
 

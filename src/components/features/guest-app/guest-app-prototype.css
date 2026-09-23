@@ -6925,3 +6925,100 @@
   font-size: 11px;
   font-weight: 650;
 }
+
+/* ==========================================================================
+   Booking another stay
+
+   Restored: `6b4bb1a` removed these rules while the markup kept using them,
+   so the property, room and payment choices on the Book again flow ran
+   together as unstyled text ("CardGCashMaya") with no visible selection.
+   ========================================================================== */
+
+/* A property is chosen on the strength of the place, so the image leads and the
+   rate sits under it rather than competing with the name. */
+.guest-property-card {
+  display: grid;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+}
+.guest-property-card__body { display: grid; gap: 3px; padding: 14px 16px 15px; }
+.guest-property-card__body b { font-size: 16px; font-weight: 680; letter-spacing: -0.01em; }
+.guest-property-card__body small { color: var(--guest-muted); font-size: 13px; line-height: 1.4; }
+.guest-property-card__rate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 7px;
+  color: var(--guest-accent-strong);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.guest-property-card__rate svg { width: 15px; height: 15px; }
+@media (hover: hover) and (pointer: fine) {
+  .guest-property-card:hover { border-color: var(--guest-line-strong); }
+}
+
+.guest-room-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 16px;
+  border: 1px solid var(--guest-line);
+  border-radius: 14px;
+  background: var(--guest-paper);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease, background-color var(--duration-fast) ease;
+}
+.guest-room-option.is-selected {
+  border-color: var(--guest-accent);
+  background: var(--guest-soft);
+  box-shadow: 0 0 0 1px var(--guest-accent-strong);
+}
+.guest-room-option__text { display: grid; gap: 2px; min-width: 0; }
+.guest-room-option__text b { font-size: 15px; font-weight: 650; }
+.guest-room-option__text small { color: var(--guest-muted); font-size: 12.5px; line-height: 1.35; }
+.guest-room-option__price { display: grid; gap: 1px; justify-items: end; }
+.guest-room-option__price b { font-size: 15px; font-weight: 700; }
+.guest-room-option__price small { color: var(--guest-muted); font-size: 12px; }
+
+.guest-payment-choice__label {
+  color: var(--guest-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.guest-payment-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.guest-payment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--guest-line);
+  border-radius: 999px;
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+.guest-payment-chip svg { width: 16px; height: 16px; }
+@media (hover: hover) and (pointer: fine) {
+  .guest-payment-chip:hover { border-color: var(--guest-line-strong); }
+}
+.guest-payment-chip.is-selected {
+  border-color: var(--guest-accent);
+  background: var(--guest-soft);
+  box-shadow: 0 0 0 1px var(--guest-accent-strong);
+}

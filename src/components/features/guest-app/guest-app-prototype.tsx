@@ -3002,13 +3002,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-payment-choice">
               <span className="guest-payment-choice__label">Pay with</span>
               <div className="guest-payment-chips">
-                <button type="button" className={`guest-payment-chip ${stayPaymentMethod === 'card' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('card')}>
+                <button type="button" aria-pressed={stayPaymentMethod === 'card'} className={`guest-payment-chip ${stayPaymentMethod === 'card' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('card')}>
                   <CreditCard size={15} /> Card
                 </button>
-                <button type="button" className={`guest-payment-chip ${stayPaymentMethod === 'gcash' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('gcash')}>
+                <button type="button" aria-pressed={stayPaymentMethod === 'gcash'} className={`guest-payment-chip ${stayPaymentMethod === 'gcash' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('gcash')}>
                   GCash
                 </button>
-                <button type="button" className={`guest-payment-chip ${stayPaymentMethod === 'maya' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('maya')}>
+                <button type="button" aria-pressed={stayPaymentMethod === 'maya'} className={`guest-payment-chip ${stayPaymentMethod === 'maya' ? 'is-selected' : ''}`} onClick={() => setStayPaymentMethod('maya')}>
                   Maya
                 </button>
               </div>

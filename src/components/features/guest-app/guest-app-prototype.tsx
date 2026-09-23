@@ -3892,7 +3892,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions">{checkoutIsDue ? <button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button> : null}<div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
             </div>
 
-            {started ? (
+            {/*
+              Live stays only. After checkout the folio is a closed ledger, and
+              the settled receipt below is its answer -- the live screen would
+              say "Due at checkout" directly under "Total settled".
+            */}
+            {started && !checkedOut ? (
               <button className="guest-my-stay-folio-link" type="button" aria-label="Room charges" onClick={() => go('folio')}>
                 <span className="guest-my-stay-folio-link__icon" aria-hidden="true"><GuestNavIcon icon={HugeReceiptTextIcon} /></span>
                 <span className="guest-my-stay-folio-link__copy"><b>Room charges</b><small>View your complete folio</small></span>
@@ -4181,6 +4186,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro eyebrow="4 hours before service" title="Contact the front desk to change this" text="The provider’s 24-hour self-service cutoff has passed. The charge stays on your room folio."><Notice tone="warning" title="Front desk help required">Send a message and the team will check what the provider can do.</Notice>{primary('Chat with front desk', 'chat')}<TextButton onClick={() => go('my-stay')}>Keep booking</TextButton><div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div></ScreenIntro>;
 
       case 'folio': {
+        /*
+          The live ledger answers "what is running up against the room", which
+          a settled stay no longer has: it would print "Due at checkout" and
+          offer points off a bill already paid. Notifications and old links can
+          still land here, so the settled receipt is where they go instead.
+        */
+        if (describeStayStatus(contextBooking).status === 'checked-out') {
+          return (
+            <ScreenIntro
+              icon={<CheckCircle size={30} />}
+              eyebrow={contextBooking.property}
+              title="This stay is settled"
+              text="Room charges were settled at checkout. The receipt lists the room and everything added to it."
+            >
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => { setSelectedPastStayId(contextBooking.id); go('stay-detail'); }}>
+                View settled stay<ArrowRight aria-hidden="true" />
+              </Button>
+              <TextButton onClick={() => go('my-stay')}>Back to my stay</TextButton>
+            </ScreenIntro>
+          );
+        }
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom);
         const folioTotal = getRoomChargesTotal(session, contextBooking, contextRoom);
         const visibleCharges = folioCharges;

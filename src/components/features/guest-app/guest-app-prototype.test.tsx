@@ -2033,6 +2033,31 @@ describe('a finished stay on My Stay', () => {
     expect(screen.getByRole('button', { name: /Room charges/i })).not.toHaveTextContent('₱3,050');
     expect(screen.queryByRole('button', { name: /Book another stay/ })).toBeNull();
   });
+
+  /*
+    The live folio link went up unconditionally once a stay had started, so a
+    checked-out guest was one tap from "Due at checkout ₱11,500" printed under
+    "Total settled ₱33,150". The settled receipt is the only ledger after
+    checkout, in both halves of the desk window.
+  */
+  it.each(['just-checked-out', 'closed'] as const)('drops the live folio link once the %s stay has settled', (state) => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState(state)} />);
+
+    expect(screen.queryByRole('button', { name: 'Room charges' })).toBeNull();
+    expect(screen.getByRole('button', { name: /View settled stay/ })).toBeInTheDocument();
+  });
+
+  it('sends a settled stay that reaches the folio to its receipt', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="folio" initialSession={applyPrototypeStayState('just-checked-out')} />);
+
+    expect(screen.getByRole('heading', { name: 'This stay is settled' })).toBeInTheDocument();
+    expect(screen.queryByText('Due at checkout')).toBeNull();
+    expect(screen.queryByText(/off this bill/)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /View settled stay/ }));
+    expect(screen.getByText('Total for this stay')).toBeInTheDocument();
+  });
 });
 
 describe('booking another stay', () => {

@@ -111,6 +111,7 @@ import {
   createStayBooking,
   addStayBooking,
   addInAppBookingCharge,
+  applyRoomUpgrade,
   quoteStay,
   countNightsBetween,
   propertyFromRate,
@@ -3053,7 +3054,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<Bed size={30} />} title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { const upgradeCharge: InAppBookingCharge = { id: `room-upgrade-${contextBooking.id}-${upgrade.id}`, title: 'Room upgrade', detail: `${upgrade.name} · Room ${upgrade.roomNumber}`, amount: upgrade.price, date: PROTOTYPE_TODAY }; setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? addInAppBookingCharge({ ...booking, roomUpgrade: { status: 'preparing', newRoomNumber: upgrade.roomNumber, newRoomType: upgrade.name, additionalCost: upgrade.price, transferDeadline: upgrade.transferDeadline, transferTime: upgrade.transfer } }, upgradeCharge) : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + parsePesoAmount(upgrade.price)) })); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } setSession((current) => applyRoomUpgrade(current, contextBooking.id, upgrade)); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
       }
 
       case 'room-upgrade-success': {
@@ -5057,7 +5058,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
               <span><b>View booking</b><small>Rate, policies and confirmation</small></span>
               <CaretRight />
             </button>
-            {!roomUpgrade && booking.checkOut > PROTOTYPE_TODAY ? (
+            {canOfferRoomUpgrade(booking) ? (
               <button className="guest-stay-hero-card__booking guest-stay-hero-card__booking--upgrade" onClick={() => onNavigate('room-upgrades')} type="button">
                 <span><Bed /></span>
                 <span><b>Upgrade room</b><small>Explore available rooms</small></span>
@@ -5850,8 +5851,13 @@ const ROOM_UPGRADES = [
   { id: 'garden-suite-608', name: 'Garden Suite', type: 'Suite upgrade', features: 'King bed · Separate sitting area · Balcony', guests: '3 guests', price: '₱6,000', transfer: 'Ready in about 30 minutes', transferDeadline: '8:00 PM today', roomNumber: '608', image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80' },
 ] as const;
 
+/*
+  An upgrade is a room charge, so it sits behind the same gate as every other
+  one: offered only once the room is verified, and only while a night is left
+  to spend in the better room.
+*/
 function canOfferRoomUpgrade(booking: Booking) {
-  return (booking.status === 'active' || booking.status === 'upcoming') && booking.checkOut > PROTOTYPE_TODAY;
+  return !booking.roomUpgrade && canUseOnPropertyServices(booking) && booking.checkOut > PROTOTYPE_TODAY;
 }
 
 function NearbyRecommendationCard({ item, onSelect }: { item: NearbyEstablishment; onSelect: (id: string) => void }) {

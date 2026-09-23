@@ -2201,6 +2201,30 @@ describe('lifecycle gates', () => {
     expect(screen.getByRole('group', { name: 'Stay stories' })).toBeInTheDocument();
   });
 
+  /*
+    An upgrade adds its cost to the folio, so it is a room charge like any
+    other. It was offered on dates alone, and a guest who had not scanned could
+    confirm one and put ₱3,600 on a room the property had not seen them in.
+  */
+  it('offers a room upgrade only once the room is verified', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+    expect(screen.queryByRole('button', { name: /Upgrade room/ })).toBeNull();
+
+    cleanup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+    expect(screen.getByRole('button', { name: /Upgrade room/ })).toBeInTheDocument();
+  });
+
+  it('refuses to charge an upgrade to a room that is not verified', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="room-upgrade-confirmation" initialSession={arrivedUnverified} />);
+
+    await user.click(screen.getByRole('button', { name: /Confirm upgrade/ }));
+
+    expect(screen.getByRole('heading', { name: 'Scan the code in your room' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Upgrade confirmed/ })).toBeNull();
+  });
+
   it('keeps Chat available in the main navigation for every connected stay', () => {
     for (const session of [beforeArrival, arrivedUnverified, verified, settled]) {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={session} />);

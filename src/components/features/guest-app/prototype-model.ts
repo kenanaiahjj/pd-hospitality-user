@@ -1642,6 +1642,62 @@ export function addInAppBookingCharge(
   };
 }
 
+/** What the upgrade screen offers; only the fields the booking records. */
+export type RoomUpgradeOffer = {
+  id: string;
+  name: string;
+  roomNumber: string;
+  price: string;
+  transfer: string;
+  transferDeadline: string;
+};
+
+/**
+ * Moves the booking into a better room and adds the difference to the folio.
+ *
+ * Once, and only behind the gate. An upgrade is a room charge like any other,
+ * so a room the property has not seen the guest in cannot take one; and Back
+ * from the confirmation lands on the confirm button again, so a second press
+ * has to find the upgrade already there rather than charge it twice.
+ */
+export function applyRoomUpgrade(
+  session: GuestSession,
+  bookingId: string,
+  upgrade: RoomUpgradeOffer,
+  today: string = PROTOTYPE_TODAY,
+): GuestSession {
+  const booking = session.bookings.find((item) => item.id === bookingId);
+  if (!booking || booking.roomUpgrade || !canUseOnPropertyServices(booking, today)) return session;
+
+  const charge: InAppBookingCharge = {
+    id: `room-upgrade-${bookingId}-${upgrade.id}`,
+    title: 'Room upgrade',
+    detail: `${upgrade.name} · Room ${upgrade.roomNumber}`,
+    amount: upgrade.price,
+    date: today,
+  };
+
+  return {
+    ...session,
+    bookings: session.bookings.map((item) => (
+      item.id === bookingId
+        ? addInAppBookingCharge({
+            ...item,
+            roomUpgrade: {
+              status: 'preparing',
+              newRoomNumber: upgrade.roomNumber,
+              newRoomType: upgrade.name,
+              additionalCost: upgrade.price,
+              transferDeadline: upgrade.transferDeadline,
+              transferTime: upgrade.transfer,
+            },
+          }, charge)
+        : item
+    )),
+    folioTotal: formatPesoAmount(parsePesoAmount(session.folioTotal) + parsePesoAmount(upgrade.price)),
+  };
+}
+
 /**
  * A service belongs on the room folio only when it is still a room charge.
  * Older fixture rows omit `paymentStatus`, so an absent value keeps the
@@ -2170,14 +2226,18 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
     });
   }
 
-  // A stay that has not started cannot have run anything up, and a zero total
-  // is not news.
-  if (booking.status !== 'upcoming' && parsePesoAmount(session.folioTotal || booking.folioTotal || '₱0') > 0) {
+  // A stay that has not started cannot have run anything up, a settled one has
+  // nothing left to settle, and a zero total is not news. The figure is the
+  // folio's own sum: `session.folioTotal` is a running counter the ledger does
+  // not read, and quoting it put a different number here than the folio the
+  // notification opens.
+  const ledgerTotal = getRoomChargesTotal(session, booking, room);
+  if (booking.status !== 'upcoming' && booking.status !== 'completed' && parsePesoAmount(ledgerTotal) > 0) {
     notifications.push({
       id: `notification-folio-${booking.id}`,
       tone: 'folio',
       title: 'New charge on your room',
-      body: `${room} now stands at ${session.folioTotal || booking.folioTotal}. It settles at checkout.`,
+      body: `${room} now stands at ${ledgerTotal}. It settles at checkout.`,
       time: '2h ago',
       screen: 'folio',
     });

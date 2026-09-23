@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyRoomUpgrade,
   canUseOnPropertyServices,
   verifyRoomPresence,
   requestFrontDeskUnlock,
@@ -64,7 +65,7 @@ import {
   emailLoginSession,
   signOutSession,
 } from './prototype-model';
-import type { Booking, RoomVerification } from './prototype-model';
+import type { Booking, GuestSession, RoomVerification } from './prototype-model';
 import {
   getHomeVariant,
   getPrimaryBooking,
@@ -674,8 +675,26 @@ describe('notifications', () => {
 
     expect(getNotifications(charged, active).some((n) => n.tone === 'folio')).toBe(true);
     expect(getNotifications(charged, UPCOMING_BOOKING_FIXTURE).some((n) => n.tone === 'folio')).toBe(false);
-    const unspent = { ...MOCK_SESSION, folioTotal: '₱0' };
+    // Unspent means nothing on the ledger at all -- the notification quotes the
+    // folio's own sum, so room-charged services count even while the session's
+    // running counter reads zero.
+    const unspent = { ...MOCK_SESSION, folioTotal: '₱0', serviceBookings: [] };
     expect(getNotifications(unspent, { ...active, folioTotal: undefined }).some((n) => n.tone === 'folio')).toBe(false);
+  });
+
+  it('quotes the same total as the folio it opens', () => {
+    const charged = { ...MOCK_SESSION, folioTotal: '₱3,050' };
+    const active = { ...UPCOMING_BOOKING_FIXTURE, status: 'active' as const, roomNumber: '304' };
+
+    const folio = getNotifications(charged, active).find((n) => n.tone === 'folio');
+    expect(folio?.body).toContain(getRoomChargesTotal(charged, active, 'Room 304'));
+  });
+
+  it('raises no folio charge for a stay that has settled', () => {
+    const charged = { ...MOCK_SESSION, folioTotal: '₱3,050' };
+    const settled = { ...UPCOMING_BOOKING_FIXTURE, status: 'completed' as const, roomNumber: '304' };
+
+    expect(getNotifications(charged, settled).some((n) => n.tone === 'folio')).toBe(false);
   });
 
   it('gives every entry a unique id so read state cannot collide', () => {
@@ -1360,6 +1379,44 @@ describe('verifyRoomPresence', () => {
 
     const granted = verifyRoomPresence(requested, 'HEN-241109', 'front-desk', '2026-11-11');
     expect(granted.unlockRequest).toBeUndefined();
+  });
+});
+
+describe('applyRoomUpgrade', () => {
+  const upgrade = {
+    id: 'deluxe-king-512',
+    name: 'Deluxe King Room',
+    roomNumber: '512',
+    price: '₱3,600',
+    transfer: 'Ready now',
+    transferDeadline: '4:00 PM',
+  };
+  const sessionWith = (booking: Booking): GuestSession => ({
+    ...MOCK_SESSION,
+    bookings: [booking],
+    activeBookingId: booking.id,
+    serviceBookings: [],
+    folioTotal: '₱3,050',
+  });
+
+  it('charges the difference once, however many times it is confirmed', () => {
+    const session = sessionWith(liveBooking({ roomVerification: verification }));
+
+    const once = applyRoomUpgrade(session, session.bookings[0]!.id, upgrade);
+    const twice = applyRoomUpgrade(once, session.bookings[0]!.id, upgrade);
+
+    expect(once.folioTotal).toBe('₱6,650');
+    expect(twice.folioTotal).toBe('₱6,650');
+    expect(twice.bookings[0]!.inAppCharges).toHaveLength(1);
+  });
+
+  it('refuses a room the property has not seen the guest in', () => {
+    const session = sessionWith(liveBooking());
+
+    const next = applyRoomUpgrade(session, session.bookings[0]!.id, upgrade);
+
+    expect(next).toBe(session);
+    expect(next.bookings[0]!.roomUpgrade).toBeUndefined();
   });
 });
 

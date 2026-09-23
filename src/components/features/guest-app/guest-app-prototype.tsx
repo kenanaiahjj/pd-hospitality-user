@@ -72,6 +72,7 @@ import {
   describeBookingSlot,
   describeGuestGate,
   describePostStayWindow,
+  POST_STAY_DESK_HOURS,
   isPreArrivalService,
   requestFrontDeskUnlock,
   verifyRoomPresence,
@@ -1920,9 +1921,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     The 24-hour front-desk window. Real arithmetic over `checkedOutAt`, but
     the prototype reaches both sides of it through the state switcher rather
     than by elapsing -- nothing should expire while a stakeholder is looking
-    at it.
+    at it. "Simulate 24 hours after checkout" asks the same question a day
+    later, so chat, My Stay and the review prompt all agree the desk closed.
   */
-  const postStayWindow = describePostStayWindow(contextBooking);
+  const postStayWindow = describePostStayWindow(
+    contextBooking,
+    simulatePostStayExpired && contextBooking.checkedOutAt
+      ? new Date(Date.parse(contextBooking.checkedOutAt) + POST_STAY_DESK_HOURS * 3_600_000).toISOString()
+      : undefined,
+  );
   /** This guest's own history. Empty for an account that has not stayed yet. */
   const pastStays = session.pastStays;
   const [autoDetectScans, setAutoDetectScans] = useState(true);
@@ -2413,7 +2420,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   );
 
   const renderChatScreen = () => {
-    const chatDisabled = checkedOutNav && (simulatePostStayExpired || !postStayWindow.deskOpen);
+    const chatDisabled = checkedOutNav && !postStayWindow.deskOpen;
     const restaurantChat = Boolean(chatOrderVenue);
     const displayedChatMessages: ChatMessage[] = chatDisabled ? [
       { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
@@ -2434,7 +2441,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <button className="guest-chat__back" type="button" onClick={history.length ? back : () => go('stay-overview')} aria-label="Go back"><ArrowLeft aria-hidden="true" /></button>
             <div className="guest-chat__identity-copy">
               <h1>Front desk</h1>
-              <span>{restaurantChat ? contextBooking.property : 'The Henry Manila'}</span>
+              <span>{contextBooking.property}</span>
             </div>
           </div>
         </div>

@@ -2196,13 +2196,28 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('stay-overview');
   };
 
-  const completePreArrival = () => {
+  /*
+    `earlyCheckIn` is the guest's answer on the last step: true asks, false
+    keeps the standard time. Both buttons used to call this with nothing, so a
+    request for an 11:00 AM room went nowhere and looked identical to declining.
+    Left out -- "Confirm everything" on the review -- it keeps what is there.
+  */
+  const completePreArrival = (earlyCheckIn?: boolean) => {
+    const request = { time: '11:00 AM', fee: '₱1,500' };
+    if (earlyCheckIn) {
+      setChatMessages((messages) => [
+        ...messages,
+        { from: 'guest', body: `I’d like to request early check-in from ${request.time} on ${formatStayDateRange(contextBooking).split('–')[0]}.`, state: online ? 'Sent' : 'Will send when connected' },
+        { from: 'desk', body: 'Noted. We’ll confirm early check-in before you arrive. If it’s approved, the fee goes on your room at checkout.', state: 'Seen' },
+      ]);
+    }
     const next: GuestSession = {
       ...session,
       bookings: session.bookings.map((booking) =>
         booking.id === contextBooking.id
           ? {
               ...booking,
+              earlyCheckIn: earlyCheckIn === undefined ? booking.earlyCheckIn : earlyCheckIn ? request : undefined,
               preArrivalCompleted: booking.preArrivalTotal,
               // Cleared, not left behind: at 100% there is no next step, and a
               // stale one reads as work still owed.
@@ -3318,7 +3333,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <Button
               className="guest-button guest-button--primary"
               type="button"
-              onClick={completePreArrival}
+              onClick={() => completePreArrival()}
             >
               Confirm everything<ArrowRight aria-hidden="true" />
             </Button>
@@ -3395,7 +3410,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </section>
 
             <section>
-              <SectionHeading title="Guests" action="Edit" onAction={() => go('additional-guests')} />
+              <SectionHeading
+                title="Guests"
+                action={describeStayStatus(displayBooking).status === 'checked-out' ? undefined : 'Edit'}
+                onAction={() => go('additional-guests')}
+              />
               <div className="guest-guest-list">
                 {bookingGuests.rows.map((guest) => guest.name ? (
                   <div key={guest.key} className="guest-guest-row">
@@ -3468,11 +3487,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <Button
               className="guest-button guest-button--primary"
               type="button"
-              onClick={completePreArrival}
+              onClick={() => completePreArrival(true)}
             >
               Request early check-in<ArrowRight aria-hidden="true" />
             </Button>
-            <TextButton onClick={completePreArrival}>Keep standard 3:00 PM</TextButton>
+            <TextButton onClick={() => completePreArrival(false)}>Keep standard 3:00 PM</TextButton>
           </ScreenIntro>
         );
 

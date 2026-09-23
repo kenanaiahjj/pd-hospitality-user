@@ -237,6 +237,12 @@ export type Booking = {
    * their reward eligibility auditable and survives a room transfer.
    */
   inAppCharges?: InAppBookingCharge[];
+  /**
+   * An early check-in the guest asked for at the end of pre-registration. A
+   * request, not a booking: the hotel confirms availability, and the fee only
+   * reaches the folio if it does.
+   */
+  earlyCheckIn?: { time: string; fee: string };
   roomUpgrade?: {
     status: 'preparing' | 'ready';
     newRoomNumber: string;

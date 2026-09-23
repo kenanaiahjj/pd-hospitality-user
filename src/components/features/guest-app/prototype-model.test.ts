@@ -1533,14 +1533,14 @@ describe('describeGuestGate', () => {
 });
 
 describe('describeBookingSlot', () => {
-  it('offers Arrival before the window opens', () => {
+  it('shows the arrival roster in Explore before the window opens', () => {
     const slot = describeBookingSlot(UPCOMING_BOOKING_FIXTURE, '2026-11-01');
-    expect(slot).toMatchObject({ label: 'Arrival', screen: 'pre-arrival-services', locked: false });
+    expect(slot).toMatchObject({ label: 'Explore', screen: 'pre-arrival-services', locked: false });
   });
 
-  it('locks Explore for a guest who has arrived and not scanned', () => {
+  it('shows arrival services while keeping the on-property catalogue locked until the scan', () => {
     const slot = describeBookingSlot(liveBooking());
-    expect(slot).toMatchObject({ label: 'Explore', screen: 'marketplace', locked: true });
+    expect(slot).toMatchObject({ label: 'Explore', screen: 'pre-arrival-services', locked: true });
   });
 
   it('opens Explore once presence is proven', () => {

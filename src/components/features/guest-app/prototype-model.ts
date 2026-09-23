@@ -1004,15 +1004,13 @@ export function requestFrontDeskUnlock(
 /**
  * The second tab: one slot, three contents.
  *
- * The slot always answers the same question -- what can I book right now --
- * and the honest answer differs by gate. It is locked in exactly one
- * situation, and the placement is the whole point: a wall shown to a guest
- * three days out teaches them the app is closed, where the same wall shown to
- * a guest standing in their room with the code in front of them is the one
- * moment the prompt can be acted on.
+ * The slot always answers the same question -- what can I book right now.
+ * Before the room scan it shows the arrival-only roster. `locked` records
+ * that the full on-property catalogue is still gated, not that the slot is
+ * empty; the arrival roster carries the scan action when the stay is underway.
  */
 export type BookingSlot = {
-  label: 'Arrival' | 'Explore' | 'Book again';
+  label: 'Explore' | 'Book again';
   screen: Extract<ScreenId, 'pre-arrival-services' | 'marketplace' | 'book-stay'>;
   locked: boolean;
 };
@@ -1028,15 +1026,16 @@ export function describeBookingSlot(
   }
 
   if (gate === 'in-stay' && booking) {
+    const onPropertyUnlocked = canUseOnPropertyServices(booking, today);
     return {
       label: 'Explore',
-      screen: 'marketplace',
-      locked: !canUseOnPropertyServices(booking, today),
+      screen: onPropertyUnlocked ? 'marketplace' : 'pre-arrival-services',
+      locked: !onPropertyUnlocked,
     };
   }
 
-  // Pre-arrival, and the signed-out case, which never renders the bar anyway.
-  return { label: 'Arrival', screen: 'pre-arrival-services', locked: false };
+  // Before arrival, only the arrival roster is available in Explore.
+  return { label: 'Explore', screen: 'pre-arrival-services', locked: false };
 }
 
 /**

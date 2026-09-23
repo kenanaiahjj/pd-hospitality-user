@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import userEvent from '@testing-library/user-event';
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
 import {
@@ -130,7 +130,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getAllByText('Cabana', { exact: true })).toHaveLength(2);
     expect(screen.getAllByText('Your Home Away From Home')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Log in' })).toBeNull();
     expect(screen.queryByText(/travel|flights/i)).toBeNull();
@@ -138,12 +138,11 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
-  it('uses Apple SSO from Get started to reach the booking-linked home', async () => {
+  it('uses Apple SSO from the welcome screen to reach the booking-linked home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
-    expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
@@ -160,33 +159,16 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
-  it('uses Google SSO from Get started to reach booking lookup', async () => {
+  it('uses Google SSO from the welcome screen to reach booking lookup', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
-    expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
-  });
-
-  it('closes the SSO sheet with Escape and restores focus to Get started', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype />);
-
-    const trigger = screen.getByRole('button', { name: 'Get started' });
-    await user.click(trigger);
-    expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
-
-    await user.keyboard('{Escape}');
-
-    // The dialog closes at once; the node outlives it by the length of the
-    // exit transition, so this waits for the removal rather than the dismissal.
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull());
-    expect(trigger).toHaveFocus();
   });
 
   it('pages the welcome steps one at a time from the dots', async () => {
@@ -202,7 +184,7 @@ describe('GuestAppPrototype', () => {
     expect(dots[2]).toHaveAttribute('aria-current', 'step');
     expect(dots[0]).not.toHaveAttribute('aria-current');
     // Account access is available from every welcome step.
-    expect(screen.getByRole('button', { name: 'Get started' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeEnabled();
   });
 
   it('exposes only the current welcome step to assistive tech', async () => {
@@ -219,15 +201,11 @@ describe('GuestAppPrototype', () => {
     expect(stepOf('Skip the front desk paperwork')).toHaveAttribute('aria-hidden', 'false');
   });
 
-  it('opens the unified SSO bottom sheet from the welcome action', async () => {
-    const user = userEvent.setup();
+  it('offers every log-in option on the welcome screen', () => {
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
-
-    const sheet = screen.getByRole('dialog', { name: 'Get started' });
+    const sheet = screen.getByRole('group', { name: 'Log in options' });
     expect(sheet).toBeInTheDocument();
-    expect(within(sheet).getByRole('heading', { name: 'Get started' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Log in with email' })).toBeInTheDocument();
@@ -237,26 +215,24 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByText(/Create your account|Already have an account|Don't have an account/)).toBeNull();
   });
 
-  it('opens email login from the Get started sheet', async () => {
+  it('opens email login from the welcome screen', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Log in with email' }));
 
     expect(screen.getByRole('heading', { name: 'Log in' })).toBeInTheDocument();
     expect(screen.getByLabelText('Email *')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Log in options' })).toBeNull();
   });
 
-  it('opens booking lookup for guests from the Get started sheet', async () => {
+  it('opens booking lookup for guests from the welcome screen', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Log in as guest' }));
 
-    expect(screen.queryByRole('dialog', { name: 'Get started' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Log in options' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
@@ -266,7 +242,6 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Log in with email' }));
     const email = screen.getByLabelText('Email *');
     expect(email).toHaveAttribute('autocomplete', 'email');
@@ -292,7 +267,6 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Log in with email' }));
     await user.type(screen.getByLabelText('Email *'), 'guest@example.com');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
@@ -307,14 +281,11 @@ describe('GuestAppPrototype', () => {
     expect(invalidCode).toHaveFocus();
   });
 
-  it('disables both SSO providers when the connection is offline', async () => {
-    const user = userEvent.setup();
+  it('disables both SSO providers when the connection is offline', () => {
     render(<GuestAppPrototype initialOnline={false} />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
-
-    const sheet = screen.getByRole('dialog', { name: 'Get started' });
-    expect(within(sheet).getByText('Getting started needs a connection')).toBeInTheDocument();
+    const sheet = screen.getByRole('group', { name: 'Log in options' });
+    expect(within(sheet.closest('.guest-welcome__message') as HTMLElement).getByText('Log in needs a connection')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeDisabled();
   });
@@ -820,7 +791,6 @@ describe('guest account and entry flows', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     expect(screen.queryByTestId('guest-home-active')).toBeNull();
 
@@ -836,7 +806,6 @@ describe('guest account and entry flows', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
@@ -872,7 +841,7 @@ describe('guest account and entry flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    expect(screen.getByRole('button', { name: 'Get started' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -882,14 +851,13 @@ describe('guest account and entry flows', () => {
     expect(screen.queryByRole('button', { name: /open profile/i })).toBeNull();
   });
 
-  it('keeps the welcome focused and opens the unified SSO sheet first', async () => {
+  it('keeps the welcome focused on its log-in options', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     expect(screen.queryByText(/Offline mode active/i)).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
 
-    expect(screen.getByRole('dialog', { name: 'Get started' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     /*
       Apple returns a guest the estate already knows, reservation included, so
@@ -905,7 +873,7 @@ describe('guest account and entry flows', () => {
     expect(guestStyles).toContain('.guest-welcome__dots');
     expect(guestStyles).toMatch(/\.guest-welcome__brand\s*\{[^}]*align-self:\s*center/);
     expect(guestStyles).toMatch(/\.guest-welcome[^}]*background: #fff/);
-    expect(guestStyles).toContain('.guest-sso-button');
+    expect(guestStyles).toContain('.guest-welcome__login-button');
     expect(guestStyles).toContain('.guest-code-field');
     expect(guestStyles).toMatch(/\.guest-code-field[^}]*letter-spacing/);
   });
@@ -1619,7 +1587,7 @@ describe('pre-arrival onboarding flow', () => {
     // Continuing triggers ID upload step
     await user.click(screen.getByRole('button', { name: 'Continue to ID' }));
     expect(screen.getByRole('heading', { name: 'ID or passport for Elena Santos' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Capture or upload ID/ })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Passport photo options' })).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/Document number/), 'P9823411A');
     await user.click(screen.getByRole('button', { name: 'Save guest' }));
@@ -1687,7 +1655,7 @@ describe('guest profile', () => {
 
     expect(document.querySelector('.guest-profile-page')).toBeInTheDocument();
     expect(document.querySelector('.guest-profile-identity')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Your account' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument();
     expect(screen.getByText('Passport on file')).toBeInTheDocument();
     expect(document.querySelector('.guest-profile-action-list')).toBeInTheDocument();
   });
@@ -1808,10 +1776,10 @@ describe('session persistence', () => {
       two-pass behaviour explicit rather than something a future reader has to
       infer from a `findBy` that happens to wait.
     */
-    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
 
     expect(await screen.findByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Get started/ })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Log in options' })).toBeNull();
   });
 
   it('keeps a signed-out record from landing anywhere but the entry hub', async () => {
@@ -1820,7 +1788,7 @@ describe('session persistence', () => {
     render(<GuestAppPrototype />);
     await act(async () => { await Promise.resolve(); });
 
-    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
   });
 
   it('ignores storage entirely when a session is supplied', async () => {
@@ -1829,7 +1797,7 @@ describe('session persistence', () => {
     render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
     await act(async () => { await Promise.resolve(); });
 
-    expect(screen.getByRole('button', { name: /Get started/ })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -2551,7 +2519,7 @@ describe('lifecycle gates', () => {
 
     await user.click(secondTab());
 
-    expect(screen.getByRole('heading', { name: 'Scan the code in your room' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Arrival services' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Scan room code$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /I can.{1,3}t scan/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Categories' })).toBeNull();
@@ -2617,7 +2585,7 @@ describe('lifecycle gates', () => {
     // the app bar's job rather than the nav's.
     await user.click(screen.getByRole('button', { name: 'Go back' }));
     await user.click(secondTab());
-    expect(screen.getByRole('heading', { name: 'The front desk has your request' })).toBeInTheDocument();
+    expect(screen.getByText('The front desk has your request')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Categories' })).toBeNull();
   });
 
@@ -2852,7 +2820,6 @@ describe('signed-in home with no booking', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
@@ -2864,7 +2831,6 @@ describe('signed-in home with no booking', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Get started' }));
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
@@ -3069,7 +3035,7 @@ describe('prototype controls', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     await user.click(within(nav).getAllByRole('button')[1]);
-    expect(screen.getByRole('heading', { name: 'Scan the code in your room' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Scan room code$/ })).toBeInTheDocument();
   });
 
   it('clears and re-seeds stay history', async () => {

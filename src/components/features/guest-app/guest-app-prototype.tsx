@@ -1,12 +1,12 @@
 'use client';
 
 import {
-  AppleLogo,
   ArrowLeft,
   ArrowRight,
   Bed,
   Bell,
   BellRinging,
+  Camera,
   CalendarPlus,
   CaretRight,
   ChatCircleDots,
@@ -18,7 +18,6 @@ import {
   CreditCard,
   ForkKnife,
   Gift,
-  GoogleLogo,
   House,
   IdentificationCard,
   MapPin,
@@ -38,6 +37,7 @@ import {
   Lock,
   Car,
   Users,
+  UploadSimple,
   Wrench,
   WifiHigh,
   WifiSlash,
@@ -244,11 +244,10 @@ const formatChatDuration = (seconds: number) => {
 };
 
 /**
- * Which screens light which tab. Explore owns the whole catalogue -- the
- * property's own services and the onward legs alike -- and everything reached
- * by booking from it; My Stay owns the reservations, the running bill, and the
- * front desk. Both are declared once here so the tab bar cannot disagree with
- * itself.
+ * Which screens light which tab. Explore owns the arrival roster before the
+ * room scan and the full on-property catalogue after it, plus every screen
+ * reached by booking from either. My Stay owns reservations, the running bill,
+ * and the front desk.
  */
 const EXPLORE_SCREENS: ActiveScreen[] = [
   'pre-arrival-services',
@@ -812,101 +811,6 @@ function WelcomeStepCopy({ index }: Pick<PagerHandle, 'index'>) {
   );
 }
 
-function SsoSheet({
-  online,
-  onClose,
-  onSso,
-  onEmailLogin,
-  onGuestLogin,
-}: {
-  online: boolean;
-  onClose: () => void;
-  onSso: (method: AuthMethod) => void;
-  onEmailLogin: () => void;
-  onGuestLogin: () => void;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog || dialog.open) return;
-    dialog.showModal();
-  }, []);
-
-  const close = () => ref.current?.close();
-
-  return (
-    <dialog
-      ref={ref}
-      id="guest-sso-sheet"
-      className="guest-sheet guest-sso-sheet"
-      aria-labelledby="guest-sso-sheet-title"
-      onClose={onClose}
-      onKeyDown={(event) => {
-        // Browsers close a modal dialog on Escape. Keep this explicit so the
-        // prototype's lightweight test shim behaves the same way.
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          close();
-        }
-      }}
-      onClick={(event) => { if (event.target === ref.current) close(); }}
-    >
-      <div className="guest-sheet__panel">
-        <span className="guest-sheet__grip" aria-hidden="true" />
-        <div className="guest-sheet__head guest-sso-sheet__head">
-          <div>
-            <p className="guest-eyebrow">Your stay, all in one place</p>
-            <h2 id="guest-sso-sheet-title">Get started</h2>
-          </div>
-          <button type="button" className="guest-sso-sheet__close" aria-label="Close" onClick={close}>
-            <X aria-hidden="true" />
-          </button>
-        </div>
-        <div className="guest-sheet__body guest-sso-sheet__body">
-          <p className="guest-sso-sheet__lede">Choose how to access your stay.</p>
-          {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Getting started needs a connection">A connection is required to continue.</Notice> : null}
-          <div className="guest-auth-actions">
-            <Button
-              autoFocus
-              className="guest-button guest-button--secondary guest-sso-button"
-              type="button"
-              disabled={!online}
-              onClick={() => onSso('apple')}
-            >
-              <AppleLogo size={20} aria-hidden="true" /> Continue with Apple
-            </Button>
-            <Button
-              className="guest-button guest-button--secondary guest-sso-button"
-              type="button"
-              disabled={!online}
-              onClick={() => onSso('google')}
-            >
-              <GoogleLogo size={20} aria-hidden="true" /> Continue with Google
-            </Button>
-            <Button
-              className="guest-button guest-button--primary guest-sso-button"
-              type="button"
-              disabled={!online}
-              onClick={() => { close(); onEmailLogin(); }}
-            >
-              Log in with email<ArrowRight aria-hidden="true" />
-            </Button>
-          </div>
-          <Button
-            className="guest-button guest-button--secondary guest-sso-button guest-sso-sheet__guest-action"
-            type="button"
-            disabled={!online}
-            onClick={() => { close(); onGuestLogin(); }}
-          >
-            Log in as guest<ArrowRight aria-hidden="true" />
-          </Button>
-        </div>
-      </div>
-    </dialog>
-  );
-}
-
 function WelcomeScreen({
   online,
   onSso,
@@ -919,54 +823,79 @@ function WelcomeScreen({
   onGuestLogin: () => void;
 }) {
   const pager = useWelcomePager();
-  const [ssoOpen, setSsoOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  const closeSso = () => {
-    /*
-      Focus goes back the moment the sheet is dismissed -- to a guest it is
-      already gone, and waiting on the animation to hand focus over would put a
-      third of a second of nothing between the keypress and the answer. Only
-      the node itself lingers, long enough to travel back down.
-    */
-    triggerRef.current?.focus();
-    afterSheetExit(() => setSsoOpen(false));
-  };
 
   return (
-    <>
-      <section className="guest-welcome" aria-labelledby="guest-welcome-title">
-        <div className="guest-welcome__splash" aria-hidden="true">
-          <CabanaFullLockup className="guest-welcome__splash-brand" markWidth={92} />
-        </div>
-        <div className="guest-welcome__content" onFocus={pager.engage}>
-          <CabanaFullLockup className="guest-welcome__brand" markWidth={44} />
-          {/*
-            The rotating step copy took this slot, so the heading goes to screen
-            readers only. It stays in the tree because the screen still needs one
-            stable accessible name -- a heading that changed every 4.5s would not
-            be one.
-          */}
-          <h1 id="guest-welcome-title" className="sr-only">Welcome to your stay</h1>
-          <WelcomeArt index={pager.index} swipe={pager.swipe} />
-          <div className="guest-welcome__message">
-            <WelcomeDots index={pager.index} show={pager.show} />
-            <WelcomeStepCopy index={pager.index} />
-            <div className="guest-welcome__actions">
-              <Button
-                ref={triggerRef}
-                className="guest-button guest-button--primary guest-welcome__action"
-                type="button"
-                onClick={() => setSsoOpen(true)}
-              >
-                Get started<ArrowRight aria-hidden="true" />
-              </Button>
-            </div>
+    <section className="guest-welcome" aria-labelledby="guest-welcome-title">
+      <div className="guest-welcome__splash" aria-hidden="true">
+        <CabanaFullLockup className="guest-welcome__splash-brand" markWidth={92} />
+      </div>
+      <div className="guest-welcome__content" onFocus={pager.engage}>
+        <CabanaFullLockup className="guest-welcome__brand" markWidth={44} />
+        {/*
+          The rotating step copy took this slot, so the heading goes to screen
+          readers only. It stays in the tree because the screen still needs one
+          stable accessible name -- a heading that changed every 4.5s would not
+          be one.
+        */}
+        <h1 id="guest-welcome-title" className="sr-only">Welcome to your stay</h1>
+        <WelcomeArt index={pager.index} swipe={pager.swipe} />
+        <div className="guest-welcome__message">
+          <WelcomeDots index={pager.index} show={pager.show} />
+          <WelcomeStepCopy index={pager.index} />
+          {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Log in needs a connection">Reconnect to continue.</Notice> : null}
+          <div className="guest-welcome__actions" role="group" aria-label="Log in options">
+            <Button
+              className="guest-button guest-button--secondary guest-welcome__login-button"
+              type="button"
+              disabled={!online}
+              onClick={() => onSso('apple')}
+            >
+              <Image
+                src="/brand/apple.svg"
+                width={20}
+                height={20}
+                alt=""
+                aria-hidden="true"
+                className="guest-welcome__login-logo"
+              />
+              Continue with Apple
+            </Button>
+            <Button
+              className="guest-button guest-button--secondary guest-welcome__login-button"
+              type="button"
+              disabled={!online}
+              onClick={() => onSso('google')}
+            >
+              <Image
+                src="/brand/google-g.png"
+                width={200}
+                height={204}
+                alt=""
+                aria-hidden="true"
+                className="guest-welcome__login-logo guest-welcome__login-logo--google"
+              />
+              Continue with Google
+            </Button>
+            <Button
+              className="guest-button guest-button--primary guest-welcome__login-button"
+              type="button"
+              disabled={!online}
+              onClick={onEmailLogin}
+            >
+              Log in with email<ArrowRight aria-hidden="true" />
+            </Button>
+            <Button
+              className="guest-button guest-button--secondary guest-welcome__login-button"
+              type="button"
+              disabled={!online}
+              onClick={onGuestLogin}
+            >
+              Log in as guest<ArrowRight aria-hidden="true" />
+            </Button>
           </div>
         </div>
-      </section>
-      {ssoOpen ? <SsoSheet online={online} onClose={closeSso} onSso={onSso} onEmailLogin={onEmailLogin} onGuestLogin={onGuestLogin} /> : null}
-    </>
+      </div>
+    </section>
   );
 }
 
@@ -984,6 +913,107 @@ type Companion = {
   documentNumber?: string;
   expiry?: string;
 };
+
+type PassportFields = {
+  documentNumber: string;
+  expiry: string;
+};
+
+const DEMO_PASSPORT_FIELDS: PassportFields = {
+  documentNumber: 'P1234567A',
+  expiry: '2030-05-20',
+};
+
+function PassportCapturePanel({
+  subjectName,
+  onAutofill,
+}: {
+  subjectName: string;
+  onAutofill: (fields: PassportFields) => void;
+}) {
+  const [step, setStep] = useState<'idle' | 'preview' | 'reading' | 'complete'>('idle');
+  const [source, setSource] = useState<'photo' | 'upload' | null>(null);
+
+  useEffect(() => {
+    if (step !== 'reading') return;
+
+    const timeout = window.setTimeout(() => {
+      onAutofill(DEMO_PASSPORT_FIELDS);
+      setStep('complete');
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [onAutofill, step]);
+
+  const openDemoPreview = (nextSource: 'photo' | 'upload') => {
+    setSource(nextSource);
+    setStep('preview');
+  };
+
+  return (
+    <section className="guest-passport-capture" aria-label={`Passport photo simulation for ${subjectName}`}>
+      <div className="guest-passport-capture__choices" role="group" aria-label="Passport photo options">
+        <button
+          className={`guest-passport-capture__choice${source === 'photo' ? ' is-selected' : ''}`}
+          type="button"
+          aria-pressed={source === 'photo'}
+          onClick={() => openDemoPreview('photo')}
+        >
+          <Camera size={21} aria-hidden="true" />
+          <b>Take a photo</b>
+          <small>Simulated capture</small>
+        </button>
+        <button
+          className={`guest-passport-capture__choice${source === 'upload' ? ' is-selected' : ''}`}
+          type="button"
+          aria-pressed={source === 'upload'}
+          onClick={() => openDemoPreview('upload')}
+        >
+          <UploadSimple size={21} aria-hidden="true" />
+          <b>Upload a photo</b>
+          <small>Use a sample image</small>
+        </button>
+      </div>
+
+      {step !== 'idle' ? (
+        <div className="guest-passport-capture__preview">
+          <div className="guest-passport-capture__preview-heading">
+            <b>Demo passport preview</b>
+            <span>Sample only</span>
+          </div>
+          <div className="guest-passport-capture__document" aria-label={`Sample passport preview for ${subjectName}`}>
+            <div className="guest-passport-capture__portrait" aria-hidden="true">
+              <IdentificationCard size={24} />
+            </div>
+            <div className="guest-passport-capture__document-details">
+              <small>PASSPORT · DEMO</small>
+              <b>{subjectName || 'Guest'}</b>
+              <span>Passport photo · simulated</span>
+            </div>
+          </div>
+          <p className="guest-passport-capture__note">
+            {source === 'photo' ? 'Photo capture simulated.' : 'Sample photo selected.'} No real image is used.
+          </p>
+          {step === 'preview' ? (
+            <button className="guest-passport-capture__read" type="button" onClick={() => setStep('reading')}>
+              Read passport details<ArrowRight aria-hidden="true" />
+            </button>
+          ) : null}
+          {step === 'reading' ? (
+            <p className="guest-passport-capture__status" role="status" aria-live="polite" aria-atomic="true">
+              Reading passport details…
+            </p>
+          ) : null}
+          {step === 'complete' ? (
+            <p className="guest-passport-capture__status is-complete" role="status" aria-live="polite" aria-atomic="true">
+              Demo OCR complete. The document number and expiry date were filled below.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 type AdditionalGuestsScreenProps = {
   primaryGuestName: string;
@@ -1013,6 +1043,9 @@ function AdditionalGuestsScreen({
     documentNumber: '',
     expiry: '',
   });
+  const handlePassportAutofill = useCallback((fields: PassportFields) => {
+    setDraft((current) => ({ ...current, ...fields }));
+  }, []);
 
   const handleRemoveGuest = (index: number) => {
     setCompanions((prev) => prev.filter((_, i) => i !== index));
@@ -1102,22 +1135,20 @@ function AdditionalGuestsScreen({
             setMode('list');
           }}
         >
-          <button className="guest-upload" type="button">
-            <IdentificationCard size={28} />
-            <b>Capture or upload ID</b>
-            <small>Passport, national ID, or driver’s license</small>
-          </button>
+          <PassportCapturePanel subjectName={draft.name} onAutofill={handlePassportAutofill} />
           <Field
             label="Document number"
             name="companion-document"
             placeholder="Enter document number"
-            defaultValue={draft.documentNumber}
+            value={draft.documentNumber ?? ''}
+            onValueChange={(documentNumber) => setDraft((current) => ({ ...current, documentNumber }))}
           />
           <Field
             label="Expiry date"
             name="companion-expiry"
             type="date"
-            defaultValue={draft.expiry}
+            value={draft.expiry ?? ''}
+            onValueChange={(expiry) => setDraft((current) => ({ ...current, expiry }))}
           />
           <Button className="guest-button guest-button--primary" type="submit">
             Save guest<ArrowRight aria-hidden="true" />
@@ -1266,6 +1297,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [pendingEmail, setPendingEmail] = useState('');
   const [code, setCode] = useState('');
   const [codeNotice, setCodeNotice] = useState<string | null>(null);
+  const [primaryPassportFields, setPrimaryPassportFields] = useState<PassportFields>({ documentNumber: '', expiry: '' });
   const codeInputRef = useRef<HTMLInputElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -1324,7 +1356,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   });
   const [stayPaymentMethod, setStayPaymentMethod] = useState<'card' | 'gcash' | 'maya'>('card');
   const [bookedStayId, setBookedStayId] = useState<string | null>(null);
-  const [transferVehicle, setTransferVehicle] = useState('Executive van');
+  /* Both ends of a requested ride. Empty until a door opens the form with a trip in mind. */
+  const [transferOrigin, setTransferOrigin] = useState('');
   const [transferDestination, setTransferDestination] = useState('');
   const [transferDestinationAddress, setTransferDestinationAddress] = useState('');
   const [rideWhen, setRideWhen] = useState<'now' | 'later'>('now');
@@ -1336,7 +1369,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [giftOrder, setGiftOrder] = useState<{ items: typeof GIFT_PRODUCTS[number][]; total: number; paymentStatus: 'charged-to-room' | 'paid'; paymentMethod: 'room' | 'card' | 'gcash' | 'maya' } | null>(null);
   const [checkoutPayment, setCheckoutPayment] = useState<'room' | 'pay-now' | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
-  const [transferBooking, setTransferBooking] = useState<{
+  /* Read by the retired `transfer-confirmation` screen only; rides are requested in Chat now. */
+  const [transferBooking] = useState<{
     destination: string;
     pickupLocation: string;
     arrivalDate: string;
@@ -1585,10 +1619,52 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 850);
   };
 
+  /* The airport a property's guests fly into, for a pick-up or a drop-off. */
+  const airportFor = (booking: Booking) => (
+    booking.city === 'Cebu'
+      ? 'Mactan–Cebu International Airport'
+      : booking.city === 'Dumaguete'
+        ? 'Dumaguete–Sibulan Airport'
+        : 'NAIA Terminal 3'
+  );
+
+  /*
+    Both ends of the ride on the form, read once for the form and the message.
+    A form opened with no trip in mind -- directly, or from an old link -- still
+    has two real ends: a pick-up while the stay is ahead, a run to the airport
+    once it has begun. It used to start every ride at the hotel and end it at
+    "Selected destination", so an arriving guest was offered a car from the
+    hotel to nowhere, and the desk was sent those words.
+  */
+  const rideEnds = () => {
+    const pickUp = !hasStayStarted(contextBooking);
+    return {
+      from: transferOrigin || (pickUp ? airportFor(contextBooking) : contextBooking.property),
+      to: transferDestination || (pickUp ? contextBooking.property : airportFor(contextBooking)),
+    };
+  };
+
+  const openRideRequest = (ride: { from: string; to: string; toDetail?: string; date?: string }) => {
+    setTransferOrigin(ride.from);
+    setTransferDestination(ride.to);
+    setTransferDestinationAddress(ride.toDetail ?? '');
+    setRidePassengers(contextBooking.guestCount);
+    setRideWhen(ride.date ? 'later' : 'now');
+    setRideDate(ride.date ?? '');
+    go('transfer-booking');
+  };
+
+  /* Airport to hotel, on arrival day. */
+  const openArrivalRide = () => openRideRequest({ from: airportFor(contextBooking), to: contextBooking.property, date: contextBooking.checkIn });
+  /* Hotel to airport, now: offered once the guest has checked out. */
+  const openDepartureRide = () => openRideRequest({ from: contextBooking.property, to: airportFor(contextBooking) });
+
   const openRideRequestChat = () => {
-    const destination = transferDestination || 'your selected destination';
-    const schedule = rideWhen === 'later' && rideDate && rideTime ? ` for ${rideDate} at ${rideTime}` : '';
-    const guestMessage = `I’d like to request a ride from ${contextBooking.property} to ${destination} for ${ridePassengers} ${ridePassengers === 1 ? 'guest' : 'guests'}${schedule}.`;
+    const { from, to } = rideEnds();
+    const [hours = 10, minutes = 0] = rideTime.split(':').map(Number);
+    const clock = `${((hours + 11) % 12) + 1}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+    const schedule = rideWhen === 'later' && rideDate && rideTime ? ` on ${formatServiceDay(rideDate).long} at ${clock}` : ' now';
+    const guestMessage = `I’d like to request a ride from ${from} to ${to} for ${ridePassengers} ${ridePassengers === 1 ? 'guest' : 'guests'}${schedule}.`;
     setChatOrderVenue(null);
     setChatDraft('');
     setChatMessages((messages) => [...messages, { from: 'guest', body: guestMessage, state: 'Sent' }]);
@@ -1835,7 +1911,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     the tab bar and the buttons inside it cannot disagree.
   */
   const bookingSlot = describeBookingSlot(contextBooking);
-  const bookingNavLabel = bookingSlot.screen === 'book-stay' ? 'Book again' : 'Explore';
+  const bookingNavLabel = bookingSlot.label;
   const unlockPending = session.unlockRequest?.bookingId === contextBooking.id;
 
   /*
@@ -1983,8 +2059,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('marketplace');
       return;
     }
-    if (!primaryBooking || !canUseOnPropertyServices(primaryBooking)) {
+    if (!primaryBooking) {
       go('marketplace');
+      return;
+    }
+    if (!canUseOnPropertyServices(primaryBooking)) {
+      go(bookingSlot.screen);
       return;
     }
     setOpenExploreStoryId(firstStory.id);
@@ -2456,6 +2536,105 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <Image src={chatPreviewImage} alt="Catalog preview" fill sizes="90vw" unoptimized={chatPreviewImage.startsWith('blob:')} />
           </div>
         ) : null}
+      </div>
+    );
+  };
+
+  const renderArrivalServices = () => {
+    /*
+      No booking at all: nothing to arrive at. `contextBooking` falls back to a
+      fixture here, so without this a guest with no stay was offered transfers
+      to the reference hotel. Home is where "add a booking" lives.
+    */
+    if (!primaryBooking) {
+      return (
+        <EmptyStayHome
+          guestName={session.guestName}
+          pastStays={pastStays}
+          onNavigate={go}
+          onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }}
+        />
+      );
+    }
+    const arrivalServices = [
+      ...SERVICES.filter((service) => isPreArrivalService(service.id)),
+      { id: 'early-check-in', name: 'Early check-in', price: 'Subject to hotel confirmation' },
+    ];
+    const arrivalPaymentCopy = canUseOnPropertyServices(contextBooking)
+      ? 'Charged to your room'
+      : 'Paid by card';
+    const arrivalDescription = bookingSlot.locked
+      ? contextBooking.roomNumber
+        ? 'Arrange a transfer, luggage help, or another arrival service. Scan the code in your room to unlock dining, spa, tours, and room charging.'
+        : 'Arrange a transfer, luggage help, or another arrival service while the hotel assigns your room. The on-property catalogue opens after your room is assigned and you scan in.'
+      : 'Explore arrival services at the hotel and arrange what you need before you arrive.';
+
+    return (
+      <div className="guest-stack">
+        <div className="guest-page-title">
+          <h1>Arrival services</h1>
+          <p>{arrivalDescription}</p>
+        </div>
+
+        {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
+
+        <section>
+          <div className="guest-list-group">
+            {arrivalServices.map((service) => (
+              <button
+                key={service.id}
+                className="guest-list-row"
+                type="button"
+                onClick={() => service.id === 'transfer' ? openArrivalRide() : service.id === 'early-check-in' ? go('early-check-in') : openServiceBooking(service.id)}
+              >
+                <span>{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
+                <div>
+                  <b>{service.name}</b>
+                  <small>{service.price === 'Complimentary' ? 'Complimentary' : `${service.price} · ${arrivalPaymentCopy}`}</small>
+                </div>
+                <CaretRight />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {bookingSlot.locked ? (
+          <section>
+            {unlockPending ? (
+              <>
+                <Notice title="The front desk has your request">
+                  You can still arrange arrival services while the front desk confirms your room.
+                </Notice>
+                <Button className="guest-button guest-button--secondary" type="button" onClick={() => go('chat')}>
+                  Open the front desk conversation<ArrowRight aria-hidden="true" />
+                </Button>
+              </>
+            ) : contextBooking.roomNumber ? (
+              <>
+                <Notice title="Unlock on-property Explore">
+                  Dining, spa, tours, and room charges open when you scan the code in your room.
+                </Notice>
+                <Button className="guest-button guest-button--primary" type="button" onClick={() => go('scan-room-code')}>
+                  Scan room code<ArrowRight aria-hidden="true" />
+                </Button>
+                <TextButton onClick={askFrontDeskToUnlock}>I can&rsquo;t scan</TextButton>
+              </>
+            ) : (
+              <>
+                <Notice title="Your room is still being assigned">
+                  You can arrange arrival services while the hotel prepares your room. On-property Explore opens after the room is assigned and you scan in.
+                </Notice>
+                <Button className="guest-button guest-button--secondary" type="button" onClick={() => go('chat')}>
+                  Message the front desk<ArrowRight aria-hidden="true" />
+                </Button>
+              </>
+            )}
+          </section>
+        ) : (
+          <Notice title="Hotel confirmation">
+            Some arrival requests depend on hotel availability. Until you scan in, arrival services are paid by card, GCash or Maya; once the room code confirms you are in the room, they can go on your room instead. We&rsquo;ll show whether a service is complimentary or needs hotel confirmation before you book.
+          </Notice>
+        )}
       </div>
     );
   };
@@ -3029,13 +3208,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
 
       case 'guest-details':
         return <FormScreen step="1 of 4" title="Your details" text="These details are sent securely to the property for registration."><Field label="Full name" name="guest-name" defaultValue="Ana Santos" required /><Field label="Nationality" name="nationality" defaultValue="Filipino" /><Field label="Email" name="guest-email" type="email" defaultValue="ana@example.com" /><Field label="Mobile" name="guest-mobile" type="tel" defaultValue="+63 917 555 0142" />{primary('Continue to ID', 'id-capture')}</FormScreen>;
 
       case 'id-capture':
-        return <FormScreen step="2 of 4" title="ID or passport" text="International guests need passport details."><button className="guest-upload" type="button"><IdentificationCard size={28} /><b>Capture or upload ID</b><small>Passport, national ID, or driver’s license</small></button><Field label="Document number" name="document-number" placeholder="Enter document number" /><Field label="Expiry date" name="expiry" type="date" />{primary('Save and continue', 'additional-guests')}</FormScreen>;
+        return <FormScreen step="2 of 4" title="ID or passport" text="International guests need passport details."><PassportCapturePanel subjectName={session.guestName || 'Ana Santos'} onAutofill={setPrimaryPassportFields} /><Field label="Document number" name="document-number" placeholder="Enter document number" value={primaryPassportFields.documentNumber} onValueChange={(documentNumber) => setPrimaryPassportFields((current) => ({ ...current, documentNumber }))} /><Field label="Expiry date" name="expiry" type="date" value={primaryPassportFields.expiry} onValueChange={(expiry) => setPrimaryPassportFields((current) => ({ ...current, expiry }))} />{primary('Save and continue', 'additional-guests')}</FormScreen>;
 
       /**
        * Profile-only. Preferences used to be step 3 of pre-arrival check-in,
@@ -3385,148 +3564,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </ScreenIntro>
         );
 
-      case 'pre-arrival-services': {
-        /*
-          What a guest can arrange before they are in the room: getting there,
-          and what should be waiting when they arrive. Everything else on the
-          property needs a room to charge to and a guest standing in it, which
-          is what the scan proves.
-        */
-        const arrivalServices = [
-          ...SERVICES.filter((service) => isPreArrivalService(service.id)),
-          { id: 'early-check-in', name: 'Early check-in', price: 'Subject to hotel confirmation' },
-        ];
-        /*
-          Card until the scan, room after it. A room number alone never made
-          these chargeable -- the booking form refused -- so offering "Charge to
-          room" on the strength of one was a promise the next screen broke.
-        */
-        const arrivalPaymentCopy = canUseOnPropertyServices(contextBooking)
-          ? 'Charged to your room'
-          : 'Paid by card';
-        return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <h1>Arrival services</h1>
-              <p>Explore arrival services at the hotel and arrange what you need before you arrive.</p>
-            </div>
-
-            {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
-
-            <section>
-              <div className="guest-list-group">
-                {arrivalServices.map((service) => (
-                  <button
-                    key={service.id}
-                    className="guest-list-row"
-                    type="button"
-                    onClick={() => service.id === 'transfer' ? go('transfer-booking') : service.id === 'early-check-in' ? go('early-check-in') : openServiceBooking(service.id)}
-                  >
-                    {/*
-                      A bare glyph per row, not four copies of the category
-                      chip. DESIGN.md's rule exists because a column of
-                      identical tinted discs is the loudest thing on a screen
-                      while marking nothing -- and four rows with four
-                      different meanings deserve four glyphs.
-                    */}
-                    <span>{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
-                    <div>
-                      <b>{service.name}</b>
-                      {/* A complimentary thing is not paid by anything.
-                          Saying "Paid by card" under it reads as a charge the
-                          guest cannot find. */}
-                      <small>{service.price === 'Complimentary' ? 'Complimentary' : `${service.price} · ${arrivalPaymentCopy}`}</small>
-                    </div>
-                    <CaretRight />
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <Notice title="Hotel confirmation">
-              Some arrival requests depend on hotel availability. Until you scan in, arrival services are paid by card, GCash or Maya; once the room code confirms you are in the room, they can go on your room instead. We&rsquo;ll show whether a service is complimentary or needs hotel confirmation before you book.
-            </Notice>
-          </div>
-        );
-      }
+      case 'pre-arrival-services':
+        return renderArrivalServices();
 
       case 'marketplace': {
         /*
-          The one place the slot locks, and deliberately the only one. A wall
-          shown to a guest three days out teaches them the app is closed; the
-          same wall shown to a guest standing in their room, with the code in
-          front of them, is the single moment the prompt can be acted on.
-
-          A branch rather than a screen of its own: the tab must not change
-          destination when it locks, or back-navigation and the active-tab
-          highlight both fork.
+          The full catalogue stays behind the room scan. Keep this guard for
+          direct or stale routes too; the normal Explore tab shows the arrival
+          roster with the scan action until verification succeeds.
         */
         if (bookingSlot.locked) {
-          if (!primaryBooking) {
-            // No booking at all. Not a room-allocation story -- there is
-            // nothing to allocate against, so this is Home's job, not a wall.
-            return (
-              <EmptyStayHome
-                guestName={session.guestName}
-                pastStays={pastStays}
-                onNavigate={go}
-                onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }}
-              />
-            );
-          }
-
-          if (!contextBooking.roomNumber) {
-            /*
-              Nothing to scan. The property has not allocated a room yet, so
-              telling this guest to find a code on a desk card sends them
-              looking for something that does not exist.
-            */
-            return (
-              <ScreenIntro
-                icon={<ClockCountdown size={30} />}
-                eyebrow={contextBooking.property}
-                title="Your room is still being assigned"
-                text="On-property services are charged to a room, so they open as soon as the property allocates yours."
-              >
-                <Notice title="Nothing is needed from you">The front desk is working through arrivals. This opens on its own.</Notice>
-                {primary('Message the front desk', 'chat')}
-                <TextButton onClick={() => go('pre-arrival-services')}>Arrange a transfer meanwhile</TextButton>
-              </ScreenIntro>
-            );
-          }
-
-          return unlockPending ? (
-            <ScreenIntro
-              icon={<ChatCircleDots size={30} />}
-              eyebrow={contextRoom}
-              title="The front desk has your request"
-              text="They will confirm you are in the room and open services from their side. Nothing else is needed from you."
-            >
-              <Notice title="Why the desk and not the app">
-                Cabana does not check anyone in. The property confirms who is in which room, and that confirmation is what opens charging to it.
-              </Notice>
-              {primary('Open the conversation', 'chat')}
-              <TextButton onClick={() => go('room-qr-landing')}>I found the code after all</TextButton>
-            </ScreenIntro>
-          ) : (
-            <ScreenIntro
-              icon={<Lock size={30} />}
-              eyebrow={contextRoom}
-              title="Scan the code in your room"
-              text="It is on the desk card. Scanning confirms you are in the room, which is what opens dining, spa, tours and charging to your room."
-            >
-              {/*
-                The gate's label, not the stay badge. `describeStayStatus`
-                says "Checked in" for any open stay window, which on this
-                screen flatly contradicts the thing being asked for.
-              */}
-              <StayMiniCard booking={contextBooking} status={describeGuestGate(contextBooking).label} />
-              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('scan-room-code')}>
-                Scan room code<ArrowRight aria-hidden="true" />
-              </Button>
-              <TextButton onClick={askFrontDeskToUnlock}>I can&rsquo;t scan</TextButton>
-            </ScreenIntro>
-          );
+          return renderArrivalServices();
         }
 
         const openStory = openExploreStoryId
@@ -3722,7 +3770,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <NearbyEstablishmentScreen
             establishment={establishment}
             onBack={back}
-            onBookRide={() => { setTransferDestination(establishment.name); setTransferDestinationAddress(establishment.address); setRidePassengers(contextBooking.guestCount); go('transfer-booking'); }}
+            onBookRide={() => openRideRequest({ from: contextBooking.property, to: establishment.name, toDetail: establishment.address })}
           />
         ) : null;
       }
@@ -3834,17 +3882,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'transfer-booking': {
+        const ride = rideEnds();
+        const pickUp = ride.to === contextBooking.property;
         return (
           <div className="guest-stack guest-ride-request-page">
             <div className="guest-page-title">
               <p className="guest-eyebrow">{contextBooking.property}</p>
               <h1>Book a ride</h1>
-              <p>Request a hotel-arranged ride to your selected destination.</p>
+              <p>{pickUp ? `The hotel meets you at ${ride.from} and brings you to ${contextBooking.property}.` : `Request a hotel-arranged ride from ${ride.from} to ${ride.to}.`}</p>
             </div>
             <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); openRideRequestChat(); }}>
               <section className="guest-ride-summary" aria-label="Trip summary">
-                <div><small>From</small><strong>{contextBooking.property}</strong></div>
-                <div><small>To</small><strong>{transferDestination || 'Selected destination'}</strong><span>{transferDestinationAddress}</span></div>
+                <div><small>From</small><strong>{ride.from}</strong></div>
+                <div><small>To</small><strong>{ride.to}</strong>{transferDestinationAddress ? <span>{transferDestinationAddress}</span> : null}</div>
               </section>
               <fieldset className="guest-ride-choice">
                 <legend>When would you like to leave?</legend>
@@ -4069,7 +4119,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             >
               <Notice title="Nothing was booked">Your receipts stay in My Stay for as long as you want them.</Notice>
               {primary('View stay history', 'stay-history')}
-              <TextButton onClick={() => go('marketplace')}>Keep browsing</TextButton>
+              <TextButton onClick={() => go(bookingSlot.screen)}>Keep browsing</TextButton>
             </ScreenIntro>
           );
         }
@@ -4270,8 +4320,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       Browse arrival services<ArrowRight aria-hidden="true" />
                     </Button>
                   ) : stayTab === 'upcoming' && !checkedOut ? (
-                    <Button className="guest-button guest-button--primary" type="button" onClick={() => go('marketplace')}>
-                      Explore on-property<ArrowRight aria-hidden="true" />
+                    <Button className="guest-button guest-button--primary" type="button" onClick={() => go(bookingSlot.screen)}>
+                      {bookingSlot.locked ? 'Browse arrival services' : 'Explore on-property'}<ArrowRight aria-hidden="true" />
                     </Button>
                   ) : null}
                 </div>
@@ -4506,7 +4556,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
               <div className="guest-profile-identity__footer">
                 <div className="guest-profile-identity__document">
-                  <span className="guest-profile-identity__document-mark" aria-hidden="true" />
+                  <IdentificationCard className="guest-profile-identity__document-icon" size={19} aria-hidden="true" />
                   <span><b>Passport on file</b><small>Ends 4821</small></span>
                 </div>
                 <span className="guest-profile-identity__document-status">On file</span>
@@ -4515,10 +4565,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <section className="guest-profile-section" aria-labelledby="guest-profile-account-heading">
               <div className="guest-profile-section__header">
                 <div>
-                  <p className="guest-profile-section__eyebrow">Personal space</p>
-                  <h2 id="guest-profile-account-heading">Your account</h2>
+                  <h2 id="guest-profile-account-heading">Account</h2>
                 </div>
-                <span className="guest-profile-section__mark" aria-hidden="true"><Sparkle /></span>
               </div>
               <div className="guest-profile-action-list">
                 <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('rewards')}>
@@ -4925,11 +4973,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 onClick={() => go('stay-overview')}
               />
               {/*
-                Both of these describe a stay, so without one they are two
-                doors onto nothing: Explore sells things charged to a room the
-                guest has not got, and My Stay has no stay to show. Leaving
-                them in place sent a guest with no booking to a dead end that
-                told them their room was "still being assigned".
+                Both destinations need a connected booking: Explore uses it to
+                show the right arrival or on-property services, and My Stay
+                has no stay to show without it. Leaving them in place sent a
+                guest with no booking to a dead end that said their room was
+                "still being assigned".
 
                 This is the one place the four-slot rule yields. The rule
                 exists so the bar never reflows mid-journey and a destination
@@ -5232,6 +5280,8 @@ type StayOverviewHomeProps = {
   onNavigate: (screen: ActiveScreen) => void;
   onOpenStory: (categoryId: HomeStoryCategoryId) => void;
   onOpenStay: (id: string) => void;
+  /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
+  onRequestRide?: (direction: 'arrival' | 'departure') => void;
 };
 
 function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: HomeStoryCategoryId) => void; onSeeAll?: () => void }) {
@@ -5264,7 +5314,7 @@ function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: Ho
   );
 }
 
-function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay, onRequestRide }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -5411,7 +5461,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         <UpcomingBookingCard booking={booking} onNavigate={onNavigate} statusLabel="Checked out" showRoomBadge={false} hideEyebrow />
         <section className="guest-before-you-go">
           <SectionHeading title="Before you go" />
-          <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('transfer-booking')}><Car /><span><b>Need a ride to the airport?</b><small>Book a hotel vehicle for your departure.</small><strong>Book a ride <CaretRight /></strong></span></button>
+          <button className="guest-after-checkout-card" type="button" onClick={() => (onRequestRide ? onRequestRide('departure') : onNavigate('transfer-booking'))}><Car /><span><b>Need a ride to the airport?</b><small>Book a hotel vehicle for your departure.</small><strong>Book a ride <CaretRight /></strong></span></button>
           <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('gifts-souvenirs')}><Gift /><span><b>Want something from the gift shop?</b><small>Pick up local treats and souvenirs before you leave.</small><strong>Browse gifts <CaretRight /></strong></span></button>
         </section>
         <TextButton onClick={() => onNavigate('stay-history')}>View stay history</TextButton>
@@ -5494,7 +5544,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
       {booking.roomVerification ? <HomeStoryRail onOpenStory={onOpenStory} onSeeAll={() => onNavigate('marketplace')} /> : null}
       {!booking.roomVerification && booking.status === 'upcoming' ? (
         <>
-          <button className="guest-transfer-card" type="button" onClick={() => onNavigate('transfer-booking')}>
+          <button className="guest-transfer-card" type="button" onClick={() => (onRequestRide ? onRequestRide('arrival') : onNavigate('transfer-booking'))}>
             <Car aria-hidden="true" />
             <span>
               <b>Need a ride to the hotel?</b>

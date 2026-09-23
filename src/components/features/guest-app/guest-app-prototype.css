@@ -1440,24 +1440,75 @@
 .guest-check { display: flex; min-height: 44px; align-items: center; gap: 12px; font-size: 15px; }
 .guest-check input { width: 20px; height: 20px; accent-color: var(--guest-accent-strong); }
 
-.guest-upload {
+.guest-passport-capture { display: grid; gap: 8px; }
+.guest-passport-capture__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.guest-passport-capture__choice {
   display: grid;
-  width: 100%;
-  min-height: 132px;
-  place-items: center;
-  gap: 6px;
-  padding: 20px;
-  border: 1px dashed var(--guest-line-strong);
+  min-width: 0;
+  min-height: 78px;
+  align-content: center;
+  justify-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border: 1px solid var(--guest-line-strong);
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   color: var(--guest-ink);
-  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease,
-    background-color var(--duration-fast) ease;
+  cursor: pointer;
+  text-align: center;
 }
-.guest-upload:active { transform: scale(0.99); }
-.guest-upload svg { color: var(--guest-muted); }
-.guest-upload b { font-size: 15px; font-weight: 650; }
-.guest-upload small { color: var(--guest-muted); font-size: 13px; }
+.guest-passport-capture__choice svg { color: var(--guest-brand); }
+.guest-passport-capture__choice b { font-size: 13px; font-weight: 650; }
+.guest-passport-capture__choice small { color: var(--guest-muted); font-size: 11px; line-height: 1.25; }
+.guest-passport-capture__choice.is-selected { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
+.guest-passport-capture__choice:hover { border-color: var(--guest-accent-strong); }
+.guest-passport-capture__choice:focus-visible,
+.guest-passport-capture__read:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+.guest-passport-capture__preview {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-surface);
+}
+.guest-passport-capture__preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.guest-passport-capture__preview-heading b { font-size: 13px; font-weight: 650; }
+.guest-passport-capture__preview-heading span { color: var(--guest-muted); font-size: 11px; }
+.guest-passport-capture__document {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--guest-line);
+  border-radius: 10px;
+  background: var(--guest-paper);
+}
+.guest-passport-capture__portrait { display: grid; width: 46px; height: 56px; place-items: center; border-radius: 6px; background: var(--guest-soft); color: var(--guest-brand); }
+.guest-passport-capture__document-details { display: grid; min-width: 0; gap: 3px; }
+.guest-passport-capture__document-details small { color: var(--guest-muted); font-size: 9px; font-weight: 700; letter-spacing: 0.055em; }
+.guest-passport-capture__document-details b { overflow-wrap: anywhere; font-size: 13px; font-weight: 700; }
+.guest-passport-capture__document-details span { color: var(--guest-muted); font-size: 11px; }
+.guest-passport-capture__note { margin: 0; color: var(--guest-muted); font-size: 11px; line-height: 1.4; }
+.guest-passport-capture__read {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--guest-line-strong);
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  color: var(--guest-brand);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+.guest-passport-capture__read:hover { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
+.guest-passport-capture__status { margin: 0; color: var(--guest-ink); font-size: 12px; line-height: 1.45; }
+.guest-passport-capture__status.is-complete { color: var(--guest-positive); }
 
 .guest-step { display: flex; align-items: center; gap: 12px; color: var(--guest-muted); font-size: 13px; font-weight: 600; }
 .guest-step i { flex: 1; height: 4px; overflow: hidden; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
@@ -1630,7 +1681,7 @@
 }
 .guest-profile-card.guest-profile-identity > .guest-profile-identity__footer { display: flex; flex: initial; gap: 12px; }
 .guest-profile-identity__document { display: flex; min-width: 0; align-items: center; gap: 9px; }
-.guest-profile-identity__document-mark { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--guest-positive); box-shadow: 0 0 0 4px var(--guest-positive-soft); }
+.guest-profile-identity__document-icon { flex: 0 0 auto; color: var(--guest-brand); }
 .guest-profile-identity__document > span:last-child { display: grid; gap: 1px; min-width: 0; }
 .guest-profile-identity__document b { font-size: 13px; font-weight: 650; }
 .guest-profile-identity__document small { color: var(--guest-muted); font-size: 12px; }
@@ -1647,8 +1698,6 @@
 .guest-profile-section__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-inline: 2px; }
 .guest-profile-section__header > div { display: grid; gap: 4px; }
 .guest-profile-section__header h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.018em; }
-.guest-profile-section__mark { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: var(--guest-soft); color: var(--guest-brand); }
-.guest-profile-section__mark svg { width: 16px; height: 16px; }
 .guest-profile-action-list { overflow: hidden; border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-sm); }
 .guest-profile-action-list .guest-list-row {
   min-height: 74px;
@@ -2373,7 +2422,8 @@
   .guest-quick-actions button:hover { border-color: var(--guest-line-strong); background: var(--guest-surface); }
   .guest-date-strip button:hover:not(.is-active),
   .guest-chip-grid button:hover:not(.is-active) { border-color: var(--guest-line-strong); background: var(--guest-surface); }
-  .guest-upload:hover { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
+  .guest-passport-capture__choice:hover,
+  .guest-passport-capture__read:hover { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
   .guest-review-block button:hover { background: var(--guest-surface); }
   .guest-section-heading button:hover { text-decoration: underline; text-underline-offset: 3px; }
   .guest-featured-service button:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -2969,7 +3019,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Welcome screen: branded splash, then a quiet account-first introduction.
+   Welcome screen: branded splash, then the stay introduction and login choices.
    -------------------------------------------------------------------------- */
 .guest-device.is-welcome { background: var(--guest-paper); }
 
@@ -3191,19 +3241,20 @@
   text-wrap: balance;
 }
 
-/* Short viewports: shrink the artwork rather than let it crowd the copy. */
-@media (max-height: 720px) {
-  .guest-welcome__art { --welcome-art: 230px; }
+/* Short viewports: shrink the artwork before it crowds the copy and login choices. */
+@media (max-height: 900px) {
+  .guest-welcome__art { --welcome-art: 260px; }
   .guest-welcome__steps { margin-bottom: 16px; }
-  .guest-welcome__step-title { font-size: 27px; }
 }
 
-.guest-app .guest-welcome__action {
-  min-height: 56px;
-  box-shadow: 0 10px 28px rgb(190 46 133 / 16%);
+@media (max-height: 720px) {
+  .guest-welcome__art { --welcome-art: 170px; }
+  .guest-welcome__steps { margin-bottom: 8px; }
+  .guest-welcome__step-title { font-size: 25px; }
 }
+
 .guest-welcome__actions { display: grid; gap: 10px; }
-.guest-app .guest-welcome__action.guest-button--secondary { box-shadow: none; }
+.guest-app .guest-welcome__login-button.guest-button--secondary { box-shadow: none; }
 
 @keyframes guest-welcome-splash {
   0%, 68% { opacity: 1; visibility: visible; }
@@ -3438,25 +3489,6 @@
   padding: 8px 20px 10px;
 }
 .guest-sheet__head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.018em; }
-.guest-sso-sheet__head { align-items: flex-start; padding-bottom: 4px; }
-.guest-sso-sheet__head .guest-eyebrow { margin: 0 0 4px; }
-.guest-sso-sheet__head h2 { font-size: 24px; }
-.guest-sso-sheet__close {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 auto;
-  margin: -2px -8px 0 0;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--guest-muted);
-  cursor: pointer;
-}
-.guest-sso-sheet__close svg { width: 20px; height: 20px; }
-.guest-sso-sheet__close:hover { background: var(--guest-sunken); color: var(--guest-ink); }
-.guest-sso-sheet__close:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
 .guest-sheet__clear {
   padding: 0;
   border: 0;
@@ -3468,10 +3500,6 @@
 }
 .guest-sheet__clear:disabled { color: var(--guest-subtle); cursor: default; }
 .guest-sheet__body { overflow-y: auto; padding: 0 20px 8px; }
-.guest-sso-sheet__body { padding-top: 4px; }
-.guest-sso-sheet__lede { margin: 0 0 18px; color: var(--guest-muted); line-height: 1.5; text-wrap: pretty; }
-.guest-sso-sheet .guest-auth-actions { gap: 10px; margin-top: 0; }
-.guest-sso-sheet__guest-action { margin-top: 10px; }
 .guest-sheet__group { margin: 0 0 6px; padding: 0; border: 0; }
 .guest-sheet__group legend {
   padding: 12px 0 2px;
@@ -3937,18 +3965,14 @@
   align-items: center;
   margin-bottom: 8px;
 }
-.guest-auth-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
-}
-.guest-sso-button {
+.guest-welcome__login-button {
   width: 100%;
   min-height: 52px;
   justify-content: flex-start;
 }
-.guest-sso-button svg { width: 20px; height: 20px; }
+.guest-welcome__login-button svg { width: 20px; height: 20px; }
+.guest-welcome__login-logo { display: block; width: 20px; height: 20px; flex: 0 0 auto; }
+.guest-welcome__login-logo--google { height: auto; }
 
 /* --------------------------------------------------------------------------
    Primary Guest & Additional Guests
@@ -6186,8 +6210,7 @@
 .guest-prototype-toolbar__close,
 .guest-restaurant-menu-viewer__close,
 .guest-restaurant-menu-viewer__next,
-.guest-restaurant-menu-viewer__prev,
-.guest-sso-sheet__close {
+.guest-restaurant-menu-viewer__prev {
   transition: transform var(--duration-press) var(--ease-out);
 }
 
@@ -6226,8 +6249,7 @@
 .guest-prototype-toolbar__close:active,
 .guest-restaurant-menu-viewer__close:active,
 .guest-restaurant-menu-viewer__next:active,
-.guest-restaurant-menu-viewer__prev:active,
-.guest-sso-sheet__close:active {
+.guest-restaurant-menu-viewer__prev:active {
   transform: scale(0.94);
 }
 
@@ -6260,8 +6282,7 @@
   .guest-prototype-toolbar__close:active,
   .guest-restaurant-menu-viewer__close:active,
   .guest-restaurant-menu-viewer__next:active,
-  .guest-restaurant-menu-viewer__prev:active,
-  .guest-sso-sheet__close:active {
+  .guest-restaurant-menu-viewer__prev:active {
     transform: none;
   }
 }
@@ -6803,13 +6824,6 @@
 .guest-screen:not(.guest-screen--chat) .guest-profile-identity__document-status {
   padding: 4px 8px;
   border: 1px solid color-mix(in oklch, var(--guest-positive) 45%, var(--guest-line));
-  background: transparent;
-}
-
-.guest-screen:not(.guest-screen--chat) .guest-profile-section__mark {
-  width: 24px;
-  height: 24px;
-  border-radius: 0;
   background: transparent;
 }
 

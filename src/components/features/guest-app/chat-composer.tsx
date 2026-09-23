@@ -2,7 +2,7 @@
 
 import { ArrowUp, Camera, CaretRight, Images, MapPin, Microphone, Plus, Stop, TrashSimple, Waveform } from '@phosphor-icons/react';
 import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 
 export type ChatAttachment = {
   kind: 'image' | 'audio';
@@ -31,6 +31,7 @@ type ChatComposerProps = {
   onSubmit: (payload: ChatComposerSubmit) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  quickActions?: ReactNode;
 };
 
 const formatDuration = (seconds: number) => {
@@ -39,7 +40,7 @@ const formatDuration = (seconds: number) => {
   return `${minutes}:${remainder}`;
 };
 
-export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit, placeholder, autoFocus = false }: ChatComposerProps) {
+export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit, placeholder, autoFocus = false, quickActions }: ChatComposerProps) {
   const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -327,6 +328,8 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
       ) : null}
 
       {mediaError ? <div className="guest-composer__status" role="status" aria-live="polite">{mediaError}</div> : null}
+
+      {quickActions}
 
       {attachmentMenuOpen ? (
         <div className="guest-composer__menu" role="menu" aria-label="Message attachments">

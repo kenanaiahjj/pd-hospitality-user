@@ -46,11 +46,16 @@ import {
 import Image from 'next/image';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import {
+  CalendarCheck01Icon as HugeCalendarCheckIcon,
+  ChevronRightIcon as HugeChevronRightIcon,
   BedSingle02Icon as HugeBedSingleIcon,
   CompassIcon as HugeCompassIcon,
   Home04Icon as HugeHomeIcon,
   MessageCircleMoreIcon as HugeChatIcon,
   PlusSignIcon as HugeBookAgainIcon,
+  ReceiptTextIcon as HugeReceiptTextIcon,
+  Store01Icon as HugeStoreIcon,
+  TrophyIcon as HugeTrophyIcon,
   UserRoundIcon as HugeProfileIcon,
 } from '@hugeicons-pro/core-stroke-rounded';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
@@ -85,9 +90,6 @@ import {
   getVenueCartSummary,
   getRoomCharges,
   getRoomChargesTotal,
-  availableOperators,
-  availableTypes,
-  filterServices,
   LISTING_SORTS,
   type ListingSort,
   canReportRoomReady,
@@ -1254,15 +1256,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [selectedNearbyEstablishmentId, setSelectedNearbyEstablishmentId] = useState<string | null>(null);
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<string | null>(null);
   const [extensionDate, setExtensionDate] = useState('2026-11-14');
-  const [serviceSort, setServiceSort] = useState<ListingSort>('recommended');
-  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
-  /*
-    Who runs a thing is the question a guest actually asks of a listing -- the
-    hotel itself, or somebody renting space in it. `filterServices` has always
-    taken `operators`; the facet feeding it went in `420c356` and left the
-    argument hardcoded to an empty array.
-  */
-  const [serviceOperators, setServiceOperators] = useState<string[]>([]);
   const [exploreSubcategory, setExploreSubcategory] = useState('All');
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
   const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | 'gifts' | null>(null);
@@ -2297,9 +2290,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <span>Front desk is replying</span>
             </div>
           ) : null}
-          {!restaurantChat ? (
+        </div>
+
+        {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
+        <ChatComposer
+          disabled={chatDisabled}
+          draft={chatDraft}
+          onDraftChange={setChatDraft}
+          placeholder={restaurantChat ? 'Type your order…' : undefined}
+          autoFocus={restaurantChat}
+          quickActions={!restaurantChat ? (
             <div className="guest-quick-actions" aria-label="Popular requests">
-              <span className="guest-quick-actions__label">Popular requests</span>
               <div className="guest-quick-actions__rail">
                 {CHAT_QUICK_ACTIONS.map((action) => (
                   <button
@@ -2314,15 +2315,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
             </div>
           ) : null}
-        </div>
-
-        {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
-        <ChatComposer
-          disabled={chatDisabled}
-          draft={chatDraft}
-          onDraftChange={setChatDraft}
-          placeholder={restaurantChat ? 'Type your order…' : undefined}
-          autoFocus={restaurantChat}
           onSubmit={({ body, attachment }) => sendChatMessage(body, attachment)}
         />
         {chatPreviewImage ? (
@@ -3464,10 +3456,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'category-listing': {
         const categoryData = MINI_APP_CATEGORIES.find((cat) => cat.id === selectedCategory) ?? MINI_APP_CATEGORIES[0];
         const categoryServices = SERVICES.filter((s) => s.categoryId === selectedCategory);
-        // Venues carry their price as `priceRange`; aliasing it lets the shared
-        // filter/sort run over them unchanged.
-        const venueRows = RESTAURANTS.map((venue) => ({ ...venue, price: venue.priceRange }));
-        const listingFilters = { operators: serviceOperators, types: serviceTypes, sort: serviceSort };
         const subcategories: Record<MiniAppCategoryId, string[]> = {
           dining: ['All', 'Breakfast & Brunch', 'Filipino & International', 'Spanish', 'Asian', 'Pizza & Pasta', 'Desserts & Café'],
           spa: ['All', 'Massage', 'Body Treatments', 'Beauty & Grooming', 'Mind & Movement'],
@@ -3483,16 +3471,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           if (selectedSubcategory === 'Desserts & Café') return row.category.includes('Café') || row.category.includes('Dessert');
           return row.category === selectedSubcategory;
         };
-        const visibleVenues = filterServices(venueRows, listingFilters).filter(matchesSubcategory);
-        const visibleServices = filterServices(categoryServices, listingFilters).filter(matchesSubcategory);
-        const servicesNarrowed = serviceOperators.length > 0 || serviceTypes.length > 0 || serviceSort !== 'recommended';
-        const clearServiceControls = () => { setServiceOperators([]); setServiceTypes([]); setServiceSort('recommended'); };
-        const asOptions = (values: string[]) => values.map((value) => ({ value, label: value }));
-        const buildFacets = (rows: readonly { operator: string; category: string }[]) => [
-          { key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [serviceSort], onChange: (next: string[]) => setServiceSort(next[0] as ListingSort) },
-          ...(availableOperators(rows).length ? [{ key: 'operator', label: 'Operator', options: asOptions(availableOperators(rows)), selected: serviceOperators, onChange: setServiceOperators }] : []),
-          ...(availableTypes(rows).length ? [{ key: 'type', label: 'Type', options: asOptions(availableTypes(rows)), selected: serviceTypes, onChange: setServiceTypes }] : []),
-        ];
+        const visibleVenues = RESTAURANTS.filter(matchesSubcategory);
+        const visibleServices = categoryServices.filter(matchesSubcategory);
         const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
         const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', services: 'Independent services available near the hotel.' };
         return (
@@ -3509,16 +3489,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
             {selectedCategory === 'dining' ? (
               <>
-              <SectionHeading title="At the hotel" count={`${visibleVenues.length} options`} />
+              <SectionHeading title="At the hotel" />
               <p className="guest-catalog-section-description">Dining available at The Henry Hotel Manila.</p>
-              <ListingControls
-                facets={buildFacets(venueRows)}
-                count={visibleVenues.length}
-                nouns={['venue', 'venues']}
-                narrowed={servicesNarrowed}
-                onClear={clearServiceControls}
-                showCount={false}
-              />
               {visibleVenues.length ? (
               <div className="guest-food-restaurant-list guest-catalog-option-list">
                 {visibleVenues.map((res) => (
@@ -3557,16 +3529,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </>
             ) : (
               <>
-              <SectionHeading title="At the hotel" count={`${visibleServices.length} options`} />
+              <SectionHeading title="At the hotel" />
               <p className="guest-catalog-section-description">{categoryData.title} available at The Henry Hotel Manila.</p>
-              <ListingControls
-                facets={buildFacets(categoryServices)}
-                count={visibleServices.length}
-                nouns={['service', 'services']}
-                narrowed={servicesNarrowed}
-                onClear={clearServiceControls}
-                showCount={false}
-              />
               {visibleServices.length ? (
               <div className="guest-stack guest-catalog-option-list" style={{ gap: '16px' }}>
                 {visibleServices.map((service) => (
@@ -3896,7 +3860,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
         const checkoutIsDue = contextBooking.checkOut <= PROTOTYPE_TODAY;
-        const currentFolioTotal = getRoomChargesTotal(session, contextBooking, contextRoom);
         /*
           The same object `stay-detail` renders, built from the live booking
           rather than from `PAST_STAYS` -- a stay that ended this morning has
@@ -3928,6 +3891,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </button>
               {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions">{checkoutIsDue ? <button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button> : null}<div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
             </div>
+
+            {started ? (
+              <button className="guest-my-stay-folio-link" type="button" aria-label="Room charges" onClick={() => go('folio')}>
+                <span className="guest-my-stay-folio-link__icon" aria-hidden="true"><GuestNavIcon icon={HugeReceiptTextIcon} /></span>
+                <span className="guest-my-stay-folio-link__copy"><b>Room charges</b><small>View your complete folio</small></span>
+                <HugeiconsIcon icon={HugeChevronRightIcon} size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />
+              </button>
+            ) : null}
 
             {checkedOut ? (
               /*
@@ -3991,18 +3962,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </Button>
                 <TextButton onClick={() => go('book-stay')}>Book another stay</TextButton>
               </section>
-            ) : null}
-
-            {started && !checkedOut && parsePesoAmount(currentFolioTotal) > 0 ? (
-              <button
-                type="button"
-                className="guest-my-stay-charges__toggle guest-my-stay-charges__row"
-                data-testid="guest-room-charges-summary"
-                onClick={() => go('folio')}
-              >
-                <span><b>Room charges</b><small>Due at checkout</small></span>
-                <span className="guest-my-stay-charges__view"><strong>{currentFolioTotal}</strong><small>View receipt <CaretRight aria-hidden="true" /></small></span>
-              </button>
             ) : null}
 
             {/*
@@ -4283,7 +4242,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
               <div className="guest-profile-action-list">
                 <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('rewards')}>
-                  <span><Sparkle /></span>
+                  <span><GuestNavIcon icon={HugeTrophyIcon} /></span>
                   <div>
                     <b>Achievements</b>
                     <small>{earnedBadges(session).length} badges · {pointsBalance(session).toLocaleString('en-US')} points</small>
@@ -5097,7 +5056,15 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
             </div>
           )}
         </section>
-        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" onClick={() => onNavigate('my-stay')}><span className="guest-next-service-card__details"><b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b><small>{confirmedServices[0].scheduledFor}</small><small>{confirmedServices[0].amount} · Charged to {roomLabel}</small></span><span className="guest-next-service-card__action">View details <CaretRight aria-hidden="true" /></span></button></section> : null}
+        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" aria-label={`View details for ${confirmedServices[0].title}`} onClick={() => onNavigate('my-stay')}>
+          <span className="guest-next-service-card__marker" aria-hidden="true"><HugeiconsIcon icon={HugeCalendarCheckIcon} size={20} strokeWidth={1.75} focusable="false" /></span>
+          <span className="guest-next-service-card__details">
+            <b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b>
+            <small className="guest-next-service-card__schedule">{confirmedServices[0].scheduledFor}</small>
+            <small className="guest-next-service-card__charge">{confirmedServices[0].amount} · Charged to {roomLabel}</small>
+          </span>
+          <span className="guest-next-service-card__action" aria-hidden="true"><span className="guest-next-service-card__action-icon"><HugeiconsIcon icon={HugeChevronRightIcon} size={15} strokeWidth={1.75} focusable="false" /></span></span>
+        </button></section> : null}
         {canUseOnPropertyServices(booking) ? (
           <section className="guest-home-discovery">
             <SectionHeading title="Make the most of your stay" />
@@ -5401,7 +5368,7 @@ function StayEntryCard({ entry, onOpen, showWhen = true }: { entry: StayEntry; o
         it is in, which is the question the card exists to answer.
       */}
       <span className="guest-stay-entry__parent">
-        <span aria-hidden="true"><Storefront /></span>
+        <span aria-hidden="true"><HugeiconsIcon icon={HugeStoreIcon} size={16} strokeWidth={1.75} aria-hidden="true" focusable="false" /></span>
         <span>{entry.parentDetail ? `${entry.parent} · ${entry.parentDetail}` : entry.parent}</span>
       </span>
       <span className="guest-stay-entry__headline">

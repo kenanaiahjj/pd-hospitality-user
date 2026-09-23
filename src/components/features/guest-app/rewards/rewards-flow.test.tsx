@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -18,6 +20,7 @@ import {
 } from './points-model';
 
 const anyBadge = BADGES[0]!;
+const rewardsStyles = readFileSync(resolve(process.cwd(), 'src/components/features/guest-app/rewards/rewards.css'), 'utf8');
 
 describe('BadgeMedal', () => {
   /*
@@ -232,6 +235,20 @@ describe('the door from Profile', () => {
     expect(document.querySelector('.guest-achievements-overview')).toBeInTheDocument();
     expect(document.querySelector('.guest-achievements-overview__image')).toBeInTheDocument();
     expect(document.querySelector('.guest-achievements-points')).toBeInTheDocument();
+  });
+
+  it('keeps the achievements hub on one quiet grouped-surface system', () => {
+    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf\s*\{[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
+    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf__held\s*\{[\s\S]*?background:\s*var\(--guest-surface\);[\s\S]*?border:\s*1px solid var\(--guest-line\);/);
+    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf__rows\s*\{[\s\S]*?background:\s*var\(--guest-paper\);[\s\S]*?border:\s*1px solid var\(--guest-line\);/);
+    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.reward-menu\s*\{[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
+    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.estate-map\s*\{[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
+  });
+
+  it('gives earned badge labels room to wrap on narrow screens', () => {
+    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf__held\s*\{[\s\S]*?padding:\s*12px;/);
+    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf__held li > \*\s*\{[\s\S]*?min-block-size:\s*104px;[\s\S]*?padding:\s*14px 8px 12px;/);
+    expect(rewardsStyles).toMatch(/@media \(max-width:\s*480px\)[\s\S]*?\.guest-achievements-page \.badge-shelf__held\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3/);
   });
 
   /* Rewards lives inside Profile, so the bar must not lose its highlight. */

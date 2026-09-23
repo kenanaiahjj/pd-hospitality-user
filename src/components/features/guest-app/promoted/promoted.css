@@ -1237,6 +1237,110 @@
 .discover__all small { color: var(--guest-subtle); font-size: 12px; }
 .discover__all svg { width: 16px; height: 16px; color: var(--guest-subtle); flex: 0 0 auto; }
 
+/* --------------------------------------------------------------------------
+   Signed-in shell surfaces
+
+   Explore is a browsing surface, but it should still feel like part of the
+   same quiet hotel app: hairline separation, one image-led focal surface, and
+   no pile of competing container treatments.
+   -------------------------------------------------------------------------- */
+
+.guest-screen:not(.guest-screen--chat) .discover {
+  gap: 24px;
+}
+
+.guest-screen:not(.guest-screen--chat) .discover__section {
+  padding-top: 24px;
+  border-top: 1px solid var(--guest-line);
+}
+
+.guest-screen:not(.guest-screen--chat) .discover__section--stories {
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top: 0;
+}
+
+.guest-screen:not(.guest-screen--chat) .discover__search {
+  min-height: 50px;
+  border: 1px solid var(--guest-line);
+  border-radius: 14px;
+  background: var(--guest-paper);
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .discover__story-ring {
+  padding: 1px;
+  border-radius: 16px;
+}
+
+.guest-screen:not(.guest-screen--chat) .discover__story-art {
+  border-width: 1px;
+  border-radius: 15px;
+}
+
+.guest-screen:not(.guest-screen--chat) .discover__story {
+  width: 82px;
+}
+
+.guest-screen:not(.guest-screen--chat) .deck {
+  gap: 12px;
+}
+
+.guest-screen:not(.guest-screen--chat) .deck__stack {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 14px;
+}
+
+.guest-screen:not(.guest-screen--chat) .deck__card {
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xs);
+}
+
+.guest-screen:not(.guest-screen--chat) .deck__card--under {
+  transform:
+    translateX(calc(var(--depth, 1) * 5px))
+    translateY(calc(var(--depth, 1) * 2px))
+    rotate(calc(var(--depth, 1) * 0.75deg))
+    scale(calc(1 - var(--depth, 1) * 0.012));
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .deck__copy {
+  padding: 16px;
+}
+
+.guest-screen:not(.guest-screen--chat) .deck__copy b {
+  font-size: 21px;
+}
+
+.guest-screen:not(.guest-screen--chat) .deck__reason {
+  padding: 5px 9px;
+  border: 1px solid rgb(255 255 255 / 0.48);
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .categories {
+  gap: 12px;
+}
+
+.guest-screen:not(.guest-screen--chat) .categories__card {
+  min-height: 132px;
+  border: 1px solid rgb(255 255 255 / 0.26);
+  border-radius: 14px;
+}
+
+.guest-screen:not(.guest-screen--chat) .categories__card.is-lead {
+  min-height: 172px;
+}
+
+.guest-screen:not(.guest-screen--chat) .categories__card.is-full,
+.guest-screen:not(.guest-screen--chat) .categories__card:last-child:nth-child(even) {
+  min-height: 120px;
+}
+
 
 /* --------------------------------------------------------------------------
    Story viewer
@@ -1445,4 +1549,52 @@
   font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   Marriott-style signed-in shell refinement
+
+   Keep Explore editorial, but give it the same white canvas and quiet image
+   treatment as the reservation screens. Chat does not use this surface.
+   -------------------------------------------------------------------------- */
+
+.guest-screen.has-nav:not(.guest-screen--chat) .discover__story-ring {
+  padding: 1px;
+  border: 1px solid var(--guest-line);
+  border-radius: 12px;
+  background: var(--guest-paper);
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .discover__story-art {
+  width: 68px;
+  height: 84px;
+  border: 0;
+  border-radius: 10px;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .deck__stack {
+  width: 100%;
+  margin-bottom: 0;
+  aspect-ratio: 4 / 3;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .deck__card {
+  border-color: var(--guest-line);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgb(37 24 37 / 0.08);
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .deck__card--under {
+  visibility: hidden;
+  box-shadow: none;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .deck__reason {
+  border: 0;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .categories__card {
+  border-radius: 12px;
 }

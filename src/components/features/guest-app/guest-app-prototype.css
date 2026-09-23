@@ -624,9 +624,9 @@
   margin: 0;
   padding: 6px 8px;
   border-radius: var(--guest-radius-pill);
-  background: rgb(255 255 255 / 0.76);
-  -webkit-backdrop-filter: blur(22px) saturate(1.18);
-  backdrop-filter: blur(22px) saturate(1.18);
+  background: rgb(255 255 255 / 0.58);
+  -webkit-backdrop-filter: blur(24px) saturate(1.22);
+  backdrop-filter: blur(24px) saturate(1.22);
   box-shadow: var(--shadow-md);
   transform: translateX(-50%);
   animation: guest-bottom-nav-in 220ms var(--ease-out) both;
@@ -692,10 +692,22 @@
   background: var(--guest-danger);
 }
 .guest-bottom-nav button[aria-current='page'] {
+  position: relative;
   color: var(--guest-ink);
 }
-.guest-bottom-nav button[aria-current='page'] span { background: var(--guest-soft); }
-.guest-bottom-nav button[aria-current='page'] span { transform: translateY(-1px) scale(1.04); }
+.guest-bottom-nav button[aria-current='page']::before {
+  position: absolute;
+  top: -6px;
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--guest-accent-strong);
+  content: '';
+}
+.guest-bottom-nav button[aria-current='page'] span {
+  transform: none;
+  background: transparent;
+}
 
 @media (hover: hover) and (pointer: fine) {
   .guest-bottom-nav button:hover:not([aria-current='page']) {
@@ -2049,10 +2061,9 @@
 .guest-quick-actions {
   display: grid;
   gap: 7px;
-  margin: 8px 0 0;
+  margin: 0;
   justify-items: center;
 }
-.guest-quick-actions__label { color: var(--guest-subtle); font-size: 12px; font-weight: 650; letter-spacing: 0.01em; text-align: center; }
 .guest-quick-actions__rail {
   display: flex;
   align-items: center;
@@ -2090,7 +2101,7 @@
    so the composer can still sit near the bottom of a phone viewport. */
 .guest-messages { display: flex; min-height: 0; flex: 1; flex-direction: column; justify-content: flex-start; gap: 10px; overflow-y: auto; padding: 8px 0 4px; scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px); scrollbar-width: none; }
 .guest-messages::-webkit-scrollbar { display: none; }
-.guest-chat--conversation .guest-messages { padding-bottom: 28px; }
+.guest-chat--conversation .guest-messages { padding-bottom: 140px; }
 .guest-message { display: grid; max-width: 80%; gap: 4px; animation: guest-message-in 180ms var(--ease-out) both; }
 .guest-message p { margin: 0; padding: 10px 14px; border-radius: var(--guest-radius-lg); background: var(--guest-paper); font-size: 15px; line-height: 1.4; }
 .guest-message--desk p { border: 1px solid var(--guest-line); }
@@ -2124,7 +2135,7 @@
   border-radius: 0;
   padding: 10px;
   background: var(--guest-paper);
-  border-top: 1px solid var(--guest-line);
+  border-top: 0;
   box-shadow: none;
   scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px);
 }
@@ -2144,6 +2155,25 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
+}
+
+.guest-composer .guest-quick-actions {
+  gap: 6px;
+  padding: 2px 0 0;
+}
+
+.guest-composer .guest-quick-actions__rail {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.guest-composer .guest-quick-actions__rail button {
+  white-space: nowrap;
 }
 .guest-composer__text-input { min-width: 0; border-color: transparent; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
 .guest-composer__text-input:focus { background: var(--guest-paper); }
@@ -2578,11 +2608,12 @@
   cursor: pointer;
   transition: transform 220ms var(--ease-out);
 }
-.guest-home-story .discover__story-ring { padding: 3px; }
+.guest-home-story .discover__story-ring { padding: 1px; }
 .guest-home-story .discover__story-art {
-  width: 70px;
-  height: 94px;
-  border-radius: 20px;
+  width: 74px;
+  height: 98px;
+  border: 1px solid var(--guest-paper);
+  border-radius: 19px;
 }
 
 /*
@@ -2611,12 +2642,12 @@
 .guest-home-next-service .guest-section-heading button { font-weight: 500; }
 .guest-next-service-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  min-height: 82px;
-  padding: 18px 16px;
+  min-height: 88px;
+  padding: 14px 15px;
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
@@ -2624,21 +2655,24 @@
   text-align: left;
   box-shadow: var(--shadow-xs);
 }
-.guest-next-service-card__details { display: grid; gap: 3px; min-width: 0; }
-.guest-next-service-card b { font-size: 16px; font-weight: 700; }
-.guest-next-service-card small { color: var(--guest-muted); font-size: 13px; line-height: 1.3; }
-.guest-next-service-card__action { display: grid; justify-items: end; gap: 4px; color: var(--guest-ink); white-space: nowrap; }
-.guest-next-service-card__action strong { font-size: 16px; font-weight: 700; }
-.guest-next-service-card__action svg { width: 16px; height: 16px; }
-.guest-home-next-service { display: grid; gap: 10px; }
-.guest-next-service-card {
-  min-height: 92px;
-  border-radius: var(--guest-radius-md);
-  box-shadow: none;
-  transition: transform var(--duration-press) var(--ease-out),
-    background-color var(--duration-fast) ease,
-    border-color var(--duration-fast) ease;
+.guest-next-service-card__marker {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: var(--guest-accent-strong);
 }
+.guest-next-service-card__marker svg { width: 20px; height: 20px; }
+.guest-next-service-card__details { display: grid; gap: 3px; min-width: 0; }
+.guest-next-service-card b { font-size: 16px; font-weight: 700; line-height: 1.2; }
+.guest-next-service-card small { color: var(--guest-muted); font-size: 13px; line-height: 1.3; }
+.guest-next-service-card__schedule { color: var(--guest-ink) !important; font-weight: 600; }
+.guest-next-service-card__charge { font-size: 12px !important; }
+.guest-next-service-card__action { display: grid; width: 24px; height: 24px; place-items: center; color: var(--guest-muted); }
+.guest-next-service-card__action-icon { display: grid; place-items: center; }
+.guest-next-service-card__action-icon svg { width: 15px; height: 15px; }
+.guest-home-next-service { display: grid; gap: 10px; }
+.guest-next-service-card { transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease; }
 .guest-next-service-card:active { transform: scale(0.98); }
 
 /* --------------------------------------------------------------------------
@@ -2980,8 +3014,8 @@
 }
 
 .guest-welcome__brand {
-  align-self: flex-start;
-  margin-left: 2px;
+  align-self: center;
+  margin-left: 0;
   color: var(--guest-brand);
 }
 
@@ -3026,7 +3060,7 @@
   margin-block: auto;
   padding: 18px 18px 8px;
   border-radius: var(--guest-radius-xl);
-  background: color-mix(in oklch, var(--guest-canvas) 78%, var(--guest-soft));
+  background: transparent;
   isolation: isolate;
   /* Clips the steps waiting either side of the current one. */
   overflow: hidden;
@@ -3041,13 +3075,13 @@
    inside the hero frame, so the rest of the welcome screen remains quiet. */
 .guest-welcome__art::before {
   position: absolute;
-  inset: 12% 15% 16%;
+  inset: 10% 20% 14%;
   z-index: -1;
   border-radius: 50%;
   background: radial-gradient(circle, color-mix(in oklch, var(--guest-accent) 30%, white) 0%, transparent 70%);
   content: '';
   filter: blur(20px);
-  opacity: 0.68;
+  opacity: 0.48;
 }
 
 /* One row of full-width steps, slid sideways. Transform-only, so the slide
@@ -4701,20 +4735,6 @@
 .guest-checkout-card__extension small { color: var(--guest-muted); font-size: 12px; line-height: 1.35; }
 .guest-checkout-card__extension-action { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--guest-accent-strong); font-size: 13px; font-weight: 700; }
 .guest-checkout-card__extension-action svg { width: 14px; vertical-align: middle; }
-.guest-my-stay-charges { overflow: hidden; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-surface); }
-.guest-my-stay-charges__toggle { display: grid; grid-template-columns: auto 1fr auto; min-height: 56px; width: 100%; align-items: center; gap: 10px; padding: 14px 16px; border: 0; background: transparent; color: var(--guest-ink); text-align: left; }
-.guest-my-stay-charges__toggle > span { color: var(--guest-brand); }
-.guest-my-stay-charges__toggle strong { display: inline-flex; align-items: center; gap: 3px; color: var(--guest-accent-strong); font-size: 12px; white-space: nowrap; }
-.guest-my-stay-charges__toggle strong svg { width: 14px; }
-.guest-my-stay-charges__details { display: grid; gap: 0; padding: 0 16px 12px; }
-.guest-my-stay-charges__details .guest-summary-row { padding-inline: 0; }
-.guest-my-stay-charges { overflow: visible; border: 0; background: transparent; }
-.guest-my-stay-charges__row { grid-template-columns: auto minmax(0, 1fr) auto; min-height: 72px; padding: 12px 16px; border: 1px solid var(--guest-line); border-radius: 16px; background: var(--guest-paper); box-shadow: var(--shadow-xs); }
-.guest-my-stay-charges__row > span:first-child { display: grid; width: 24px; place-items: center; color: var(--guest-brand); }
-.guest-my-stay-charges__row > span:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
-.guest-my-stay-charges__row > span:nth-child(2) b { font-size: 16px; font-weight: 650; }
-.guest-my-stay-charges__row > span:nth-child(2) small { color: var(--guest-muted); font-size: 13px; font-weight: 400; }
-.guest-my-stay-charges__row > svg { width: 18px; color: var(--guest-subtle); }
 .guest-stay-overview { display: grid; gap: 0; overflow: hidden; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
 .guest-stay-overview__heading { display: grid; gap: 5px; padding: 16px; }
 .guest-stay-overview__heading > strong { font-size: 18px; }
@@ -5585,33 +5605,6 @@
 }
 .guest-folio-help > svg { width: 16px; color: var(--guest-subtle); }
 
-.guest-my-stay-charges__row {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.guest-my-stay-charges__row > span {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.guest-my-stay-charges__row > span:first-child {
-  width: auto;
-  place-items: initial;
-  color: inherit;
-}
-
-.guest-my-stay-charges__row > span b {
-  font-size: 16px;
-  font-weight: 650;
-}
-
-.guest-my-stay-charges__row > span small {
-  color: var(--guest-muted);
-  font-size: 13px;
-  font-weight: 400;
-}
-
 .guest-folio-cards {
   display: grid;
   gap: 12px;
@@ -5715,26 +5708,6 @@
   width: 14px;
 }
 
-.guest-my-stay-charges__view {
-  display: grid;
-  align-self: start;
-  justify-items: end;
-  gap: 2px;
-  color: var(--guest-accent-strong);
-  font-size: 13px;
-  font-weight: 650;
-  text-align: right;
-}
-
-/* The amount sits above the affordance, in ink rather than accent: it is the
-   fact, and "View" is the invitation. */
-.guest-my-stay-charges__view strong {
-  color: var(--guest-ink);
-  font-size: 17px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
 /* --------------------------------------------------------------------------
    My Stay: premium layered context.
    The checkout surface is the single glass layer; the rest stays quiet.
@@ -5815,23 +5788,36 @@
 .guest-my-stay-page .guest-checkout-card__requests button > svg:last-child { margin-right: 2px; }
 .guest-my-stay-page .guest-checkout-card__requests button:focus-visible { border-radius: 12px; }
 
-.guest-my-stay-page .guest-my-stay-charges__row {
-  grid-template-columns: minmax(0, 1fr) auto;
+.guest-my-stay-folio-link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
   min-height: 64px;
-  padding: 14px 16px;
-  border-color: var(--guest-line);
-  border-radius: 18px;
-  background: var(--guest-surface);
-  box-shadow: none;
-  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  padding: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--guest-line);
+  border-bottom: 1px solid var(--guest-line);
+  background: transparent;
+  color: var(--guest-ink);
+  text-align: left;
 }
-.guest-my-stay-page .guest-my-stay-charges__row > span:first-child {
-  width: auto;
-  place-items: initial;
-  color: inherit;
+.guest-my-stay-folio-link__icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--guest-soft);
+  color: var(--guest-brand);
 }
-.guest-my-stay-page .guest-my-stay-charges__row > span:first-child b { font-size: 15px; font-weight: 700; }
-.guest-my-stay-page .guest-my-stay-charges__view { padding: 6px 0; }
+.guest-my-stay-folio-link__icon svg { width: 18px; height: 18px; }
+.guest-my-stay-folio-link__copy { display: grid; min-width: 0; gap: 3px; }
+.guest-my-stay-folio-link__copy b { font-size: 15px; font-weight: 700; }
+.guest-my-stay-folio-link__copy small { color: var(--guest-muted); font-size: 13px; }
+.guest-my-stay-folio-link > svg { width: 18px; color: var(--guest-subtle); }
+.guest-my-stay-folio-link:hover { background: var(--guest-sunken); }
 
 .guest-my-stay-page .guest-tabs {
   gap: 4px;
@@ -5891,7 +5877,6 @@
 @media (prefers-reduced-motion: reduce) {
   .guest-my-stay-page .guest-stay-entries { animation: none; }
   .guest-my-stay-page .guest-checkout-card,
-  .guest-my-stay-page .guest-my-stay-charges__row,
   .guest-my-stay-page .guest-stay-entry,
   .guest-my-stay-page .guest-tab { transition: none; }
 }
@@ -6479,7 +6464,7 @@
 
 /* Nearby is a secondary preview on category pages; the full list has its own
    route so the category page keeps the hotel's options in focus. */
-.guest-nearby-section { gap: 0; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--guest-line); }
+.guest-nearby-section { gap: 0; margin-top: 32px; padding-top: 24px; border-top: 0; }
 .guest-nearby-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .guest-nearby-heading h2 { margin: 0; color: var(--guest-ink); font-size: 20px; font-weight: 650; }
 .guest-nearby-heading button { flex: 0 0 auto; padding: 0; border: 0; background: transparent; color: var(--guest-accent-strong); font-size: 14px; font-weight: 550; }
@@ -6610,4 +6595,315 @@
 
 @media (max-width: 520px) {
   .guest-nearby-detail__hero { height: 348px; }
+}
+
+/* --------------------------------------------------------------------------
+   Signed-in shell surfaces
+
+   Home, Explore, My Stay, and Profile share one visual rule: content should
+   feel placed on the page, not packed into a stack of promotional cards.
+   Chat is intentionally excluded from this pass.
+   -------------------------------------------------------------------------- */
+
+.guest-screen:not(.guest-screen--chat) .guest-home-active-hero,
+.guest-screen:not(.guest-screen--chat) .guest-home-booking--upcoming > .guest-stay-hero-card,
+.guest-screen:not(.guest-screen--chat) .guest-home-booking--multiple > .guest-stay-hero-card,
+.guest-screen:not(.guest-screen--chat) .guest-home-booking--completed > .guest-stay-hero-card {
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-next-service-card {
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-announcements {
+  gap: 0;
+  border-top: 1px solid var(--guest-line);
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-announcement {
+  padding: 14px 0;
+  border: 0;
+  border-bottom: 1px solid var(--guest-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-announcement--warning,
+.guest-screen:not(.guest-screen--chat) .guest-announcement--positive {
+  background: transparent;
+  border-color: var(--guest-line);
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page {
+  gap: 26px;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-stay-context {
+  padding: 0 0 14px;
+  border: 0;
+  border-bottom: 1px solid var(--guest-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-stay-context__clock {
+  width: 22px;
+  height: 22px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-checkout-card__requests button > svg:first-child {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-sizing: content-box;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-tabs {
+  gap: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--guest-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-tab {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  min-height: 44px;
+  padding: 0 1px 10px;
+  border-radius: 0;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-tab::after {
+  display: block;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-tab[aria-selected='true'] {
+  background: transparent;
+  color: var(--guest-ink);
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entries {
+  gap: 26px;
+  margin-top: 12px;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entries__date-group-cards {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry {
+  min-height: 0;
+  padding: 18px 16px;
+  border: 0;
+  border-radius: 0;
+  background: var(--guest-paper);
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page > .guest-stay-entries > .guest-stay-entry,
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page > .guest-stay-entry {
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entries__date-group-cards .guest-stay-entry + .guest-stay-entry {
+  border-top: 1px solid var(--guest-line);
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry__parent {
+  gap: 8px;
+  color: var(--guest-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry__parent > span:first-child {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  color: var(--guest-brand);
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry__parent > span:first-child svg {
+  width: 16px;
+  height: 16px;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry__headline h2 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry__headline strong {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry__when,
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry__settlement {
+  font-size: 13px;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry:not(.is-static):hover {
+  border-color: transparent;
+  background: var(--guest-surface);
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-page {
+  gap: 24px;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-identity {
+  gap: 16px;
+  padding: 0 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--guest-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-identity__avatar {
+  width: 56px;
+  height: 56px;
+  background: var(--guest-brand);
+  box-shadow: none;
+  font-size: 18px;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-identity__footer {
+  padding-top: 12px;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-identity__document-status {
+  padding: 4px 8px;
+  border: 1px solid color-mix(in oklch, var(--guest-positive) 45%, var(--guest-line));
+  background: transparent;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-section__mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-action-list {
+  overflow: visible;
+  border-block: 1px solid var(--guest-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-action-list .guest-list-row {
+  min-height: 68px;
+  padding: 12px 0;
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-action-list .guest-list-row > span {
+  width: 24px;
+  color: var(--guest-brand);
+}
+
+.guest-screen:not(.guest-screen--chat) .guest-profile-signout {
+  min-height: 68px;
+  padding-inline: 0;
+  border: 0;
+  border-bottom: 1px solid var(--guest-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Marriott-style signed-in shell refinement
+
+   The reference uses white space, hairlines, and one clear image-led moment.
+   Keep the Cabana accent for state, but remove the stacked-card treatment
+   from the signed-in shell. Chat remains outside this selector on purpose.
+   -------------------------------------------------------------------------- */
+
+.guest-device:has(.guest-screen.has-nav:not(.guest-screen--chat)) {
+  background: var(--guest-paper);
+}
+
+.guest-device:has(.guest-screen.has-nav:not(.guest-screen--chat)) .guest-appbar,
+.guest-screen.has-nav:not(.guest-screen--chat) {
+  background: var(--guest-paper);
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-home-booking--active {
+  gap: 28px;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-home-active-hero {
+  border-color: var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  box-shadow: none;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-home-active-hero .guest-stay-hero-card__body {
+  padding: 16px;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-home-next-service {
+  gap: 0;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-home-next-service .guest-section-heading {
+  margin-bottom: 0;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-next-service-card {
+  min-height: 78px;
+  padding: 14px 0;
+  border: 0;
+  border-bottom: 1px solid var(--guest-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-home-story .discover__story-ring {
+  padding: 1px;
+  border: 1px solid var(--guest-line);
+  border-radius: 12px;
+  background: var(--guest-paper);
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-home-story .discover__story-art {
+  width: 74px;
+  height: 92px;
+  border: 0;
+  border-radius: 10px;
+}
+
+.guest-screen.has-nav:not(.guest-screen--chat) .guest-home-story b {
+  font-size: 11px;
+  font-weight: 650;
 }

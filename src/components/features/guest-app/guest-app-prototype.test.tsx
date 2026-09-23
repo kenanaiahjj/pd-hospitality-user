@@ -6,8 +6,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
 import {
   MOCK_SESSION,
-  RESTAURANTS,
-  SERVICES,
   createAccountSession,
 } from './prototype-model';
 import { ANONYMOUS_SESSION, connectBooking, applyPrototypeStayState, restoreProfileSession } from './prototype-model';
@@ -16,6 +14,7 @@ import { readStoredSession, writeStoredSession } from './session-storage';
 
 const globalStyles = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
 const guestStyles = readFileSync(resolve(process.cwd(), 'src/components/features/guest-app/guest-app-prototype.css'), 'utf8');
+const promotedStyles = readFileSync(resolve(process.cwd(), 'src/components/features/guest-app/promoted/promoted.css'), 'utf8');
 const urlMethodDescriptors = {
   createObjectURL: Object.getOwnPropertyDescriptor(URL, 'createObjectURL'),
   revokeObjectURL: Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL'),
@@ -494,7 +493,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByTestId('guest-room-qr-action')).toBeNull();
   });
 
-  it('shows room settlement and confirms an in-stay service without a payment method', async () => {
+  it('shows room settlement without putting the folio total on My Stay', async () => {
     const user = userEvent.setup();
     const active = makeBooking({
       id: 'active',
@@ -533,7 +532,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText(/hotel folio at checkout/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
-    expect(screen.getByRole('button', { name: /Room charges.*₱5,450.*View receipt/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Room charges/i })).not.toHaveTextContent('₱5,450');
   });
 
   it('turns early check-in into a room-charge request without payment choices', () => {
@@ -590,7 +589,7 @@ describe('GuestAppPrototype', () => {
 
     await user.click(screen.getByRole('button', { name: 'Home' }));
     await user.click(screen.getByRole('button', { name: 'My Stay' }));
-    expect(screen.getByRole('button', { name: /Room charges.*₱3,050.*View receipt/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Room charges/i })).not.toHaveTextContent('₱3,050');
   });
 
   it('falls back to a stay label when no entry path captured a name', () => {
@@ -833,6 +832,7 @@ describe('guest account and entry flows', () => {
     expect(guestStyles).toContain('.guest-welcome__splash');
     expect(guestStyles).toContain('.guest-welcome__art-track');
     expect(guestStyles).toContain('.guest-welcome__dots');
+    expect(guestStyles).toMatch(/\.guest-welcome__brand\s*\{[^}]*align-self:\s*center/);
     expect(guestStyles).toMatch(/\.guest-welcome[^}]*background: #fff/);
     expect(guestStyles).toContain('.guest-sso-button');
     expect(guestStyles).toContain('.guest-code-field');
@@ -1036,115 +1036,18 @@ describe('room-ready notification', () => {
   });
 });
 
-describe('menu and service listing controls', () => {
-  /** Facets live behind the filter bar now: open the pill, choose, Apply. */
-  const choose = async (
-    user: ReturnType<typeof userEvent.setup>,
-    pill: RegExp | string,
-    option: { role: 'radio' | 'checkbox'; name: string }[],
-  ) => {
-    await user.click(screen.getByRole('button', { name: pill }));
-    for (const item of option) await user.click(screen.getByRole(item.role, { name: item.name }));
-    await user.click(screen.getByRole('button', { name: 'Apply' }));
-  };
+describe('category listing presentation', () => {
 
-  /*
-    Two tests stood here: `narrows a menu by diet and reports how much is left`
-    and `sorts a menu by price without losing the category tab`. Both drove a
-    venue's dish list -- category tabs, a Dietary facet, a price sort, an
-    "N dishes" count.
-
-    That surface is gone. `restaurant-menu` shows photographs of the physical
-    menu in a carousel with a zoom viewer, and ordering goes through Chat, which
-    is the same move that retired the venue cart suite in `af08506`. Every venue
-    now carries `priceRange: 'Menu in Chat'`, so there is not even a price left
-    to sort on. Rewriting the assertions would have invented a screen.
-
-    What survives of them is below: the filter sheet's own behaviour, which the
-    service listings still have, tested there instead.
-  */
-
-  it('announces which filter sheet is open', async () => {
+  it.each(['Spa & Wellness', 'Food & Drinks'])('omits filters and option counts from %s', async (story) => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    // The sheet is the subject, not the screen that opens it. It used to be
-    // reached through a venue's dish list, which is menu photographs now; the
-    // service listings carry the same controls.
-    await openHomeStory(user, 'Spa & Wellness');
+    await openHomeStory(user, story);
 
-    const sortButton = screen.getByRole('button', { name: 'Recommended' });
-    expect(sortButton).toHaveAttribute('aria-expanded', 'false');
-
-    await user.click(sortButton);
-
-    expect(sortButton).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('dialog', { name: 'Sort by' })).toBeInTheDocument();
-  });
-
-  it('lets guests clear a changed sort before applying it', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
-
-    await openHomeStory(user, 'Spa & Wellness');
-    await user.click(screen.getByRole('button', { name: 'Recommended' }));
-
-    const clearAll = screen.getByRole('button', { name: 'Clear all' });
-    expect(clearAll).toBeDisabled();
-
-    await user.click(screen.getByRole('radio', { name: 'Lowest price' }));
-
-    expect(clearAll).toBeEnabled();
-    await user.click(clearAll);
-    expect(clearAll).toBeDisabled();
-    expect(screen.getByRole('radio', { name: 'Recommended' })).toBeChecked();
-
-    await user.click(screen.getByRole('button', { name: 'Apply' }));
-    // The sheet is dismissed at once and unmounts once it has finished leaving,
-    // so the pill reports collapsed a frame or two after the click.
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Recommended' })).toHaveAttribute('aria-expanded', 'false'),
-    );
-  });
-
-  it('filters a service category by operator', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
-
-    const spa = SERVICES.filter((service) => service.categoryId === 'spa');
-    const hotelRun = spa.filter((service) => service.operator === 'Hotel operated');
-
-    await openHomeStory(user, 'Spa & Wellness');
-    // The count moved onto the section heading and lost its typed noun: every
-    // listing says "options" now, whether it holds services, venues or gifts.
-    expect(screen.getByText(`${spa.length} options`)).toBeInTheDocument();
-
-    await choose(user, 'Operator', [{ role: 'checkbox', name: 'Hotel operated' }]);
-    // Derived, not pinned: the catalogue will keep growing.
-    expect(screen.getByText(`${hotelRun.length} options`)).toBeInTheDocument();
-  });
-
-  it('gives the dining venue list the same controls', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
-
-    await openHomeStory(user, 'Food & Drinks');
-    expect(screen.getByText(`${RESTAURANTS.length} options`)).toBeInTheDocument();
-
-    /*
-      The controls, not a price ordering. Every venue now carries
-      `priceRange: 'Menu in Chat'` — the list stopped quoting prices when
-      ordering moved into the conversation — so sorting by price has nothing to
-      sort on and cannot be asserted. Narrowing still works and is still the
-      point of the bar.
-    */
-    expect(screen.getByRole('button', { name: 'Recommended' })).toBeInTheDocument();
-    await choose(user, 'Type', [{ role: 'checkbox', name: 'Café & Bakery' }]);
-
-    const names = [...document.querySelectorAll('.guest-food-restaurant-list h2')]
-      .map((h) => h.textContent);
-    expect(names).toContain('Kape Manila Café');
-    expect(names.length).toBeLessThan(RESTAURANTS.length);
+    expect(screen.getByRole('heading', { name: 'At the hotel' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Recommended' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Type' })).toBeNull();
+    expect(screen.queryByText(/^\d+ options$/)).toBeNull();
   });
 });
 
@@ -1424,27 +1327,56 @@ describe('notifications', () => {
 });
 
 describe('my stay', () => {
-  it('answers what is booked and what is owed for the whole trip', () => {
+  it('keeps the running room-charge total off the My Stay overview', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
     expect(screen.getByRole('heading', { name: 'The Henry Manila', level: 1 })).toBeInTheDocument();
     expect(screen.getByText(/Checked in · Room/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Room charges.*₱3,050.*View receipt/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Room charges' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Room charges' })).not.toHaveTextContent('₱14,550');
     // Upcoming and Past are tabs now, not stacked sections.
     expect(screen.getByRole('tab', { name: /Upcoming/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: /Past/ })).toHaveAttribute('aria-selected', 'false');
   });
 
-  it('opens the detailed room-charge receipt from My Stay', async () => {
+  it('opens the complete room-charge ledger from My Stay', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
-    await user.click(screen.getByRole('button', { name: /Room charges.*View receipt/ }));
+    await user.click(screen.getByRole('button', { name: 'Room charges' }));
+
+    expect(screen.getByRole('heading', { name: 'Room charges', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('Current total')).toBeInTheDocument();
+  });
+
+  it('shows the complete room-charge ledger on its own page', () => {
+    render(<GuestAppPrototype initialScreen="folio" initialSession={activeSession} />);
 
     expect(screen.getByRole('heading', { name: 'Room charges', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Current total')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Airport transfer/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /In-room dining/ })).toBeInTheDocument();
+  });
+
+  it('uses grouped premium surfaces and Hugeicons for stay entries', () => {
+    const session = sessionFor(
+      [makeBooking({ id: 'active', status: 'active', roomNumber: '304' })],
+      {
+        activeBookingId: 'active',
+        serviceBookings: [
+          { id: 'entry-one', bookingId: 'active', title: 'Azotea Rooftop', scheduledFor: 'Tonight · 7:30 PM', scheduledDate: '2026-11-11', amount: '₱2,850', status: 'confirmed' },
+          { id: 'entry-two', bookingId: 'active', title: 'Hilom signature massage', scheduledFor: 'Tomorrow · 1:30 PM', scheduledDate: '2026-11-12', amount: '₱2,400', status: 'confirmed' },
+        ],
+      },
+    );
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={session} />);
+
+    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entries__date-group-cards\s*\{[\s\S]*?overflow:\s*hidden;[\s\S]*?border:\s*1px solid var\(--guest-line\);[\s\S]*?border-radius:\s*16px;/);
+    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entry\s*\{[\s\S]*?padding:\s*18px 16px;[\s\S]*?background:\s*var\(--guest-paper\);/);
+
+    const parentIcons = Array.from(document.querySelectorAll('.guest-stay-entry__parent svg'));
+    expect(parentIcons.length).toBeGreaterThan(0);
+    expect(parentIcons.every((icon) => icon.getAttribute('viewBox') === '0 0 24 24')).toBe(true);
   });
 
   it('names the parent property on each booking card', () => {
@@ -1515,7 +1447,6 @@ describe('my stay', () => {
     expect(guestStyles).toContain('.guest-my-stay-page .guest-checkout-card {');
     expect(guestStyles).toContain('-webkit-backdrop-filter: blur(18px) saturate(1.12);');
     expect(guestStyles).toContain('backdrop-filter: blur(18px) saturate(1.12);');
-    expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-my-stay-charges__row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
     expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-tabs\s*\{[\s\S]*?border-radius:\s*18px;[\s\S]*?background:\s*var\(--guest-surface\);/);
     expect(guestStyles).toContain('.guest-my-stay-page .guest-tab::after { display: none; }');
     expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-tab\[aria-selected='true'\]\s*\{[\s\S]*?background:\s*var\(--guest-soft\);/);
@@ -1688,6 +1619,15 @@ describe('guest profile', () => {
     expect(screen.getByRole('heading', { name: 'Your account' })).toBeInTheDocument();
     expect(screen.getByText('Passport on file')).toBeInTheDocument();
     expect(document.querySelector('.guest-profile-action-list')).toBeInTheDocument();
+  });
+
+  it('uses a Hugeicons trophy for the Achievements action', () => {
+    render(<GuestAppPrototype initialScreen="profile" initialSession={MOCK_SESSION} />);
+
+    const achievements = screen.getByRole('button', { name: /^Achievements/ });
+    const leadingIcon = achievements.querySelector(':scope > span svg');
+
+    expect(leadingIcon).toHaveAttribute('viewBox', '0 0 24 24');
   });
 });
 
@@ -2087,12 +2027,10 @@ describe('a finished stay on My Stay', () => {
     expect(screen.getByRole('tab', { name: /Past/ })).toBeInTheDocument();
   });
 
-  it('shows the current folio total on a live My Stay surface', () => {
+  it('keeps the current folio total off a live My Stay surface', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={applyPrototypeStayState('live')} />);
 
-    const charges = screen.getByRole('button', { name: /Room charges/i });
-    expect(charges).toHaveTextContent('Due at checkout');
-    expect(charges).toHaveTextContent('₱14,550');
+    expect(screen.getByRole('button', { name: /Room charges/i })).not.toHaveTextContent('₱3,050');
     expect(screen.queryByRole('button', { name: /Book another stay/ })).toBeNull();
   });
 });
@@ -2278,6 +2216,10 @@ describe('lifecycle gates', () => {
     for (const label of ['Towels', 'Housekeeping', 'Late checkout', 'Room issue', 'Transfers']) {
       expect(within(chat).getByRole('button', { name: label })).toBeInTheDocument();
     }
+
+    expect(chat.querySelector('.guest-composer .guest-quick-actions')).toBeInTheDocument();
+    expect(within(chat).queryByText('Popular requests')).toBeNull();
+    expect(chat.querySelector('.guest-messages .guest-quick-actions')).toBeNull();
   });
 
   it('changes to conversation mode after a prompt sends through the existing path', async () => {
@@ -2298,6 +2240,19 @@ describe('lifecycle gates', () => {
     expect(guestStyles).toContain('scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px);');
     expect(guestStyles).toMatch(/\.guest-typing-dots i\s*\{[\s\S]*?animation: guest-typing-pulse/);
     expect(guestStyles).toMatch(/\.guest-typing-dots i \{ animation: none; \}/);
+  });
+
+  it('keeps popular requests in one horizontally scrollable row', () => {
+    expect(guestStyles).toMatch(
+      /\.guest-composer \.guest-quick-actions__rail\s*\{[\s\S]*?overflow-x:\s*auto;[\s\S]*?flex-wrap:\s*nowrap;/,
+    );
+    expect(guestStyles).toMatch(
+      /\.guest-composer \.guest-quick-actions__rail\s*\{[\s\S]*?justify-content:\s*flex-start;/,
+    );
+  });
+
+  it('lets the chat composer blend into the conversation surface', () => {
+    expect(guestStyles).toMatch(/\.guest-composer\s*\{[^}]*border-top:\s*0;/);
   });
 
   it('docks the focused chat composer to the device edge', () => {
@@ -3002,6 +2957,7 @@ describe('scan discoverability', () => {
     const nextUp = screen.getByRole('heading', { name: 'Next up' });
     const nearby = screen.getByRole('heading', { name: 'Make the most of your stay' });
     expect(nextUp.compareDocumentPosition(nearby) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'View details for Hilom signature massage' })).toBeInTheDocument();
   });
 
   it('uses the catalog layout in the live home state', () => {
@@ -3020,9 +2976,22 @@ describe('premium Home styling', () => {
     expect(guestStyles).toMatch(/\.guest-home-discovery\s*\{[^}]*display:\s*grid/);
     expect(guestStyles).toMatch(/\.guest-home-stories\s*\{[^}]*gap:\s*14px/);
     expect(guestStyles).toMatch(/\.guest-home-story\s*\{[^}]*transition:\s*transform\s+220ms/);
+    expect(guestStyles).toMatch(/\.guest-home-story \.discover__story-ring\s*\{[^}]*padding:\s*1px/);
+    expect(guestStyles).toMatch(/\.guest-home-story \.discover__story-art\s*\{[\s\S]*?border:\s*1px solid var\(--guest-paper\)/);
     expect(guestStyles).toMatch(/\.guest-stay-hero-card__booking\s*\{[\s\S]*?border-top:\s*1px solid var\(--guest-line\)/);
     expect(guestStyles).toMatch(/\.guest-home-active-hero[^}]*animation:\s*guest-home-rise/);
     expect(guestStyles).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.guest-home-active-hero/);
+  });
+});
+
+describe('signed-in shell surfaces', () => {
+  it('keeps shell content quiet and explicitly excludes Chat', () => {
+    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-profile-action-list\s*\{[\s\S]*?box-shadow:\s*none/);
+    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entry\s*\{[\s\S]*?box-shadow:\s*none/);
+    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-announcement\s*\{[\s\S]*?border-bottom:\s*1px solid var\(--guest-line\)/);
+    expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.discover__search\s*\{[\s\S]*?box-shadow:\s*none/);
+    expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.deck__stack\s*\{[\s\S]*?aspect-ratio:\s*4 \/ 3/);
+    expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.discover__story-ring\s*\{[\s\S]*?padding:\s*1px/);
   });
 });
 
@@ -3118,14 +3087,16 @@ describe('floating tab bar styling', () => {
     );
   });
 
-  it('uses a pale pink icon highlight instead of an underline', () => {
+  it('uses a thin active rule instead of an icon highlight', () => {
     expect(guestStyles).toMatch(
       /\.guest-bottom-nav button\s*\{[^}]*grid-template-rows:\s*36px\s+auto\s*;/,
     );
     expect(guestStyles).toMatch(
+      /\.guest-bottom-nav button\[aria-current='page'\]::before\s*\{[^}]*height:\s*3px[^}]*background:\s*var\(--guest-accent-strong\)/,
+    );
+    expect(guestStyles).not.toMatch(
       /\.guest-bottom-nav button\[aria-current='page'\]\s+span\s*\{\s*background:\s*var\(--guest-soft\);\s*\}/,
     );
-    expect(guestStyles).not.toContain('.guest-bottom-nav button::after');
   });
 
   it('uses Hugeicons 24px glyphs for the primary destinations', () => {
@@ -3164,13 +3135,13 @@ describe('floating tab bar styling', () => {
 
   it('uses a translucent frosted surface for the floating capsule', () => {
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav\s*\{[^}]*background:\s*rgb\(255\s+255\s+255\s*\/\s*0\.76\)/,
+      /\.guest-bottom-nav\s*\{[^}]*background:\s*rgb\(255\s+255\s+255\s*\/\s*0\.58\)/,
     );
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav\s*\{[^}]*backdrop-filter:\s*blur\(22px\)\s+saturate\(1\.18\)/,
+      /\.guest-bottom-nav\s*\{[^}]*backdrop-filter:\s*blur\(24px\)\s+saturate\(1\.22\)/,
     );
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav\s*\{[^}]*-webkit-backdrop-filter:\s*blur\(22px\)\s+saturate\(1\.18\)/,
+      /\.guest-bottom-nav\s*\{[^}]*-webkit-backdrop-filter:\s*blur\(24px\)\s+saturate\(1\.22\)/,
     );
   });
 
@@ -3183,12 +3154,9 @@ describe('floating tab bar styling', () => {
     );
   });
 
-  it('gives the active destination a restrained lift instead of jumping states', () => {
+  it('keeps the active destination steady beneath its rule', () => {
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav button span\s*\{[^}]*transition:\s*background-color\s+var\(--duration-fast\)\s+ease,\s*transform\s+180ms\s+var\(--ease-out\)/,
-    );
-    expect(guestStyles).toMatch(
-      /\.guest-bottom-nav button\[aria-current='page'\]\s+span\s*\{[^}]*transform:\s*translateY\(-1px\)\s+scale\(1\.04\)/,
+      /\.guest-bottom-nav button\[aria-current='page'\]\s+span\s*\{[^}]*transform:\s*none[^}]*background:\s*transparent/,
     );
   });
 
@@ -3229,12 +3197,12 @@ describe('floating tab bar styling', () => {
     );
   });
 
-  it('uses ink for the active label and a pale pink active icon', () => {
+  it('uses ink for the active label and a hairline active rule', () => {
     expect(guestStyles).toMatch(
       /\.guest-bottom-nav button\[aria-current='page'\]\s*\{[^}]*color:\s*var\(--guest-ink\)/,
     );
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav button\[aria-current='page'\]\s+span\s*\{\s*background:\s*var\(--guest-soft\);\s*\}/,
+      /\.guest-bottom-nav button\[aria-current='page'\]::before\s*\{[^}]*height:\s*3px[^}]*background:\s*var\(--guest-accent-strong\)/,
     );
   });
 

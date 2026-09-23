@@ -1399,3 +1399,182 @@
 @media (max-width: 360px) {
   .guest-achievements-page .badge-shelf__held { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* --------------------------------------------------------------------------
+   Achievements shell refinement
+
+   The medal artwork is the expressive moment. Everything around it uses the
+   same paper surface and hairline grouping as My Stay, so a long collection
+   reads as one calm page instead of a stack of competing cards.
+   -------------------------------------------------------------------------- */
+
+.guest-achievements-page {
+  gap: 24px;
+  padding-bottom: 16px;
+}
+
+.guest-achievements-intro__eyebrow,
+.guest-achievements-overview__eyebrow,
+.guest-achievements-section-title > div > span {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.guest-achievements-overview {
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.guest-achievements-overview::before {
+  background: rgb(25 18 26 / 0.58);
+}
+
+.guest-achievements-page .badge-shelf {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.guest-achievements-page .badge-shelf__heading,
+.guest-achievements-page .reward-menu__heading,
+.guest-achievements-page .estate-map__heading {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--guest-line);
+}
+
+.guest-achievements-page .badge-shelf__heading small {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--guest-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.guest-achievements-page .badge-shelf__subheading {
+  margin: 4px 0 0;
+  color: var(--guest-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.guest-achievements-page .badge-shelf__held {
+  gap: 0;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-surface);
+}
+
+.guest-achievements-page .badge-shelf__held li > * {
+  min-block-size: 88px;
+  padding: 10px 4px 8px;
+  border-radius: 0;
+  background: transparent;
+}
+
+.guest-achievements-page .badge-shelf__held {
+  padding: 12px;
+}
+
+.guest-achievements-page .badge-shelf__held li > * {
+  min-block-size: 104px;
+  padding: 14px 8px 12px;
+}
+
+@media (max-width: 480px) {
+  .guest-achievements-page .badge-shelf__held {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.guest-achievements-page .badge-shelf__rows {
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+
+.guest-achievements-page .badge-shelf__rows li > * {
+  min-block-size: 68px;
+  padding: 14px 16px;
+}
+
+.guest-achievements-page .badge-shelf__family {
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.guest-achievements-points {
+  display: grid;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.guest-achievements-points .points-wallet__buys,
+.guest-achievements-points .points-wallet__next {
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+
+.guest-achievements-points .points-wallet__nearest {
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-surface);
+}
+
+.guest-achievements-points .points-wallet__ledger {
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+
+.guest-achievements-points .points-wallet__heading {
+  padding-top: 16px;
+  border-top: 1px solid var(--guest-line);
+}
+
+.guest-achievements-page .reward-menu {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.guest-achievements-page .reward-menu__rows {
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+
+.guest-achievements-page .estate-map {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.guest-achievements-page .estate-map__group {
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}

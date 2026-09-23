@@ -2291,9 +2291,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <span>Front desk is replying</span>
             </div>
           ) : null}
+          {/*
+            Inside the conversation, not after it. The composer is docked over
+            the bottom of the screen, and as the next sibling this sat directly
+            underneath it -- present in the page, unreachable by a tap. Here it
+            follows the request it answers and scrolls with the thread, above
+            the space the conversation already keeps clear for the composer.
+          */}
+          {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm {session.guestName || 'the guest'} is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
         </div>
 
-        {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm Ana Santos is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
         <ChatComposer
           disabled={chatDisabled}
           draft={chatDraft}

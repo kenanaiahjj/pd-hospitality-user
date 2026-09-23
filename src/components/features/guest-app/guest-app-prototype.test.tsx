@@ -2465,6 +2465,25 @@ describe('lifecycle gates', () => {
     expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
   });
 
+  /*
+    jsdom does no layout, so the overlap itself cannot be seen here -- in a
+    browser the grant sat directly under the docked composer and a tap on it
+    landed in the text box. What can be pinned is the structure that fixes it:
+    the grant lives in the conversation, which keeps its bottom clear of the
+    composer, and never as the composer's neighbour.
+  */
+  it('keeps the desk grant in the conversation, clear of the docked composer', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+
+    await user.click(secondTab());
+    await user.click(screen.getByRole('button', { name: /I can.{1,3}t scan/ }));
+
+    const grant = screen.getByRole('button', { name: /Confirm .* in room 304/i }).closest('.guest-desk-grant');
+    expect(grant?.closest('.guest-messages')).not.toBeNull();
+    expect(guestStyles).toMatch(/\.guest-chat--conversation \.guest-messages \{[^}]*padding-bottom:\s*140px/);
+  });
+
   it('reaches the front desk before arrival', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);

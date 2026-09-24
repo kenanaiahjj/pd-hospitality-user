@@ -1542,6 +1542,77 @@
   .story__tick { transition: none; }
 }
 
+/* --------------------------------------------------------------------------
+   Editorial layout, after the Places discover cards
+
+   The words lead from the top, under the account row: a large serif title,
+   the place in a small monospaced line, then the detail. The photo keeps the
+   lower half to itself, and the booking action waits in the bottom corner as
+   a frosted button rather than a pink bar across the picture.
+   -------------------------------------------------------------------------- */
+.story__scrim {
+  background:
+    linear-gradient(180deg, oklch(0 0 0 / 0.72) 0%, oklch(0 0 0 / 0.5) 34%, oklch(0 0 0 / 0.08) 62%, transparent 72%),
+    linear-gradient(0deg, oklch(0 0 0 / 0.42) 0%, transparent 24%);
+}
+.story__foot {
+  inset: 80px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 16px 20px max(24px, env(safe-area-inset-bottom));
+  /* The tap zones sit underneath; only the controls take a tap. */
+  pointer-events: none;
+}
+.story__foot button { pointer-events: auto; }
+.story__headline {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+}
+.story__place {
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  opacity: 0.86;
+}
+.story__detail {
+  margin-top: 18px;
+  max-width: 34ch;
+  font-size: 15px;
+  line-height: 1.42;
+  opacity: 0.92;
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.story__cta {
+  align-self: flex-end;
+  margin-top: auto;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 16px;
+  background: oklch(0.32 0.012 60 / 0.62);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.16);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  color: oklch(1 0 0);
+  font-size: 15px;
+  font-weight: 600;
+}
+.story__price { margin-left: 4px; opacity: 0.7; font-weight: 500; }
+.swipe-stories__hint { align-self: center; margin-top: 12px; }
+.swipe-stories__restart { align-self: center; }
+/* The clip control takes the corner opposite the booking action. */
+.swipe-stories__play { top: auto; right: auto; bottom: max(26px, env(safe-area-inset-bottom)); left: 20px; }
+
 
 /* The scan's own earn, stated at the moment it happened. */
 .unlocked__earned {

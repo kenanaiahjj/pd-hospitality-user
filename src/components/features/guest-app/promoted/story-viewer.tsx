@@ -161,8 +161,6 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
           </b>
           <small>
             {formatPostedAgo(story.postedHoursAgo)}
-            <i aria-hidden="true">·</i>
-            <span className="story__where">{story.subtitle}</span>
             {/* Sits with the time, not up beside the close button: it is a
                 fact about when the post ends, and the top row is already
                 carrying the account. */}
@@ -194,6 +192,7 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
 
       <footer className="story__foot">
         <h1 className="story__headline">{slide.headline}</h1>
+        <p className="story__place">{story.subtitle}</p>
         {slide.detail ? <p className="story__detail">{slide.detail}</p> : null}
         <button className="story__cta" type="button" onClick={() => onBook(story.id)}>
           {story.cta}<span className="story__price">{story.price}</span><ArrowRight aria-hidden="true" />

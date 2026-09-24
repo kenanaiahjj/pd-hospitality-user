@@ -211,9 +211,10 @@ const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
        to the house shot, which is why three rings were the same picture. */
     cover: frames[0]!,
     slides: [
-      { headline: venue.category.toUpperCase(), detail: venue.description, image: frames[0]!, video: clip },
-      { headline: 'OPEN TODAY', detail: venue.hours, image: frames[1]! },
-      { headline: venue.priceRange.toUpperCase(), detail: venue.cutoff, image: frames[2]! },
+      // Titled like a place, not shouted: the venue's own name opens it.
+      { headline: venue.name, detail: venue.description, image: frames[0]!, video: clip },
+      { headline: 'Open today', detail: venue.hours, image: frames[1]! },
+      { headline: venue.priceRange, detail: venue.cutoff, image: frames[2]! },
     ],
     author: { name: venue.name, kind: authorKind(venue.operator), image },
     ...postingFor(venue.id),

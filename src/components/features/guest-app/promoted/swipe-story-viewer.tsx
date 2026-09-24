@@ -66,11 +66,12 @@ export function SwipeStoryViewer({ stories, initialStoryId, onClose, onBook }: P
               <span className="story__avatar" aria-hidden="true"><Image src={story.author.image.src} alt="" fill sizes="36px" /></span>
               <div className="story__who">
                 <b>{story.author.name}{story.author.kind === 'property' ? <span className="story__badge"><SealCheck weight="fill" aria-hidden="true" /><i>Property</i></span> : null}</b>
-                <small>{formatPostedAgo(story.postedHoursAgo)}<i aria-hidden="true">·</i><span className="story__where">{story.subtitle}</span>{storyExpiryLabel(story) ? <span className="story__expiry">{storyExpiryLabel(story)}</span> : null}</small>
+                <small>{formatPostedAgo(story.postedHoursAgo)}{storyExpiryLabel(story) ? <span className="story__expiry">{storyExpiryLabel(story)}</span> : null}</small>
               </div>
             </header>
             <footer className="story__foot">
               <h2 className="story__headline">{slide.headline}</h2>
+              <p className="story__place">{story.subtitle}</p>
               {slide.detail ? <p className="story__detail">{slide.detail}</p> : null}
               <button className="story__cta" type="button" onClick={() => onBook(story.id)}>{story.cta}<span className="story__price">{story.price}</span><ArrowRight aria-hidden="true" /></button>
               <span className="swipe-stories__hint">Swipe to explore<ArrowDown aria-hidden="true" /></span>

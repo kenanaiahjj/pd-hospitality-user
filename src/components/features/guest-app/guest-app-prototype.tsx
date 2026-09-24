@@ -65,6 +65,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerE
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { WELCOME_ILLUSTRATIONS } from './illustrations';
 import { afterSheetExit } from './sheet-exit';
+import { NearbyMap } from './nearby-map';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
@@ -6276,7 +6277,23 @@ function NearbyRecommendations({ categoryId, city, description, onViewAll, onSel
 
 function NearbyRecommendationsPage({ categoryId, city, property, onSelect }: { categoryId: MiniAppCategoryId; city: string; property: string; onSelect: (id: string) => void }) {
   const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId && item.city === city);
-  return <div className="guest-stack guest-nearby-page"><div className="guest-page-title"><h1>Nearby recommendations</h1><p>Independent places close to {property}.</p></div><div className="guest-nearby-page__list">{recommendations.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div></div>;
+  const [view, setView] = useState<'list' | 'map'>('list');
+  return (
+    <div className="guest-stack guest-nearby-page">
+      <div className="guest-page-title"><h1>Nearby recommendations</h1><p>Independent places close to {property}.</p></div>
+      {recommendations.length ? (
+        <div className="guest-nearby-view" role="group" aria-label="Show as">
+          <button type="button" aria-pressed={view === 'list'} className={view === 'list' ? 'is-active' : ''} onClick={() => setView('list')}>List</button>
+          <button type="button" aria-pressed={view === 'map'} className={view === 'map' ? 'is-active' : ''} onClick={() => setView('map')}><MapPin aria-hidden="true" />Map</button>
+        </div>
+      ) : null}
+      {view === 'map' ? (
+        <NearbyMap city={city} property={property} propertyImage={getPropertyImage(property).src} places={recommendations} onSelect={onSelect} />
+      ) : (
+        <div className="guest-nearby-page__list">{recommendations.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div>
+      )}
+    </div>
+  );
 }
 
 function NearbyEstablishmentScreen({ establishment, onBack, onNotifications, onBookRide }: { establishment: NearbyEstablishment; onBack: () => void; onNotifications: () => void; onBookRide: () => void }) {

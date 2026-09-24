@@ -6617,6 +6617,122 @@
 .guest-nearby-page { gap: 20px; padding-bottom: 96px; }
 .guest-nearby-page__list { display: grid; gap: 16px; }
 
+/* --------------------------------------------------------------------------
+   Nearby, as a map
+
+   After the Places map: a quiet grey base, the hotel as the one labelled pin
+   in the middle, each place as a small photo, and a rail of cards under it
+   that the map follows as it scrolls.
+   -------------------------------------------------------------------------- */
+.guest-nearby-view {
+  display: inline-flex;
+  justify-self: start;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--guest-sunken);
+}
+.guest-nearby-view button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--guest-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.guest-nearby-view button svg { width: 16px; height: 16px; }
+.guest-nearby-view button.is-active { background: var(--guest-paper); color: var(--guest-ink); box-shadow: var(--shadow-xs); }
+
+.guest-nearby-map { display: grid; gap: 14px; }
+.guest-nearby-map__canvas {
+  height: min(44dvh, 380px);
+  border-radius: var(--guest-radius-lg);
+  overflow: hidden;
+  background: #e8e6e1;
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  /* Leaflet's panes sit at z-index 400+; keep them under the app bar and sheets. */
+  isolation: isolate;
+  z-index: 0;
+}
+/* OpenStreetMap's colour, quietened to the Places grey. */
+.guest-nearby-map__canvas .leaflet-tile-pane { filter: grayscale(1) sepia(0.1) brightness(1.05) contrast(0.86); }
+.guest-nearby-map__canvas .leaflet-control-attribution { font-size: 9px; background: rgb(255 255 255 / 0.7); }
+.guest-map-marker { background: none; border: 0; }
+.guest-map-pin {
+  display: block;
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.22);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+/* Out-specifies Leaflet's own `.leaflet-marker-pane img { width: auto }`, which stretched the photos. */
+.leaflet-container .leaflet-marker-pane .guest-map-pin img { display: block; width: 100%; height: 100%; border-radius: 9px; object-fit: cover; }
+.guest-map-marker.is-active .guest-map-pin { transform: scale(1.35); box-shadow: 0 0 0 2px var(--guest-accent-strong), 0 4px 10px rgb(0 0 0 / 0.28); }
+.guest-map-pin--hotel {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--guest-accent-strong);
+}
+.leaflet-container .leaflet-marker-pane .guest-map-pin--hotel img { border-radius: 50%; }
+.guest-map-pin__label {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--guest-ink);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+}
+.guest-nearby-map__rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 78%;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.guest-nearby-map__rail::-webkit-scrollbar { display: none; }
+.guest-nearby-map__card {
+  display: grid;
+  gap: 3px;
+  padding: 8px 8px 12px;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  font: inherit;
+  text-align: left;
+  scroll-snap-align: center;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+/* Concentric: 20px outside is the 8px padding plus the photo's 12px. */
+.guest-nearby-map__photo { position: relative; display: block; aspect-ratio: 16 / 9; margin-bottom: 7px; overflow: hidden; border-radius: 12px; outline: 1px solid rgb(0 0 0 / 0.1); outline-offset: -1px; }
+.guest-nearby-map__photo img { object-fit: cover; }
+.guest-nearby-map__card b { padding: 0 6px; font-size: 16px; font-weight: 650; }
+.guest-nearby-map__card small { padding: 0 6px; color: var(--guest-muted); font-size: 13px; }
+.guest-nearby-map__card.is-active { box-shadow: 0 0 0 2px var(--guest-accent-strong), var(--shadow-sm); }
+.guest-nearby-map__empty { color: var(--guest-muted); }
+@media (prefers-reduced-motion: reduce) { .guest-map-pin { transition: none; } }
+
 /* Nearby recommendation detail uses the same editorial hierarchy as the
    selected hotel options: edge-to-edge hero, one overlapping info panel,
    then lightweight content sections. */

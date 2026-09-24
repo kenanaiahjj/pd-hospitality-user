@@ -2246,7 +2246,9 @@ describe('booking the service the guest picked', () => {
 
     expect(screen.getByText(/Live availability is shown for Private car & driver/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Charge to Room/i })).toBeNull();
-    // The stay's own days, with the weekdays 2026 actually has.
+    // The stay's own days, with the weekdays 2026 actually has: the Date row
+    // states the day, and its calendar opens on it.
+    await user.click(screen.getByRole('button', { name: /^Date/ }));
     expect(screen.getByRole('button', { name: 'Friday · November 20' })).toHaveAttribute('aria-pressed', 'true');
 
     await user.click(screen.getByRole('button', { name: /Pay now/ }));

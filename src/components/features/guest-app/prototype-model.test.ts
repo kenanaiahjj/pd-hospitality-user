@@ -1471,7 +1471,7 @@ describe('booking a service', () => {
   // The fixtures were written against 2025, which put Wednesday the 11th down
   // as a Tuesday.
   it('names the weekdays 2026 actually has', () => {
-    expect(formatServiceDay('2026-11-11')).toEqual({ weekday: 'WED', day: '11', long: 'Wednesday · November 11' });
+    expect(formatServiceDay('2026-11-11')).toEqual({ weekday: 'WED', day: '11', long: 'Wednesday · November 11', short: 'Wed, Nov 11' });
     expect(formatServiceDay('2026-11-20').long).toBe('Friday · November 20');
   });
 

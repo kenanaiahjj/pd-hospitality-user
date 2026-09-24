@@ -66,6 +66,7 @@ import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { WELCOME_ILLUSTRATIONS } from './illustrations';
 import { afterSheetExit } from './sheet-exit';
 import { NearbyMap } from './nearby-map';
+import { CalendarPicker, ExpandableField, StepperField, TimeWheel } from './field-controls';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import {
@@ -1296,6 +1297,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [selectedServiceId, setSelectedServiceId] = useState('spa');
   const [serviceDate, setServiceDate] = useState<string | null>(null);
   const [serviceTime, setServiceTime] = useState<string>('1:30 PM');
+  /** Which booking field is open; one at a time, as Places does it. */
+  const [openServiceField, setOpenServiceField] = useState<'date' | 'time' | null>(null);
   const [servicePartySize, setServicePartySize] = useState(1);
   /* The booking the confirmation screen is about. */
   const [lastServiceBookingId, setLastServiceBookingId] = useState<string | null>(null);
@@ -3986,28 +3989,31 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             : checkoutPayment === 'room' ? `Charge ${serviceCharge} to room` : `Pay ${serviceCharge}`;
         return (
           <FormScreen step="Review and pay" title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
-            <div className="guest-date-strip">
-              {days.map((option) => {
-                const label = formatServiceDay(option);
-                return (
-                  <button key={option} type="button" aria-pressed={option === day} aria-label={label.long} className={option === day ? 'is-active' : undefined} onClick={() => setServiceDate(option)}>
-                    <small>{label.weekday}</small><b>{label.day}</b>
-                  </button>
-                );
-              })}
+            <div className="guest-field-stack">
+              <ExpandableField
+                label="Date"
+                value={day ? formatServiceDay(day).short : 'Choose a day'}
+                aside={`${days.length}-day window`}
+                open={openServiceField === 'date'}
+                onToggle={() => setOpenServiceField((field) => field === 'date' ? null : 'date')}
+              >
+                <CalendarPicker
+                  available={days}
+                  value={day ?? ''}
+                  labelFor={(option) => formatServiceDay(option).long}
+                  onChange={(option) => { setServiceDate(option); setOpenServiceField(null); }}
+                />
+              </ExpandableField>
+              <ExpandableField
+                label="Time"
+                value={serviceTime}
+                open={openServiceField === 'time'}
+                onToggle={() => setOpenServiceField((field) => field === 'time' ? null : 'time')}
+              >
+                <TimeWheel times={SERVICE_TIMES} value={serviceTime} onChange={setServiceTime} />
+              </ExpandableField>
+              <StepperField label="Guests" unit="guest" value={servicePartySize} min={1} max={Math.max(2, contextBooking.guestCount)} onChange={setServicePartySize} />
             </div>
-            <fieldset className="guest-fieldset">
-              <legend>Available times</legend>
-              <div className="guest-chip-grid">
-                {SERVICE_TIMES.map((time) => (
-                  <button key={time} type="button" aria-pressed={time === serviceTime} className={time === serviceTime ? 'is-active' : undefined} onClick={() => setServiceTime(time)}>{time}</button>
-                ))}
-              </div>
-            </fieldset>
-            <SelectField label="Guests" name="party-size" value={String(servicePartySize)} onValueChange={(value) => setServicePartySize(Number(value))}>
-              <option value="1">1 guest</option>
-              <option value="2">2 guests</option>
-            </SelectField>
             <div className="guest-summary">
               <SummaryRow label="Category" value={selectedService.category} />
               <SummaryRow label="Service" value={selectedService.name} />

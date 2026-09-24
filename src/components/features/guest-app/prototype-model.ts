@@ -2515,6 +2515,8 @@ export function formatServiceDay(isoDate: string) {
     weekday: format({ weekday: 'short' }).toUpperCase(),
     day: format({ day: 'numeric' }),
     long: `${format({ weekday: 'long' })} · ${format({ month: 'long', day: 'numeric' })}`,
+    /** "Thu, Nov 12", for a field that states its value. */
+    short: format({ weekday: 'short', month: 'short', day: 'numeric' }),
   };
 }
 

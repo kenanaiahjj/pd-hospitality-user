@@ -32,6 +32,7 @@ import {
   availableTypes,
   filterMenu,
   filterServices,
+  SCREENS,
   UPCOMING_BOOKING_FIXTURE,
   connectBooking,
   createAccountSession,
@@ -78,6 +79,13 @@ import {
 } from './prototype-model';
 
 describe('guest app prototype model', () => {
+  it('keeps arrival handoff addressable in the screen inventory', () => {
+    expect(SCREENS.find((screen) => screen.id === 'arrival-handoff')).toMatchObject({
+      id: 'arrival-handoff',
+      title: 'Arrival handoff',
+    });
+  });
+
   describe('room assignment', () => {
     const base = { ...UPCOMING_BOOKING_FIXTURE };
 

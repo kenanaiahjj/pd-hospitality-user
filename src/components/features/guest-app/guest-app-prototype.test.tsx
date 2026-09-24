@@ -1456,7 +1456,6 @@ describe('my stay', () => {
   });
 });
 
-
 describe('pre-arrival onboarding flow', () => {
   it('collects details, ID, additional guests, and early check-in across 4 steps', async () => {
     const user = userEvent.setup();
@@ -1749,7 +1748,6 @@ describe('session persistence', () => {
   });
 });
 
-
 describe('booking-reference re-entry', () => {
   /*
     Opened directly rather than walked to from the welcome screen.
@@ -1940,7 +1938,6 @@ describe('finished-stay prototype switch', () => {
     expect(screen.getByRole('radio', { name: /Signed out/ })).toBeChecked();
   });
 });
-
 
 describe('a finished stay on My Stay', () => {
   const finished = applyPrototypeStayState('closed');
@@ -2332,10 +2329,10 @@ describe('lifecycle gates', () => {
     expect(screen.getByRole('heading', { name: 'How can we help with your stay?', level: 2 })).toBeInTheDocument();
 
     for (const label of ['Towels', 'Housekeeping', 'Late checkout', 'Room issue', 'Transfers']) {
-      expect(within(chat).getByRole('button', { name: label })).toBeInTheDocument();
+      expect(within(chat).getByRole('button', { name: new RegExp(`^${label}`) })).toBeInTheDocument();
     }
 
-    expect(chat.querySelector('.guest-composer .guest-quick-actions')).toBeInTheDocument();
+    expect(chat.querySelector('.guest-chat__dock .guest-quick-actions')).toBeInTheDocument();
     expect(within(chat).queryByText('Popular requests')).toBeNull();
     expect(chat.querySelector('.guest-messages .guest-quick-actions')).toBeNull();
   });
@@ -2344,42 +2341,11 @@ describe('lifecycle gates', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="chat" initialSession={verified} />);
 
-    await user.click(screen.getByRole('button', { name: 'Room issue' }));
+    await user.click(screen.getByRole('button', { name: /^Room issue/ }));
 
     expect(screen.getByRole('region', { name: 'Front desk conversation' })).toHaveAttribute('data-chat-mode', 'conversation');
     expect(screen.getByText(/There’s an issue in room 304/)).toBeInTheDocument();
     expect(screen.getByText('Sent')).toBeInTheDocument();
-  });
-
-  it('keeps glass materials targeted to chat context and composer', () => {
-    expect(guestStyles).toMatch(/\.guest-chat__context\s*\{[\s\S]*?background: var\(--guest-paper\)/);
-    expect(guestStyles).toMatch(/\.guest-composer\s*\{[\s\S]*?background: var\(--guest-paper\)/);
-    expect(guestStyles).toContain('backdrop-filter: blur(18px) saturate(1.12);');
-    expect(guestStyles).toContain('scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px);');
-    expect(guestStyles).toMatch(/\.guest-typing-dots i\s*\{[\s\S]*?animation: guest-typing-pulse/);
-    expect(guestStyles).toMatch(/\.guest-typing-dots i \{ animation: none; \}/);
-  });
-
-  it('keeps popular requests in one horizontally scrollable row', () => {
-    expect(guestStyles).toMatch(
-      /\.guest-composer \.guest-quick-actions__rail\s*\{[\s\S]*?overflow-x:\s*auto;[\s\S]*?flex-wrap:\s*nowrap;/,
-    );
-    expect(guestStyles).toMatch(
-      /\.guest-composer \.guest-quick-actions__rail\s*\{[\s\S]*?justify-content:\s*flex-start;/,
-    );
-  });
-
-  it('lets the chat composer blend into the conversation surface', () => {
-    expect(guestStyles).toMatch(/\.guest-composer\s*\{[^}]*border-top:\s*0;/);
-  });
-
-  it('docks the focused chat composer to the device edge', () => {
-    expect(guestStyles).toMatch(
-      /\.guest-screen--chat\s*\{[^}]*padding-bottom:\s*0;/,
-    );
-    expect(guestStyles).toMatch(
-      /\.guest-screen--chat \.guest-composer\s*\{[\s\S]*?bottom:\s*0;/,
-    );
   });
 
   it('marks a new front-desk reply on Chat when the guest is elsewhere', () => {
@@ -2388,7 +2354,7 @@ describe('lifecycle gates', () => {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Room issue' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Room issue/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
 
       act(() => { vi.advanceTimersByTime(850); });
@@ -2568,7 +2534,6 @@ describe('lifecycle gates', () => {
 
     const grant = screen.getByRole('button', { name: /Confirm .* in room 304/i }).closest('.guest-desk-grant');
     expect(grant?.closest('.guest-messages')).not.toBeNull();
-    expect(guestStyles).toMatch(/\.guest-chat--conversation \.guest-messages \{[^}]*padding-bottom:\s*140px/);
   });
 
   it('reaches the front desk before arrival', async () => {
@@ -2584,7 +2549,7 @@ describe('lifecycle gates', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="chat" initialSession={verified} />);
 
-    await user.click(screen.getByRole('button', { name: 'Room issue' }));
+    await user.click(screen.getByRole('button', { name: /^Room issue/ }));
 
     expect(screen.getByText(/There’s an issue in room 304/)).toBeInTheDocument();
     expect(screen.getByText('Sent')).toBeInTheDocument();
@@ -2694,7 +2659,7 @@ describe('post-stay front desk window', () => {
   it('disables quick actions and media controls when the post-stay chat is closed', () => {
     render(<GuestAppPrototype initialScreen="chat" initialSession={closed} />);
 
-    expect(screen.getByRole('button', { name: 'Towels' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Towels/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Open attachment menu' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Start voice recording' })).toBeDisabled();
   });

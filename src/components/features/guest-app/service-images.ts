@@ -34,9 +34,9 @@ export const SERVICE_IMAGES: Record<ServiceImageKey, ServiceImageDefinition> = {
     focalPoint: '50% 46%',
   },
   transfer: {
-    src: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=82',
-    alt: 'Clean passenger vehicle ready for an airport transfer',
-    focalPoint: '50% 58%',
+    src: 'https://images.unsplash.com/photo-1764089859662-7b4773dff85b?auto=format&fit=crop&w=1200&q=82',
+    alt: 'Black executive sedan waiting at the kerb for an airport pick-up',
+    focalPoint: '50% 40%',
   },
   amenity: {
     src: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=82',
@@ -288,9 +288,9 @@ export const ITEM_THUMBNAIL_IMAGES: Record<string, ServiceImageDefinition> = {
 
   // Hotel services
   transfer: {
-    src: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=600&q=80',
+    src: 'https://images.unsplash.com/photo-1764089859662-7b4773dff85b?auto=format&fit=crop&w=600&q=80',
     alt: 'Pristine executive black sedan ready for airport transfer',
-    focalPoint: '50% 58%',
+    focalPoint: '50% 40%',
   },
   'private-car': {
     src: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=600&q=80',

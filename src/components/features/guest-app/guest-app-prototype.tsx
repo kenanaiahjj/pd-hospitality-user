@@ -7,6 +7,7 @@ import {
   Bell,
   BellRinging,
   Camera,
+  CalendarBlank,
   CalendarPlus,
   CaretRight,
   ChatCircleDots,
@@ -1625,15 +1626,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setSending(false);
     }, 850);
   };
-
-  /* The airport a property's guests fly into, for a pick-up or a drop-off. */
-  const airportFor = (booking: Booking) => (
-    booking.city === 'Cebu'
-      ? 'Mactan–Cebu International Airport'
-      : booking.city === 'Dumaguete'
-        ? 'Dumaguete–Sibulan Airport'
-        : 'NAIA Terminal 3'
-  );
 
   /*
     Both ends of the ride on the form, read once for the form and the message.
@@ -5299,6 +5291,15 @@ function ScanSuccessToast({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+/* The airport a property's guests fly into, for a pick-up or a drop-off. */
+function airportFor(booking: Booking) {
+  return booking.city === 'Cebu'
+    ? 'Mactan–Cebu International Airport'
+    : booking.city === 'Dumaguete'
+      ? 'Dumaguete–Sibulan Airport'
+      : 'NAIA Terminal 3';
+}
+
 type StayOverviewHomeProps = {
   session: GuestSession;
   booking?: Booking;
@@ -5586,13 +5587,23 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
       {/* Arrival offers: once the stay has begun the guest is already here. */}
       {!booking.roomVerification && booking.status === 'upcoming' && !hasStayStarted(booking) ? (
         <>
-          <button className="guest-transfer-card" type="button" onClick={() => (onRequestRide ? onRequestRide('arrival') : onNavigate('transfer-booking'))}>
-            <Car aria-hidden="true" />
-            <span>
+          {/*
+            The one arrival offer with a picture. A car waiting at arrivals is
+            what a guest pictures before the trip, so it leads; the rest of
+            the roster sits under it as a plain row.
+          */}
+          <button className="guest-ride-card" type="button" onClick={() => (onRequestRide ? onRequestRide('arrival') : onNavigate('transfer-booking'))}>
+            <Image className="guest-ride-card__image" src={getServiceImage('transfer').src} alt="" fill sizes="(max-width: 720px) 100vw, 560px" style={{ objectPosition: getServiceImage('transfer').focalPoint }} />
+            <span className="guest-ride-card__action" aria-hidden="true"><ArrowRight /></span>
+            <span className="guest-ride-card__body">
+              <small>Private pick-up</small>
               <b>Need a ride to the hotel?</b>
-              <small>Book a private pick-up with the hotel.</small>
+              <span>{`A hotel driver meets you at ${airportFor(booking)} and brings you to ${booking.property}.`}</span>
+              <span className="guest-ride-card__pills">
+                <span><CalendarBlank aria-hidden="true" />{`Arriving ${formatStayDateRange(booking).split('–')[0]}`}</span>
+                <span><Users aria-hidden="true" />{`${booking.guestCount} ${booking.guestCount === 1 ? 'guest' : 'guests'}`}</span>
+              </span>
             </span>
-            <CaretRight aria-hidden="true" />
           </button>
           <button className="guest-transfer-card" type="button" onClick={() => onNavigate('pre-arrival-services')}>
             <Wrench aria-hidden="true" />

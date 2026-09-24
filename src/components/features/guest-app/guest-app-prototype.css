@@ -1358,6 +1358,106 @@
 .guest-transfer-card small { color: var(--guest-muted); font-size: 13px; line-height: 1.35; }
 .guest-transfer-card > svg:last-child { width: 18px; height: 18px; color: var(--guest-subtle); }
 .guest-transfer-card:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+
+/* --------------------------------------------------------------------------
+   The arrival ride, as a picture
+
+   Photo-led, after the Places cards: the car carries the offer, a scrim keeps
+   the words legible whatever the photo, and the details sit in frosted pills
+   rather than a sentence. Corners are concentric: 20px outside is the 10px
+   inset plus the corner button's 10px.
+   -------------------------------------------------------------------------- */
+.guest-ride-card {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-content: end;
+  width: 100%;
+  min-height: 236px;
+  padding: 18px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  /* Holds the card's shape while the photo loads. */
+  background: oklch(0.24 0.012 60);
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.guest-ride-card__image { z-index: -2; object-fit: cover; }
+/* Dark where the words are, clear where the car is. */
+.guest-ride-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, oklch(0.14 0.01 60 / 0.08) 0%, oklch(0.14 0.01 60 / 0.3) 34%, oklch(0.13 0.01 60 / 0.7) 62%, oklch(0.12 0.01 60 / 0.9) 100%);
+}
+/* The image hairline: pure black at low opacity, so it never reads as dirt. */
+.guest-ride-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
+  pointer-events: none;
+}
+.guest-ride-card__body { display: grid; gap: 6px; min-width: 0; }
+.guest-ride-card__body > small {
+  color: rgb(255 255 255 / 0.78);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.guest-ride-card__body > b {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.guest-ride-card__body > span:not(.guest-ride-card__pills) {
+  color: rgb(255 255 255 / 0.86);
+  font-size: 14px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+.guest-ride-card__pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.guest-ride-card__pills > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 11px 4px 9px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.guest-ride-card__pills svg { width: 14px; height: 14px; }
+.guest-ride-card__action {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--guest-radius-sm);
+  background: rgb(255 255 255 / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.guest-ride-card__action svg { width: 18px; height: 18px; }
+.guest-ride-card:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
 .guest-transfer-fare { display: grid; gap: 3px; padding: 14px; border-radius: var(--guest-radius-sm); background: var(--guest-surface); }
 .guest-transfer-fare > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .guest-transfer-fare span { color: var(--guest-muted); font-size: 14px; }
@@ -6195,6 +6295,7 @@
 .guest-property-card,
 .guest-after-checkout-card,
 .guest-transfer-card,
+.guest-ride-card,
 .guest-folio-card__header,
 .guest-restaurant-menu-image,
 .guest-tab,
@@ -6226,6 +6327,7 @@
 .guest-property-card:active,
 .guest-after-checkout-card:active,
 .guest-transfer-card:active,
+.guest-ride-card:active,
 .guest-folio-card__header:active,
 .guest-restaurant-menu-image:active {
   transform: scale(0.99);
@@ -6267,6 +6369,7 @@
   .guest-property-card:active,
   .guest-after-checkout-card:active,
   .guest-transfer-card:active,
+  .guest-ride-card:active,
   .guest-folio-card__header:active,
   .guest-restaurant-menu-image:active,
   .guest-tab:active,

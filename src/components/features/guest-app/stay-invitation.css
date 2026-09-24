@@ -1,0 +1,467 @@
+/* --------------------------------------------------------------------------
+   Stay pass -- the booking-found card as a pearl keepsake.
+
+   Layers, outside in:
+     .stay-pass          owns the tilt variables, the perspective and the
+                         shadow (a drop-shadow, so it follows the scalloped
+                         corners the face's mask cuts)
+     .stay-pass__tilt    the held-in-hand turn, written every frame by the
+                         loop in stay-invitation.tsx -- no transition here
+     .stay-pass__press   the give under the seal when it is stamped
+     .stay-pass__face    the card, masked to the scalloped shape
+
+   The palette is the system's: white, ink and plum. Pearl is white with the
+   faintest shift of hue in it, so the frame reads as a material, not a colour.
+   -------------------------------------------------------------------------- */
+.stay-pass {
+  --sp-rx: 0deg;
+  --sp-ry: 0deg;
+  --sp-rz: 0deg;
+  --sp-f: 0;      /* float, -1..1 */
+  --sp-x: 0;      /* tilt, -1..1 */
+  --sp-y: 0;
+  --sp-gx: 50%;   /* glare centre */
+  --sp-gy: 35%;
+  --sp-frame: 11px;
+  --sp-scoop: 20px;
+  --sp-plum: oklch(0.2 0.05 350);
+  /* Nacre: near-white, with just enough hue to shift as the light moves. */
+  --sp-pearl:
+    oklch(0.985 0.008 20), oklch(0.95 0.022 75), oklch(0.975 0.012 160), oklch(0.93 0.026 255),
+    oklch(0.96 0.02 320), oklch(0.985 0.008 20);
+
+  position: relative;
+  width: min(100%, 344px);
+  margin-inline: auto;
+  perspective: 1100px;
+  filter:
+    drop-shadow(calc(var(--sp-x) * -6px) calc(4px + var(--sp-y) * -4px - var(--sp-f) * 1px) 5px oklch(0.2 0.05 350 / 0.12))
+    drop-shadow(calc(var(--sp-x) * -18px) calc(22px + var(--sp-y) * -10px - var(--sp-f) * 4px) calc(26px - var(--sp-f) * 3px) oklch(0.2 0.05 350 / 0.22));
+  animation: stay-pass-in 700ms var(--ease-out) both;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* A soft plum bloom behind the card for the ceremony. */
+.stay-pass::before {
+  content: '';
+  position: absolute;
+  inset: -12% -22%;
+  z-index: -1;
+  background: radial-gradient(closest-side, oklch(0.305 0.062 351 / 0.18), oklch(0.305 0.062 351 / 0));
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 600ms var(--ease-out), transform 900ms var(--ease-out);
+  pointer-events: none;
+}
+.stay-pass:not([data-phase='idle'])::before { opacity: 1; transform: none; }
+
+.stay-pass__tilt {
+  position: relative;
+  transform-style: preserve-3d;
+  transform:
+    translateY(calc(var(--sp-f) * 3px))
+    rotateX(var(--sp-rx)) rotateY(var(--sp-ry)) rotateZ(var(--sp-rz));
+  will-change: transform;
+}
+
+.stay-pass__press { position: relative; display: grid; transform-origin: 78% 18%; }
+
+/* --- Face ----------------------------------------------------------------- */
+.stay-pass__face {
+  position: relative;
+  display: grid;
+  aspect-ratio: 4 / 5;
+  padding: var(--sp-frame);
+  overflow: hidden;
+  background: linear-gradient(150deg, oklch(0.99 0.004 340), oklch(0.95 0.012 300) 40%, oklch(0.985 0.008 80) 70%, oklch(0.955 0.012 230));
+  /* Scalloped corners: a quarter circle bitten out of each. */
+  -webkit-mask:
+    radial-gradient(circle var(--sp-scoop) at 0 0, #0000 98%, #000) 0 0 / 51% 51% no-repeat,
+    radial-gradient(circle var(--sp-scoop) at 100% 0, #0000 98%, #000) 100% 0 / 51% 51% no-repeat,
+    radial-gradient(circle var(--sp-scoop) at 0 100%, #0000 98%, #000) 0 100% / 51% 51% no-repeat,
+    radial-gradient(circle var(--sp-scoop) at 100% 100%, #0000 98%, #000) 100% 100% / 51% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--sp-scoop) at 0 0, #0000 98%, #000) 0 0 / 51% 51% no-repeat,
+    radial-gradient(circle var(--sp-scoop) at 100% 0, #0000 98%, #000) 100% 0 / 51% 51% no-repeat,
+    radial-gradient(circle var(--sp-scoop) at 0 100%, #0000 98%, #000) 0 100% / 51% 51% no-repeat,
+    radial-gradient(circle var(--sp-scoop) at 100% 100%, #0000 98%, #000) 100% 100% / 51% 51% no-repeat;
+}
+
+/* The pearl frame: nacre that shifts against the tilt, under a moving band of light. */
+.stay-pass__foil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(calc(125deg + var(--sp-x) * 30deg), oklch(1 0 0 / 0) 28%, oklch(1 0 0 / 0.9) 46%, oklch(1 0 0 / 0) 62%) calc(50% - var(--sp-x) * 70%) calc(50% - var(--sp-y) * 40%) / 260% 260%,
+    repeating-linear-gradient(118deg, var(--sp-pearl)) calc(50% + var(--sp-x) * 40%) calc(50% + var(--sp-y) * 40%) / 300% 300%;
+}
+/* A hairline bevel where the frame meets the panel. */
+.stay-pass__foil::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--sp-frame) - 1px);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.9), 0 0 0 2px oklch(0.305 0.062 351 / 0.08);
+}
+
+/* The panel sits inside the frame; its scoops are concentric with the frame's. */
+.stay-pass__panel {
+  --inner: calc(var(--sp-scoop) + var(--sp-frame));
+  --off: calc(var(--sp-frame) * -1);
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  background: var(--sp-plum);
+  color: oklch(0.99 0.004 345);
+  -webkit-mask:
+    radial-gradient(circle var(--inner) at var(--off) var(--off), #0000 98%, #000) 0 0 / 51% 51% no-repeat,
+    radial-gradient(circle var(--inner) at calc(100% - var(--off)) var(--off), #0000 98%, #000) 100% 0 / 51% 51% no-repeat,
+    radial-gradient(circle var(--inner) at var(--off) calc(100% - var(--off)), #0000 98%, #000) 0 100% / 51% 51% no-repeat,
+    radial-gradient(circle var(--inner) at calc(100% - var(--off)) calc(100% - var(--off)), #0000 98%, #000) 100% 100% / 51% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--inner) at var(--off) var(--off), #0000 98%, #000) 0 0 / 51% 51% no-repeat,
+    radial-gradient(circle var(--inner) at calc(100% - var(--off)) var(--off), #0000 98%, #000) 100% 0 / 51% 51% no-repeat,
+    radial-gradient(circle var(--inner) at var(--off) calc(100% - var(--off)), #0000 98%, #000) 0 100% / 51% 51% no-repeat,
+    radial-gradient(circle var(--inner) at calc(100% - var(--off)) calc(100% - var(--off)), #0000 98%, #000) 100% 100% / 51% 51% no-repeat;
+}
+/* Two hairlines down the sides, as on a printed ticket. */
+.stay-pass__panel::before,
+.stay-pass__panel::after {
+  content: '';
+  position: absolute;
+  top: 16%;
+  bottom: 16%;
+  z-index: 3;
+  width: 1px;
+  background: linear-gradient(oklch(1 0 0 / 0), oklch(1 0 0 / 0.34) 20%, oklch(1 0 0 / 0.34) 80%, oklch(1 0 0 / 0));
+  pointer-events: none;
+}
+.stay-pass__panel::before { left: 9px; }
+.stay-pass__panel::after { right: 9px; }
+
+/* Photograph across the top, drifting against the tilt for parallax, fading into plum. */
+.stay-pass__photo {
+  position: absolute;
+  inset: 0 0 34%;
+  transform: scale(1.1) translate(calc(var(--sp-x) * -2.4%), calc(var(--sp-y) * -2.4%));
+}
+.stay-pass__photo .guest-property-image { height: 100%; border-radius: 0; aspect-ratio: auto !important; }
+.stay-pass__photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: linear-gradient(180deg, oklch(0.2 0.05 350 / 0.35), oklch(0.2 0.05 350 / 0) 26%, oklch(0.2 0.05 350 / 0) 48%, var(--sp-plum) 99%);
+}
+
+/*
+  The sheen: the same nacre, dodged onto the photograph so it only lights
+  where the picture is bright, and gathered around the glare so it moves like
+  light rather than sitting on the card like a filter.
+*/
+.stay-pass__holo {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: repeating-linear-gradient(118deg, var(--sp-pearl)) calc(50% + var(--sp-x) * 60%) calc(50% + var(--sp-y) * 60%) / 360% 360%;
+  mix-blend-mode: soft-light;
+  opacity: 0.5;
+  -webkit-mask-image: radial-gradient(farthest-corner circle at var(--sp-gx) var(--sp-gy), #000 0%, oklch(0 0 0 / 0.35) 45%, #0000 90%);
+  mask-image: radial-gradient(farthest-corner circle at var(--sp-gx) var(--sp-gy), #000 0%, oklch(0 0 0 / 0.35) 45%, #0000 90%);
+  transition: opacity 400ms var(--ease-out);
+  pointer-events: none;
+}
+.stay-pass[data-active] .stay-pass__holo { opacity: 0.8; }
+
+.stay-pass__top {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 18px 24px 0;
+}
+.stay-pass__mark { height: 18px; width: auto; color: oklch(1 0 0 / 0.92); filter: drop-shadow(0 1px 3px oklch(0 0 0 / 0.35)); }
+
+.stay-pass__body {
+  position: relative;
+  z-index: 4;
+  align-self: end;
+  display: grid;
+  justify-items: center;
+  padding: 0 22px 14px;
+  text-align: center;
+}
+.stay-pass__property.stay-pass__property {
+  margin: 0;
+  color: inherit;
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+  text-shadow: 0 1px 12px oklch(0.2 0.05 350 / 0.5);
+}
+.stay-pass__room { margin: 6px 0 0; color: oklch(1 0 0 / 0.7); font-size: 13px; }
+
+.stay-pass__dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  margin: 12px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.stay-pass__dates i { width: 14px; height: 1px; background: oklch(1 0 0 / 0.5); }
+.stay-pass__dates b {
+  margin-left: 2px;
+  padding: 2px 8px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-paper);
+  color: var(--guest-brand);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+/* The stub, below a perforation. */
+.stay-pass__stub {
+  display: grid;
+  grid-template-columns: 1.3fr 0.8fr 1.2fr;
+  gap: 10px;
+  width: 100%;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1.5px dashed oklch(1 0 0 / 0.24);
+  text-align: left;
+}
+.stay-pass__stub > div { display: grid; gap: 3px; min-width: 0; }
+.stay-pass__stub dt { color: oklch(1 0 0 / 0.56); font-size: 11px; }
+.stay-pass__stub dd { margin: 0; overflow-wrap: anywhere; font-size: 13px; font-weight: 650; }
+.stay-pass__ref {
+  justify-self: stretch;
+  margin-top: 10px;
+  color: oklch(1 0 0 / 0.46);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+/* Specular glare following the tilt. */
+.stay-pass__glare {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: radial-gradient(farthest-corner circle at var(--sp-gx) var(--sp-gy), oklch(1 0 0 / 0.55) 0%, oklch(1 0 0 / 0.12) 30%, oklch(0 0 0 / 0.2) 95%);
+  mix-blend-mode: overlay;
+  opacity: 0.7;
+  transition: opacity 320ms var(--ease-out);
+  pointer-events: none;
+}
+.stay-pass[data-active] .stay-pass__glare { opacity: 1; }
+
+/* A single band of light crossing the card: on arrival, and again once sealed. */
+.stay-pass__sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: linear-gradient(105deg, oklch(1 0 0 / 0) 38%, oklch(1 0 0 / 0.5) 48%, oklch(1 0 0 / 0.1) 54%, oklch(1 0 0 / 0) 62%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  mix-blend-mode: soft-light;
+  animation: stay-pass-sweep 1100ms 380ms var(--ease-out) both;
+  pointer-events: none;
+}
+.stay-pass[data-phase='done'] .stay-pass__sweep { animation-name: stay-pass-sweep-again; animation-delay: 0ms; }
+
+/* The small mark steps aside for the seal that carries it. */
+.stay-pass__mark { transition: opacity 240ms var(--ease-out); }
+.stay-pass:not([data-phase='idle']) .stay-pass__mark { opacity: 0; }
+
+/* --- Seal ------------------------------------------------------------------
+   A blind emboss: pearl on pearl, every line raised by a highlight above it
+   and a shadow below, the way a crest pressed into heavy paper reads. It sits
+   over the card's top-right corner, where a seal goes on a certificate.
+   -------------------------------------------------------------------------- */
+.stay-pass__seal-spot {
+  --seal: 112px;
+  position: absolute;
+  top: -26px;
+  right: -20px;
+  z-index: 10;
+  width: var(--seal);
+  height: var(--seal);
+  transform: translateZ(30px);
+  pointer-events: none;
+}
+.stay-pass__seal {
+  position: absolute;
+  inset: 0;
+  filter:
+    drop-shadow(0 1px 1px oklch(0.305 0.062 351 / 0.22))
+    drop-shadow(0 8px 14px oklch(0.2 0.05 350 / 0.3));
+  animation: stay-pass-stamp 800ms 120ms both;
+}
+.stay-pass__seal-disc {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: oklch(0.94 0.01 330);
+  background:
+    radial-gradient(circle at calc(38% + var(--sp-x) * 22%) calc(30% + var(--sp-y) * 22%), oklch(1 0 0 / 0.95), oklch(1 0 0 / 0) 58%),
+    conic-gradient(from calc(200deg + var(--sp-x) * 80deg + var(--sp-y) * 50deg), var(--sp-pearl));
+  -webkit-mask: var(--seal-mask) center / 100% 100% no-repeat;
+  mask: var(--seal-mask) center / 100% 100% no-repeat;
+}
+/* Light crossing the relief once the press lifts. */
+.stay-pass__seal-disc::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, oklch(1 0 0 / 0) 35%, oklch(1 0 0 / 0.85) 50%, oklch(1 0 0 / 0) 65%) 160% 0 / 260% 100% no-repeat;
+  animation: stay-pass-seal-glint 900ms 820ms var(--ease-out) both;
+}
+.stay-pass__seal-art,
+.stay-pass__seal-mark {
+  grid-area: 1 / 1;
+  filter:
+    drop-shadow(-0.6px -0.7px 0 oklch(1 0 0 / 0.95))
+    drop-shadow(0.7px 0.9px 0.5px oklch(0.305 0.062 351 / 0.38));
+}
+.stay-pass__seal-art { width: 100%; height: 100%; overflow: visible; }
+.stay-pass__seal-mark { width: 34%; height: auto; margin-top: -2%; }
+.stay-pass__seal-legend {
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 7.4px;
+  letter-spacing: 0.12em;
+}
+
+/* A ring of air pushed out from under the seal as it lands. */
+.stay-pass__ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px oklch(1 0 0 / 0.9), 0 0 18px 4px oklch(1 0 0 / 0.6);
+  opacity: 0;
+  animation: stay-pass-ripple 720ms 690ms var(--ease-out) both;
+}
+
+.stay-pass__sparks { position: absolute; inset: 50% auto auto 50%; }
+.stay-pass__spark {
+  position: absolute;
+  left: calc(var(--s) / -2);
+  top: calc(var(--s) / -2);
+  width: var(--s);
+  height: var(--s);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: stay-pass-spark 900ms var(--ease-out) both;
+}
+.stay-pass__spark--0 { background: var(--guest-accent); }
+.stay-pass__spark--1 { background: oklch(0.9 0.02 320); }
+.stay-pass__spark--2 { background: oklch(0.55 0.05 351); }
+
+/* --- Ceremony --------------------------------------------------------------
+   The seal drops from above and in front, accelerating like a hand pressing
+   down; lands with a squash; the card gives under it and springs back.
+   -------------------------------------------------------------------------- */
+.stay-pass[data-phase='stamping'] .stay-pass__press {
+  animation: stay-pass-give 460ms 650ms var(--ease-out) both;
+}
+@keyframes stay-pass-stamp {
+  0% {
+    opacity: 0;
+    transform: translate(34px, -46px) scale(2.3) rotate(-26deg);
+    filter: drop-shadow(0 1px 1px oklch(0.305 0.062 351 / 0)) drop-shadow(18px 46px 34px oklch(0.2 0.05 350 / 0.12));
+    animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.35);
+  }
+  25% { opacity: 1; }
+  70% {
+    transform: translate(0, 0) scale(1.06) rotate(-3deg);
+    filter: drop-shadow(0 1px 1px oklch(0.305 0.062 351 / 0.1)) drop-shadow(4px 14px 16px oklch(0.2 0.05 350 / 0.28));
+    animation-timing-function: cubic-bezier(0.2, 0, 0.3, 1);
+  }
+  80% {
+    transform: scale(0.92) rotate(0deg);
+    filter: drop-shadow(0 1px 1px oklch(0.305 0.062 351 / 0.3)) drop-shadow(0 3px 5px oklch(0.2 0.05 350 / 0.35));
+    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+  }
+  91% { transform: scale(1.025); }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: drop-shadow(0 1px 1px oklch(0.305 0.062 351 / 0.22)) drop-shadow(0 8px 14px oklch(0.2 0.05 350 / 0.3));
+  }
+}
+@keyframes stay-pass-give {
+  0%, 100% { transform: none; }
+  28% { transform: scale(0.972) rotateX(2.5deg) rotateY(-2.5deg); }
+}
+@keyframes stay-pass-ripple {
+  0% { opacity: 0.9; transform: scale(0.85); }
+  100% { opacity: 0; transform: scale(1.9); }
+}
+@keyframes stay-pass-seal-glint { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+@keyframes stay-pass-spark {
+  0% { opacity: 0; transform: rotate(var(--a)) translateX(30px) scale(0.2); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--d)) scale(0.8) rotate(90deg); }
+}
+@keyframes stay-pass-sweep { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+@keyframes stay-pass-sweep-again { from { background-position: 130% 0; } to { background-position: -30% 0; } }
+@keyframes stay-pass-in {
+  from { opacity: 0; transform: translateY(22px) rotateX(18deg) scale(0.95); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The screen around the card steps back while it is sealed. */
+.stay-confirm__title { animation: stay-confirm-in 420ms var(--ease-out) both; }
+.stay-confirm[data-phase='done'] .stay-confirm__title { animation-delay: 80ms; }
+.stay-confirm__title,
+.stay-confirm__action,
+.stay-confirm__secondary { transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out); }
+.stay-confirm[data-phase='stamping'] .stay-confirm__title,
+.stay-confirm[data-phase='stamping'] .stay-confirm__action,
+.stay-confirm[data-phase='stamping'] .stay-confirm__secondary,
+.stay-confirm[data-phase='done'] .stay-confirm__secondary {
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  /* The title's entrance animation would otherwise hold it at full opacity. */
+  animation: none;
+}
+.stay-confirm[data-phase='done'] .stay-confirm__action { animation: stay-confirm-in 420ms var(--ease-out) 360ms both; }
+.stay-confirm .stay-pass { margin-block: 30px 22px; }
+.stay-confirm__secondary { display: grid; }
+@keyframes stay-confirm-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stay-pass { animation-name: stay-pass-fade; }
+  .stay-pass__tilt,
+  .stay-pass__photo { transform: none; }
+  .stay-pass[data-phase] .stay-pass__press { animation: none; }
+  .stay-pass__sweep,
+  .stay-pass__ripple,
+  .stay-pass__seal-disc::after { display: none; }
+  .stay-pass__seal { animation: stay-pass-fade 300ms both; }
+  .stay-confirm__title,
+  .stay-confirm[data-phase='done'] .stay-confirm__action { animation-name: stay-pass-fade; }
+  .stay-confirm__title,
+  .stay-confirm__action,
+  .stay-confirm__secondary { transform: none !important; }
+}
+@keyframes stay-pass-fade { from { opacity: 0; } to { opacity: 1; } }

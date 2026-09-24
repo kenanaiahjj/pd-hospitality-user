@@ -1,7 +1,7 @@
 /* ==========================================================================
    Cabana guest app
    A light, task-first stay app. One neutral canvas, white surfaces, and the
-   brand pink reserved for primary actions, selection, and live state.
+   brand plum reserved for primary actions, selection, and live state.
    ========================================================================== */
 
 .guest-prototype-stage {
@@ -108,7 +108,7 @@
 }
 .guest-prototype-trigger svg { width: 18px; height: 18px; }
 .guest-prototype-trigger:active { transform: scale(0.94); }
-.guest-prototype-trigger:focus-visible { outline: 2px solid var(--ds-pink-strong); outline-offset: 2px; }
+.guest-prototype-trigger:focus-visible { outline: 2px solid var(--ds-accent-strong); outline-offset: 2px; }
 
 @media (hover: hover) and (pointer: fine) {
   .guest-prototype-trigger:hover { color: var(--ds-ink); }
@@ -142,7 +142,7 @@
 .guest-prototype-toolbar button:active:not(:disabled) { transform: scale(0.97); }
 .guest-prototype-toolbar button:disabled { cursor: not-allowed; opacity: 0.42; }
 .guest-prototype-toolbar button:focus-visible,
-.guest-room-ready-notification button:focus-visible { outline: 2px solid var(--ds-pink-strong); outline-offset: 2px; }
+.guest-room-ready-notification button:focus-visible { outline: 2px solid var(--ds-accent-strong); outline-offset: 2px; }
 
 /* Restated after the generic pill above, which otherwise wins on source order
    and gives this a 44px dark-ink body. */
@@ -183,12 +183,12 @@
   border-radius: 8px;
   cursor: pointer;
 }
-.guest-prototype-states__option input { margin: 2px 0 0; accent-color: var(--ds-pink-strong); }
+.guest-prototype-states__option input { margin: 2px 0 0; accent-color: var(--ds-accent-strong); }
 .guest-prototype-states__option span { display: grid; gap: 1px; min-width: 0; }
 .guest-prototype-states__option b { font-size: 13px; font-weight: 650; }
 .guest-prototype-states__option small { color: var(--ds-ink-muted); font-size: 11px; line-height: 1.3; }
 .guest-prototype-states__option:has(input:checked) { background: var(--ds-surface-sunken); }
-.guest-prototype-states__option:focus-within { outline: 2px solid var(--ds-pink-strong); outline-offset: 1px; }
+.guest-prototype-states__option:focus-within { outline: 2px solid var(--ds-accent-strong); outline-offset: 1px; }
 
 /* Overrides the panel's dark pill: resetting the rig is not an action in the
    app, and giving it the same weight as "Simulate room ready" invites a
@@ -230,11 +230,11 @@
   cursor: pointer;
 }
 .guest-channel-choice__option:has(input:checked) {
-  border-color: var(--ds-pink-strong);
-  background: var(--ds-pink-soft);
+  border-color: var(--ds-accent-strong);
+  background: var(--ds-accent-soft);
 }
-.guest-channel-choice__option:focus-within { outline: 2px solid var(--ds-pink-strong); outline-offset: 2px; }
-.guest-channel-choice__option input { accent-color: var(--ds-pink-strong); }
+.guest-channel-choice__option:focus-within { outline: 2px solid var(--ds-accent-strong); outline-offset: 2px; }
+.guest-channel-choice__option input { accent-color: var(--ds-accent-strong); }
 .guest-channel-choice__icon { display: grid; place-items: center; color: var(--ds-ink-muted); }
 .guest-channel-choice__icon svg { width: 20px; height: 20px; }
 .guest-channel-choice__text { display: grid; gap: 2px; min-width: 0; }
@@ -268,9 +268,9 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: var(--ds-pink-soft);
+  background: var(--ds-accent-soft);
   place-items: center;
-  color: var(--ds-pink-strong);
+  color: var(--ds-accent-strong);
 }
 
 .guest-room-ready-notification__icon svg { width: 20px; height: 20px; }
@@ -286,7 +286,7 @@
   padding: 0 10px;
   border: 0;
   background: transparent;
-  color: var(--ds-pink-strong);
+  color: var(--ds-accent-strong);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -341,7 +341,7 @@
   transform: translateX(-50%);
   animation: guest-room-ready-fade 160ms ease both;
 }
-.guest-toast__icon { display: grid; flex: 0 0 auto; place-items: center; color: var(--ds-pink-strong); }
+.guest-toast__icon { display: grid; flex: 0 0 auto; place-items: center; color: var(--ds-accent-strong); }
 .guest-toast__icon svg { width: 20px; height: 20px; }
 .guest-toast p { flex: 1; margin: 0; font-size: 13px; line-height: 1.4; }
 .guest-toast__dismiss {
@@ -412,12 +412,12 @@
 
   /* Brand */
   --guest-brand: var(--ds-plum);
-  --guest-accent: var(--ds-pink);
-  --guest-accent-strong: var(--ds-pink-strong);
-  --guest-accent-pressed: var(--ds-pink-pressed);
-  --guest-soft: var(--ds-pink-soft);
-  --guest-on-accent: var(--ds-on-pink);
-  --guest-on-accent-muted: var(--ds-on-pink-muted);
+  --guest-accent: var(--ds-accent);
+  --guest-accent-strong: var(--ds-accent-strong);
+  --guest-accent-pressed: var(--ds-accent-pressed);
+  --guest-soft: var(--ds-accent-soft);
+  --guest-on-accent: var(--ds-on-accent);
+  --guest-on-accent-muted: var(--ds-on-accent-muted);
 
   /* Inverted surface: the folio total. */
   --guest-invert: var(--ds-ink-card);
@@ -844,9 +844,9 @@
 .guest-app .guest-button--primary {
   background: var(--guest-accent);
   color: var(--guest-on-accent);
-  box-shadow: 0 1px 2px oklch(0.5 0.19 351 / 0.16), 0 6px 18px oklch(0.5 0.19 351 / 0.18);
+  box-shadow: 0 1px 2px oklch(0.305 0.062 351 / 0.18), 0 6px 18px oklch(0.305 0.062 351 / 0.2);
 }
-.guest-app .guest-button--primary:active:not(:disabled) { box-shadow: 0 1px 2px oklch(0.5 0.19 351 / 0.2); }
+.guest-app .guest-button--primary:active:not(:disabled) { box-shadow: 0 1px 2px oklch(0.305 0.062 351 / 0.22); }
 .guest-app .guest-button--primary:disabled { box-shadow: none; }
 .guest-app .guest-button--primary:focus-visible { outline-color: var(--guest-ink); }
 .guest-app .guest-button--secondary { border-color: var(--guest-line-strong); background: var(--guest-paper); color: var(--guest-ink); }
@@ -1257,8 +1257,8 @@
 }
 /* A glyph tile has to supply the tinted square the illustrations bake in. */
 .guest-category-grid .guest-action-tile > span:has(svg) {
-  background: var(--ds-pink-soft);
-  color: var(--ds-pink-strong);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent-strong);
 }
 .guest-category-grid .guest-action-tile > span svg { width: 22px; height: 22px; }
 .guest-category-grid .guest-action-tile > span .guest-category-icon-img {
@@ -2567,8 +2567,9 @@
   .guest-message,
   .guest-typing-dots i { animation: none; }
   .guest-welcome__splash { animation: none; opacity: 0; visibility: hidden; }
-  .guest-welcome__art { animation: none; opacity: 1; }
-  .guest-welcome__art-track,
+  .guest-welcome__brand,
+  .guest-welcome__message { animation: none; opacity: 1; }
+  .guest-welcome__art-frame { transform: none; }
   .guest-welcome__steps-track { transition: none; }
   .guest-app *,
   .guest-app *::before,
@@ -2698,8 +2699,8 @@
 .guest-miniapp-icon--sage:has(svg),
 .guest-miniapp-icon--sun:has(svg),
 .guest-miniapp-icon--blue:has(svg) {
-  background: var(--ds-pink-soft);
-  color: var(--ds-pink-strong);
+  background: var(--ds-accent-soft);
+  color: var(--ds-accent-strong);
 }
 .guest-explore-catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .guest-explore-catalog__tile { position: relative; display: flex; min-height: 148px; overflow: hidden; align-items: flex-end; padding: 14px; border: 0; border-radius: var(--guest-radius-md); background: var(--guest-sunken); text-align: left; }
@@ -3200,24 +3201,35 @@
 }
 
 /* --------------------------------------------------------------------------
-   Welcome screen: branded splash, then the stay introduction and login choices.
+   Welcome screen: branded splash, then the estate on film behind the stay
+   introduction and login choices -- photo-first, after Places.
+
+   Three layers, back to front: the art (films over Henry stills, then the
+   legibility stack), the content column, and the splash over both until it
+   fades. Everything on the content layer is set light, on the film.
    -------------------------------------------------------------------------- */
-.guest-device.is-welcome { background: var(--guest-paper); }
+.guest-device.is-welcome { background: var(--welcome-night); }
 
 .guest-screen--welcome {
   padding: 0;
   overflow: hidden;
-  background: var(--guest-paper);
+  background: var(--welcome-night);
 }
 
 .guest-welcome {
+  /* The deep plum the scrim settles into -- the brand's own dark, not black. */
+  --welcome-night: oklch(0.2 0.035 351);
+  --welcome-on: oklch(1 0 0);
+  --welcome-on-muted: oklch(1 0 0 / 0.74);
+  --welcome-glass: oklch(1 0 0 / 0.14);
+  --welcome-glass-line: oklch(1 0 0 / 0.28);
   position: relative;
   display: flex;
   min-height: 100%;
   overflow: hidden;
   isolation: isolate;
-  color: var(--guest-ink);
-  background: #fff;
+  color: var(--welcome-on);
+  background: var(--welcome-night);
 }
 
 .guest-welcome__splash {
@@ -3233,8 +3245,84 @@
   animation: guest-welcome-splash 1400ms var(--ease-out) 250ms forwards;
 }
 
+.guest-welcome__splash-brand { color: var(--guest-brand); }
+.guest-welcome__splash-brand .cabana-full-lockup__wordmark { width: min(58vw, 224px); }
+.guest-welcome__splash-brand .cabana-full-lockup__tagline { font-size: 15px; }
+
+/* --- The art: full bleed, behind everything ------------------------------- */
+.guest-welcome__art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--welcome-night);
+}
+
+.guest-welcome__art-track { position: absolute; inset: 0; }
+
+/* Frames stack and dissolve. The one arriving settles from a slight zoom,
+   so each step opens like a cut in a title sequence. */
+.guest-welcome__art-frame {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(1.06);
+  transition: opacity 900ms var(--ease-out), transform 6s var(--ease-out);
+}
+.guest-welcome__art-frame.is-active { opacity: 1; transform: scale(1); }
+
+.guest-welcome__still,
+.guest-welcome__film {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* The film fades up over its still once it is actually playing. */
+.guest-welcome__film { opacity: 0; transition: opacity 600ms ease; }
+.guest-welcome__film[data-playing] { opacity: 1; }
+
+.guest-welcome__scrim,
+.guest-welcome__blur,
+.guest-welcome__grain { position: absolute; inset: 0; }
+
+/* A shade at the top for the logo, open through the middle, deep at the
+   bottom for copy and actions. Tuned against the brightest film (the spa),
+   so white type holds on every step. */
+.guest-welcome__scrim {
+  background:
+    linear-gradient(180deg,
+      oklch(0.2 0.035 351 / 0.62) 0%,
+      oklch(0.2 0.035 351 / 0.3) 17%,
+      oklch(0.2 0.035 351 / 0.06) 34%,
+      oklch(0.2 0.035 351 / 0.34) 46%,
+      oklch(0.2 0.035 351 / 0.66) 60%,
+      oklch(0.2 0.035 351 / 0.88) 76%,
+      oklch(0.2 0.035 351 / 0.95) 100%),
+    oklch(0.2 0.035 351 / 0.14);
+}
+
+/* A progressive blur: the film softens into frosted glass behind the actions
+   instead of meeting a hard edge. */
+.guest-welcome__blur {
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  backdrop-filter: blur(22px) saturate(1.2);
+  -webkit-mask: linear-gradient(180deg, transparent 50%, #000 74%);
+  mask: linear-gradient(180deg, transparent 50%, #000 74%);
+}
+
+.guest-welcome__grain {
+  opacity: 0.12;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --- Content column ---------------------------------------------------------- */
 .guest-welcome__content {
   position: relative;
+  z-index: 1;
   display: flex;
   width: 100%;
   max-width: 480px;
@@ -3247,83 +3335,65 @@
 .guest-welcome__brand {
   align-self: center;
   margin-left: 0;
-  color: var(--guest-brand);
+  color: var(--welcome-on);
+  filter: drop-shadow(0 1px 12px oklch(0.2 0.035 351 / 0.35));
+  opacity: 0;
+  animation: guest-welcome-rise 700ms var(--ease-out) 1250ms forwards;
 }
+.guest-welcome .guest-welcome__brand.cabana-full-lockup { color: var(--welcome-on); }
 
-.guest-welcome__splash-brand {
-  color: var(--guest-brand);
+.guest-welcome__film-toggle {
+  position: absolute;
+  top: max(24px, env(safe-area-inset-top));
+  right: 12px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  place-items: center;
+  color: var(--welcome-on);
+  background: none;
+  cursor: pointer;
+  opacity: 0;
+  animation: guest-welcome-rise 700ms var(--ease-out) 1400ms forwards;
 }
-
-.guest-welcome__splash-brand .cabana-full-lockup__wordmark {
-  width: min(58vw, 224px);
+/* 30px visible disc inside the 44px target. */
+.guest-welcome__film-toggle::before {
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background: var(--welcome-glass);
+  box-shadow: inset 0 0 0 1px var(--welcome-glass-line);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  content: '';
 }
+.guest-welcome__film-toggle svg { position: relative; width: 13px; height: 13px; }
+.guest-welcome__film-toggle:active { transform: scale(0.96); }
 
-.guest-welcome__splash-brand .cabana-full-lockup__tagline {
-  font-size: 15px;
+/* The open middle: the thumb's paging surface. */
+.guest-welcome__swipe {
+  flex: 1 1 auto;
+  min-height: 120px;
+  touch-action: pan-y;
+  user-select: none;
 }
 
 .guest-welcome__message {
   display: grid;
   gap: 0;
   text-align: center;
-}
-
-/* The hero: the three features as an onboarding pager, one step at a time.
-   The artwork sits high and its copy sits down against the action, so the two
-   are separate sliding tracks driven by one index rather than a single block.
-
-   Auto block margins on the artwork eat the free space between the brand and
-   the message, which keeps the action on the fold. */
-.guest-welcome__art {
-  --welcome-art: 400px;
-
-  /* Bleeds past the column's 24px gutters. The three drawings share one scale
-     -- same stroke weight, same drawing size -- so a step whose subject is
-     wider and shorter genuinely sits shorter in the frame. Normalising each to
-     fill the frame would scale them differently and the line weight would jump
-     between steps, so the frame grows instead.
-
-     `align-self` rather than a negative inline margin: it centres the frame
-     when the cap makes it narrower than the column AND overflows it evenly
-     when it is wider, where a fixed -24px only ever gets one of those right. */
-  align-self: center;
-  width: min(calc(100% + 24px), var(--welcome-art));
-  margin-block: auto;
-  padding: 18px 18px 8px;
-  border-radius: var(--guest-radius-xl);
-  background: transparent;
-  isolation: isolate;
-  /* Clips the steps waiting either side of the current one. */
-  overflow: hidden;
-  /* Claim horizontal drags for paging, leave vertical scrolling to the page. */
-  touch-action: pan-y;
-  user-select: none;
   opacity: 0;
-  animation: guest-welcome-pager-in var(--duration-base) var(--ease-out) 1020ms forwards;
+  animation: guest-welcome-rise 800ms var(--ease-out) 1150ms forwards;
 }
 
-/* A soft light field gives the transparent line art a place to live. It stays
-   inside the hero frame, so the rest of the welcome screen remains quiet. */
-.guest-welcome__art::before {
-  position: absolute;
-  inset: 10% 20% 14%;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in oklch, var(--guest-accent) 30%, white) 0%, transparent 70%);
-  content: '';
-  filter: blur(20px);
-  opacity: 0.48;
-}
-
-/* One row of full-width steps, slid sideways. Transform-only, so the slide
-   stays on the compositor. */
-.guest-welcome__art-track,
+/* --- Step copy ------------------------------------------------------------------ */
 .guest-welcome__steps-track {
   display: grid;
   width: 100%;
   /* Without this the grid item's automatic minimum is its min-content width --
-     every step's content at once -- and the track sizes to 3x the column
-     instead of one, dragging everything off centre with it. */
+     every step's content at once -- and the track sizes to 3x the column. */
   min-width: 0;
   grid-auto-flow: column;
   grid-auto-columns: 100%;
@@ -3333,28 +3403,69 @@
   transition: transform var(--duration-base) var(--ease-out);
 }
 
-.guest-welcome__art-frame { display: block; width: 100%; }
+/* The copy window. Its height is the tallest step's, so a two-line title does
+   not shove the action down as the pager rotates. */
+.guest-welcome__steps { overflow: hidden; margin-bottom: 18px; }
 
-/* pointer-events off so a swipe across the artwork reaches the pager instead
-   of starting the browser's native image drag. */
-.guest-welcome__art-frame img {
-  display: block;
-  width: 100%;
-  height: auto;
-  pointer-events: none;
+.guest-welcome__step {
+  display: grid;
+  align-content: end;
+  gap: 10px;
+  padding-inline: 8px;
+  text-align: center;
+  transition: opacity 500ms ease;
+}
+.guest-welcome__step[aria-hidden='true'] { opacity: 0; }
+
+.guest-welcome__step-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--welcome-on-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.guest-welcome__step-stage span { font-variant-numeric: tabular-nums; }
+.guest-welcome__step-stage span::after {
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  margin-left: 10px;
+  vertical-align: middle;
+  background: currentColor;
+  opacity: 0.6;
+  content: '';
 }
 
+/* The editorial serif, large and light, as Places sets a place name. */
+.guest-welcome .guest-welcome__step-title {
+  margin: 0;
+  color: var(--welcome-on);
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  text-shadow: 0 2px 24px oklch(0.2 0.035 351 / 0.4);
+}
+
+/* --- Progress segments ---------------------------------------------------------- */
 .guest-welcome__dots {
   display: flex;
   justify-content: center;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 14px;
 }
 
-/* The dot is 7px; the button around it is the 44px target. */
+/* A 28px segment inside the 44px button. */
 .guest-welcome__dots button {
   display: grid;
-  width: 30px;
+  width: 36px;
   height: 44px;
   padding: 0;
   border: 0;
@@ -3363,89 +3474,122 @@
   cursor: pointer;
   transition: transform var(--duration-press) var(--ease-out);
 }
-
 .guest-welcome__dots button:active { transform: scale(0.96); }
 
 .guest-welcome__dots span {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--guest-radius-pill);
-  background: var(--guest-line-strong);
-  transition: width var(--duration-fast) var(--ease-out), background-color var(--duration-fast) ease;
-}
-
-/* Pink marks the current step: selection and progress are two of the accent's
-   three sanctioned jobs, so this is not decoration. */
-.guest-welcome__dots [aria-current='step'] span {
-  width: 20px;
-  background: var(--guest-accent);
-}
-
-/* The copy window. Its height is the tallest step's, so a two-line title does
-   not shove the action down as the pager rotates. */
-.guest-welcome__steps {
+  position: relative;
+  width: 28px;
+  height: 3px;
   overflow: hidden;
-  margin-bottom: 24px;
+  border-radius: var(--guest-radius-pill);
+  background: oklch(1 0 0 / 0.3);
 }
-
-.guest-welcome__step {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding-inline: 4px;
-  text-align: center;
+.guest-welcome__dots i {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--welcome-on);
+  transform: scaleX(0);
+  transform-origin: left center;
 }
-
-.guest-welcome__step-stage {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 0;
-  color: var(--guest-subtle);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.guest-welcome__dots button.is-done i { transform: scaleX(1); }
+/* Live progress, but over a dark photo: plum would vanish, so the current
+   segment fills white like the finished ones. */
+.guest-welcome__dots [aria-current='step'] i {
+  background: var(--welcome-on);
+  animation: guest-welcome-fill linear forwards;
 }
+.guest-welcome__dots.is-engaged [aria-current='step'] i { animation: none; transform: scaleX(1); }
 
-.guest-welcome__step-stage span { font-variant-numeric: tabular-nums; }
-
-/* The screen title slot, at the design system's fixed 30px/700. */
-.guest-welcome__step-title {
-  margin: 0;
-  color: var(--guest-ink);
-  font-size: 32px;
-  font-weight: 730;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-}
-
-/* Short viewports: shrink the artwork before it crowds the copy and login choices. */
-@media (max-height: 900px) {
-  .guest-welcome__art { --welcome-art: 260px; }
-  .guest-welcome__steps { margin-bottom: 16px; }
-}
-
-@media (max-height: 720px) {
-  .guest-welcome__art { --welcome-art: 170px; }
-  .guest-welcome__steps { margin-bottom: 8px; }
-  .guest-welcome__step-title { font-size: 25px; }
-}
-
+/* --- Actions -------------------------------------------------------------------- */
 .guest-welcome__actions { display: grid; gap: 10px; }
-.guest-app .guest-welcome__login-button.guest-button--secondary { box-shadow: none; }
+
+.guest-welcome__login-button {
+  width: 100%;
+  min-height: 52px;
+  justify-content: center;
+}
+.guest-welcome__login-button svg { width: 20px; height: 20px; }
+.guest-welcome__login-logo { display: block; width: 20px; height: 20px; flex: 0 0 auto; }
+.guest-welcome__login-logo--google { height: auto; }
+
+.guest-app .guest-welcome__login-button--solid {
+  border-color: transparent;
+  background: var(--welcome-on);
+  color: var(--guest-ink);
+  box-shadow: 0 8px 24px oklch(0.2 0.035 351 / 0.28);
+}
+
+.guest-app .guest-welcome__login-button--glass {
+  border-color: var(--welcome-glass-line);
+  background: var(--welcome-glass);
+  color: var(--welcome-on);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+}
+.guest-app .guest-welcome__login-button--glass svg { color: var(--welcome-on); }
+.guest-app .guest-welcome .guest-button:focus-visible { outline-color: var(--welcome-on); }
+
+.guest-app .guest-welcome__guest-link {
+  display: inline-flex;
+  justify-self: center;
+  height: auto;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-radius: var(--guest-radius-pill);
+  background: transparent;
+  color: var(--welcome-on);
+  font-size: 15px;
+  font-weight: 600;
+  transition: transform var(--duration-press) var(--ease-out), opacity var(--duration-fast) ease;
+}
+.guest-app .guest-welcome__guest-link svg { width: 16px; height: 16px; }
+.guest-app .guest-welcome__guest-link:active:not(:disabled) { transform: scale(0.97); }
+.guest-app .guest-welcome__guest-link:disabled { opacity: 0.4; }
+.guest-app .guest-welcome__guest-link:focus-visible { outline: 2px solid var(--welcome-on); outline-offset: 2px; }
+
+/* Offline notice, set on the film rather than as a white card. */
+.guest-welcome .guest-notice {
+  margin-bottom: 12px;
+  border-color: var(--welcome-glass-line);
+  background: var(--welcome-glass);
+  color: var(--welcome-on);
+  text-align: left;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.guest-welcome .guest-notice p { color: var(--welcome-on-muted); }
+
+/* Short viewports: give up the paging surface and title size before actions. */
+@media (max-height: 720px) {
+  .guest-welcome__swipe { min-height: 48px; }
+  .guest-welcome .guest-welcome__step-title { font-size: 30px; }
+  .guest-welcome__steps { margin-bottom: 10px; }
+  .guest-welcome__dots { margin-bottom: 6px; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-app .guest-welcome__login-button--solid:hover:not(:disabled) { background: oklch(0.96 0.004 351); }
+  .guest-app .guest-welcome__login-button--glass:hover:not(:disabled) { background: oklch(1 0 0 / 0.22); }
+  .guest-app .guest-welcome__guest-link:hover:not(:disabled) { background: oklch(1 0 0 / 0.1); }
+}
 
 @keyframes guest-welcome-splash {
   0%, 68% { opacity: 1; visibility: visible; }
   100% { opacity: 0; visibility: hidden; }
 }
 
-/* Opacity only: the track owns `translate` for paging. */
-@keyframes guest-welcome-pager-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes guest-welcome-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes guest-welcome-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 /* The honoured-preferences line: what the property could actually do with the
@@ -3472,10 +3616,10 @@
 /* --------------------------------------------------------------------------
    Listing controls -- sort and filter pills
 
-   One vocabulary for on-property listings. Active takes the pink
-   accent, per the design system's rule that pink marks the current selection;
-   this row used to fill with ink, which made it the only selected-state in the
-   flow that was not pink.
+   One vocabulary for on-property listings. Active takes the plum
+   accent, per the design system's rule that the accent marks the current
+   selection; this row used to fill with ink, which made it the only
+   selected-state in the flow that was not on the accent.
    -------------------------------------------------------------------------- */
 
 .guest-filter-pills {
@@ -4146,14 +4290,6 @@
   align-items: center;
   margin-bottom: 8px;
 }
-.guest-welcome__login-button {
-  width: 100%;
-  min-height: 52px;
-  justify-content: flex-start;
-}
-.guest-welcome__login-button svg { width: 20px; height: 20px; }
-.guest-welcome__login-logo { display: block; width: 20px; height: 20px; flex: 0 0 auto; }
-.guest-welcome__login-logo--google { height: auto; }
 
 /* --------------------------------------------------------------------------
    Primary Guest & Additional Guests
@@ -5208,7 +5344,7 @@
 .guest-rating__star input:checked + span {
   border-color: transparent;
   background: var(--guest-accent);
-  color: var(--guest-ink);
+  color: var(--guest-on-accent);
 }
 .guest-rating__star input:focus-visible + span {
   outline: 2px solid var(--guest-accent);
@@ -5242,8 +5378,7 @@
   padding: 16px;
   border: 0;
   border-radius: var(--guest-radius-md);
-  /* The one accent-filled surface on this screen, with ink on top -- white
-     on Cabana pink fails contrast, ink clears it. */
+  /* The one accent-filled surface on this screen, with white on the plum. */
   background: var(--guest-accent);
   color: var(--guest-on-accent);
   text-align: left;
@@ -5257,7 +5392,7 @@
   height: 40px;
   place-items: center;
   border-radius: var(--guest-radius-sm);
-  background: oklch(1 0 0 / 0.5);
+  background: oklch(1 0 0 / 0.14);
 }
 .guest-add-booking-card__glyph svg { width: 22px; height: 22px; }
 .guest-add-booking-card__text { display: grid; gap: 3px; min-width: 0; }
@@ -5320,7 +5455,7 @@
   position: absolute;
   width: 30px;
   height: 30px;
-  border: 3px solid var(--guest-accent);
+  border: 3px solid var(--guest-paper);
 }
 .guest-scanner__corner--tl { top: 14px; left: 14px; border-right: 0; border-bottom: 0; border-top-left-radius: 10px; }
 .guest-scanner__corner--tr { top: 14px; right: 14px; border-left: 0; border-bottom: 0; border-top-right-radius: 10px; }
@@ -5332,8 +5467,8 @@
   left: 14px;
   right: 14px;
   height: 2px;
-  background: var(--guest-accent);
-  box-shadow: 0 0 12px 2px oklch(0.79 0.18 345 / 0.55);
+  background: var(--guest-paper);
+  box-shadow: 0 0 12px 2px oklch(1 0 0 / 0.55);
   animation: guest-scanner-sweep 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -7451,14 +7586,15 @@ button.guest-field__row { cursor: pointer; }
    ring. A textarea, which needs room, stacks under its label instead.
    -------------------------------------------------------------------------- */
 label.guest-field {
-  grid-template-columns: auto minmax(0, 1fr);
+  /* A long label wraps before it squeezes the answer below a short code. */
+  grid-template-columns: minmax(0, auto) minmax(6.5em, 1fr);
   align-items: center;
   column-gap: 16px;
   row-gap: 0;
   min-height: 56px;
   padding: 0 18px;
 }
-label.guest-field > span { color: var(--guest-muted); font-size: 15px; font-weight: 400; letter-spacing: 0; white-space: nowrap; }
+label.guest-field > span { color: var(--guest-muted); font-size: 15px; font-weight: 400; letter-spacing: 0; line-height: 1.3; text-wrap: balance; }
 label.guest-field input,
 label.guest-field select {
   min-height: 54px;
@@ -7475,10 +7611,30 @@ label.guest-field select {
 }
 label.guest-field select { padding-right: 24px; background-position: right 0 center; }
 label.guest-field input::-webkit-date-and-time-value { text-align: right; }
+/* The row carries the ring (:focus-within below); an outline on the control
+   itself would draw a second, square ring inside the rounded one. */
 label.guest-field input:focus,
-label.guest-field select:focus { border: 0; box-shadow: none; }
+label.guest-field select:focus { border: 0; box-shadow: none; outline: none; }
 label.guest-field input::placeholder { color: var(--guest-subtle); font-weight: 400; }
 label.guest-field:focus-within { background: var(--guest-paper); box-shadow: 0 0 0 2px var(--guest-accent-strong); }
+/* Text entry rows stay visibly editable at rest; selects keep their quieter
+   picker treatment. The I-beam and darker placeholder reinforce the affordance. */
+label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])) {
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line-strong);
+  cursor: text;
+}
+label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])) > input {
+  cursor: text;
+}
+label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])) > input::placeholder {
+  color: var(--guest-muted);
+  opacity: 1;
+}
+label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])):focus-within {
+  background: var(--guest-paper);
+  box-shadow: 0 0 0 2px var(--guest-accent-strong);
+}
 label.guest-field > small { grid-column: 1 / -1; padding-bottom: 12px; }
 label.guest-field:has(textarea) { grid-template-columns: 1fr; row-gap: 6px; padding: 14px 18px; }
 label.guest-field textarea { padding: 0; border: 0; background: transparent; font-size: 15px; outline: none; }

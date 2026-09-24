@@ -293,8 +293,8 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('The Henry Manila')).toBeInTheDocument();
     expect(screen.getByText('Booking HEN-241109')).toBeInTheDocument();
     expect(screen.getByText('Booked through')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Use this booking' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Use a different booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Yes this is my booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: "No, this isn't my booking" })).toBeInTheDocument();
   });
 
   it('opens the active stay home as soon as a room QR links the stay', async () => {
@@ -355,7 +355,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('Enter the number from your booking confirmation.')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('HEN-241109')).toBeInTheDocument();
     expect(screen.getByText('Hotel, Agoda, or Booking.com reference')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Find another way' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Find another way' })).toBeNull();
 
     unmount();
     render(<GuestAppPrototype initialScreen="lookup-fallback" />);
@@ -710,10 +710,10 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('banner')).toContainElement(backButton);
   });
 
-  it('puts ink on the accent instead of white, which the pink cannot carry', () => {
-    // The light accent needs ink text to meet WCAG AA contrast.
-    expect(globalStyles).toContain('--ds-on-pink: var(--ds-ink);');
-    expect(guestStyles).toContain('--guest-on-accent: var(--ds-on-pink);');
+  it('puts white on the plum accent, never ink', () => {
+    // Plum is a dark fill; ink on it would fail contrast where white clears 11.9:1.
+    expect(globalStyles).toContain('--ds-on-accent: var(--ds-paper);');
+    expect(guestStyles).toContain('--guest-on-accent: var(--ds-on-accent);');
     expect(guestStyles).toContain('background: var(--guest-accent); color: var(--guest-on-accent);');
   });
 
@@ -742,7 +742,9 @@ describe('guest account and entry flows', () => {
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-241109');
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
-    await user.click(screen.getByRole('button', { name: 'Use this booking' }));
+    await user.click(screen.getByRole('button', { name: 'Yes this is my booking' }));
+    // The card spins and is stamped before the guest moves on.
+    await user.click(await screen.findByRole('button', { name: 'Add your details' }, { timeout: 3000 }));
 
     // Directly reaches pre-arrival Step 1 of 4 without an account creation gate
     expect(screen.getByRole('heading', { name: 'Your details' })).toBeInTheDocument();
@@ -794,7 +796,8 @@ describe('guest account and entry flows', () => {
     expect(guestStyles).toContain('.guest-welcome__art-track');
     expect(guestStyles).toContain('.guest-welcome__dots');
     expect(guestStyles).toMatch(/\.guest-welcome__brand\s*\{[^}]*align-self:\s*center/);
-    expect(guestStyles).toMatch(/\.guest-welcome[^}]*background: #fff/);
+    // The welcome is photo-first now: the art fills the screen behind the content.
+    expect(guestStyles).toMatch(/\.guest-welcome__art\s*\{[^}]*position:\s*absolute/);
     expect(guestStyles).toContain('.guest-welcome__login-button');
     expect(guestStyles).toContain('.guest-code-field');
     expect(guestStyles).toMatch(/\.guest-code-field[^}]*letter-spacing/);
@@ -1121,7 +1124,8 @@ describe('booking lookup', () => {
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'demo-1');
     await user.type(screen.getByLabelText(/Last name/), 'Cruz');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
-    await user.click(screen.getByRole('button', { name: /Use this booking/ }));
+    await user.click(screen.getByRole('button', { name: /Yes this is my booking/ }));
+    await user.click(await screen.findByRole('button', { name: 'Add your details' }, { timeout: 3000 }));
 
     /*
       A new account lands in pre-arrival rather than on a home with a nav, so

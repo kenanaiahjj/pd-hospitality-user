@@ -23,19 +23,20 @@ nextjs-portal,
 /* ==========================================================================
    Cabana design tokens
    Layer 1 primitives -> layer 2 semantics -> layer 3 component tokens.
-   Brand: Cabana pink for action, Cabana plum for identity. Everything else is
-   a quiet neutral ramp -- warmed onto the plum hue -- so the accent only ever
-   marks a primary action, a selection, or a live state.
+   Brand: white, near-black ink, and Cabana plum. Plum is both the identity
+   and the accent; everything else is a quiet neutral ramp -- warmed onto the
+   plum hue -- so the accent only ever marks a primary action, a selection, or
+   a live state.
    ========================================================================== */
 
 :root {
   /* --- Layer 1: primitives ------------------------------------------------ */
   --ds-ink: oklch(0.16 0.016 351);
   --ds-paper: oklch(1 0 0);
-  --ds-pink: oklch(0.79 0.18 345);
-  /* The logo plum: #462133. Same hue family as `pink-strong`, which is why
-     the neutral ramp below sits on hue 351 rather than a cool grey. */
+  /* The logo plum: #462133. The neutral ramp below sits on its hue (351)
+     rather than on a cool grey. */
   --ds-plum: oklch(0.305 0.062 351);
+  --ds-accent: var(--ds-plum);
 
   --ds-background: oklch(0.968 0.003 351);
   --ds-surface: oklch(0.972 0.004 351);
@@ -49,13 +50,14 @@ nextjs-portal,
   --ds-on-ink: oklch(0.985 0.003 351);
   --ds-on-ink-muted: oklch(0.78 0.01 351);
 
-  /* Brand derivatives. `pink-strong` is the readable pink for text and icons;
-     the raw brand pink is a surface colour and always carries ink on top. */
-  --ds-pink-strong: oklch(0.5 0.19 347);
-  --ds-pink-soft: oklch(0.955 0.028 345);
-  --ds-pink-pressed: oklch(0.74 0.18 345);
-  --ds-on-pink: var(--ds-ink);
-  --ds-on-pink-muted: color-mix(in oklch, var(--ds-ink) 72%, var(--ds-pink));
+  /* Accent derivatives. Plum is dark enough to be text on its own, so
+     `strong` is plum itself; a plum fill always carries white on top
+     (11.9:1). `soft` is a plum-tinted white for selected surfaces. */
+  --ds-accent-strong: var(--ds-plum);
+  --ds-accent-soft: oklch(0.958 0.012 351);
+  --ds-accent-pressed: oklch(0.25 0.055 351);
+  --ds-on-accent: var(--ds-paper);
+  --ds-on-accent-muted: color-mix(in oklch, var(--ds-paper) 72%, var(--ds-accent));
 
   /* Icon chips, image placeholders, and scrims are deliberately neutral. The
      accent is spoken for -- action, selection, live state -- so a glyph behind
@@ -74,7 +76,7 @@ nextjs-portal,
   /* --- Layer 2: semantics ------------------------------------------------- */
   --background: var(--ds-background);
   --foreground: var(--ds-ink);
-  --focus-ring: var(--ds-pink-strong);
+  --focus-ring: var(--ds-accent-strong);
 
   --space-unit: 4px;
   --radius-xs: 8px;
@@ -185,10 +187,10 @@ img { border-radius: inherit; }
 .gallery {
   --primitive-ink: var(--ds-ink);
   --primitive-paper: var(--ds-paper);
-  --primitive-pink: var(--ds-pink);
+  --primitive-pink: var(--ds-accent);
   --primitive-muted: var(--ds-ink-muted);
   --primitive-line: var(--ds-line);
-  --primitive-accent-soft: var(--ds-pink-soft);
+  --primitive-accent-soft: var(--ds-accent-soft);
 
   --gallery-background: var(--ds-background);
   --gallery-surface: var(--ds-paper);
@@ -200,10 +202,10 @@ img { border-radius: inherit; }
   --gallery-line: var(--ds-line);
   --gallery-control-line: var(--ds-line-strong);
 
-  --source-accent: var(--ds-pink);
-  --source-accent-strong: var(--ds-pink-strong);
-  --source-accent-soft: var(--ds-pink-soft);
-  --source-accent-contrast: var(--ds-on-pink);
+  --source-accent: var(--ds-accent);
+  --source-accent-strong: var(--ds-accent-strong);
+  --source-accent-soft: var(--ds-accent-soft);
+  --source-accent-contrast: var(--ds-on-accent);
   --source-positive: var(--ds-positive);
   --source-warning: var(--ds-warning);
   --source-danger: var(--ds-danger);
@@ -450,7 +452,7 @@ img { border-radius: inherit; }
 .overlay-demo p { margin: 0; }
 .overlay-demo--dark { padding: 20px; border-radius: var(--radius-md); background: var(--ds-ink-card); color: var(--ds-on-ink); }
 .overlay-demo--dark p { color: var(--ds-on-ink-muted); }
-.overlay-demo--dark > svg { width: 30px; height: 30px; color: var(--source-accent); }
+.overlay-demo--dark > svg { width: 30px; height: 30px; color: var(--ds-on-ink); }
 .overlay-demo--dark .source-button[data-variant="secondary"] { border-color: oklch(1 0 0 / 0.28); background: transparent; color: var(--ds-on-ink); }
 .overlay-demo--dark .source-button[data-variant="secondary"]:hover:not(:disabled) { border-color: transparent; background: var(--ds-on-ink); color: var(--ds-ink); }
 .overlay-demo--dark :focus-visible { outline-color: var(--ds-on-ink); }
@@ -480,7 +482,7 @@ img { border-radius: inherit; }
 .foundation-grid { display: grid; grid-template-columns: 1.15fr 1fr 0.72fr; gap: 12px; }
 .foundation-card { min-height: 268px; padding: 24px; border: 1px solid var(--gallery-line); border-radius: var(--component-card-radius); background: var(--gallery-surface); }
 .foundation-card--type { border-color: transparent; background: var(--source-accent); color: var(--source-accent-contrast); }
-.foundation-card--type .foundation-card__eyebrow { color: var(--ds-on-pink-muted); }
+.foundation-card--type .foundation-card__eyebrow { color: var(--ds-on-accent-muted); }
 .foundation-card__display { display: block; margin: 44px 0 26px; font-size: clamp(30px, 3.4vw, 44px); font-weight: 700; letter-spacing: -0.032em; line-height: 1.02; }
 .foundation-card__display em { font-family: var(--font-asbir-sans); font-style: italic; font-weight: 500; }
 .foundation-card--colors .foundation-card__display em,
@@ -1157,7 +1159,7 @@ img { border-radius: inherit; }
   .gallery-footer a:hover,
   .gallery-text-link:hover { color: var(--source-accent-strong); }
   .gallery-filter:hover:not([data-state="active"]) { border-color: var(--gallery-control-line); background: var(--gallery-sunken); color: var(--gallery-ink); }
-  .source-button[data-variant="primary"]:hover:not(:disabled) { background: var(--ds-pink-pressed); }
+  .source-button[data-variant="primary"]:hover:not(:disabled) { background: var(--ds-accent-pressed); }
   .source-button[data-variant="secondary"]:hover:not(:disabled) { border-color: var(--gallery-control-line); background: var(--gallery-sunken); }
   .source-button[data-variant="quiet"]:hover:not(:disabled) { background: var(--gallery-sunken); color: var(--gallery-ink); }
   .source-button[data-variant="danger"]:hover:not(:disabled) { background: color-mix(in oklch, var(--source-danger) 88%, black); }
@@ -1211,7 +1213,7 @@ img { border-radius: inherit; }
 .cabana-app-preview__balance { display: grid; flex: 0 0 210px; min-height: 164px; align-content: start; gap: 6px; padding: 16px; border-radius: var(--radius-lg); background: var(--gallery-surface); }
 .cabana-app-preview__balance--pink { background: var(--source-accent); color: var(--source-accent-contrast); }
 .cabana-app-preview__balance--pink .cabana-app-preview__eyebrow,
-.cabana-app-preview__balance--pink small { color: var(--ds-on-pink-muted); }
+.cabana-app-preview__balance--pink small { color: var(--ds-on-accent-muted); }
 .cabana-app-preview__balance--lilac { background: var(--source-accent-soft); }
 .cabana-app-preview__eyebrow { color: var(--gallery-muted); font-size: 11px; font-weight: 650; }
 .cabana-app-preview__balance strong { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.032em; line-height: 1.05; }
@@ -1219,7 +1221,7 @@ img { border-radius: inherit; }
 .cabana-app-preview__actions { display: flex; gap: 6px; margin-top: 8px; }
 .cabana-app-preview__actions .source-button { flex: 1 1 0; min-width: 0; min-height: 36px; padding-inline: 8px; font-size: 12px; }
 .cabana-app-preview__balance--pink .source-button[data-variant="primary"] { background: var(--ds-ink); color: var(--ds-on-ink); }
-.cabana-app-preview__balance--pink .source-button[data-variant="secondary"] { border-color: var(--ds-on-pink-muted); background: transparent; color: var(--ds-ink); }
+.cabana-app-preview__balance--pink .source-button[data-variant="secondary"] { border-color: var(--ds-on-accent-muted); background: transparent; color: var(--ds-ink); }
 .cabana-app-preview__pager { display: flex; justify-content: center; gap: 4px; margin-top: 8px; }
 .cabana-app-preview__pager i { width: 5px; height: 5px; border-radius: 50%; background: var(--gallery-line); }
 .cabana-app-preview__pager i[data-state="active"] { width: 16px; border-radius: var(--radius-pill); background: var(--gallery-ink); }

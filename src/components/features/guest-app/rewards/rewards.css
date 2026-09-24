@@ -1299,7 +1299,7 @@
   font: inherit;
   font-size: 14px;
   font-weight: 500;
-  color: var(--accent-strong, oklch(0.5 0.19 351));
+  color: var(--accent-strong, oklch(0.305 0.062 351));
   cursor: pointer;
 }
 
@@ -1338,7 +1338,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.points-apply__effect span { color: var(--accent-strong, oklch(0.5 0.19 351)); }
+.points-apply__effect span { color: var(--accent-strong, oklch(0.305 0.062 351)); }
 .points-apply__effect b { font-size: 17px; font-weight: 700; }
 
 /* --------------------------------------------------------------------------

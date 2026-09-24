@@ -1,7 +1,7 @@
 export type SourceTheme = 'cabana';
 export type ComponentCategory = 'controls' | 'views' | 'overlay' | 'imagery';
 
-export const DEFAULT_COLOR_PICKER_VALUE = '#ff86d5';
+export const DEFAULT_COLOR_PICKER_VALUE = '#462133';
 
 export const sourceThemeDetails: Record<
   SourceTheme,
@@ -9,9 +9,9 @@ export const sourceThemeDetails: Record<
 > = {
   cabana: {
     label: 'Cabana light',
-    description: 'A neutral canvas, white surfaces, and Cabana pink held back for primary actions and live state.',
+    description: 'A neutral canvas, white surfaces, and Cabana plum held back for primary actions and live state.',
     className: 'cabana',
-    accentName: 'Cabana pink',
+    accentName: 'Cabana plum',
   },
 };
 

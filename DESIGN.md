@@ -1,16 +1,16 @@
 ---
 version: alpha
 name: Cabana guest app
-description: A light, neutral hospitality guest app where one pink accent marks the next action and nothing else.
+description: A light, neutral hospitality guest app in white, ink and plum, where the plum accent marks the next action and nothing else.
 colors:
-  primary: "oklch(0.79 0.18 345)"
+  primary: "oklch(0.305 0.062 351)"
   ink: "oklch(0.16 0.012 275)"
   paper: "oklch(1 0 0)"
   background: "oklch(0.968 0.002 285)"
   surface: "oklch(0.972 0.003 285)"
   line: "oklch(0.912 0.004 285)"
-  accentStrong: "oklch(0.5 0.19 351)"
-  accentSoft: "oklch(0.955 0.028 345)"
+  accentStrong: "oklch(0.305 0.062 351)"
+  accentSoft: "oklch(0.958 0.012 351)"
 typography:
   sans:
     fontFamily: Asbir Sans
@@ -36,12 +36,16 @@ hierarchy, and controls that answer instantly — not as decoration.
 The canvas is a light neutral grey; content sits on white surfaces separated by
 hairlines. Ink carries the hierarchy.
 
-Cabana pink is a **restrained** accent with exactly three jobs: the primary
-action, the current selection, and live state (active tab, focus ring, progress).
-It is never a background wash and never decoration. Because the brand pink is a
-light surface colour, anything filled with it takes **ink** on top — white text
-on pink fails contrast, ink clears it at 8.9:1. Where pink has to be text or an
-icon on a light surface, use the darker `accentStrong`.
+The palette is three colours: white, near-black ink, and Cabana plum
+(`#462133`, the logo colour). There is no pink.
+
+Plum is a **restrained** accent with exactly three jobs: the primary action,
+the current selection, and live state (active tab, focus ring, progress). It is
+never a background wash and never decoration. Plum is a dark fill, so anything
+filled with it takes **white** on top (11.9:1); ink on plum fails. Plum is dark
+enough to be text or an icon on a light surface as it is, so `accentStrong` is
+plum too. Plum never sits on a dark surface -- over a photo or camera feed, the
+accent's job goes to white.
 
 One inverted surface exists — near-black — and it is reserved for totals: the
 folio total. It is the strongest object on a screen, so no more than one appears
@@ -95,11 +99,11 @@ every movement.
 
 ## Components
 
-Primary actions are pink pills with ink labels. Secondary actions are white pills
+Primary actions are plum pills with white labels. Secondary actions are white pills
 with a hairline. Tertiary actions are accent-coloured text buttons. Every
 interactive element clears a 44px target and ships default, hover, focus, active,
-and disabled. Selection — a date, a time slot, a tile — is the accent fill with
-ink on top. The tab bar is flat and full-width, in fixed order, and marks the
+and disabled. Selection — a date, a time slot, a tile — is the plum fill with
+white on top. The tab bar is flat and full-width, in fixed order, and marks the
 current one with the accent rather than with a coloured pill. A slot is defined
 by the question it answers, not by a fixed label: what is happening now, what
 can I book, what have I booked and what do I owe, who am I. Three of the four

@@ -24,9 +24,11 @@ import {
   MapPin,
   Megaphone,
   Minus,
+  Pause,
   Person,
   PersonSimpleWalk,
   Phone,
+  Play,
   Plus,
   QrCode,
   Receipt,
@@ -63,7 +65,6 @@ import {
 } from '@hugeicons-pro/core-stroke-rounded';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
-import { WELCOME_ILLUSTRATIONS } from './illustrations';
 import { afterSheetExit } from './sheet-exit';
 import { NearbyMap } from './nearby-map';
 import { CalendarPicker, ExpandableField, StepperField, TimeWheel } from './field-controls';
@@ -169,6 +170,7 @@ import {
 } from './prototype-model';
 import {
   CATEGORY_IMAGES,
+  PROPERTY_IMAGES,
   getServiceImage,
   getPropertyImage,
   getServiceImageKey,
@@ -192,6 +194,7 @@ import {
 import type { Story } from './promoted';
 import { storyImage } from './promoted/story-imagery';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
+import { StayConfirm } from './stay-invitation';
 import {
   BadgeDetail,
   BadgeShelf,
@@ -682,25 +685,44 @@ function withActiveRoom(current: GuestSession): GuestSession {
 /**
  * The three things a booking unlocks, shown one at a time as an onboarding
  * pager. Array order is the reading order and the paging order.
+ *
+ * Each step is full bleed: a Henry photograph, and over it a short film of
+ * the estate where one is good enough to lead with. The photograph is the
+ * still -- what shows under reduced motion, before the film can play, or when
+ * autoplay is refused -- and a step with no film is just the still, drifting.
  */
-const WELCOME_STEPS = [
+/**
+ * The property photographs are landscape, cropped here to fill a portrait
+ * screen, so the frame needs far more source width than the column is wide.
+ */
+const fullBleed = (image: ServiceImageDefinition, focalPoint: string): ServiceImageDefinition => ({
+  ...image,
+  src: image.src.replace(/([?&])w=\d+/, '$1w=2400'),
+  focalPoint,
+});
+
+const WELCOME_STEPS: { step: string; stage: string; title: string; photo: ServiceImageDefinition; film?: string }[] = [
   {
     step: '01',
     stage: 'Before you arrive',
     title: 'Check in before arrival',
-    art: WELCOME_ILLUSTRATIONS.arrival,
+    // The infinity pool at dusk is the first frame a guest sees; no clip
+    // on hand opens as well as it does.
+    photo: fullBleed(PROPERTY_IMAGES.cebu, '66% 50%'),
   },
   {
     step: '02',
     stage: 'At the hotel',
     title: 'Skip the front desk paperwork',
-    art: WELCOME_ILLUSTRATIONS.frontDesk,
+    photo: fullBleed(PROPERTY_IMAGES.manila, '58% 50%'),
+    film: '/experiments/clip-food-crawl.mp4',
   },
   {
     step: '03',
     stage: 'During your stay',
     title: 'View charges and hotel services',
-    art: WELCOME_ILLUSTRATIONS.stay,
+    photo: fullBleed(PROPERTY_IMAGES.dumaguete, '50% 50%'),
+    film: '/experiments/clip-spa.mp4',
   },
 ];
 
@@ -745,6 +767,7 @@ function useWelcomePager() {
   return {
     index,
     show,
+    engaged: engaged || reducedMotion,
     engage: () => setEngaged(true),
     /**
      * Only ever spread onto the artwork. On the whole column a drag that
@@ -776,40 +799,109 @@ type PagerHandle = ReturnType<typeof useWelcomePager>;
  */
 const trackOffset = (index: number) => ({ transform: `translateX(${index * -100}%)` });
 
-/** Decorative: every step's meaning is carried by its copy further down. */
-function WelcomeArt({ index, swipe }: Pick<PagerHandle, 'index' | 'swipe'>) {
+function playFilm(video: HTMLVideoElement) {
+  try {
+    void Promise.resolve(video.play()).catch(() => {});
+  } catch {
+    // Autoplay refused or unsupported: the photograph underneath stays.
+  }
+}
+
+/**
+ * Decorative: every step's meaning is carried by its copy further down.
+ *
+ * The frames cross-fade in place rather than slide -- a film sliding sideways
+ * reads as a carousel, a dissolve as a title sequence. Only the current film
+ * plays, from its first frame, and all three preload behind the splash so a
+ * step change never waits on the network.
+ */
+function WelcomeArt({ index, paused }: Pick<PagerHandle, 'index'> & { paused: boolean }) {
+  const reducedMotion = usePrefersReducedMotion();
+  const films = useRef<(HTMLVideoElement | null)[]>([]);
+
+  useEffect(() => {
+    const sync = () => {
+      films.current.forEach((video, position) => {
+        if (!video) return;
+        if (position === index && !paused && !document.hidden) playFilm(video);
+        else video.pause();
+      });
+    };
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, [index, paused, reducedMotion]);
+
+  // A step arriving starts its film from the top, not wherever it was left.
+  useEffect(() => {
+    const video = films.current[index];
+    if (video && video.readyState > 0) video.currentTime = 0;
+  }, [index]);
+
   return (
-    <div className="guest-welcome__art" {...swipe}>
-      <div className="guest-welcome__art-track" style={trackOffset(index)} aria-hidden="true">
+    <div className="guest-welcome__art" aria-hidden="true">
+      <div className="guest-welcome__art-track">
         {WELCOME_STEPS.map((item, position) => (
-          <span key={item.step} className="guest-welcome__art-frame">
+          <span key={item.step} className={`guest-welcome__art-frame${position === index ? ' is-active' : ''}`}>
             <Image
-              src={item.art.src}
+              className="guest-welcome__still"
+              src={item.photo.src}
               alt=""
-              width={item.art.width}
-              height={item.art.height}
-              sizes="(max-width: 400px) 100vw, 400px"
+              fill
+              // Cover-cropped from landscape: about three columns of width.
+              sizes="(max-width: 480px) 330vw, 1600px"
+              style={{ objectPosition: item.photo.focalPoint }}
               {...(position === 0 ? { priority: true } : { loading: 'eager' as const })}
             />
+            {reducedMotion || !item.film ? null : (
+              <video
+                ref={(node) => { films.current[position] = node; }}
+                className="guest-welcome__film"
+                src={item.film}
+                muted
+                loop
+                playsInline
+                preload="auto"
+                onPlaying={(event) => { event.currentTarget.dataset.playing = 'true'; }}
+                onError={(event) => { event.currentTarget.hidden = true; }}
+              />
+            )}
           </span>
         ))}
       </div>
+      {/* Legibility, bottom up: a tint, a scrim, a progressive blur, and grain
+          so the flat gradients do not band. */}
+      <span className="guest-welcome__scrim" />
+      <span className="guest-welcome__blur" />
+      <span className="guest-welcome__grain" />
     </div>
   );
 }
 
-function WelcomeDots({ index, show }: Pick<PagerHandle, 'index' | 'show'>) {
+/**
+ * Segments rather than dots: while the pager rotates on its own, the current
+ * one fills over its dwell, so the guest can see when the next step is due.
+ * Once they take over, the current segment simply sits full.
+ */
+function WelcomeDots({ index, show, engaged }: Pick<PagerHandle, 'index' | 'show' | 'engaged'>) {
   return (
-    <div className="guest-welcome__dots">
+    <div className={`guest-welcome__dots${engaged ? ' is-engaged' : ''}`}>
       {WELCOME_STEPS.map((item, position) => (
         <button
           key={item.step}
           type="button"
           aria-label={`Step ${item.step}: ${item.title}`}
           aria-current={position === index ? 'step' : undefined}
+          className={position < index ? 'is-done' : undefined}
           onClick={() => show(position)}
         >
-          <span aria-hidden="true" />
+          <span aria-hidden="true">
+            <i
+              // Keyed on the index so the fill restarts every time a step comes round.
+              key={position === index ? `fill-${index}` : 'idle'}
+              style={{ animationDuration: `${index === 0 ? FIRST_STEP_DWELL_MS : STEP_DWELL_MS}ms` }}
+            />
+          </span>
         </button>
       ))}
     </div>
@@ -844,13 +936,28 @@ function WelcomeScreen({
   onGuestLogin: () => void;
 }) {
   const pager = useWelcomePager();
+  const reducedMotion = usePrefersReducedMotion();
+  const [filmPaused, setFilmPaused] = useState(false);
 
   return (
     <section className="guest-welcome" aria-labelledby="guest-welcome-title">
       <div className="guest-welcome__splash" aria-hidden="true">
         <CabanaFullLockup className="guest-welcome__splash-brand" markWidth={92} />
       </div>
+      <WelcomeArt index={pager.index} paused={filmPaused} />
       <div className="guest-welcome__content" onFocus={pager.engage}>
+        {/* Moving backgrounds need a way to stop them (WCAG 2.2.2). */}
+        {reducedMotion || !WELCOME_STEPS[pager.index]?.film ? null : (
+          <button
+            type="button"
+            className="guest-welcome__film-toggle"
+            aria-label={filmPaused ? 'Play background video' : 'Pause background video'}
+            aria-pressed={filmPaused}
+            onClick={() => setFilmPaused((current) => !current)}
+          >
+            {filmPaused ? <Play weight="fill" aria-hidden="true" /> : <Pause weight="fill" aria-hidden="true" />}
+          </button>
+        )}
         <CabanaFullLockup className="guest-welcome__brand" markWidth={44} />
         {/*
           The rotating step copy took this slot, so the heading goes to screen
@@ -859,14 +966,16 @@ function WelcomeScreen({
           be one.
         */}
         <h1 id="guest-welcome-title" className="sr-only">Welcome to your stay</h1>
-        <WelcomeArt index={pager.index} swipe={pager.swipe} />
+        {/* The open middle of the screen is where a thumb pages the steps;
+            the film behind it is out of reach under the content layer. */}
+        <div className="guest-welcome__swipe" {...pager.swipe} />
         <div className="guest-welcome__message">
-          <WelcomeDots index={pager.index} show={pager.show} />
           <WelcomeStepCopy index={pager.index} />
+          <WelcomeDots index={pager.index} show={pager.show} engaged={pager.engaged} />
           {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Log in needs a connection">Reconnect to continue.</Notice> : null}
           <div className="guest-welcome__actions" role="group" aria-label="Log in options">
             <Button
-              className="guest-button guest-button--secondary guest-welcome__login-button"
+              className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--solid"
               type="button"
               disabled={!online}
               onClick={() => onSso('apple')}
@@ -882,7 +991,7 @@ function WelcomeScreen({
               Continue with Apple
             </Button>
             <Button
-              className="guest-button guest-button--secondary guest-welcome__login-button"
+              className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--glass"
               type="button"
               disabled={!online}
               onClick={() => onSso('google')}
@@ -898,7 +1007,7 @@ function WelcomeScreen({
               Continue with Google
             </Button>
             <Button
-              className="guest-button guest-button--primary guest-welcome__login-button"
+              className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--glass"
               type="button"
               disabled={!online}
               onClick={onEmailLogin}
@@ -906,7 +1015,8 @@ function WelcomeScreen({
               Log in with email<ArrowRight aria-hidden="true" />
             </Button>
             <Button
-              className="guest-button guest-button--secondary guest-welcome__login-button"
+              className="guest-welcome__guest-link"
+              variant="ghost"
               type="button"
               disabled={!online}
               onClick={onGuestLogin}
@@ -2434,7 +2544,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           Find booking<ArrowRight aria-hidden="true" />
         </Button>
       </form>
-      <TextButton onClick={() => go('lookup-fallback')}>Find another way</TextButton>
     </ScreenIntro>
   );
 
@@ -3272,7 +3381,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try your confirmation number or ask the front desk for a link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('front-desk-assist')}>Contact front desk</TextButton></ScreenIntro>;
 
       case 'booking-found':
-        return <ScreenIntro eyebrow="Booking found" title="Is this your stay?" text="Check the details, then continue."><StayCard booking={displayBooking} /><div className="guest-summary"><SummaryRow label="Guest" value={displayBooking.guestName} /><SummaryRow label="Guests" value={`${displayBooking.guestCount} guests`} /><SummaryRow label="Booked through" value={displayBooking.source} /></div><Button className="guest-button guest-button--primary" type="button" onClick={claimBooking}>Use this booking<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('identify')}>Use a different booking</TextButton></ScreenIntro>;
+        return (
+          <StayConfirm
+            booking={displayBooking}
+            art={<PropertyImage property={displayBooking.property} decorative />}
+            continueLabel={session.auth === 'authenticated' ? 'Go to my stay' : 'Add your details'}
+            doneText={session.auth === 'authenticated'
+              ? `${displayBooking.property} is in your Cabana now, with everything for the stay.`
+              : `${displayBooking.property} is in your Cabana now. A few details next, and you’re ready to arrive.`}
+            onConfirm={claimBooking}
+            secondary={<TextButton onClick={() => go('identify')}>No, this isn't my booking</TextButton>}
+          />
+        );
 
       case 'welcome-back':
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
@@ -5012,7 +5132,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               duplication this pass removed elsewhere.
             */}
             <div className="guest-appbar__side guest-appbar__side--end">
-              {session.auth === 'authenticated' || session.bookings.length > 0 ? (
+              {showPrimaryNav ? (
                 <button
                   className="guest-icon-button guest-bell"
                   type="button"

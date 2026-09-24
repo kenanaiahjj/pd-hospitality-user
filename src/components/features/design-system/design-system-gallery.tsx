@@ -388,7 +388,7 @@ export function DesignSystemGallery() {
             </div>
             <div className="foundation-card foundation-card--colors">
               <span className="foundation-card__eyebrow">Colour / Cabana palette</span>
-              <div className="foundation-swatches"><div><i className="foundation-swatch foundation-swatch--pink" /><span>Cabana pink</span></div><div><i className="foundation-swatch foundation-swatch--lilac" /><span>pink tint</span></div><div><i className="foundation-swatch foundation-swatch--paper" /><span>white surface</span></div><div><i className="foundation-swatch foundation-swatch--ink" /><span>ink</span></div></div>
+              <div className="foundation-swatches"><div><i className="foundation-swatch foundation-swatch--pink" /><span>Cabana plum</span></div><div><i className="foundation-swatch foundation-swatch--lilac" /><span>plum tint</span></div><div><i className="foundation-swatch foundation-swatch--paper" /><span>white surface</span></div><div><i className="foundation-swatch foundation-swatch--ink" /><span>ink</span></div></div>
               <p>Pink carries the primary action and always takes ink on top, never white. Tint marks selection. White is the surface, ink is the hierarchy.</p>
             </div>
             <div className="foundation-card foundation-card--rules">

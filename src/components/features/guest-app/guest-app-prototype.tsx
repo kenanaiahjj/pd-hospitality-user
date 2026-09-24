@@ -236,15 +236,16 @@ type ChatMessage = {
 
 type ChatQuickAction = {
   label: string;
+  description: string;
   message: (room: string) => string;
 };
 
 const CHAT_QUICK_ACTIONS: ChatQuickAction[] = [
-  { label: 'Towels', message: () => 'Could we get two fresh towels, please?' },
-  { label: 'Housekeeping', message: (room) => `Please arrange housekeeping for ${room.toLowerCase()}.` },
-  { label: 'Late checkout', message: () => 'Can we request a late checkout?' },
-  { label: 'Room issue', message: (room) => `There’s an issue in ${room.toLowerCase()}. Could someone help?` },
-  { label: 'Transfers', message: () => 'We need help arranging a transfer.' },
+  { label: 'Towels', description: 'Request fresh towels', message: () => 'Could we get two fresh towels, please?' },
+  { label: 'Housekeeping', description: 'Ask for room cleaning', message: (room) => `Please arrange housekeeping for ${room.toLowerCase()}.` },
+  { label: 'Late checkout', description: 'Ask for more time', message: () => 'Can we request a late checkout?' },
+  { label: 'Room issue', description: 'Tell us what needs fixing', message: (room) => `There’s an issue in ${room.toLowerCase()}. Could someone help?` },
+  { label: 'Transfers', description: 'Arrange transportation', message: () => 'We need help arranging a transfer.' },
 ];
 
 const formatChatDuration = (seconds: number) => {
@@ -2523,13 +2524,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           {unlockPending ? <div className="guest-desk-grant"><small>Front desk view — this prototype stands in for the desk&rsquo;s own tool</small><Button className="guest-button guest-button--secondary" type="button" onClick={grantFrontDeskUnlock}>Confirm {session.guestName || 'the guest'} is in room {contextBooking.roomNumber ?? ''}</Button></div> : null}
         </div>
 
-        <ChatComposer
-          disabled={chatDisabled}
-          draft={chatDraft}
-          onDraftChange={setChatDraft}
-          placeholder={restaurantChat ? 'Type your order…' : undefined}
-          autoFocus={restaurantChat}
-          quickActions={!restaurantChat ? (
+        <div className="guest-chat__dock">
+          {!restaurantChat ? (
             <div className="guest-quick-actions" aria-label="Popular requests">
               <div className="guest-quick-actions__rail">
                 {CHAT_QUICK_ACTIONS.map((action) => (
@@ -2539,14 +2535,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     disabled={chatDisabled}
                     onClick={() => sendQuickMessage(action.message(contextRoom))}
                   >
-                    {action.label}
+                    <span className="guest-quick-actions__copy">
+                      <b>{action.label}</b>
+                      <small>{action.description}</small>
+                    </span>
+                    <CaretRight aria-hidden="true" />
                   </button>
                 ))}
               </div>
             </div>
           ) : null}
-          onSubmit={({ body, attachment }) => sendChatMessage(body, attachment)}
-        />
+          <ChatComposer
+            disabled={chatDisabled}
+            draft={chatDraft}
+            onDraftChange={setChatDraft}
+            placeholder={restaurantChat ? 'Type your order…' : undefined}
+            autoFocus={restaurantChat}
+            onSubmit={({ body, attachment }) => sendChatMessage(body, attachment)}
+          />
+        </div>
         {chatPreviewImage ? (
           <div
             className="guest-chat-image-preview"

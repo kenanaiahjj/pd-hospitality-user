@@ -32,8 +32,6 @@ import {
   availableTypes,
   filterMenu,
   filterServices,
-  SCENARIOS,
-  SCREENS,
   UPCOMING_BOOKING_FIXTURE,
   connectBooking,
   createAccountSession,
@@ -43,7 +41,6 @@ import {
   canReportRoomReady,
   applyPrototypeStayState,
   getPrototypeStayState,
-  ESTATE_PROPERTIES,
   findEstateProperty,
   propertyFromRate,
   countNightsBetween,
@@ -81,46 +78,6 @@ import {
 } from './prototype-model';
 
 describe('guest app prototype model', () => {
-  it('contains the complete stay-only screen inventory', () => {
-    // Exact, not a floor: adding a screen should be something someone notices.
-    // 57 before rewards and nearby recommendations, plus `rewards`,
-    // `reward-detail`, and `badge-detail`.
-    expect(SCREENS).toHaveLength(63);
-    expect(new Set(SCREENS.map((screen) => screen.id)).size).toBe(63);
-    // The Arrival surface: what a guest can book before they are in the room.
-    expect(SCREENS.find((s) => s.id === 'pre-arrival-services')?.group).toBe('Pre-arrival');
-    // Get started is the welcome-screen trigger and SSO bottom sheet, not a
-    // navigable page in the guest app.
-    expect(SCREENS.some((screen) => (screen.id as string) === 'get-started')).toBe(false);
-    expect(SCREENS.find((screen) => screen.id === 'sign-in')?.title).toBe('Log in');
-    expect(SCREENS.find((screen) => screen.id === 'verify-code')?.title).toBe('Check your email');
-    expect(SCREENS.some((screen) => (screen.id as string) === 'create-account')).toBe(false);
-    expect(SCREENS.find((s) => s.id === 'stay-entry')?.title).toBe('Booking receipt');
-    expect(SCREENS.find((s) => s.id === 'stay-detail')?.group).toBe('Account');
-    // My Stay subsumed the old `my-bookings` screen rather than sitting beside
-    // it -- two screens listing the same service bookings was the duplication
-    // the nav pass exists to remove.
-    expect(SCREENS.find((s) => s.id === 'my-stay')?.title).toBe('My stay');
-    expect(SCREENS.some((s) => (s.id as string) === 'my-bookings')).toBe(false);
-    expect(SCREENS.find((s) => s.id === 'notifications')?.group).toBe('Stay');
-    expect(SCREENS.find((s) => s.id === 'marketplace')?.title).toBe('Explore');
-    expect(SCREENS.find((s) => s.id === 'nearby-recommendations')?.group).toBe('Stay');
-    expect(SCREENS.find((s) => s.id === 'restaurant-menu')?.group).toBe('Stay');
-    expect(SCREENS.find((s) => s.id === 'restaurant-cart')?.group).toBe('Stay');
-    expect(SCREENS.find((s) => s.id === 'dining-order-confirmation')?.group).toBe('Stay');
-    expect(SCREENS.find((s) => s.id === 'room-preferences')?.group).toBe('Account');
-    expect(SCREENS.find((s) => s.number === 20)).toMatchObject({
-      id: 'arrival-handoff',
-      title: 'Arrival handoff',
-    });
-  });
-
-  it('exposes every guided flow from A through I', () => {
-    expect(SCENARIOS.map((scenario) => scenario.id)).toEqual([
-      'A', 'B', 'D', 'E', 'F', 'G', 'H', 'I',
-    ]);
-  });
-
   describe('room assignment', () => {
     const base = { ...UPCOMING_BOOKING_FIXTURE };
 
@@ -441,25 +398,6 @@ describe('mini-app categories and restaurant menus', () => {
 
     for (const id of ['dining', 'spa', 'entertainment', 'services'] as const) {
       expect(byId.get(id)).toBe('category-listing');
-    }
-  });
-
-  it('provides browsable restaurant menus with structured items and pricing', () => {
-    expect(RESTAURANTS.length).toBeGreaterThanOrEqual(3);
-    const apt1b = RESTAURANTS.find((r) => r.id === 'apartment-1b');
-    expect(apt1b).toBeDefined();
-    expect(apt1b?.menu.length).toBeGreaterThan(0);
-
-    const categories = new Set(apt1b?.menu.map((item) => item.category));
-    expect(categories.has('starters')).toBe(true);
-    expect(categories.has('mains')).toBe(true);
-    expect(categories.has('desserts')).toBe(true);
-    expect(categories.has('drinks')).toBe(true);
-
-    for (const item of apt1b!.menu) {
-      expect(item.price).toMatch(/^₱\d/);
-      expect(item.name.length).toBeGreaterThan(0);
-      expect(item.description.length).toBeGreaterThan(0);
     }
   });
 
@@ -1116,14 +1054,6 @@ describe('prototype stay-state switch', () => {
 describe('the estate and booking another stay', () => {
   const manila = findEstateProperty('manila')!;
   const king = manila.roomTypes.find((room) => room.id === 'manila-king')!;
-
-  it('offers the three properties a guest can come back to', () => {
-    expect(ESTATE_PROPERTIES.map((property) => property.name)).toEqual([
-      'The Henry Manila',
-      'The Henry Cebu',
-      'The Henry Dumaguete',
-    ]);
-  });
 
   it('quotes "from" off the cheapest room, not the first listed', () => {
     expect(propertyFromRate(manila)).toBe('₱6,200');

@@ -593,7 +593,7 @@
   padding-top: 0;
   padding-right: 0;
   padding-left: 0;
-  background: var(--guest-paper);
+  background: var(--guest-surface);
   /* Chat intentionally hides the primary nav, so it owns the device edge. */
   padding-bottom: 0;
 }
@@ -607,6 +607,9 @@
   padding-left: var(--app-inset);
   box-sizing: border-box;
 }
+
+/* The floating prototype switcher would cover the request rail on a phone. */
+.guest-prototype-stage:has(.guest-screen--chat) > .guest-prototype-trigger { display: none; }
 
 @keyframes guest-screen-in {
   from { opacity: 0; }
@@ -2118,28 +2121,16 @@
    Chat
    -------------------------------------------------------------------------- */
 
-.guest-chat { display: flex; min-width: 0; min-height: 100%; flex-direction: column; gap: 14px; padding-top: 4px; }
+.guest-chat { display: flex; min-width: 0; min-height: 0; height: 100%; flex: 1 1 auto; flex-direction: column; gap: 0; padding-top: 0; background: var(--guest-surface); }
 
-/* The context is the first of two intentional glass surfaces. It stays quiet
-   while scrolling so the desk identity remains available without becoming a
-   second app bar. */
+/* Keep the desk identity compact so the conversation stays the focus. */
 .guest-chat__context {
-  position: sticky;
-  top: -12px;
+  position: relative;
   z-index: 2;
   display: grid;
   gap: 6px;
-  margin: 0 calc(-1 * var(--app-inset)) 0;
-  padding: 10px var(--app-inset) 10px;
-  background: var(--guest-paper);
-  border-bottom: 1px solid var(--guest-line);
-}
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .guest-chat__context {
-    background: rgb(255 255 255 / 0.78);
-    -webkit-backdrop-filter: blur(18px) saturate(1.12);
-    backdrop-filter: blur(18px) saturate(1.12);
-  }
+  margin: 0 calc(-1 * var(--app-inset));
+  padding: 12px var(--app-inset) 8px;
 }
 .guest-chat__identity {
   display: grid;
@@ -2149,14 +2140,15 @@
 }
 .guest-chat__back {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--guest-soft);
+  background: var(--guest-paper);
   color: var(--guest-ink);
+  box-shadow: var(--shadow-xs);
 }
 .guest-chat__back svg { width: 20px; height: 20px; }
 .guest-chat__back:active { transform: scale(0.94); }
@@ -2207,60 +2199,67 @@
 
 .guest-chat__welcome {
   display: grid;
+  width: min(100%, 400px);
   justify-items: center;
-  gap: 4px;
-  padding: 72px 0 8px;
+  gap: 8px;
+  padding: 24px 0;
   text-align: center;
 }
-.guest-chat__welcome p { margin: 0; color: var(--guest-muted); font-size: 14px; }
-.guest-chat__welcome h2 { margin: 0; font-size: 20px; letter-spacing: -0.018em; line-height: 1.2; }
+.guest-chat__welcome p { margin: 0; color: var(--guest-muted); font-size: 16px; }
+.guest-chat__welcome h2 { max-width: 24ch; margin: 0; font-size: clamp(23px, 6vw, 28px); font-weight: 550; letter-spacing: -0.026em; line-height: 1.22; }
 
-/* Keep the label anchored while the request rail can scroll independently on
-   a narrow screen. Welcome mode keeps all five requests visible as a group. */
+/* The request rail stays above the composer and scrolls independently on
+   narrow screens, keeping every existing action one swipe away. */
 .guest-quick-actions {
-  display: grid;
-  gap: 7px;
+  min-width: 0;
   margin: 0;
-  justify-items: center;
 }
 .guest-quick-actions__rail {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 320px;
-  padding: 0;
-  scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px);
-  scroll-padding-inline: var(--app-inset);
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 1px 8px;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-inline: 1px;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
 }
 .guest-quick-actions__rail::-webkit-scrollbar { display: none; }
 .guest-quick-actions__rail button { scroll-snap-align: start; }
 .guest-quick-actions button {
-  flex: 0 0 auto;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--guest-line-strong);
-  border-radius: 18px;
+  display: grid;
+  flex: 0 0 min(216px, 68vw);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 76px;
+  padding: 12px 14px;
+  border: 1px solid var(--guest-line);
+  border-radius: 20px;
   background: var(--guest-surface);
   color: var(--guest-ink);
-  font-size: 13px;
-  font-weight: 550;
+  text-align: left;
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease,
     border-color var(--duration-fast) ease;
   touch-action: manipulation;
 }
+.guest-quick-actions__copy { display: grid; min-width: 0; gap: 4px; }
+.guest-quick-actions__copy b { overflow: hidden; font-size: 14px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.guest-quick-actions__copy small { overflow: hidden; color: var(--guest-muted); font-size: 12px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.guest-quick-actions button > svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--guest-muted); }
+.guest-quick-actions button:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+.guest-quick-actions button:disabled { color: var(--guest-subtle); cursor: not-allowed; opacity: 0.64; }
 .guest-quick-actions button:active { transform: scale(0.96); }
-.guest-chat--welcome .guest-messages { flex: 1; align-items: stretch; justify-content: center; padding-top: 0; padding-bottom: 96px; }
 
-/* A conversation sits at the bottom of its container and grows upward, the
-   way every messaging surface does. Welcome mode keeps the greeting compact
-   so the composer can still sit near the bottom of a phone viewport. */
-.guest-messages { display: flex; min-height: 0; flex: 1; flex-direction: column; justify-content: flex-start; gap: 10px; overflow-y: auto; padding: 8px 0 4px; scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px); scrollbar-width: none; }
+/* The thread owns the space above the dock, so the final message stays
+   reachable without scrolling behind the composer. */
+.guest-messages { display: flex; min-width: 0; min-height: 0; flex: 1 1 auto; flex-direction: column; justify-content: flex-start; gap: 10px; overflow-x: hidden; overflow-y: auto; padding: 8px 0 12px; scrollbar-width: none; }
 .guest-messages::-webkit-scrollbar { display: none; }
-.guest-chat--conversation .guest-messages { padding-bottom: 140px; }
+.guest-chat--welcome .guest-messages { align-items: center; justify-content: center; padding: 16px 0; }
 .guest-message { display: grid; max-width: 80%; gap: 4px; animation: guest-message-in 180ms var(--ease-out) both; }
 .guest-message p { margin: 0; padding: 10px 14px; border-radius: var(--guest-radius-lg); background: var(--guest-paper); font-size: 15px; line-height: 1.4; }
 .guest-message--desk p { border: 1px solid var(--guest-line); }
@@ -2281,65 +2280,58 @@
 @keyframes guest-typing-pulse { 0%, 60%, 100% { opacity: 0.34; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
 
 .guest-composer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  width: auto;
-  z-index: 3;
+  position: relative;
+  width: 100%;
   display: grid;
   gap: 8px;
-  margin-inline: 0;
+  margin: 0;
   box-sizing: border-box;
-  border-radius: 0;
-  padding: 10px;
+  padding: 12px;
+  border: 1px solid var(--guest-line);
+  border-radius: 26px;
   background: var(--guest-paper);
-  border-top: 0;
-  box-shadow: none;
-  scroll-margin-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 18px);
+  box-shadow: var(--shadow-sm);
 }
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .guest-composer {
-    background: rgb(255 255 255 / 0.78);
-    -webkit-backdrop-filter: blur(18px) saturate(1.12);
-    backdrop-filter: blur(18px) saturate(1.12);
-  }
-}
-.guest-screen--chat .guest-composer {
-  bottom: 0;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+.guest-chat__dock {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  flex: 0 0 auto;
+  gap: 8px;
+  margin-top: auto;
+  padding: 8px var(--app-inset) calc(12px + env(safe-area-inset-bottom));
 }
 .guest-composer__row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: 44px minmax(0, 1fr) 48px auto;
+  align-items: end;
   gap: 8px;
 }
-
-.guest-composer .guest-quick-actions {
-  gap: 6px;
-  padding: 2px 0 0;
-}
-
-.guest-composer .guest-quick-actions__rail {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
+.guest-composer__text-input {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 52px;
+  max-height: 112px;
+  margin: 0;
+  padding: 12px 4px;
+  overflow-x: hidden;
   overflow-y: hidden;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  overscroll-behavior-inline: contain;
-  -webkit-overflow-scrolling: touch;
+  resize: none;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--guest-ink);
+  font-size: 16px;
+  line-height: 24px;
+  outline: none;
+  transition: background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
-.guest-composer .guest-quick-actions__rail button {
-  white-space: nowrap;
-}
-.guest-composer__text-input { min-width: 0; border-color: transparent; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
-.guest-composer__text-input:focus { background: var(--guest-paper); }
+.guest-composer__text-input:focus { background: var(--guest-surface); box-shadow: 0 0 0 2px color-mix(in oklch, var(--guest-accent-strong) 60%, transparent); }
+.guest-composer__text-input::placeholder { color: var(--guest-subtle); opacity: 1; }
 .guest-composer__submit {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   place-items: center;
   border: 0;
   border-radius: 50%;
@@ -2350,11 +2342,13 @@
 .guest-composer__submit { box-shadow: none; touch-action: manipulation; }
 .guest-composer__submit:active { transform: scale(0.94); }
 .guest-composer__submit:focus-visible,
+.guest-composer__voice:focus-visible,
 .guest-composer__tool:focus-visible,
 .guest-composer__recording-control:focus-visible,
 .guest-composer__remove:focus-visible,
 .guest-composer__cancel:focus-visible { outline-color: var(--guest-ink); }
 .guest-composer__submit svg,
+.guest-composer__voice svg,
 .guest-composer__tool svg,
 .guest-composer__recording-control svg,
 .guest-composer__remove svg { width: 20px; height: 20px; }
@@ -2376,6 +2370,28 @@
     border-color var(--duration-fast) ease;
   touch-action: manipulation;
 }
+.guest-composer__voice {
+  display: grid;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--guest-sunken);
+  color: var(--guest-ink);
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
+  touch-action: manipulation;
+}
+.guest-composer__voice:active { transform: scale(0.96); }
+.guest-composer__voice:disabled { cursor: not-allowed; opacity: 0.58; }
+.guest-composer__submit:disabled,
+.guest-composer__tool:disabled,
+.guest-composer__voice:disabled { cursor: not-allowed; }
+.guest-composer__submit:disabled { background: var(--guest-sunken); color: var(--guest-subtle); }
+.guest-composer__tool:disabled { border-color: var(--guest-line); background: var(--guest-surface); color: var(--guest-subtle); }
 .guest-composer__menu {
   position: absolute;
   right: auto;
@@ -2485,10 +2501,11 @@
 }
 .guest-message__attachment--audio { padding: 6px; background: var(--guest-surface); }
 .guest-message__attachment--audio audio { display: block; width: min(260px, 100%); }
-.guest-chat--disabled .guest-composer__text-input { border-color: var(--guest-line); background: var(--guest-sunken); color: var(--guest-subtle); cursor: not-allowed; }
+.guest-chat--disabled .guest-composer__text-input { border-color: transparent; background: transparent; color: var(--guest-subtle); cursor: not-allowed; }
 .guest-chat--disabled .guest-composer__text-input::placeholder { color: var(--guest-muted); }
 .guest-chat--disabled .guest-composer__submit,
-.guest-chat--disabled .guest-composer__tool { background: var(--guest-subtle); color: var(--guest-paper); box-shadow: none; cursor: not-allowed; }
+.guest-chat--disabled .guest-composer__tool,
+.guest-chat--disabled .guest-composer__voice { background: var(--guest-sunken); color: var(--guest-subtle); box-shadow: none; cursor: not-allowed; }
 .guest-chat--disabled .guest-composer__tool { border-color: var(--guest-subtle); }
 
 /* --------------------------------------------------------------------------

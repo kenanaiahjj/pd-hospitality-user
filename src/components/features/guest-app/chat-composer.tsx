@@ -2,7 +2,7 @@
 
 import { ArrowUp, Camera, CaretRight, Images, MapPin, Microphone, Plus, Stop, TrashSimple, Waveform } from '@phosphor-icons/react';
 import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 
 export type ChatAttachment = {
   kind: 'image' | 'audio';
@@ -23,6 +23,7 @@ const IMAGE_ERROR = 'Choose an image file.';
 const IMAGE_SIZE_ERROR = 'Images must be 10 MB or smaller.';
 const MICROPHONE_DENIED_ERROR = "Microphone access was denied. You can type or attach an image instead.";
 const VOICE_UNAVAILABLE_ERROR = "Voice recording isn't available on this device. You can type or attach an image instead.";
+const MAX_COMPOSER_TEXTAREA_HEIGHT = 112;
 
 type ChatComposerProps = {
   disabled?: boolean;
@@ -31,7 +32,6 @@ type ChatComposerProps = {
   onSubmit: (payload: ChatComposerSubmit) => void;
   placeholder?: string;
   autoFocus?: boolean;
-  quickActions?: ReactNode;
 };
 
 const formatDuration = (seconds: number) => {
@@ -40,7 +40,7 @@ const formatDuration = (seconds: number) => {
   return `${minutes}:${remainder}`;
 };
 
-export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit, placeholder, autoFocus = false, quickActions }: ChatComposerProps) {
+export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit, placeholder, autoFocus = false }: ChatComposerProps) {
   const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -55,6 +55,21 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
   const pendingAttachmentRef = useRef<ChatAttachment | null>(null);
   const mountedRef = useRef(true);
   const composerRef = useRef<HTMLFormElement | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const textArea = textAreaRef.current;
+    if (!textArea) return;
+
+    const previousScrollTop = textArea.scrollTop;
+    const caretAtEnd = textArea.selectionStart === textArea.value.length;
+    textArea.style.height = 'auto';
+    const nextHeight = Math.min(textArea.scrollHeight, MAX_COMPOSER_TEXTAREA_HEIGHT);
+    textArea.style.height = `${nextHeight}px`;
+    const isOverflowing = textArea.scrollHeight > MAX_COMPOSER_TEXTAREA_HEIGHT;
+    textArea.style.overflowY = isOverflowing ? 'auto' : 'hidden';
+    textArea.scrollTop = isOverflowing && caretAtEnd ? textArea.scrollHeight : previousScrollTop;
+  }, [draft]);
 
   const releaseStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -256,7 +271,6 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
   };
 
   const canSend = Boolean(draft.trim() || pendingAttachment);
-  const hasInput = Boolean(draft || pendingAttachment);
   const openFilePicker = () => {
     setAttachmentMenuOpen(false);
     fileInputRef.current?.click();
@@ -329,8 +343,6 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
 
       {mediaError ? <div className="guest-composer__status" role="status" aria-live="polite">{mediaError}</div> : null}
 
-      {quickActions}
-
       {attachmentMenuOpen ? (
         <div className="guest-composer__menu" role="menu" aria-label="Message attachments">
           <button type="button" role="menuitem" onClick={openFilePicker} disabled={disabled || isRecording}><Camera aria-hidden="true" /><span>Camera</span><CaretRight aria-hidden="true" /></button>
@@ -361,28 +373,42 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
           onChange={handleImageChange}
         />
         <label className="sr-only" htmlFor="message">Message the front desk</label>
-        <input
+        <textarea
+          ref={textAreaRef}
           className="guest-composer__text-input"
           id="message"
           name="message"
+          rows={1}
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+            event.preventDefault();
+            event.currentTarget.form?.requestSubmit();
+          }}
           placeholder={disabled ? 'Chat is unavailable' : placeholder ?? 'Ask the front desk'}
           autoFocus={autoFocus}
           disabled={disabled || isRecording}
         />
-          <button
-          className="guest-composer__submit"
-          type="submit"
-          aria-label={canSend ? 'Send message' : hasInput ? 'Enter a message' : 'Start voice recording'}
-          disabled={disabled || isRecording || (hasInput && !canSend)}
-          onClick={canSend || hasInput ? undefined : (event) => {
-            event.preventDefault();
-            void startRecording();
-          }}
+        <button
+          className="guest-composer__voice"
+          type="button"
+          aria-label="Start voice recording"
+          disabled={disabled || isRecording}
+          onClick={() => void startRecording()}
         >
-          {canSend ? <ArrowUp aria-hidden="true" /> : hasInput ? <ArrowUp aria-hidden="true" /> : <Microphone aria-hidden="true" />}
+          <Microphone aria-hidden="true" />
         </button>
+        {canSend ? (
+          <button
+            className="guest-composer__submit"
+            type="submit"
+            aria-label="Send message"
+            disabled={disabled || isRecording}
+          >
+            <ArrowUp aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
     </form>
   );

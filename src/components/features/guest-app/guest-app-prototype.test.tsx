@@ -378,7 +378,7 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByRole('heading', { name: 'Let the front desk connect you' })).toBeInTheDocument();
     expect(screen.getByText('Ask for a secure link or a 6-digit code.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Call front desk' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Call front desk' })).toHaveAttribute('href', 'tel:+63288078888');
   });
 
   it('returns a pre-arrival guest to the upcoming home after registration', async () => {

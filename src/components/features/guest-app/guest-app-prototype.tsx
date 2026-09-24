@@ -24,6 +24,8 @@ import {
   Megaphone,
   Minus,
   Person,
+  PersonSimpleWalk,
+  Phone,
   Plus,
   QrCode,
   Receipt,
@@ -74,6 +76,8 @@ import {
   describePostStayWindow,
   POST_STAY_DESK_HOURS,
   isPreArrivalService,
+  offeredIn,
+  countOf,
   requestFrontDeskUnlock,
   verifyRoomPresence,
   findBookingByLookup,
@@ -1715,6 +1719,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const displayBooking = primaryBooking ?? lookupBooking ?? MOCK_SESSION.bookings[0]!;
 
   const contextBooking = primaryBooking ?? displayBooking;
+  /** What this stay's own hotel offers: a Manila-only row stays in Manila. */
+  const stayVenues = RESTAURANTS.filter(offeredIn(contextBooking.city));
+  const stayServices = SERVICES.filter(offeredIn(contextBooking.city));
   const selectedService = SERVICES.find((service) => service.id === selectedServiceId) ?? SERVICES.find((service) => service.id === 'spa')!;
   const servicePrice = parsePesoAmount(selectedService.price);
   /* What the booking costs once staged points come off it. */
@@ -3220,7 +3227,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro title="Use more booking details" text="Enter the details from your booking."><div className="guest-form"><Field label="Last name" name="fallback-name" defaultValue="Santos" /><Field label="Check-in date" name="fallback-date" type="date" defaultValue="2026-11-09" /><SelectField label="Property" name="property" defaultValue="manila"><option value="manila">The Henry Manila</option><option value="cebu">The Henry Cebu</option><option value="dumaguete">The Henry Manila</option></SelectField>{primary('Continue to front desk', 'front-desk-assist')}</div></ScreenIntro>;
 
       case 'front-desk-assist':
-        return <ScreenIntro icon={<ChatCircleDots size={30} />} title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><button aria-label="Call front desk" className="guest-icon-button"><ChatCircleDots /></button></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<ChatCircleDots size={30} />} title="Let the front desk connect you" text="Ask for a secure link or a 6-digit code."><div className="guest-contact-card"><div><small>The Henry Manila</small><b>+63 2 8807 8888</b><span>Front desk · 6:00 AM–10:00 PM</span></div><a aria-label="Call front desk" className="guest-icon-button" href="tel:+63288078888"><Phone /></a></div><Field label="Code from the front desk" name="staff-code" placeholder="6-digit code" />{primary('Connect my stay', 'booking-found')}<TextButton onClick={() => go('no-booking')}>I don’t have a booking</TextButton></ScreenIntro>;
 
       case 'no-booking':
         return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try your confirmation number or ask the front desk for a link.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('front-desk-assist')}>Contact front desk</TextButton></ScreenIntro>;
@@ -3654,11 +3661,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'category-listing': {
         const categoryData = MINI_APP_CATEGORIES.find((cat) => cat.id === selectedCategory) ?? MINI_APP_CATEGORIES[0];
-        const categoryServices = SERVICES.filter((s) => s.categoryId === selectedCategory);
-        const options = listingSubcategories(selectedCategory, selectedCategory === 'dining' ? RESTAURANTS : categoryServices);
+        const categoryServices = stayServices.filter((s) => s.categoryId === selectedCategory);
+        const options = listingSubcategories(selectedCategory, selectedCategory === 'dining' ? stayVenues : categoryServices);
         const selectedSubcategory = options.includes(exploreSubcategory) ? exploreSubcategory : 'All';
         const matchesSubcategory = (row: { id: string }) => matchesListingSubcategory(selectedCategory, selectedSubcategory, row);
-        const visibleVenues = RESTAURANTS.filter(matchesSubcategory);
+        const visibleVenues = stayVenues.filter(matchesSubcategory);
         const visibleServices = categoryServices.filter(matchesSubcategory);
         const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
         const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', services: 'Independent services available near the hotel.' };
@@ -3704,11 +3711,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
               ) : (
                 <Notice title={`Nothing under ${selectedSubcategory} at the hotel`}>
-                  <TextButton onClick={() => setExploreSubcategory('All')}>{`See all ${RESTAURANTS.length} venues`}</TextButton>
+                  <TextButton onClick={() => setExploreSubcategory('All')}>{`See all ${stayVenues.length} venues`}</TextButton>
                 </Notice>
               )}
               <NearbyRecommendations
                 categoryId={selectedCategory}
+                city={contextBooking.city}
                 description={nearbyDescription[selectedCategory]}
                 onViewAll={() => go('nearby-recommendations')}
                 onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }}
@@ -3758,6 +3766,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               )}
               <NearbyRecommendations
                 categoryId={selectedCategory}
+                city={contextBooking.city}
                 description={nearbyDescription[selectedCategory]}
                 onViewAll={() => go('nearby-recommendations')}
                 onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }}
@@ -3778,7 +3787,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={giftOrder?.paymentStatus === 'paid' ? 'Order confirmed · paid' : 'Order confirmed · charged to room'} title="Your gifts are confirmed" text={giftOrder?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this order.' : 'Your hotel shop order has been added to your room charges.'}><div className="guest-summary"><SummaryRow label="Provider" value="Operated by the hotel" /><SummaryRow label="Items" value={`${giftOrder?.items.length ?? 0}`} /><SummaryRow label={giftOrder?.paymentStatus === 'paid' ? 'Paid' : 'Added to room charges'} value={giftOrder ? formatPesoAmount(giftOrder.total) : '₱0'} strong /><SummaryRow label="Fulfillment" value={giftFulfillment === 'room' ? `Deliver to ${contextRoom}` : 'Pick up at the lobby'} /></div><PointsEarned points={giftOrder ? Math.floor(giftOrder.total / 100) * 50 : 0} badges={[]} /><Notice title={giftOrder?.paymentStatus === 'paid' ? 'Payment successful' : 'Pay at checkout'}>{giftOrder?.paymentStatus === 'paid' ? `Paid with ${giftOrder.paymentMethod === 'gcash' ? 'GCash' : giftOrder.paymentMethod === 'maya' ? 'Maya' : 'Card'}.` : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>{giftOrder?.paymentStatus === 'charged-to-room' ? primary('View room charges', 'folio') : null}<TextButton onClick={() => go('gifts-souvenirs')}>Shop more gifts</TextButton></ScreenIntro>;
 
       case 'nearby-recommendations':
-        return <NearbyRecommendationsPage categoryId={selectedCategory} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
+        return <NearbyRecommendationsPage categoryId={selectedCategory} city={contextBooking.city} property={contextBooking.property} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
 
       case 'nearby-establishment': {
         const establishment = NEARBY_ESTABLISHMENTS.find((item) => item.id === selectedNearbyEstablishmentId) ?? NEARBY_ESTABLISHMENTS[0];
@@ -3786,6 +3795,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <NearbyEstablishmentScreen
             establishment={establishment}
             onBack={back}
+            onNotifications={() => go('notifications')}
             onBookRide={() => openRideRequest({ from: contextBooking.property, to: establishment.name, toDetail: establishment.address })}
           />
         ) : null;
@@ -6155,6 +6165,8 @@ function SectionHeading({ title, action, onAction, count }: { title: string; act
 type NearbyEstablishment = {
   id: string;
   categoryId: MiniAppCategoryId | 'gifts';
+  /** A nearby place is near one hotel only. */
+  city: string;
   name: string;
   type: string;
   distance?: string;
@@ -6166,21 +6178,21 @@ type NearbyEstablishment = {
 };
 
 const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = [
-  { id: 'kape-lab-manila', categoryId: 'dining' as const, name: 'Kape Lab Manila', type: 'Coffee & bakery', distance: '280 m away', description: 'Small-batch coffee, pastries, and early breakfast.', address: '142 Roxas Boulevard, Manila', hours: 'Daily · 6:00 AM–9:00 PM', contact: '+63 917 555 0142', image: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=80' },
-  { id: 'bayleaf-kitchen', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Independent neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: '/experiments/bayleaf-kitchen.jpg' },
-  { id: 'sunset-roasters', categoryId: 'dining', name: 'Sunset Roasters', type: 'Coffee shop', distance: '850 m away', description: 'A relaxed independent café for coffee, tea, and light bites.', address: '77 Roxas Boulevard, Manila', hours: 'Daily · 7:00 AM–8:00 PM', contact: '+63 917 555 0187', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80' },
-  { id: 'hilot-house', categoryId: 'spa' as const, name: 'Hilot House', type: 'Independent wellness studio', distance: '450 m away', description: 'A neighborhood studio for traditional hilot and restorative treatments.', address: '18 Adriatico Street, Manila', hours: 'Mon–Sun · 10:00 AM–10:00 PM', contact: '+63 917 555 0198', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80' },
-  { id: 'bamboo-wellness', categoryId: 'spa', name: 'Bamboo Wellness Studio', type: 'Massage & wellness', distance: '700 m away', description: 'Independent therapists offering calming massages and wellness rituals.', address: '26 Pedro Gil Street, Manila', hours: 'Daily · 9:00 AM–9:00 PM', contact: '+63 917 555 0133', image: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80' },
-  { id: 'quiet-corner-yoga', categoryId: 'spa', name: 'Quiet Corner Yoga', type: 'Yoga studio', distance: '1 km away', description: 'Small group yoga and breathwork classes for all experience levels.', address: '41 Taft Avenue, Manila', hours: 'Mon–Sat · 7:00 AM–8:00 PM', contact: '+63 917 555 0175', image: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=900&q=80' },
-  { id: 'manila-heritage-walks', categoryId: 'entertainment' as const, name: 'Manila Heritage Walks', type: 'Local tours', distance: '1.2 km away', description: 'Independent walking tours through the city’s historic neighborhoods.', address: 'Plaza Roma, Intramuros, Manila', hours: 'Tours daily · 8:00 AM–5:00 PM', contact: '+63 917 555 0120', image: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=900&q=80' },
-  { id: 'sunset-bay-cruises', categoryId: 'entertainment', name: 'Sunset Bay Cruises', type: 'Harbor experience', distance: '2.4 km away', description: 'Independent sunset cruises with views across Manila Bay.', address: 'Harbor Square, Pasay City', hours: 'Daily departures · 4:00 PM–8:00 PM', contact: '+63 917 555 0154', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80' },
-  { id: 'intramuros-cycling', categoryId: 'entertainment', name: 'Intramuros Cycle Tours', type: 'Bike tours', distance: '1.8 km away', description: 'Independent guided bicycle tours through Intramuros and nearby streets.', address: 'General Luna Street, Intramuros, Manila', hours: 'Daily · 7:00 AM–6:00 PM', contact: '+63 917 555 0109', image: 'https://images.unsplash.com/photo-1529422643029-d4585747aaf2?auto=format&fit=crop&w=900&q=80' },
-  { id: 'escolta-craft-market', categoryId: 'services' as const, name: 'Escota Craft Market', type: 'Handicrafts & gifts', distance: '900 m away', description: 'Independent makers offering local crafts, keepsakes, and small gifts.', address: 'Escota Street, Binondo, Manila', hours: 'Friday–Sunday · 10:00 AM–7:00 PM', contact: '+63 917 123 4567', image: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=900&q=80' },
-  { id: 'manila-laundry-co', categoryId: 'services' as const, name: 'Manila Laundry Co.', type: 'Laundry service', distance: '500 m away', description: 'Independent wash-and-fold service with convenient hotel-area pickup.', address: '12 Harrison Street, Pasay City', hours: 'Daily · 8:00 AM–8:00 PM', contact: '+63 917 555 0181', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=900&q=80' },
-  { id: 'city-bike-rentals', categoryId: 'services' as const, name: 'City Bike Rentals', type: 'Bike rental', distance: '1.1 km away', description: 'Independent bicycle rentals for exploring the bay and nearby neighborhoods.', address: '88 M. H. del Pilar Street, Manila', hours: 'Daily · 7:00 AM–7:00 PM', contact: '+63 917 555 0147', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80' },
-  { id: 'manila-makers-market', categoryId: 'gifts', name: 'Manila Makers Market', type: 'Local crafts & souvenirs', distance: '750 m away', description: 'Independent makers offering keepsakes, home décor, and pasalubong.', address: '33 Escolta Street, Manila', hours: 'Tue–Sun · 10:00 AM–7:00 PM', contact: '+63 917 555 0116', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
-  { id: 'binondo-pasalubong', categoryId: 'gifts', name: 'Binondo Pasalubong House', type: 'Local delicacies', distance: '1.4 km away', description: 'Independent shop for regional snacks, sweets, and take-home treats.', address: '168 Ongpin Street, Binondo, Manila', hours: 'Daily · 9:00 AM–8:00 PM', contact: '+63 917 555 0128', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80' },
-  { id: 'artisan-home-studio', categoryId: 'gifts', name: 'Artisan Home Studio', type: 'Home décor & crafts', distance: '1.6 km away', description: 'Independent local artists’ studio with ceramics, candles, and small décor.', address: '52 Escolta Street, Manila', hours: 'Wed–Sun · 10:00 AM–6:00 PM', contact: '+63 917 555 0170', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=900&q=80' },
+  { id: 'kape-lab-manila', city: 'Manila', categoryId: 'dining' as const, name: 'Kape Lab Manila', type: 'Coffee & bakery', distance: '280 m away', description: 'Small-batch coffee, pastries, and early breakfast.', address: '142 Roxas Boulevard, Manila', hours: 'Daily · 6:00 AM–9:00 PM', contact: '+63 917 555 0142', image: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=80' },
+  { id: 'bayleaf-kitchen', city: 'Manila', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Independent neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: '/experiments/bayleaf-kitchen.jpg' },
+  { id: 'sunset-roasters', city: 'Manila', categoryId: 'dining', name: 'Sunset Roasters', type: 'Coffee shop', distance: '850 m away', description: 'A relaxed independent café for coffee, tea, and light bites.', address: '77 Roxas Boulevard, Manila', hours: 'Daily · 7:00 AM–8:00 PM', contact: '+63 917 555 0187', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80' },
+  { id: 'hilot-house', city: 'Manila', categoryId: 'spa' as const, name: 'Hilot House', type: 'Independent wellness studio', distance: '450 m away', description: 'A neighborhood studio for traditional hilot and restorative treatments.', address: '18 Adriatico Street, Manila', hours: 'Mon–Sun · 10:00 AM–10:00 PM', contact: '+63 917 555 0198', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80' },
+  { id: 'bamboo-wellness', city: 'Manila', categoryId: 'spa', name: 'Bamboo Wellness Studio', type: 'Massage & wellness', distance: '700 m away', description: 'Independent therapists offering calming massages and wellness rituals.', address: '26 Pedro Gil Street, Manila', hours: 'Daily · 9:00 AM–9:00 PM', contact: '+63 917 555 0133', image: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80' },
+  { id: 'quiet-corner-yoga', city: 'Manila', categoryId: 'spa', name: 'Quiet Corner Yoga', type: 'Yoga studio', distance: '1 km away', description: 'Small group yoga and breathwork classes for all experience levels.', address: '41 Taft Avenue, Manila', hours: 'Mon–Sat · 7:00 AM–8:00 PM', contact: '+63 917 555 0175', image: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=900&q=80' },
+  { id: 'manila-heritage-walks', city: 'Manila', categoryId: 'entertainment' as const, name: 'Manila Heritage Walks', type: 'Local tours', distance: '1.2 km away', description: 'Independent walking tours through the city’s historic neighborhoods.', address: 'Plaza Roma, Intramuros, Manila', hours: 'Tours daily · 8:00 AM–5:00 PM', contact: '+63 917 555 0120', image: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=900&q=80' },
+  { id: 'sunset-bay-cruises', city: 'Manila', categoryId: 'entertainment', name: 'Sunset Bay Cruises', type: 'Harbor experience', distance: '2.4 km away', description: 'Independent sunset cruises with views across Manila Bay.', address: 'Harbor Square, Pasay City', hours: 'Daily departures · 4:00 PM–8:00 PM', contact: '+63 917 555 0154', image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80' },
+  { id: 'intramuros-cycling', city: 'Manila', categoryId: 'entertainment', name: 'Intramuros Cycle Tours', type: 'Bike tours', distance: '1.8 km away', description: 'Independent guided bicycle tours through Intramuros and nearby streets.', address: 'General Luna Street, Intramuros, Manila', hours: 'Daily · 7:00 AM–6:00 PM', contact: '+63 917 555 0109', image: 'https://images.unsplash.com/photo-1529422643029-d4585747aaf2?auto=format&fit=crop&w=900&q=80' },
+  { id: 'escolta-craft-market', city: 'Manila', categoryId: 'services' as const, name: 'Escota Craft Market', type: 'Handicrafts & gifts', distance: '900 m away', description: 'Independent makers offering local crafts, keepsakes, and small gifts.', address: 'Escota Street, Binondo, Manila', hours: 'Friday–Sunday · 10:00 AM–7:00 PM', contact: '+63 917 123 4567', image: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=900&q=80' },
+  { id: 'manila-laundry-co', city: 'Manila', categoryId: 'services' as const, name: 'Manila Laundry Co.', type: 'Laundry service', distance: '500 m away', description: 'Independent wash-and-fold service with convenient hotel-area pickup.', address: '12 Harrison Street, Pasay City', hours: 'Daily · 8:00 AM–8:00 PM', contact: '+63 917 555 0181', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=900&q=80' },
+  { id: 'city-bike-rentals', city: 'Manila', categoryId: 'services' as const, name: 'City Bike Rentals', type: 'Bike rental', distance: '1.1 km away', description: 'Independent bicycle rentals for exploring the bay and nearby neighborhoods.', address: '88 M. H. del Pilar Street, Manila', hours: 'Daily · 7:00 AM–7:00 PM', contact: '+63 917 555 0147', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80' },
+  { id: 'manila-makers-market', city: 'Manila', categoryId: 'gifts', name: 'Manila Makers Market', type: 'Local crafts & souvenirs', distance: '750 m away', description: 'Independent makers offering keepsakes, home décor, and pasalubong.', address: '33 Escolta Street, Manila', hours: 'Tue–Sun · 10:00 AM–7:00 PM', contact: '+63 917 555 0116', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
+  { id: 'binondo-pasalubong', city: 'Manila', categoryId: 'gifts', name: 'Binondo Pasalubong House', type: 'Local delicacies', distance: '1.4 km away', description: 'Independent shop for regional snacks, sweets, and take-home treats.', address: '168 Ongpin Street, Binondo, Manila', hours: 'Daily · 9:00 AM–8:00 PM', contact: '+63 917 555 0128', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80' },
+  { id: 'artisan-home-studio', city: 'Manila', categoryId: 'gifts', name: 'Artisan Home Studio', type: 'Home décor & crafts', distance: '1.6 km away', description: 'Independent local artists’ studio with ceramics, candles, and small décor.', address: '52 Escolta Street, Manila', hours: 'Wed–Sun · 10:00 AM–6:00 PM', contact: '+63 917 555 0170', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=900&q=80' },
 ];
 
 const ROOM_UPGRADES = [
@@ -6201,8 +6213,8 @@ function NearbyRecommendationCard({ item, onSelect }: { item: NearbyEstablishmen
   return <button className="guest-catalog-option-card guest-catalog-option-card--nearby" type="button" onClick={() => onSelect(item.id)}><div className="guest-catalog-option-card__media"><Image src={item.image} alt="" fill sizes="(max-width: 720px) 84vw, 540px" /><span className="guest-catalog-option-card__name">{item.name}</span></div><div className="guest-catalog-option-card__details"><p>{item.type}</p>{item.distance ? <small>{item.distance}</small> : null}<small>{item.address}</small></div></button>;
 }
 
-function NearbyRecommendations({ categoryId, description, onViewAll, onSelect }: { categoryId: MiniAppCategoryId; description: string; onViewAll: () => void; onSelect: (id: string) => void }) {
-  const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
+function NearbyRecommendations({ categoryId, city, description, onViewAll, onSelect }: { categoryId: MiniAppCategoryId; city: string; description: string; onViewAll: () => void; onSelect: (id: string) => void }) {
+  const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId && item.city === city);
   const curated = recommendations.slice(0, 4);
   const railRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -6217,22 +6229,22 @@ function NearbyRecommendations({ categoryId, description, onViewAll, onSelect }:
   return <section className="guest-nearby-section"><div className="guest-nearby-heading"><h2>Nearby recommendations</h2><button type="button" onClick={onViewAll}>View all</button></div><p className="guest-nearby-description">{description}</p><div ref={railRef} className="guest-nearby-carousel" onScroll={updateIndex}>{curated.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div><div className="guest-nearby-dots" aria-label="Nearby recommendations pages">{curated.map((item, index) => <button key={item.id} type="button" className={activeIndex === index ? 'is-active' : ''} aria-label={`Show nearby recommendation ${index + 1}`} aria-current={activeIndex === index} onClick={() => goTo(index)} />)}</div></section>;
 }
 
-function NearbyRecommendationsPage({ categoryId, onSelect }: { categoryId: MiniAppCategoryId; onSelect: (id: string) => void }) {
-  const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId);
-  return <div className="guest-stack guest-nearby-page"><div className="guest-page-title"><h1>Nearby recommendations</h1><p>Independent places close to The Henry Hotel Manila.</p></div><div className="guest-nearby-page__list">{recommendations.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div></div>;
+function NearbyRecommendationsPage({ categoryId, city, property, onSelect }: { categoryId: MiniAppCategoryId; city: string; property: string; onSelect: (id: string) => void }) {
+  const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId && item.city === city);
+  return <div className="guest-stack guest-nearby-page"><div className="guest-page-title"><h1>Nearby recommendations</h1><p>Independent places close to {property}.</p></div><div className="guest-nearby-page__list">{recommendations.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div></div>;
 }
 
-function NearbyEstablishmentScreen({ establishment, onBack, onBookRide }: { establishment: NearbyEstablishment; onBack: () => void; onBookRide: () => void }) {
+function NearbyEstablishmentScreen({ establishment, onBack, onNotifications, onBookRide }: { establishment: NearbyEstablishment; onBack: () => void; onNotifications: () => void; onBookRide: () => void }) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(establishment.address)}`;
   return <div className="guest-stack guest-nearby-detail">
     <section className="guest-nearby-detail__hero" aria-label={`${establishment.name} overview`}>
       <Image src={establishment.image} alt="" fill sizes="100vw" priority />
       <div className="guest-nearby-detail__scrim" aria-hidden="true" />
       <button className="guest-nearby-detail__control guest-nearby-detail__back" type="button" onClick={onBack} aria-label="Back"><ArrowLeft /></button>
-      <button className="guest-nearby-detail__control guest-nearby-detail__notifications" type="button" onClick={() => undefined} aria-label="Notifications"><Bell /></button>
+      <button className="guest-nearby-detail__control guest-nearby-detail__notifications" type="button" onClick={onNotifications} aria-label="Notifications"><Bell /></button>
       <div className="guest-nearby-detail__hero-copy">
         <h1>{establishment.name}</h1>
-        <div className="guest-nearby-detail__tags" aria-label="Recommendation details"><span>Handicrafts &amp; Gifts</span><span>Independent</span></div>
+        <div className="guest-nearby-detail__tags" aria-label="Recommendation details"><span>{establishment.type}</span><span>Independent</span></div>
       </div>
     </section>
 
@@ -6244,8 +6256,8 @@ function NearbyEstablishmentScreen({ establishment, onBack, onBookRide }: { esta
 
     <section className="guest-nearby-detail__about">
       <h2>About</h2>
-      <p>{establishment.description} Discover thoughtful local pieces from independent makers, with a rotating selection of keepsakes and small gifts that are easy to bring home from Manila.</p>
-      <div className="guest-nearby-detail__contact"><small>Contact</small><a href="tel:+639171234567">+63 917 123 4567</a></div>
+      <p>{establishment.description}</p>
+      {establishment.contact ? <div className="guest-nearby-detail__contact"><small>Contact</small><a href={`tel:${establishment.contact.replace(/\s/g, '')}`}>{establishment.contact}</a></div> : null}
     </section>
 
     <section className="guest-nearby-detail__good-to-know">
@@ -6253,8 +6265,8 @@ function NearbyEstablishmentScreen({ establishment, onBack, onBookRide }: { esta
       <div className="guest-nearby-detail__facts">
         <span><Storefront aria-hidden="true" /><b>Independently operated</b></span>
         <span><House aria-hidden="true" /><b>Outside the hotel</b></span>
-        <span><Gift aria-hidden="true" /><b>Local handicrafts and gifts</b></span>
-        <span><Clock aria-hidden="true" /><b>Around 15 minutes from the hotel</b></span>
+        {establishment.categoryId === 'gifts' ? <span><Gift aria-hidden="true" /><b>Local handicrafts and gifts</b></span> : null}
+        {establishment.distance ? <span><PersonSimpleWalk aria-hidden="true" /><b>{establishment.distance}</b></span> : null}
       </div>
     </section>
 
@@ -6415,6 +6427,7 @@ function OrderTray({ title, establishment, items, total, roomNumber, onChangeQua
 
 function GiftsSouvenirsScreen({ booking, fulfillment, cart, onChangeQuantity, onOpenCart, giftType, onGiftTypeChange, giftSort, onGiftSortChange, onSelectNearby }: { booking: Booking; fulfillment: 'room' | 'lobby'; cart: Record<string, number>; onChangeQuantity: (name: string, delta: number) => void; onOpenCart: () => void; giftType: string[]; onGiftTypeChange: (value: string[]) => void; giftSort: ListingSort; onGiftSortChange: (value: ListingSort) => void; onSelectNearby: (id: string) => void }) {
   const groups = [...new Set(GIFT_PRODUCTS.map((product) => product.group))];
+  const nearbyGifts = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === 'gifts' && item.city === booking.city);
   const displayedFulfillment = booking.status === 'completed' ? 'lobby' : fulfillment;
   const visibleProducts = GIFT_PRODUCTS.filter((product) => !giftType.length || giftType.includes(product.group));
   const giftFacets: Facet[] = [{ key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [giftSort], onChange: (next) => onGiftSortChange(next[0] as ListingSort) }, { key: 'type', label: 'Type', options: groups.map((group) => ({ value: group, label: group })), selected: giftType, onChange: onGiftTypeChange }];
@@ -6445,8 +6458,8 @@ function GiftsSouvenirsScreen({ booking, fulfillment, cart, onChangeQuantity, on
           </div>
         </section>
       ))}
-      {Object.values(cart).some((quantity) => quantity > 0) ? <button className="guest-mini-cart" type="button" onClick={onOpenCart}><span><small>Gift order</small><b>{Object.values(cart).reduce((sum, quantity) => sum + quantity, 0)} items</b></span><strong>{formatPesoAmount(GIFT_PRODUCTS.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0))}</strong><CaretRight /></button> : null}
-      <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">Nearby shops for gifts, local products, and souvenirs.</p><div className="guest-nearby-list">{NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === 'gifts').map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelectNearby(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small>{item.distance ? <small>{item.distance}</small> : null}<p>{item.description}</p></span><CaretRight /></button>)}</div></section>
+      {Object.values(cart).some((quantity) => quantity > 0) ? <button className="guest-mini-cart" type="button" onClick={onOpenCart}><span><small>Gift order</small><b>{countOf(Object.values(cart).reduce((sum, quantity) => sum + quantity, 0), 'item')}</b></span><strong>{formatPesoAmount(GIFT_PRODUCTS.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0))}</strong><CaretRight /></button> : null}
+      {nearbyGifts.length ? <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">Nearby shops for gifts, local products, and souvenirs.</p><div className="guest-nearby-list">{nearbyGifts.map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelectNearby(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small>{item.distance ? <small>{item.distance}</small> : null}<p>{item.description}</p></span><CaretRight /></button>)}</div></section> : null}
     </div>
   );
 }
@@ -6457,7 +6470,7 @@ function GiftOrderCartScreen({ fulfillment, onFulfillmentChange, cart, onChangeQ
   const checkedOut = booking.status === 'completed';
   const items = GIFT_PRODUCTS.filter((product) => (cart[product.name] ?? 0) > 0);
   const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0);
-  return <div className="guest-stack guest-order-cart"><div className="guest-page-title"><p className="guest-eyebrow">Gifts &amp; Souvenirs</p><h1>Your gift order</h1><p>Review your items, choose fulfillment, and select how you&rsquo;d like to pay.</p></div><p className="guest-provider-label">Operated by the hotel</p><div className="guest-order-cart__summary"><span>{items.reduce((sum, product) => sum + (cart[product.name] ?? 0), 0)} items</span><strong>{formatPesoAmount(total)}</strong></div><div className="guest-order-items">{items.map((product) => <div className="guest-order-item" key={product.name}><div><b>{product.name}</b><small>{product.price} each</small></div><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output>{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div></div>)}</div><fieldset className="guest-fulfillment-options"><legend>How would you like your order?</legend><div>{!checkedOut ? <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} aria-pressed={fulfillment === 'room'} disabled={!booking.roomNumber} onClick={() => onFulfillmentChange('room')}><b>Deliver to room</b><small>{booking.roomNumber ? `Room ${booking.roomNumber}` : 'Room assignment required'}</small></button> : null}<button type="button" className={fulfillment === 'lobby' || checkedOut ? 'is-active' : ''} aria-pressed={fulfillment === 'lobby' || checkedOut} onClick={() => onFulfillmentChange('lobby')}><b>Pick up at the lobby</b><small>Hotel lobby</small></button></div></fieldset><PaymentChoice allowPayNow={false} provider="Operated by the hotel" roomNumber={booking.roomNumber} value={payment} method={paymentMethod} onChange={onPaymentChange} onMethodChange={onPaymentMethodChange} /><Notice title="Nothing is charged yet">Your room folio changes only after you place the order.</Notice><Button className="guest-button guest-button--primary" type="button" disabled={!items.length || (!checkedOut && fulfillment === 'room' && !booking.roomNumber) || !payment} onClick={onConfirm}>{payment === 'room' ? `Charge ${formatPesoAmount(total)} to room` : 'Choose how to pay'}<ArrowRight /></Button><TextButton onClick={onBack}>Continue shopping</TextButton></div>;
+  return <div className="guest-stack guest-order-cart"><div className="guest-page-title"><p className="guest-eyebrow">Gifts &amp; Souvenirs</p><h1>Your gift order</h1><p>Review your items, choose fulfillment, and select how you&rsquo;d like to pay.</p></div><p className="guest-provider-label">Operated by the hotel</p><div className="guest-order-cart__summary"><span>{countOf(items.reduce((sum, product) => sum + (cart[product.name] ?? 0), 0), 'item')}</span><strong>{formatPesoAmount(total)}</strong></div><div className="guest-order-items">{items.map((product) => <div className="guest-order-item" key={product.name}><div><b>{product.name}</b><small>{product.price} each</small></div><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output>{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div></div>)}</div><fieldset className="guest-fulfillment-options"><legend>How would you like your order?</legend><div>{!checkedOut ? <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} aria-pressed={fulfillment === 'room'} disabled={!booking.roomNumber} onClick={() => onFulfillmentChange('room')}><b>Deliver to room</b><small>{booking.roomNumber ? `Room ${booking.roomNumber}` : 'Room assignment required'}</small></button> : null}<button type="button" className={fulfillment === 'lobby' || checkedOut ? 'is-active' : ''} aria-pressed={fulfillment === 'lobby' || checkedOut} onClick={() => onFulfillmentChange('lobby')}><b>Pick up at the lobby</b><small>Hotel lobby</small></button></div></fieldset><PaymentChoice allowPayNow={false} provider="Operated by the hotel" roomNumber={booking.roomNumber} value={payment} method={paymentMethod} onChange={onPaymentChange} onMethodChange={onPaymentMethodChange} /><Notice title="Nothing is charged yet">Your room folio changes only after you place the order.</Notice><Button className="guest-button guest-button--primary" type="button" disabled={!items.length || (!checkedOut && fulfillment === 'room' && !booking.roomNumber) || !payment} onClick={onConfirm}>{payment === 'room' ? `Charge ${formatPesoAmount(total)} to room` : 'Choose how to pay'}<ArrowRight /></Button><TextButton onClick={onBack}>Continue shopping</TextButton></div>;
 }
 
 function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {

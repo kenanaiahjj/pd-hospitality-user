@@ -2730,7 +2730,7 @@ export function getRoomCharges(
         date,
         title: service.title,
         detail: service.diningOrder
-          ? `${service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items · ${date} · ${time}`
+          ? `${countOf(service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0), 'item')} · ${date} · ${time}`
           : `${date} · ${time}`,
         amount: service.amount,
         pointsSource: 'in-app-booking' as const,
@@ -2789,6 +2789,11 @@ export type RestaurantVenue = {
   hours: string;
   /** The hotel this venue sits inside. Its parent in the estate. */
   property: string;
+  /**
+   * Set only on a venue that exists in one city ("Kape Manila Café"). The
+   * rest are the brand's and appear at every hotel; see `offeredIn`.
+   */
+  city?: string;
   /** Where inside that hotel -- "Ninth floor terrace". Not a substitute. */
   location: string;
   description: string;
@@ -3057,6 +3062,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     id: 'cafe',
     listedOn: '2020-11-03',
     name: 'Kape Manila Café',
+    city: 'Manila',
     category: 'Café & Bakery',
     operator: 'Hotel operated',
     priceRange: 'Menu in Chat',
@@ -3212,13 +3218,26 @@ export const RESTAURANTS: RestaurantVenue[] = [
   },
 ];
 
+/**
+ * Whether a catalogue row exists at the hotel a stay is in.
+ *
+ * The fixtures hold one full catalogue, The Henry Manila's. Most of it is the
+ * brand's -- an in-room menu, a pool bar, a rooftop -- and every Henry offers
+ * it. A row tagged with a city (a café named for Manila, a Binondo crawl, a
+ * Manila Bay cruise) exists only there, so a Cebu stay does not list it.
+ */
+export const offeredIn = (city: string) => (row: { id: string; city?: string }) => !row.city || row.city === city;
+
+/** "1 item", "3 items". */
+export const countOf = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`;
+
 export const SERVICES = [
   /* Dining -- the venues themselves live in RESTAURANTS; these are the rows
      the Home rail and cross-category search read. */
   { id: 'dining', name: 'In-room dining', category: 'Dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱450', cutoff: '2-hour cancellation cutoff', tone: 'sand' },
   { id: 'restaurant', name: 'Apartment 1B', category: 'Restaurant & bar', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱550', cutoff: '2-hour cancellation cutoff', tone: 'clay' },
   { id: 'poolside-bar', name: 'The Poolside Bar & Lounge', category: 'Bar & Lounge', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱350', cutoff: 'Walk-in & lounge', tone: 'clay' },
-  { id: 'cafe', name: 'Kape Manila Café', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
+  { id: 'cafe', name: 'Kape Manila Café', city: 'Manila', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
   { id: 'rooftop', name: 'Azotea Rooftop', category: 'Fine dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱1,200', cutoff: '24-hour cancellation cutoff', tone: 'clay' },
 
   /* Spa & wellness */
@@ -3233,9 +3252,9 @@ export const SERVICES = [
 
   /* Entertainment & tours */
   { id: 'tour', name: 'Island day tour', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱3,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
-  { id: 'heritage-walk', name: 'Old Manila cultural walk', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱1,500', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
-  { id: 'food-crawl', name: 'Binondo food crawl', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱2,200', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
-  { id: 'sunset-cruise', name: 'Manila Bay sunset cruise', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱2,600', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'heritage-walk', name: 'Old Manila cultural walk', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱1,500', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'food-crawl', name: 'Binondo food crawl', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱2,200', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'sunset-cruise', name: 'Manila Bay sunset cruise', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱2,600', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   { id: 'diving', name: 'Discover scuba session', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱4,500', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   { id: 'museum-pass', name: 'Museum & gallery pass', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱850', cutoff: 'Same-day service', tone: 'sun' },
   { id: 'cooking-class', name: 'Filipino cooking class', category: 'Workshops', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱1,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },

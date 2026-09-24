@@ -7,3 +7,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Testing
+
+- Never write unit tests after writing code.
+- Prefer end-to-end (E2E) tests as the sole testing mechanism. Use them to verify complex features. At the end of each E2E test run, produce a verifiable and repeatable artifact.
+- If you must test a system in isolation, first write down all the ways it could fail. Then write the code.

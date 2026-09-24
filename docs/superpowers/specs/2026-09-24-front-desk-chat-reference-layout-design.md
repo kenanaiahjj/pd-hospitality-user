@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | `Approved direction; awaiting spec review` |
+| **Status** | `Approved` |
 | **Created** | 2026-09-24 |
 | **Owner** | human partner |
 | **Reference** | User-supplied Places chat screenshots |

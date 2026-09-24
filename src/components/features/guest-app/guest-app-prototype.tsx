@@ -1375,6 +1375,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [rideWhen, setRideWhen] = useState<'now' | 'later'>('now');
   const [rideDate, setRideDate] = useState('');
   const [rideTime, setRideTime] = useState('10:00');
+  /** The open field on the stay and ride forms; one at a time. */
+  const [openFormField, setOpenFormField] = useState<'check-in' | 'check-out' | 'ride-date' | 'ride-time' | null>(null);
   const [ridePassengers, setRidePassengers] = useState(2);
   const [giftFulfillment, setGiftFulfillment] = useState<'room' | 'lobby'>('room');
   const [giftCart, setGiftCart] = useState<Record<string, number>>({});
@@ -2876,32 +2878,48 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <FormScreen step="1 of 3" title="Dates and guests" text={`Your stay at ${property.name}.`}>
-            <Field
-              label="Check in"
-              name="rebook-check-in"
-              type="date"
-              value={stayDraft.checkIn}
-              onValueChange={(next) => setStayDraft((draft) => ({ ...draft, checkIn: next }))}
-            />
-            <Field
-              label="Check out"
-              name="rebook-check-out"
-              type="date"
-              value={stayDraft.checkOut}
-              onValueChange={(next) => setStayDraft((draft) => ({ ...draft, checkOut: next }))}
-            />
-            <SelectField
-              label="Guests"
-              name="rebook-guests"
-              value={stayDraft.guests}
-              onValueChange={(next) => setStayDraft((draft) => ({ ...draft, guests: next, roomTypeId: '' }))}
-            >
-              <option value="1">1 guest</option>
-              <option value="2">2 guests</option>
-              <option value="3">3 guests</option>
-              <option value="4">4 guests</option>
-              <option value="5">5 guests</option>
-            </SelectField>
+            <div className="guest-field-stack">
+              <ExpandableField
+                label="Check in"
+                value={stayDraft.checkIn ? formatServiceDay(stayDraft.checkIn).short : 'Choose a day'}
+                aside="Next 60 days"
+                open={openFormField === 'check-in'}
+                onToggle={() => setOpenFormField((field) => field === 'check-in' ? null : 'check-in')}
+              >
+                <CalendarPicker
+                  available={daysFrom(PROTOTYPE_TODAY, 60)}
+                  value={stayDraft.checkIn}
+                  labelFor={(day) => formatServiceDay(day).long}
+                  onChange={(day) => {
+                    // A check-out on or before the new check-in moves to the next morning.
+                    setStayDraft((draft) => ({ ...draft, checkIn: day, checkOut: draft.checkOut > day ? draft.checkOut : daysFrom(day, 2)[1]! }));
+                    setOpenFormField('check-out');
+                  }}
+                />
+              </ExpandableField>
+              <ExpandableField
+                label="Check out"
+                value={stayDraft.checkOut ? formatServiceDay(stayDraft.checkOut).short : 'Choose a day'}
+                aside="Up to 30 nights"
+                open={openFormField === 'check-out'}
+                onToggle={() => setOpenFormField((field) => field === 'check-out' ? null : 'check-out')}
+              >
+                <CalendarPicker
+                  available={daysFrom(stayDraft.checkIn || PROTOTYPE_TODAY, 31).slice(1)}
+                  value={stayDraft.checkOut}
+                  labelFor={(day) => formatServiceDay(day).long}
+                  onChange={(day) => { setStayDraft((draft) => ({ ...draft, checkOut: day })); setOpenFormField(null); }}
+                />
+              </ExpandableField>
+              <StepperField
+                label="Guests"
+                unit="guest"
+                value={Number(stayDraft.guests)}
+                min={1}
+                max={5}
+                onChange={(next) => setStayDraft((draft) => ({ ...draft, guests: String(next), roomTypeId: '' }))}
+              />
+            </div>
 
             {/* Said before the guest reaches the room list, not after they
                 wonder why it is empty. */}
@@ -3925,11 +3943,28 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <button type="button" className={rideWhen === 'later' ? 'is-active' : ''} onClick={() => setRideWhen('later')}>Schedule for later</button>
                 </div>
               </fieldset>
-              {rideWhen === 'later' ? <div className="guest-form__row guest-ride-schedule"><Field label="Date" name="ride-date" type="date" value={rideDate} onValueChange={setRideDate} required /><Field label="Time" name="ride-time" type="time" value={rideTime} onValueChange={setRideTime} required /></div> : null}
-              <fieldset className="guest-ride-passengers">
-                <legend>Passengers</legend>
-                <div className="guest-ride-stepper"><button type="button" aria-label="Decrease passengers" onClick={() => setRidePassengers((count) => Math.max(1, count - 1))}>−</button><output>{ridePassengers}</output><button type="button" aria-label="Increase passengers" onClick={() => setRidePassengers((count) => count + 1)}>+</button></div>
-              </fieldset>
+              {rideWhen === 'later' ? (
+                <div className="guest-field-stack guest-ride-schedule">
+                  <ExpandableField
+                    label="Date"
+                    value={rideDate ? formatServiceDay(rideDate).short : 'Choose a day'}
+                    aside="Next 60 days"
+                    open={openFormField === 'ride-date'}
+                    onToggle={() => setOpenFormField((field) => field === 'ride-date' ? null : 'ride-date')}
+                  >
+                    <CalendarPicker available={daysFrom(PROTOTYPE_TODAY, 60)} value={rideDate} labelFor={(day) => formatServiceDay(day).long} onChange={(day) => { setRideDate(day); setOpenFormField('ride-time'); }} />
+                  </ExpandableField>
+                  <ExpandableField
+                    label="Time"
+                    value={clockLabel(rideTime)}
+                    open={openFormField === 'ride-time'}
+                    onToggle={() => setOpenFormField((field) => field === 'ride-time' ? null : 'ride-time')}
+                  >
+                    <TimeWheel times={RIDE_TIMES.map(clockLabel)} value={clockLabel(rideTime)} onChange={(label) => setRideTime(RIDE_TIMES.find((time) => clockLabel(time) === label) ?? rideTime)} />
+                  </ExpandableField>
+                </div>
+              ) : null}
+              <StepperField label="Passengers" unit="passenger" value={ridePassengers} min={1} max={8} onChange={setRidePassengers} />
               <Button className="guest-button guest-button--primary" type="submit">Request a ride<ArrowRight aria-hidden="true" /></Button>
             </form>
           </div>
@@ -5296,6 +5331,24 @@ function ScanSuccessToast({ onDismiss }: { onDismiss: () => void }) {
       </button>
     </aside>
   );
+}
+
+/** `count` consecutive ISO days starting at `from`. */
+function daysFrom(from: string, count: number): string[] {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  return Array.from({ length: count }, (_, i) => new Date(start + i * 86_400_000).toISOString().slice(0, 10));
+}
+
+/** Every half hour a hotel car can be asked for, as "HH:MM". */
+const RIDE_TIMES = Array.from({ length: 38 }, (_, i) => {
+  const minutes = 5 * 60 + i * 30;
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${minutes % 60 ? '30' : '00'}`;
+});
+
+/** "13:30" as "1:30 PM". */
+function clockLabel(time: string): string {
+  const [h = 0, m = 0] = time.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 /* The airport a property's guests fly into, for a pick-up or a drop-off. */

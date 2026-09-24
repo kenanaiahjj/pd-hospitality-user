@@ -7425,3 +7425,45 @@ button.guest-field__row { cursor: pointer; }
 .guest-stepper button svg { width: 14px; height: 14px; }
 .guest-stepper button:disabled { border-color: var(--guest-line-strong); color: var(--guest-subtle); cursor: default; }
 @media (prefers-reduced-motion: reduce) { .guest-field { transition: none; } }
+
+/* --------------------------------------------------------------------------
+   Text, select and date fields as Places rows
+
+   The same rounded row as the booking fields: the label on the left, the
+   answer typed or chosen on the right, and the row itself takes the focus
+   ring. A textarea, which needs room, stacks under its label instead.
+   -------------------------------------------------------------------------- */
+label.guest-field {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 0;
+  min-height: 56px;
+  padding: 0 18px;
+}
+label.guest-field > span { color: var(--guest-muted); font-size: 15px; font-weight: 400; letter-spacing: 0; white-space: nowrap; }
+label.guest-field input,
+label.guest-field select {
+  min-height: 54px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--guest-ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+  text-align-last: right;
+  box-shadow: none;
+}
+label.guest-field select { padding-right: 24px; background-position: right 0 center; }
+label.guest-field input::-webkit-date-and-time-value { text-align: right; }
+label.guest-field input:focus,
+label.guest-field select:focus { border: 0; box-shadow: none; }
+label.guest-field input::placeholder { color: var(--guest-subtle); font-weight: 400; }
+label.guest-field:focus-within { background: var(--guest-paper); box-shadow: 0 0 0 2px var(--guest-accent-strong); }
+label.guest-field > small { grid-column: 1 / -1; padding-bottom: 12px; }
+label.guest-field:has(textarea) { grid-template-columns: 1fr; row-gap: 6px; padding: 14px 18px; }
+label.guest-field textarea { padding: 0; border: 0; background: transparent; font-size: 15px; outline: none; }
+/* Side by side, two label-and-value rows are too narrow to read. */
+.guest-form__row { grid-template-columns: 1fr; gap: 12px; }

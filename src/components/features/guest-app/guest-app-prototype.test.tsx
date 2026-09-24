@@ -2138,7 +2138,9 @@ describe('booking another stay', () => {
     render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
 
     await user.click(screen.getByText('The Henry Cebu'));
-    await user.selectOptions(screen.getByLabelText(/Guests/), '4');
+    while (screen.getByRole('group', { name: 'Guests' }).querySelector('output')?.textContent !== '4') {
+      await user.click(screen.getByRole('button', { name: 'More guests' }));
+    }
     await user.click(screen.getByRole('button', { name: /See rooms/ }));
 
     expect(screen.getByText(/No room here sleeps that many/)).toBeInTheDocument();
@@ -2150,10 +2152,11 @@ describe('booking another stay', () => {
     render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
 
     await user.click(screen.getByText('The Henry Cebu'));
-    fireEvent.change(screen.getByLabelText(/Check out/), { target: { value: '2026-12-01' } });
-
-    expect(screen.getByText('Check out is not after check in')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /See rooms/ })).toBeDisabled();
+    // The calendar cannot produce one: the check-in day and everything before
+    // it are struck out of the check-out calendar.
+    await user.click(screen.getByRole('button', { name: /^Check out/ }));
+    expect(screen.getByRole('button', { name: 'Friday · December 11' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Saturday · December 12' })).toBeEnabled();
   });
 
   it('books the stay direct and makes it the one the app is about', async () => {

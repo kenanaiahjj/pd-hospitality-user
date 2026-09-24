@@ -1457,10 +1457,10 @@ describe('booking a service', () => {
     expect(canBookService(liveBooking({ status: 'completed' }), 'private-car')).toBe(false);
   });
 
-  it('settles by room only once the room is verified', () => {
-    expect(describeServicePayment(soon, '₱4,800 / day')).toBe('card');
-    expect(describeServicePayment(liveBooking({ roomVerification: verification }), '₱1,200')).toBe('room');
-    expect(describeServicePayment(soon, 'Complimentary')).toBe('complimentary');
+  it('leaves how to pay to the guest, unless there is nothing to pay', () => {
+    expect(describeServicePayment('₱4,800 / day')).toBe('choice');
+    expect(describeServicePayment('₱1,200')).toBe('choice');
+    expect(describeServicePayment('Complimentary')).toBe('complimentary');
   });
 
   it('offers the days left in the stay, from arrival day for one not yet begun', () => {

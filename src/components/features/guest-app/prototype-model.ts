@@ -2048,7 +2048,7 @@ export type StayEntry = {
   /** Whether the guest can still cancel this themselves. */
   canCancel: boolean;
   /**
-   * Where the money went. Arrival services before the scan are paid by card
+   * Where the money went. A guest can pay now instead of charging the room,
    * and some things cost nothing, so "charged to your room" is one answer of
    * three rather than a safe default.
    */
@@ -2452,7 +2452,7 @@ export const SERVICE_TIMES = ['10:00 AM', '1:30 PM', '4:00 PM'] as const;
  *
  * On-property services need the verified room, because they are charged to it.
  * The arrival roster is the exception by design: getting there and what waits
- * in the room can be booked -- and paid by card -- from the moment a booking
+ * in the room can be booked -- on the room or by card -- from the moment a booking
  * exists until the stay is over, which is what makes the scan mean something
  * for everything else.
  */
@@ -2461,14 +2461,13 @@ export function canBookService(booking: Booking, serviceId: string, today: strin
   return isPreArrivalService(serviceId) && describeGuestGate(booking, today).gate !== 'post-stay';
 }
 
-/** How a booking of this service settles for this guest, right now. */
-export function describeServicePayment(
-  booking: Booking,
-  price: string,
-  today: string = PROTOTYPE_TODAY,
-): 'room' | 'card' | 'complimentary' {
-  if (parsePesoAmount(price) === 0) return 'complimentary';
-  return canUseOnPropertyServices(booking, today) ? 'room' : 'card';
+/**
+ * Whether a booking of this service has anything to pay. A paid one is the
+ * guest's choice: on the room, settled at checkout, or paid now.
+ * `canBookService` decides what can be booked at all; this is only how.
+ */
+export function describeServicePayment(price: string): 'choice' | 'complimentary' {
+  return parsePesoAmount(price) === 0 ? 'complimentary' : 'choice';
 }
 
 /** Who a guest is dealing with, said the same way on the form and the receipt. */

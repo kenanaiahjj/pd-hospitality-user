@@ -1727,7 +1727,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* What the booking costs once staged points come off it. */
   const serviceCharge = formatPesoAmount(Math.max(0, servicePrice - pesosOff(appliedPoints)));
   /* Room, card or nothing -- decided by the gate, never by the form. */
-  const servicePayment = describeServicePayment(contextBooking, selectedService.price);
+  const servicePayment = describeServicePayment(selectedService.price);
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
   const contextService = session.serviceBookings.find(
     (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
@@ -2130,8 +2130,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
-    const payment = describeServicePayment(booking, selectedService.price);
-    if (payment === 'room' && checkoutPayment !== 'room') return;
+    const payment = describeServicePayment(selectedService.price) === 'complimentary'
+      ? 'complimentary'
+      : checkoutPayment === 'room' ? 'room' : 'card';
     if (payment === 'card' && (checkoutPayment !== 'pay-now' || !paymentMethod)) return;
 
     const day = serviceDate ?? bookableServiceDays(booking)[0] ?? PROTOTYPE_TODAY;
@@ -2591,11 +2592,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     const arrivalServices = [
       ...SERVICES.filter((service) => isPreArrivalService(service.id)),
-      { id: 'early-check-in', name: 'Early check-in', price: 'Subject to hotel confirmation' },
+      { id: 'early-check-in', name: 'Early check-in', note: 'Subject to hotel confirmation' },
     ];
-    const arrivalPaymentCopy = canUseOnPropertyServices(contextBooking)
-      ? 'Charged to your room'
-      : 'Paid by card';
     const arrivalDescription = bookingSlot.locked
       ? contextBooking.roomNumber
         ? 'Arrange a transfer, luggage help, or another arrival service. Scan the code in your room to unlock dining, spa, tours, and room charging.'
@@ -2623,7 +2621,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <span>{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
                 <div>
                   <b>{service.name}</b>
-                  <small>{service.price === 'Complimentary' ? 'Complimentary' : `${service.price} · ${arrivalPaymentCopy}`}</small>
+                  {'note' in service ? <small>{service.note}</small> : null}
                 </div>
                 <CaretRight />
               </button>
@@ -2665,7 +2663,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </section>
         ) : (
           <Notice title="Hotel confirmation">
-            Some arrival requests depend on hotel availability. Until you scan in, arrival services are paid by card, GCash or Maya; once the room code confirms you are in the room, they can go on your room instead. We&rsquo;ll show whether a service is complimentary or needs hotel confirmation before you book.
+            Some arrival requests depend on hotel availability. Charge a service to your room and settle it at checkout, or pay now by card, GCash or Maya. We&rsquo;ll show whether it is complimentary or needs hotel confirmation before you book.
           </Notice>
         )}
       </div>
@@ -3986,12 +3984,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const day = serviceDate && days.includes(serviceDate) ? serviceDate : days[0];
         const provider = describeServiceProvider(selectedService);
         const ready = servicePayment === 'complimentary'
-          || (servicePayment === 'room' ? checkoutPayment === 'room' : checkoutPayment === 'pay-now' && Boolean(paymentMethod));
+          || checkoutPayment === 'room'
+          || (checkoutPayment === 'pay-now' && Boolean(paymentMethod));
         const submitLabel = servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
           : !ready
             ? 'Choose how to pay'
-            : servicePayment === 'room' ? `Charge ${serviceCharge} to room` : `Pay ${serviceCharge}`;
+            : checkoutPayment === 'room' ? `Charge ${serviceCharge} to room` : `Pay ${serviceCharge}`;
         return (
           <FormScreen step="Review and pay" title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
             <div className="guest-date-strip">
@@ -4026,15 +4025,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <>
                 <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={appliedPoints} onChange={setAppliedPoints} />
                 {/*
-                  Room charges once the room is verified; card, GCash or Maya
-                  before that. The gate decides which, so the form never offers
-                  a room it cannot charge -- with no room assigned it used to
-                  offer nothing at all, and the button could never be pressed.
+                  The guest's choice either way: on the room, settled at
+                  checkout, or paid now. Before a room is assigned the charge
+                  still lands on the stay's bill, so the option says that
+                  rather than naming a room.
                 */}
                 <PaymentChoice
-                  allowPayNow={servicePayment === 'card'}
+                  allowRoom
                   provider={provider}
-                  roomNumber={servicePayment === 'room' ? contextBooking.roomNumber : undefined}
+                  roomNumber={contextBooking.roomNumber}
                   value={checkoutPayment}
                   method={paymentMethod}
                   onChange={setCheckoutPayment}
@@ -4042,7 +4041,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 />
               </>
             )}
-            {servicePayment === 'card' ? <Notice title="Paid now, direct to the hotel">Charging to your room opens once you scan the code in it. Arrival services are paid up front.</Notice> : null}
             <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={confirmService}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
           </FormScreen>
         );
@@ -6327,8 +6325,8 @@ function getMenuItemImage(itemId: string, categoryId = 'dining') {
   return MENU_ITEM_IMAGE_URLS[itemId] ?? getItemThumbnail(itemId, categoryId).src;
 }
 
-function PaymentChoice({ provider, roomNumber, value, method, allowPayNow = true, onChange, onMethodChange }: { provider: string; roomNumber?: string; value: 'room' | 'pay-now' | null; method: 'card' | 'gcash' | 'maya' | null; allowPayNow?: boolean; onChange: (value: 'room' | 'pay-now') => void; onMethodChange: (value: 'card' | 'gcash' | 'maya') => void }) {
-  return <fieldset className="guest-payment-choice"><legend>How would you like to pay?</legend><p className="guest-provider-label">{provider}</p><div className="guest-payment-options">{roomNumber ? <button type="button" aria-pressed={value === 'room'} className={value === 'room' ? 'is-active' : ''} onClick={() => onChange('room')}><b>Charge to Room {roomNumber}</b><small>Add this purchase to your hotel bill and settle it at checkout.</small></button> : null}{allowPayNow ? <button type="button" aria-pressed={value === 'pay-now'} className={value === 'pay-now' ? 'is-active' : ''} onClick={() => onChange('pay-now')}><b>Pay now</b><small>Pay securely using your preferred payment method.</small></button> : null}</div>{allowPayNow && value === 'pay-now' ? <div className="guest-payment-method-sheet" role="dialog" aria-label="Payment methods"><b>Choose a payment method</b><button type="button" className={method === 'card' ? 'is-active' : ''} onClick={() => onMethodChange('card')}><CreditCard />Card</button><button type="button" className={method === 'gcash' ? 'is-active' : ''} onClick={() => onMethodChange('gcash')}>GCash</button><button type="button" className={method === 'maya' ? 'is-active' : ''} onClick={() => onMethodChange('maya')}>Maya</button></div> : null}</fieldset>;
+function PaymentChoice({ provider, roomNumber, value, method, allowPayNow = true, allowRoom = Boolean(roomNumber), onChange, onMethodChange }: { provider: string; roomNumber?: string; value: 'room' | 'pay-now' | null; method: 'card' | 'gcash' | 'maya' | null; allowPayNow?: boolean; allowRoom?: boolean; onChange: (value: 'room' | 'pay-now') => void; onMethodChange: (value: 'card' | 'gcash' | 'maya') => void }) {
+  return <fieldset className="guest-payment-choice"><legend>How would you like to pay?</legend><p className="guest-provider-label">{provider}</p><div className="guest-payment-options">{allowRoom ? <button type="button" aria-pressed={value === 'room'} className={value === 'room' ? 'is-active' : ''} onClick={() => onChange('room')}><b>{roomNumber ? `Charge to Room ${roomNumber}` : 'Charge to your room'}</b><small>Add this purchase to your hotel bill and settle it at checkout.</small></button> : null}{allowPayNow ? <button type="button" aria-pressed={value === 'pay-now'} className={value === 'pay-now' ? 'is-active' : ''} onClick={() => onChange('pay-now')}><b>Pay now</b><small>Pay securely using your preferred payment method.</small></button> : null}</div>{allowPayNow && value === 'pay-now' ? <div className="guest-payment-method-sheet" role="dialog" aria-label="Payment methods"><b>Choose a payment method</b><button type="button" className={method === 'card' ? 'is-active' : ''} onClick={() => onMethodChange('card')}><CreditCard />Card</button><button type="button" className={method === 'gcash' ? 'is-active' : ''} onClick={() => onMethodChange('gcash')}>GCash</button><button type="button" className={method === 'maya' ? 'is-active' : ''} onClick={() => onMethodChange('maya')}>Maya</button></div> : null}</fieldset>;
 }
 
 type OrderTrayItem = { id: string; name: string; unitPrice: string; quantity: number; image: string };

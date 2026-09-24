@@ -503,11 +503,11 @@ describe('GuestAppPrototype', () => {
     /*
       The point is that a guest with a verified room never has to produce a
       card. Settling to the room is offered by name, and the payment methods
-      stay behind "Pay now" -- they are not part of this path.
+      stay behind "Pay now" -- chosen only if the guest would rather.
     */
     expect(screen.getByRole('button', { name: /Charge to Room 512/i })).toBeInTheDocument();
     expect(screen.getByText(/settle it at checkout/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Pay now/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /Pay now/i })).toBeInTheDocument();
     expect(screen.queryByText(/gcash|maya/i)).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /Charge to Room 512/i }));
@@ -2494,7 +2494,24 @@ describe('lifecycle gates', () => {
     }
   });
 
-  it('offers card-only arrival services before a room is assigned', async () => {
+  it('lets an arrival service go on the room before a room is assigned', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
+
+    await user.click(secondTab());
+    await user.click(screen.getByRole('button', { name: /Private car & driver/ }));
+
+    // Either way is the guest's call, and the room one must not loop back to
+    // "open when you check in" as it once did.
+    expect(screen.getByRole('button', { name: /Pay now/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Charge to your room/ }));
+    await user.click(screen.getByRole('button', { name: /Charge ₱[\d,]+ to room/ }));
+
+    expect(screen.getByRole('heading', { name: /Private car & driver is booked/ })).toBeInTheDocument();
+    expect(screen.getByText(/settles with your hotel folio at checkout/)).toBeInTheDocument();
+  });
+
+  it('lists arrival services by name alone before a room is assigned', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
 
@@ -2505,9 +2522,10 @@ describe('lifecycle gates', () => {
     expect(screen.getByRole('heading', { name: 'Arrival services' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Airport transfer/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Private car & driver/ })).toBeInTheDocument();
-    // The gate's whole point: nothing here can reach a room that has no guest in it.
-    expect(screen.queryByText(/Charge to room/i)).toBeNull();
-    expect(screen.getAllByText(/Paid by card/i).length).toBeGreaterThan(0);
+    // How to pay is chosen on the booking itself, so the list quotes neither.
+    expect(screen.queryByText(/Paid by card/i)).toBeNull();
+    expect(screen.queryByText(/₱1,200|₱4,800/)).toBeNull();
+    expect(screen.getByText('Subject to hotel confirmation')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Hilom signature massage/ })).toBeNull();
   });
 

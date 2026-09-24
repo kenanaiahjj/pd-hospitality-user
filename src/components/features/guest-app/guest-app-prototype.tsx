@@ -5371,15 +5371,18 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
         <section className="guest-stay-hero-card guest-home-active-hero">
           <div className="guest-stay-hero-card__media">
-            <PropertyImage property={booking.property} aspectRatio="2.1" decorative />
+            <PropertyImage property={booking.property} aspectRatio="1.5" decorative />
             <div className="guest-stay-hero-card__badges">
               <span className="guest-stay-hero-card__status guest-stay-hero-card__status--positive">Checked in</span>
               <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">{roomLabel}</span>
             </div>
+            {/* The stay is named on its own photograph, as a Places card names a place. */}
+            <div className="guest-stay-hero-card__overlay">
+              <p className="guest-eyebrow">{greetGuest(session.guestName, 'Welcome')}</p>
+              <h1>{booking.property}</h1>
+            </div>
           </div>
           <div className="guest-stay-hero-card__body">
-            <p className="guest-eyebrow">{greetGuest(session.guestName, 'Welcome')}</p>
-            <h1>{booking.property}</h1>
             <div className="guest-stay-hero-card__stats">
               <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
               <div><small>Room</small><b>{booking.roomType}</b></div>

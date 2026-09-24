@@ -3095,6 +3095,60 @@
   margin-top: 9px;
   padding-top: 8px;
 }
+/* --------------------------------------------------------------------------
+   The live stay, after the Places cards: the hotel is named on its own
+   photograph over a scrim, the status sits in frosted pills at the top, and
+   the facts stay on paper underneath.
+   -------------------------------------------------------------------------- */
+.guest-home-active-hero {
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.guest-home-active-hero .guest-stay-hero-card__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: linear-gradient(180deg, oklch(0.12 0.01 60 / 0.3) 0%, transparent 28%, transparent 42%, oklch(0.12 0.01 60 / 0.78) 100%);
+  pointer-events: none;
+}
+.guest-home-active-hero .guest-stay-hero-card__badges { top: 12px; bottom: auto; left: 12px; }
+.guest-home-active-hero .guest-stay-hero-card__status {
+  gap: 6px;
+  background: oklch(0.2 0.01 60 / 0.42);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-weight: 600;
+}
+.guest-home-active-hero .guest-stay-hero-card__status--positive::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+.guest-stay-hero-card__overlay {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 4;
+  display: grid;
+  gap: 2px;
+  padding: 0 16px 14px;
+  color: #fff;
+}
+.guest-stay-hero-card__overlay .guest-eyebrow { margin: 0; color: rgb(255 255 255 / 0.82); }
+.guest-stay-hero-card__overlay h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.026em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.guest-home-active-hero .guest-stay-hero-card__body .guest-stay-hero-card__stats { margin-top: 2px; padding-top: 2px; border-top: 0; }
 .guest-home-active-hero .guest-stay-hero-card__booking--upgrade {
   min-height: 36px;
   margin-top: 2px;

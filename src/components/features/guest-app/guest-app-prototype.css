@@ -7467,3 +7467,63 @@ label.guest-field:has(textarea) { grid-template-columns: 1fr; row-gap: 6px; padd
 label.guest-field textarea { padding: 0; border: 0; background: transparent; font-size: 15px; outline: none; }
 /* Side by side, two label-and-value rows are too narrow to read. */
 .guest-form__row { grid-template-columns: 1fr; gap: 12px; }
+
+/* --------------------------------------------------------------------------
+   Choices, switches and counts, after Places
+
+   A choice is a row on the same soft surface as a field; the chosen one
+   lifts onto paper with an ink ring, the way Places marks a picked day.
+   Two-way switches are one pill with a sliding paper thumb, and every
+   count uses the outlined-circle stepper.
+   -------------------------------------------------------------------------- */
+.guest-payment-options button,
+.guest-fulfillment-options > div > button,
+.guest-room-option,
+.guest-payment-method-sheet button {
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-surface);
+  box-shadow: inset 0 0 0 1px var(--guest-line);
+  transition: background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+.guest-payment-options button { padding: 14px 18px; }
+.guest-payment-method-sheet button { border-radius: 14px; }
+.guest-payment-options button.is-active,
+.guest-fulfillment-options > div > button.is-active,
+.guest-room-option.is-selected,
+.guest-payment-method-sheet button.is-active {
+  border: 0;
+  background: var(--guest-paper);
+  box-shadow: 0 0 0 1.5px var(--guest-ink), var(--shadow-sm);
+}
+.guest-payment-method-sheet { border: 0; border-radius: var(--guest-radius-lg); background: var(--guest-surface); box-shadow: inset 0 0 0 1px var(--guest-line); }
+.guest-payment-method-sheet svg { color: var(--guest-ink); }
+.guest-payment-chip { background: var(--guest-surface); }
+.guest-payment-chip.is-selected { border-color: var(--guest-ink); background: var(--guest-paper); box-shadow: 0 0 0 1px var(--guest-ink); }
+
+.guest-ride-choice__segmented {
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--guest-sunken);
+}
+.guest-ride-choice__segmented button { border: 0; border-radius: 999px; background: transparent; }
+.guest-ride-choice__segmented button.is-active { background: var(--guest-paper); color: var(--guest-ink); box-shadow: var(--shadow-xs); }
+
+.guest-menu-quantity button {
+  border: 1.5px solid var(--guest-ink);
+  border-radius: 50%;
+  background: none;
+  color: var(--guest-ink);
+}
+.guest-menu-quantity button:disabled { border-color: var(--guest-line-strong); color: var(--guest-subtle); }
+.guest-menu-quantity output { font-weight: 600; font-variant-numeric: tabular-nums; }
+.guest-check input { accent-color: var(--guest-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .guest-payment-options button, .guest-fulfillment-options > div > button, .guest-room-option, .guest-payment-method-sheet button { transition: none; }
+}
+.guest-menu-quantity { grid-template-columns: 30px 32px 30px; gap: 4px; overflow: visible; border: 0; background: none; }
+.guest-menu-quantity button { position: relative; width: 30px; height: 30px; }
+.guest-menu-quantity button::after { content: ''; position: absolute; inset: -7px; }
+.guest-menu-quantity button svg { width: 14px; height: 14px; }
+@media (hover: hover) and (pointer: fine) { .guest-menu-quantity button:hover { background: var(--guest-surface); } }

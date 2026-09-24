@@ -251,7 +251,6 @@
 .points-wallet__nearest small { font-size: 13px; color: var(--ink-soft, #6b6a76); }
 
 .points-wallet__heading,
-.badge-shelf__heading,
 .estate-map__heading {
   display: flex;
   justify-content: space-between;
@@ -262,7 +261,6 @@
 }
 
 .points-wallet__heading small,
-.badge-shelf__heading small,
 .estate-map__heading small {
   font-size: 13px;
   font-weight: 500;
@@ -300,84 +298,144 @@
    The badge shelf
    -------------------------------------------------------------------------- */
 
-.badge-shelf { display: grid; gap: 12px; }
+/*
+  One grid for the whole collection, three across on a phone. Every tile has
+  the same shape whatever its state, so the set reads as a collection with
+  gaps in it; only the status line underneath changes.
+*/
+.badge-shelf { display: grid; gap: 16px; }
 
-.badge-shelf__subheading {
-  margin: 8px 0 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-soft, #6b6a76);
+.badge-shelf__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--guest-line);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
 }
 
-/* Earned badges explain themselves, so they wrap rather than queue. */
-.badge-shelf__held {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.badge-shelf__heading small {
+  color: var(--guest-muted);
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.badge-shelf__empty { margin: 0; font-size: 14px; color: var(--guest-muted); }
+
+.badge-shelf__hero {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  inline-size: 100%;
+  padding: 18px 16px 20px;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease;
+}
+
+.badge-shelf__hero:active { transform: scale(0.98); }
+
+.badge-shelf__eyebrow {
+  margin-block-end: 6px;
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.badge-shelf__hero b {
+  margin-block-start: 8px;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.badge-shelf__hero small { color: var(--guest-muted); font-size: 13px; }
+
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 20px;
+  padding: 2px 8px;
+  border-radius: var(--guest-radius-pill, 999px);
+  background: var(--guest-sunken);
+  color: var(--guest-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+/* Ink, not pink: holding a badge is a fact, not live state. */
+.badge-pill--held { background: var(--guest-ink); color: var(--guest-paper); }
+
+.badge-shelf__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-/*
-  The child, whatever tag it is. These render as a button when there is
-  somewhere to go and a div when there is not, and a tag-keyed selector left
-  the inert version completely unstyled.
-*/
-.badge-shelf__held li > * {
-  display: grid;
-  gap: 6px;
-  justify-items: center;
-  inline-size: 72px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  cursor: pointer;
-  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+@media (min-width: 560px) {
+  .badge-shelf__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-.badge-shelf__held li > button:active { transform: scale(0.96); }
+/* The child, whatever tag it is -- a button with somewhere to go, else a div. */
+.badge-shelf__grid li > * {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 6px;
+  inline-size: 100%;
+  min-block-size: 132px;
+  padding: 12px 4px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--guest-ink);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease;
+}
 
-.badge-shelf__held span {
+.badge-shelf__grid li > button:active { transform: scale(0.96); }
+
+.badge-shelf__grid b {
   font-size: 12px;
+  font-weight: 650;
   line-height: 1.25;
   text-align: center;
   text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
-.badge-shelf__rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-radius: 16px;
-  background: var(--paper, #fff);
-  border: 1px solid var(--line, oklch(0.912 0.004 285));
-}
+.badge-shelf__grid li[data-state='locked'] b { color: var(--guest-muted); }
 
-.badge-shelf__rows li + li { border-block-start: 1px solid var(--line, oklch(0.912 0.004 285)); }
-
-.badge-shelf__rows li > * {
+.badge-shelf__progress {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  gap: 12px;
-  align-items: center;
-  inline-size: 100%;
-  padding: 12px 16px;
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-  min-block-size: 44px;
+  justify-items: center;
+  gap: 4px;
+  inline-size: 72%;
 }
 
-.badge-shelf__rows b { display: block; font-size: 15px; font-weight: 500; }
-.badge-shelf__rows small { display: block; font-size: 13px; color: var(--ink-soft, #6b6a76); }
-
-.badge-shelf__count {
-  font-size: 13px;
-  color: var(--ink-soft, #6b6a76);
+.badge-shelf__progress small {
+  color: var(--guest-muted);
+  font-size: 10px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -388,22 +446,396 @@
 */
 .badge-shelf__track {
   display: block;
-  block-size: 2px;
-  margin-block-start: 6px;
-  border-radius: 999px;
-  background: var(--line, oklch(0.912 0.004 285));
+  inline-size: 100%;
+  block-size: 3px;
   overflow: hidden;
+  border-radius: 999px;
+  background: var(--guest-line);
 }
 
-.badge-shelf__track i {
+.badge-shelf__track i { display: block; block-size: 100%; background: var(--guest-ink); }
+.badge-shelf__track.is-near i { background: var(--guest-accent-strong); }
+
+@media (hover: hover) and (pointer: fine) {
+  .badge-shelf__hero:hover,
+  .badge-shelf__grid li > button:hover { background: var(--guest-surface); }
+}
+
+/*
+  A locked badge with artwork: the real medal, pressed blank. Grey, lifted,
+  with a lit lower edge and a shaded upper one, so it reads as an embossed
+  space the badge will fill rather than a failed image.
+*/
+.badge-medal__silhouette {
+  filter:
+    grayscale(1) brightness(1.5) contrast(0.5)
+    drop-shadow(0 1px 0 rgb(255 255 255 / 0.9))
+    drop-shadow(0 -1px 0.5px rgb(0 0 0 / 0.16));
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   The coin
+
+   An earned badge on its own page, as an object with an edge and a back.
+   The artwork is an open frame, so a satin plate cut to the family shape sits
+   behind it; slices of the same shape stacked in depth make the rim; the back
+   is brushed bronze with the holder engraved. The turn itself is one custom
+   property, `--coin-turn`, written by `badge-coin.tsx`.
+   -------------------------------------------------------------------------- */
+
+.badge-coin {
+  --coin-size: 208px;
+  --coin-depth: 14px;
+  --coin-turn: 0deg;
+  --coin-light: 50%;
+  --coin-shape: circle(42% at 50% 50%);
+
+  position: relative;
   display: block;
-  block-size: 100%;
-  background: var(--ink-soft, #6b6a76);
+  inline-size: var(--coin-size);
+  block-size: var(--coin-size);
+  padding: 0;
+  border: 0;
+  background: none;
+  perspective: 900px;
+  /* Vertical swipes still scroll the page; horizontal ones turn the coin. */
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.badge-shelf__track.is-near i { background: var(--accent, oklch(0.79 0.18 345)); }
+.badge-coin:active { cursor: grabbing; }
 
-.badge-shelf__empty { margin: 0; font-size: 14px; color: var(--ink-soft, #6b6a76); }
+.badge-coin:focus-visible {
+  outline: 2px solid var(--guest-brand);
+  outline-offset: 6px;
+  border-radius: 24px;
+}
+
+/* The shadow it casts, which is what sells it as sitting on the page. */
+.badge-coin::after {
+  position: absolute;
+  inset-inline: 24%;
+  inset-block-end: -4px;
+  block-size: 12px;
+  content: '';
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.2), transparent);
+  pointer-events: none;
+}
+
+.badge-coin[data-shape='shield'] { --coin-shape: polygon(50% 10%, 83% 22%, 83% 58%, 50% 92%, 17% 58%, 17% 22%); }
+.badge-coin[data-shape='hexagon'] { --coin-shape: polygon(50% 8%, 85% 28%, 85% 72%, 50% 92%, 15% 72%, 15% 28%); }
+.badge-coin[data-shape='pentagon'] { --coin-shape: polygon(50% 11%, 88% 38%, 76% 81%, 24% 81%, 12% 38%); }
+.badge-coin[data-shape='square'] { --coin-shape: inset(14% 15% 12% 15% round 17%); }
+.badge-coin[data-shape='capsule'] { --coin-shape: inset(25% 6% 24% 6% round 999px); }
+
+.badge-coin__body {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(var(--coin-turn));
+  transform-style: preserve-3d;
+}
+
+.badge-coin__slice,
+.badge-coin__face,
+.badge-coin__plate,
+.badge-coin__shine,
+.badge-coin__art {
+  position: absolute;
+  inset: 0;
+}
+
+.badge-coin__slice {
+  transform: translateZ(calc(var(--slice) * var(--coin-depth)));
+}
+
+.badge-coin__slice i {
+  position: absolute;
+  inset: 0;
+  clip-path: var(--coin-shape);
+  background: linear-gradient(90deg, #6f3d22, #e0a27a 45%, #7a4527);
+}
+
+.badge-coin__face {
+  backface-visibility: hidden;
+  transform: translateZ(calc(var(--coin-depth) / 2));
+}
+
+.badge-coin__face--back {
+  transform: rotateY(180deg) translateZ(calc(var(--coin-depth) / 2));
+}
+
+.badge-coin__plate {
+  clip-path: var(--coin-shape);
+  background: radial-gradient(
+    circle at 35% 28%,
+    #fffaf5,
+    color-mix(in oklch, var(--medal-enamel) 10%, #f1e6dc) 60%,
+    color-mix(in oklch, var(--medal-enamel) 18%, #d9c6b6)
+  );
+}
+
+.badge-coin__plate--back {
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgb(255 255 255 / 0.07) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at 38% 30%, #f3c39f, #c98a60 48%, #8d5334);
+}
+
+.badge-coin__art {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* The light moves with the turn: `--coin-light` tracks the angle. */
+.badge-coin__shine {
+  clip-path: var(--coin-shape);
+  background: linear-gradient(
+    105deg,
+    transparent calc(var(--coin-light) - 28%),
+    rgb(255 255 255 / 0.6) var(--coin-light),
+    transparent calc(var(--coin-light) + 28%)
+  );
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+.badge-coin__engraving {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  color: rgb(84 44 22 / 0.82);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  /* Cut in, not printed on: a lit lower lip and a shaded upper one. */
+  text-shadow: 0 1px 0 rgb(255 226 200 / 0.55), 0 -1px 0 rgb(60 28 12 / 0.25);
+}
+
+.badge-coin__engraving b {
+  max-inline-size: 150px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+
+/*
+  The premium pass: light that behaves like light on metal.
+
+  - `glare` is a hard specular band masked by the artwork's own alpha, so it
+    runs across the bronze bezel and the enamel and nowhere else, and it moves
+    with the turn (`--coin-light`).
+  - `sweep` is a slow, periodic flash across the same mask while the coin
+    rests -- the catch you get tilting a real medal under a lamp.
+  - `float` wobbles the coin a few degrees so the light never quite settles;
+    it pauses while a finger is on it.
+  - `glints` are three small four-point stars that twinkle off the rim.
+*/
+.badge-coin__float {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: badge-coin-float 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.badge-coin[data-held] .badge-coin__float { animation-play-state: paused; }
+
+.badge-coin__glare,
+.badge-coin__sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask: var(--coin-art) center / contain no-repeat;
+  mask: var(--coin-art) center / contain no-repeat;
+}
+
+.badge-coin__glare {
+  background: linear-gradient(
+    115deg,
+    transparent calc(var(--coin-light) - 18%),
+    rgb(255 244 230 / 0.35) calc(var(--coin-light) - 6%),
+    rgb(255 255 255 / 0.95) var(--coin-light),
+    rgb(255 244 230 / 0.35) calc(var(--coin-light) + 6%),
+    transparent calc(var(--coin-light) + 18%)
+  );
+  mix-blend-mode: overlay;
+}
+
+.badge-coin__sweep {
+  /* Two bands, a broad one and a thin trailing one: how a lit bevel flashes. */
+  background: linear-gradient(
+    110deg,
+    transparent 34%,
+    rgb(255 250 240 / 0.3) 41%,
+    #fff 47%,
+    rgb(255 250 240 / 0.3) 52%,
+    transparent 55%,
+    rgb(255 255 255 / 0.85) 57.5%,
+    transparent 60%
+  ) no-repeat;
+  background-size: 300% 100%;
+  background-position: 150% 0;
+  mix-blend-mode: screen;
+  animation: badge-coin-sweep 4.8s cubic-bezier(0.3, 0.6, 0.2, 1) 1.2s infinite;
+}
+
+/* The back has no artwork to mask by; it takes the plate's shape instead. */
+.badge-coin__sweep--back {
+  -webkit-mask: none;
+  mask: none;
+  clip-path: var(--coin-shape);
+  mix-blend-mode: soft-light;
+}
+
+/* A warm bloom behind the coin: enamel-tinted, faint, and still. */
+.badge-coin::before {
+  position: absolute;
+  inset: 8%;
+  content: '';
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in oklch, var(--medal-enamel) 30%, #ffd9b8 70%), transparent);
+  filter: blur(22px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.badge-coin__glints {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.badge-coin__glints i {
+  position: absolute;
+  inline-size: 24px;
+  block-size: 24px;
+  background: radial-gradient(circle, #fff 0 14%, transparent 15%),
+    conic-gradient(from 0deg, transparent 0 40deg, #fff 45deg, transparent 50deg 130deg, #fff 135deg,
+      transparent 140deg 220deg, #fff 225deg, transparent 230deg 310deg, #fff 315deg, transparent 320deg);
+  -webkit-mask: radial-gradient(circle, #000 0 30%, transparent 70%);
+  mask: radial-gradient(circle, #000 0 30%, transparent 70%);
+  opacity: 0;
+  filter: drop-shadow(0 0 3px rgb(255 214 160)) drop-shadow(0 0 8px rgb(255 190 120 / 0.8));
+  animation: badge-coin-glint 3.6s ease-in-out infinite;
+}
+
+/* On the rim itself -- a glint on the page around the coin is white on white. */
+.badge-coin__glints i:nth-child(1) { inset-block-start: 14%; inset-inline-start: 66%; animation-delay: 0.6s; }
+.badge-coin__glints i:nth-child(2) { inset-block-start: 56%; inset-inline-start: 4%; inline-size: 20px; block-size: 20px; animation-delay: 1.9s; }
+.badge-coin__glints i:nth-child(3) { inset-block-end: 6%; inset-inline-start: 56%; inline-size: 16px; block-size: 16px; animation-delay: 3s; }
+
+@keyframes badge-coin-float {
+  0%, 100% { transform: rotateX(4deg) rotateY(-7deg) translateY(0); }
+  50% { transform: rotateX(-3deg) rotateY(7deg) translateY(-4px); }
+}
+
+@keyframes badge-coin-sweep {
+  0%, 30% { background-position: 150% 0; }
+  70%, 100% { background-position: -50% 0; }
+}
+
+@keyframes badge-coin-glint {
+  0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  12% { opacity: 1; transform: scale(1) rotate(45deg); }
+  26% { opacity: 0; transform: scale(0.4) rotate(90deg); }
+}
+
+/*
+  The flat medal's shimmer, where there is artwork: masked by the art, so the
+  flash follows the drawn bezel instead of a clip-path cut to rough geometry,
+  and moved by background-position so the mask itself stays put.
+*/
+.badge-medal[data-shape].badge-medal--shimmer:has(img) {
+  overflow: visible;
+  clip-path: none;
+}
+
+.badge-medal[data-shape].badge-medal--shimmer:has(img)::after {
+  inset: 0;
+  inline-size: auto;
+  background: linear-gradient(
+    110deg,
+    transparent 38%,
+    rgb(255 255 255 / 0.15) 44%,
+    rgb(255 255 255 / 0.95) 50%,
+    rgb(255 255 255 / 0.15) 56%,
+    transparent 62%
+  ) no-repeat;
+  background-size: 300% 100%;
+  background-position: 150% 0;
+  filter: none;
+  opacity: 1;
+  transform: none;
+  -webkit-mask: var(--medal-art) center / contain no-repeat;
+  mask: var(--medal-art) center / contain no-repeat;
+  animation: badge-coin-sweep 5.2s cubic-bezier(0.3, 0.6, 0.2, 1) infinite;
+  animation-delay: var(--shimmer-delay, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-coin__float,
+  .badge-coin__sweep,
+  .badge-coin__glints i,
+  .badge-medal[data-shape].badge-medal--shimmer:has(img)::after {
+    animation: none;
+  }
+}
+
+.guest-badge-detail__hint {
+  margin-block: 2px 4px;
+  color: var(--guest-muted);
+  font-size: 12px;
+}
+
+.guest-badge-detail__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  border-block-start: 1px solid var(--guest-line);
+}
+
+.guest-badge-detail__facts > div {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 2px;
+}
+
+.guest-badge-detail__facts > div:nth-child(n + 3) { border-block-start: 1px solid var(--guest-line); }
+
+.guest-badge-detail__facts > div:nth-child(even) {
+  padding-inline-start: 16px;
+  border-inline-start: 1px solid var(--guest-line);
+}
+
+.guest-badge-detail__facts dt {
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.guest-badge-detail__facts dd {
+  margin: 0;
+  color: var(--guest-ink);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 
 /* --------------------------------------------------------------------------
    The estate
@@ -949,7 +1381,6 @@
   .points-earned__badge { animation: none; }
 }
 
-
 /* --------------------------------------------------------------------------
    Points where money is already being discussed
    -------------------------------------------------------------------------- */
@@ -1151,7 +1582,6 @@
   background: var(--guest-accent);
 }
 
-.guest-achievements-page .badge-shelf,
 .guest-achievements-points,
 .guest-achievements-page .reward-menu {
   display: grid;
@@ -1162,111 +1592,12 @@
   box-shadow: var(--shadow-sm);
 }
 
-.guest-achievements-page .badge-shelf__heading,
 .guest-achievements-page .reward-menu__heading {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.018em;
 }
-
-.guest-achievements-page .badge-shelf__heading small {
-  padding: 5px 8px;
-  border-radius: var(--guest-radius-pill);
-  background: var(--guest-soft);
-  color: var(--guest-brand);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.guest-achievements-page .badge-shelf__subheading {
-  margin: 2px 0 0;
-  color: var(--guest-ink);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.guest-achievements-page .badge-shelf__held {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.guest-achievements-page .badge-shelf__held li > * {
-  inline-size: 100%;
-  min-block-size: 88px;
-  gap: 7px;
-  padding: 10px 4px 8px;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-surface);
-  color: var(--guest-ink);
-}
-
-.guest-achievements-page .badge-shelf__held span {
-  overflow-wrap: anywhere;
-  color: var(--guest-ink);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.guest-achievements-page .badge-shelf__held .badge-medal {
-  animation: guest-earned-badge-float 6.8s ease-in-out infinite;
-  transform-origin: 50% 72%;
-}
-
-.guest-achievements-page .badge-shelf__held li:nth-child(3n + 2) .badge-medal {
-  animation-delay: -2.2s;
-}
-
-.guest-achievements-page .badge-shelf__held li:nth-child(3n) .badge-medal {
-  animation-delay: -4.4s;
-}
-
-.guest-achievements-page .badge-shelf__held li > button:active { transform: scale(0.96); }
-
-.guest-achievements-page .badge-shelf__rows {
-  border: 0;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-sunken);
-  overflow: hidden;
-}
-
-.guest-achievements-page .badge-shelf__rows li > * {
-  min-block-size: 68px;
-  padding: 10px;
-}
-
-.guest-achievements-page .badge-shelf__rows li > * > div { min-width: 0; }
-
-.guest-achievements-page .badge-shelf__rows b { font-size: 14px; font-weight: 650; }
-
-.guest-achievements-page .badge-shelf__rows small {
-  overflow-wrap: anywhere;
-  color: var(--guest-muted);
-  font-size: 12px;
-}
-
-.guest-achievements-page .badge-shelf__count {
-  color: var(--guest-muted);
-  font-size: 12px;
-}
-
-.guest-achievements-page .badge-shelf__track {
-  block-size: 4px;
-  margin-block-start: 7px;
-  background: var(--guest-line);
-}
-
-.guest-achievements-page .badge-shelf__track i { background: var(--guest-muted); }
-.guest-achievements-page .badge-shelf__track.is-near i { background: var(--guest-accent-strong); }
-
-.guest-achievements-page .badge-shelf__family {
-  display: grid;
-  gap: 7px;
-  padding-top: 4px;
-}
-
-.guest-achievements-page .badge-shelf__empty { color: var(--guest-muted); }
 
 .guest-achievements-section-title {
   display: flex;
@@ -1368,36 +1699,12 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .guest-achievements-page .badge-shelf__held li > button:hover {
-    background: var(--guest-paper);
-    transform: translateY(-2px);
-  }
-
-  .guest-achievements-page .badge-shelf__held li > button:hover .badge-medal {
-    animation-play-state: paused;
-    transform: translateY(-1px) rotate(0deg);
-  }
 
   .guest-achievements-points .points-wallet__buys:hover,
   .guest-achievements-points .points-wallet__next:hover,
   .guest-achievements-page .reward-menu__rows li > button:hover:not(:disabled) {
     background: var(--guest-surface);
   }
-}
-
-@keyframes guest-earned-badge-float {
-  0%, 100% { transform: translate3d(0, 0, 0) rotate(-0.6deg); }
-  50% { transform: translate3d(0, -2px, 0) rotate(0.6deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .guest-achievements-page .badge-shelf__held .badge-medal {
-    animation: none;
-  }
-}
-
-@media (max-width: 360px) {
-  .guest-achievements-page .badge-shelf__held { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* --------------------------------------------------------------------------
@@ -1432,85 +1739,10 @@
   background: rgb(25 18 26 / 0.58);
 }
 
-.guest-achievements-page .badge-shelf {
-  display: grid;
-  gap: 14px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.guest-achievements-page .badge-shelf__heading,
 .guest-achievements-page .reward-menu__heading,
 .guest-achievements-page .estate-map__heading {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--guest-line);
-}
-
-.guest-achievements-page .badge-shelf__heading small {
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--guest-muted);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.guest-achievements-page .badge-shelf__subheading {
-  margin: 4px 0 0;
-  color: var(--guest-muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.guest-achievements-page .badge-shelf__held {
-  gap: 0;
-  padding: 8px;
-  overflow: hidden;
-  border: 1px solid var(--guest-line);
-  border-radius: 16px;
-  background: var(--guest-surface);
-}
-
-.guest-achievements-page .badge-shelf__held li > * {
-  min-block-size: 88px;
-  padding: 10px 4px 8px;
-  border-radius: 0;
-  background: transparent;
-}
-
-.guest-achievements-page .badge-shelf__held {
-  padding: 12px;
-}
-
-.guest-achievements-page .badge-shelf__held li > * {
-  min-block-size: 104px;
-  padding: 14px 8px 12px;
-}
-
-@media (max-width: 480px) {
-  .guest-achievements-page .badge-shelf__held {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.guest-achievements-page .badge-shelf__rows {
-  overflow: hidden;
-  border: 1px solid var(--guest-line);
-  border-radius: 16px;
-  background: var(--guest-paper);
-}
-
-.guest-achievements-page .badge-shelf__rows li > * {
-  min-block-size: 68px;
-  padding: 14px 16px;
-}
-
-.guest-achievements-page .badge-shelf__family {
-  gap: 8px;
-  padding-top: 10px;
 }
 
 .guest-achievements-points {

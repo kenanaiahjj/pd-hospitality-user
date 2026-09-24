@@ -4791,6 +4791,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <BadgeDetail
             row={badge}
+            holder={session.guestName}
             /* Muting rewrites the session, so the correction is persisted by
                the same effect that persists everything else. */
             onMute={(badgeId) => {

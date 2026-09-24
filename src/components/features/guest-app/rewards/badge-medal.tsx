@@ -101,9 +101,15 @@ export function BadgeMedal({ badge, earned, size = 48, shimmer = false, decorati
       style={{
         '--medal-size': `${size}px`,
         '--medal-enamel': family.enamel,
+        // The shimmer is masked by the art itself, so it follows the drawn medal.
+        ...(badge.art ? { '--medal-art': `url(${badge.art})` } : {}),
       } as React.CSSProperties}
     >
-      {!earned ? (
+      {!earned && badge.art ? (
+        /* The badge's own outline, pressed blank -- you can see what you are
+           missing, which a lock over a colour field never said. */
+        <Image className="badge-medal__silhouette" src={badge.art} alt="" width={size * 4} height={size * 4} />
+      ) : !earned ? (
         <span className="badge-medal__locked-field">
           <Lock className="badge-medal__lock" weight="fill" aria-hidden="true" />
         </span>

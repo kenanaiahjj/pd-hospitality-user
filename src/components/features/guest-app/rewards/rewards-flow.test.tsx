@@ -9,7 +9,8 @@ import { RewardDetail, RewardMenu } from './reward-menu';
 import { PointsApply } from './points-apply';
 import { GuestAppPrototype } from '../guest-app-prototype';
 import {
-  BADGES, BADGE_FAMILIES, badgeProgress, earnedBadges, findBadge, nearlyEarnedBadges,
+  BADGES, BADGE_FAMILIES, badgeProgress, badgeRarity, badgeSerial, earnedBadges, findBadge,
+  formatRarity, nearlyEarnedBadges, rarestBadge,
 } from './badge-model';
 import { BadgeMedal, glyphFor } from './badge-medal';
 import { BadgeShelf } from './badge-shelf';
@@ -155,41 +156,57 @@ describe('BadgeShelf', () => {
     return onOpenBadge;
   };
 
-  it('wraps what is earned and lists what is close', () => {
+  it('counts the collection and leads with the rarest badge held', () => {
     renderShelf();
 
-    expect(screen.getByText('13 earned')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'In progress' })).toBeInTheDocument();
+    const rarest = rarestBadge(earnedBadges(MOCK_SESSION))!;
+    expect(screen.getByText(`13/${BADGES.length}`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `${rarest.definition.name}, your rarest badge` }))
+      .toBeInTheDocument();
+    expect(screen.getByText(`Earned by ${formatRarity(badgeRarity(rarest.definition))} of guests`))
+      .toBeInTheDocument();
   });
 
-  it('shows every badge exactly once', () => {
+  it('shows every badge exactly once, held first', () => {
     renderShelf();
 
-    expect(screen.getAllByTestId('badge-progress-row').length
-      + earnedBadges(MOCK_SESSION).length).toBe(BADGES.length);
+    const tiles = screen.getAllByTestId('badge-tile');
+    expect(tiles).toHaveLength(BADGES.length);
+    expect(tiles.slice(0, 13).every((tile) => tile.dataset.state === 'earned')).toBe(true);
   });
 
   /*
-    One announcement, not three. The row's medal, its label and its count would
-    otherwise each be read out, so the medal is decorative and the button
+    One announcement, not three. The tile's medal, its label and its status
+    would otherwise each be read out, so the medal is decorative and the button
     carries name, requirement and progress together.
   */
-  it('announces an in-progress badge as one non-interactive thing', () => {
+  it('announces an in-progress badge as one thing, with its progress', () => {
     renderShelf();
 
-    expect(screen.getByRole('group', {
+    expect(screen.getByRole('button', {
       name: 'Culture — Two museums or heritage walks, 1 of 2',
     })).toBeInTheDocument();
   });
 
-  it('does not make an in-progress badge tappable', () => {
+  it('opens any badge, held or not', async () => {
     const onOpenBadge = renderShelf();
 
-    const rows = screen.getAllByTestId('badge-progress-row');
+    await userEvent.click(screen.getByRole('button', { name: /^Culture —/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Foodie' }));
 
-    expect(within(rows[0]!).queryByRole('button')).not.toBeInTheDocument();
-    expect(onOpenBadge).not.toHaveBeenCalled();
+    expect(onOpenBadge).toHaveBeenNthCalledWith(1, 'culture');
+    expect(onOpenBadge).toHaveBeenNthCalledWith(2, 'foodie');
+  });
+
+  it('marks each tile by state: unlocked, started, or locked', () => {
+    renderShelf();
+
+    const tiles = screen.getAllByTestId('badge-tile');
+    const culture = tiles.find((tile) => within(tile).queryByText('Culture'))!;
+    expect(culture.dataset.state).toBe('started');
+    expect(within(culture).getByText('1 / 2')).toBeInTheDocument();
+    expect(tiles.some((tile) => tile.dataset.state === 'locked'
+      && within(tile).queryByText('Locked'))).toBe(true);
   });
 });
 
@@ -230,7 +247,7 @@ describe('the door from Profile', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Your achievements' })).toBeInTheDocument();
     expect(screen.getByText('37,220')).toBeInTheDocument();
-    expect(screen.getByText('13 earned')).toBeInTheDocument();
+    expect(screen.getByText(`13/${BADGES.length}`)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
     expect(document.querySelector('.guest-achievements-overview')).toBeInTheDocument();
     expect(document.querySelector('.guest-achievements-overview__image')).toBeInTheDocument();
@@ -238,17 +255,12 @@ describe('the door from Profile', () => {
   });
 
   it('keeps the achievements hub on one quiet grouped-surface system', () => {
-    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf\s*\{[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
-    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf__held\s*\{[\s\S]*?background:\s*var\(--guest-surface\);[\s\S]*?border:\s*1px solid var\(--guest-line\);/);
-    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf__rows\s*\{[\s\S]*?background:\s*var\(--guest-paper\);[\s\S]*?border:\s*1px solid var\(--guest-line\);/);
     expect(rewardsStyles).toMatch(/\.guest-achievements-page \.reward-menu\s*\{[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
     expect(rewardsStyles).toMatch(/\.guest-achievements-page \.estate-map\s*\{[\s\S]*?padding:\s*0;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none/);
   });
 
-  it('gives earned badge labels room to wrap on narrow screens', () => {
-    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf__held\s*\{[\s\S]*?padding:\s*12px;/);
-    expect(rewardsStyles).toMatch(/\.guest-achievements-page \.badge-shelf__held li > \*\s*\{[\s\S]*?min-block-size:\s*104px;[\s\S]*?padding:\s*14px 8px 12px;/);
-    expect(rewardsStyles).toMatch(/@media \(max-width:\s*480px\)[\s\S]*?\.guest-achievements-page \.badge-shelf__held\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3/);
+  it('lays the collection out three across on a phone', () => {
+    expect(rewardsStyles).toMatch(/\.badge-shelf__grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3/);
   });
 
   /* Rewards lives inside Profile, so the bar must not lose its highlight. */
@@ -282,7 +294,27 @@ describe('the badge detail page', () => {
     expect(within(detail).getByRole('heading', { level: 1, name: 'Foodie' })).toBeInTheDocument();
     expect(within(detail).getByText('Dinner for two · Azotea Rooftop')).toBeInTheDocument();
     expect(within(detail).getByText('Drinks and snacks · The Poolside Bar')).toBeInTheDocument();
-    expect(detail.querySelector('.badge-medal--shimmer')).toBeInTheDocument();
+  });
+
+  it('presents an earned badge as a coin engraved with the holder', async () => {
+    await openRewards();
+    await userEvent.click(screen.getByRole('button', { name: 'Foodie' }));
+
+    const detail = screen.getByTestId('badge-detail');
+    const coin = within(detail).getByRole('button', { name: 'Turn the Foodie medal over' });
+    expect(within(coin).getByText('Ana Santos')).toBeInTheDocument();
+    expect(within(coin).getByText(badgeSerial(findBadge('foodie')!, 'Ana Santos'))).toBeInTheDocument();
+    expect(within(detail).getByText('Rarity')).toBeInTheDocument();
+    expect(within(detail).getByText('Date earned')).toBeInTheDocument();
+  });
+
+  it('shows a badge not yet earned as its silhouette, without a coin', async () => {
+    await openRewards();
+    await userEvent.click(screen.getByRole('button', { name: /^Culture —/ }));
+
+    const detail = screen.getByTestId('badge-detail');
+    expect(within(detail).queryByRole('button', { name: /turn the .* medal over/i })).not.toBeInTheDocument();
+    expect(within(detail).getByText('1 of 2', { selector: 'dd' })).toBeInTheDocument();
   });
 
   it('lets the guest deny it, and the badge leaves every surface', async () => {
@@ -293,7 +325,7 @@ describe('the badge detail page', () => {
     await userEvent.click(screen.getByRole('button', { name: /turn this off/i }));
 
     expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
-    expect(screen.getByText('12 earned')).toBeInTheDocument();
+    expect(screen.getByText(`12/${BADGES.length - 1}`)).toBeInTheDocument();
   });
 
   /*
@@ -315,20 +347,18 @@ describe('the badge detail page', () => {
     await userEvent.click(screen.getByRole('button', { name: /achievements/i }));
 
     expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
-    expect(screen.getByText('12 earned')).toBeInTheDocument();
+    expect(screen.getByText(`12/${BADGES.length - 1}`)).toBeInTheDocument();
   });
 
   it('shows what is left on a badge still in progress without opening it', async () => {
     await openRewards();
 
-    const cultureRow = screen.getAllByTestId('badge-progress-row').find((row) => (
-      within(row).queryByText('Culture')
+    const culture = screen.getAllByTestId('badge-tile').find((tile) => (
+      within(tile).queryByText('Culture')
     ));
 
-    expect(cultureRow).toBeDefined();
-    expect(within(cultureRow!).getByText(/1\s+of\s+2/)).toBeInTheDocument();
-    expect(within(cultureRow!).getByText('Two museums or heritage walks')).toBeInTheDocument();
-    expect(within(cultureRow!).queryByRole('button')).not.toBeInTheDocument();
+    expect(culture).toBeDefined();
+    expect(within(culture!).getByText('1 / 2')).toBeInTheDocument();
     expect(screen.queryByTestId('badge-detail')).not.toBeInTheDocument();
   });
 

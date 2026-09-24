@@ -60,6 +60,8 @@ export type BadgeProgress = {
   evidence: string[];
   /** A catalogue id that would advance it. Never something already booked. */
   nextStep?: string;
+  /** ISO date it was earned, for the engraving and the detail page. Earned only. */
+  earnedOn?: string;
 };
 
 export const BADGE_FAMILIES: Record<BadgeFamily, { label: string; shape: string; enamel: string }> = {
@@ -511,22 +513,96 @@ export const findBadge = (id: string): BadgeDefinition | undefined =>
  */
 export function badgeProgress(session: GuestSession): BadgeProgress[] {
   const history = buildHistory(session);
+  /* Nothing is earned on a day that has not happened: an upcoming booking
+     counts toward a badge but cannot date it. */
+  const today = new Date().toISOString().slice(0, 10);
+  const latest = [
+    ...history.booked.map((thing) => thing.date),
+    ...history.stays.map((stay) => stay.checkIn),
+  ].filter((date) => date && date <= today).sort().at(-1) ?? today;
   const muted = new Set(getRewards(session).mutedBadges);
   const booked = new Set(history.booked.map((thing) => thing.serviceId).filter(Boolean));
 
   return BADGES.filter((badge) => !muted.has(badge.id)).map((badge) => {
     const evidence = badge.evidence(history);
+    const earned = evidence.length >= badge.threshold;
 
     return {
       definition: badge,
       count: evidence.length,
-      earned: evidence.length >= badge.threshold,
+      earned,
       evidence,
       // Never suggest what they have already done.
       nextStep: badge.qualifyingIds?.find((id) => !booked.has(id)),
+      earnedOn: earned ? earnedOn(evidence, badge.threshold, latest) : undefined,
     };
   });
 }
+
+const ISO_DATE = /\d{4}-\d{2}-\d{2}/;
+
+/**
+ * The day the threshold was crossed, where the evidence says; otherwise the
+ * guest's latest dated activity.
+ *
+ * Stay evidence carries its check-in date, so a stay badge is exact. A booked
+ * line carries only its title -- close enough for an engraving, and the
+ * fallback is never earlier than the truth.
+ */
+function earnedOn(evidence: string[], threshold: number, latest: string): string {
+  const dated = evidence
+    .map((line) => line.match(ISO_DATE)?.[0])
+    .filter((date): date is string => Boolean(date))
+    .sort();
+  const crossed = dated.length >= threshold ? dated[threshold - 1]! : latest;
+  return crossed < latest ? crossed : latest;
+}
+
+/* --------------------------------------------------------------------------
+   Rarity and serials
+
+   SEEDED, NOT MEASURED. There is no guest population behind the prototype, so
+   "earned by 2.4% of guests" is a stable figure made from the threshold and a
+   hash of the id -- harder badges read rarer, and the same badge always says
+   the same thing. Replace both with real counts from the loyalty service when
+   one exists; nothing else on screen needs to change.
+   -------------------------------------------------------------------------- */
+
+/** A small, stable string hash (FNV-1a). Good enough to seed a figure. */
+const hash = (text: string): number => {
+  let value = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    value ^= text.charCodeAt(i);
+    value = Math.imul(value, 0x01000193);
+  }
+  return value >>> 0;
+};
+
+/** Share of guests holding it, as a percentage. Seeded -- see above. */
+export function badgeRarity(badge: BadgeDefinition): number {
+  const jitter = 0.6 + (hash(badge.id) % 800) / 1000;
+  return Math.min(64, (48 / badge.threshold ** 1.35) * jitter);
+}
+
+export const formatRarity = (percent: number): string =>
+  `${percent < 1 ? percent.toFixed(2) : percent.toFixed(1)}%`;
+
+/**
+ * The holder's number for this badge, as engraved on its back.
+ *
+ * Bounded by rarity, so a rare badge carries a low number -- fewer people got
+ * there first. Stable per guest and badge.
+ */
+export function badgeSerial(badge: BadgeDefinition, holder: string): string {
+  const pool = Math.max(40, Math.round(badgeRarity(badge) * 120));
+  return `#${String(1 + (hash(`${holder}:${badge.id}`) % pool)).padStart(5, '0')}`;
+}
+
+/** The rarest earned badge, for the collection's hero. */
+export const rarestBadge = (rows: BadgeProgress[]): BadgeProgress | undefined =>
+  rows
+    .filter((row) => row.earned)
+    .sort((a, b) => badgeRarity(a.definition) - badgeRarity(b.definition))[0];
 
 export const earnedBadges = (session: GuestSession): BadgeProgress[] =>
   badgeProgress(session).filter((row) => row.earned);

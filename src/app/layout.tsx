@@ -1,6 +1,16 @@
 import type { Metadata } from 'next';
+import { Newsreader } from 'next/font/google';
 import { QueryProvider } from '@/lib/queries';
 import './globals.css';
+
+/* The editorial serif for page titles and place names, after Places. */
+const serif = Newsreader({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  style: ['normal', 'italic'],
+  variable: '--font-serif',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Cabana — your stay, in one place',
@@ -10,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={serif.variable}>
       <body className="antialiased">
         <QueryProvider>{children}</QueryProvider>
       </body>

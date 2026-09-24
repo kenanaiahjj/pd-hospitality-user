@@ -168,6 +168,7 @@ import {
   type AuthMethod,
 } from './prototype-model';
 import {
+  CATEGORY_IMAGES,
   getServiceImage,
   getPropertyImage,
   getServiceImageKey,
@@ -441,6 +442,15 @@ const HOME_STORY_CATEGORIES: ReadonlyArray<{ id: HomeStoryCategoryId; label: str
 ];
 
 /** One glyph per arrival service, so the column reads as four things. */
+/** One line under each arrival card, in the guest's terms. */
+const ARRIVAL_BLURBS: Record<string, string> = {
+  transfer: 'Met at arrivals and driven to the door.',
+  'private-car': 'A car and driver for the day, on your schedule.',
+  luggage: 'Bags held, or sent ahead to your room.',
+  celebration: 'Flowers, cake or a room set for the occasion.',
+  'early-check-in': 'Your room from the morning, if it is ready.',
+};
+
 const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
   transfer: <Car />,
   'private-car': <Person />,
@@ -2615,22 +2625,30 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Browsing saved services">Live availability and booking require a connection.</Notice> : null}
 
         <section>
-          <div className="guest-list-group">
-            {arrivalServices.map((service) => (
-              <button
-                key={service.id}
-                className="guest-list-row"
-                type="button"
-                onClick={() => service.id === 'transfer' ? openArrivalRide() : service.id === 'early-check-in' ? go('early-check-in') : openServiceBooking(service.id)}
-              >
-                <span>{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
-                <div>
-                  <b>{service.name}</b>
-                  {'note' in service ? <small>{service.note}</small> : null}
-                </div>
-                <CaretRight />
-              </button>
-            ))}
+          {/* Photo cards, after Places' Discover: the service named on its picture. */}
+          <div className="guest-arrival-cards">
+            {arrivalServices.map((service) => {
+              const image = 'categoryId' in service
+                ? getServiceImage(getServiceImageKey(service))
+                : getPropertyImage(contextBooking.property);
+              return (
+                <button
+                  key={service.id}
+                  className="guest-arrival-card"
+                  type="button"
+                  onClick={() => service.id === 'transfer' ? openArrivalRide() : service.id === 'early-check-in' ? go('early-check-in') : openServiceBooking(service.id)}
+                >
+                  <Image className="guest-arrival-card__image" src={image.src} alt="" fill sizes="(max-width: 720px) 100vw, 560px" style={{ objectPosition: image.focalPoint }} />
+                  {'note' in service ? <span className="guest-arrival-card__chip">{service.note}</span> : null}
+                  <span className="guest-arrival-card__copy">
+                    <span className="guest-arrival-card__glyph" aria-hidden="true">{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
+                    <b>{service.name}</b>
+                    <small>{ARRIVAL_BLURBS[service.id] ?? 'Arranged by the hotel before you arrive.'}</small>
+                  </span>
+                  <CaretRight className="guest-arrival-card__caret" aria-hidden="true" />
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -4212,7 +4230,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // dates, not `status`: the two disagree when a PMS has not caught up.
         const started = hasStayStarted(contextBooking);
 
-        const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
+        const stayStatus = describeStayStatus(contextBooking);
+        const checkedOut = stayStatus.status === 'checked-out';
         const checkoutIsDue = contextBooking.checkOut <= PROTOTYPE_TODAY;
         /*
           The same object `stay-detail` renders, built from the live booking
@@ -4223,12 +4242,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <div className="guest-stack guest-my-stay-page">
-            {/*
-              Status and room as one line, because they are one fact: where
-              this guest is and how far through. Two elements side by side read
-              as two unrelated labels.
-            */}
-            <div className="guest-my-stay-header"><h1>{contextBooking.property}</h1><div><b>{describeStayStatus(contextBooking).label} · Room {contextBooking.roomNumber ?? '—'}</b></div></div>
+            {/* Add the room to the status pill only after one is assigned. */}
+            {/* Named on its own photograph, as Home and a Places card name a place. */}
+            <section className="guest-my-stay-hero">
+              <PropertyImage property={contextBooking.property} aspectRatio="1.35" decorative />
+              <div className="guest-my-stay-hero__overlay">
+                <b className="guest-my-stay-hero__status" data-state={stayStatus.status}>
+                  {stayStatus.label}{contextBooking.roomNumber ? ` · Room ${contextBooking.roomNumber}` : ''}
+                </b>
+                <h1>{contextBooking.property}</h1>
+                <small>{formatStayDateRange(contextBooking)}</small>
+              </div>
+            </section>
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
@@ -4244,6 +4269,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <span className="guest-stay-context__text"><b>{describeCheckoutCountdown(contextBooking)}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
               </button>
               {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions">{checkoutIsDue ? <button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button> : null}<div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
+
+              {/* Live-stay folio access belongs with the other stay details. */}
+              {started && !checkedOut ? (
+                <button className="guest-my-stay-folio-link" type="button" aria-label="Room charges" onClick={() => go('folio')}>
+                  <span className="guest-my-stay-folio-link__icon" aria-hidden="true"><GuestNavIcon icon={HugeReceiptTextIcon} /></span>
+                  <span className="guest-my-stay-folio-link__copy"><b>Room charges</b><small>View your complete folio</small></span>
+                  <HugeiconsIcon icon={HugeChevronRightIcon} size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />
+                </button>
+              ) : null}
             </div>
 
             {/*
@@ -4251,14 +4285,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               the settled receipt below is its answer -- the live screen would
               say "Due at checkout" directly under "Total settled".
             */}
-            {started && !checkedOut ? (
-              <button className="guest-my-stay-folio-link" type="button" aria-label="Room charges" onClick={() => go('folio')}>
-                <span className="guest-my-stay-folio-link__icon" aria-hidden="true"><GuestNavIcon icon={HugeReceiptTextIcon} /></span>
-                <span className="guest-my-stay-folio-link__copy"><b>Room charges</b><small>View your complete folio</small></span>
-                <HugeiconsIcon icon={HugeChevronRightIcon} size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />
-              </button>
-            ) : null}
-
             {checkedOut ? (
               /*
                 Says which of the two post-stay surfaces this is. The desk is
@@ -4682,52 +4708,46 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <div className="guest-stack guest-achievements-page">
-            <div className="guest-page-title guest-achievements-intro">
-              <span className="guest-achievements-intro__eyebrow">Your Cabana story</span>
-              <h1>Your achievements</h1>
-              <p>Collect the stays, places, and moments that make each stay yours.</p>
-            </div>
-
-            <section className="guest-achievements-overview" aria-labelledby="guest-achievements-overview-heading">
-              <Image
-                className="guest-achievements-overview__image"
-                src={achievementBackdrop.src}
-                alt=""
-                fill
-                priority
-                sizes="(max-width: 720px) calc(100vw - 32px), 688px"
-                style={{ objectPosition: achievementBackdrop.focalPoint }}
-              />
-              <div className="guest-achievements-overview__top">
-                <div>
-                  <p className="guest-achievements-overview__eyebrow">Your collection</p>
-                  <h2 id="guest-achievements-overview-heading">Every stay leaves a mark.</h2>
-                  <p>{earned.length} earned across {badges.length} achievements.</p>
-                </div>
+            {/*
+              A profile header after Places: the guest's own photograph of the
+              estate, their initials overlapping it, their name set in the
+              serif, and the collection in one line beneath.
+            */}
+            <section className="guest-profile-hero" aria-labelledby="guest-profile-hero-name">
+              <div className="guest-profile-hero__cover">
+                <Image
+                  className="guest-profile-hero__image"
+                  src={achievementBackdrop.src}
+                  alt=""
+                  fill
+                  priority
+                  sizes="(max-width: 720px) 100vw, 720px"
+                  style={{ objectPosition: achievementBackdrop.focalPoint }}
+                />
               </div>
-
-              <div className="guest-achievements-overview__stats" aria-label="Achievement summary">
-                <div><b>{earned.length}</b><span>earned</span></div>
-                <div><b>{badges.length - earned.length}</b><span>to discover</span></div>
-                <div><b>{nearly.length}</b><span>in progress</span></div>
-              </div>
-
-              {nextBadge ? (
-                <div className="guest-achievements-overview__next">
-                  <div className="guest-achievements-overview__next-head">
-                    <div>
-                      <span>Next to unlock</span>
-                      <b>{nextBadge.definition.name}</b>
-                      <small>{nextBadge.definition.requirement}</small>
-                    </div>
-                    <strong>{nextBadge.count} / {nextBadge.definition.threshold}</strong>
-                  </div>
-                  <span className="guest-achievements-overview__track" aria-hidden="true">
-                    <i style={{ inlineSize: `${nextBadgeProgress * 100}%` }} />
-                  </span>
-                </div>
-              ) : null}
+              <span className="guest-profile-hero__avatar" aria-hidden="true">
+                {(session.guestName || 'Cabana Guest').split(' ').map((part) => part[0]).slice(0, 2).join('')}
+              </span>
+              <p className="guest-profile-hero__eyebrow">Your achievements</p>
+              <h1 id="guest-profile-hero-name">{session.guestName || 'Cabana guest'}</h1>
+              <p className="guest-profile-hero__meta">
+                {earned.length} of {badges.length} badges · {balance.toLocaleString('en-US')} points
+              </p>
             </section>
+
+            {nextBadge ? (
+              <section className="guest-achievements-next" aria-label="Next to unlock">
+                <div>
+                  <span>Next to unlock</span>
+                  <b>{nextBadge.definition.name}</b>
+                  <small>{nextBadge.definition.requirement}</small>
+                </div>
+                <strong>{nextBadge.count} / {nextBadge.definition.threshold}</strong>
+                <span className="guest-achievements-next__track" aria-hidden="true">
+                  <i style={{ inlineSize: `${nextBadgeProgress * 100}%` }} />
+                </span>
+              </section>
+            ) : null}
 
             <BadgeShelf
               earned={earned}
@@ -5857,6 +5877,10 @@ function StayEntryCard({ entry, onOpen, showWhen = true }: { entry: StayEntry; o
         in a growing catalogue silently lost the line that says which building
         it is in, which is the question the card exists to answer.
       */}
+      {/* A square photograph, as Places lists a saved place. */}
+      <span className="guest-stay-entry__thumb" aria-hidden="true">
+        <Image src={(CATEGORY_IMAGES[entry.category] ?? CATEGORY_IMAGES.services!).src} alt="" fill sizes="56px" />
+      </span>
       <span className="guest-stay-entry__parent">
         <span aria-hidden="true"><HugeiconsIcon icon={HugeStoreIcon} size={16} strokeWidth={1.75} aria-hidden="true" focusable="false" /></span>
         <span>{entry.parentDetail ? `${entry.parent} · ${entry.parentDetail}` : entry.parent}</span>

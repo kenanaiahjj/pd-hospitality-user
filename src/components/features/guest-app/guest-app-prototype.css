@@ -7544,3 +7544,305 @@ label.guest-field textarea { padding: 0; border: 0; background: transparent; fon
 .guest-menu-quantity button::after { content: ''; position: absolute; inset: -7px; }
 .guest-menu-quantity button svg { width: 14px; height: 14px; }
 @media (hover: hover) and (pointer: fine) { .guest-menu-quantity button:hover { background: var(--guest-surface); } }
+
+
+/* ==========================================================================
+   Places pass: serif titles, photo-first stays, profile header, photo cards
+   ========================================================================== */
+
+/*
+  Page titles and place names in the editorial serif, as Places sets them.
+  Everything else -- labels, rows, controls -- stays in the sans. Serif reads
+  heavy at the weights the sans titles used, so it drops to 400 and loses the
+  negative tracking that suited the sans.
+*/
+.guest-app.guest-app :is(h1, .guest-page-title h1, .guest-stay-hero-card__overlay h1, .guest-section-heading h2, .badge-shelf__heading, .guest-achievements-section-title h2, .reward-menu__heading, .estate-map__heading) {
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* --- My Stay: the hotel on its own photograph ---------------------------- */
+.guest-my-stay-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--guest-radius-lg);
+  box-shadow: var(--shadow-sm);
+  isolation: isolate;
+}
+.guest-my-stay-hero .guest-property-image { border-radius: 0; }
+.guest-my-stay-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, oklch(0.12 0.01 60 / 0.25) 0%, transparent 30%, transparent 45%, oklch(0.12 0.01 60 / 0.8) 100%);
+  pointer-events: none;
+}
+.guest-my-stay-hero__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  align-content: space-between;
+  justify-items: start;
+  padding: 14px 16px 16px;
+  color: #fff;
+}
+.guest-my-stay-hero__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: var(--guest-radius-pill, 999px);
+  background: oklch(0.2 0.01 60 / 0.42);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  font-weight: 600;
+}
+.guest-my-stay-hero__status[data-state='checked-in']::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+.guest-my-stay-hero h1 {
+  align-self: end;
+  margin: 0;
+  color: #fff;
+  font-size: 34px;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+.guest-my-stay-hero small {
+  margin-top: 4px;
+  color: rgb(255 255 255 / 0.84);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.guest-my-stay-hero__overlay > h1 { grid-row: 2; }
+.guest-my-stay-hero__overlay > small { grid-row: 3; }
+.guest-my-stay-hero__overlay { grid-template-rows: auto 1fr auto; }
+
+/* The rows under it: one paper group with hairlines, not three card styles. */
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-checkout-card {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  box-shadow: none;
+  overflow: hidden;
+}
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-context > button:first-child {
+  grid-column: 1;
+  min-height: 64px;
+  padding: 14px 16px;
+  border-block-end: 1px solid var(--guest-line);
+}
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-checkout-card__actions {
+  grid-column: 1;
+  gap: 0;
+}
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-checkout-card__requests {
+  margin: 0;
+  padding: 0;
+  border-block-start: 1px solid var(--guest-line);
+}
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-checkout-card__requests button {
+  min-height: 64px;
+  padding: 12px 16px;
+  border-block-end: 0;
+}
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-checkout-card__requests button + button {
+  border-block-start: 1px solid var(--guest-line);
+}
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-my-stay-folio-link {
+  grid-column: 1;
+  min-height: 64px;
+  padding: 14px 16px;
+  border: 0;
+  border-block-start: 1px solid var(--guest-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-my-stay-folio-link:hover { background: var(--guest-surface); }
+.guest-my-stay-hero small { font-size: 12px; }
+
+/* --- Booked services as saved-place rows ---------------------------------- */
+.guest-stay-entry { position: relative; padding-left: 84px !important; min-height: 84px; }
+.guest-stay-entry__thumb {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--guest-sunken);
+  transform: translateY(-50%);
+}
+.guest-stay-entry__thumb img { object-fit: cover; }
+.guest-app.guest-app .guest-stay-entry__headline h2 {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+.guest-my-stay-page .guest-stay-entries__date-group > h2 {
+  color: var(--guest-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* --- Arrival services as photo cards, after Places' Discover ------------- */
+.guest-arrival-cards { display: grid; gap: 12px; }
+.guest-arrival-card {
+  position: relative;
+  display: grid;
+  align-content: end;
+  min-height: 188px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-ink);
+  color: #fff;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  isolation: isolate;
+  box-shadow: var(--shadow-sm);
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.guest-arrival-card:active { transform: scale(0.98); }
+.guest-arrival-card__image { z-index: -2; object-fit: cover; }
+.guest-arrival-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, transparent 30%, oklch(0.12 0.01 60 / 0.82) 100%);
+}
+.guest-arrival-card__chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 10px;
+  border-radius: var(--guest-radius-pill, 999px);
+  background: oklch(0.2 0.01 60 / 0.42);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  font-weight: 600;
+}
+.guest-arrival-card__copy { display: grid; gap: 3px; padding: 16px 44px 16px 16px; }
+.guest-arrival-card__glyph { display: inline-flex; margin-bottom: 4px; opacity: 0.9; }
+.guest-arrival-card__glyph svg { width: 18px; height: 18px; }
+.guest-arrival-card__copy b {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+}
+.guest-arrival-card__copy small { color: rgb(255 255 255 / 0.84); font-size: 13px; line-height: 1.4; }
+.guest-arrival-card__caret { position: absolute; right: 16px; bottom: 18px; width: 18px; height: 18px; }
+
+/* --- Achievements: a profile header, after Places ------------------------ */
+.guest-profile-hero {
+  display: grid;
+  justify-items: center;
+  margin: -8px -16px 0;
+  text-align: center;
+}
+.guest-profile-hero__cover {
+  position: relative;
+  width: 100%;
+  height: 168px;
+  overflow: hidden;
+}
+.guest-profile-hero__cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, oklch(0.12 0.01 60 / 0.35));
+}
+.guest-profile-hero__cover img { object-fit: cover; }
+.guest-profile-hero__avatar {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin-top: -42px;
+  border: 3px solid var(--guest-canvas);
+  border-radius: 50%;
+  background: var(--guest-ink);
+  color: var(--guest-paper);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 30px;
+  position: relative;
+  z-index: 1;
+}
+.guest-profile-hero__eyebrow {
+  margin: 12px 0 0;
+  color: var(--guest-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.guest-profile-hero h1 { margin: 2px 0 0; font-size: 32px; line-height: 1.1; }
+.guest-profile-hero__meta { margin: 4px 0 0; color: var(--guest-muted); font-size: 14px; }
+
+.guest-achievements-next {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+.guest-achievements-next > div { display: grid; gap: 2px; }
+.guest-achievements-next span {
+  color: var(--guest-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.guest-achievements-next b { font-family: var(--font-serif), Georgia, serif; font-size: 20px; font-weight: 400; }
+.guest-achievements-next small { color: var(--guest-muted); font-size: 13px; }
+.guest-achievements-next > strong { align-self: start; font-size: 13px; font-variant-numeric: tabular-nums; }
+.guest-achievements-next__track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--guest-line);
+}
+.guest-achievements-next__track i { display: block; height: 100%; background: var(--guest-accent-strong); }
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-arrival-card { transition: none; }
+}
+
+.guest-app.guest-app .badge-shelf__hero b {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}

@@ -1810,3 +1810,51 @@
   border-radius: 16px;
   background: var(--guest-paper);
 }
+
+.guest-achievements-page .estate-map__groups {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+
+.guest-achievements-page .estate-map__group {
+  display: grid;
+  grid-template-columns: minmax(82px, 0.8fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.guest-achievements-page .estate-map__group + .estate-map__group {
+  border-block-start: 1px solid var(--guest-line);
+}
+
+.guest-achievements-page .estate-map__group h3 {
+  margin: 2px 0 0;
+  color: var(--guest-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.guest-achievements-page .estate-map__group ul { gap: 6px; }
+
+.guest-achievements-page .estate-map__group li {
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.guest-achievements-page .estate-map__group li small {
+  grid-column: auto;
+  color: var(--guest-muted);
+}
+
+.guest-achievements-page .estate-map__none { grid-column: 2; }

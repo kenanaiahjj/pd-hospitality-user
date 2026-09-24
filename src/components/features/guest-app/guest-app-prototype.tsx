@@ -5496,7 +5496,19 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         {deskOpen ? (
           <section className="guest-before-you-go">
             <SectionHeading title="Before you go" />
-            <button className="guest-after-checkout-card" type="button" onClick={() => (onRequestRide ? onRequestRide('departure') : onNavigate('transfer-booking'))}><Car /><span><b>Need a ride to the airport?</b><small>Book a hotel vehicle for your departure.</small><strong>Book a ride <CaretRight /></strong></span></button>
+            <button className="guest-ride-card" type="button" onClick={() => (onRequestRide ? onRequestRide('departure') : onNavigate('transfer-booking'))}>
+              <Image className="guest-ride-card__image" src={getServiceImage('transfer').src} alt="" fill sizes="(max-width: 720px) 100vw, 560px" style={{ objectPosition: getServiceImage('transfer').focalPoint }} />
+              <span className="guest-ride-card__action" aria-hidden="true"><ArrowRight /></span>
+              <span className="guest-ride-card__body">
+                <small>Airport drop-off</small>
+                <b>Need a ride to the airport?</b>
+                <span>{`A hotel driver takes you from ${booking.property} to ${airportFor(booking)}.`}</span>
+                <span className="guest-ride-card__pills">
+                  <span><Car aria-hidden="true" />Leave now or schedule</span>
+                  <span><Users aria-hidden="true" />{`${booking.guestCount} ${booking.guestCount === 1 ? 'guest' : 'guests'}`}</span>
+                </span>
+              </span>
+            </button>
             <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('gifts-souvenirs')}><Gift /><span><b>Want something from the gift shop?</b><small>Pick up local treats and souvenirs before you leave.</small><strong>Browse gifts <CaretRight /></strong></span></button>
           </section>
         ) : null}

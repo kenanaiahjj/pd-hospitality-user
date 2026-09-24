@@ -3193,10 +3193,13 @@ describe('design tokens', () => {
     */
     const defined = new Set([...guestStyles.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
     const globalDefined = new Set([...globalStyles.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+    // next/font registers these on <html> at runtime (`variable: '--font-serif'`), not in a stylesheet.
+    const layoutSource = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8');
+    const fontDefined = new Set([...layoutSource.matchAll(/variable:\s*'(--[a-z0-9-]+)'/g)].map((m) => m[1]));
     const used = [...guestStyles.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]);
 
     const undefinedTokens = [...new Set(used)].filter(
-      (token) => !defined.has(token) && !globalDefined.has(token),
+      (token) => !defined.has(token) && !globalDefined.has(token) && !fontDefined.has(token),
     );
 
     expect(undefinedTokens).toEqual([]);

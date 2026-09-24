@@ -3390,7 +3390,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ? `${displayBooking.property} is in your Cabana now, with everything for the stay.`
               : `${displayBooking.property} is in your Cabana now. A few details next, and you’re ready to arrive.`}
             onConfirm={claimBooking}
-            secondary={<TextButton onClick={() => go('identify')}>No, this isn't my booking</TextButton>}
+            secondary={<TextButton onClick={() => go('identify')}>No, this isn&apos;t my booking</TextButton>}
           />
         );
 

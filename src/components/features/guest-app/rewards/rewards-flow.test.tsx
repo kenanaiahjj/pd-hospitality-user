@@ -229,12 +229,14 @@ describe('the door from Profile', () => {
 
     await userEvent.click(door);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Your achievements' })).toBeInTheDocument();
+    // A profile hero: "Your achievements" is the eyebrow, the guest's name the heading.
+    expect(screen.getByText('Your achievements')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: MOCK_SESSION.guestName })).toBeInTheDocument();
     expect(screen.getByText('37,220')).toBeInTheDocument();
     expect(screen.getByText(`13/${BADGES.length}`)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
-    expect(document.querySelector('.guest-achievements-overview')).toBeInTheDocument();
-    expect(document.querySelector('.guest-achievements-overview__image')).toBeInTheDocument();
+    expect(document.querySelector('.guest-profile-hero')).toBeInTheDocument();
+    expect(document.querySelector('.guest-profile-hero__image')).toBeInTheDocument();
     expect(document.querySelector('.guest-achievements-points')).toBeInTheDocument();
   });
 

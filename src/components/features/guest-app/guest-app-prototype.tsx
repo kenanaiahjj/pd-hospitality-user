@@ -5509,7 +5509,19 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
                 </span>
               </span>
             </button>
-            <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('gifts-souvenirs')}><Gift /><span><b>Want something from the gift shop?</b><small>Pick up local treats and souvenirs before you leave.</small><strong>Browse gifts <CaretRight /></strong></span></button>
+            <button className="guest-ride-card guest-ride-card--busy" type="button" onClick={() => onNavigate('gifts-souvenirs')}>
+              <Image className="guest-ride-card__image" src="https://images.unsplash.com/photo-1751725154557-b10ab73f1564?auto=format&fit=crop&w=1200&q=82" alt="" fill sizes="(max-width: 720px) 100vw, 560px" />
+              <span className="guest-ride-card__action" aria-hidden="true"><ArrowRight /></span>
+              <span className="guest-ride-card__body">
+                <small>Gifts &amp; souvenirs</small>
+                <b>Want something from the gift shop?</b>
+                <span>Pick up local treats and souvenirs before you leave.</span>
+                <span className="guest-ride-card__pills">
+                  <span><Gift aria-hidden="true" />Pasalubong &amp; keepsakes</span>
+                  <span><Storefront aria-hidden="true" />Lobby pick-up</span>
+                </span>
+              </span>
+            </button>
           </section>
         ) : null}
         <TextButton onClick={() => onNavigate('stay-history')}>View stay history</TextButton>

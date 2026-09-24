@@ -1159,6 +1159,10 @@ describe('booking detail', () => {
 
     expect(screen.getByText('Checked in')).toBeInTheDocument();
     expect(screen.queryByText('Upcoming')).toBeNull();
+    // ...and as the current stay, with nothing under it about arriving.
+    expect(screen.getByText(/^Your current stay/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Your next stay/)).toBeNull();
+    expect(screen.queryByText('Need a ride to the hotel?')).toBeNull();
   });
 
   it('keeps folio charges in My Stay instead of repeating them in booking detail', () => {

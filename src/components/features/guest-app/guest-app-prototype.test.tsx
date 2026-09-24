@@ -84,7 +84,7 @@ const openHomeStory = async (
 ) => {
   await user.click(screen.getByRole('button', { name: label }));
   expect(screen.getByTestId('story-viewer')).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: new RegExp(`^Explore ${label}`) }));
+  await user.click(screen.getByRole('button', { name: new RegExp(`^Visit ${label}`) }));
 };
 
 const assignedSession = sessionFor([
@@ -1730,7 +1730,7 @@ describe('home mini-apps and browsable restaurant menu', () => {
     expect(screen.getByRole('heading', { name: 'MAKE A TABLE OF IT' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('heading', { name: 'DINNER, THEN ONE MORE' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Explore Food & Drinks/ }));
+    await user.click(screen.getByRole('button', { name: /Visit Food & Drinks/ }));
 
     expect(screen.getByRole('heading', { name: 'Food & Drinks', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Apartment 1B' })).toBeInTheDocument();

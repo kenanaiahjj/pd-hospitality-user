@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowDown, ArrowRight, ArrowUp, Pause, Play, SealCheck, X } from '@phosphor-icons/react';
+import { ArrowDown, ArrowUpRight, ArrowUp, Pause, Play, SealCheck, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from '@/lib/hooks';
@@ -73,7 +73,7 @@ export function SwipeStoryViewer({ stories, initialStoryId, onClose, onBook }: P
               <h2 className="story__headline">{slide.headline}</h2>
               <p className="story__place">{story.subtitle}</p>
               {slide.detail ? <p className="story__detail">{slide.detail}</p> : null}
-              <button className="story__cta" type="button" onClick={() => onBook(story.id)}>{story.cta}<span className="story__price">{story.price}</span><ArrowRight aria-hidden="true" /></button>
+              <button className="story__cta" type="button" aria-label={`Visit ${story.title}`} onClick={() => onBook(story.id)}><ArrowUpRight aria-hidden="true" />Visit</button>
               <span className="swipe-stories__hint">Swipe to explore<ArrowDown aria-hidden="true" /></span>
               {frameIndex === frames.length - 1 ? <button className="swipe-stories__restart" type="button" onClick={() => move(1)}>Watch again<ArrowUp aria-hidden="true" /></button> : null}
             </footer>

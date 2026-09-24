@@ -233,8 +233,9 @@ const serviceStory = (service: (typeof SERVICES)[number]): Story => {
     cta: 'Book a time',
     cover: frames[0]!,
     slides: [
-      { headline: service.category.toUpperCase(), detail: service.name, image: frames[0]!, video: clip },
-      { headline: service.price.toUpperCase(), detail: service.cutoff, image: frames[1]! },
+      // Titled like a place, as venue stories are: the service's own name opens it.
+      { headline: service.name, detail: service.category, image: frames[0]!, video: clip },
+      { headline: service.price, detail: service.cutoff, image: frames[1]! },
     ],
     /*
       The venue, not the treatment. "Hilom signature massage" is a thing the

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, SealCheck, X } from '@phosphor-icons/react';
+import { ArrowUpRight, SealCheck, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { usePrefersReducedMotion } from '@/lib/hooks';
@@ -194,9 +194,7 @@ export function StoryViewer({ story, onClose, onBook, onFinished }: StoryViewerP
         <h1 className="story__headline">{slide.headline}</h1>
         <p className="story__place">{story.subtitle}</p>
         {slide.detail ? <p className="story__detail">{slide.detail}</p> : null}
-        <button className="story__cta" type="button" onClick={() => onBook(story.id)}>
-          {story.cta}<span className="story__price">{story.price}</span><ArrowRight aria-hidden="true" />
-        </button>
+<button className="story__cta" type="button" aria-label={`Visit ${story.title}`} onClick={() => onBook(story.id)}><ArrowUpRight aria-hidden="true" />Visit</button>
       </footer>
     </div>
   );

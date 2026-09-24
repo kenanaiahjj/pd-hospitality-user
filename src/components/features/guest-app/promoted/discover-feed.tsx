@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState, type ReactNode } from 'react';
 import { AskAnswer, AskSuggestions } from './ask-panel';
 import { INTENTS, matchIntent, resolveIntent } from './intent-model';
-import { formatPostedAgo, searchCatalogue, storyExpiryLabel } from './story-model';
+import { describePostedAgo, formatPostedAgo, searchCatalogue, storyExpiryLabel } from './story-model';
 import type { CategoryCard, DiscoverBanner, SearchableItem, Story } from './story-model';
 
 /*
@@ -179,7 +179,7 @@ export function DiscoverFeed({
                   className="discover__story"
                   type="button"
                   onClick={() => onOpenStory(story.id)}
-                  aria-label={`${story.author.name}, posted ${formatPostedAgo(story.postedHoursAgo)} ago${expiring ? `. ${expiring}` : ''}`}
+                  aria-label={`${story.author.name}, ${describePostedAgo(story.postedHoursAgo)}${expiring ? `. ${expiring}` : ''}`}
                 >
                   <span className={`discover__story-ring${expiring ? ' is-expiring' : ''}`}>
                     <span className="discover__story-art">

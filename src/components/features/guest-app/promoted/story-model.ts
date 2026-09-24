@@ -124,6 +124,11 @@ export const storyHoursRemaining = (story: Story): number =>
   Math.max(0, story.livesForHours - story.postedHoursAgo);
 
 /** "Just now", "2h", "3d" -- the vocabulary every feed already uses. */
+/** The same age as a phrase to read aloud: "posted 2h ago", "posted just now". */
+export function describePostedAgo(hoursAgo: number): string {
+  return hoursAgo < 1 ? 'posted just now' : `posted ${formatPostedAgo(hoursAgo)} ago`;
+}
+
 export function formatPostedAgo(hoursAgo: number): string {
   if (hoursAgo < 1) return 'Just now';
   if (hoursAgo < 24) return `${Math.floor(hoursAgo)}h`;

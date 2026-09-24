@@ -3096,16 +3096,16 @@
   padding-top: 8px;
 }
 /* --------------------------------------------------------------------------
-   The live stay, after the Places cards: the hotel is named on its own
+   A stay card, after the Places cards: the hotel is named on its own
    photograph over a scrim, the status sits in frosted pills at the top, and
    the facts stay on paper underneath.
    -------------------------------------------------------------------------- */
-.guest-home-active-hero {
+.guest-stay-hero-card.guest-stay-hero-card--photo {
   border: 0;
   border-radius: var(--guest-radius-lg);
   box-shadow: var(--shadow-sm);
 }
-.guest-home-active-hero .guest-stay-hero-card__media::after {
+.guest-stay-hero-card--photo .guest-stay-hero-card__media::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -3113,8 +3113,8 @@
   background: linear-gradient(180deg, oklch(0.12 0.01 60 / 0.3) 0%, transparent 28%, transparent 42%, oklch(0.12 0.01 60 / 0.78) 100%);
   pointer-events: none;
 }
-.guest-home-active-hero .guest-stay-hero-card__badges { top: 12px; bottom: auto; left: 12px; }
-.guest-home-active-hero .guest-stay-hero-card__status {
+.guest-stay-hero-card--photo .guest-stay-hero-card__badges { top: 12px; bottom: auto; left: 12px; }
+.guest-stay-hero-card--photo .guest-stay-hero-card__status {
   gap: 6px;
   background: oklch(0.2 0.01 60 / 0.42);
   color: #fff;
@@ -3123,7 +3123,7 @@
   backdrop-filter: blur(12px);
   font-weight: 600;
 }
-.guest-home-active-hero .guest-stay-hero-card__status--positive::before {
+.guest-stay-hero-card--photo .guest-stay-hero-card__status--positive::before {
   content: '';
   width: 7px;
   height: 7px;
@@ -3148,7 +3148,7 @@
   line-height: 1.1;
   text-wrap: balance;
 }
-.guest-home-active-hero .guest-stay-hero-card__body .guest-stay-hero-card__stats { margin-top: 2px; padding-top: 2px; border-top: 0; }
+.guest-stay-hero-card--photo .guest-stay-hero-card__body .guest-stay-hero-card__stats { margin-top: 2px; padding-top: 2px; border-top: 0; }
 .guest-home-active-hero .guest-stay-hero-card__booking--upgrade {
   min-height: 36px;
   margin-top: 2px;

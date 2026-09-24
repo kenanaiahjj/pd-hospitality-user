@@ -5369,7 +5369,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
     const roomUpgrade = booking.roomUpgrade;
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
-        <section className="guest-stay-hero-card guest-home-active-hero">
+        <section className="guest-stay-hero-card guest-stay-hero-card--photo guest-home-active-hero">
           <div className="guest-stay-hero-card__media">
             <PropertyImage property={booking.property} aspectRatio="1.5" decorative />
             <div className="guest-stay-hero-card__badges">
@@ -5810,17 +5810,19 @@ function StayEntryCard({ entry, onOpen, showWhen = true }: { entry: StayEntry; o
 
 function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean }) {
   return (
-    <section className="guest-stay-hero-card">
+    <section className="guest-stay-hero-card guest-stay-hero-card--photo">
       <div className="guest-stay-hero-card__media">
-        <PropertyImage property={booking.property} aspectRatio="16/8" decorative />
+        <PropertyImage property={booking.property} aspectRatio="1.6" decorative />
         <div className="guest-stay-hero-card__badges">
-          <span className="guest-stay-hero-card__status">{statusLabel ?? (primary ? 'Next arrival' : 'Upcoming')}</span>
+          <span className={`guest-stay-hero-card__status${statusLabel === 'Checked in' ? ' guest-stay-hero-card__status--positive' : ''}`}>{statusLabel ?? (primary ? 'Next arrival' : 'Upcoming')}</span>
           {showRoomBadge && booking.roomNumber ? <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">Room {booking.roomNumber}</span> : null}
+        </div>
+        <div className="guest-stay-hero-card__overlay">
+          {!hideEyebrow ? <p className="guest-eyebrow">{isStayUnderWay(booking) ? 'Your current stay' : primary ? 'Your next stay' : 'Upcoming stay'}</p> : null}
+          <h1>{booking.property}</h1>
         </div>
       </div>
       <div className="guest-stay-hero-card__body">
-        {!hideEyebrow ? <p className="guest-eyebrow">{isStayUnderWay(booking) ? 'Your current stay' : primary ? 'Your next stay' : 'Upcoming stay'}{booking.roomNumber ? ` · Room ${booking.roomNumber}` : ''}</p> : null}
-        <h1>{booking.property}</h1>
         <div className="guest-stay-hero-card__stats">
           <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
           {booking.roomNumber ? <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber}</b></div> : null}

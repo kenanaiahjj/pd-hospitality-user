@@ -1,6 +1,8 @@
 'use client';
 
+import { BadgeCoin, formatEarnedOn } from './badge-coin';
 import { BadgeMedal } from './badge-medal';
+import { BADGE_FAMILIES, badgeRarity, badgeSerial, formatRarity } from './badge-model';
 import type { BadgeProgress } from './badge-model';
 
 /*
@@ -16,19 +18,24 @@ import type { BadgeProgress } from './badge-model';
   entirely rather than hiding it in a view, so it stays gone across a reload
   and cannot quietly keep counting.
 
-  (Carried from `badge-sheet.tsx`, a modal that did this job before the premium
-  pass gave it a screen of its own. The reasoning outlived the dialog.)
+  An earned badge is a coin with the holder engraved on its back; one still
+  ahead is its pressed-blank silhouette, so the page shows what is coming
+  without pretending it has arrived.
 */
 
 export type BadgeDetailProps = {
   row: BadgeProgress;
+  /** Engraved on the back of an earned coin. */
+  holder: string;
   onMute: (badgeId: string) => void;
 };
 
-export function BadgeDetail({ row, onMute }: BadgeDetailProps) {
-  const { definition, count, earned, evidence } = row;
+export function BadgeDetail({ row, holder, onMute }: BadgeDetailProps) {
+  const { definition, count, earned, evidence, earnedOn } = row;
   const progress = Math.min(count / definition.threshold, 1);
   const remaining = Math.max(definition.threshold - count, 0);
+  const rarity = formatRarity(badgeRarity(definition));
+  const serial = badgeSerial(definition, holder || 'guest');
 
   return (
     <div className="guest-stack guest-badge-detail" data-testid="badge-detail">
@@ -42,15 +49,45 @@ export function BadgeDetail({ row, onMute }: BadgeDetailProps) {
       </header>
 
       <section className="guest-badge-detail__hero" aria-labelledby="badge-detail-title">
-        <div className={`guest-badge-detail__medal${earned ? ' is-earned' : ''}`}>
-          <BadgeMedal badge={definition} earned={earned} size={144} shimmer={earned} decorative />
-        </div>
+        {earned ? (
+          <>
+            <BadgeCoin badge={definition} holder={holder || 'Cabana guest'} earnedOn={earnedOn} serial={serial} />
+            <span className="guest-badge-detail__hint" aria-hidden="true">Drag or tap to turn it over</span>
+          </>
+        ) : (
+          <div className="guest-badge-detail__medal">
+            <BadgeMedal badge={definition} earned={false} size={144} decorative />
+          </div>
+        )}
         <span className="guest-badge-detail__eyebrow">
           {earned ? 'Achievement unlocked' : 'Keep exploring'}
         </span>
         <h1 id="badge-detail-title">{definition.name}</h1>
         <p>{definition.requirement}</p>
       </section>
+
+      <dl className="guest-badge-detail__facts">
+        <div>
+          <dt>Rarity</dt>
+          <dd>Earned by {rarity} of guests</dd>
+        </div>
+        <div>
+          <dt>{earned ? 'Date earned' : 'Progress'}</dt>
+          <dd>
+            {earned
+              ? (earnedOn ? formatEarnedOn(earnedOn) : 'Earned')
+              : `${count} of ${definition.threshold}`}
+          </dd>
+        </div>
+        <div>
+          <dt>Category</dt>
+          <dd>{BADGE_FAMILIES[definition.family].label}</dd>
+        </div>
+        <div>
+          <dt>{earned ? 'Your number' : 'Status'}</dt>
+          <dd>{earned ? serial : count ? 'In progress' : 'Locked'}</dd>
+        </div>
+      </dl>
 
       <section className="guest-badge-detail__proof" aria-labelledby="badge-detail-proof-title">
         <div className="guest-badge-detail__section-head">
@@ -91,13 +128,16 @@ export function BadgeDetail({ row, onMute }: BadgeDetailProps) {
         )}
       </section>
 
-      <button
-        type="button"
-        className="guest-badge-detail__mute"
-        onClick={() => onMute(definition.id)}
-      >
-        Not right? Turn this off
-      </button>
+      {/* Nothing to deny until something has been inferred. */}
+      {count > 0 ? (
+        <button
+          type="button"
+          className="guest-badge-detail__mute"
+          onClick={() => onMute(definition.id)}
+        >
+          Not right? Turn this off
+        </button>
+      ) : null}
     </div>
   );
 }

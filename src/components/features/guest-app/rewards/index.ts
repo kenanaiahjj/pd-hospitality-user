@@ -1,5 +1,7 @@
 export { BadgeMedal, glyphFor } from './badge-medal';
 export type { BadgeMedalProps } from './badge-medal';
+export { BadgeCoin } from './badge-coin';
+export type { BadgeCoinProps } from './badge-coin';
 export { BadgeDetail } from './badge-detail';
 export type { BadgeDetailProps } from './badge-detail';
 export { BadgeShelf } from './badge-shelf';
@@ -19,11 +21,14 @@ export {
   BADGES,
   BADGE_FAMILIES,
   badgeProgress,
+  badgeRarity,
+  badgeSerial,
   buildHistory,
   earnedBadges,
   findBadge,
   muteBadge,
   nearlyEarnedBadges,
+  rarestBadge,
 } from './badge-model';
 export type { BadgeDefinition, BadgeFamily, BadgeProgress, GuestHistory } from './badge-model';
 

@@ -1,156 +1,142 @@
 'use client';
 
-import { CaretRight } from '@phosphor-icons/react';
-
 import { BadgeMedal } from './badge-medal';
-import { BADGE_FAMILIES } from './badge-model';
-import type { BadgeFamily, BadgeProgress } from './badge-model';
+import { badgeRarity, formatRarity, rarestBadge } from './badge-model';
+import type { BadgeProgress } from './badge-model';
 
 /*
-  Held badges and the ones within reach, presented differently because they do
-  different jobs.
+  The whole collection, in one grid.
 
-  Earned badges need no explanation -- you look at them, so they are a compact
-  wrap of medals. A badge in progress needs its count, what would finish it,
-  and somewhere to go, so it is a row. A single grid of forty-two would be
-  neither.
+  Every badge sits in the same tile, earned or not, so the set reads as one
+  collection with gaps in it rather than a trophy case and a to-do list. What
+  changes is the status line under the name: a pill when it is held, a track
+  when it has started, a quieter pill when it has not. Locked medals keep their
+  own outline, pressed blank, so a gap still says what belongs in it.
+
+  The rarest held badge leads, large. It is the one worth showing someone.
 
   Pink appears only on the progress track of the nearest two. That is live
-  state, which is one of the accent's three documented jobs; a wash of it
-  across a shelf of earned medals would be decoration, which is the one thing
-  DESIGN.md rules out.
+  state, one of the accent's three documented jobs; a wash of it across the
+  grid would be decoration, which is the one thing DESIGN.md rules out.
 */
 
-/** How many rows carry the accent. Beyond two it stops meaning "nearest". */
+/** How many tracks carry the accent. Beyond two it stops meaning "nearest". */
 const ACCENTED = 2;
-
-const FAMILY_ORDER: BadgeFamily[] = ['taste', 'company', 'rhythm', 'place', 'house', 'venue'];
 
 export type BadgeShelfProps = {
   earned: BadgeProgress[];
-  /** Started, and within one step. */
+  /** Started, and within one step -- nearest first. */
   nearly: BadgeProgress[];
-  /** Everything, for the family sections underneath. */
+  /** Everything, earned or not. */
   all: BadgeProgress[];
-  /** Earned badges open their detail page; progress rows remain informational. */
   onOpenBadge?: (badgeId: string) => void;
 };
 
+/** Held first, then started (closest first), then untouched; stable within each. */
+const standing = (row: BadgeProgress): number => {
+  if (row.earned) return 0;
+  if (row.count > 0) return 1 + (row.definition.threshold - row.count) / 1000;
+  return 2;
+};
+
 export function BadgeShelf({ earned, nearly, all, onOpenBadge }: BadgeShelfProps) {
-  const nearlyIds = new Set(nearly.map((row) => row.definition.id));
+  const accented = new Set(nearly.slice(0, ACCENTED).map((row) => row.definition.id));
+  const hero = rarestBadge(earned);
+  const ordered = [...all].sort((a, b) => standing(a) - standing(b));
 
   return (
     <section className="badge-shelf">
       <h2 className="badge-shelf__heading">
-        Badge collection
-        <small>{earned.length} earned</small>
+        Achievements
+        <small>{earned.length}/{all.length}</small>
       </h2>
 
-      {earned.length ? (
-        <>
-          <h3 className="badge-shelf__subheading">Earned</h3>
-          <ul className="badge-shelf__held">
-            {earned.map((row) => (
-              <li key={row.definition.id}>
-                {onOpenBadge ? (
-                  <button
-                    type="button"
-                    aria-label={row.definition.name}
-                    onClick={() => onOpenBadge(row.definition.id)}
-                  >
-                    <BadgeMedal badge={row.definition} earned decorative />
-                    <span>{row.definition.name}</span>
-                  </button>
-                ) : (
-                  <div>
-                    <BadgeMedal badge={row.definition} earned decorative />
-                    <span>{row.definition.name}</span>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </>
+      {hero ? (
+        <HeroTile row={hero} onOpen={onOpenBadge} />
       ) : (
         <p className="badge-shelf__empty">
           Nothing yet. Book anything and the first of these fills in.
         </p>
       )}
 
-      {nearly.length ? (
-        <>
-          <h3 className="badge-shelf__subheading">In progress</h3>
-          <ul className="badge-shelf__rows">
-            {nearly.map((row, index) => (
-              <BadgeRow
-                key={row.definition.id}
-                row={row}
-                accented={index < ACCENTED}
-              />
-            ))}
-          </ul>
-        </>
-      ) : null}
-
-      {FAMILY_ORDER.map((family) => {
-        /* Held and nearly-there rows are already above; a third appearance of
-           the same badge is noise. */
-        const rows = all.filter(
-          (row) => row.definition.family === family && !row.earned && !nearlyIds.has(row.definition.id),
-        );
-        if (!rows.length) return null;
-
-        return (
-          <div key={family} className="badge-shelf__family">
-            <h3 className="badge-shelf__subheading">{BADGE_FAMILIES[family].label}</h3>
-            <ul className="badge-shelf__rows">
-              {rows.map((row) => (
-                <BadgeRow key={row.definition.id} row={row} accented={false} />
-              ))}
-            </ul>
-          </div>
-        );
-      })}
+      <ul className="badge-shelf__grid">
+        {ordered.map((row, index) => (
+          <BadgeTile
+            key={row.definition.id}
+            row={row}
+            index={index}
+            accented={accented.has(row.definition.id)}
+            onOpen={onOpenBadge}
+          />
+        ))}
+      </ul>
     </section>
   );
 }
 
-function BadgeRow({
-  row, accented, onOpen,
-}: { row: BadgeProgress; accented: boolean; onOpen?: (id: string) => void }) {
-  const { definition, count, earned } = row;
-  const fraction = Math.min(count / definition.threshold, 1);
-  const Row = onOpen ? 'button' : 'div';
-  const label = `${definition.name} — ${definition.requirement}, ${count} of ${definition.threshold}`;
+function HeroTile({ row, onOpen }: { row: BadgeProgress; onOpen?: (id: string) => void }) {
+  const { definition } = row;
+  const Tag = onOpen ? 'button' : 'div';
 
   return (
-    <li data-testid="badge-progress-row">
-      <Row
+    <Tag
+      className="badge-shelf__hero"
+      {...(onOpen
+        ? {
+            type: 'button' as const,
+            'aria-label': `${definition.name}, your rarest badge`,
+            onClick: () => onOpen(definition.id),
+          }
+        : {})}
+    >
+      <span className="badge-shelf__eyebrow">Your rarest badge</span>
+      <BadgeMedal badge={definition} earned size={144} shimmer decorative />
+      <b>{definition.name}</b>
+      <small>Earned by {formatRarity(badgeRarity(definition))} of guests</small>
+      <span className="badge-pill badge-pill--held">Unlocked</span>
+    </Tag>
+  );
+}
+
+function BadgeTile({
+  row, index, accented, onOpen,
+}: { row: BadgeProgress; index: number; accented: boolean; onOpen?: (id: string) => void }) {
+  const { definition, count, earned } = row;
+  const fraction = Math.min(count / definition.threshold, 1);
+  const Tag = onOpen ? 'button' : 'div';
+  /* One announcement: name, and for anything not held, what it takes and how
+     far along. The medal, label and status would otherwise be three. */
+  const label = earned
+    ? definition.name
+    : `${definition.name} — ${definition.requirement}, ${count} of ${definition.threshold}`;
+
+  return (
+    <li
+      data-testid="badge-tile"
+      data-state={earned ? 'earned' : count ? 'started' : 'locked'}
+      /* Staggered so the grid glints one medal at a time, not in unison. */
+      style={{ '--shimmer-delay': `${(index * 0.73) % 5.2}s` } as React.CSSProperties}
+    >
+      <Tag
         {...(onOpen
-          ? {
-              type: 'button' as const,
-              /* One announcement carrying name, requirement and progress --
-                 the medal, the label and the count would otherwise be three. */
-              'aria-label': label,
-              onClick: () => onOpen(definition.id),
-            }
+          ? { type: 'button' as const, 'aria-label': label, onClick: () => onOpen(definition.id) }
           : { role: 'group' as const, 'aria-label': label })}
       >
-        <BadgeMedal badge={definition} earned={earned} decorative />
-        <div>
-          <b>{definition.name}</b>
-          <small>{definition.requirement}</small>
-          <span
-            className={`badge-shelf__track${accented ? ' is-near' : ''}`}
-            /* Decorative: the count beside it already says this in words. */
-            aria-hidden="true"
-          >
-            <i style={{ inlineSize: `${fraction * 100}%` }} />
+        <BadgeMedal badge={definition} earned={earned} size={64} shimmer={earned} decorative />
+        <b>{definition.name}</b>
+        {earned ? (
+          <span className="badge-pill badge-pill--held">Unlocked</span>
+        ) : count ? (
+          <span className="badge-shelf__progress">
+            <span className={`badge-shelf__track${accented ? ' is-near' : ''}`} aria-hidden="true">
+              <i style={{ inlineSize: `${fraction * 100}%` }} />
+            </span>
+            <small>{count} / {definition.threshold}</small>
           </span>
-        </div>
-        <span className="badge-shelf__count">{count} of {definition.threshold}</span>
-        {onOpen ? <CaretRight aria-hidden="true" /> : null}
-      </Row>
+        ) : (
+          <span className="badge-pill">Locked</span>
+        )}
+      </Tag>
     </li>
   );
 }

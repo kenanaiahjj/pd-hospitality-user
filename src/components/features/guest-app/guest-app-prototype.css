@@ -21,7 +21,9 @@
 .guest-prototype-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 39;
+  /* Above the app's own chrome. At 39 it sat under the app bar (40), which
+     covered the rig's head on a phone and took the close tap for the bell. */
+  z-index: 60;
   background: oklch(0 0 0 / 0.16);
 }
 .guest-prototype-toolbar {

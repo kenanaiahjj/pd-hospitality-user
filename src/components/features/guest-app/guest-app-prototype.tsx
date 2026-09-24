@@ -3239,7 +3239,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
 
       case 'guest-details':
         return <FormScreen step="1 of 4" title="Your details" text="These details are sent securely to the property for registration."><Field label="Full name" name="guest-name" defaultValue="Ana Santos" required /><Field label="Nationality" name="nationality" defaultValue="Filipino" /><Field label="Email" name="guest-email" type="email" defaultValue="ana@example.com" /><Field label="Mobile" name="guest-mobile" type="tel" defaultValue="+63 917 555 0142" />{primary('Continue to ID', 'id-capture')}</FormScreen>;
@@ -5308,6 +5308,8 @@ type StayOverviewHomeProps = {
   onOpenStay: (id: string) => void;
   /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
+  /** Whether the front desk still answers after checkout: the 24-hour window. */
+  deskOpen?: boolean;
 };
 
 function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: HomeStoryCategoryId) => void; onSeeAll?: () => void }) {
@@ -5340,7 +5342,7 @@ function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: Ho
   );
 }
 
-function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay, onRequestRide }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay, onRequestRide, deskOpen = false }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -5485,11 +5487,18 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         </button>
         <Notice tone="positive" icon={<CheckCircle />} title="Stay complete">Your previous room charges were settled at checkout.</Notice>
         <UpcomingBookingCard booking={booking} onNavigate={onNavigate} statusLabel="Checked out" showRoomBadge={false} hideEyebrow />
-        <section className="guest-before-you-go">
-          <SectionHeading title="Before you go" />
-          <button className="guest-after-checkout-card" type="button" onClick={() => (onRequestRide ? onRequestRide('departure') : onNavigate('transfer-booking'))}><Car /><span><b>Need a ride to the airport?</b><small>Book a hotel vehicle for your departure.</small><strong>Book a ride <CaretRight /></strong></span></button>
-          <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('gifts-souvenirs')}><Gift /><span><b>Want something from the gift shop?</b><small>Pick up local treats and souvenirs before you leave.</small><strong>Browse gifts <CaretRight /></strong></span></button>
-        </section>
+        {/*
+          Both end in the front desk's chat, so they are offered only while
+          it answers. Once the 24-hour window closes the chat is closed and
+          a ride request would go nowhere.
+        */}
+        {deskOpen ? (
+          <section className="guest-before-you-go">
+            <SectionHeading title="Before you go" />
+            <button className="guest-after-checkout-card" type="button" onClick={() => (onRequestRide ? onRequestRide('departure') : onNavigate('transfer-booking'))}><Car /><span><b>Need a ride to the airport?</b><small>Book a hotel vehicle for your departure.</small><strong>Book a ride <CaretRight /></strong></span></button>
+            <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('gifts-souvenirs')}><Gift /><span><b>Want something from the gift shop?</b><small>Pick up local treats and souvenirs before you leave.</small><strong>Browse gifts <CaretRight /></strong></span></button>
+          </section>
+        ) : null}
         <TextButton onClick={() => onNavigate('stay-history')}>View stay history</TextButton>
       </div>
     );
@@ -5574,7 +5583,8 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         on property.
       */}
       {booking.roomVerification ? <HomeStoryRail onOpenStory={onOpenStory} onSeeAll={() => onNavigate('marketplace')} /> : null}
-      {!booking.roomVerification && booking.status === 'upcoming' ? (
+      {/* Arrival offers: once the stay has begun the guest is already here. */}
+      {!booking.roomVerification && booking.status === 'upcoming' && !hasStayStarted(booking) ? (
         <>
           <button className="guest-transfer-card" type="button" onClick={() => (onRequestRide ? onRequestRide('arrival') : onNavigate('transfer-booking'))}>
             <Car aria-hidden="true" />
@@ -5770,7 +5780,7 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel
         </div>
       </div>
       <div className="guest-stay-hero-card__body">
-        {!hideEyebrow ? <p className="guest-eyebrow">{primary ? 'Your next stay' : 'Upcoming stay'}{booking.roomNumber ? ` · Room ${booking.roomNumber}` : ''}</p> : null}
+        {!hideEyebrow ? <p className="guest-eyebrow">{isStayUnderWay(booking) ? 'Your current stay' : primary ? 'Your next stay' : 'Upcoming stay'}{booking.roomNumber ? ` · Room ${booking.roomNumber}` : ''}</p> : null}
         <h1>{booking.property}</h1>
         <div className="guest-stay-hero-card__stats">
           <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>

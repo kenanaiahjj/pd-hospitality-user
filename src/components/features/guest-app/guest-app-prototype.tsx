@@ -1831,8 +1831,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setDiningOrderError('Connect to place this order');
       return;
     }
-    if (!booking || !isStayUnderWay(booking)) {
-      setDiningOrderError('Room orders open when your stay starts');
+    // A room order is a room charge: the same gate as every other one.
+    if (!booking || !canUseOnPropertyServices(booking)) {
+      setDiningOrderError(booking && isStayUnderWay(booking) ? 'Scan your room code to order to your room' : 'Room orders open when your stay starts');
       return;
     }
     if (diningMethod === 'delivery' && !booking.roomNumber) {
@@ -1894,7 +1895,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
     const items = GIFT_PRODUCTS.filter((product) => (giftCart[product.name] ?? 0) > 0);
     const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (giftCart[product.name] ?? 0), 0);
-    if (!booking || !isStayUnderWay(booking) || !booking.roomNumber || !items.length) return;
+    // A room charge: online, and behind the room scan like every other one.
+    if (!online || !booking || !canUseOnPropertyServices(booking) || !items.length) return;
     if (checkoutPayment !== 'room') return;
     const fulfillment = giftFulfillment === 'room' ? `Deliver to Room ${booking.roomNumber}` : 'Pick up at the lobby';
     const serviceBooking: ServiceBooking = {
@@ -3370,7 +3372,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'extend-stay-review': {
         const nights = Math.max(1, countNightsBetween(contextBooking.checkOut, extensionDate));
         const additional = nights * 5000;
-        return <ScreenIntro title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { const extensionCharge: InAppBookingCharge = { id: `stay-extension-${contextBooking.id}-${extensionDate}`, title: 'Stay extension', detail: `${nights} additional ${nights === 1 ? 'night' : 'nights'}`, amount: formatPesoAmount(additional), date: PROTOTYPE_TODAY }; setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? addInAppBookingCharge({ ...booking, checkOut: extensionDate }, extensionCharge) : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
+        return <ScreenIntro title="Confirm your new checkout" text="Check the original and updated stay dates before confirming."><div className="guest-summary"><SummaryRow label="Original stay" value={`${contextBooking.checkIn} – ${contextBooking.checkOut}`} /><SummaryRow label="Updated stay" value={`${contextBooking.checkIn} – ${extensionDate}`} /><SummaryRow label="Additional nights" value={`${nights}`} /><SummaryRow label="Additional price" value={formatPesoAmount(additional)} strong /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Notice title="Room 512 remains available">You will stay in the same room for the extension.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } const extensionCharge: InAppBookingCharge = { id: `stay-extension-${contextBooking.id}-${extensionDate}`, title: 'Stay extension', detail: `${nights} additional ${nights === 1 ? 'night' : 'nights'}`, amount: formatPesoAmount(additional), date: PROTOTYPE_TODAY }; setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id ? addInAppBookingCharge({ ...booking, checkOut: extensionDate }, extensionCharge) : booking), folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + additional) })); go('extend-stay-success'); }}>Confirm extension<ArrowRight /></Button><TextButton onClick={() => go('extend-stay')}>Change date</TextButton></ScreenIntro>;
       }
 
       case 'extend-stay-success':

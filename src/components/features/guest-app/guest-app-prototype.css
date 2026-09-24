@@ -6652,7 +6652,9 @@
 
 .guest-nearby-map { display: grid; gap: 14px; }
 .guest-nearby-map__canvas {
-  height: min(44dvh, 380px);
+  /* Leaves room for the card rail above the tab bar: on an 812px phone the
+     title, switch, map, rail and bar all fit without scrolling. */
+  height: clamp(200px, calc(100dvh - 540px), 380px);
   border-radius: var(--guest-radius-lg);
   overflow: hidden;
   background: #e8e6e1;
@@ -6725,7 +6727,7 @@
   cursor: pointer;
 }
 /* Concentric: 20px outside is the 8px padding plus the photo's 12px. */
-.guest-nearby-map__photo { position: relative; display: block; aspect-ratio: 16 / 9; margin-bottom: 7px; overflow: hidden; border-radius: 12px; outline: 1px solid rgb(0 0 0 / 0.1); outline-offset: -1px; }
+.guest-nearby-map__photo { position: relative; display: block; aspect-ratio: 2.2 / 1; margin-bottom: 7px; overflow: hidden; border-radius: 12px; outline: 1px solid rgb(0 0 0 / 0.1); outline-offset: -1px; }
 .guest-nearby-map__photo img { object-fit: cover; }
 .guest-nearby-map__card b { padding: 0 6px; font-size: 16px; font-weight: 650; }
 .guest-nearby-map__card small { padding: 0 6px; color: var(--guest-muted); font-size: 13px; }

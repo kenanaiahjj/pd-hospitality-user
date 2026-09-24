@@ -111,7 +111,7 @@ export function NearbyMap({ city, property, propertyImage, places, onSelect }: P
     const markers = markersRef.current;
     void import('leaflet').then((L) => {
       if (cancelled || !mapNode.current) return;
-      const map = L.map(mapNode.current, { zoomControl: false, attributionControl: true }).setView(hotel, 15);
+      const map = L.map(mapNode.current, { zoomControl: false, attributionControl: true, zoomSnap: 0.25 }).setView(hotel, 15);
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19,
@@ -133,7 +133,8 @@ export function NearbyMap({ city, property, propertyImage, places, onSelect }: P
         markers.set(place.id, marker);
       }
       if (positions.length) {
-        map.fitBounds(L.latLngBounds([hotel, ...positions.map((entry) => entry.at)]), { padding: [48, 48], maxZoom: 16 });
+        // Extra room below the points for the hotel's label, which hangs under its pin.
+        map.fitBounds(L.latLngBounds([hotel, ...positions.map((entry) => entry.at)]), { paddingTopLeft: [28, 28], paddingBottomRight: [28, 64], maxZoom: 17 });
       }
       markers.get(activeRef.current ?? '')?.getElement()?.classList.add('is-active');
       mapRef.current = map;
@@ -155,7 +156,9 @@ export function NearbyMap({ city, property, propertyImage, places, onSelect }: P
       marker.getElement()?.classList.toggle('is-active', id === activeId);
       if (id === activeId) {
         marker.setZIndexOffset(500);
-        mapRef.current?.panTo(marker.getLatLng(), { animate: true });
+        // Follow the place only once it would be off the edge; otherwise the hotel stays framed.
+        const map = mapRef.current;
+        if (map && !map.getBounds().pad(-0.12).contains(marker.getLatLng())) map.panTo(marker.getLatLng(), { animate: true });
       } else {
         marker.setZIndexOffset(0);
       }

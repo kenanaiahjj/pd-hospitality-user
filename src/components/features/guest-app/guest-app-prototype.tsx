@@ -3427,7 +3427,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <StayConfirm
             booking={displayBooking}
             art={<PropertyImage property={displayBooking.property} decorative />}
-            continueLabel={session.auth === 'authenticated' ? 'Go to my stay' : 'Add your details'}
             doneText={session.auth === 'authenticated'
               ? `${displayBooking.property} is in your Cabana now, with everything for the stay.`
               : `${displayBooking.property} is in your Cabana now. A few details next, and you’re ready to arrive.`}

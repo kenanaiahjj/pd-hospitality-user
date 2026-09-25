@@ -743,11 +743,9 @@ describe('guest account and entry flows', () => {
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
     await user.click(screen.getByRole('button', { name: 'Yes this is my booking' }));
-    // The card spins and is stamped before the guest moves on.
-    await user.click(await screen.findByRole('button', { name: 'Add your details' }, { timeout: 3000 }));
-
-    // Directly reaches pre-arrival step 1 of 2 without an account creation gate
-    expect(screen.getByRole('heading', { name: 'You and your ID' })).toBeInTheDocument();
+    // The card is stamped, holds a beat, then opens pre-arrival by itself --
+    // step 1 of 2, without an account creation gate.
+    expect(await screen.findByRole('heading', { name: 'You and your ID' }, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByText('1 of 2')).toBeInTheDocument();
   });
 
@@ -1122,7 +1120,7 @@ describe('booking lookup', () => {
     await user.type(screen.getByLabelText(/Last name/), 'Cruz');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
     await user.click(screen.getByRole('button', { name: /Yes this is my booking/ }));
-    await user.click(await screen.findByRole('button', { name: 'Add your details' }, { timeout: 3000 }));
+    await screen.findByRole('heading', { name: 'You and your ID' }, { timeout: 4000 });
 
     /*
       A new account lands in pre-arrival rather than on a home with a nav, so

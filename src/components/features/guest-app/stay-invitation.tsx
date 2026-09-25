@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui';
 import { CabanaMark } from '@/components/ui/cabana-logo';
 import { usePrefersReducedMotion } from '@/lib/hooks';
@@ -27,6 +27,8 @@ const MAX_TILT = 11; // degrees, at full finger deflection
 const STAMP_MS = 1150;
 /** When the wax meets the card, within the press. Matches the 62% keyframe of `stay-pass-stamp`. */
 const IMPACT_MS = 620;
+/** The beat between the seal settling and the stay opening. */
+const SETTLE_MS = 1100;
 
 const day = (isoDate: string) => new Date(`${isoDate}T12:00:00`);
 /** "Mon 9 Nov": day before month reads as a travel document, not a US form. */
@@ -35,67 +37,116 @@ const format = (isoDate: string) => day(isoDate).toLocaleDateString('en-GB', { w
 type Phase = 'idle' | 'stamping' | 'done';
 
 /*
-  The wax's outline: a disc whose edge wanders the way poured wax does,
-  built from a few unrelated ripples so it never looks machined. Drawn in a
-  120-unit box and used both as the seal's shape and as its sheen's mask.
+  The wax's outline: a poured puddle, not a coin. A few slow lobes where the
+  wax ran further one way than another, finer ripples on top, and the SVG
+  filter below roughens it again so no two scallops match.
 */
 const WAX_PATH = (() => {
   const steps = 240;
   const points: string[] = [];
   for (let i = 0; i < steps; i += 1) {
     const t = (i / steps) * Math.PI * 2;
-    const r = 54.5 + 2.1 * Math.sin(t * 5 + 1.1) + 1.3 * Math.sin(t * 11 + 0.4) + 0.7 * Math.sin(t * 23 + 2.2);
+    const r = 50 + 3.1 * Math.sin(t * 3 + 0.6) + 2 * Math.sin(t * 5 + 2.1) + 1.1 * Math.sin(t * 9 + 1) + 0.5 * Math.sin(t * 17 + 0.3);
     points.push(`${(60 + r * Math.cos(t)).toFixed(2)} ${(60 + r * Math.sin(t)).toFixed(2)}`);
   }
   return `M${points.join('L')}Z`;
 })();
-const WAX_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><path d='${WAX_PATH}'/></svg>`)}")`;
-const BEADS = Array.from({ length: 36 }, (_, i) => {
-  const t = (i / 36) * Math.PI * 2;
-  return { cx: (60 + 32.6 * Math.cos(t)).toFixed(2), cy: (60 + 32.6 * Math.sin(t)).toFixed(2) };
+const BEADS = Array.from({ length: 32 }, (_, i) => {
+  const t = (i / 32) * Math.PI * 2;
+  return { cx: (60 + 28.4 * Math.cos(t)).toFixed(2), cy: (60 + 28.4 * Math.sin(t)).toFixed(2) };
 });
 
-/** The seal itself: plum wax, with a crest and legend pressed into it and foiled in gold. */
+/*
+  The seal itself, lit rather than painted. Each layer is a flat shape; SVG
+  lighting filters give it depth from its own alpha, the way light falls on
+  a real surface:
+    wax     the puddle, edge roughened, domed by a soft bevel and glossed
+    well    the die's impression, lit from the opposite side so it sinks
+    relief  the crest and legend, raised out of the well and foiled in gold
+*/
 function WaxSeal({ legend }: { legend: string }) {
   const id = useId();
-  const [ring, gold, wax, well] = ['ring', 'gold', 'wax', 'well'].map((name) => `${id}-${name}`);
+  const [ring, gold, wax, well, waxLight, wellLight, relief] =
+    ['ring', 'gold', 'wax', 'well', 'wax-light', 'well-light', 'relief'].map((name) => `${id}-${name}`);
   return (
-    <span className="stay-pass__seal-disc" style={{ '--seal-mask': WAX_MASK } as CSSProperties}>
+    <span className="stay-pass__seal-disc">
       <svg className="stay-pass__seal-art" viewBox="0 0 120 120" aria-hidden="true">
         <defs>
-          <radialGradient id={wax} cx="38%" cy="32%" r="78%">
-            <stop offset="0" stopColor="#7d2d55" />
-            <stop offset="0.55" stopColor="#4e1834" />
-            <stop offset="1" stopColor="#2a0a1b" />
+          <radialGradient id={wax} cx="42%" cy="38%" r="70%">
+            <stop offset="0" stopColor="#6e2449" />
+            <stop offset="0.6" stopColor="#4a1530" />
+            <stop offset="1" stopColor="#300b1e" />
           </radialGradient>
-          {/* The pressed well: dark where the die's edge shades it, lit where it faces the light. */}
-          <linearGradient id={well} x1="0.2" y1="0.1" x2="0.8" y2="0.95">
-            <stop offset="0" stopColor="#2c0b1d" />
-            <stop offset="1" stopColor="#5e1f40" />
-          </linearGradient>
+          <radialGradient id={well} cx="50%" cy="50%" r="55%">
+            <stop offset="0" stopColor="#521838" />
+            <stop offset="1" stopColor="#3a0f26" />
+          </radialGradient>
           <linearGradient id={gold} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#f6e3b0" />
-            <stop offset="0.38" stopColor="#c9a052" />
-            <stop offset="0.62" stopColor="#f1d898" />
-            <stop offset="1" stopColor="#a77c33" />
+            <stop offset="0" stopColor="#f3dfa8" />
+            <stop offset="0.4" stopColor="#c59a4c" />
+            <stop offset="0.62" stopColor="#ecd08c" />
+            <stop offset="1" stopColor="#9c7230" />
           </linearGradient>
+
+          <filter id={waxLight} x="-15%" y="-15%" width="130%" height="130%" colorInterpolationFilters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="11" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="4.5" xChannelSelector="R" yChannelSelector="G" result="shape" />
+            <feGaussianBlur in="shape" stdDeviation="2.6" result="dome" />
+            <feDiffuseLighting in="dome" surfaceScale="3.2" diffuseConstant="1.12" lightingColor="#ffffff" result="diffuse">
+              <feDistantLight azimuth="225" elevation="52" />
+            </feDiffuseLighting>
+            <feComposite in="diffuse" in2="shape" operator="in" result="diffuseIn" />
+            <feBlend in="shape" in2="diffuseIn" mode="multiply" result="shaded" />
+            <feSpecularLighting in="dome" surfaceScale="4.5" specularConstant="0.85" specularExponent="26" lightingColor="#ffe9f2" result="gloss">
+              <fePointLight x="22" y="14" z="70" />
+            </feSpecularLighting>
+            <feComposite in="gloss" in2="shape" operator="in" result="glossIn" />
+            <feComposite in="glossIn" in2="shaded" operator="arithmetic" k1="0" k2="0.7" k3="1" k4="0" />
+          </filter>
+
+          {/* Negative relief: the same light, but the surface falls away, so the rim catches it low-right. */}
+          <filter id={wellLight} x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="1.8" result="dip" />
+            <feDiffuseLighting in="dip" surfaceScale="-3" diffuseConstant="1.1" lightingColor="#ffffff" result="diffuse">
+              <feDistantLight azimuth="225" elevation="50" />
+            </feDiffuseLighting>
+            <feComposite in="diffuse" in2="SourceAlpha" operator="in" result="diffuseIn" />
+            <feBlend in="SourceGraphic" in2="diffuseIn" mode="multiply" />
+          </filter>
+
+          <filter id={relief} x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="0.45" result="bump" />
+            <feSpecularLighting in="bump" surfaceScale="1.6" specularConstant="1" specularExponent="18" lightingColor="#fff6dc" result="shine">
+              <fePointLight x="24" y="16" z="60" />
+            </feSpecularLighting>
+            <feComposite in="shine" in2="SourceAlpha" operator="in" result="shineIn" />
+            <feOffset in="SourceAlpha" dx="0.5" dy="0.7" result="drop" />
+            <feFlood floodColor="#1a0510" floodOpacity="0.6" />
+            <feComposite in2="drop" operator="in" result="shadow" />
+            <feMerge>
+              <feMergeNode in="shadow" />
+              <feMergeNode in="SourceGraphic" />
+              <feMergeNode in="shineIn" />
+            </feMerge>
+          </filter>
+
           {/* Starts at the left and runs clockwise over the top, so the legend reads upright. */}
-          <path id={ring} d="M 17.5 60 A 42.5 42.5 0 1 1 102.5 60 A 42.5 42.5 0 1 1 17.5 60" />
+          <path id={ring} d="M 25.5 60 A 34.5 34.5 0 1 1 94.5 60 A 34.5 34.5 0 1 1 25.5 60" />
         </defs>
-        <path d={WAX_PATH} fill={`url(#${wax})`} />
-        {/* The raised lip the die squeezes up around its edge. */}
-        <circle cx="60" cy="60" r="48.5" fill="none" stroke="#ffffff" strokeOpacity="0.16" strokeWidth="1.2" />
-        <circle cx="60" cy="60" r="47.2" fill="none" stroke="#1d0612" strokeOpacity="0.45" strokeWidth="0.8" />
-        <circle cx="60" cy="60" r="46" fill={`url(#${well})`} />
-        <text className="stay-pass__seal-legend" fill={`url(#${gold})`}>
-          <textPath href={`#${ring}`} textLength="262" lengthAdjust="spacing">{legend}</textPath>
-        </text>
-        <circle cx="60" cy="60" r="35.6" fill="none" stroke={`url(#${gold})`} strokeWidth="0.9" />
-        {BEADS.map((bead, i) => <circle key={i} cx={bead.cx} cy={bead.cy} r="0.8" fill={`url(#${gold})`} />)}
-        <circle cx="60" cy="60" r="29.6" fill="none" stroke={`url(#${gold})`} strokeWidth="0.5" />
-        <svg x="36" y="44" width="48" height="31.4" viewBox="12.32 4.11 277.98 181.58" overflow="visible">
-          <CabanaMark style={{ fill: `url(#${gold})` }} />
-        </svg>
+
+        <path d={WAX_PATH} fill={`url(#${wax})`} filter={`url(#${waxLight})`} />
+        <circle cx="60" cy="60" r="39.5" fill={`url(#${well})`} filter={`url(#${wellLight})`} />
+        <g filter={`url(#${relief})`}>
+          <circle cx="60" cy="60" r="38.2" fill="none" stroke={`url(#${gold})`} strokeWidth="0.9" />
+          <text className="stay-pass__seal-legend" fill={`url(#${gold})`}>
+            <textPath href={`#${ring}`} textLength="212" lengthAdjust="spacing">{legend}</textPath>
+          </text>
+          {BEADS.map((bead, i) => <circle key={i} cx={bead.cx} cy={bead.cy} r="0.75" fill={`url(#${gold})`} />)}
+          <circle cx="60" cy="60" r="25" fill="none" stroke={`url(#${gold})`} strokeWidth="0.6" />
+          <svg x="40" y="47" width="40" height="26.1" viewBox="12.32 4.11 277.98 181.58" overflow="visible">
+            <CabanaMark style={{ fill: `url(#${gold})` }} />
+          </svg>
+        </g>
       </svg>
     </span>
   );
@@ -286,10 +337,9 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
  * that answers it. `onConfirm` runs only once the guest has seen the stay
  * become theirs and chosen to continue.
  */
-export function StayConfirm({ booking, art, continueLabel, doneText, onConfirm, secondary }: {
+export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
   booking: Booking;
   art: ReactNode;
-  continueLabel: string;
   doneText: string;
   onConfirm: () => void;
   secondary?: ReactNode;
@@ -298,6 +348,21 @@ export function StayConfirm({ booking, art, continueLabel, doneText, onConfirm, 
   const done = phase === 'done';
   // Stable, so a parent re-render mid-press does not restart the press's timer.
   const finishStamp = useCallback(() => setPhase('done'), []);
+
+  /*
+    No button to leave: once sealed, the guest gets a beat to take it in and
+    the stay opens by itself. The latest `onConfirm` is read through a ref so
+    a parent re-render during that beat cannot restart it.
+  */
+  const confirmRef = useRef(onConfirm);
+  useEffect(() => {
+    confirmRef.current = onConfirm;
+  }, [onConfirm]);
+  useEffect(() => {
+    if (!done) return;
+    const timer = window.setTimeout(() => confirmRef.current(), SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [done]);
 
   return (
     <div className="guest-stack guest-stack--intro stay-confirm" data-phase={phase}>
@@ -312,13 +377,10 @@ export function StayConfirm({ booking, art, continueLabel, doneText, onConfirm, 
       <Button
         className="guest-button guest-button--primary stay-confirm__action"
         type="button"
-        aria-disabled={phase === 'stamping' || undefined}
-        onClick={() => {
-          if (phase === 'idle') setPhase('stamping');
-          else if (done) onConfirm();
-        }}
+        aria-disabled={phase !== 'idle' || undefined}
+        onClick={() => { if (phase === 'idle') setPhase('stamping'); }}
       >
-        {done ? continueLabel : 'Yes this is my booking'}
+        Yes this is my booking
         <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
       </Button>
       <div className="stay-confirm__secondary">{secondary}</div>

@@ -1054,97 +1054,178 @@
 
 .guest-badge-detail__section-head span {
   color: var(--guest-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 650;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.16em;
   line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .guest-badge-detail__section-head h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 750;
-  letter-spacing: -0.026em;
-  line-height: 1.15;
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
   text-wrap: balance;
 }
 
+/* A plain count, not a status pill: the page header already says "Earned". */
 .guest-badge-detail__section-head > strong {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
   flex: 0 0 auto;
-  color: var(--guest-brand);
+  padding-bottom: 3px;
+  color: var(--guest-muted);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-
-.guest-badge-detail__section-head > strong::before {
-  inline-size: 7px;
-  block-size: 7px;
-  content: '';
-  border-radius: 50%;
-  background: var(--guest-accent-strong);
-  box-shadow: 0 0 0 3px var(--guest-soft);
-}
-
-.guest-badge-detail__evidence {
-  display: grid;
-  gap: 0;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-sunken);
-  overflow: hidden;
-}
-
-.guest-badge-detail__evidence li {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-block-size: 54px;
-  padding: 11px 14px 11px 38px;
-  color: var(--guest-ink);
-  font-size: 14px;
-  line-height: 1.35;
-}
-
-.guest-badge-detail__evidence li::before {
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 14px;
-  inline-size: 6px;
-  block-size: 6px;
-  content: '';
-  border-radius: 50%;
-  background: var(--guest-accent-strong);
-  box-shadow: 0 0 0 3px var(--guest-soft);
-  transform: translateY(-50%);
-}
-
-.guest-badge-detail__evidence li + li { border-block-start: 1px solid var(--guest-line); }
 
 .guest-badge-detail__progress {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
-.guest-badge-detail__progress > div {
-  display: grid;
-  gap: 4px;
-}
-
-.guest-badge-detail__progress b {
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
-}
-
-.guest-badge-detail__progress div span {
+.guest-badge-detail__progress > span:first-child {
   color: var(--guest-muted);
   font-size: 14px;
   line-height: 1.4;
+}
+
+/* --- The journey -----------------------------------------------------------
+   Numbered stops on a single hairline, oldest first. Columns: the number,
+   the rail with its node, the words, and the unlock mark where there is one.
+   -------------------------------------------------------------------------- */
+.guest-journey {
+  --num: 22px;
+  --rail: 14px;
+  --gap: 12px;
+  position: relative;
+  display: grid;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+/* The line itself runs node to node, never past the first or last. */
+.guest-journey::before {
+  position: absolute;
+  inset-block: 24px 24px;
+  inset-inline-start: calc(var(--num) + var(--gap) + var(--rail) / 2);
+  inline-size: 1px;
+  content: '';
+  background: var(--guest-line-strong);
+}
+
+.guest-journey__stop {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--num) var(--rail) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--gap);
+  padding-block: 11px;
+  animation: guest-journey-in 420ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.guest-journey__num {
+  color: var(--guest-subtle);
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.guest-journey__node {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  inline-size: 9px;
+  block-size: 9px;
+  border: 1.5px solid var(--guest-ink);
+  border-radius: 50%;
+  background: var(--guest-paper);
+  box-shadow: 0 0 0 4px var(--journey-ground, var(--guest-paper));
+}
+
+.guest-journey__text { display: grid; gap: 2px; min-width: 0; }
+.guest-journey__text b {
+  color: var(--guest-ink);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.guest-journey__text small { color: var(--guest-muted); font-size: 13px; line-height: 1.35; }
+
+/* The stop that earned it: a plum diamond, and a quiet champagne mark. */
+.guest-journey__stop.is-unlock .guest-journey__node {
+  inline-size: 11px;
+  block-size: 11px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--guest-brand);
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 4px var(--journey-ground, var(--guest-paper)), 0 0 0 5px color-mix(in oklch, var(--guest-brand) 30%, transparent);
+}
+.guest-journey__unlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: oklch(0.52 0.08 75);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.guest-journey__unlock::before { content: '✦'; font-size: 10px; letter-spacing: 0; }
+
+/* A hairline caption after the unlock, sitting in the words column. */
+.guest-journey__since {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-inline-start: calc(var(--num) + var(--rail) + var(--gap) * 2);
+  padding-block: 4px;
+  color: var(--guest-subtle);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.guest-journey__since::after { block-size: 1px; content: ''; background: var(--guest-line); }
+
+/* Stops still ahead: an open, dashed node and muted words. */
+.guest-journey__stop.is-ahead .guest-journey__node {
+  border-style: dashed;
+  border-color: var(--guest-line-strong);
+}
+.guest-journey__stop.is-ahead .guest-journey__text b { color: var(--guest-subtle); font-weight: 500; }
+
+.guest-journey__more {
+  justify-self: start;
+  min-block-size: 44px;
+  margin-inline-start: calc(var(--num, 22px) + var(--rail, 14px) + var(--gap, 12px) * 2);
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--guest-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--guest-line-strong);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+@keyframes guest-journey-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guest-journey__stop { animation: none; }
 }
 
 .guest-badge-detail__track {

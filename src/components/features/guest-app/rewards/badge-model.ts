@@ -206,6 +206,14 @@ export function buildHistory(session: GuestSession): GuestHistory {
     });
   }
 
+  /*
+    Oldest first, so every badge's evidence reads in the order it happened and
+    the line at its threshold is the one that earned it. The sort is stable,
+    so a stay's charges keep their own order within its day.
+  */
+  booked.sort((a, b) => a.date.localeCompare(b.date));
+  stays.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+
   return { booked, stays, reviews: session.reviews.length };
 }
 

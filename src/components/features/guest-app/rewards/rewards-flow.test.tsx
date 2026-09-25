@@ -269,8 +269,14 @@ describe('the badge detail page', () => {
 
     const detail = screen.getByTestId('badge-detail');
     expect(within(detail).getByRole('heading', { level: 1, name: 'Foodie' })).toBeInTheDocument();
-    expect(within(detail).getByText('Dinner for two · Azotea Rooftop')).toBeInTheDocument();
-    expect(within(detail).getByText('Drinks and snacks · The Poolside Bar')).toBeInTheDocument();
+    // Each stop is the experience over where it was; a long record folds.
+    const more = within(detail).queryByRole('button', { name: /^Show all/ });
+    if (more) await userEvent.click(more);
+    const dinner = within(detail).getByText('Dinner for two').closest('li')!;
+    expect(within(dinner).getByText('Azotea Rooftop')).toBeInTheDocument();
+    const drinks = within(detail).getByText('Drinks and snacks').closest('li')!;
+    expect(within(drinks).getByText('The Poolside Bar')).toBeInTheDocument();
+    expect(within(detail).getByText('Unlocked here')).toBeInTheDocument();
   });
 
   it('presents an earned badge as a coin engraved with the holder', async () => {

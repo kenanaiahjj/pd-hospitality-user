@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, type CSSProperties } from 'react';
 import { BadgeCoin, formatEarnedOn } from './badge-coin';
 import { BadgeMedal } from './badge-medal';
 import { BADGE_FAMILIES, badgeRarity, badgeSerial, formatRarity } from './badge-model';
@@ -92,40 +93,30 @@ export function BadgeDetail({ row, holder, onMute }: BadgeDetailProps) {
       <section className="guest-badge-detail__proof" aria-labelledby="badge-detail-proof-title">
         <div className="guest-badge-detail__section-head">
           <div>
-            <span>Journey marker</span>
+            <span>The record</span>
             <h2 id="badge-detail-proof-title">{earned ? 'Why you earned it' : 'Your progress'}</h2>
           </div>
-          <strong>{earned ? 'Complete' : `${count} / ${definition.threshold}`}</strong>
+          <strong>
+            {earned
+              ? `${count} ${count === 1 ? 'experience' : 'experiences'}`
+              : `${count} / ${definition.threshold}`}
+          </strong>
         </div>
 
-        {earned ? (
-          <ul className="guest-badge-detail__evidence">
-            {evidence.map((line, index) => (
-              <li key={`${line}-${index}`}>{line}</li>
-            ))}
-          </ul>
-        ) : (
+        {earned ? null : (
           <div className="guest-badge-detail__progress">
-            <div>
-              <b>{count} of {definition.threshold}</b>
-              <span>
-                {remaining === 1
-                  ? 'One more experience and this is yours.'
-                  : `${remaining} more experiences and this is yours.`}
-              </span>
-            </div>
+            <span>
+              {remaining === 1
+                ? 'One more experience and this is yours.'
+                : `${remaining} more experiences and this is yours.`}
+            </span>
             <span className="guest-badge-detail__track" aria-hidden="true">
               <i style={{ inlineSize: `${progress * 100}%` }} />
             </span>
-            {evidence.length ? (
-              <ul className="guest-badge-detail__evidence">
-                {evidence.map((line, index) => (
-                  <li key={`${line}-${index}`}>{line}</li>
-                ))}
-              </ul>
-            ) : null}
           </div>
         )}
+
+        <JourneyTimeline lines={evidence} threshold={definition.threshold} earned={earned} />
       </section>
 
       {/* Nothing to deny until something has been inferred. */}
@@ -139,5 +130,82 @@ export function BadgeDetail({ row, holder, onMute }: BadgeDetailProps) {
         </button>
       ) : null}
     </div>
+  );
+}
+
+/** "Dinner for two · Azotea Rooftop" -> the experience, and where it was. */
+function splitLine(line: string) {
+  const at = line.indexOf(' · ');
+  return at === -1 ? { title: line, place: '' } : { title: line.slice(0, at), place: line.slice(at + 3) };
+}
+
+/** Stops shown before "Show all": the unlock and a couple after it. */
+const AFTER_UNLOCK = 2;
+
+/*
+  The evidence as a journey: numbered stops on one line, oldest first (the
+  history is sorted by date, so the stop at the threshold is the one that
+  earned the badge, and it is marked). A badge still ahead shows the stops it
+  is waiting on as empty ones. A long record folds after the unlock rather
+  than scrolling past the rest of the page.
+*/
+function JourneyTimeline({ lines, threshold, earned }: { lines: string[]; threshold: number; earned: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const unlockAt = earned ? threshold - 1 : -1;
+  const fold = threshold + AFTER_UNLOCK;
+  // Folding away a single stop saves nothing, so a record one over the fold shows whole.
+  const visible = expanded || lines.length <= fold + 1 ? lines : lines.slice(0, fold);
+  const ahead = earned ? 0 : Math.max(threshold - lines.length, 0);
+  const number = (index: number) => String(index + 1).padStart(2, '0');
+
+  if (!lines.length && !ahead) return null;
+
+  return (
+    <>
+      <ol className="guest-journey">
+        {visible.map((line, index) => {
+          const { title, place } = splitLine(line);
+          const unlock = index === unlockAt;
+          return [
+            <li
+              key={`${line}-${index}`}
+              className={`guest-journey__stop${unlock ? ' is-unlock' : ''}`}
+              style={{ '--i': Math.min(index, 8) } as CSSProperties}
+            >
+              <span className="guest-journey__num" aria-hidden="true">{number(index)}</span>
+              <span className="guest-journey__node" aria-hidden="true" />
+              <span className="guest-journey__text">
+                <b>{title}</b>
+                {place ? <small>{place}</small> : null}
+              </span>
+              {unlock ? <span className="guest-journey__unlock">Unlocked here</span> : null}
+            </li>,
+            unlock && index < visible.length - 1 ? (
+              <li key="since" className="guest-journey__since" role="presentation">Since then</li>
+            ) : null,
+          ];
+        })}
+        {Array.from({ length: ahead }, (_, offset) => (
+          <li key={`ahead-${offset}`} className="guest-journey__stop is-ahead">
+            <span className="guest-journey__num" aria-hidden="true">{number(lines.length + offset)}</span>
+            <span className="guest-journey__node" aria-hidden="true" />
+            <span className="guest-journey__text">
+              <b>Still to come</b>
+              {offset === ahead - 1 ? <small>This one unlocks it</small> : null}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {visible.length < lines.length || expanded ? (
+        <button
+          type="button"
+          className="guest-journey__more"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((open) => !open)}
+        >
+          {expanded ? 'Show less' : `Show all ${lines.length}`}
+        </button>
+      ) : null}
+    </>
   );
 }

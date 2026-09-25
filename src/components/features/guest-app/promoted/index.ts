@@ -1,4 +1,12 @@
 export { AskAnswer, AskSuggestions } from './ask-panel';
+export { buildFeedCandidates, nearbyStory } from './feed-content';
+export type { NearbyStoryInput } from './feed-content';
+export { rankFeed, stayContext, daypartFor, phaseFor } from './feed-model';
+export type { FeedAction, FeedClock, FeedEntry, StayContext } from './feed-model';
+export { BrowseSheet, SearchSheet } from './feed-sheets';
+export type { BrowseCategory } from './feed-sheets';
+export { ReelFeed } from './reel-feed';
+export { ReelView } from './reel-view';
 export { DiscoverFeed } from './discover-feed';
 export type { DiscoverFeedProps } from './discover-feed';
 export { Confetti } from './confetti';

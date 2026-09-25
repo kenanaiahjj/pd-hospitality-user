@@ -5890,7 +5890,8 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
           </button>
         </>
       ) : null}
-      <AnnouncementsSection booking={booking} />
+      {/* No property updates before arrival: a pool closing this morning is
+          noise to a guest who lands next month. They start on the stay home. */}
     </div>
   );
 }

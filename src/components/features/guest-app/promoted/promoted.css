@@ -195,36 +195,14 @@
 .unlocked__stage {
   position: relative;
   display: grid;
-  gap: 22px;
-  align-content: center;
+  /* Top-aligned and sized to its content: centring it in 62vh left a band
+     of nothing above the art and below the buttons. */
+  gap: 18px;
+  align-content: start;
   justify-items: center;
-  min-height: 62vh;
-  padding: 26px 22px 6px;
+  padding: 14px 22px 4px;
   text-align: center;
 }
-
-/*
-  A soft halo under the mark.
-
-  The tiles are pale glass cut out of their own ground, so on a near-white
-  canvas the bodies have almost nothing to sit against -- only the pink rims
-  and the dark glyphs read. The halo gives them a surface without putting a
-  hard plate behind them.
-*/
-.unlocked__mark {
-  position: relative;
-  width: min(300px, 84%);
-  isolation: isolate;
-}
-.unlocked__mark::before {
-  content: '';
-  position: absolute;
-  inset: -12% -6%;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(60% 55% at 50% 48%, var(--guest-soft), transparent 72%);
-}
-.unlocked__art { display: block; width: 100%; height: auto; }
 
 .unlocked__say { display: grid; gap: 10px; justify-items: center; }
 /* accentStrong, not the brand pink: pink is a light surface colour and fails
@@ -403,9 +381,11 @@
   animation-fill-mode: forwards;
 }
 .confetti__piece.is-round { border-radius: 50%; }
-.confetti__piece--0 { background: var(--guest-accent); }
-.confetti__piece--1 { background: var(--guest-accent-strong); }
-.confetti__piece--2 { background: var(--guest-brand, var(--guest-ink)); }
+/* Plum, champagne and pearl -- the key's own materials. All three used to
+   resolve to the one plum after the rebrand, so the burst barely read. */
+.confetti__piece--0 { background: var(--guest-brand); }
+.confetti__piece--1 { background: linear-gradient(135deg, #f1dca6, #c49a4d); }
+.confetti__piece--2 { background: linear-gradient(135deg, #ffffff, #e7e1ea); box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12); }
 
 @keyframes confetti-fall {
   0% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0; }

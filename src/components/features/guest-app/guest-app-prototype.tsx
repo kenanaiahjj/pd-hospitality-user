@@ -4838,6 +4838,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             roomNumber={contextBooking.roomNumber}
             property={contextBooking.property}
             checkOut={formatCheckoutDate(contextBooking.checkOut)}
+            guestName={session.guestName || undefined}
+            dates={formatStayDateRange(contextBooking)}
             onExplore={openExploreIntro}
             onViewStay={() => go('stay-overview')}
             earned={contextBooking.roomVerification ? BEHAVIOUR_POINTS['room-scan'] : undefined}

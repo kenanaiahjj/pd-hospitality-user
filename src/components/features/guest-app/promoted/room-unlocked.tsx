@@ -4,6 +4,7 @@ import { ArrowRight, Barbell, House, Receipt } from '@phosphor-icons/react';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui';
+import { RoomKey } from '../stay-invitation';
 import { Confetti } from './confetti';
 import { PROPERTY_IMAGE, storyImage } from './story-imagery';
 
@@ -25,22 +26,19 @@ import { PROPERTY_IMAGE, storyImage } from './story-imagery';
 */
 
 /*
-  The one graphic on the stage.
-
-  Cut from the glass icon sheet with its background keyed out, so it carries
-  no ground of its own onto the stage.
-
-  The property with dining, the spa, the gym and a bed in orbit around it --
-  which is what the screen says in words underneath. The padlock from the
-  same sheet was the wrong pick: it illustrates the mechanism, and the news
-  is not that a lock opened, it is what is now within reach.
+  The one graphic on the stage: the room key, a pearl card in the stay
+  pass's family, so the two moments that make a stay the guest's -- the
+  booking confirmed, the room scanned -- share one object. It replaced a
+  flat pink glass illustration that matched nothing else in the app.
 */
-const UNLOCKED_ART = '/illustrations/unlocked-glass.png';
 
 export type RoomUnlockedProps = {
   roomNumber?: string;
   property?: string;
   checkOut?: string;
+  /** Printed on the key. */
+  guestName?: string;
+  dates?: string;
   onExplore: () => void;
   onViewStay: () => void;
   /**
@@ -91,6 +89,8 @@ export function RoomUnlocked({
   roomNumber,
   property = 'The Henry Manila',
   checkOut = 'November 12',
+  guestName,
+  dates,
   onExplore,
   onViewStay, earned }: RoomUnlockedProps) {
   return (
@@ -104,19 +104,19 @@ export function RoomUnlocked({
       <section className="unlocked__stage">
         <Confetti />
 
-        <div className="unlocked__mark">
-          <Image className="unlocked__art" src={UNLOCKED_ART} alt="" width={680} height={614} priority />
-        </div>
+        <RoomKey
+          property={property}
+          roomNumber={roomNumber}
+          guestName={guestName}
+          dates={dates}
+          art={<Image src={BANNER.src} alt="" fill sizes="340px" priority style={{ objectPosition: BANNER.focalPoint }} />}
+        />
 
         <div className="unlocked__say">
           <h1 className="unlocked__title">You&rsquo;re all set</h1>
           <p className="unlocked__subtitle">
-            {roomNumber
-              ? `Room ${roomNumber} is confirmed. Everything at the hotel is open to you.`
-              : 'Your stay is confirmed. Everything at the hotel is open to you.'}
-          </p>
-          <p className="unlocked__subtitle">
-            Dining, the spa, and anything else you book goes straight onto your room.
+            {roomNumber ? `Room ${roomNumber} is confirmed.` : 'Your stay is confirmed.'}{' '}
+            Dining, the spa and anything else you book goes straight onto your room.
           </p>
           {earned ? (
             <p className="unlocked__earned">

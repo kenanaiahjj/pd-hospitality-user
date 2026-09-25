@@ -498,3 +498,63 @@
   .stay-confirm__secondary { transform: none !important; }
 }
 @keyframes stay-pass-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* --------------------------------------------------------------------------
+   Room key -- the pass's landscape sibling, for the moment the scan succeeds.
+   -------------------------------------------------------------------------- */
+.room-key-stage { display: grid; justify-items: center; gap: 14px; width: 100%; }
+.room-key { width: min(100%, 330px); --sp-scoop: 16px; }
+.room-key .stay-pass__face { aspect-ratio: 1.58 / 1; }
+/* The photograph takes the right of the card and fades into plum toward the words. */
+.room-key .stay-pass__photo { inset: 0 0 0 34%; }
+.room-key .stay-pass__photo::after {
+  background: linear-gradient(90deg, var(--sp-plum) 0%, oklch(0.2 0.05 350 / 0.55) 30%, oklch(0.2 0.05 350 / 0) 70%),
+    linear-gradient(0deg, oklch(0.2 0.05 350 / 0.55), oklch(0.2 0.05 350 / 0) 45%);
+}
+.room-key__body {
+  position: relative;
+  z-index: 4;
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 4px;
+  padding: 14px 16px 12px;
+  text-align: left;
+}
+.room-key__property { color: oklch(0.86 0.06 85 / 0.95); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+.room-key__room { display: grid; align-content: center; }
+.room-key__room small { color: oklch(1 0 0 / 0.66); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+.room-key__room b.is-word { font-size: 30px; }
+.room-key__room b {
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 46px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-shadow: 0 1px 14px oklch(0.2 0.05 350 / 0.5);
+}
+.room-key__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: oklch(1 0 0 / 0.78); font-size: 11.5px; }
+.room-key__contactless { flex: 0 0 auto; width: 20px; height: 20px; fill: none; stroke: oklch(1 0 0 / 0.85); stroke-width: 1.7; stroke-linecap: round; }
+.room-key__mark { position: absolute; top: 14px; right: 16px; z-index: 4; height: 14px; width: auto; color: oklch(1 0 0 / 0.9); filter: drop-shadow(0 1px 3px oklch(0 0 0 / 0.35)); }
+
+/* The same champagne foil the pass says Confirmed in. */
+/* Doubled class: app-wide paragraph rules otherwise reset the clip. */
+.room-key__status.room-key__status {
+  margin: 0;
+  background-image: linear-gradient(100deg, oklch(0.8 0.08 85), oklch(0.62 0.1 72) 45%, oklch(0.82 0.08 88) 60%, oklch(0.56 0.1 68));
+  background-size: 200% 100%;
+  -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  text-transform: uppercase;
+  animation: stay-pass-status 520ms 650ms var(--ease-out) both;
+}
+.room-key__status::before { content: '✦ '; }
+@media (prefers-reduced-motion: reduce) {
+  .room-key__status { animation: stay-pass-fade 300ms both; }
+}

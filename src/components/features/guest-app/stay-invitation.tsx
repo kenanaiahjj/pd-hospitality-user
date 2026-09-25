@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { Button } from '@/components/ui';
 import { CabanaMark } from '@/components/ui/cabana-logo';
 import { usePrefersReducedMotion } from '@/lib/hooks';
@@ -152,36 +152,21 @@ function WaxSeal({ legend }: { legend: string }) {
   );
 }
 
-export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
-  booking: Booking;
-  /** The property photograph; it is stretched to fill the panel. */
-  art: ReactNode;
-  phase?: Phase;
-  onStamped?: () => void;
-}) {
+/*
+  One loop owns the tilt, shared by every pearl card (the stay pass, the room
+  key). At rest the target is a slow drift -- sines at unrelated rates, so it
+  never visibly repeats -- plus a slight twist and a few pixels of float. A
+  held card follows the finger instead, and a card told to steady (the pass
+  mid-stamp) settles flat. Either way the card eases toward its target, so
+  every change glides rather than snaps. The CSS reads the variables for the
+  3D turn, the sheen, the glare and the shadow.
+*/
+function usePassTilt(steady: RefObject<boolean>) {
   const reducedMotion = usePrefersReducedMotion();
   const root = useRef<HTMLDivElement>(null);
   /** Where a finger (or pointer) is holding the card, or null to drift. */
   const held = useRef<{ x: number; y: number } | null>(null);
-  /** Read by the tilt loop, which outlives renders. */
-  const phaseRef = useRef<Phase>(phase);
 
-  const nights = Math.max(1, Math.round((day(booking.checkOut).getTime() - day(booking.checkIn).getTime()) / 86_400_000));
-  const legend = `Confirmed stay · ${booking.city} · ${booking.checkIn.slice(0, 4)} · `.toUpperCase();
-  const sealed = phase !== 'idle';
-
-  useEffect(() => {
-    phaseRef.current = phase;
-  }, [phase]);
-
-  /*
-    One loop owns the tilt. At rest the target is a slow drift -- sines at
-    unrelated rates, so it never visibly repeats -- plus a slight twist and a
-    few pixels of float. A held card follows the finger instead, and a card
-    being stamped steadies flat so the press lands square. Either way the card
-    eases toward its target, so every change glides rather than snaps. The CSS
-    reads the variables for the 3D turn, the sheen, the glare and the shadow.
-  */
   useEffect(() => {
     const node = root.current;
     if (!node || reducedMotion) return;
@@ -192,17 +177,17 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
 
     const loop = (now: number) => {
       const t = (now - start) / 1000;
-      const steady = phaseRef.current === 'stamping';
-      const target = steady ? { x: 0, y: 0 } : held.current ?? {
+      const still = steady.current;
+      const target = still ? { x: 0, y: 0 } : held.current ?? {
         x: Math.sin(t * 0.61) * 0.36 + Math.sin(t * 0.17 + 1.3) * 0.14,
         y: Math.sin(t * 0.43 + 0.8) * 0.3 + Math.sin(t * 0.23) * 0.1,
       };
-      const ease = steady ? 0.14 : held.current ? 0.16 : 0.05;
+      const ease = still ? 0.14 : held.current ? 0.16 : 0.05;
       current.x += (target.x - current.x) * ease;
       current.y += (target.y - current.y) * ease;
-      current.twist += ((steady ? 0 : Math.sin(t * 0.33 + 2) * 0.7) - current.twist) * ease;
+      current.twist += ((still ? 0 : Math.sin(t * 0.33 + 2) * 0.7) - current.twist) * ease;
 
-      const float = steady ? 0 : Math.sin(t * 0.9);
+      const float = still ? 0 : Math.sin(t * 0.9);
       node.style.setProperty('--sp-rx', `${(-current.y * MAX_TILT).toFixed(2)}deg`);
       node.style.setProperty('--sp-ry', `${(current.x * MAX_TILT).toFixed(2)}deg`);
       node.style.setProperty('--sp-rz', `${current.twist.toFixed(2)}deg`);
@@ -227,7 +212,54 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
       cancelAnimationFrame(frame);
       observer?.disconnect();
     };
-  }, [reducedMotion]);
+  }, [reducedMotion, steady]);
+
+  const hold = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (reducedMotion || steady.current) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    held.current = {
+      x: ((event.clientX - box.left) / box.width) * 2 - 1,
+      y: ((event.clientY - box.top) / box.height) * 2 - 1,
+    };
+    event.currentTarget.dataset.active = 'true';
+  };
+
+  const release = (event: ReactPointerEvent<HTMLDivElement>) => {
+    held.current = null;
+    delete event.currentTarget.dataset.active;
+  };
+
+  return {
+    root,
+    reducedMotion,
+    pointer: {
+      onPointerDown: hold,
+      onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => { if (event.pointerType === 'mouse' || event.buttons) hold(event); },
+      onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => { if (event.pointerType !== 'mouse') release(event); },
+      onPointerLeave: release,
+      onPointerCancel: release,
+    },
+  };
+}
+
+export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
+  booking: Booking;
+  /** The property photograph; it is stretched to fill the panel. */
+  art: ReactNode;
+  phase?: Phase;
+  onStamped?: () => void;
+}) {
+  /** Read by the tilt loop, which outlives renders: a card being stamped holds still. */
+  const steady = useRef(phase === 'stamping');
+  const { root, reducedMotion, pointer } = usePassTilt(steady);
+
+  const nights = Math.max(1, Math.round((day(booking.checkOut).getTime() - day(booking.checkIn).getTime()) / 86_400_000));
+  const legend = `Confirmed stay · ${booking.city} · ${booking.checkIn.slice(0, 4)} · `.toUpperCase();
+  const sealed = phase !== 'idle';
+
+  useEffect(() => {
+    steady.current = phase === 'stamping';
+  }, [phase]);
 
   /*
     The press's end is a timer, not `animationend`: that event never fires
@@ -245,31 +277,12 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
     };
   }, [phase, reducedMotion, onStamped]);
 
-  const hold = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (reducedMotion || phase === 'stamping') return;
-    const box = event.currentTarget.getBoundingClientRect();
-    held.current = {
-      x: ((event.clientX - box.left) / box.width) * 2 - 1,
-      y: ((event.clientY - box.top) / box.height) * 2 - 1,
-    };
-    event.currentTarget.dataset.active = 'true';
-  };
-
-  const release = (event: ReactPointerEvent<HTMLDivElement>) => {
-    held.current = null;
-    delete event.currentTarget.dataset.active;
-  };
-
   return (
     <div
       ref={root}
       className="stay-pass"
       data-phase={phase}
-      onPointerDown={hold}
-      onPointerMove={(event) => { if (event.pointerType === 'mouse' || event.buttons) hold(event); }}
-      onPointerUp={(event) => { if (event.pointerType !== 'mouse') release(event); }}
-      onPointerLeave={release}
-      onPointerCancel={release}
+      {...pointer}
     >
       <div className="stay-pass__tilt">
         <div className="stay-pass__press">
@@ -384,6 +397,62 @@ export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
         <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
       </Button>
       <div className="stay-confirm__secondary">{secondary}</div>
+    </div>
+  );
+}
+
+/*
+  The room key: the stay pass's sibling for the moment the scan succeeds.
+  Same pearl frame, sheen and tilt, cut to a key card's landscape shape --
+  the hotel photograph fading into plum on the right, the room number large
+  in the serif, and the guest, dates and a contactless mark along the foot.
+  "Unlocked" settles in under it in the gold foil the pass says Confirmed in.
+*/
+export function RoomKey({ property, roomNumber, guestName, dates, art }: {
+  property: string;
+  roomNumber?: string;
+  guestName?: string;
+  dates?: string;
+  /** The property photograph. */
+  art: ReactNode;
+}) {
+  const steady = useRef(false);
+  const { root, pointer } = usePassTilt(steady);
+  return (
+    <div className="room-key-stage">
+      <div ref={root} className="stay-pass room-key" data-phase="done" {...pointer}>
+        <div className="stay-pass__tilt">
+          <div className="stay-pass__press">
+            <article className="stay-pass__face" aria-label={roomNumber ? `Room ${roomNumber} key, ${property}` : `Room key, ${property}`}>
+              <span className="stay-pass__foil" aria-hidden="true" />
+              <div className="stay-pass__panel">
+                <div className="stay-pass__photo">
+                  {art}
+                  <span className="stay-pass__holo" aria-hidden="true" />
+                </div>
+                <div className="room-key__body">
+                  <span className="room-key__property">{property}</span>
+                  {/* The number when the property has one; otherwise the key still says what happened. */}
+                  <span className="room-key__room">
+                    <small>{roomNumber ? 'Room' : 'Your room'}</small>
+                    <b className={roomNumber ? undefined : 'is-word'}>{roomNumber ?? 'Connected'}</b>
+                  </span>
+                  <span className="room-key__foot">
+                    <span>{[guestName, dates].filter(Boolean).join(' · ')}</span>
+                    <svg className="room-key__contactless" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M8 7.5a6.5 6.5 0 0 1 0 9" /><path d="M11.5 5a10 10 0 0 1 0 14" /><path d="M15 2.5a13.5 13.5 0 0 1 0 19" />
+                    </svg>
+                  </span>
+                </div>
+                <CabanaMark className="room-key__mark" />
+              </div>
+              <span className="stay-pass__glare" aria-hidden="true" />
+              <span className="stay-pass__sweep" aria-hidden="true" />
+            </article>
+          </div>
+        </div>
+      </div>
+      <p className="room-key__status">Unlocked</p>
     </div>
   );
 }

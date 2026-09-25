@@ -271,20 +271,6 @@
 }
 .guest-screen--reels > .reel-feed { flex: 1 1 auto; }
 
-/* --- Prototype toolbar: the feed clock ------------------------------------- */
-.guest-prototype-clock { display: grid; gap: 8px; }
-.guest-prototype-clock label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; }
-.guest-prototype-clock select {
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--guest-line-strong);
-  border-radius: 10px;
-  background: var(--guest-paper);
-  color: var(--guest-ink);
-  font: inherit;
-  font-size: 13px;
-}
-
 /* --- Home: Recommended for you ------------------------------------------------ */
 .recommended__rail {
   display: grid;

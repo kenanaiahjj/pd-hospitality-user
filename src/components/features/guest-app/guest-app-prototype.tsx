@@ -69,7 +69,7 @@ import {
   TrophyIcon as HugeTrophyIcon,
   UserRoundIcon as HugeProfileIcon,
 } from '@hugeicons-pro/core-stroke-rounded';
-import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { NearbyMap, PlaceMiniMap, type MapClock } from './nearby-map';
 import { directionsUrl, openStatus, walkLabel } from './nearby-place';
@@ -751,6 +751,10 @@ function WelcomeStepCopy({ index }: Pick<PagerHandle, 'index'>) {
   );
 }
 
+/* Email sign-in is built (sign-in -> OTP) but off for now: the welcome
+   screen leads with single sign-on and the guest path. Flip to bring it back. */
+const EMAIL_SIGN_IN = false;
+
 function WelcomeScreen({
   online,
   onSso,
@@ -788,36 +792,39 @@ function WelcomeScreen({
           {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Log in needs a connection">Reconnect to continue.</Notice> : null}
           <div className="guest-welcome__actions" role="group" aria-label="Ways to continue">
             {/*
-              Apple and Google side by side and alike: both are single sign-on,
-              and neither should read as the lesser choice. Logo-only is the
-              one form both brands allow at half width; the full "Continue
-              with ..." stays as each button's name for assistive technology.
+              Apple and Google alike: both are single sign-on, and neither
+              should read as the lesser choice. Stacked, because "Continue
+              with ..." does not fit two to a row on a phone.
             */}
             <div className="guest-welcome__sso">
               <Button
                 className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--solid"
                 type="button"
-                aria-label="Continue with Apple"
                 disabled={!online}
                 onClick={() => onSso('apple')}
               >
-                <Image src="/brand/apple.svg" width={22} height={22} alt="" aria-hidden="true" className="guest-welcome__login-logo" />
+                <Image src="/brand/apple.svg" width={20} height={20} alt="" aria-hidden="true" className="guest-welcome__login-logo" />
+                Continue with Apple
               </Button>
               <Button
                 className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--solid"
                 type="button"
-                aria-label="Continue with Google"
                 disabled={!online}
                 onClick={() => onSso('google')}
               >
                 <Image src="/brand/google-g.png" width={200} height={204} alt="" aria-hidden="true" className="guest-welcome__login-logo guest-welcome__login-logo--google" />
+                Continue with Google
               </Button>
             </div>
             <p className="guest-welcome__alt">
-              <Button className="guest-welcome__guest-link" variant="ghost" type="button" disabled={!online} onClick={onEmailLogin}>
-                Use email
-              </Button>
-              <span aria-hidden="true">·</span>
+              {EMAIL_SIGN_IN ? (
+                <>
+                  <Button className="guest-welcome__guest-link" variant="ghost" type="button" disabled={!online} onClick={onEmailLogin}>
+                    Use email
+                  </Button>
+                  <span aria-hidden="true">·</span>
+                </>
+              ) : null}
               <Button className="guest-welcome__guest-link" variant="ghost" type="button" disabled={!online} onClick={onGuestLogin}>
                 Continue as guest
               </Button>
@@ -5151,6 +5158,57 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   );
 }
 
+/*
+  Where the presenter parked the trigger: a side and a height, as a fraction
+  of the screen so it survives a rotation. Per browser, a convenience only --
+  it reads back as nothing on the server, in a private window, or if storage
+  throws, and the trigger then sits in its default corner.
+*/
+type TriggerSpot = { side: 'left' | 'right'; y: number };
+const TRIGGER_KEY = 'cabana.prototype-trigger';
+const TRIGGER_EVENT = 'cabana:prototype-trigger';
+function readTriggerSpot(): string | null {
+  try { return window.localStorage.getItem(TRIGGER_KEY); } catch { return null; }
+}
+function subscribeTriggerSpot(onChange: () => void) {
+  window.addEventListener(TRIGGER_EVENT, onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    window.removeEventListener(TRIGGER_EVENT, onChange);
+    window.removeEventListener('storage', onChange);
+  };
+}
+function saveTriggerSpot(spot: TriggerSpot) {
+  try { window.localStorage.setItem(TRIGGER_KEY, JSON.stringify(spot)); } catch { /* the default corner is fine */ }
+  window.dispatchEvent(new Event(TRIGGER_EVENT));
+}
+function parseTriggerSpot(raw: string | null): TriggerSpot | null {
+  if (!raw) return null;
+  try {
+    const spot = JSON.parse(raw) as TriggerSpot;
+    return (spot.side === 'left' || spot.side === 'right') && typeof spot.y === 'number' ? spot : null;
+  } catch { return null; }
+}
+
+/** The trigger's summary: short enough to sit beside a wrench. */
+const STAY_STATE_SHORT: Record<PrototypeStayState, string> = {
+  'signed-out': 'Signed out',
+  'account-only': 'No booking',
+  'pre-arrival': 'Pre-arrival',
+  live: 'Live',
+  'just-checked-out': 'Checked out',
+  closed: 'Closed',
+};
+
+const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+const CLOCK_HOURS = [
+  { value: 8, label: 'Morning', short: '8 AM' },
+  { value: 14, label: 'Afternoon', short: '2 PM' },
+  { value: 19, label: 'Evening', short: '7 PM' },
+  { value: 23, label: 'Late', short: '11 PM' },
+] as const;
+
 function PrototypeControls({
   online,
   stayState,
@@ -5210,20 +5268,91 @@ function PrototypeControls({
     demo should show the app, not the rig it runs on.
   */
   const [open, setOpen] = useState(false);
+  /* Kept while the page lives, so reopening lands where the presenter was. */
+  const [tab, setTab] = useState<'state' | 'clock' | 'events'>('state');
+  /* A downward swipe on the sheet's head closes it, as a phone sheet does. */
+  const dragFrom = useRef<number | null>(null);
+
+  /*
+    The trigger can be dragged anywhere and snaps to the nearer side edge on
+    release, like a phone's floating assistive button -- so it can be moved
+    off whatever it is covering. A press that barely moves is still a tap.
+  */
+  const spot = parseTriggerSpot(useSyncExternalStore(subscribeTriggerSpot, readTriggerSpot, () => null));
+  const [dragAt, setDragAt] = useState<{ x: number; y: number } | null>(null);
+  const press = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const wasDragged = useRef(false);
+  const triggerStyle = dragAt
+    ? { left: dragAt.x - 18, top: dragAt.y - 18, right: 'auto', bottom: 'auto' }
+    : spot
+      ? { [spot.side]: 12, [spot.side === 'left' ? 'right' : 'left']: 'auto', top: `calc(${spot.y} * 100dvh)`, bottom: 'auto' }
+      : undefined;
+
+  const clockLabel = feedClock
+    ? `${feedClock.dayOfStay > feedNights ? 'Checkout' : `Day ${feedClock.dayOfStay}`} · ${CLOCK_HOURS.find((hour) => hour.value === feedClock.hour)?.short ?? `${feedClock.hour}:00`}`
+    : undefined;
+  const summary = [STAY_STATE_SHORT[stayState], stayState === 'live' ? clockLabel : undefined].filter(Boolean).join(' · ');
 
   if (!open) {
     return (
       <button
-        className="guest-prototype-trigger"
+        className={`guest-prototype-trigger${dragAt ? ' is-dragging' : ''}`}
         type="button"
-        onClick={() => setOpen(true)}
+        style={triggerStyle}
+        onPointerDown={(event) => {
+          press.current = { x: event.clientX, y: event.clientY, moved: false };
+          try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* a synthetic pointer has no capture */ }
+        }}
+        onPointerMove={(event) => {
+          const start = press.current;
+          if (!start) return;
+          if (!start.moved && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 6) return;
+          start.moved = true;
+          setDragAt({ x: event.clientX, y: event.clientY });
+        }}
+        onPointerUp={(event) => {
+          const start = press.current;
+          press.current = null;
+          if (!start?.moved) return;
+          wasDragged.current = true;
+          setDragAt(null);
+          saveTriggerSpot({
+            side: event.clientX < window.innerWidth / 2 ? 'left' : 'right',
+            y: Math.min(0.9, Math.max(0.03, (event.clientY - 18) / window.innerHeight)),
+          });
+        }}
+        onPointerCancel={() => { press.current = null; setDragAt(null); }}
+        onClick={() => {
+          // The click that ends a drag is not a tap.
+          if (wasDragged.current) { wasDragged.current = false; return; }
+          setOpen(true);
+        }}
         aria-expanded={false}
         aria-label="Open prototype controls"
       >
         <Wrench aria-hidden="true" />
+        {/* Where the demo is, without opening the rig. */}
+        <span className="guest-prototype-trigger__state" aria-hidden="true">{summary}</span>
       </button>
     );
   }
+
+  const offline = online ? undefined : 'Needs a connection';
+  const events: { group: string; icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string }[] = [
+    { group: 'PMS events', icon: <Ticket />, label: 'Simulate room assignment', detail: 'The PMS assigns a room to the upcoming stay.', onClick: onSimulateRoomAssignment, unavailable: offline ?? (canSimulateRoomAssignment ? undefined : 'Needs a stay still waiting for a room') },
+    { group: 'PMS events', icon: <BellRinging />, label: 'Simulate room ready', detail: 'Housekeeping marks the assigned room ready.', onClick: onSimulateRoomReady, unavailable: offline ?? (canSimulateRoomReady ? undefined : 'Needs a room that is being prepared') },
+    { group: 'Gates', icon: <QrCode />, label: roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)', detail: roomVerified ? 'Locks the stay again, so the scan can be run.' : 'Opens on-property services without scanning.', onClick: onToggleRoomVerified, unavailable: canToggleRoomVerified ? undefined : 'Needs a stay with a room' },
+    { group: 'Gates', icon: <ClockCountdown />, label: simulatePostStayExpired ? 'Reset 24-hour chat window' : 'Simulate 24 hours after checkout', detail: simulatePostStayExpired ? 'Reopens the front desk after checkout.' : 'Closes the front desk, as a day after checkout.', onClick: onTogglePostStayExpired },
+    { group: 'Data', icon: <Receipt />, label: hasHistory ? 'Clear stay history' : 'Seed stay history', detail: hasHistory ? 'As a first-time guest, with no past stays.' : 'Adds past stays to the profile.', onClick: onToggleHistory },
+    { group: 'Data', icon: <Sparkle />, label: 'Clear stay review', detail: 'Lets the stay be rated again.', onClick: onClearReview, unavailable: hasReview ? undefined : 'No review to clear' },
+    /* A presenter holding on the viewfinder to talk about it needs the
+       countdown to stop, or the screen scans itself out from under them. */
+    { group: 'Demo', icon: <ClockCountdown />, label: autoDetectScans ? 'Scanner: auto-detects after 2s' : 'Scanner: waits for the button', detail: 'Tap to switch.', onClick: onToggleAutoDetectScans },
+    /* Off by default so any reference walks the happy path. On, only the
+       real fixture matches -- how the not-found screens stay demonstrable. */
+    { group: 'Demo', icon: <Ticket />, label: strictLookup ? 'Lookup: only real references' : 'Lookup: accepts anything', detail: 'Tap to switch.', onClick: onToggleStrictLookup },
+  ];
+  const groups = [...new Set(events.map((event) => event.group))];
 
   return (
     <div
@@ -5234,10 +5363,18 @@ function PrototypeControls({
       }}
     >
       <aside className="guest-prototype-toolbar" role="region" aria-label="Prototype controls">
-      <div className="guest-prototype-toolbar__head">
+      <div
+        className="guest-prototype-toolbar__head"
+        onPointerDown={(event) => { dragFrom.current = event.clientY; }}
+        onPointerUp={(event) => {
+          if (dragFrom.current !== null && event.clientY - dragFrom.current > 70) setOpen(false);
+          dragFrom.current = null;
+        }}
+      >
+        <span className="guest-prototype-toolbar__grip" aria-hidden="true" />
         <div>
           <span>Prototype controls</span>
-          <small>{online ? 'Switch the stay state, or fire a PMS event.' : 'Reconnect to fire a PMS event.'}</small>
+          <small>{summary}</small>
         </div>
         <button
           className="guest-prototype-toolbar__close"
@@ -5248,127 +5385,97 @@ function PrototypeControls({
           <X aria-hidden="true" />
         </button>
       </div>
+
+      <div className="guest-prototype-tabs" role="tablist" aria-label="Controls">
+        {([['state', 'State'], ['clock', 'Clock'], ['events', 'Events']] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" id={`prototype-tab-${id}`} aria-selected={tab === id} aria-controls={`prototype-panel-${id}`} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/*
-        Everything but the head scrolls. The panel gains rows with every
-        feature, and on a phone it had grown past the viewport -- carrying
-        its own close button off the top of the screen. Sticky on the head
-        does not work here: it is a grid item, so its containing block is
-        its own track and it has nowhere to stick to.
+        Everything but the head and tabs scrolls. The panel gains rows with
+        every feature, and on a phone it had grown past the viewport --
+        carrying its own close button off the top of the screen.
       */}
-      <div className="guest-prototype-toolbar__body">
-        <fieldset className="guest-prototype-states">
-          <legend>Stay state</legend>
-          {PROTOTYPE_STAY_STATES.map((state) => (
-            <label key={state.id} className="guest-prototype-states__option">
-              <input
-                type="radio"
-                name="prototype-stay-state"
-                value={state.id}
-                checked={stayState === state.id}
-                /* On click, not change: pressing the state already shown has
-                   to re-apply it -- from the welcome screen, or after poking
-                   around -- and a checked radio never fires onChange. */
-                readOnly
-                onClick={() => onStayStateChange(state.id)}
-              />
-              <span>
-                <b>{state.label}</b>
-                <small>{state.detail}</small>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-
-        {/*
-          Was the panel's only control, and the panel only rendered when it was
-          usable -- which hid the switcher in exactly the states worth switching
-          away from. It is a disabled row now, not a reason to hide the rig.
-        */}
-        <button type="button" onClick={onSimulateRoomAssignment} disabled={!online || !canSimulateRoomAssignment}>
-          <Ticket aria-hidden="true" />
-          Simulate room assignment
-        </button>
-
-        <button type="button" onClick={onSimulateRoomReady} disabled={!online || !canSimulateRoomReady}>
-          <BellRinging aria-hidden="true" />
-          Simulate room ready
-        </button>
-
-        {/*
-          Everything below flips one fact directly, without walking the flow
-          that normally sets it. Six stay states cover the common shapes; these
-          cover the corners inside them -- re-running a scan, checking what a
-          guest with no history sees, taking a rating twice.
-        */}
-        {feedClock ? (
-          <fieldset className="guest-prototype-states guest-prototype-clock">
-            <legend>Feed clock</legend>
-            <label>
-              <span>Stay day</span>
-              <select value={feedClock.dayOfStay} onChange={(event) => onFeedClockChange({ ...feedClock, dayOfStay: Number(event.target.value) })}>
-                {Array.from({ length: feedNights + 1 }, (_, i) => i + 1).map((day) => (
-                  <option key={day} value={day}>{day > feedNights ? 'Checkout day' : day === 1 ? 'Day 1 (arrival)' : day === feedNights ? `Day ${day} (last night)` : `Day ${day}`}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Time of day</span>
-              <select value={feedClock.hour} onChange={(event) => onFeedClockChange({ ...feedClock, hour: Number(event.target.value) })}>
-                <option value={8}>Morning · 8 AM</option>
-                <option value={14}>Afternoon · 2 PM</option>
-                <option value={19}>Evening · 7 PM</option>
-                <option value={23}>Late · 11 PM</option>
-              </select>
-            </label>
+      <div className="guest-prototype-toolbar__body" role="tabpanel" id={`prototype-panel-${tab}`} aria-labelledby={`prototype-tab-${tab}`}>
+        {tab === 'state' ? (
+          <fieldset className="guest-prototype-states">
+            <legend className="guest-visually-hidden">Stay state</legend>
+            {PROTOTYPE_STAY_STATES.map((state) => (
+              <label key={state.id} className={`guest-prototype-states__option${stayState === state.id ? ' is-current' : ''}`}>
+                <input
+                  type="radio"
+                  name="prototype-stay-state"
+                  value={state.id}
+                  checked={stayState === state.id}
+                  /* On click, not change: pressing the state already shown has
+                     to re-apply it -- from the welcome screen, or after poking
+                     around -- and a checked radio never fires onChange. */
+                  readOnly
+                  onClick={() => { onStayStateChange(state.id); setOpen(false); }}
+                />
+                <span>
+                  <b>{state.label}</b>
+                  <small>{state.detail}</small>
+                </span>
+              </label>
+            ))}
           </fieldset>
         ) : null}
 
-        <fieldset className="guest-prototype-states">
-          <legend>Gates and state</legend>
+        {tab === 'clock' ? (
+          feedClock ? (
+            <div className="guest-prototype-clock">
+              <p className="guest-prototype-clock__lead">What Explore and the home recommend, and whether nearby places are open.</p>
+              <div role="group" aria-label="Stay day" className="guest-prototype-chips">
+                <small>Stay day</small>
+                <div>
+                  {Array.from({ length: feedNights + 1 }, (_, i) => i + 1).map((day) => (
+                    <button key={day} type="button" aria-pressed={feedClock.dayOfStay === day} className={feedClock.dayOfStay === day ? 'is-active' : ''} onClick={() => onFeedClockChange({ ...feedClock, dayOfStay: day })}>
+                      {day > feedNights ? 'Checkout' : day === 1 ? 'Arrival' : day === feedNights ? 'Last night' : `Day ${day}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div role="group" aria-label="Time of day" className="guest-prototype-chips">
+                <small>Time of day</small>
+                <div>
+                  {CLOCK_HOURS.map((hour) => (
+                    <button key={hour.value} type="button" aria-pressed={feedClock.hour === hour.value} className={feedClock.hour === hour.value ? 'is-active' : ''} onClick={() => onFeedClockChange({ ...feedClock, hour: hour.value })}>
+                      {hour.label}<small>{hour.short}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="guest-prototype-empty">No stay to set a clock for. Pick a state with a booking first.</p>
+          )
+        ) : null}
 
-          <button type="button" onClick={onToggleRoomVerified} disabled={!canToggleRoomVerified}>
-            <QrCode aria-hidden="true" />
-            {roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)'}
-          </button>
-
-          <button type="button" onClick={onToggleHistory}>
-            <Receipt aria-hidden="true" />
-            {hasHistory ? 'Clear stay history' : 'Seed stay history'}
-          </button>
-
-          <button type="button" onClick={onClearReview} disabled={!hasReview}>
-            <Sparkle aria-hidden="true" />
-            Clear stay review
-          </button>
-
-          {/*
-            A presenter holding on the viewfinder to talk about it needs the
-            countdown to stop, or the screen scans itself out from under them.
-          */}
-          <button type="button" onClick={onToggleAutoDetectScans}>
-            <ClockCountdown aria-hidden="true" />
-            {autoDetectScans ? 'Scanner: auto-detects after 2s' : 'Scanner: waits for the button'}
-          </button>
-
-          {/*
-            Off by default so any reference walks the happy path. On, only the
-            real fixture matches -- which is how the not-found and
-            returning-guest screens stay demonstrable.
-          */}
-          <button type="button" onClick={onToggleStrictLookup}>
-            <Ticket aria-hidden="true" />
-            {strictLookup ? 'Lookup: only real references' : 'Lookup: accepts anything'}
-          </button>
-
-          <button type="button" onClick={onTogglePostStayExpired}>
-            <ClockCountdown aria-hidden="true" />
-            {simulatePostStayExpired ? 'Reset 24-hour chat window' : 'Simulate 24 hours after checkout'}
-          </button>
-        </fieldset>
-
-        <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
-          Reset saved session
-        </button>
+        {tab === 'events' ? (
+          <>
+            {groups.map((group) => (
+              <section key={group} className="guest-prototype-events" aria-label={group}>
+                <h3>{group}</h3>
+                {events.filter((event) => event.group === group).map((event) => (
+                  <button key={event.label} type="button" className="guest-prototype-event" onClick={event.onClick} disabled={Boolean(event.unavailable)} aria-label={event.label} aria-describedby={`prototype-event-${slug(event.label)}`}>
+                    <span className="guest-prototype-event__icon" aria-hidden="true">{event.icon}</span>
+                    <span className="guest-prototype-event__copy">
+                      <b>{event.label}</b>
+                      <small id={`prototype-event-${slug(event.label)}`}>{event.unavailable ?? event.detail}</small>
+                    </span>
+                  </button>
+                ))}
+              </section>
+            ))}
+            <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
+              Reset saved session
+            </button>
+          </>
+        ) : null}
       </div>
 
       </aside>

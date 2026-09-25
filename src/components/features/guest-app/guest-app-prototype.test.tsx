@@ -209,7 +209,8 @@ describe('GuestAppPrototype', () => {
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Use email' })).toBeInTheDocument();
+    // Email sign-in is switched off for now: single sign-on and the guest path lead.
+    expect(within(sheet).queryByRole('button', { name: 'Use email' })).toBeNull();
     expect(within(sheet).getByRole('button', { name: 'Continue as guest' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
     expect(screen.queryByText(/Create your account|Already have an account|Don't have an account/)).toBeNull();
@@ -229,9 +230,9 @@ describe('GuestAppPrototype', () => {
 
   it('moves from email login to a six-digit OTP and then to booking lookup', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype />);
+    // Straight to the email screen: its entry on the welcome screen is off for now.
+    render(<GuestAppPrototype initialScreen="sign-in" />);
 
-    await user.click(screen.getByRole('button', { name: 'Use email' }));
     const email = screen.getByLabelText('Email *');
     expect(email).toHaveAttribute('autocomplete', 'email');
     expect(email).toHaveAttribute('spellcheck', 'false');
@@ -254,9 +255,9 @@ describe('GuestAppPrototype', () => {
 
   it('keeps an invalid OTP on the verification screen with an accessible error', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype />);
+    // Straight to the email screen: its entry on the welcome screen is off for now.
+    render(<GuestAppPrototype initialScreen="sign-in" />);
 
-    await user.click(screen.getByRole('button', { name: 'Use email' }));
     await user.type(screen.getByLabelText('Email *'), 'guest@example.com');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.type(screen.getByLabelText('6-digit code *'), '123');
@@ -924,8 +925,10 @@ describe('room-ready notification', () => {
     );
 
     openPrototypeControls();
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     expect(screen.getByRole('button', { name: 'Simulate room ready' })).toBeDisabled();
-    expect(screen.getByText('Reconnect to fire a PMS event.')).toBeInTheDocument();
+    // Each action says why it is off, rather than one line in the header.
+    expect(screen.getByRole('button', { name: 'Simulate room ready' })).toHaveAccessibleDescription('Needs a connection');
   });
 
   /*
@@ -958,6 +961,7 @@ describe('room-ready notification', () => {
     );
 
     openPrototypeControls();
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     expect(screen.getByRole('button', { name: 'Simulate room ready' })).toBeDisabled();
   });
 
@@ -967,6 +971,7 @@ describe('room-ready notification', () => {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
     openPrototypeControls();
       openPrototypeControls();
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
 
       expect(screen.getByRole('region', { name: 'Room-ready notification' })).toBeInTheDocument();
@@ -982,6 +987,7 @@ describe('room-ready notification', () => {
   it('dismisses the push on request without reverting the room', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
     openPrototypeControls();
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
@@ -993,6 +999,7 @@ describe('room-ready notification', () => {
   it('keeps the room card focused on scanning instead of an acknowledgement flow', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assignedSession} />);
     openPrototypeControls();
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
     fireEvent.click(screen.getByRole('button', { name: 'View stay' }));
 
@@ -1143,6 +1150,7 @@ describe('booking lookup', () => {
     render(<GuestAppPrototype initialScreen="identify" />);
 
     await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     await user.click(screen.getByRole('button', { name: 'Lookup: accepts anything' }));
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
@@ -3037,8 +3045,8 @@ describe('prototype controls', () => {
     await openControls(user);
     const live = screen.getByRole('radio', { name: /Live stay/ });
     expect(live).toBeChecked();
+    // Picking a state applies it and closes the sheet.
     await user.click(live);
-    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
     expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
   });
@@ -3048,6 +3056,7 @@ describe('prototype controls', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
 
     await openControls(user);
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     await user.click(screen.getByRole('button', { name: /Verify room \(skip the scan\)/ }));
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
@@ -3061,6 +3070,7 @@ describe('prototype controls', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
 
     await openControls(user);
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     await user.click(screen.getByRole('button', { name: /Clear room verification/ }));
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
@@ -3077,6 +3087,7 @@ describe('prototype controls', () => {
     expect(screen.getByRole('heading', { name: 'Previous stays' })).toBeInTheDocument();
 
     await openControls(user);
+    fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     await user.click(screen.getByRole('button', { name: /Clear stay history/ }));
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
@@ -3105,6 +3116,7 @@ describe('prototype controls', () => {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
       fireEvent.click(screen.getByRole('button', { name: /Scanner: auto-detects after 2s/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Close prototype controls' }));
       fireEvent.click(screen.getByTestId('guest-room-qr-row'));
@@ -3347,7 +3359,6 @@ describe('navigation without a booking', () => {
 
     await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
     await user.click(screen.getByRole('radio', { name: /Signed in, no booking/ }));
-    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();

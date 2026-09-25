@@ -3365,12 +3365,14 @@
   place-items: center;
   padding: 24px;
   pointer-events: none;
-  color: var(--guest-brand);
-  background: #f6abd1;
+  /* Plum with the logo in white: the brand's own colour, and no pink. */
+  color: #fff;
+  background: var(--guest-brand);
   animation: guest-welcome-splash 1400ms var(--ease-out) 250ms forwards;
 }
 
-.guest-welcome__splash-brand { color: var(--guest-brand); }
+/* Outranks `.guest-welcome .cabana-full-lockup`, which paints the lockup plum. */
+.guest-welcome .guest-welcome__splash-brand.cabana-full-lockup { color: #fff; }
 .guest-welcome__splash-brand .cabana-full-lockup__wordmark { width: min(58vw, 224px); }
 .guest-welcome__splash-brand .cabana-full-lockup__tagline { font-size: 15px; }
 
@@ -3579,9 +3581,7 @@
 
 /* --- Actions -------------------------------------------------------------------- */
 .guest-welcome__actions { display: grid; gap: 10px; }
-.guest-welcome__sso { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.guest-welcome__sso .guest-welcome__login-logo { width: 22px; height: 22px; }
-.guest-welcome__sso .guest-welcome__login-logo--google { height: auto; }
+.guest-welcome__sso { display: grid; gap: 10px; }
 .guest-welcome__alt { display: flex; align-items: center; justify-content: center; gap: 2px; margin: 2px 0 0; color: oklch(1 0 0 / 0.5); }
 .guest-app .guest-welcome__alt .guest-welcome__guest-link { padding: 0 10px; font-size: 14.5px; }
 
@@ -8737,3 +8737,175 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   .guest-hotel-contact__action:hover { background: var(--guest-surface); }
 }
 @media (prefers-reduced-motion: reduce) { .guest-hotel-contact__action { transition: none; } }
+
+/* --- Prototype controls: tabs, tiles and chips -------------------------------- */
+.guest-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* The trigger says where the demo is: "Live · Day 3 · 7 PM". */
+.guest-prototype-stage .guest-prototype-trigger {
+  display: inline-flex;
+  width: auto;
+  max-width: 190px;
+  height: 36px;
+  gap: 6px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+.guest-prototype-trigger svg { flex: 0 0 auto; width: 16px; height: 16px; }
+/* Draggable: no scroll or text selection under the finger, and a lift while held. */
+.guest-prototype-stage .guest-prototype-trigger { touch-action: none; user-select: none; -webkit-user-select: none; }
+.guest-prototype-stage .guest-prototype-trigger.is-dragging { cursor: grabbing; transform: scale(1.08); box-shadow: 0 8px 22px oklch(0 0 0 / 0.22); transition: none; }
+.guest-prototype-trigger__state { overflow: hidden; color: var(--ds-ink); text-overflow: ellipsis; white-space: nowrap; }
+
+.guest-prototype-stage .guest-prototype-toolbar {
+  width: min(360px, calc(100% - 32px));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--ds-line);
+  border-radius: 18px;
+  background: oklch(1 0 0);
+  box-shadow: 0 12px 40px oklch(0 0 0 / 0.18);
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+.guest-prototype-toolbar__head { position: relative; padding-bottom: 0; }
+.guest-prototype-toolbar__head span { color: var(--ds-ink-muted); }
+.guest-prototype-toolbar__head small { color: var(--ds-ink); font-size: 14px; font-weight: 650; }
+.guest-prototype-toolbar__grip { display: none; }
+
+/* Tabs: a segmented control, so the three kinds of control never share a scroll. */
+.guest-prototype-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: 12px; background: var(--ds-surface-sunken); }
+.guest-prototype-toolbar .guest-prototype-tabs button {
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ds-ink-muted);
+  font-size: 13px;
+}
+.guest-prototype-toolbar .guest-prototype-tabs button.is-active { background: oklch(1 0 0); color: var(--ds-ink); box-shadow: 0 1px 3px oklch(0 0 0 / 0.12); }
+
+.guest-prototype-toolbar__body { gap: 14px; padding-bottom: 2px; }
+
+/* State: tiles, two to a row, the current one marked. */
+.guest-prototype-toolbar .guest-prototype-states { grid-template-columns: 1fr 1fr; gap: 8px; }
+.guest-prototype-toolbar .guest-prototype-states__option {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid var(--ds-line);
+  border-radius: 14px;
+  background: oklch(1 0 0);
+  transition: border-color var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+.guest-prototype-states__option input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.guest-prototype-toolbar .guest-prototype-states__option b { font-size: 13.5px; }
+.guest-prototype-toolbar .guest-prototype-states__option small { margin-top: 3px; font-size: 11.5px; line-height: 1.35; }
+.guest-prototype-toolbar .guest-prototype-states__option.is-current { border-color: var(--ds-accent-strong); background: var(--ds-surface-sunken); box-shadow: inset 0 0 0 1px var(--ds-accent-strong); }
+.guest-prototype-toolbar .guest-prototype-states__option:focus-within { outline: 2px solid var(--ds-accent-strong); outline-offset: 2px; }
+
+/* Clock: chips, not dropdowns -- one tap each. */
+.guest-prototype-clock { display: grid; gap: 16px; }
+.guest-prototype-clock__lead { margin: 0; color: var(--ds-ink-muted); font-size: 12.5px; line-height: 1.45; }
+.guest-prototype-chips { display: grid; gap: 8px; }
+.guest-prototype-chips > small { color: var(--ds-ink-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.guest-prototype-chips > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.guest-prototype-toolbar .guest-prototype-chips button {
+  min-height: 40px;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--ds-line);
+  background: oklch(1 0 0);
+  color: var(--ds-ink);
+  font-size: 13px;
+}
+.guest-prototype-toolbar .guest-prototype-chips button small { color: var(--ds-ink-muted); font-size: 11.5px; font-weight: 500; }
+.guest-prototype-toolbar .guest-prototype-chips button.is-active { border-color: var(--ds-ink); background: var(--ds-ink); color: var(--ds-on-ink); }
+.guest-prototype-toolbar .guest-prototype-chips button.is-active small { color: inherit; opacity: 0.75; }
+.guest-prototype-empty { margin: 0; color: var(--ds-ink-muted); font-size: 13px; line-height: 1.45; }
+
+/* Events: rows that say what they do, or why they cannot. */
+.guest-prototype-events { display: grid; gap: 6px; }
+.guest-prototype-events h3 { margin: 0 0 2px; color: var(--ds-ink-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.guest-prototype-toolbar .guest-prototype-event {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  justify-content: stretch;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--ds-line);
+  border-radius: 14px;
+  background: oklch(1 0 0);
+  color: var(--ds-ink);
+  text-align: left;
+}
+.guest-prototype-event__icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: var(--ds-surface-sunken); }
+.guest-prototype-event__copy { display: grid; gap: 2px; min-width: 0; }
+.guest-prototype-event__copy b { font-size: 13.5px; font-weight: 650; }
+.guest-prototype-event__copy small { color: var(--ds-ink-muted); font-size: 12px; font-weight: 500; line-height: 1.35; }
+.guest-prototype-toolbar .guest-prototype-event:disabled { opacity: 1; background: var(--ds-surface-sunken); }
+.guest-prototype-toolbar .guest-prototype-event:disabled b { color: var(--ds-ink-muted); }
+.guest-prototype-toolbar .guest-prototype-event:disabled small { color: oklch(0.55 0.11 60); }
+.guest-prototype-stage .guest-prototype-toolbar__reset { justify-self: center; margin-top: 4px; color: oklch(0.55 0.19 25); }
+
+@media (hover: hover) and (pointer: fine) {
+  .guest-prototype-toolbar .guest-prototype-event:hover:not(:disabled),
+  .guest-prototype-toolbar .guest-prototype-states__option:hover { border-color: var(--ds-line-strong); }
+}
+
+/* On a phone: a bottom sheet, full width, with a grip to swipe it away. */
+@media (max-width: 719px) {
+  /* The trigger moves to the top, just left of the bell and of Explore's
+     Browse pill, so it covers neither -- and drops its label to stay small. */
+  .guest-prototype-stage .guest-prototype-trigger {
+    top: calc(env(safe-area-inset-top) + 12px);
+    right: 116px;
+    bottom: auto;
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+    padding: 0;
+  }
+  .guest-prototype-trigger__state { display: none; }
+  .guest-prototype-stage .guest-prototype-toolbar {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 86dvh;
+    padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 22px 22px 0 0;
+    animation: guest-prototype-sheet-in 240ms var(--ease-out) both;
+  }
+  .guest-prototype-toolbar__head { padding-top: 14px; touch-action: none; }
+  .guest-prototype-toolbar__grip {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    display: block;
+    width: 38px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--ds-line-strong);
+    transform: translateX(-50%);
+  }
+  .guest-prototype-modal-backdrop { background: oklch(0 0 0 / 0.32); }
+}
+@keyframes guest-prototype-sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .guest-prototype-stage .guest-prototype-toolbar { animation: none; }
+}

@@ -4441,6 +4441,8 @@ button.guest-tile:active { transform: scale(0.98); }
 .guest-stay-card__summary b { overflow: hidden; font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .guest-stay-card__summary small { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .guest-stay-card__state { color: var(--guest-positive); font-size: 12px; font-weight: 650; }
+button.guest-stay-card--compact { width: 100%; color: var(--guest-ink); font: inherit; text-align: left; cursor: pointer; }
+button.guest-stay-card--compact:active { transform: scale(0.99); }
 
 /* --------------------------------------------------------------------------
    Who's staying: one manifest for everyone on the booking, lead first.
@@ -7956,72 +7958,6 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   letter-spacing: -0.01em;
 }
 
-/* --- My Stay: the hotel on its own photograph ---------------------------- */
-.guest-my-stay-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--guest-radius-lg);
-  box-shadow: var(--shadow-sm);
-  isolation: isolate;
-}
-.guest-my-stay-hero .guest-property-image { border-radius: 0; }
-.guest-my-stay-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: linear-gradient(180deg, oklch(0.12 0.01 60 / 0.25) 0%, transparent 30%, transparent 45%, oklch(0.12 0.01 60 / 0.8) 100%);
-  pointer-events: none;
-}
-.guest-my-stay-hero__overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: grid;
-  align-content: space-between;
-  justify-items: start;
-  padding: 14px 16px 16px;
-  color: #fff;
-}
-.guest-my-stay-hero__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 11px;
-  border-radius: var(--guest-radius-pill, 999px);
-  background: oklch(0.2 0.01 60 / 0.42);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  font-size: 12px;
-  font-weight: 600;
-}
-.guest-my-stay-hero__status[data-state='checked-in']::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #4ade80;
-}
-.guest-my-stay-hero h1 {
-  align-self: end;
-  margin: 0;
-  color: #fff;
-  font-size: 34px;
-  line-height: 1.05;
-  text-wrap: balance;
-}
-.guest-my-stay-hero small {
-  margin-top: 4px;
-  color: rgb(255 255 255 / 0.84);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.guest-my-stay-hero__overlay > h1 { grid-row: 2; }
-.guest-my-stay-hero__overlay > small { grid-row: 3; }
-.guest-my-stay-hero__overlay { grid-template-rows: auto 1fr auto; }
 
 /* The rows under it: one paper group with hairlines, not three card styles. */
 .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-checkout-card {

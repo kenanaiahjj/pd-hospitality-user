@@ -4429,18 +4429,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <div className="guest-stack guest-my-stay-page">
-            {/* Add the room to the status pill only after one is assigned. */}
-            {/* Named on its own photograph, as Home and a Places card name a place. */}
-            <section className="guest-my-stay-hero">
-              <PropertyImage property={contextBooking.property} aspectRatio="1.35" decorative />
-              <div className="guest-my-stay-hero__overlay">
-                <b className="guest-my-stay-hero__status" data-state={stayStatus.status}>
-                  {stayStatus.label}{contextBooking.roomNumber ? ` · Room ${contextBooking.roomNumber}` : ''}
-                </b>
-                <h1>{contextBooking.property}</h1>
-                <small>{formatStayDateRange(contextBooking)}</small>
-              </div>
-            </section>
+            {/* The stay in full lives here; Home carries only the compact reminder. */}
+            <UpcomingBookingCard booking={contextBooking} primary onNavigate={go} statusLabel={stayStatus.label} />
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
@@ -5845,7 +5835,13 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         window that already contains today -- and without this the card told a
         guest mid-stay that their arrival was still to come.
       */}
-      <UpcomingBookingCard booking={booking} primary onNavigate={onNavigate} statusLabel={describeStayStatus(booking).label} />
+      {/* A one-line reminder: the full stay card is My Stay's. */}
+      <StayCard
+        booking={booking}
+        compact
+        statusLabel={describeStayStatus(booking).label === 'Checked in' ? 'Checked in' : 'Confirmed'}
+        onOpen={() => onNavigate('rate-detail')}
+      />
       {booking.preArrivalCompleted < booking.preArrivalTotal ? (
         <section className="guest-home-booking guest-home-booking--primary">
           <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>
@@ -6311,19 +6307,24 @@ function TextButton({ children, onClick, disabled }: { children: ReactNode; onCl
  * the home already shows this stay large, so a second hero only pushes the
  * details below the fold.
  */
-function StayCard({ booking, compact = false }: { booking: Booking; compact?: boolean }) {
+function StayCard({ booking, compact = false, statusLabel = 'Confirmed', onOpen }: { booking: Booking; compact?: boolean; statusLabel?: string; onOpen?: () => void }) {
   const checkIn = new Date(`${booking.checkIn}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   const checkOut = new Date(`${booking.checkOut}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   if (compact) {
-    return (
-      <div className="guest-stay-card guest-stay-card--compact">
+    const content = (
+      <>
         <span className="guest-stay-card__thumb"><PropertyImage property={booking.property} aspectRatio="1" decorative /></span>
         <span className="guest-stay-card__summary">
           <b>{booking.property}</b>
           <small>{booking.roomType} · {formatStayDateRange(booking)}</small>
         </span>
-        <span className="guest-stay-card__state">Confirmed</span>
-      </div>
+        <span className="guest-stay-card__state">{statusLabel}</span>
+      </>
+    );
+    return onOpen ? (
+      <button type="button" className="guest-stay-card guest-stay-card--compact" onClick={onOpen} aria-label={`${booking.property}, ${formatStayDateRange(booking)} -- view booking`}>{content}</button>
+    ) : (
+      <div className="guest-stay-card guest-stay-card--compact">{content}</div>
     );
   }
   return (

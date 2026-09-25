@@ -649,7 +649,8 @@ describe('GuestAppPrototype', () => {
     );
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={nameless} />);
 
-    expect(screen.getByText('Your next stay')).toBeInTheDocument();
+    // Home keeps a compact reminder of the stay; the greeting still survives no name.
+    expect(screen.getByText('Confirmed')).toBeInTheDocument();
     expect(screen.queryByText(/Welcome,\s*$/)).toBeNull();
   });
 
@@ -1056,8 +1057,8 @@ describe('booking detail', () => {
     expect(screen.getByText('4 guests')).toBeInTheDocument();
   });
 
-  it('reports the party size on the home stay card', () => {
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
+  it('reports the party size on the My Stay card', () => {
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
 
     expect(screen.getByText('2 guests')).toBeInTheDocument();
   });
@@ -1068,10 +1069,13 @@ describe('booking detail', () => {
 
     expect(screen.getByText('Checked in')).toBeInTheDocument();
     expect(screen.queryByText('Upcoming')).toBeNull();
-    // ...and as the current stay, with nothing under it about arriving.
+    expect(screen.queryByText('Need a ride to the hotel?')).toBeNull();
+
+    // ...and My Stay, which holds the full card, calls it the current stay.
+    cleanup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
     expect(screen.getByText(/^Your current stay/)).toBeInTheDocument();
     expect(screen.queryByText(/^Your next stay/)).toBeNull();
-    expect(screen.queryByText('Need a ride to the hotel?')).toBeNull();
   });
 
   it('keeps folio charges in My Stay instead of repeating them in booking detail', () => {
@@ -1298,7 +1302,9 @@ describe('my stay', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
     expect(screen.getByRole('heading', { name: 'The Henry Manila', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/Checked in · Room/)).toBeInTheDocument();
+    const card = document.querySelector('.guest-stay-hero-card') as HTMLElement;
+    expect(within(card).getByText('Checked in')).toBeInTheDocument();
+    expect(within(card).getByText(/^Room \d+/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Room charges' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Room charges' })).not.toHaveTextContent('₱14,550');
     // Upcoming and Past are tabs now, not stacked sections.

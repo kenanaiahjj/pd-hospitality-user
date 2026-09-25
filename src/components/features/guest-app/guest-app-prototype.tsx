@@ -197,7 +197,8 @@ import {
   RoomScanner,
   RoomUnlocked,
   SearchSheet,
-  VenueRings,
+  RecommendedRail,
+  recommendedPicks,
   buildFeedCandidates,
   buildSearchIndex,
   rankFeed,
@@ -1433,9 +1434,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** The prototype's feed clock; null follows the booking and the prototype's today. */
   const [feedClock, setFeedClock] = useState<FeedClock | null>(null);
   const [feedSheet, setFeedSheet] = useState<'search' | 'browse' | null>(null);
-  // The home's venue rings: which one is playing, and which the guest has watched.
-  const [openVenue, setOpenVenue] = useState<string | null>(null);
-  const [seenVenues, setSeenVenues] = useState<string[]>([]);
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
   /*
     Two sets, because "the bell has stopped nagging me" and "I have read this
@@ -2149,10 +2147,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       return;
     }
 
+    /* The thing itself, as the category listing opens it: the Hilom massage
+       has a page of its own, everything else books itself. */
     const service = SERVICES.find((entry) => entry.id === itemId);
     if (!service) return;
     setSelectedCategory(service.categoryId);
-    go('category-listing');
+    if (service.id === 'spa') {
+      setSelectedServiceId('spa');
+      go('vendor-service');
+    } else {
+      openServiceBooking(service.id);
+    }
   };
 
   /* "Start exploring" lands on the feed's first reel, behind the same gate. */
@@ -2206,11 +2211,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   /* "Open now" on a nearby place reads the same clock as the feed. */
   const mapClock: MapClock = { date: PROTOTYPE_TODAY, hour: feedClock?.hour ?? 19 };
-
-  const openVenueReels = (venue: string) => {
-    setOpenVenue(venue);
-    setSeenVenues((current) => (current.includes(venue) ? current : [...current, venue]));
-  };
 
   const confirmService = () => {
     const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -3364,7 +3364,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} venueReels={primaryBooking ? stayFeed(primaryBooking) : []} seenVenues={seenVenues} onOpenVenue={openVenueReels} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
 
       /*
         Details and ID used to be two steps. The passport scan fills most of
@@ -5122,16 +5122,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {renderScreen()}
           </div>
 
-          {openVenue ? (
-            <div className="reel-player" role="dialog" aria-modal="true" aria-label={openVenue}>
-              <ReelFeed
-                title={openVenue}
-                entries={(primaryBooking ? stayFeed(primaryBooking) : []).filter((entry) => entry.story.author.name === openVenue)}
-                onClose={() => setOpenVenue(null)}
-                onAction={(entry) => { setOpenVenue(null); runFeedAction(entry.action); }}
-              />
-            </div>
-          ) : null}
 
           {orderTrayOpen ? orderTrayOpen === 'restaurant' ? (() => {
             const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
@@ -5514,10 +5504,9 @@ type StayOverviewHomeProps = {
   booking?: Booking;
   online?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
-  /** The stay's reels, for the venue rings. */
-  venueReels: FeedEntry[];
-  seenVenues: string[];
-  onOpenVenue: (venue: string) => void;
+  /** Recommended for you: the stay feed's best, specific things. */
+  picks: FeedEntry[];
+  onOpenPick: (entry: FeedEntry) => void;
   onOpenStay: (id: string) => void;
   /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
@@ -5525,7 +5514,7 @@ type StayOverviewHomeProps = {
   deskOpen?: boolean;
 };
 
-function StayOverviewHome({ session, booking, onNavigate, venueReels, seenVenues, onOpenVenue, onOpenStay, onRequestRide, deskOpen = false }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenStay, onRequestRide, deskOpen = false }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -5590,7 +5579,7 @@ function StayOverviewHome({ session, booking, onNavigate, venueReels, seenVenues
           <span className="guest-next-service-card__action" aria-hidden="true"><span className="guest-next-service-card__action-icon"><HugeiconsIcon icon={HugeChevronRightIcon} size={15} strokeWidth={1.75} focusable="false" /></span></span>
         </button></section> : null}
         {canUseOnPropertyServices(booking) ? (
-          <VenueRings entries={venueReels} lead={booking.property} seen={seenVenues} onOpen={onOpenVenue} heading={<SectionHeading title="Make the most of your stay" />} />
+          <RecommendedRail entries={picks} onOpen={onOpenPick} heading={<SectionHeading title="Recommended for you" action="See all" onAction={() => onNavigate('marketplace')} />} />
         ) : null}
       </div>
     );
@@ -5782,7 +5771,7 @@ function StayOverviewHome({ session, booking, onNavigate, venueReels, seenVenues
         though, and an empty home is no welcome: they get what the scan will
         open, the day's updates, and the essentials a lobby needs.
       */}
-      {booking.roomVerification ? <VenueRings entries={venueReels} lead={booking.property} seen={seenVenues} onOpen={onOpenVenue} heading={<SectionHeading title="Make the most of your stay" action="See all" onAction={() => onNavigate('marketplace')} />} /> : null}
+      {booking.roomVerification ? <RecommendedRail entries={picks} onOpen={onOpenPick} heading={<SectionHeading title="Recommended for you" action="See all" onAction={() => onNavigate('marketplace')} />} /> : null}
       {!booking.roomVerification && isStayUnderWay(booking) ? (
         <>
           {/* The ready-room card above carries the scan once there is a room; one button, not two. */}

@@ -8,7 +8,7 @@ import {
   MOCK_SESSION,
   createAccountSession,
 } from './prototype-model';
-import { ANONYMOUS_SESSION, connectBooking, applyPrototypeStayState, restoreProfileSession } from './prototype-model';
+import { ANONYMOUS_SESSION, connectBooking, applyPrototypeStayState, restoreProfileSession, SERVICES } from './prototype-model';
 import type { Booking, GuestSession } from './prototype-model';
 import { readStoredSession, writeStoredSession } from './session-storage';
 
@@ -1608,32 +1608,30 @@ describe('home mini-apps and browsable restaurant menu', () => {
     expect(screen.getByRole('button', { name: /The Henry Manila, .* view booking/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Upgrade room/ })).toBeNull();
     expect(document.querySelector('.guest-home-discovery')).toBeInTheDocument();
-    expect(document.querySelector('.guest-home-stories')).toBeInTheDocument();
+    expect(document.querySelector('.recommended__rail')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Chat with the front desk/ })).toBeNull();
-    expect(within(screen.getByRole('group', { name: 'Stay stories' })).getByRole('button', { name: /^The Henry Manila/ })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Recommended for you' })).toBeInTheDocument();
   });
 
-  it('rings each venue on home and plays only that venue, once watched', async () => {
+  it('recommends specific things on home, each opening its own page', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    const rail = screen.getByRole('group', { name: 'Stay stories' });
-    const rings = within(rail).getAllByRole('button');
-    // The hotel's own ring leads; every ring previews a photograph.
-    expect(rings[0]).toHaveAccessibleName(/^The Henry Manila/);
-    for (const ring of rings) expect(ring.querySelector('img')).toBeInTheDocument();
+    const rail = screen.getByRole('region', { name: 'Recommended for you' });
+    // The cards, not the heading's See all.
+    const picks = [...rail.querySelectorAll<HTMLElement>('.recommended__card')];
+    expect(picks.length).toBeGreaterThan(3);
+    expect(picks.length).toBeLessThanOrEqual(8);
+    for (const pick of picks) expect(pick.querySelector('img')).toBeInTheDocument();
+    // Nothing already booked, and no stay admin dressed as a recommendation.
+    expect(within(rail).queryByRole('button', { name: /Hilom signature massage/ })).toBeNull();
+    expect(within(rail).queryByRole('button', { name: /Stay a little longer|A car to the airport/ })).toBeNull();
 
-    const spa = within(rail).getByRole('button', { name: /^Hilom/ });
-    const venue = spa.textContent!;
-    await user.click(spa);
-    const player = screen.getByRole('dialog', { name: venue });
-    const reels = within(player).getAllByRole('region', { name: /.+/ }).filter((node) => node.getAttribute('aria-roledescription') === 'reel');
-    expect(reels.length).toBeGreaterThan(0);
-    expect(within(player).queryByRole('button', { name: 'Browse' })).toBeNull();
-
-    await user.click(within(player).getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('dialog', { name: venue })).toBeNull();
-    expect(within(screen.getByRole('group', { name: 'Stay stories' })).getByRole('button', { name: venue })).toHaveAttribute('data-seen', 'true');
+    // A service opens its own booking, not its category's listing.
+    const service = picks.map((pick) => SERVICES.find((entry) => entry.id !== 'spa' && entry.categoryId !== 'dining' && pick.textContent?.includes(entry.name))).find(Boolean)!;
+    expect(service).toBeDefined();
+    await user.click(within(rail).getByRole('button', { name: new RegExp(service.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }));
+    expect(screen.getByText(new RegExp(`Live availability is shown for ${service.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))).toBeInTheDocument();
   });
 
   it('does not repeat the bookings hub inside a service category listing', async () => {
@@ -2311,15 +2309,15 @@ describe('lifecycle gates', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
 
     expect(screen.getByTestId('guest-room-qr-row')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Make the most of your stay' })).toBeNull();
-    expect(screen.queryByRole('group', { name: 'Stay stories' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Recommended for you' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Recommended for you' })).toBeNull();
 
     cleanup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
     expect(screen.queryByTestId('guest-room-qr-row')).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Stay stories' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Recommended for you' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Recommended for you' })).toBeInTheDocument();
   });
 
   /*
@@ -3146,10 +3144,9 @@ describe('scan discoverability', () => {
   it('keeps service discovery in the category catalog instead of duplicating featured cards on home', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
-    expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
-    expect(document.querySelector('.guest-home-stories')).toBeInTheDocument();
-    // Places, not categories: the categories live behind Browse in Explore.
-    expect(within(screen.getByRole('group', { name: 'Stay stories' })).getAllByRole('button').length).toBeGreaterThan(3);
+    expect(screen.getByRole('heading', { name: 'Recommended for you' })).toBeInTheDocument();
+    // Specific things, not categories: the categories live behind Browse in Explore.
+    expect(within(screen.getByRole('region', { name: 'Recommended for you' })).getAllByRole('button').length).toBeGreaterThan(3);
     expect(screen.queryByRole('button', { name: 'Spa & Wellness' })).toBeNull();
     expect(document.querySelector('.guest-featured-rail')).toBeNull();
   });
@@ -3169,8 +3166,8 @@ describe('scan discoverability', () => {
 
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verifiedUpcoming} />);
 
-    expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
-    expect(document.querySelector('.guest-home-stories')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Recommended for you' })).toBeInTheDocument();
+    expect(document.querySelector('.recommended__rail')).toBeInTheDocument();
     expect(document.querySelector('.guest-category-catalog')).toBeNull();
   });
 
@@ -3183,7 +3180,7 @@ describe('scan discoverability', () => {
     expect(within(updates).getAllByRole('button')).toHaveLength(1);
 
     // Above the rest of the home, not after it.
-    const nearby = screen.getByRole('heading', { name: 'Make the most of your stay' });
+    const nearby = screen.getByRole('heading', { name: 'Recommended for you' });
     expect(updates.compareDocumentPosition(nearby) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -3227,7 +3224,7 @@ describe('scan discoverability', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
 
     const nextUp = screen.getByRole('heading', { name: 'Next up' });
-    const nearby = screen.getByRole('heading', { name: 'Make the most of your stay' });
+    const nearby = screen.getByRole('heading', { name: 'Recommended for you' });
     expect(nextUp.compareDocumentPosition(nearby) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole('button', { name: 'View details for Hilom signature massage' })).toBeInTheDocument();
   });
@@ -3237,7 +3234,7 @@ describe('scan discoverability', () => {
 
     // Discovery is one section of its own, not cards loose on the page. It was
     // `.guest-category-catalog`; the premium pass rebuilt it as a story rail.
-    expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Recommended for you' })).toBeInTheDocument();
     expect(document.querySelector('.guest-home-discovery')).toBeInTheDocument();
     expect(document.querySelector('.guest-miniapp-row')).toBeNull();
   });

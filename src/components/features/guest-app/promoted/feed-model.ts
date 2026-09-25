@@ -66,6 +66,8 @@ export type FeedEntry = {
   score: number;
   /** A top pick for this moment; false for the rest of the catalogue that follows. */
   tailored: boolean;
+  /** Already booked on this stay: kept at the feed's end, never recommended. */
+  booked: boolean;
 };
 
 /* --------------------------------------------------------------------------
@@ -141,6 +143,9 @@ function fits(tag: FeedTags['fits'], context: StayContext): boolean {
 
 const PHASE_BIAS: Record<StayPhase, number> = { 'arrival-day': 0, 'first-night': 0, 'mid-stay': -1, 'last-day': 1, 'checkout-day': 1 };
 
+/** "Hilom signature massage" -> "massage"; "Heritage walk" -> "walk". */
+const kindOf = (title?: string) => title?.trim().split(/\s+/).pop()?.toLowerCase() || 'booking';
+
 type Scored = { candidate: FeedCandidate; score: number; why: string; priority: number; booked: boolean };
 
 function score(candidate: FeedCandidate, context: StayContext, titleOf: (id: string) => string | undefined): Scored {
@@ -149,7 +154,9 @@ function score(candidate: FeedCandidate, context: StayContext, titleOf: (id: str
   const trigger = tags.follows?.find((id) => context.booked.includes(id));
   const matched: { weight: number; why: string; priority: number }[] = [];
 
-  if (trigger) matched.push({ weight: WEIGHT.follow, why: `Goes well with your ${(titleOf(trigger) ?? 'booking').toLowerCase()}`, priority: 5 });
+  /* The kind of thing, not its name: "your massage" reads, and fits a chip,
+     where "your hilom signature massage" did neither. */
+  if (trigger) matched.push({ weight: WEIGHT.follow, why: `Goes well with your ${kindOf(titleOf(trigger))}`, priority: 5 });
   /* Mid-stay is true all week, so it is the weakest day signal: at 7 PM the
      timely dinner should beat the generic "made for today" tour. */
   /* The going-home days lean the other way: a reel about getting home should
@@ -223,5 +230,6 @@ export function rankFeed(context: StayContext, candidates: FeedCandidate[]): Fee
     why: entry.why,
     score: entry.score,
     tailored: topIds.has(entry.candidate.story.id),
+    booked: entry.booked,
   }));
 }

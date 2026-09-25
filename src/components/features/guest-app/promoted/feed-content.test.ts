@@ -68,6 +68,6 @@ describe('feed content', () => {
   it('follows a booked massage with its natural next step', () => {
     const [first] = feedAt(2, 14, ['spa']);
     expect(['service-facial', 'service-scrub']).toContain(first!.story.id);
-    expect(first!.why).toMatch(/goes well with your hilom signature massage/i);
+    expect(first!.why).toBe("Goes well with your massage");
   });
 });

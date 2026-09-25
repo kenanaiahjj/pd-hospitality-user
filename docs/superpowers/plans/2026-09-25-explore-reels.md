@@ -33,7 +33,7 @@ Off-ramps: `Blocked` (say what unblocks it in Decision Log) · `Abandoned`.
 | 4 | Search and Browse sheets | ✅ Complete | 2026-09-25 | 2026-09-25 | `ee0a93e` |
 | 5 | Wire Explore to the feed; prototype clock | ✅ Complete | 2026-09-25 | 2026-09-25 | `2c14089` |
 | 6 | Verification walkthrough and artifact | ✅ Complete | 2026-09-25 | 2026-09-25 | `5b768d3` |
-| 7 | Phase 2: home venue rings | ✅ Complete | 2026-09-25 | 2026-09-25 | `HASH` |
+| 7 | Phase 2: home venue rings | ✅ Complete | 2026-09-25 | 2026-09-25 | `ff8d6f4` |
 
 Legend: ⬜ Not started · 🔄 In progress · 🔁 Fix round *R*/5 · ✅ Complete · ⛔ Blocked · ⏭️ Descoped
 

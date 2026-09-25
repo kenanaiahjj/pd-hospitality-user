@@ -788,11 +788,20 @@ export function signOutSession(): GuestSession {
  */
 const normalise = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
+/*
+  Where a looked-up booking lands on the calendar: clear of PROTOTYPE_TODAY,
+  so the guest walks a true pre-arrival home -- arrival offers, early
+  check-in, preferences -- instead of one that reads the stay as under way.
+  The fixture itself keeps its mid-stay dates; the live states read those.
+*/
+const LOOKUP_STAY = { checkIn: '2026-11-20', checkOut: '2026-11-23' } as const;
+
 export function findBookingByLookup(reference: string): Booking | undefined {
   const ref = normalise(reference);
   if (!ref) return undefined;
 
-  return [UPCOMING_BOOKING_FIXTURE].find((booking) => normalise(booking.id) === ref);
+  const match = [UPCOMING_BOOKING_FIXTURE].find((booking) => normalise(booking.id) === ref);
+  return match ? { ...match, ...LOOKUP_STAY } : undefined;
 }
 
 /**
@@ -813,6 +822,7 @@ export function bookingFromLookup(reference: string, lastName: string): Booking 
 
   return {
     ...UPCOMING_BOOKING_FIXTURE,
+    ...LOOKUP_STAY,
     id: typed || UPCOMING_BOOKING_FIXTURE.id,
     guestName: surname ? `${firstName} ${surname}` : UPCOMING_BOOKING_FIXTURE.guestName,
     // Typed by hand, so it did not come from an OTA feed.
@@ -847,11 +857,15 @@ export function connectBooking(session: GuestSession, booking: Booking = UPCOMIN
       not in the session -- present in the data, invisible on every screen
       that filters by the active booking.
     */
-    serviceBookings: [
-      ...session.serviceBookings,
-      ...MOCK_SESSION.serviceBookings.map((service) => ({ ...service, bookingId: booking.id })),
-    ],
-    folioTotal: parsePesoAmount(session.folioTotal) > 0 ? session.folioTotal : MOCK_SESSION.folioTotal,
+    /*
+      Only a stay already under way has anything posted against it. A future
+      one connects bare: last night's dinner cannot belong to a stay that has
+      not begun.
+    */
+    serviceBookings: hasStayStarted(booking)
+      ? [...session.serviceBookings, ...MOCK_SESSION.serviceBookings.map((service) => ({ ...service, bookingId: booking.id }))]
+      : session.serviceBookings,
+    folioTotal: parsePesoAmount(session.folioTotal) > 0 || !hasStayStarted(booking) ? session.folioTotal : MOCK_SESSION.folioTotal,
     additionalGuests: session.additionalGuests.length ? session.additionalGuests : MOCK_SESSION.additionalGuests,
   };
 }

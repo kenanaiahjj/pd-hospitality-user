@@ -1496,16 +1496,14 @@ describe('pre-arrival onboarding flow', () => {
     // 2. The list's last row adds a guest and opens the details step
     await user.click(screen.getByRole('button', { name: 'Add a guest' }));
     expect(screen.getByRole('heading', { name: 'Who is staying with you?' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Full name/)).toBeInTheDocument();
-
-    await user.type(screen.getByLabelText(/Full name/), 'Elena Santos');
-
-    // Continuing triggers ID upload step
-    await user.click(screen.getByRole('button', { name: 'Continue to ID' }));
-    expect(screen.getByRole('heading', { name: 'ID or passport for Elena Santos' })).toBeInTheDocument();
+    // ID first, on the same screen: the scan fills the details below it.
     expect(screen.getByRole('group', { name: 'Passport photo options' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Continue to ID' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Take a photo/ }));
+    await user.click(screen.getByRole('button', { name: /Read passport details/ }));
+    expect(await screen.findByDisplayValue('Elena Santos', {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Document number/)).toHaveValue('P7734120B');
 
-    await user.type(screen.getByLabelText(/Document number/), 'P9823411A');
     await user.click(screen.getByRole('button', { name: 'Save guest' }));
 
     // Returns to Who else is staying? with Elena Santos added

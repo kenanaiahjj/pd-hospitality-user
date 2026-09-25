@@ -1052,22 +1052,37 @@ type Companion = {
   expiry?: string;
 };
 
+/** What a scan reads off the document. Name and nationality are optional so a form can keep its own. */
 type PassportFields = {
   documentNumber: string;
   expiry: string;
+  fullName?: string;
+  nationality?: string;
 };
 
 const DEMO_PASSPORT_FIELDS: PassportFields = {
   documentNumber: 'P1234567A',
   expiry: '2030-05-20',
+  nationality: 'Filipino',
+};
+
+/** The sample document a companion's scan "reads", so the demo fills every field. */
+const DEMO_COMPANION_PASSPORT: PassportFields = {
+  fullName: 'Elena Santos',
+  nationality: 'Filipino',
+  documentNumber: 'P7734120B',
+  expiry: '2031-02-14',
 };
 
 function PassportCapturePanel({
   subjectName,
   onAutofill,
+  sample = DEMO_PASSPORT_FIELDS,
 }: {
   subjectName: string;
   onAutofill: (fields: PassportFields) => void;
+  /** The fields the simulated read returns. */
+  sample?: PassportFields;
 }) {
   const [step, setStep] = useState<'idle' | 'preview' | 'reading' | 'complete'>('idle');
   const [source, setSource] = useState<'photo' | 'upload' | null>(null);
@@ -1076,12 +1091,13 @@ function PassportCapturePanel({
     if (step !== 'reading') return;
 
     const timeout = window.setTimeout(() => {
-      onAutofill(DEMO_PASSPORT_FIELDS);
+      onAutofill(sample);
       setStep('complete');
     }, 700);
 
     return () => window.clearTimeout(timeout);
-  }, [onAutofill, step]);
+  }, [onAutofill, sample, step]);
+  const shownName = subjectName || sample.fullName || 'Guest';
 
   const openDemoPreview = (nextSource: 'photo' | 'upload') => {
     setSource(nextSource);
@@ -1089,7 +1105,7 @@ function PassportCapturePanel({
   };
 
   return (
-    <section className="guest-passport-capture" aria-label={`Passport photo simulation for ${subjectName}`}>
+    <section className="guest-passport-capture" aria-label={`Passport photo simulation for ${shownName}`}>
       <div className="guest-passport-capture__choices" role="group" aria-label="Passport photo options">
         <button
           className={`guest-passport-capture__choice${source === 'photo' ? ' is-selected' : ''}`}
@@ -1119,13 +1135,13 @@ function PassportCapturePanel({
             <b>Demo passport preview</b>
             <span>Sample only</span>
           </div>
-          <div className="guest-passport-capture__document" aria-label={`Sample passport preview for ${subjectName}`}>
+          <div className="guest-passport-capture__document" aria-label={`Sample passport preview for ${shownName}`}>
             <div className="guest-passport-capture__portrait" aria-hidden="true">
               <IdentificationCard size={24} />
             </div>
             <div className="guest-passport-capture__document-details">
               <small>PASSPORT · DEMO</small>
-              <b>{subjectName || 'Guest'}</b>
+              <b>{shownName}</b>
               <span>Passport photo · simulated</span>
             </div>
           </div>
@@ -1144,7 +1160,7 @@ function PassportCapturePanel({
           ) : null}
           {step === 'complete' ? (
             <p className="guest-passport-capture__status is-complete" role="status" aria-live="polite" aria-atomic="true">
-              Demo OCR complete. The document number and expiry date were filled below.
+              Details read from the document and filled in below. Check them before you continue.
             </p>
           ) : null}
         </div>
@@ -1171,6 +1187,8 @@ function initialsOf(name: string) {
 function describeHeadcount(listed: number, booked?: number) {
   if (!booked) return `${listed} ${listed === 1 ? 'guest' : 'guests'}`;
   if (listed < booked) return `${listed} of ${booked} added`;
+  // More people than the reservation is for: say so, the desk will need to know.
+  if (listed > booked) return `${listed} listed · booked for ${booked}`;
   return `Booking for ${booked} ${booked === 1 ? 'guest' : 'guests'}`;
 }
 
@@ -1187,11 +1205,16 @@ function IdentityStep({ guestName, email, passportFields, onPassportFieldsChange
 }) {
   const [contact, setContact] = useState({ email, mobile: '+63 917 555 0142' });
   const [contactOpen, setContactOpen] = useState(false);
+  const [person, setPerson] = useState({ name: guestName, nationality: 'Filipino' });
+  const readDocument = useCallback((fields: PassportFields) => {
+    setPerson((current) => ({ name: fields.fullName ?? current.name, nationality: fields.nationality ?? current.nationality }));
+    onPassportFieldsChange(fields);
+  }, [onPassportFieldsChange]);
   return (
     <FormScreen step="1 of 2" title="You and your ID" text="Scan your passport or ID and we fill in the rest. Sent securely to the property for registration.">
-      <PassportCapturePanel subjectName={guestName} onAutofill={onPassportFieldsChange} />
-      <Field label="Full name" name="guest-name" defaultValue={guestName} required />
-      <Field label="Nationality" name="nationality" defaultValue="Filipino" />
+      <PassportCapturePanel subjectName={person.name} onAutofill={readDocument} />
+      <Field label="Full name" name="guest-name" value={person.name} onValueChange={(name) => setPerson((current) => ({ ...current, name }))} required />
+      <Field label="Nationality" name="nationality" value={person.nationality} onValueChange={(nationality) => setPerson((current) => ({ ...current, nationality }))} />
       <Field label="Document number" name="document-number" placeholder="Enter document number" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} />
       <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} />
       <ExpandableField label="Contact" value={`${contact.email} · ${contact.mobile}`} aside="From your account" open={contactOpen} onToggle={() => setContactOpen((open) => !open)}>
@@ -1210,7 +1233,7 @@ function AdditionalGuestsScreen({
   initialGuests,
   onSave,
 }: AdditionalGuestsScreenProps) {
-  const [mode, setMode] = useState<'list' | 'details' | 'id-upload'>('list');
+  const [mode, setMode] = useState<'list' | 'details'>('list');
   const [companions, setCompanions] = useState<Companion[]>(() =>
     initialGuests.map((name) => ({
       name,
@@ -1226,98 +1249,66 @@ function AdditionalGuestsScreen({
     expiry: '',
   });
   const handlePassportAutofill = useCallback((fields: PassportFields) => {
-    setDraft((current) => ({ ...current, ...fields }));
+    setDraft((current) => ({
+      ...current,
+      name: fields.fullName ?? current.name,
+      nationality: fields.nationality ?? current.nationality,
+      documentNumber: fields.documentNumber,
+      expiry: fields.expiry,
+    }));
   }, []);
 
   const handleRemoveGuest = (index: number) => {
     setCompanions((prev) => prev.filter((_, i) => i !== index));
   };
 
+  /*
+    ID first: the scan reads the name, nationality, number and expiry off the
+    document, so typing them before it only to have it fill them again was
+    the same work twice. Everything stays editable; contact is optional.
+  */
   if (mode === 'details') {
     return (
       <FormScreen
         step="Additional guest"
         title="Who is staying with you?"
-        text="Enter details for your companion. These details are sent securely to the property for registration."
+        text="Scan their passport or ID and we fill in the rest. Sent securely to the property for registration."
       >
         <form
           className="guest-form"
           onSubmit={(e: FormEvent<HTMLFormElement>) => {
             e.preventDefault();
-            const data = new FormData(e.currentTarget);
-            const name = String(data.get('companion-name') ?? '').trim();
-            const nationality = String(data.get('companion-nationality') ?? 'Filipino').trim();
-            const email = String(data.get('companion-email') ?? '').trim();
-            const mobile = String(data.get('companion-mobile') ?? '').trim();
+            const name = draft.name.trim();
             if (!name) return;
-            setDraft((prev) => ({ ...prev, name, nationality, email, mobile }));
-            setMode('id-upload');
-          }}
-        >
-          <Field
-            label="Full name"
-            name="companion-name"
-            placeholder="e.g. Elena Santos"
-            defaultValue={draft.name}
-            required
-          />
-          <Field
-            label="Nationality"
-            name="companion-nationality"
-            defaultValue={draft.nationality || 'Filipino'}
-          />
-          <Field
-            label="Email (optional)"
-            name="companion-email"
-            type="email"
-            placeholder="companion@example.com"
-            defaultValue={draft.email}
-          />
-          <Field
-            label="Mobile (optional)"
-            name="companion-mobile"
-            type="tel"
-            placeholder="+63 917 555 0100"
-            defaultValue={draft.mobile}
-          />
-          <Button className="guest-button guest-button--primary" type="submit">
-            Continue to ID<ArrowRight aria-hidden="true" />
-          </Button>
-          <TextButton onClick={() => setMode('list')}>Cancel</TextButton>
-        </form>
-      </FormScreen>
-    );
-  }
-
-  if (mode === 'id-upload') {
-    return (
-      <FormScreen
-        step="Additional guest ID"
-        title={`ID or passport for ${draft.name}`}
-        text="Government-issued identification is required for property check-in."
-      >
-        <form
-          className="guest-form"
-          onSubmit={(e: FormEvent<HTMLFormElement>) => {
-            e.preventDefault();
-            const data = new FormData(e.currentTarget);
-            const documentNumber = String(data.get('companion-document') ?? '').trim();
-            const expiry = String(data.get('companion-expiry') ?? '').trim();
             setCompanions((prev) => [
               ...prev,
               {
-                name: draft.name,
-                nationality: draft.nationality,
-                email: draft.email,
-                mobile: draft.mobile,
-                documentNumber,
-                expiry,
+                name,
+                nationality: draft.nationality?.trim() || 'Filipino',
+                email: draft.email?.trim(),
+                mobile: draft.mobile?.trim(),
+                documentNumber: draft.documentNumber?.trim(),
+                expiry: draft.expiry,
               },
             ]);
             setMode('list');
           }}
         >
-          <PassportCapturePanel subjectName={draft.name} onAutofill={handlePassportAutofill} />
+          <PassportCapturePanel subjectName={draft.name} sample={DEMO_COMPANION_PASSPORT} onAutofill={handlePassportAutofill} />
+          <Field
+            label="Full name"
+            name="companion-name"
+            placeholder="As shown on the ID"
+            value={draft.name}
+            onValueChange={(name) => setDraft((current) => ({ ...current, name }))}
+            required
+          />
+          <Field
+            label="Nationality"
+            name="companion-nationality"
+            value={draft.nationality ?? ''}
+            onValueChange={(nationality) => setDraft((current) => ({ ...current, nationality }))}
+          />
           <Field
             label="Document number"
             name="companion-document"
@@ -1332,10 +1323,26 @@ function AdditionalGuestsScreen({
             value={draft.expiry ?? ''}
             onValueChange={(expiry) => setDraft((current) => ({ ...current, expiry }))}
           />
+          <Field
+            label="Email (optional)"
+            name="companion-email"
+            type="email"
+            placeholder="companion@example.com"
+            value={draft.email ?? ''}
+            onValueChange={(email) => setDraft((current) => ({ ...current, email }))}
+          />
+          <Field
+            label="Mobile (optional)"
+            name="companion-mobile"
+            type="tel"
+            placeholder="+63 917 555 0100"
+            value={draft.mobile ?? ''}
+            onValueChange={(mobile) => setDraft((current) => ({ ...current, mobile }))}
+          />
           <Button className="guest-button guest-button--primary" type="submit">
             Save guest<ArrowRight aria-hidden="true" />
           </Button>
-          <TextButton onClick={() => setMode('details')}>Back to details</TextButton>
+          <TextButton onClick={() => setMode('list')}>Cancel</TextButton>
         </form>
       </FormScreen>
     );

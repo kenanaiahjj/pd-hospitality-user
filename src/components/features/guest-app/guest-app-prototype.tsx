@@ -5647,6 +5647,8 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
             </div>
           )}
         </section>
+        {/* One line under the stay: what changed at the property today. */}
+        <AnnouncementsSection booking={booking} />
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" aria-label={`View details for ${confirmedServices[0].title}`} onClick={() => onNavigate('my-stay')}>
           <span className="guest-next-service-card__marker" aria-hidden="true"><HugeiconsIcon icon={HugeCalendarCheckIcon} size={20} strokeWidth={1.75} focusable="false" /></span>
           <span className="guest-next-service-card__details">
@@ -5683,7 +5685,6 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
             </div>
           </section>
         ) : null}
-        <AnnouncementsSection booking={booking} compact />
       </div>
     );
   }
@@ -5955,7 +5956,7 @@ function greetGuest(guestName: string, fallback: string, roomNumber?: string) {
   return roomNumber ? `Welcome, ${first} · Room ${roomNumber}` : `Welcome, ${first}`;
 }
 
-function AnnouncementsSection({ booking, compact = false }: { booking?: Booking; compact?: boolean }) {
+function AnnouncementsSection({ booking }: { booking?: Booking }) {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<PropertyAnnouncement | null>(null);
   const [showAllUpdates, setShowAllUpdates] = useState(false);
   const relevantAnnouncements = booking
@@ -5968,35 +5969,35 @@ function AnnouncementsSection({ booking, compact = false }: { booking?: Booking;
 
   if (!relevantAnnouncements.length) return null;
 
-  const visibleAnnouncements = relevantAnnouncements.slice(0, 2);
+  /*
+    A single slim row, not a section: the lead update's title and a count of
+    the rest. The sheet behind it carries every update in full, so the home
+    gives this one line instead of a heading and two paragraphs.
+  */
+  const [lead, ...rest] = relevantAnnouncements;
+  const close = () => { setSelectedAnnouncement(null); setShowAllUpdates(false); };
 
   return (
-    <section>
-      <SectionHeading title="Updates for your stay" />
-      <div className="guest-announcements">
-        {visibleAnnouncements.map((announcement) => (
-          <button
-            key={announcement.id}
-            type="button"
-            className={`guest-announcement guest-announcement--${announcement.tone}`}
-            onClick={() => setSelectedAnnouncement(announcement)}
-          >
-            <span aria-hidden="true"><Megaphone /></span>
-            <div><b>{announcement.title}</b><p>{compact ? announcementPreview(announcement) : announcement.body}</p></div>
-            <CaretRight aria-hidden="true" />
-          </button>
-        ))}
-      </div>
-      {relevantAnnouncements.length > 2 ? <TextButton onClick={() => setShowAllUpdates(true)}>View all updates</TextButton> : null}
+    <section className="guest-updates-strip" aria-label="Updates for your stay">
+      <button
+        type="button"
+        className="guest-updates-strip__row"
+        onClick={() => (rest.length ? setShowAllUpdates(true) : setSelectedAnnouncement(lead!))}
+      >
+        <Megaphone aria-hidden="true" />
+        <b>{lead!.title}</b>
+        {rest.length ? <span className="guest-updates-strip__more" aria-label={`and ${rest.length} more`}>+{rest.length}</span> : null}
+        <CaretRight aria-hidden="true" />
+      </button>
       {selectedAnnouncement || showAllUpdates ? (
         <div className="guest-announcement-detail" role="dialog" aria-modal="true" aria-labelledby="announcement-detail-title">
           <div className="guest-announcement-detail__panel">
-            <button type="button" className="guest-announcement-detail__close" aria-label="Close update" onClick={() => { setSelectedAnnouncement(null); setShowAllUpdates(false); }}><X aria-hidden="true" /></button>
+            <button type="button" className="guest-announcement-detail__close" aria-label="Close update" onClick={close}><X aria-hidden="true" /></button>
             <Megaphone aria-hidden="true" />
             {showAllUpdates ? (
               <>
                 <h2 id="announcement-detail-title">Updates for your stay</h2>
-                {relevantAnnouncements.map((announcement) => <div key={announcement.id} className="guest-announcement-detail__item"><b>{announcement.title}</b><p>{announcement.body}</p></div>)}
+                {relevantAnnouncements.map((announcement) => <div key={announcement.id} className="guest-announcement-detail__item"><h3>{announcement.title}</h3><p>{announcement.body}</p></div>)}
               </>
             ) : (
               <>
@@ -6004,18 +6005,12 @@ function AnnouncementsSection({ booking, compact = false }: { booking?: Booking;
                 <p>{selectedAnnouncement?.body}</p>
               </>
             )}
-            <Button className="guest-button guest-button--primary" type="button" onClick={() => { setSelectedAnnouncement(null); setShowAllUpdates(false); }}>Done</Button>
+            <Button className="guest-button guest-button--primary" type="button" onClick={close}>Done</Button>
           </div>
         </div>
       ) : null}
     </section>
   );
-}
-
-function announcementPreview(announcement: PropertyAnnouncement) {
-  if (announcement.id === 'pool-maintenance') return 'The rooftop pool will reopen after weekly maintenance.';
-  if (announcement.id === 'cafe-early-opening') return 'Early breakfast is available for guests with morning departures.';
-  return announcement.body;
 }
 
 /**

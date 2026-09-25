@@ -3083,14 +3083,22 @@ describe('scan discoverability', () => {
     expect(document.querySelector('.guest-category-catalog')).toBeNull();
   });
 
-  it('places property announcements after the rest of the home content', () => {
+  it('puts property updates in one slim row under the stay card', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
-    // "Explore Nearby" is still the heading on the pre-arrival home; the live
-    // one calls the same section "Make the most of your stay".
+    // One line, not a section: no heading, the lead title, a count of the rest.
+    const updates = screen.getByRole('region', { name: 'Updates for your stay' });
+    expect(screen.queryByRole('heading', { name: 'Updates for your stay' })).toBeNull();
+    expect(within(updates).getAllByRole('button')).toHaveLength(1);
+
+    // Above the rest of the home, not after it.
     const nearby = screen.getByRole('heading', { name: 'Make the most of your stay' });
-    const property = screen.getByRole('heading', { name: 'Updates for your stay' });
-    expect(nearby.compareDocumentPosition(property) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(updates.compareDocumentPosition(nearby) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps property updates off the pre-arrival home', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('pre-arrival')} />);
+    expect(screen.queryByRole('region', { name: 'Updates for your stay' })).toBeNull();
   });
 
   it('offers a hotel transfer below pre-arrival and opens its booking form', async () => {

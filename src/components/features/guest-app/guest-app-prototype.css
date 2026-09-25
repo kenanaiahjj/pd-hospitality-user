@@ -4584,7 +4584,46 @@
 .guest-announcement-detail__panel h2 { margin: 0; font-size: 21px; line-height: 1.2; }
 .guest-announcement-detail__panel p { margin: 0; color: var(--guest-muted); font-size: 15px; line-height: 1.5; }
 .guest-announcement-detail__item { display: grid; gap: 4px; }
-.guest-announcement-detail__item b { font-size: 14px; }
+
+/* Property updates on the stay home: one tappable line, the sheet holds the rest. */
+.guest-updates-strip { display: grid; }
+.guest-updates-strip__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line);
+  color: var(--guest-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.guest-updates-strip__row > svg:first-child { width: 18px; height: 18px; color: var(--guest-brand); }
+.guest-updates-strip__row > svg:last-child { width: 16px; height: 16px; color: var(--guest-subtle); }
+.guest-updates-strip__row b {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guest-updates-strip__more {
+  padding: 2px 7px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-chip);
+  color: var(--guest-muted);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.guest-updates-strip__row:active { transform: scale(0.99); }
+.guest-announcement-detail__item h3 { margin: 0; font-size: 15px; font-weight: 650; }
 .guest-announcement-detail__item p { font-size: 14px; }
 .guest-announcement-detail__close { position: absolute; top: 12px; right: 12px; display: grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--guest-surface); color: var(--guest-muted); cursor: pointer; }
 .guest-announcement-detail__close svg { width: 17px; height: 17px; }

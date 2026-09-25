@@ -4344,6 +4344,85 @@
   margin-bottom: 8px;
 }
 
+/* --- Make it yours: the two things to shape before arriving ---------------- */
+.guest-make-it-yours { display: grid; gap: 10px; }
+.guest-make-it-yours > h2 {
+  margin: 0;
+  padding-inline: 2px;
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.guest-make-it-yours__tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+
+.guest-tile {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+  min-height: 150px;
+  padding: 14px 14px 16px;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line), var(--shadow-xs);
+  color: var(--guest-ink);
+  font: inherit;
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out), box-shadow var(--duration-fast) ease;
+}
+button.guest-tile { cursor: pointer; }
+button.guest-tile:active { transform: scale(0.98); }
+.guest-tile__icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--guest-chip);
+  color: var(--guest-brand);
+}
+.guest-tile__icon svg { width: 18px; height: 18px; }
+.guest-tile > small { color: var(--guest-muted); font-size: 12.5px; font-weight: 500; }
+.guest-tile > b {
+  max-width: 100%;
+  overflow: hidden;
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 23px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guest-tile__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--guest-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guest-tile__meta i {
+  padding: 1px 6px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-chip);
+  color: var(--guest-ink);
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 650;
+}
+.guest-tile__meta svg { width: 14px; height: 14px; }
+.guest-tile.is-done .guest-tile__meta { color: var(--guest-positive); font-weight: 600; }
+
 /* The stay as a one-line reminder on its own detail screens. */
 .guest-stay-card--compact {
   display: grid;

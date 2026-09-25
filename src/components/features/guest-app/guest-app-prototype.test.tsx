@@ -386,11 +386,14 @@ describe('GuestAppPrototype', () => {
 
     await user.click(screen.getByTestId('guest-early-checkin-card'));
     await user.click(screen.getByRole('button', { name: 'Not now, keep 3:00 PM' }));
-    expect(screen.queryByText(/Early check-in requested/)).toBeNull();
+    expect(screen.queryByTestId('guest-early-checkin-requested')).toBeNull();
 
     await user.click(screen.getByTestId('guest-early-checkin-card'));
     await user.click(screen.getByRole('button', { name: 'Request early check-in' }));
-    expect(screen.getByText('Early check-in requested · 11:00 AM')).toBeInTheDocument();
+    // The tile turns into the request itself, rather than a notice below it.
+    const requested = screen.getByTestId('guest-early-checkin-requested');
+    expect(requested).toHaveTextContent('11:00 AM');
+    expect(requested).toHaveTextContent('Requested');
     expect(screen.queryByTestId('guest-early-checkin-card')).toBeNull();
   });
 

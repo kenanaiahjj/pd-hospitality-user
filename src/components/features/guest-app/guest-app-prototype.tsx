@@ -5902,30 +5902,37 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
           )}
         </section>
       )}
-      {/* Its own ask, not a check-in step. Once sent, the notice below takes its place. */}
-      {booking.status === 'upcoming' && !hasStayStarted(booking) && !booking.earlyCheckIn ? (
-        <button className="guest-transfer-card guest-early-checkin-card" type="button" onClick={() => onNavigate('early-check-in')} data-testid="guest-early-checkin-card">
-          <Clock aria-hidden="true" />
-          <span>
-            <b>Check in earlier</b>
-            <small>{`Room from ${EARLY_CHECK_IN.time} · ${EARLY_CHECK_IN.fee}, added to your room`}</small>
-          </span>
-          <CaretRight aria-hidden="true" />
-        </button>
-      ) : null}
       {/*
-        Optional, never a step. Offered only while it can still change the
-        room: once the property allocates one, the ready card above echoes the
-        preferences it honoured instead.
+        The two things a guest can shape before arriving, as a pair of tiles
+        that lead with their answer. Early check-in is its own ask, never a
+        check-in step, and shows its request once sent. Preferences are
+        offered only while they can still change the room: once the property
+        allocates one, the ready card above echoes what it honoured.
       */}
-      {roomAssignment.state === 'pending' && booking.status === 'upcoming' && !hasStayStarted(booking) ? (
-        <RoomPreferencesCard preferences={session.roomPreferences} property={booking.property} onOpen={() => onNavigate('room-preferences')} />
-      ) : null}
-      {/* The request the last pre-arrival step sent, so asking and declining no longer look the same. */}
-      {booking.earlyCheckIn && !hasStayStarted(booking) ? (
-        <Notice icon={<Clock />} title={`Early check-in requested · ${booking.earlyCheckIn.time}`}>
-          The hotel confirms availability before you arrive. If it is approved, {booking.earlyCheckIn.fee} goes on your room at checkout.
-        </Notice>
+      {booking.status === 'upcoming' && !hasStayStarted(booking) ? (
+        <section className="guest-make-it-yours" aria-labelledby="guest-make-it-yours-title">
+          <h2 id="guest-make-it-yours-title">Make it yours</h2>
+          <div className="guest-make-it-yours__tiles">
+            {booking.earlyCheckIn ? (
+              <div className="guest-tile is-done" data-testid="guest-early-checkin-requested">
+                <span className="guest-tile__icon" aria-hidden="true"><Clock /></span>
+                <small>Check in early</small>
+                <b>{booking.earlyCheckIn.time}</b>
+                <span className="guest-tile__meta"><CheckCircle weight="fill" aria-hidden="true" />Requested</span>
+              </div>
+            ) : (
+              <button className="guest-tile" type="button" onClick={() => onNavigate('early-check-in')} data-testid="guest-early-checkin-card">
+                <span className="guest-tile__icon" aria-hidden="true"><Clock /></span>
+                <small>Check in early</small>
+                <b>{EARLY_CHECK_IN.time}</b>
+                <span className="guest-tile__meta">{EARLY_CHECK_IN.fee} · on your room</span>
+              </button>
+            )}
+            {roomAssignment.state === 'pending' ? (
+              <RoomPreferencesCard preferences={session.roomPreferences} onOpen={() => onNavigate('room-preferences')} />
+            ) : null}
+          </div>
+        </section>
       ) : null}
       {/*
         Kept out of sight until the guest has scanned in: services on offer
@@ -6344,16 +6351,18 @@ function StayMiniCard({ booking, status }: { booking: Booking; status: string })
   return <div className="guest-mini-stay"><span><House /></span><div><b>{booking.property}</b><small>{status}</small></div><CheckCircle /></div>;
 }
 
-function RoomPreferencesCard({ preferences, property, onOpen }: { preferences: RoomPreferences; property: string; onOpen: () => void }) {
+function RoomPreferencesCard({ preferences, onOpen }: { preferences: RoomPreferences; onOpen: () => void }) {
   const picks = summarizeRoomPreferences(preferences);
+  const [first, second, ...rest] = picks;
   return (
-    <button className="guest-transfer-card guest-room-preferences-card" type="button" onClick={onOpen} data-testid="guest-room-preferences-card">
-      <Bed aria-hidden="true" />
-      <span>
-        <b>Room preferences</b>
-        <small>{picks.length ? picks.join(' · ') : `Tell ${property} how you like your room`}</small>
+    <button className="guest-tile" type="button" onClick={onOpen} data-testid="guest-room-preferences-card">
+      <span className="guest-tile__icon" aria-hidden="true"><Bed /></span>
+      <small>Your room</small>
+      <b>{first ?? 'Set your preferences'}</b>
+      <span className="guest-tile__meta">
+        {second ?? (first ? 'Tap to add more' : 'Bed, floor, view and more')}
+        {rest.length ? <i>+{rest.length}</i> : null}
       </span>
-      <CaretRight aria-hidden="true" />
     </button>
   );
 }

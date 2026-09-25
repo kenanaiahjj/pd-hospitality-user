@@ -7473,10 +7473,13 @@
    count.
    ========================================================================== */
 .guest-field-stack { display: grid; gap: 12px; }
+/* Every row sits on paper with a firm hairline. A grey surface beside the
+   white text rows read as disabled, so pickers, dates and expandable rows
+   share the one resting state. */
 .guest-field {
   border-radius: var(--guest-radius-lg);
-  background: var(--guest-surface);
-  box-shadow: inset 0 0 0 1px var(--guest-line);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line-strong);
   transition: background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 .guest-field.is-open { background: var(--guest-paper); box-shadow: 0 0 0 1px var(--guest-line), var(--shadow-md); }
@@ -7625,11 +7628,9 @@ label.guest-field input:focus,
 label.guest-field select:focus { border: 0; box-shadow: none; outline: none; }
 label.guest-field input::placeholder { color: var(--guest-subtle); font-weight: 400; }
 label.guest-field:focus-within { background: var(--guest-paper); box-shadow: 0 0 0 2px var(--guest-accent-strong); }
-/* Text entry rows stay visibly editable at rest; selects keep their quieter
-   picker treatment. The I-beam and darker placeholder reinforce the affordance. */
+/* Text entry rows add the I-beam and a darker placeholder to the shared
+   resting state. */
 label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])) {
-  background: var(--guest-paper);
-  box-shadow: inset 0 0 0 1px var(--guest-line-strong);
   cursor: text;
 }
 label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])) > input {

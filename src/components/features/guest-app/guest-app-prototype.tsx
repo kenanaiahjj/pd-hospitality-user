@@ -1020,7 +1020,7 @@ function PassportCapturePanel({
   /** The fields the simulated read returns. */
   sample?: PassportFields;
 }) {
-  const [step, setStep] = useState<'idle' | 'preview' | 'reading' | 'complete'>('idle');
+  const [step, setStep] = useState<'idle' | 'reading' | 'complete'>('idle');
   const [source, setSource] = useState<'photo' | 'upload' | null>(null);
 
   useEffect(() => {
@@ -1035,9 +1035,10 @@ function PassportCapturePanel({
   }, [onAutofill, sample, step]);
   const shownName = subjectName || sample.fullName || 'Guest';
 
+  // Choosing a photo is the whole request: the read starts at once, no second tap.
   const openDemoPreview = (nextSource: 'photo' | 'upload') => {
     setSource(nextSource);
-    setStep('preview');
+    setStep('reading');
   };
 
   return (
@@ -1084,11 +1085,6 @@ function PassportCapturePanel({
           <p className="guest-passport-capture__note">
             {source === 'photo' ? 'Photo capture simulated.' : 'Sample photo selected.'} No real image is used.
           </p>
-          {step === 'preview' ? (
-            <button className="guest-passport-capture__read" type="button" onClick={() => setStep('reading')}>
-              Read passport details<ArrowRight aria-hidden="true" />
-            </button>
-          ) : null}
           {step === 'reading' ? (
             <p className="guest-passport-capture__status" role="status" aria-live="polite" aria-atomic="true">
               Reading passport details…

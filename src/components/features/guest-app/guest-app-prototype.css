@@ -1577,8 +1577,7 @@
 .guest-passport-capture__choice small { color: var(--guest-muted); font-size: 11px; line-height: 1.25; }
 .guest-passport-capture__choice.is-selected { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
 .guest-passport-capture__choice:hover { border-color: var(--guest-accent-strong); }
-.guest-passport-capture__choice:focus-visible,
-.guest-passport-capture__read:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+.guest-passport-capture__choice:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
 .guest-passport-capture__preview {
   display: grid;
   gap: 10px;
@@ -1607,21 +1606,6 @@
 .guest-passport-capture__document-details b { overflow-wrap: anywhere; font-size: 13px; font-weight: 700; }
 .guest-passport-capture__document-details span { color: var(--guest-muted); font-size: 11px; }
 .guest-passport-capture__note { margin: 0; color: var(--guest-muted); font-size: 11px; line-height: 1.4; }
-.guest-passport-capture__read {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid var(--guest-line-strong);
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-paper);
-  color: var(--guest-brand);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 650;
-}
-.guest-passport-capture__read:hover { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
 .guest-passport-capture__status { margin: 0; color: var(--guest-ink); font-size: 12px; line-height: 1.45; }
 .guest-passport-capture__status.is-complete { color: var(--guest-positive); }
 
@@ -2581,8 +2565,7 @@
   .guest-quick-actions button:hover { border-color: var(--guest-line-strong); background: var(--guest-surface); }
   .guest-date-strip button:hover:not(.is-active),
   .guest-chip-grid button:hover:not(.is-active) { border-color: var(--guest-line-strong); background: var(--guest-surface); }
-  .guest-passport-capture__choice:hover,
-  .guest-passport-capture__read:hover { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
+  .guest-passport-capture__choice:hover { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
   .guest-review-block button:hover { background: var(--guest-surface); }
   .guest-section-heading button:hover { text-decoration: underline; text-underline-offset: 3px; }
   .guest-featured-service button:hover { text-decoration: underline; text-underline-offset: 3px; }

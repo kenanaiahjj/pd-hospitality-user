@@ -1500,7 +1500,6 @@ describe('pre-arrival onboarding flow', () => {
     expect(screen.getByRole('group', { name: 'Passport photo options' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Continue to ID' })).toBeNull();
     await user.click(screen.getByRole('button', { name: /Take a photo/ }));
-    await user.click(screen.getByRole('button', { name: /Read passport details/ }));
     expect(await screen.findByDisplayValue('Elena Santos', {}, { timeout: 2000 })).toBeInTheDocument();
     expect(screen.getByLabelText(/Document number/)).toHaveValue('P7734120B');
 

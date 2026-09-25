@@ -2569,7 +2569,7 @@
   .guest-welcome__splash { animation: none; opacity: 0; visibility: hidden; }
   .guest-welcome__brand,
   .guest-welcome__message { animation: none; opacity: 1; }
-  .guest-welcome__art-frame { transform: none; }
+  .guest-welcome__art-frame .guest-welcome__still { transform: none; transition: none; }
   .guest-welcome__steps-track { transition: none; }
   .guest-app *,
   .guest-app *::before,
@@ -3262,15 +3262,23 @@
 .guest-welcome__art-track { position: absolute; inset: 0; }
 
 /* Frames stack and dissolve. The one arriving settles from a slight zoom,
-   so each step opens like a cut in a title sequence. */
+   so each step opens like a cut in a title sequence. The zoom is the
+   still's alone: scaling a playing <video> re-snaps every decoded frame to
+   a new size, and a slow zoom over a film read as the screen shaking. */
 .guest-welcome__art-frame {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transform: scale(1.06);
-  transition: opacity 900ms var(--ease-out), transform 6s var(--ease-out);
+  transition: opacity 900ms var(--ease-out);
 }
-.guest-welcome__art-frame.is-active { opacity: 1; transform: scale(1); }
+.guest-welcome__art-frame.is-active { opacity: 1; }
+.guest-welcome__art-frame .guest-welcome__still {
+  transform: scale(1.06);
+  transition: transform 6s var(--ease-out);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.guest-welcome__art-frame.is-active .guest-welcome__still { transform: scale(1); }
 
 .guest-welcome__still,
 .guest-welcome__film {

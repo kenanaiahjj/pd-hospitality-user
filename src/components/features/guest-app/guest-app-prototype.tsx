@@ -822,24 +822,28 @@ function WelcomeArt({ index, paused }: Pick<PagerHandle, 'index'> & { paused: bo
   const reducedMotion = usePrefersReducedMotion();
   const films = useRef<(HTMLVideoElement | null)[]>([]);
 
+  /*
+    A step arriving starts its film from the top, not wherever it was left --
+    rewound while still paused, before play. Seeking a film already playing
+    stalls it for a beat, which read as a jolt as the step came in.
+  */
+  const arrived = useRef(-1);
   useEffect(() => {
     const sync = () => {
+      const fresh = arrived.current !== index;
+      arrived.current = index;
       films.current.forEach((video, position) => {
         if (!video) return;
-        if (position === index && !paused && !document.hidden) playFilm(video);
-        else video.pause();
+        if (position === index && !paused && !document.hidden) {
+          if (fresh && video.readyState > 0) video.currentTime = 0;
+          playFilm(video);
+        } else video.pause();
       });
     };
     sync();
     document.addEventListener('visibilitychange', sync);
     return () => document.removeEventListener('visibilitychange', sync);
   }, [index, paused, reducedMotion]);
-
-  // A step arriving starts its film from the top, not wherever it was left.
-  useEffect(() => {
-    const video = films.current[index];
-    if (video && video.readyState > 0) video.currentTime = 0;
-  }, [index]);
 
   return (
     <div className="guest-welcome__art" aria-hidden="true">

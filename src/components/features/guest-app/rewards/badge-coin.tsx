@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useRef } from 'react';
 
+import { BADGE_ART_BOUNDS, type ArtBounds } from './badge-art-bounds';
 import { BADGE_FAMILIES } from './badge-model';
 import type { BadgeDefinition } from './badge-model';
 
@@ -22,6 +23,34 @@ import type { BadgeDefinition } from './badge-model';
   Reduced motion gets the coin without the opening turn or the coast after a
   flick. A tap still turns it over -- that is the guest asking.
 */
+
+/*
+  The plate and rim are clipped to the family's shape, fitted to where this
+  badge's own artwork is drawn (measured by scripts/measure-badge-art.mjs).
+  One hand-tuned shape per family spilled past most frames -- a pale slab
+  under a square, a halo round a circle -- because no two drawings sit on
+  their canvas alike. Inset a little, so the edge hides under the frame.
+*/
+const FIT_INSET = 2.4;
+/** Each polygon family's outline, in its own 0-100 box. */
+const OUTLINES: Record<string, [number, number][]> = {
+  shield: [[50, 0], [100, 14], [100, 58], [50, 100], [0, 58], [0, 14]],
+  hexagon: [[50, 0], [100, 24], [100, 76], [50, 100], [0, 76], [0, 24]],
+  pentagon: [[50, 0], [100, 39], [84, 100], [16, 100], [0, 39]],
+};
+
+function fittedShape(shape: string, [top, right, bottom, left]: ArtBounds): string {
+  const t = top + FIT_INSET, r = right + FIT_INSET, b = bottom + FIT_INSET, l = left + FIT_INSET;
+  const width = 100 - l - r;
+  const height = 100 - t - b;
+  const pct = (value: number) => `${value.toFixed(1)}%`;
+  if (shape === 'circle') return `ellipse(${pct(width / 2)} ${pct(height / 2)} at ${pct(l + width / 2)} ${pct(t + height / 2)})`;
+  if (shape === 'square') return `inset(${pct(t)} ${pct(r)} ${pct(b)} ${pct(l)} round 17%)`;
+  if (shape === 'capsule') return `inset(${pct(t)} ${pct(r)} ${pct(b)} ${pct(l)} round 999px)`;
+  const outline = OUTLINES[shape];
+  if (!outline) return `inset(${pct(t)} ${pct(r)} ${pct(b)} ${pct(l)})`;
+  return `polygon(${outline.map(([x, y]) => `${pct(l + (x / 100) * width)} ${pct(t + (y / 100) * height)}`).join(', ')})`;
+}
 
 /** Slices stacked behind the front face. More reads smoother and costs layers. */
 const SLICES = 14;
@@ -194,6 +223,13 @@ export function BadgeCoin({ badge, holder, earnedOn, serial }: BadgeCoinProps) {
       aria-label={`Turn the ${badge.name} medal over`}
       style={{
         '--medal-enamel': family.enamel,
+        ...(BADGE_ART_BOUNDS[badge.id]
+          ? {
+            '--coin-shape': fittedShape(family.shape, BADGE_ART_BOUNDS[badge.id]!),
+            // The cast shadow sits under the drawing, not the empty canvas below it.
+            '--coin-floor': `${BADGE_ART_BOUNDS[badge.id]![2]}%`,
+          }
+          : {}),
         // The art's own alpha, so light lands on the metal and enamel, not the air around it.
         ...(badge.art ? { '--coin-art': `url(${badge.art})` } : {}),
       } as React.CSSProperties}

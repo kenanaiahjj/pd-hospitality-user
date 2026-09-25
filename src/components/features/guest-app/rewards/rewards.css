@@ -519,7 +519,7 @@
 .badge-coin::after {
   position: absolute;
   inset-inline: 24%;
-  inset-block-end: -4px;
+  inset-block-end: calc(var(--coin-floor, 0%) - 10px);
   block-size: 12px;
   content: '';
   border-radius: 50%;

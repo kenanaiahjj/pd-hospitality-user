@@ -4285,7 +4285,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack guest-my-stay-page">
             {/* The stay in full lives here; Home carries only the compact reminder. */}
-            <UpcomingBookingCard booking={contextBooking} primary onNavigate={go} statusLabel={stayStatus.label} showCountdown />
+            <UpcomingBookingCard booking={contextBooking} primary onNavigate={go} statusLabel={stayStatus.label} canUpgrade={canOfferRoomUpgrade(contextBooking)} showCountdown />
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
@@ -5538,39 +5538,16 @@ function StayOverviewHome({ session, booking, onNavigate, venueReels, seenVenues
     const roomUpgrade = booking.roomUpgrade;
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--active" data-testid="guest-home-active">
-        <section className="guest-stay-hero-card guest-stay-hero-card--photo guest-home-active-hero">
-          <div className="guest-stay-hero-card__media">
-            <PropertyImage property={booking.property} aspectRatio="1.5" decorative />
-            <div className="guest-stay-hero-card__badges">
-              <span className="guest-stay-hero-card__status guest-stay-hero-card__status--positive">Checked in</span>
-              <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">{roomLabel}</span>
-            </div>
-            {/* The stay is named on its own photograph, as a Places card names a place. */}
-            <div className="guest-stay-hero-card__overlay">
-              <p className="guest-eyebrow">{greetGuest(session.guestName, 'Welcome')}</p>
-              <h1>{booking.property}</h1>
-            </div>
-          </div>
-          <div className="guest-stay-hero-card__body">
-            <div className="guest-stay-hero-card__stats">
-              <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
-              <div><small>Room</small><b>{booking.roomType}</b></div>
-              <div><small>Guests</small><b>{describeParty(booking, session)}</b></div>
-              <div><small>Nights</small><b>{countNights(booking)}</b></div>
-            </div>
-            <button className="guest-stay-hero-card__booking" onClick={() => onNavigate('rate-detail')} type="button">
-              <span><Ticket /></span>
-              <span><b>View booking</b><small>Rate, policies and confirmation</small></span>
-              <CaretRight />
-            </button>
-            {canOfferRoomUpgrade(booking) ? (
-              <button className="guest-stay-hero-card__booking guest-stay-hero-card__booking--upgrade" onClick={() => onNavigate('room-upgrades')} type="button">
-                <span><Bed /></span>
-                <span><b>Upgrade room</b><small>Explore available rooms</small></span>
-                <CaretRight />
-              </button>
-            ) : null}
-          </div>
+        {/* The greeting the photo card carried, now over the compact row. */}
+        <h1 className="guest-home-greeting">{greetGuest(session.guestName, 'Welcome')}</h1>
+        {/* A one-line reminder, as before arrival: the full stay card is My Stay's. */}
+        <StayCard
+          booking={booking}
+          compact
+          statusLabel={describeStayStatus(booking).label === 'Checked in' ? 'Checked in' : 'Confirmed'}
+          onOpen={() => onNavigate('rate-detail')}
+        />
+        <section className="guest-home-stay-actions">
           {roomUpgrade ? <div className="guest-stay-hero-card__actions">
             {roomUpgrade?.status === 'preparing' ? <div className="guest-room-upgrade-status"><b>Room upgrade in progress</b><span>{roomUpgrade.newRoomType} · Room number coming soon</span><p>We&rsquo;re preparing your upgraded room. You can continue using Room {booking.roomNumber} until your new room is ready.</p></div> : null}
             {roomUpgrade?.status === 'ready' ? <div className="guest-room-transfer-preview"><div><small>Current room</small><b>Room {booking.roomNumber} · {booking.roomType}</b><span>Available until your room transfer is completed.</span></div><div><small>New room · Ready</small><b>Room {roomUpgrade.newRoomNumber} · {roomUpgrade.newRoomType}</b><span>Your upgraded room is ready. Complete the transfer before {roomUpgrade.transferDeadline}.</span></div><button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('room-transfer-details')}>View transfer details<ArrowRight /></button></div> : null}
@@ -5892,10 +5869,10 @@ const countNights = (booking: Booking) => {
   return `${nights} ${nights === 1 ? 'night' : 'nights'}`;
 };
 
-function greetGuest(guestName: string, fallback: string, roomNumber?: string) {
+
+function greetGuest(guestName: string, fallback: string) {
   const first = guestName.trim().split(/\s+/).filter(Boolean)[0];
-  if (!first) return fallback;
-  return roomNumber ? `Welcome, ${first} · Room ${roomNumber}` : `Welcome, ${first}`;
+  return first ? `Welcome, ${first}` : fallback;
 }
 
 function AnnouncementsSection({ booking }: { booking?: Booking }) {
@@ -6011,7 +5988,7 @@ function countdownCell(booking: Booking): { label: string; value: string } | und
   return { label: which === 'in' ? 'Check-in' : 'Check-out', value: `${when.charAt(0).toUpperCase()}${when.slice(1)} · ${at}` };
 }
 
-function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showCountdown = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean; showCountdown?: boolean }) {
+function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showCountdown = false, canUpgrade = false }: { canUpgrade?: boolean; booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean; showCountdown?: boolean }) {
   const countdown = showCountdown ? countdownCell(booking) : undefined;
   return (
     <section className="guest-stay-hero-card guest-stay-hero-card--photo">
@@ -6039,6 +6016,13 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel
         <span><b>View booking</b><small>Rate, policies and confirmation</small></span>
         <CaretRight />
       </button>
+      {canUpgrade ? (
+        <button className="guest-stay-hero-card__booking guest-stay-hero-card__booking--upgrade" onClick={() => onNavigate('room-upgrades')} type="button">
+          <span><Bed /></span>
+          <span><b>Upgrade room</b><small>Explore available rooms</small></span>
+          <CaretRight />
+        </button>
+      ) : null}
       </div>
     </section>
   );

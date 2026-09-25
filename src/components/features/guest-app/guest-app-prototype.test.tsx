@@ -1601,16 +1601,15 @@ describe('home mini-apps and browsable restaurant menu', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
-    expect(document.querySelector('.guest-home-active-hero')).toBeInTheDocument();
+    // The live stay opens on the compact row, as before arrival does; the
+    // full card, with View booking and Upgrade room, is My Stay's.
+    expect(document.querySelector('.guest-home-active-hero')).toBeNull();
+    expect(document.querySelector('.guest-stay-card--compact')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /The Henry Manila, .* view booking/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Upgrade room/ })).toBeNull();
     expect(document.querySelector('.guest-home-discovery')).toBeInTheDocument();
     expect(document.querySelector('.guest-home-stories')).toBeInTheDocument();
-    const viewBooking = screen.getByRole('button', { name: /View booking/ });
-    expect(viewBooking).toHaveClass('guest-stay-hero-card__booking');
-    expect(viewBooking.closest('.guest-stay-hero-card__body')).not.toBeNull();
     expect(screen.queryByRole('button', { name: /Chat with the front desk/ })).toBeNull();
-    const upgradeRoom = screen.getByRole('button', { name: /Upgrade room/ });
-    expect(upgradeRoom).toHaveClass('guest-stay-hero-card__booking--upgrade');
-    expect(upgradeRoom.closest('.guest-stay-hero-card__body')).not.toBeNull();
     expect(within(screen.getByRole('group', { name: 'Stay stories' })).getByRole('button', { name: /^The Henry Manila/ })).toBeInTheDocument();
   });
 
@@ -2329,11 +2328,11 @@ describe('lifecycle gates', () => {
     confirm one and put ₱3,600 on a room the property had not seen them in.
   */
   it('offers a room upgrade only once the room is verified', () => {
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={arrivedUnverified} />);
     expect(screen.queryByRole('button', { name: /Upgrade room/ })).toBeNull();
 
     cleanup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={verified} />);
     expect(screen.getByRole('button', { name: /Upgrade room/ })).toBeInTheDocument();
   });
 
@@ -3237,8 +3236,8 @@ describe('premium Home styling', () => {
     expect(guestStyles).toMatch(/\.guest-home-story \.discover__story-ring\s*\{[^}]*padding:\s*1px/);
     expect(guestStyles).toMatch(/\.guest-home-story \.discover__story-art\s*\{[\s\S]*?border:\s*1px solid var\(--guest-paper\)/);
     expect(guestStyles).toMatch(/\.guest-stay-hero-card__booking\s*\{[\s\S]*?border-top:\s*1px solid var\(--guest-line\)/);
-    expect(guestStyles).toMatch(/\.guest-home-active-hero[^}]*animation:\s*guest-home-rise/);
-    expect(guestStyles).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.guest-home-active-hero/);
+    expect(guestStyles).toMatch(/\.guest-stay-card--compact[^}]*animation:\s*guest-home-rise/);
+    expect(guestStyles).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.guest-stay-card--compact/);
   });
 });
 

@@ -469,8 +469,8 @@ export const UPCOMING_BOOKING_FIXTURE: Booking = {
   roomType: 'King room',
   guestCount: 2,
   source: 'Agoda',
-  preArrivalCompleted: 2,
-  preArrivalTotal: 4,
+  preArrivalCompleted: 1,
+  preArrivalTotal: 2,
   nextPreArrivalStep: 'Add who else is staying',
   roomAssignment: 'pending',
 };
@@ -591,8 +591,8 @@ export const MOCK_SESSION: GuestSession = {
       roomNumber: '208',
       guestCount: 2,
       source: 'Direct booking',
-      preArrivalCompleted: 4,
-      preArrivalTotal: 4,
+      preArrivalCompleted: 2,
+      preArrivalTotal: 2,
     },
   ],
   /*
@@ -1670,7 +1670,7 @@ export function createStayBooking(input: {
     // The commercial point of the feature: this one is not an OTA's.
     source: 'Direct booking',
     preArrivalCompleted: 0,
-    preArrivalTotal: 4,
+    preArrivalTotal: 2,
     nextPreArrivalStep: 'Add your details',
     roomRate: quote.roomTotal,
   };
@@ -1912,8 +1912,8 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
       checkOut: '2026-11-23',
       roomNumber: undefined,
       roomAssignment: 'pending',
-      preArrivalCompleted: 2,
-      preArrivalTotal: 4,
+      preArrivalCompleted: 1,
+      preArrivalTotal: 2,
       folioTotal: undefined,
     };
 
@@ -1934,8 +1934,8 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
       roomAssignment: 'ready',
       roomReadyAt: '2:15 PM',
       roomVerification: { method: 'scan', at: PROTOTYPE_TODAY },
-      preArrivalCompleted: 4,
-      preArrivalTotal: 4,
+      preArrivalCompleted: 2,
+      preArrivalTotal: 2,
       nextPreArrivalStep: undefined,
       folioTotal: '₱3,050',
       // Three nights of the Manila king room at the catalogue's own rate, so
@@ -1975,8 +1975,8 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
     roomNumber: '304',
     roomAssignment: 'ready',
     roomVerification: { method: 'scan', at: '2026-11-05' },
-    preArrivalCompleted: 4,
-    preArrivalTotal: 4,
+    preArrivalCompleted: 2,
+    preArrivalTotal: 2,
     nextPreArrivalStep: undefined,
     folioTotal: '₱3,050',
     roomRate: '₱18,600',

@@ -1156,6 +1156,35 @@ type AdditionalGuestsScreenProps = {
   onSave: (validGuests: string[]) => void;
 };
 
+/** The one early check-in slot the prototype offers. */
+const EARLY_CHECK_IN = { time: '11:00 AM', fee: '₱1,500' };
+
+/** Step 1 of 2: who the guest is, led by the passport scan that fills most of it. */
+function IdentityStep({ guestName, email, passportFields, onPassportFieldsChange, onContinue }: {
+  guestName: string;
+  email: string;
+  passportFields: PassportFields;
+  onPassportFieldsChange: (fields: PassportFields) => void;
+  onContinue: () => void;
+}) {
+  const [contact, setContact] = useState({ email, mobile: '+63 917 555 0142' });
+  const [contactOpen, setContactOpen] = useState(false);
+  return (
+    <FormScreen step="1 of 2" title="You and your ID" text="Scan your passport or ID and we fill in the rest. Sent securely to the property for registration.">
+      <PassportCapturePanel subjectName={guestName} onAutofill={onPassportFieldsChange} />
+      <Field label="Full name" name="guest-name" defaultValue={guestName} required />
+      <Field label="Nationality" name="nationality" defaultValue="Filipino" />
+      <Field label="Document number" name="document-number" placeholder="Enter document number" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} />
+      <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} />
+      <ExpandableField label="Contact" value={`${contact.email} · ${contact.mobile}`} aside="From your account" open={contactOpen} onToggle={() => setContactOpen((open) => !open)}>
+        <Field label="Email" name="guest-email" type="email" value={contact.email} onValueChange={(value) => setContact((current) => ({ ...current, email: value }))} />
+        <Field label="Mobile" name="guest-mobile" type="tel" value={contact.mobile} onValueChange={(mobile) => setContact((current) => ({ ...current, mobile }))} />
+      </ExpandableField>
+      <Button className="guest-button guest-button--primary" type="button" onClick={onContinue}>Continue<ArrowRight aria-hidden="true" /></Button>
+    </FormScreen>
+  );
+}
+
 function AdditionalGuestsScreen({
   primaryGuestName,
   primaryGuestEmail = 'ana@example.com',
@@ -1295,7 +1324,7 @@ function AdditionalGuestsScreen({
 
   return (
     <FormScreen
-      step="3 of 4"
+      step="2 of 2"
       title="Who else is staying?"
       text="Additional guests do not need their own accounts."
     >
@@ -1385,7 +1414,7 @@ function AdditionalGuestsScreen({
           onSave(validGuests);
         }}
       >
-        Continue<ArrowRight aria-hidden="true" />
+        {companions.length === 0 ? 'Just me — finish' : 'Finish'}<ArrowRight aria-hidden="true" />
       </Button>
     </FormScreen>
   );
@@ -2338,27 +2367,33 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   /*
-    `earlyCheckIn` is the guest's answer on the last step: true asks, false
-    keeps the standard time. Both buttons used to call this with nothing, so a
-    request for an 11:00 AM room went nowhere and looked identical to declining.
-    Left out -- "Confirm everything" on the review -- it keeps what is there.
+    Early check-in used to be the last pre-arrival step. It is its own ask now,
+    offered from the home, so it neither gates registration nor waits on it.
   */
-  const completePreArrival = (earlyCheckIn?: boolean) => {
-    const request = { time: '11:00 AM', fee: '₱1,500' };
-    if (earlyCheckIn) {
-      setChatMessages((messages) => [
-        ...messages,
-        { from: 'guest', body: `I’d like to request early check-in from ${request.time} on ${formatStayDateRange(contextBooking).split('–')[0]}.`, state: online ? 'Sent' : 'Will send when connected' },
-        { from: 'desk', body: 'Noted. We’ll confirm early check-in before you arrive. If it’s approved, the fee goes on your room at checkout.', state: 'Seen' },
-      ]);
-    }
+  const requestEarlyCheckIn = () => {
+    const request = EARLY_CHECK_IN;
+    setChatMessages((messages) => [
+      ...messages,
+      { from: 'guest', body: `I’d like to request early check-in from ${request.time} on ${formatStayDateRange(contextBooking).split('–')[0]}.`, state: online ? 'Sent' : 'Will send when connected' },
+      { from: 'desk', body: 'Noted. We’ll confirm early check-in before you arrive. If it’s approved, the fee goes on your room at checkout.', state: 'Seen' },
+    ]);
+    setSession((cur) => ({
+      ...cur,
+      bookings: cur.bookings.map((booking) => (booking.id === contextBooking.id ? { ...booking, earlyCheckIn: request } : booking)),
+    }));
+    if (history.length > 0) back();
+    else go('stay-overview');
+  };
+
+  /** `patch` lands in the same write, so a last-step save is not overwritten by this one. */
+  const completePreArrival = (patch: Partial<GuestSession> = {}) => {
     const next: GuestSession = {
       ...session,
+      ...patch,
       bookings: session.bookings.map((booking) =>
         booking.id === contextBooking.id
           ? {
               ...booking,
-              earlyCheckIn: earlyCheckIn === undefined ? booking.earlyCheckIn : earlyCheckIn ? request : undefined,
               preArrivalCompleted: booking.preArrivalTotal,
               // Cleared, not left behind: at 100% there is no next step, and a
               // stale one reads as work still owed.
@@ -3403,11 +3438,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'stay-overview':
         return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
 
+      /*
+        Details and ID used to be two steps. The passport scan fills most of
+        what the details step asked for, and the account already knows the
+        contact details, so they are one screen now. `id-capture` stays a valid
+        screen id and lands on the same step.
+      */
       case 'guest-details':
-        return <FormScreen step="1 of 4" title="Your details" text="These details are sent securely to the property for registration."><Field label="Full name" name="guest-name" defaultValue="Ana Santos" required /><Field label="Nationality" name="nationality" defaultValue="Filipino" /><Field label="Email" name="guest-email" type="email" defaultValue="ana@example.com" /><Field label="Mobile" name="guest-mobile" type="tel" defaultValue="+63 917 555 0142" />{primary('Continue to ID', 'id-capture')}</FormScreen>;
-
       case 'id-capture':
-        return <FormScreen step="2 of 4" title="ID or passport" text="International guests need passport details."><PassportCapturePanel subjectName={session.guestName || 'Ana Santos'} onAutofill={setPrimaryPassportFields} /><Field label="Document number" name="document-number" placeholder="Enter document number" value={primaryPassportFields.documentNumber} onValueChange={(documentNumber) => setPrimaryPassportFields((current) => ({ ...current, documentNumber }))} /><Field label="Expiry date" name="expiry" type="date" value={primaryPassportFields.expiry} onValueChange={(expiry) => setPrimaryPassportFields((current) => ({ ...current, expiry }))} />{primary('Save and continue', 'additional-guests')}</FormScreen>;
+        return (
+          <IdentityStep
+            guestName={session.guestName || 'Ana Santos'}
+            email={session.email || 'ana@example.com'}
+            passportFields={primaryPassportFields}
+            onPassportFieldsChange={setPrimaryPassportFields}
+            onContinue={() => go('additional-guests')}
+          />
+        );
 
       /**
        * Preferences used to be step 3 of pre-arrival check-in, but asking a
@@ -3440,8 +3487,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             primaryGuestEmail={session.email || 'ana@example.com'}
             initialGuests={session.additionalGuests}
             onSave={(validGuests) => {
-              setSession((cur) => ({ ...cur, additionalGuests: validGuests }));
-              go('early-check-in');
+              completePreArrival({ additionalGuests: validGuests });
             }}
           />
         );
@@ -3615,7 +3661,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'early-check-in':
         return (
           <ScreenIntro
-            eyebrow="Step 4 of 4 · Arrival"
             title="Check in earlier"
             text="Standard check-in is 3:00 PM. Request a room from 11:00 AM and settle the added charge with the hotel at checkout."
           >
@@ -3632,11 +3677,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <Button
               className="guest-button guest-button--primary"
               type="button"
-              onClick={() => completePreArrival(true)}
+              onClick={requestEarlyCheckIn}
             >
               Request early check-in<ArrowRight aria-hidden="true" />
             </Button>
-            <TextButton onClick={() => completePreArrival(false)}>Keep standard 3:00 PM</TextButton>
+            <TextButton onClick={() => (history.length > 0 ? back() : go('stay-overview'))}>Not now, keep 3:00 PM</TextButton>
           </ScreenIntro>
         );
 
@@ -5777,6 +5822,17 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
           )}
         </section>
       )}
+      {/* Its own ask, not a check-in step. Once sent, the notice below takes its place. */}
+      {booking.status === 'upcoming' && !hasStayStarted(booking) && !booking.earlyCheckIn ? (
+        <button className="guest-transfer-card guest-early-checkin-card" type="button" onClick={() => onNavigate('early-check-in')} data-testid="guest-early-checkin-card">
+          <Clock aria-hidden="true" />
+          <span>
+            <b>Check in earlier</b>
+            <small>{`Room from ${EARLY_CHECK_IN.time} · ${EARLY_CHECK_IN.fee}, added to your room`}</small>
+          </span>
+          <CaretRight aria-hidden="true" />
+        </button>
+      ) : null}
       {/*
         Optional, never a step. Offered only while it can still change the
         room: once the property allocates one, the ready card above echoes the
@@ -6158,7 +6214,10 @@ function ScreenIntro({ icon, eyebrow, title, text, children }: { icon?: ReactNod
 }
 
 function FormScreen({ step, title, text, children }: { step: string; title: string; text: string; children: ReactNode }) {
-  return <div className="guest-stack"><div className="guest-step"><span>{step}</span><i><b /></i></div><div className="guest-page-title"><h1>{title}</h1><p>{text}</p></div><div className="guest-form">{children}</div></div>;
+  // "1 of 2" fills the bar to match; a label without a count keeps the stylesheet's default.
+  const count = step.match(/^(\d+) of (\d+)$/);
+  const fill = count ? { width: `${(Number(count[1]) / Number(count[2])) * 100}%` } : undefined;
+  return <div className="guest-stack"><div className="guest-step"><span>{step}</span><i><b style={fill} /></i></div><div className="guest-page-title"><h1>{title}</h1><p>{text}</p></div><div className="guest-form">{children}</div></div>;
 }
 
 function TextButton({ children, onClick, disabled }: { children: ReactNode; onClick: () => void; disabled?: boolean }) {

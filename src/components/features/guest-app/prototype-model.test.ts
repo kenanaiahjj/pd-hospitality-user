@@ -416,8 +416,8 @@ describe('mini-app categories and restaurant menus', () => {
       accessibility: [],
     });
     expect(MOCK_SESSION.roomPreferences.bed).toBe('King bed');
-    // Four steps since room preferences left check-in for the profile.
-    expect(UPCOMING_BOOKING_FIXTURE.preArrivalTotal).toBe(4);
+    // Two steps: identity, then who else is staying.
+    expect(UPCOMING_BOOKING_FIXTURE.preArrivalTotal).toBe(2);
   });
 });
 

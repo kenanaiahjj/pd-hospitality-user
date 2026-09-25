@@ -379,26 +379,27 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
   });
 
-  // Both buttons used to do the same thing, so asking for an 11:00 AM room went nowhere.
-  it('records an early check-in request, and only when one was asked for', async () => {
+  // Early check-in left pre-arrival for the home: the card asks, the notice confirms.
+  it('requests early check-in from the home card, and only when asked', async () => {
     const user = userEvent.setup();
     const upcoming = sessionFor([makeBooking({ id: 'soon', checkIn: '2026-11-20', checkOut: '2026-11-23' })], { activeBookingId: 'soon' });
-    render(<GuestAppPrototype initialScreen="early-check-in" initialSession={upcoming} />);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={upcoming} />);
 
+    await user.click(screen.getByTestId('guest-early-checkin-card'));
+    await user.click(screen.getByRole('button', { name: 'Not now, keep 3:00 PM' }));
+    expect(screen.queryByText(/Early check-in requested/)).toBeNull();
+
+    await user.click(screen.getByTestId('guest-early-checkin-card'));
     await user.click(screen.getByRole('button', { name: 'Request early check-in' }));
     expect(screen.getByText('Early check-in requested · 11:00 AM')).toBeInTheDocument();
-
-    cleanup();
-    render(<GuestAppPrototype initialScreen="early-check-in" initialSession={upcoming} />);
-    await user.click(screen.getByRole('button', { name: 'Keep standard 3:00 PM' }));
-    expect(screen.queryByText(/Early check-in requested/)).toBeNull();
+    expect(screen.queryByTestId('guest-early-checkin-card')).toBeNull();
   });
 
   it('opens the upcoming home immediately after online pre-arrival completion', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="early-check-in" initialSession={MOCK_SESSION} />);
+    render(<GuestAppPrototype initialScreen="additional-guests" initialSession={MOCK_SESSION} />);
 
-    await user.click(screen.getByRole('button', { name: 'Keep standard 3:00 PM' }));
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'You’re ready for arrival' })).toBeNull();
@@ -746,9 +747,9 @@ describe('guest account and entry flows', () => {
     // The card spins and is stamped before the guest moves on.
     await user.click(await screen.findByRole('button', { name: 'Add your details' }, { timeout: 3000 }));
 
-    // Directly reaches pre-arrival Step 1 of 4 without an account creation gate
-    expect(screen.getByRole('heading', { name: 'Your details' })).toBeInTheDocument();
-    expect(screen.getByText('1 of 4')).toBeInTheDocument();
+    // Directly reaches pre-arrival step 1 of 2 without an account creation gate
+    expect(screen.getByRole('heading', { name: 'You and your ID' })).toBeInTheDocument();
+    expect(screen.getByText('1 of 2')).toBeInTheDocument();
   });
 
   it('opens the shell and the empty home for an account with no bookings', () => {
@@ -808,7 +809,7 @@ describe('pre-arrival progress card', () => {
   it('shows remaining work and the next step while incomplete', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
 
-    expect(screen.getByText('2 of 4 steps complete')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 steps complete')).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: 'Pre-arrival progress' })).toBeInTheDocument();
     expect(screen.getByText('Add who else is staying')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Complete pre-arrival/ })).toBeInTheDocument();
@@ -867,10 +868,8 @@ describe('room assignment through the flow', () => {
     render(<GuestAppPrototype initialScreen="guest-details" initialSession={MOCK_SESSION} />);
 
     // Before: the stay is pre-registered but unallocated.
-    await user.click(screen.getByRole('button', { name: 'Continue to ID' }));
-    await user.click(screen.getByRole('button', { name: 'Save and continue' }));
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'Request early check-in' }));
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
 
     // After: the property allocated one, and the app reports it rather than
     // claiming to have chosen it.
@@ -1132,7 +1131,7 @@ describe('booking lookup', () => {
       the proof the stay attached is the flow it opens -- and the surname the
       guest typed travelling with it.
     */
-    expect(screen.getByRole('heading', { name: 'Your details' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'You and your ID' })).toBeInTheDocument();
   });
 
   it('still refuses an unmatched reference under strict lookup', async () => {
@@ -1461,33 +1460,24 @@ describe('my stay', () => {
 });
 
 describe('pre-arrival onboarding flow', () => {
-  it('collects details, ID, additional guests, and early check-in across 4 steps', async () => {
+  it('collects identity and additional guests across 2 steps, then opens home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="guest-details" initialSession={MOCK_SESSION} />);
 
-    // Step 1 of 4: Your details
-    expect(screen.getByText('1 of 4')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Your details' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Continue to ID' }));
-
-    // Step 2 of 4: ID capture
-    expect(screen.getByText('2 of 4')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'ID or passport' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Save and continue' }));
-
-    // Step 3 of 4: Additional guests -- room preferences no longer interrupt
-    // check-in, so ID hands straight to this step.
-    expect(screen.getByText('3 of 4')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Who else is staying?' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Room preferences' })).toBeNull();
-    expect(screen.queryByLabelText(/Preferred floor/)).toBeNull();
+    // Step 1 of 2: details and ID on one screen, contact pre-filled from the account.
+    expect(screen.getByText('1 of 2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'You and your ID' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Contact/ })).toHaveTextContent('ana@example.com');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
-    // Step 4 of 4: Early check-in
-    expect(screen.getByRole('heading', { name: 'Check in earlier' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Request early check-in' }));
+    // Step 2 of 2: additional guests. Room preferences and early check-in are
+    // not steps -- both live on the home now.
+    expect(screen.getByText('2 of 2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Who else is staying?' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Preferred floor/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
 
-    // Completion opens the booking home.
+    expect(screen.queryByRole('heading', { name: 'Check in earlier' })).toBeNull();
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
   });
 
@@ -1530,9 +1520,9 @@ describe('pre-arrival onboarding flow', () => {
     expect(screen.queryByText('Marco Santos')).toBeNull();
     expect(screen.getByText('Elena Santos')).toBeInTheDocument();
 
-    // Continue to next pre-arrival step
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(screen.getByRole('heading', { name: 'Check in earlier' })).toBeInTheDocument();
+    // Finishing completes pre-arrival and keeps the companion list.
+    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
   });
 
   it('keeps room preferences editable from the profile, outside check-in', async () => {

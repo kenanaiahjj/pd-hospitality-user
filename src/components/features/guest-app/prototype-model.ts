@@ -331,11 +331,49 @@ export type AccountStatus = 'none' | 'new' | 'returning';
 
 export type AuthMethod = 'apple' | 'google' | 'email';
 
+/**
+ * Everything past floor, bed, and accessibility is optional so a session saved
+ * before those fields existed still restores -- the same call rewards made
+ * rather than bumping the storage key. Absent reads as "no preference".
+ */
 export type RoomPreferences = {
   floor: string;
   bed: string;
   accessibility: string[];
+  smoking?: string;
+  location?: string[];
+  view?: string[];
+  bedding?: string[];
+  /** Free text the guest wants the front desk to read. */
+  note?: string;
 };
+
+/** The choices the preferences screen offers, grouped as the guest sees them. */
+export const ROOM_PREFERENCE_OPTIONS = {
+  bed: ['King bed', 'Queen bed', 'Double bed', 'Twin beds'],
+  smoking: ['Non-smoking', 'Smoking room'],
+  floor: ['Higher floor', 'Lower floor', 'Ground floor', 'No preference'],
+  location: ['Corner unit', 'Quiet, away from elevator', 'Near elevator', 'Connecting room'],
+  view: ['Window with a view', 'Balcony', 'Blackout curtains'],
+  bedding: ['Extra pillows', 'Hypoallergenic bedding', 'Baby crib'],
+  accessibility: ['Step-free room access', 'Bathroom grab rails', 'Visual door alert'],
+} as const;
+
+/**
+ * The picks worth echoing back, floor and bed first as the ready card always has. "No preference"
+ * floors are dropped: repeating a non-choice reads like a choice.
+ */
+export function summarizeRoomPreferences(preferences: RoomPreferences): string[] {
+  return [
+    preferences.floor === 'No preference' ? undefined : preferences.floor,
+    preferences.bed,
+    preferences.smoking,
+    ...(preferences.location ?? []),
+    ...(preferences.view ?? []),
+    ...(preferences.bedding ?? []),
+    ...preferences.accessibility,
+  ].filter((pick): pick is string => Boolean(pick));
+}
 
 /** One reward taken off the menu, and what it cost. */
 export type PointsRedemption = {

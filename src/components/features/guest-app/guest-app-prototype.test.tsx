@@ -1544,7 +1544,8 @@ describe('pre-arrival onboarding flow', () => {
     // No step chrome: this is a profile screen, not a check-in question.
     expect(screen.queryByText(/of 4$/)).toBeNull();
 
-    await user.selectOptions(screen.getByLabelText(/Bed type/), 'Twin beds');
+    await user.click(screen.getByRole('button', { name: 'Twin beds' }));
+    expect(screen.getByRole('button', { name: 'Twin beds' })).toHaveAttribute('aria-pressed', 'true');
     await user.click(screen.getByRole('button', { name: 'Save preferences' }));
 
     // The profile screen titles itself with the guest's name.

@@ -167,6 +167,9 @@ import {
   type RestaurantVenue,
   type ScreenId,
   type AuthMethod,
+  type RoomPreferences,
+  ROOM_PREFERENCE_OPTIONS,
+  summarizeRoomPreferences,
 } from './prototype-model';
 import {
   CATEGORY_IMAGES,
@@ -2367,7 +2370,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                */
               roomAssignment: booking.roomAssignment === 'ready' ? 'ready' : 'assigned',
               roomNumber: booking.roomNumber ?? '512',
-              honouredPreferences: [session.roomPreferences.floor, session.roomPreferences.bed],
+              honouredPreferences: summarizeRoomPreferences(session.roomPreferences),
             }
           : booking,
       ),
@@ -3407,61 +3410,28 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <FormScreen step="2 of 4" title="ID or passport" text="International guests need passport details."><PassportCapturePanel subjectName={session.guestName || 'Ana Santos'} onAutofill={setPrimaryPassportFields} /><Field label="Document number" name="document-number" placeholder="Enter document number" value={primaryPassportFields.documentNumber} onValueChange={(documentNumber) => setPrimaryPassportFields((current) => ({ ...current, documentNumber }))} /><Field label="Expiry date" name="expiry" type="date" value={primaryPassportFields.expiry} onValueChange={(expiry) => setPrimaryPassportFields((current) => ({ ...current, expiry }))} />{primary('Save and continue', 'additional-guests')}</FormScreen>;
 
       /**
-       * Profile-only. Preferences used to be step 3 of pre-arrival check-in,
-       * but asking a guest to re-pick a floor and a bed while they are trying
-       * to check in is asking at the wrong moment -- the answer belongs to the
-       * next booking, not to this arrival. The screen stays because it is
-       * still where a guest changes what is on file.
+       * Preferences used to be step 3 of pre-arrival check-in, but asking a
+       * guest to re-pick a floor and a bed while they are trying to check in
+       * is asking at the wrong moment. So it is never a step: Profile opens it
+       * to change what is on file, and the upcoming home offers it as an
+       * optional card until the property allocates a room. Save returns to
+       * whichever of the two opened it.
        */
-      case 'room-preferences':
+      case 'room-preferences': {
+        const fromHome = history[history.length - 1] === 'stay-overview';
         return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <h1>Room preferences</h1>
-              <p>We’ll save these above the property level and use them the next time you book.</p>
-            </div>
-            <form
-              className="guest-form"
-              onSubmit={(e: FormEvent<HTMLFormElement>) => {
-                e.preventDefault();
-                const data = new FormData(e.currentTarget);
-                const floor = String(data.get('floor') ?? 'Higher floor');
-                const bed = String(data.get('bed') ?? 'King bed');
-                const accessibility: string[] = [];
-                if (data.get('step-free')) accessibility.push('Step-free room access');
-                if (data.get('grab-rails')) accessibility.push('Bathroom grab rails');
-                if (data.get('door-alert')) accessibility.push('Visual door alert');
-                setSession((cur) => ({
-                  ...cur,
-                  roomPreferences: { floor, bed, accessibility },
-                }));
-                go('profile');
-              }}
-            >
-              <SelectField label="Preferred floor" name="floor" defaultValue={session.roomPreferences.floor}>
-                <option value="Higher floor">Higher floor</option>
-                <option value="Lower floor">Lower floor</option>
-                <option value="Ground floor">Ground floor</option>
-                <option value="No preference">No preference</option>
-              </SelectField>
-              <SelectField label="Bed type" name="bed" defaultValue={session.roomPreferences.bed}>
-                <option value="King bed">King bed</option>
-                <option value="Twin beds">Twin beds</option>
-                <option value="Queen bed">Queen bed</option>
-              </SelectField>
-              <fieldset className="guest-fieldset">
-                <legend>Accessibility needs</legend>
-                <CheckOption label="Step-free room access" name="step-free" defaultChecked={session.roomPreferences.accessibility.includes('Step-free room access')} />
-                <CheckOption label="Bathroom grab rails" name="grab-rails" defaultChecked={session.roomPreferences.accessibility.includes('Bathroom grab rails')} />
-                <CheckOption label="Visual door alert" name="door-alert" defaultChecked={session.roomPreferences.accessibility.includes('Visual door alert')} />
-              </fieldset>
-              <Button className="guest-button guest-button--primary" type="submit">
-                Save preferences<ArrowRight aria-hidden="true" />
-              </Button>
-              <TextButton onClick={() => go('profile')}>Back to profile</TextButton>
-            </form>
-          </div>
+          <RoomPreferencesScreen
+            preferences={session.roomPreferences}
+            property={fromHome ? primaryBooking?.property : undefined}
+            onSave={(roomPreferences) => {
+              setSession((cur) => ({ ...cur, roomPreferences }));
+              if (history.length > 0) back();
+              else go('profile');
+            }}
+            onCancel={() => (history.length > 0 ? back() : go('profile'))}
+          />
         );
+      }
 
       case 'additional-guests':
         return (
@@ -3493,7 +3463,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 icon={<Bed />}
                 title="Room preferences"
                 lines={[
-                  `${session.roomPreferences.floor} · ${session.roomPreferences.bed}`,
+                  [session.roomPreferences.floor, session.roomPreferences.bed, session.roomPreferences.smoking].filter(Boolean).join(' · '),
                   session.roomPreferences.accessibility.length > 0
                     ? `Accessibility: ${session.roomPreferences.accessibility.join(', ')}`
                     : 'Standard room access',
@@ -5766,7 +5736,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
             </div>
             <p className="guest-home-booking__room-type">
               <b>{booking.roomType === 'King room' ? 'Deluxe King Room' : booking.roomType}</b>
-              <small>{(booking.honouredPreferences?.length ? booking.honouredPreferences : [session.roomPreferences.floor, session.roomPreferences.bed]).join(' · ')}</small>
+              <small>{(booking.honouredPreferences?.length ? booking.honouredPreferences : summarizeRoomPreferences(session.roomPreferences)).join(' · ')}</small>
             </p>
             {/*
               The scan is only offered while it can succeed. Days out, a button
@@ -5807,6 +5777,14 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
           )}
         </section>
       )}
+      {/*
+        Optional, never a step. Offered only while it can still change the
+        room: once the property allocates one, the ready card above echoes the
+        preferences it honoured instead.
+      */}
+      {roomAssignment.state === 'pending' && booking.status === 'upcoming' && !hasStayStarted(booking) ? (
+        <RoomPreferencesCard preferences={session.roomPreferences} property={booking.property} onOpen={() => onNavigate('room-preferences')} />
+      ) : null}
       {/* The request the last pre-arrival step sent, so asking and declining no longer look the same. */}
       {booking.earlyCheckIn && !hasStayStarted(booking) ? (
         <Notice icon={<Clock />} title={`Early check-in requested · ${booking.earlyCheckIn.time}`}>
@@ -6215,8 +6193,119 @@ function StayMiniCard({ booking, status }: { booking: Booking; status: string })
   return <div className="guest-mini-stay"><span><House /></span><div><b>{booking.property}</b><small>{status}</small></div><CheckCircle /></div>;
 }
 
-function CheckOption({ label, name, defaultChecked }: { label: string; name?: string; defaultChecked?: boolean }) {
-  return <label className="guest-check"><input type="checkbox" name={name} defaultChecked={defaultChecked} /><span>{label}</span></label>;
+function RoomPreferencesCard({ preferences, property, onOpen }: { preferences: RoomPreferences; property: string; onOpen: () => void }) {
+  const picks = summarizeRoomPreferences(preferences);
+  return (
+    <button className="guest-transfer-card guest-room-preferences-card" type="button" onClick={onOpen} data-testid="guest-room-preferences-card">
+      <Bed aria-hidden="true" />
+      <span>
+        <b>Room preferences</b>
+        <small>{picks.length ? picks.join(' · ') : `Tell ${property} how you like your room`}</small>
+      </span>
+      <CaretRight aria-hidden="true" />
+    </button>
+  );
+}
+
+/** A row of pill toggles. `multiple` switches it from radio-like to checkbox-like. */
+function PreferenceChips({ legend, options, selected, multiple = false, onChange }: {
+  legend: string;
+  options: readonly string[];
+  selected: string[];
+  multiple?: boolean;
+  onChange: (next: string[]) => void;
+}) {
+  return (
+    <fieldset className="guest-preference-group">
+      <legend>{legend}{multiple ? <small>Choose any</small> : null}</legend>
+      <div className="guest-preference-chips">
+        {options.map((option) => {
+          const on = selected.includes(option);
+          return (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={on}
+              className={`guest-preference-chip${on ? ' is-selected' : ''}`}
+              onClick={() => onChange(
+                multiple
+                  ? (on ? selected.filter((item) => item !== option) : [...selected, option])
+                  : [option],
+              )}
+            >
+              {on ? <Check aria-hidden="true" /> : null}{option}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/**
+ * `property` is set only when the upcoming home opened the screen, and it
+ * changes what saving means: sent to that hotel for this stay, as well as
+ * kept on file for the next booking.
+ */
+function RoomPreferencesScreen({ preferences, property, onSave, onCancel }: {
+  preferences: RoomPreferences;
+  property?: string;
+  onSave: (next: RoomPreferences) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<RoomPreferences>({
+    ...preferences,
+    smoking: preferences.smoking ?? 'Non-smoking',
+    location: preferences.location ?? [],
+    view: preferences.view ?? [],
+    bedding: preferences.bedding ?? [],
+    note: preferences.note ?? '',
+  });
+  const set = (patch: Partial<RoomPreferences>) => setDraft((current) => ({ ...current, ...patch }));
+
+  return (
+    <div className="guest-stack">
+      <div className="guest-page-title">
+        <h1>Room preferences</h1>
+        <p>
+          {property
+            ? `Sent to ${property} for this stay, and saved for the next time you book.`
+            : 'We’ll save these above the property level and use them the next time you book.'}
+        </p>
+      </div>
+      <form
+        className="guest-form"
+        onSubmit={(event: FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+          onSave({ ...draft, note: draft.note?.trim() || undefined });
+        }}
+      >
+        <PreferenceChips legend="Bed type" options={ROOM_PREFERENCE_OPTIONS.bed} selected={[draft.bed]} onChange={([bed]) => set({ bed })} />
+        <PreferenceChips legend="Smoking" options={ROOM_PREFERENCE_OPTIONS.smoking} selected={draft.smoking ? [draft.smoking] : []} onChange={([smoking]) => set({ smoking })} />
+        <PreferenceChips legend="Preferred floor" options={ROOM_PREFERENCE_OPTIONS.floor} selected={[draft.floor]} onChange={([floor]) => set({ floor })} />
+        <PreferenceChips legend="Room location" multiple options={ROOM_PREFERENCE_OPTIONS.location} selected={draft.location ?? []} onChange={(location) => set({ location })} />
+        <PreferenceChips legend="Window & view" multiple options={ROOM_PREFERENCE_OPTIONS.view} selected={draft.view ?? []} onChange={(view) => set({ view })} />
+        <PreferenceChips legend="Bedding" multiple options={ROOM_PREFERENCE_OPTIONS.bedding} selected={draft.bedding ?? []} onChange={(bedding) => set({ bedding })} />
+        <PreferenceChips legend="Accessibility needs" multiple options={ROOM_PREFERENCE_OPTIONS.accessibility} selected={draft.accessibility} onChange={(accessibility) => set({ accessibility })} />
+        <label className="guest-field">
+          <span>Note to the hotel <small>Optional</small></span>
+          <textarea
+            name="preference-note"
+            rows={3}
+            maxLength={280}
+            placeholder="Anything else that makes the room right for you"
+            value={draft.note ?? ''}
+            onChange={(event) => set({ note: event.target.value })}
+          />
+        </label>
+        <Notice title="Requests, not guarantees">The hotel matches what it can when it assigns your room.</Notice>
+        <Button className="guest-button guest-button--primary" type="submit">
+          Save preferences<ArrowRight aria-hidden="true" />
+        </Button>
+        <TextButton onClick={onCancel}>{property ? 'Back to home' : 'Back to profile'}</TextButton>
+      </form>
+    </div>
+  );
 }
 
 function ReviewBlock({ icon, title, lines }: { icon: ReactNode; title: string; lines: string[] }) {

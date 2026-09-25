@@ -2993,6 +2993,21 @@ describe('prototype controls', () => {
     { activeBookingId: 'live' },
   );
 
+  // The radio already showed "Live stay", so pressing it did nothing and the
+  // guest stayed on the welcome screen -- the controls looked broken.
+  it('re-applies the stay state already selected', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="entry-hub" initialSession={applyPrototypeStayState('live')} />);
+
+    await openControls(user);
+    const live = screen.getByRole('radio', { name: /Live stay/ });
+    expect(live).toBeChecked();
+    await user.click(live);
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+
+    expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
+  });
+
   it('flips the room gate without walking the scan flow', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);
@@ -3434,7 +3449,7 @@ describe('floating tab bar styling', () => {
       /\.guest-device\s*\{[^}]*position:\s*relative[^}]*\}/,
     );
     expect(guestStyles).toMatch(
-      /\.guest-screen\.has-nav\s*\{[^}]*padding-bottom:\s*calc\(var\(--guest-nav-h\)\s*\+\s*env\(safe-area-inset-bottom\)\s*\+\s*24px\)/,
+      /\.guest-screen\.has-nav\s*\{[^}]*--guest-screen-pad-bottom:\s*calc\(var\(--guest-nav-h\)\s*\+\s*env\(safe-area-inset-bottom\)\s*\+\s*24px\)[^}]*padding-bottom:\s*var\(--guest-screen-pad-bottom\)/,
     );
     expect(guestStyles).toMatch(
       /\.guest-bottom-nav\s*\{[^}]*position:\s*absolute[^}]*bottom:\s*calc\(8px\s*\+\s*env\(safe-area-inset-bottom\)\)[^}]*left:\s*50%[^}]*transform:\s*translateX\(-50%\)/,

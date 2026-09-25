@@ -585,7 +585,9 @@
    opaque full-width row beneath it. While the screen scrolls, content can pass
    behind the capsule just like it does behind native floating navigation. */
 .guest-screen.has-nav {
-  padding-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 24px);
+  /* Named, so a full-bleed page (the nearby map) can reach back through it. */
+  --guest-screen-pad-bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 24px);
+  padding-bottom: var(--guest-screen-pad-bottom);
 }
 
 .guest-screen--chat {
@@ -7223,103 +7225,293 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-nearby-view button svg { width: 16px; height: 16px; }
 .guest-nearby-view button.is-active { background: var(--guest-paper); color: var(--guest-ink); box-shadow: var(--shadow-xs); }
 
-.guest-nearby-map { display: grid; gap: 14px; }
+/*
+  Edge to edge and down to the screen's bottom edge, under the floating tab
+  bar: the map is the page. The screen becomes a size container while the
+  map shows, so the page can fill exactly what is left of it -- the device
+  is a different height in every window, and a fixed height either stopped
+  short or ran the cards under the tab bar.
+*/
+.guest-screen:has(.guest-nearby-map) { container-type: size; }
+.guest-nearby-page:has(.guest-nearby-map) {
+  display: flex;
+  flex-direction: column;
+  /* cqh is the content box: the padding is already out. */
+  min-height: 100cqh;
+  /* The page's own clearance for the tab bar would stack on the screen's. */
+  padding-bottom: 0;
+}
+.guest-nearby-page:has(.guest-nearby-map) > .guest-nearby-view { align-self: flex-start; }
+.guest-nearby-map {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 380px;
+  margin: 0 calc(-1 * var(--app-inset));
+}
 .guest-nearby-map__canvas {
-  /* Leaves room for the card rail above the tab bar: on an 812px phone the
-     title, switch, map, rail and bar all fit without scrolling. */
-  height: clamp(200px, calc(100dvh - 540px), 380px);
-  border-radius: var(--guest-radius-lg);
+  position: absolute;
+  /* Into the screen's bottom padding, to the device's edge, without adding
+     anything to scroll: the padding box is already the scrollport. */
+  inset: 0 0 calc(-1 * var(--guest-screen-pad-bottom));
+  border-radius: 22px 22px 0 0;
   overflow: hidden;
-  background: #e6e2da;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  background: #e8e4dc;
   /* Leaflet's panes sit at z-index 400+; keep them under the app bar and sheets. */
   isolation: isolate;
   z-index: 0;
 }
 /* Esri's grey canvas, warmed toward the muted beige of a maps app. */
-.guest-nearby-map__canvas .leaflet-tile-pane { filter: sepia(0.14) saturate(0.55) brightness(0.985) contrast(0.92); }
-.guest-nearby-map__canvas .guest-map-labels { opacity: 0.8; }
-.guest-nearby-map__canvas .leaflet-control-attribution { padding: 0 6px; font-size: 8.5px; background: rgb(255 255 255 / 0.55); color: rgb(0 0 0 / 0.45); }
-.guest-nearby-map__canvas .leaflet-control-attribution a { color: inherit; }
+.guest-nearby-map__canvas .leaflet-tile-pane,
+.guest-place-minimap .leaflet-tile-pane { filter: sepia(0.14) saturate(0.55) brightness(0.99) contrast(0.9); }
+.guest-nearby-map__canvas .guest-map-labels,
+.guest-place-minimap .guest-map-labels { opacity: 0.72; }
+
+/* The credit, folded to an ⓘ in the corner until asked for. */
+.leaflet-container .guest-map-credit { display: none; max-width: 240px; margin: 0 34px 8px 0 !important; padding: 4px 8px; border-radius: 8px; background: rgb(255 255 255 / 0.9); color: rgb(0 0 0 / 0.55); font-size: 9.5px; line-height: 1.35; }
+.leaflet-container .guest-map-credit.is-open { display: block; }
+.leaflet-container .guest-map-credit a { color: inherit; }
+.guest-map-credit__toggle {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.88);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.14);
+  color: rgb(0 0 0 / 0.55);
+  font: italic 600 11px/1 Georgia, serif;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.guest-nearby-map .guest-map-credit__toggle { bottom: 236px; }
+.guest-nearby-map .leaflet-container .guest-map-credit { margin-bottom: 236px !important; }
+
 .guest-map-marker { background: none; border: 0; }
 
-/* A photo in a white rounded square that stands on its place with a small tail. */
-.guest-map-pin {
+/* Category colours: muted, a maps app's palette, and never pink. */
+[data-category] { --pin: oklch(0.52 0.03 260); }
+[data-category="dining"] { --pin: oklch(0.62 0.13 60); }
+[data-category="spa"] { --pin: oklch(0.56 0.08 160); }
+[data-category="entertainment"] { --pin: oklch(0.55 0.09 220); }
+[data-category="gifts"] { --pin: oklch(0.45 0.08 330); }
+[data-category="rentals"] { --pin: oklch(0.5 0.1 250); }
+
+/* A place: a coloured dot with its glyph, and the name in a white pill. */
+.guest-map-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 150px;
+  padding: 3px 9px 3px 3px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.14), 0 4px 10px rgb(0 0 0 / 0.1);
+  color: var(--guest-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 160ms var(--ease-out);
+}
+.guest-map-pill:hover { transform: translateY(-1px); }
+.guest-map-pill i { display: grid; place-items: center; flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; background: var(--pin); color: #fff; }
+.guest-map-pill svg { width: 12px; height: 12px; }
+.guest-map-pill b { overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 650; letter-spacing: -0.005em; }
+
+/* The chosen place: its photograph on a tail, the name beneath. */
+.guest-map-marker--active { display: grid; justify-items: center; }
+.guest-map-photo {
   position: relative;
   display: block;
-  width: 38px;
-  height: 38px;
+  width: 56px;
+  height: 56px;
   padding: 3px;
-  border-radius: 11px;
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.16), 0 4px 12px rgb(0 0 0 / 0.16);
-  transform-origin: 50% calc(100% + 6px);
-  transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.16), 0 12px 26px rgb(0 0 0 / 0.22);
+  animation: guest-map-rise 220ms var(--ease-out) both;
 }
-.guest-map-pin::after {
-  position: absolute;
-  bottom: -5px;
-  left: 50%;
-  width: 10px;
-  height: 10px;
+.guest-map-photo::after {
   content: '';
-  border-radius: 0 0 3px 0;
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 12px;
+  height: 12px;
   background: #fff;
   transform: translateX(-50%) rotate(45deg);
+  border-radius: 0 0 3px 0;
 }
-/* Out-specifies Leaflet's own `.leaflet-marker-pane img { width: auto }`, which stretched the photos. */
-.leaflet-container .leaflet-marker-pane .guest-map-pin img { position: relative; z-index: 1; display: block; width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
-.guest-map-marker.is-active .guest-map-pin { transform: scale(1.55); box-shadow: 0 2px 4px rgb(0 0 0 / 0.16), 0 10px 22px rgb(0 0 0 / 0.22); }
+.leaflet-container .leaflet-marker-pane .guest-map-photo img { position: relative; z-index: 1; display: block; width: 100%; height: 100%; border-radius: 13px; object-fit: cover; }
+.guest-map-pill--active { margin-top: 12px; padding: 4px 10px; background: var(--guest-ink); color: #fff; }
+.guest-map-pill--active b { font-size: 12px; }
+@keyframes guest-map-rise { from { opacity: 0; transform: translateY(6px) scale(0.9); } to { opacity: 1; transform: none; } }
 
-/* The hotel: round, the same white rim, named underneath like a map label. */
-.guest-map-pin--hotel { width: 46px; height: 46px; border-radius: 50%; transform-origin: 50% 50%; }
-.guest-map-pin--hotel::after { display: none; }
-.leaflet-container .leaflet-marker-pane .guest-map-pin--hotel img { border-radius: 50%; }
-.guest-map-pin__label {
-  position: absolute;
-  top: 50px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #57524b;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  white-space: nowrap;
-  text-shadow: 0 0 2px #f4f1ea, 0 0 4px #f4f1ea, 0 0 6px #f4f1ea;
-}
-.guest-nearby-map__rail {
+/* Places too close to part at this zoom. */
+.guest-map-cluster {
   display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--guest-ink);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.22);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+/* The hotel: its photo in a plum ring edged in gold, named underneath. */
+.guest-map-hotel {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--guest-brand);
+  box-shadow: 0 0 0 2px oklch(0.8 0.1 85), 0 4px 14px rgb(0 0 0 / 0.24);
+}
+.leaflet-container .leaflet-marker-pane .guest-map-hotel img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.guest-map-hotel__label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.9);
+  color: var(--guest-brand);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* The cards float over the bottom of the map, clear of the tab bar. */
+.guest-nearby-map__rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  z-index: 2;
+  display: grid;
+  grid-auto-columns: min(300px, calc(100% - 64px));
   grid-auto-flow: column;
-  grid-auto-columns: 78%;
-  gap: 12px;
+  gap: 10px;
+  padding: 6px var(--app-inset) 10px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--app-inset);
   scrollbar-width: none;
-  padding-bottom: 4px;
 }
 .guest-nearby-map__rail::-webkit-scrollbar { display: none; }
 .guest-nearby-map__card {
   display: grid;
-  gap: 3px;
-  padding: 8px 8px 12px;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
   border: 0;
-  border-radius: var(--guest-radius-lg);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.12);
+  color: var(--guest-ink);
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.guest-nearby-map__card.is-active { transform: translateY(-4px); box-shadow: 0 2px 4px rgb(0 0 0 / 0.1), 0 16px 34px rgb(0 0 0 / 0.2); }
+.guest-nearby-map__card:active { transform: scale(0.98); }
+.guest-nearby-map__photo { position: relative; display: block; width: 84px; height: 84px; overflow: hidden; border-radius: 12px; }
+.guest-nearby-map__photo img { object-fit: cover; }
+.guest-nearby-map__copy { display: grid; gap: 3px; min-width: 0; }
+.guest-nearby-map__copy b { overflow: hidden; font-size: 15.5px; font-weight: 650; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
+.guest-nearby-map__copy small { overflow: hidden; color: var(--guest-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-nearby-map__empty { color: var(--guest-muted); }
+
+/* "Open · until 9 PM" in green, "Closed · opens 6 AM" in the quiet ink. */
+.guest-open-status { color: var(--guest-muted); font-size: 12.5px; font-weight: 600; }
+.guest-open-status.is-open { color: oklch(0.52 0.12 150); }
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-map-pill,
+  .guest-nearby-map__card { transition: none; }
+  .guest-map-photo { animation: none; }
+}
+
+/* --- A place's location card, Places-style ---------------------------------- */
+.guest-place-location {
+  position: relative;
+  z-index: 4;
+  margin: -24px 20px 0;
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 20px;
+  background: var(--guest-paper);
+  box-shadow: 0 6px 20px oklch(0 0 0 / 0.08);
+}
+.guest-place-minimap {
+  height: 150px;
+  background: #e8e4dc;
+  isolation: isolate;
+  z-index: 0;
+  pointer-events: none;
+}
+.guest-place-minimap .guest-map-credit__toggle { pointer-events: auto; }
+.guest-map-drop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 4px;
+  background: var(--pin);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.24);
+  color: #fff;
+  transform: rotate(-45deg);
+}
+.guest-map-drop svg { width: 15px; height: 15px; transform: rotate(45deg); }
+.guest-place-minimap .guest-map-hotel__label { display: none; }
+.guest-place-location__body { display: grid; gap: 10px; padding: 16px 18px 18px; }
+.guest-place-location__address,
+.guest-place-location__walk { display: flex; align-items: flex-start; gap: 10px; margin: 0; }
+.guest-place-location__address { color: var(--guest-ink); font-size: 16px; font-weight: 550; line-height: 1.35; }
+.guest-place-location__walk { color: var(--guest-muted); font-size: 13.5px; }
+.guest-place-location__address svg,
+.guest-place-location__walk svg { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; color: var(--guest-accent-strong); }
+.guest-place-location__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.guest-place-location__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  border: 1px solid var(--guest-line);
+  border-radius: 999px;
   background: var(--guest-paper);
   color: var(--guest-ink);
   font: inherit;
-  text-align: left;
-  scroll-snap-align: center;
-  box-shadow: var(--shadow-sm);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
 }
-/* Concentric: 20px outside is the 8px padding plus the photo's 12px. */
-.guest-nearby-map__photo { position: relative; display: block; aspect-ratio: 2.2 / 1; margin-bottom: 7px; overflow: hidden; border-radius: 12px; outline: 1px solid rgb(0 0 0 / 0.1); outline-offset: -1px; }
-.guest-nearby-map__photo img { object-fit: cover; }
-.guest-nearby-map__card b { padding: 0 6px; font-size: 16px; font-weight: 650; }
-.guest-nearby-map__card small { padding: 0 6px; color: var(--guest-muted); font-size: 13px; }
-.guest-nearby-map__card.is-active { box-shadow: 0 0 0 2px var(--guest-accent-strong), var(--shadow-sm); }
-.guest-nearby-map__empty { color: var(--guest-muted); }
-@media (prefers-reduced-motion: reduce) { .guest-map-pin { transition: none; } }
+.guest-place-location__action svg { width: 16px; height: 16px; }
+.guest-place-location__action--primary { border-color: transparent; background: var(--guest-brand); color: #fff; }
+.guest-place-location__hours { display: flex; align-items: flex-start; gap: 10px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--guest-line); }
+.guest-place-location__hours > svg { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; color: var(--guest-accent-strong); }
+.guest-place-location__hours span { display: grid; gap: 2px; }
+.guest-place-location__hours .guest-open-status { font-size: 14px; }
+.guest-place-location__hours small { color: var(--guest-muted); font-size: 13px; }
 
 /* Nearby recommendation detail uses the same editorial hierarchy as the
    selected hotel options: edge-to-edge hero, one overlapping info panel,
@@ -7375,25 +7567,6 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-nearby-detail__hero-copy h1 { margin: 0 0 8px; font-size: 28px; font-weight: 650; line-height: 1.05; }
 .guest-nearby-detail__tags { display: flex; flex-wrap: wrap; gap: 8px; }
 .guest-nearby-detail__tags span { padding: 5px 10px; border: 1px solid oklch(1 0 0 / 0.88); border-radius: var(--guest-radius-pill); font-size: 12px; line-height: 1; }
-.guest-nearby-detail__location {
-  position: relative;
-  z-index: 4;
-  display: grid;
-  gap: 0;
-  margin: -20px 24px 0;
-  padding: 20px;
-  border: 1px solid var(--guest-line);
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-paper);
-  box-shadow: 0 5px 16px oklch(0 0 0 / 0.08);
-}
-.guest-nearby-detail__address { display: flex; align-items: center; gap: 10px; color: var(--guest-ink); font-size: 16px; }
-.guest-nearby-detail__address svg { flex: 0 0 auto; width: 20px; color: var(--guest-accent-strong); }
-.guest-nearby-detail__hours { display: grid; gap: 4px; margin-top: 24px; padding-left: 30px; }
-.guest-nearby-detail__hours small { color: var(--guest-muted); font-size: 12px; }
-.guest-nearby-detail__hours b { color: var(--guest-ink); font-size: 14px; font-weight: 500; }
-.guest-nearby-detail__location a { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 8px; padding-left: 30px; color: var(--guest-accent-strong); font-size: 14px; font-weight: 550; text-decoration: none; }
-.guest-nearby-detail__location a svg { width: 16px; }
 .guest-nearby-detail__about,
 .guest-nearby-detail__good-to-know { margin-inline: 24px; }
 .guest-nearby-detail__about { display: grid; gap: 8px; margin-top: 32px; }
@@ -7407,7 +7580,17 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-nearby-detail__facts span { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: start; gap: 9px; min-width: 0; color: var(--guest-muted); font-size: 14px; line-height: 1.35; }
 .guest-nearby-detail__facts svg { width: 20px; height: 20px; margin-top: 1px; color: var(--guest-accent-strong); }
 .guest-nearby-detail__facts b { font-weight: 500; }
-.guest-nearby-detail__cta { position: fixed; z-index: 20; right: var(--app-inset); bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom)); left: var(--app-inset); padding: 12px 16px; background: var(--guest-paper); }
+/* Sticky to the phone's screen, not fixed to the window: fixed escaped the
+   device frame on a desktop and ran the width of the browser. */
+.guest-nearby-detail__cta {
+  position: sticky;
+  z-index: 20;
+  /* From the screen's content edge, which already clears the tab bar. */
+  bottom: 12px;
+  margin: 8px 20px 0;
+  padding-top: 18px;
+  background: linear-gradient(to bottom, transparent, var(--guest-canvas) 45%);
+}
 .guest-nearby-detail__cta .guest-button { width: 100%; min-height: 56px; border-radius: 28px; }
 
 .guest-ride-request-page { gap: 24px; padding-bottom: 96px; }

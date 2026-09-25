@@ -38,6 +38,7 @@ import {
   Sparkle,
   Storefront,
   Moped,
+  NavigationArrow,
   SwimmingPool,
   Ticket,
   ShieldCheck,
@@ -69,7 +70,8 @@ import {
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { afterSheetExit } from './sheet-exit';
-import { NearbyMap } from './nearby-map';
+import { NearbyMap, PlaceMiniMap, type MapClock } from './nearby-map';
+import { directionsUrl, openStatus, walkLabel } from './nearby-place';
 import { CalendarPicker, ExpandableField, StepperField, TimeWheel } from './field-controls';
 import { Button, Input } from '@/components/ui';
 import { usePrefersReducedMotion } from '@/lib/hooks';
@@ -2202,6 +2204,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     );
   };
 
+  /* "Open now" on a nearby place reads the same clock as the feed. */
+  const mapClock: MapClock = { date: PROTOTYPE_TODAY, hour: feedClock?.hour ?? 19 };
+
   const openVenueReels = (venue: string) => {
     setOpenVenue(venue);
     setSeenVenues((current) => (current.includes(venue) ? current : [...current, venue]));
@@ -3863,13 +3868,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={giftOrder?.paymentStatus === 'paid' ? 'Order confirmed · paid' : 'Order confirmed · charged to room'} title="Your gifts are confirmed" text={giftOrder?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this order.' : 'Your hotel shop order has been added to your room charges.'}><div className="guest-summary"><SummaryRow label="Provider" value="Operated by the hotel" /><SummaryRow label="Items" value={`${giftOrder?.items.length ?? 0}`} /><SummaryRow label={giftOrder?.paymentStatus === 'paid' ? 'Paid' : 'Added to room charges'} value={giftOrder ? formatPesoAmount(giftOrder.total) : '₱0'} strong /><SummaryRow label="Fulfillment" value={giftFulfillment === 'room' ? `Deliver to ${contextRoom}` : 'Pick up at the lobby'} /></div><PointsEarned points={giftOrder ? Math.floor(giftOrder.total / 100) * 50 : 0} badges={[]} /><Notice title={giftOrder?.paymentStatus === 'paid' ? 'Payment successful' : 'Pay at checkout'}>{giftOrder?.paymentStatus === 'paid' ? `Paid with ${giftOrder.paymentMethod === 'gcash' ? 'GCash' : giftOrder.paymentMethod === 'maya' ? 'Maya' : 'Card'}.` : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>{giftOrder?.paymentStatus === 'charged-to-room' ? primary('View room charges', 'folio') : null}<TextButton onClick={() => go('gifts-souvenirs')}>Shop more gifts</TextButton></ScreenIntro>;
 
       case 'nearby-recommendations':
-        return <NearbyRecommendationsPage categoryId={selectedCategory} city={contextBooking.city} property={contextBooking.property} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
+        return <NearbyRecommendationsPage categoryId={selectedCategory} city={contextBooking.city} property={contextBooking.property} now={mapClock} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
 
       case 'nearby-establishment': {
         const establishment = NEARBY_ESTABLISHMENTS.find((item) => item.id === selectedNearbyEstablishmentId) ?? NEARBY_ESTABLISHMENTS[0];
         return establishment ? (
           <NearbyEstablishmentScreen
             establishment={establishment}
+            city={contextBooking.city}
+            property={contextBooking.property}
+            now={mapClock}
             onBack={back}
             onNotifications={() => go('notifications')}
             onBookRide={() => openRideRequest({ from: contextBooking.property, to: establishment.name, toDetail: establishment.address })}
@@ -5307,7 +5315,11 @@ function PrototypeControls({
                 name="prototype-stay-state"
                 value={state.id}
                 checked={stayState === state.id}
-                onChange={() => onStayStateChange(state.id)}
+                /* On click, not change: pressing the state already shown has
+                   to re-apply it -- from the welcome screen, or after poking
+                   around -- and a checked radio never fires onChange. */
+                readOnly
+                onClick={() => onStayStateChange(state.id)}
               />
               <span>
                 <b>{state.label}</b>
@@ -6793,7 +6805,7 @@ function NearbyRecommendations({ categoryId, city, description, onViewAll, onSel
   return <section className="guest-nearby-section"><div className="guest-nearby-heading"><h2>Nearby recommendations</h2><button type="button" onClick={onViewAll}>View all</button></div><p className="guest-nearby-description">{description}</p><div ref={railRef} className="guest-nearby-carousel" onScroll={updateIndex}>{curated.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div><div className="guest-nearby-dots" aria-label="Nearby recommendations pages">{curated.map((item, index) => <button key={item.id} type="button" className={activeIndex === index ? 'is-active' : ''} aria-label={`Show nearby recommendation ${index + 1}`} aria-current={activeIndex === index} onClick={() => goTo(index)} />)}</div></section>;
 }
 
-function NearbyRecommendationsPage({ categoryId, city, property, onSelect }: { categoryId: MiniAppCategoryId; city: string; property: string; onSelect: (id: string) => void }) {
+function NearbyRecommendationsPage({ categoryId, city, property, now, onSelect }: { categoryId: MiniAppCategoryId; city: string; property: string; now: MapClock; onSelect: (id: string) => void }) {
   const recommendations = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === categoryId && item.city === city);
   const [view, setView] = useState<'list' | 'map'>('list');
   return (
@@ -6806,7 +6818,7 @@ function NearbyRecommendationsPage({ categoryId, city, property, onSelect }: { c
         </div>
       ) : null}
       {view === 'map' ? (
-        <NearbyMap city={city} property={property} propertyImage={getPropertyImage(property).src} places={recommendations} onSelect={onSelect} />
+        <NearbyMap city={city} property={property} propertyImage={getPropertyImage(property).src} places={recommendations} now={now} onSelect={onSelect} />
       ) : (
         <div className="guest-nearby-page__list">{recommendations.map((item) => <NearbyRecommendationCard key={item.id} item={item} onSelect={onSelect} />)}</div>
       )}
@@ -6814,8 +6826,61 @@ function NearbyRecommendationsPage({ categoryId, city, property, onSelect }: { c
   );
 }
 
-function NearbyEstablishmentScreen({ establishment, onBack, onNotifications, onBookRide }: { establishment: NearbyEstablishment; onBack: () => void; onNotifications: () => void; onBookRide: () => void }) {
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(establishment.address)}`;
+/**
+ * Where a place is, the way a Places card says it: a small map with the
+ * place and the hotel on it, the address with Directions and Copy, then the
+ * hours with whether it is open right now, and the walk from the hotel.
+ */
+function PlaceLocationCard({ establishment, city, property, now }: { establishment: NearbyEstablishment; city: string; property: string; now: MapClock }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+  const status = openStatus(establishment.hours, now.date, now.hour);
+  const walk = walkLabel(establishment.distance);
+  const metres = establishment.distance?.replace(/\s*away$/, '');
+  const copy = () => {
+    try {
+      void navigator.clipboard?.writeText(establishment.address);
+    } catch {
+      // No clipboard: the address is on screen to read anyway.
+    }
+    setCopied(true);
+  };
+  return (
+    <section className="guest-place-location" aria-label="Location">
+      <PlaceMiniMap
+        city={city}
+        property={property}
+        propertyImage={getPropertyImage(property).src}
+        place={{ id: establishment.id, name: establishment.name, type: establishment.type, distance: establishment.distance, image: establishment.image, categoryId: establishment.categoryId }}
+      />
+      <div className="guest-place-location__body">
+        <p className="guest-place-location__address"><MapPin aria-hidden="true" />{establishment.address}</p>
+        {walk ? <p className="guest-place-location__walk"><PersonSimpleWalk aria-hidden="true" />{walk}{metres ? ` · ${metres} from ${property}` : ''}</p> : null}
+        <div className="guest-place-location__actions">
+          <a className="guest-place-location__action guest-place-location__action--primary" href={directionsUrl(establishment.address)} target="_blank" rel="noreferrer">
+            <NavigationArrow aria-hidden="true" />Directions
+          </a>
+          <button type="button" className="guest-place-location__action" onClick={copy} aria-label={copied ? 'Address copied' : 'Copy address'}>
+            {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}{copied ? 'Copied' : 'Copy address'}
+          </button>
+        </div>
+        <div className="guest-place-location__hours">
+          <Clock aria-hidden="true" />
+          <span>
+            {status ? <b className={`guest-open-status${status.open ? ' is-open' : ''}`}>{status.label}</b> : null}
+            <small>{establishment.hours}</small>
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide }: { establishment: NearbyEstablishment; city: string; property: string; now: MapClock; onBack: () => void; onNotifications: () => void; onBookRide: () => void }) {
   return <div className="guest-stack guest-nearby-detail">
     <section className="guest-nearby-detail__hero" aria-label={`${establishment.name} overview`}>
       <Image src={establishment.image} alt="" fill sizes="100vw" priority />
@@ -6828,11 +6893,7 @@ function NearbyEstablishmentScreen({ establishment, onBack, onNotifications, onB
       </div>
     </section>
 
-    <section className="guest-nearby-detail__location" aria-label="Location">
-      <div className="guest-nearby-detail__address"><MapPin aria-hidden="true" /><span>{establishment.address}</span></div>
-      <a href={mapsUrl} target="_blank" rel="noreferrer">View on Google Maps <ArrowRight aria-hidden="true" /></a>
-      <div className="guest-nearby-detail__hours"><small>Operating hours</small><b>{establishment.hours}</b></div>
-    </section>
+    <PlaceLocationCard establishment={establishment} city={city} property={property} now={now} />
 
     <section className="guest-nearby-detail__about">
       <h2>About</h2>

@@ -1578,36 +1578,123 @@
 .guest-passport-capture__choice.is-selected { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
 .guest-passport-capture__choice:hover { border-color: var(--guest-accent-strong); }
 .guest-passport-capture__choice:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
-.guest-passport-capture__preview {
+.guest-passport-capture__status-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; padding-inline: 2px; }
+.guest-passport-capture__status { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: var(--guest-muted); font-size: 13px; }
+.guest-passport-capture__status.is-complete { color: var(--guest-positive); font-weight: 600; }
+.guest-passport-capture__status svg { width: 16px; height: 16px; }
+.guest-passport-capture__retake {
+  min-height: 32px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--guest-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--guest-line-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* --- The passport data page ---------------------------------------------- */
+.guest-passport {
+  position: relative;
   display: grid;
   gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--guest-line);
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-surface);
+  margin: 0;
+  padding: 12px 14px 10px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #f3f5f1 0%, #e9eee9 55%, #f1efe8 100%);
+  box-shadow: 0 0 0 1px rgb(40 50 45 / 0.14), 0 6px 18px -8px rgb(30 25 30 / 0.28);
+  color: #1f2a26;
 }
-.guest-passport-capture__preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.guest-passport-capture__preview-heading b { font-size: 13px; font-weight: 650; }
-.guest-passport-capture__preview-heading span { color: var(--guest-muted); font-size: 11px; }
-.guest-passport-capture__document {
+.guest-passport__band {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgb(31 42 38 / 0.14);
+}
+.guest-passport__band b {
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.guest-passport__band span { color: rgb(31 42 38 / 0.6); font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.guest-passport__body {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--guest-line);
-  border-radius: 10px;
-  background: var(--guest-paper);
+  grid-template-columns: 76px minmax(0, 1fr) 30px;
+  align-items: start;
+  gap: 12px;
 }
-.guest-passport-capture__portrait { display: grid; width: 46px; height: 56px; place-items: center; border-radius: 6px; background: var(--guest-soft); color: var(--guest-brand); }
-.guest-passport-capture__document-details { display: grid; min-width: 0; gap: 3px; }
-.guest-passport-capture__document-details small { color: var(--guest-muted); font-size: 9px; font-weight: 700; letter-spacing: 0.055em; }
-.guest-passport-capture__document-details b { overflow-wrap: anywhere; font-size: 13px; font-weight: 700; }
-.guest-passport-capture__document-details span { color: var(--guest-muted); font-size: 11px; }
-.guest-passport-capture__note { margin: 0; color: var(--guest-muted); font-size: 11px; line-height: 1.4; }
-.guest-passport-capture__status { margin: 0; color: var(--guest-ink); font-size: 12px; line-height: 1.45; }
-.guest-passport-capture__status.is-complete { color: var(--guest-positive); }
+.guest-passport__portrait { width: 76px; height: auto; border-radius: 3px; box-shadow: 0 0 0 1px rgb(31 42 38 / 0.16); filter: saturate(0.85); }
+/* The faded second portrait real data pages print beside the fields. */
+.guest-passport__ghost { width: 30px; height: auto; margin-top: 46px; opacity: 0.22; filter: grayscale(1); }
+
+.guest-passport__fields { display: grid; gap: 5px; margin: 0; min-width: 0; }
+.guest-passport__fields div { display: grid; gap: 0; min-width: 0; }
+.guest-passport__fields dt { color: rgb(31 42 38 / 0.55); font-size: 8.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.guest-passport__fields dd {
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guest-passport__fields .guest-passport__pair { grid-template-columns: auto auto; justify-content: start; gap: 22px; }
+
+.guest-passport__mrz {
+  display: grid;
+  gap: 1px;
+  padding-top: 7px;
+  border-top: 1px solid rgb(31 42 38 / 0.1);
+  overflow: hidden;
+  font-family: var(--font-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: clamp(8px, 2.8vw, 12px);
+  letter-spacing: 0.035em;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.guest-passport__specimen {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  color: rgb(150 30 40 / 0.11);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  transform: translate(-50%, -50%) rotate(-16deg);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* While reading: the page dims a touch and a line of light sweeps down it. */
+.guest-passport[data-reading] > :not(.guest-passport__scan) { opacity: 0.78; transition: opacity 300ms ease; }
+.guest-passport__scan {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 36px;
+  background: linear-gradient(180deg, transparent, color-mix(in oklch, var(--guest-brand) 22%, transparent) 70%, color-mix(in oklch, var(--guest-brand) 55%, transparent) 96%, transparent);
+  animation: guest-passport-scan 1.2s cubic-bezier(0.45, 0, 0.55, 1) both;
+  pointer-events: none;
+}
+/* `top`, not a transform: the sweep has to end at the page's own height, whatever that is. */
+@keyframes guest-passport-scan {
+  from { top: -36px; }
+  to { top: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .guest-passport__scan { display: none; } }
 
 .guest-step { display: flex; align-items: center; gap: 12px; color: var(--guest-muted); font-size: 13px; font-weight: 600; }
 .guest-step i { flex: 1; height: 4px; overflow: hidden; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }

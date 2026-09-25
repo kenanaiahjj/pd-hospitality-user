@@ -994,12 +994,17 @@ type PassportFields = {
   expiry: string;
   fullName?: string;
   nationality?: string;
+  /** Printed on the document; the forms do not ask for them. */
+  dateOfBirth?: string;
+  sex?: 'F' | 'M';
 };
 
 const DEMO_PASSPORT_FIELDS: PassportFields = {
   documentNumber: 'P1234567A',
   expiry: '2030-05-20',
   nationality: 'Filipino',
+  dateOfBirth: '1994-03-18',
+  sex: 'F',
 };
 
 /** The sample document a companion's scan "reads", so the demo fills every field. */
@@ -1008,7 +1013,111 @@ const DEMO_COMPANION_PASSPORT: PassportFields = {
   nationality: 'Filipino',
   documentNumber: 'P7734120B',
   expiry: '2031-02-14',
+  dateOfBirth: '1996-07-02',
+  sex: 'F',
 };
+
+/* --------------------------------------------------------------------------
+   The passport data page the scan "reads".
+
+   Laid out like a real ICAO 9303 page -- portrait, fields, and the two
+   machine-readable lines with genuine check digits -- so the capture step
+   reads as the finished product. It is a generic passport, not any issuing
+   state's design, and it carries SPECIMEN across it so a screenshot cannot
+   pass for a document.
+   -------------------------------------------------------------------------- */
+const NATIONALITY_CODES: Record<string, string> = { filipino: 'PHL', american: 'USA', japanese: 'JPN', korean: 'KOR', australian: 'AUS', british: 'GBR' };
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+/** "1994-03-18" -> "18 MAR 1994", as passports print it. */
+function passportDate(iso?: string) {
+  const [year, month, day] = (iso ?? '').split('-');
+  return year && month && day ? `${day} ${MONTHS[Number(month) - 1]} ${year}` : '';
+}
+
+/** ICAO 9303 check digit: weights 7-3-1 over digits, letters (A=10) and fillers (<=0). */
+function mrzCheck(field: string) {
+  const value = (char: string) => (/\d/.test(char) ? Number(char) : /[A-Z]/.test(char) ? char.charCodeAt(0) - 55 : 0);
+  return String([...field].reduce((sum, char, i) => sum + value(char) * [7, 3, 1][i % 3]!, 0) % 10);
+}
+
+function machineReadableZone(surname: string, given: string, fields: PassportFields, code: string) {
+  const clean = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]+/g, '<');
+  const pad = (text: string, length: number) => text.slice(0, length).padEnd(length, '<');
+  const yymmdd = (iso?: string) => (iso ?? '').replace(/-/g, '').slice(2) || '<<<<<<';
+  const line1 = pad(`P<${code}${clean(surname)}<<${clean(given)}`, 44);
+  const doc = pad(clean(fields.documentNumber), 9);
+  const dob = yymmdd(fields.dateOfBirth);
+  const exp = yymmdd(fields.expiry);
+  const personal = '<'.repeat(14);
+  const docPart = `${doc}${mrzCheck(doc)}`;
+  const dobPart = `${dob}${mrzCheck(dob)}`;
+  const expPart = `${exp}${mrzCheck(exp)}`;
+  const personalPart = `${personal}${mrzCheck(personal)}`;
+  const composite = mrzCheck(`${docPart}${dobPart}${expPart}${personalPart}`);
+  const line2 = `${docPart}${code}${dobPart}${fields.sex ?? '<'}${expPart}${personalPart}${composite}`;
+  return [line1, line2];
+}
+
+/** An illustrated ID headshot: plain backdrop, shoulders square, no real face. */
+function PassportPortrait({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 60 78" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="passport-portrait-bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#e6ebef" />
+          <stop offset="1" stopColor="#cfd7dd" />
+        </linearGradient>
+      </defs>
+      <rect width="60" height="78" fill="url(#passport-portrait-bg)" />
+      <path d="M4 78c1-13 10-19 26-19s25 6 26 19Z" fill="#3b4350" />
+      <path d="M24 50h12v11c0 3-12 3-12 0Z" fill="#c9987a" />
+      <path d="M22 60c3 4 13 4 16 0l3 3c-4 6-18 6-22 0Z" fill="#f2f2f0" opacity="0.9" />
+      <ellipse cx="30" cy="35" rx="12.5" ry="15.5" fill="#d8aa8a" />
+      <path d="M17 36c-2-14 5-22 13-22 9 0 16 7 13 22-1-6-4-10-8-12-4 3-11 5-17 4-1 3-1 5-1 8Z" fill="#2a201b" />
+      <path d="M17 34c-1 9 1 16 4 21 0-7-1-14-4-21ZM43 34c1 9-1 16-4 21 0-7 1-14 4-21Z" fill="#2a201b" />
+    </svg>
+  );
+}
+
+function PassportDataPage({ name, fields, reading }: { name: string; fields: PassportFields; reading: boolean }) {
+  const parts = name.trim().split(/\s+/);
+  const surname = parts.length > 1 ? parts[parts.length - 1]! : parts[0] ?? '';
+  const given = parts.length > 1 ? parts.slice(0, -1).join(' ') : '';
+  const code = NATIONALITY_CODES[(fields.nationality ?? '').toLowerCase()] ?? 'XXX';
+  const [line1, line2] = machineReadableZone(surname, given, fields, code);
+  const row = (label: string, value: string) => <div><dt>{label}</dt><dd>{value || '—'}</dd></div>;
+
+  return (
+    <figure className="guest-passport" data-reading={reading || undefined} aria-label={`Passport data page for ${name}`}>
+      <div className="guest-passport__band">
+        <b>Passport</b>
+        <span>Type P · {code}</span>
+      </div>
+      <div className="guest-passport__body">
+        <PassportPortrait className="guest-passport__portrait" />
+        <dl className="guest-passport__fields">
+          {row('Surname', surname.toUpperCase())}
+          {row('Given names', given.toUpperCase())}
+          {row('Nationality', (fields.nationality ?? '').toUpperCase())}
+          <div className="guest-passport__pair">
+            {row('Date of birth', passportDate(fields.dateOfBirth))}
+            {row('Sex', fields.sex ?? '')}
+          </div>
+          {row('Passport no.', fields.documentNumber)}
+          {row('Date of expiry', passportDate(fields.expiry))}
+        </dl>
+        <PassportPortrait className="guest-passport__ghost" />
+      </div>
+      <div className="guest-passport__mrz" aria-hidden="true">
+        <span>{line1}</span>
+        <span>{line2}</span>
+      </div>
+      <span className="guest-passport__specimen" aria-hidden="true">Specimen</span>
+      {reading ? <span className="guest-passport__scan" aria-hidden="true" /> : null}
+    </figure>
+  );
+}
 
 function PassportCapturePanel({
   subjectName,
@@ -1026,10 +1135,11 @@ function PassportCapturePanel({
   useEffect(() => {
     if (step !== 'reading') return;
 
+    // Long enough to see the scan pass once over the page.
     const timeout = window.setTimeout(() => {
       onAutofill(sample);
       setStep('complete');
-    }, 700);
+    }, 1300);
 
     return () => window.clearTimeout(timeout);
   }, [onAutofill, sample, step]);
@@ -1042,61 +1152,51 @@ function PassportCapturePanel({
   };
 
   return (
-    <section className="guest-passport-capture" aria-label={`Passport photo simulation for ${shownName}`}>
-      <div className="guest-passport-capture__choices" role="group" aria-label="Passport photo options">
-        <button
-          className={`guest-passport-capture__choice${source === 'photo' ? ' is-selected' : ''}`}
-          type="button"
-          aria-pressed={source === 'photo'}
-          onClick={() => openDemoPreview('photo')}
-        >
-          <Camera size={21} aria-hidden="true" />
-          <b>Take a photo</b>
-          <small>Simulated capture</small>
-        </button>
-        <button
-          className={`guest-passport-capture__choice${source === 'upload' ? ' is-selected' : ''}`}
-          type="button"
-          aria-pressed={source === 'upload'}
-          onClick={() => openDemoPreview('upload')}
-        >
-          <UploadSimple size={21} aria-hidden="true" />
-          <b>Upload a photo</b>
-          <small>Use a sample image</small>
-        </button>
-      </div>
-
-      {step !== 'idle' ? (
-        <div className="guest-passport-capture__preview">
-          <div className="guest-passport-capture__preview-heading">
-            <b>Demo passport preview</b>
-            <span>Sample only</span>
-          </div>
-          <div className="guest-passport-capture__document" aria-label={`Sample passport preview for ${shownName}`}>
-            <div className="guest-passport-capture__portrait" aria-hidden="true">
-              <IdentificationCard size={24} />
-            </div>
-            <div className="guest-passport-capture__document-details">
-              <small>PASSPORT · DEMO</small>
-              <b>{shownName}</b>
-              <span>Passport photo · simulated</span>
-            </div>
-          </div>
-          <p className="guest-passport-capture__note">
-            {source === 'photo' ? 'Photo capture simulated.' : 'Sample photo selected.'} No real image is used.
-          </p>
-          {step === 'reading' ? (
-            <p className="guest-passport-capture__status" role="status" aria-live="polite" aria-atomic="true">
-              Reading passport details…
-            </p>
-          ) : null}
-          {step === 'complete' ? (
-            <p className="guest-passport-capture__status is-complete" role="status" aria-live="polite" aria-atomic="true">
-              Details read from the document and filled in below. Check them before you continue.
-            </p>
-          ) : null}
+    <section className="guest-passport-capture" aria-label={`Passport for ${shownName}`}>
+      {step === 'idle' ? (
+        <div className="guest-passport-capture__choices" role="group" aria-label="Passport photo options">
+          <button
+            className={`guest-passport-capture__choice${source === 'photo' ? ' is-selected' : ''}`}
+            type="button"
+            aria-pressed={source === 'photo'}
+            onClick={() => openDemoPreview('photo')}
+          >
+            <Camera size={21} aria-hidden="true" />
+            <b>Take a photo</b>
+            <small>Use your camera</small>
+          </button>
+          <button
+            className={`guest-passport-capture__choice${source === 'upload' ? ' is-selected' : ''}`}
+            type="button"
+            aria-pressed={source === 'upload'}
+            onClick={() => openDemoPreview('upload')}
+          >
+            <UploadSimple size={21} aria-hidden="true" />
+            <b>Upload a photo</b>
+            <small>From your photos</small>
+          </button>
         </div>
-      ) : null}
+      ) : (
+        <>
+          <PassportDataPage name={sample.fullName ?? shownName} fields={sample} reading={step === 'reading'} />
+          <div className="guest-passport-capture__status-row">
+            {step === 'reading' ? (
+              <p className="guest-passport-capture__status" role="status" aria-live="polite" aria-atomic="true">
+                Reading your passport…
+              </p>
+            ) : (
+              <>
+                <p className="guest-passport-capture__status is-complete" role="status" aria-live="polite" aria-atomic="true">
+                  <CheckCircle weight="fill" aria-hidden="true" />Details added below
+                </p>
+                <button type="button" className="guest-passport-capture__retake" onClick={() => { setStep('idle'); setSource(null); }}>
+                  Retake
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </section>
   );
 }

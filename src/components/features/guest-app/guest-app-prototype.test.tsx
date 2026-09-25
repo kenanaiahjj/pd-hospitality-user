@@ -3051,6 +3051,20 @@ describe('prototype controls', () => {
     expect(screen.getByTestId('guest-home-active')).toBeInTheDocument();
   });
 
+  // The scan is only offered during the stay, so a demo needs a state that is
+  // in the stay's dates and not yet scanned -- one tap, not two.
+  it('opens an arrived, unscanned stay in one tap, ready to scan', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('pre-arrival')} />);
+
+    await openControls(user);
+    await user.click(screen.getByRole('radio', { name: /Arrived, not scanned/ }));
+
+    expect(screen.getByRole('button', { name: /Scan (your )?room code/i })).toBeInTheDocument();
+    await openControls(user);
+    expect(screen.getByRole('radio', { name: /Arrived, not scanned/ })).toBeChecked();
+  });
+
   it('flips the room gate without walking the scan flow', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivedUnverified} />);

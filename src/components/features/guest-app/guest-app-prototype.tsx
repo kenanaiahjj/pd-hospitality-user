@@ -5195,6 +5195,7 @@ const STAY_STATE_SHORT: Record<PrototypeStayState, string> = {
   'signed-out': 'Signed out',
   'account-only': 'No booking',
   'pre-arrival': 'Pre-arrival',
+  arrived: 'Arrived',
   live: 'Live',
   'just-checked-out': 'Checked out',
   closed: 'Closed',
@@ -5291,7 +5292,7 @@ function PrototypeControls({
   const clockLabel = feedClock
     ? `${feedClock.dayOfStay > feedNights ? 'Checkout' : `Day ${feedClock.dayOfStay}`} · ${CLOCK_HOURS.find((hour) => hour.value === feedClock.hour)?.short ?? `${feedClock.hour}:00`}`
     : undefined;
-  const summary = [STAY_STATE_SHORT[stayState], stayState === 'live' ? clockLabel : undefined].filter(Boolean).join(' · ');
+  const summary = [STAY_STATE_SHORT[stayState], stayState === 'live' || stayState === 'arrived' ? clockLabel : undefined].filter(Boolean).join(' · ');
 
   if (!open) {
     return (

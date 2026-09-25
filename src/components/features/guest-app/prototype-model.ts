@@ -1490,6 +1490,7 @@ export type PrototypeStayState =
   | 'signed-out'
   | 'account-only'
   | 'pre-arrival'
+  | 'arrived'
   | 'live'
   | 'just-checked-out'
   | 'closed';
@@ -1515,7 +1516,8 @@ export function getPrototypeStayState(session: GuestSession): PrototypeStayState
     return describePostStayWindow(booking).deskOpen ? 'just-checked-out' : 'closed';
   }
   if (status === 'checked-in') {
-    return 'live';
+    // In the stay's dates; the scan is what separates arriving from living in.
+    return booking.roomVerification ? 'live' : 'arrived';
   }
   return 'pre-arrival';
 }
@@ -1898,6 +1900,7 @@ export const PROTOTYPE_STAY_STATES: Array<{
   { id: 'signed-out', label: 'Signed out', detail: 'Welcome screen, nothing connected' },
   { id: 'account-only', label: 'Signed in, no booking', detail: 'Has an account, no current stay' },
   { id: 'pre-arrival', label: 'Pre-arrival', detail: 'Booked, arrival services only' },
+  { id: 'arrived', label: 'Arrived, not scanned', detail: 'In the room, code still to scan' },
   { id: 'live', label: 'Live stay', detail: 'Scanned, charging to the room' },
   { id: 'just-checked-out', label: 'Just checked out', detail: 'Settled, front desk open 24 hours' },
   { id: 'closed', label: 'Stay closed', detail: 'Desk window over, summary and review' },
@@ -1936,6 +1939,35 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
       preArrivalCompleted: 1,
       preArrivalTotal: 2,
       folioTotal: undefined,
+    };
+
+    return {
+      ...profile,
+      bookings: [booking],
+      activeBookingId: booking.id,
+      serviceBookings: [],
+      folioTotal: '₱0',
+    };
+  }
+
+  /*
+    The live stay a moment before the scan: in its dates, room assigned and
+    ready, nothing charged yet. The scan is only offered during the stay, so
+    this is the one state that shows it.
+  */
+  if (state === 'arrived') {
+    const booking: Booking = {
+      ...UPCOMING_BOOKING_FIXTURE,
+      status: 'active',
+      roomNumber: '304',
+      roomAssignment: 'ready',
+      roomReadyAt: '2:15 PM',
+      roomVerification: undefined,
+      preArrivalCompleted: 2,
+      preArrivalTotal: 2,
+      nextPreArrivalStep: undefined,
+      folioTotal: undefined,
+      roomRate: '₱18,600',
     };
 
     return {

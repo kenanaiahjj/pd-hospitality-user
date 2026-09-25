@@ -5653,7 +5653,7 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
             </button>
           </section>
         ) : null}
-        <TextButton onClick={() => onNavigate('stay-history')}>View stay history</TextButton>
+        {/* Stay history lives in Profile; a second way in here was noise. */}
       </div>
     );
   }

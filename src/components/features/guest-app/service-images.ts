@@ -461,12 +461,29 @@ export const ITEM_CARD_IMAGES: Record<string, ServiceImageDefinition> = {
     alt: 'Hotel laundry and wardrobe valet service in white marble setting',
     focalPoint: '50% 50%',
   },
+  // Was the Manila property photo, so the luggage card repeated the stay's own picture.
   luggage: {
-    src: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=82',
-    alt: 'Concierge luggage handling at boutique hotel lobby',
+    src: 'https://images.unsplash.com/photo-1581553680321-4fffae59fccd?auto=format&fit=crop&w=1200&q=82',
+    alt: 'Polished hotel brass luggage trolley with leather bags',
+    focalPoint: '50% 50%',
+  },
+  celebration: {
+    src: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=1200&q=82',
+    alt: 'Celebration bouquet of fresh lilies and orchids for room setup',
     focalPoint: '50% 50%',
   },
 };
+
+/**
+ * The photo for one arrival service. Each has its own: keyed on category, the
+ * two car services shared the sedan and luggage and celebration shared the
+ * pool. The airport transfer keeps the sedan so it matches the home's ride
+ * card; the rest take their own card photo.
+ */
+export function getArrivalServiceImage(service: { id: string; categoryId: string }): ServiceImageDefinition {
+  if (service.id === 'transfer') return SERVICE_IMAGES.transfer;
+  return getItemCardImage(service.id, service.categoryId);
+}
 
 export function getItemThumbnail(id: string, categoryId?: string): ServiceImageDefinition {
   if (ITEM_THUMBNAIL_IMAGES[id]) {

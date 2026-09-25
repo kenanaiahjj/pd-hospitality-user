@@ -179,6 +179,7 @@ import {
   getServiceImageKey,
   getItemThumbnail,
   getItemCardImage,
+  getArrivalServiceImage,
   type ServiceImageDefinition,
   type ServiceImageKey,
 } from './service-images';
@@ -2787,7 +2788,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <div className="guest-arrival-cards">
             {arrivalServices.map((service) => {
               const image = 'categoryId' in service
-                ? getServiceImage(getServiceImageKey(service))
+                ? getArrivalServiceImage(service)
                 : getPropertyImage(contextBooking.property);
               return (
                 <button

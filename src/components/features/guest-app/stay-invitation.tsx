@@ -55,26 +55,6 @@ const BEADS = Array.from({ length: 36 }, (_, i) => {
   return { cx: (60 + 32.6 * Math.cos(t)).toFixed(2), cy: (60 + 32.6 * Math.sin(t)).toFixed(2) };
 });
 
-/*
-  Guilloche: the fine interlaced line-work on banknotes and certificates.
-  Three families of phase-shifted waves, drawn once, etched faintly into the
-  lower panel where it reads as texture rather than pattern.
-*/
-const GUILLOCHE = (() => {
-  const paths: string[] = [];
-  for (let family = 0; family < 3; family += 1) {
-    for (let k = 0; k < 9; k += 1) {
-      const points: string[] = [];
-      for (let x = 0; x <= 360; x += 6) {
-        const y = 60 + (18 + family * 7) * Math.sin(x * (0.021 + family * 0.006) + k * 0.7 + family) * Math.cos(x * 0.004 + k * 0.2);
-        points.push(`${x} ${y.toFixed(1)}`);
-      }
-      paths.push(`M${points.join('L')}`);
-    }
-  }
-  return paths;
-})();
-
 /** The seal itself: plum wax, with a crest and legend pressed into it and foiled in gold. */
 function WaxSeal({ legend }: { legend: string }) {
   const id = useId();
@@ -254,10 +234,6 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
                 <CabanaMark className="stay-pass__mark" />
               </div>
 
-              <svg className="stay-pass__guilloche" viewBox="0 0 360 120" preserveAspectRatio="none" aria-hidden="true">
-                {GUILLOCHE.map((d, i) => <path key={i} d={d} />)}
-              </svg>
-
               <div className="stay-pass__body">
                 {/* Always laid out, so the card does not reflow when it appears. */}
                 <p className="stay-pass__status" aria-hidden={!sealed}>Confirmed</p>
@@ -283,7 +259,6 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
                   <div><dt>Guests</dt><dd>{booking.guestCount}</dd></div>
                   <div><dt>Booked via</dt><dd>{booking.source}</dd></div>
                 </dl>
-                <small className="stay-pass__ref">No. {booking.id}</small>
               </div>
             </div>
             <span className="stay-pass__glare" aria-hidden="true" />
@@ -292,8 +267,6 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
         </div>
 
         <span className="stay-pass__seal-spot" aria-hidden="true">
-          {/* Where the seal will go: a faint pressed ring, so the empty corner reads as waiting. */}
-          <span className="stay-pass__seal-well" />
           {sealed ? (
             <>
               <span className="stay-pass__spread" />

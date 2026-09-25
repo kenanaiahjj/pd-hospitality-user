@@ -196,7 +196,7 @@
   align-self: end;
   display: grid;
   justify-items: center;
-  padding: 0 20px 14px;
+  padding: 0 20px 20px;
   text-align: center;
 }
 
@@ -299,29 +299,6 @@
 .stay-pass__stub > div { display: grid; gap: 3px; min-width: 0; }
 .stay-pass__stub dt { color: oklch(1 0 0 / 0.62); font-size: 10.5px; letter-spacing: 0.02em; }
 .stay-pass__stub dd { margin: 0; overflow-wrap: anywhere; font-size: 13px; font-weight: 650; }
-.stay-pass__ref {
-  justify-self: start;
-  margin-top: 9px;
-  color: oklch(1 0 0 / 0.5);
-  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
-  font-size: 11.5px;
-  font-style: italic;
-  letter-spacing: 0.04em;
-}
-
-/* Guilloche, etched faintly into the lower panel. */
-.stay-pass__guilloche {
-  position: absolute;
-  inset: auto 0 0;
-  z-index: 1;
-  width: 100%;
-  height: 46%;
-  fill: none;
-  stroke: oklch(0.86 0.06 85 / 0.075);
-  stroke-width: 0.6;
-  pointer-events: none;
-}
-
 /* Specular glare following the tilt. */
 .stay-pass__glare {
   position: absolute;
@@ -369,20 +346,6 @@
   transform: translateZ(30px);
   pointer-events: none;
 }
-
-/* The waiting well: a faint pressed ring where the seal will go. */
-.stay-pass__seal-well {
-  position: absolute;
-  top: 24px;
-  left: 16px;
-  width: 64px;
-  height: 64px;
-  border: 1px dashed oklch(0.86 0.06 85 / 0.32);
-  border-radius: 50%;
-  box-shadow: inset 0 1px 2px oklch(0 0 0 / 0.25), 0 1px 0 oklch(1 0 0 / 0.06);
-  transition: opacity 200ms var(--ease-out), transform 300ms var(--ease-out);
-}
-.stay-pass:not([data-phase='idle']) .stay-pass__seal-well { opacity: 0; transform: scale(0.9); transition-delay: 380ms; }
 
 .stay-pass__seal {
   position: absolute;

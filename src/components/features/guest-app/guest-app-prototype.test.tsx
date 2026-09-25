@@ -291,7 +291,6 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
     expect(screen.getByText('The Henry Manila')).toBeInTheDocument();
-    expect(screen.getByText('No. HEN-241109')).toBeInTheDocument();
     expect(screen.getByText('Booked via')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Yes this is my booking' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: "No, this isn't my booking" })).toBeInTheDocument();
@@ -1104,15 +1103,14 @@ describe('booking lookup', () => {
     /*
       The prototype has one real reference, so strict matching meant a demo
       mostly showed the not-found screen. Whatever is typed now walks the
-      happy path, and the confirmation shows the guest their own number and
-      surname rather than the fixture's.
+      happy path, and the confirmation shows the guest their own surname
+      rather than the fixture's.
     */
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'abc-999');
     await user.type(screen.getByLabelText(/Last name/), 'Reyes');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
 
     expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
-    expect(screen.getByText('No. ABC-999')).toBeInTheDocument();
     expect(screen.getByText('Ana Reyes')).toBeInTheDocument();
   });
 

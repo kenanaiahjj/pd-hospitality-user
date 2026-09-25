@@ -1,0 +1,188 @@
+/* --------------------------------------------------------------------------
+   For you -- the stay as full-screen reels.
+
+   The feed owns its whole screen: `.guest-screen--reels` drops the page
+   padding and scroll, the scroller inside snaps one reel per screen, and the
+   floating tab bar sits over the bottom of each reel, so the footer keeps
+   clear of it. Plum, pearl and champagne only.
+   -------------------------------------------------------------------------- */
+
+.reel-feed {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  background: oklch(0.16 0.02 350);
+  color: #fff;
+}
+
+.reel-feed__scroller {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+.reel-feed__scroller::-webkit-scrollbar { display: none; }
+.reel-feed__slot { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+
+/* --- The floating bar ------------------------------------------------------ */
+.reel-feed__bar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+  pointer-events: none;
+}
+.reel-feed__bar > * { pointer-events: auto; }
+.reel-feed--player .reel-feed__bar { grid-template-columns: 1fr 44px; }
+.reel-feed__title {
+  justify-self: center;
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 10px oklch(0 0 0 / 0.4);
+}
+.reel-feed--player .reel-feed__title { justify-self: start; font-family: inherit; font-size: 15px; font-weight: 650; }
+.reel-feed__icon,
+.reel-feed__browse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: oklch(0.2 0.03 350 / 0.38);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.18);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.reel-feed__icon { width: 40px; }
+.reel-feed__browse { padding: 0 14px 0 16px; font-size: 14px; font-weight: 650; }
+.reel-feed__icon svg { width: 19px; height: 19px; }
+.reel-feed__browse svg { width: 14px; height: 14px; }
+
+/* --- One reel -------------------------------------------------------------- */
+.reel {
+  position: relative;
+  display: grid;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+}
+.reel__image { object-fit: cover; z-index: -2; }
+.reel__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; }
+.reel__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(180deg, oklch(0.14 0.03 350 / 0.55) 0%, oklch(0.14 0.03 350 / 0) 22%),
+    linear-gradient(0deg, oklch(0.14 0.03 350 / 0.92) 0%, oklch(0.14 0.03 350 / 0.55) 32%, oklch(0.14 0.03 350 / 0) 60%);
+  pointer-events: none;
+}
+
+.reel__progress {
+  position: absolute;
+  inset: calc(62px + env(safe-area-inset-top)) 14px auto;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+}
+.reel__progress span { position: relative; flex: 1; height: 2.5px; overflow: hidden; border-radius: 2px; background: oklch(1 0 0 / 0.3); }
+.reel__progress span.is-seen { background: oklch(1 0 0 / 0.95); }
+.reel__progress i { position: absolute; inset: 0; background: oklch(1 0 0 / 0.95); transform-origin: left; animation: reel-fill linear both; }
+@keyframes reel-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Tap zones: left third back, right two thirds on, between the bar and the footer. */
+.reel__zones { position: absolute; inset: 88px 0 46%; z-index: 1; display: grid; grid-template-columns: 1fr 2fr; }
+.reel__zones button { border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+.reel__foot {
+  position: relative;
+  z-index: 2;
+  align-self: end;
+  display: grid;
+  gap: 6px;
+  padding: 0 18px calc(var(--guest-nav-h, 72px) + 30px + env(safe-area-inset-bottom));
+}
+.reel__why {
+  justify-self: start;
+  margin: 0 0 2px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: oklch(0.2 0.03 350 / 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 0 0 1px oklch(0.84 0.07 85 / 0.45);
+  color: oklch(0.9 0.06 88);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.reel__author { display: inline-flex; align-items: center; gap: 8px; margin: 0; color: oklch(1 0 0 / 0.86); font-size: 13px; font-weight: 600; }
+.reel__avatar { position: relative; width: 26px; height: 26px; overflow: hidden; border-radius: 50%; box-shadow: 0 0 0 1.5px oklch(1 0 0 / 0.7); }
+.reel__avatar img { object-fit: cover; }
+.reel__badge { width: 15px; height: 15px; color: oklch(0.88 0.07 86); }
+.reel__title {
+  margin: 0;
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  line-height: 1.05;
+  text-wrap: balance;
+  text-shadow: 0 1px 16px oklch(0 0 0 / 0.35);
+}
+.reel__detail { margin: 0; max-width: 34ch; color: oklch(1 0 0 / 0.82); font-size: 14.5px; line-height: 1.45; }
+.reel__meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.reel__meta > span { color: oklch(1 0 0 / 0.78); font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.reel__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--guest-brand);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--duration-press, 120ms) var(--ease-out, ease);
+}
+.reel__action:active { transform: scale(0.97); }
+.reel__action svg { width: 16px; height: 16px; }
+
+/* --- The end of the feed --------------------------------------------------- */
+.reel-end {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 32px calc(var(--guest-nav-h, 72px) + 24px);
+  background: radial-gradient(70% 55% at 50% 40%, oklch(0.3 0.06 350), oklch(0.16 0.02 350) 75%);
+  text-align: center;
+}
+.reel-end__mark { width: 30px; height: 30px; color: oklch(0.88 0.07 86); }
+.reel-end h2 { margin: 0; font-family: var(--font-serif), Georgia, 'Times New Roman', serif; font-size: 28px; font-weight: 500; letter-spacing: -0.015em; }
+.reel-end p { margin: 0 0 8px; max-width: 30ch; color: oklch(1 0 0 / 0.75); font-size: 14.5px; line-height: 1.45; }
+.reel-end .guest-button { width: min(100%, 280px); background: #fff; color: var(--guest-brand); }
+.reel-end__quiet { min-height: 40px; border: 0; background: none; color: oklch(1 0 0 / 0.8); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reel__progress i { animation: none; transform: none; }
+  .reel__action { transition: none; }
+}

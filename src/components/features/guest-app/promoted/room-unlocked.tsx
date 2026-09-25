@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Barbell, House, Receipt } from '@phosphor-icons/react';
+import { ArrowRight, Barbell, CaretRight, House } from '@phosphor-icons/react';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui';
@@ -42,6 +42,8 @@ export type RoomUnlockedProps = {
   dates?: string;
   onExplore: () => void;
   onViewStay: () => void;
+  /** Opens what a tile names; tiles without a handler fall back to Explore. */
+  onOpen?: (target: OpenNowTarget) => void;
   /**
    * Points the scan itself earned.
    *
@@ -53,34 +55,22 @@ export type RoomUnlockedProps = {
 };
 
 /*
-  One list, one rhythm.
-
-  This was a banner, then two photographic cards, then two rows in a tinted
-  block inside the white card -- three weights stacked, and a surface nested
-  in a surface, which DESIGN.md rules out on its own. The section was the
-  least settled thing on the screen because nothing in it agreed on how big
-  anything should be.
-
-  Now every entry is the same row. The art slot is either a photograph or a
-  tinted icon, which is how the two that have no honest picture -- billing
-  and housekeeping are not places -- sit in the same rhythm as the two that
-  do, instead of being demoted to a second treatment underneath them.
+  What the scan opened, as places to go rather than a menu to read: the
+  three with a real photograph as photo tiles, the two without (a gym and
+  housekeeping are not views) as compact rows, and charging to the room --
+  which is not a place at all -- as the line under them. Every entry opens
+  where it says.
 */
-const OPEN_NOW: Array<{
-  label: string;
-  detail: string;
-  /** A catalogue id where a real photograph exists, an icon where it does not. */
-  art: { photo: string } | { icon: ReactNode };
-}> = [
-  { label: 'Dining', detail: 'Room service or downstairs', art: { photo: 'dining' } },
-  { label: 'Spa & tours', detail: 'Book a time today', art: { photo: 'spa' } },
-  /* The mark above this list has a dumbbell in it and the list did not
-     mention a gym, which is the sort of gap a guest notices before anyone
-     else does. The pool is real -- the property's own photograph is of it. */
-  { label: 'Pool & sun deck', detail: 'Open until 10:00 PM', art: { photo: 'pool' } },
-  { label: 'Fitness centre', detail: 'Open 24 hours', art: { icon: <Barbell aria-hidden="true" /> } },
-  { label: 'Charge to room', detail: 'Settles at checkout', art: { icon: <Receipt aria-hidden="true" /> } },
-  { label: 'Room services', detail: 'Housekeeping and requests', art: { icon: <House aria-hidden="true" /> } },
+export type OpenNowTarget = 'dining' | 'spa' | 'pool' | 'fitness' | 'housekeeping';
+
+const OPEN_PHOTOS: Array<{ id: OpenNowTarget; label: string; detail: string; photo: string }> = [
+  { id: 'dining', label: 'Dining', detail: 'To your room or downstairs', photo: 'dining' },
+  { id: 'spa', label: 'Spa & tours', detail: 'Book a time today', photo: 'spa' },
+  { id: 'pool', label: 'Pool & deck', detail: 'Open until 10:00 PM', photo: 'pool' },
+];
+const OPEN_ROWS: Array<{ id: OpenNowTarget; label: string; detail: string; icon: ReactNode }> = [
+  { id: 'fitness', label: 'Fitness', detail: 'Open 24 hours', icon: <Barbell aria-hidden="true" /> },
+  { id: 'housekeeping', label: 'Housekeeping', detail: 'Ask the front desk', icon: <House aria-hidden="true" /> },
 ];
 
 /* The property itself -- the one image that is honestly about all of it. */
@@ -92,7 +82,8 @@ export function RoomUnlocked({
   guestName,
   dates,
   onExplore,
-  onViewStay, earned }: RoomUnlockedProps) {
+  onViewStay, onOpen, earned }: RoomUnlockedProps) {
+  const open = (target: OpenNowTarget) => (onOpen ? onOpen(target) : onExplore());
   return (
     <div className="unlocked" data-testid="room-unlocked">
       {/*
@@ -140,39 +131,33 @@ export function RoomUnlocked({
         </div>
       </section>
 
-      <section className="unlocked__card unlocked__open">
-        <div className="unlocked__banner">
-          <Image src={BANNER.src} alt="" fill sizes="480px" style={{ objectPosition: BANNER.focalPoint }} />
-          <span className="unlocked__banner-scrim" aria-hidden="true" />
-          <div className="unlocked__banner-copy">
-            <h2>What&rsquo;s open now</h2>
-            <p>{roomNumber ? `Billed to room ${roomNumber}, settled at checkout` : 'Settled at checkout'}</p>
+      <section className="unlocked__open" aria-labelledby="unlocked-open-title">
+        <div className="unlocked__open-head">
+          <h2 id="unlocked-open-title">What&rsquo;s open now</h2>
+          <button type="button" onClick={onExplore}>See all<CaretRight aria-hidden="true" /></button>
+        </div>
+        <div className="unlocked__open-grid">
+          {OPEN_PHOTOS.map((item) => (
+            <button key={item.id} type="button" className="unlocked__tile" onClick={() => open(item.id)}>
+              <span className="unlocked__tile-photo" aria-hidden="true">
+                <Image src={storyImage(item.photo).src} alt="" fill sizes="200px" style={{ objectPosition: storyImage(item.photo).focalPoint }} />
+              </span>
+              <b>{item.label}</b>
+              <small>{item.detail}</small>
+            </button>
+          ))}
+          <div className="unlocked__tile-rows">
+            {OPEN_ROWS.map((item) => (
+              <button key={item.id} type="button" className="unlocked__tile-row" onClick={() => open(item.id)}>
+                <span className="unlocked__tile-icon" aria-hidden="true">{item.icon}</span>
+                <span><b>{item.label}</b><small>{item.detail}</small></span>
+              </button>
+            ))}
           </div>
         </div>
-
-        <ul className="unlocked__open-list">
-          {OPEN_NOW.map((item) => (
-            <li key={item.label}>
-              <span className="unlocked__open-art" aria-hidden="true">
-                {'photo' in item.art ? (
-                  <Image
-                    src={storyImage(item.art.photo).src}
-                    alt=""
-                    fill
-                    sizes="104px"
-                    style={{ objectPosition: storyImage(item.art.photo).focalPoint }}
-                  />
-                ) : (
-                  <span className="unlocked__open-icon">{item.art.icon}</span>
-                )}
-              </span>
-              <span className="unlocked__open-copy">
-                <b>{item.label}</b>
-                <small>{item.detail}</small>
-              </span>
-            </li>
-          ))}
-        </ul>
+        <p className="unlocked__open-note">
+          Nothing to pay now. It all settles at check-out.
+        </p>
       </section>
 
 

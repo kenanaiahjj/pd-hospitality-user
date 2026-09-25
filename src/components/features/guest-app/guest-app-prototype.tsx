@@ -4842,6 +4842,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             dates={formatStayDateRange(contextBooking)}
             onExplore={openExploreIntro}
             onViewStay={() => go('stay-overview')}
+            onOpen={(target) => {
+              if (target === 'dining' || target === 'spa') {
+                setSelectedCategory(target);
+                go('category-listing');
+              } else if (target === 'housekeeping') go('chat');
+              else go('marketplace');
+            }}
             earned={contextBooking.roomVerification ? BEHAVIOUR_POINTS['room-scan'] : undefined}
           />
         );

@@ -271,126 +271,74 @@
 }
 .unlocked__quiet:hover { color: var(--guest-ink); }
 
-.unlocked__card {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-paper);
-  box-shadow: var(--shadow-xs);
-}
-.unlocked__card header { display: flex; align-items: center; gap: 10px; }
-.unlocked__card h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.008em; }
-.unlocked__card-icon {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  border-radius: var(--guest-radius-xs, 8px);
-  background: var(--guest-accent-soft, var(--guest-soft));
-  color: var(--guest-accent-strong);
-}
-.unlocked__card-icon svg { width: 16px; height: 16px; }
-
-/*
-  What the scan opened, led by a picture of the thing it opened.
-
-  The card's own padding comes off so the banner can reach its edges -- a
-  banner inset inside a white card is a photograph wearing a frame, which is
-  the look this was moving away from.
-*/
-.unlocked__open { gap: 12px; padding: 0 0 14px; overflow: hidden; }
-
-.unlocked__banner {
-  position: relative;
-  aspect-ratio: 16 / 7;
-  min-height: 124px;
-  display: flex;
-  align-items: flex-end;
-  padding: 14px;
-  overflow: hidden;
-}
-.unlocked__banner img { object-fit: cover; }
-.unlocked__banner-scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to top,
-    oklch(0.13 0.02 300 / 0.9) 0%,
-    oklch(0.13 0.02 300 / 0.55) 38%,
-    oklch(0.13 0.02 300 / 0.12) 72%,
-    oklch(0.13 0.02 300 / 0.28) 100%
-  );
-}
-.unlocked__banner-copy { position: relative; display: grid; gap: 2px; }
-.unlocked__banner-copy h2 {
+/* --- What's open now: places to go, not a menu to read ------------------ */
+.unlocked__open { display: grid; gap: 12px; }
+.unlocked__open-head { display: flex; align-items: baseline; justify-content: space-between; padding-inline: 2px; }
+.unlocked__open-head h2 {
   margin: 0;
-  color: oklch(1 0 0);
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.014em;
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
-.unlocked__banner-copy p {
-  margin: 0;
-  color: oklch(1 0 0 / 0.84);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-/*
-  One row shape for all four.
-
-  The art slot is the same 52px square whether it holds a photograph or an
-  icon, which is what lets billing and housekeeping sit in the same list as
-  dining and the spa rather than in a tinted block underneath them. That
-  block was a surface inside a surface, which DESIGN.md rules out, and it was
-  the reason the section read as three things bolted together.
-*/
-.unlocked__open-list {
-  display: grid;
-  margin: 0;
-  padding: 0 16px;
-  list-style: none;
-}
-.unlocked__open-list li {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
+.unlocked__open-head button {
+  display: inline-flex;
   align-items: center;
-  gap: 14px;
-  padding: 13px 0;
+  gap: 2px;
+  min-height: 32px;
+  border: 0;
+  background: none;
+  color: var(--guest-ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
 }
-.unlocked__open-list li + li { border-top: 1px solid var(--guest-line); }
-
-.unlocked__open-art {
-  position: relative;
-  display: block;
-  width: 52px;
-  height: 52px;
-  border-radius: var(--guest-radius-sm);
-  overflow: hidden;
-}
-.unlocked__open-art img { object-fit: cover; }
-/* The icon tile is a chip, not a background wash -- same move the app makes
-   in `.unlocked__card-icon`. */
-.unlocked__open-icon {
+.unlocked__open-head button svg { width: 14px; height: 14px; }
+.unlocked__open-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.unlocked__tile {
   display: grid;
-  width: 100%;
-  height: 100%;
-  place-items: center;
-  background: var(--guest-soft);
-  color: var(--guest-accent-strong);
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 6px 12px;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line), var(--shadow-xs);
+  color: var(--guest-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out);
 }
-.unlocked__open-icon svg { width: 22px; height: 22px; }
-
-.unlocked__open-copy { display: grid; gap: 2px; min-width: 0; }
-.unlocked__open-copy b { font-size: 15px; font-weight: 650; letter-spacing: -0.006em; }
-.unlocked__open-copy small { color: var(--guest-subtle); font-size: 12px; line-height: 1.35; }
-
-.unlocked__rows { display: grid; gap: 8px; margin: 0; }
-.unlocked__rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.unlocked__rows dt { color: var(--guest-subtle); font-size: 13px; }
-.unlocked__rows dd { margin: 0; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.unlocked__note { margin: 0; color: var(--guest-subtle); font-size: 12px; line-height: 1.45; }
-
+.unlocked__tile:active { transform: scale(0.98); }
+/* Concentric: the tile's 20px radius is the photo's 14px plus its 6px inset. */
+.unlocked__tile-photo { position: relative; display: block; aspect-ratio: 4 / 3; margin-bottom: 8px; overflow: hidden; border-radius: 14px; }
+.unlocked__tile-photo img { object-fit: cover; }
+.unlocked__tile b, .unlocked__tile-row b { padding-inline: 6px; font-size: 14.5px; font-weight: 650; letter-spacing: -0.006em; }
+.unlocked__tile small, .unlocked__tile-row small { padding-inline: 6px; color: var(--guest-muted); font-size: 12.5px; line-height: 1.35; }
+.unlocked__tile-rows { display: grid; grid-template-rows: 1fr 1fr; gap: 10px; min-width: 0; }
+.unlocked__tile-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line), var(--shadow-xs);
+  color: var(--guest-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.unlocked__tile-row > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.unlocked__tile-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: var(--guest-chip); color: var(--guest-brand); }
+.unlocked__tile-icon svg { width: 17px; height: 17px; }
+.unlocked__open-note { margin: 0; padding-inline: 2px; color: var(--guest-muted); font-size: 13px; line-height: 1.45; }
 
 /* --------------------------------------------------------------------------
    Confetti

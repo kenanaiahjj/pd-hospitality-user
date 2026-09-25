@@ -52,9 +52,10 @@ nextjs-portal,
 
   /* Accent derivatives. Plum is dark enough to be text on its own, so
      `strong` is plum itself; a plum fill always carries white on top
-     (11.9:1). `soft` is a plum-tinted white for selected surfaces. */
+     (11.9:1). `soft` is a neutral wash for selected and quiet surfaces --
+     no pink tint anywhere: plum is the one colour, and it stays dark. */
   --ds-accent-strong: var(--ds-plum);
-  --ds-accent-soft: oklch(0.958 0.012 351);
+  --ds-accent-soft: oklch(0.952 0.002 351);
   --ds-accent-pressed: oklch(0.25 0.055 351);
   --ds-on-accent: var(--ds-paper);
   --ds-on-accent-muted: color-mix(in oklch, var(--ds-paper) 72%, var(--ds-accent));

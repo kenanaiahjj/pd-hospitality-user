@@ -60,12 +60,12 @@ turned into a heavy dark disc everywhere it was actually used.
 
 | Family | What it tracks | Shape | Enamel |
 |---|---|---|---|
-| **Taste** | what the guest books | circle | hot pink `#FF7EB3` |
+| **Taste** | what the guest books | circle | terracotta `#C8673F` |
 | **Company** | who they travel with | rounded shield | warm gold `#E8B44F` |
 | **Rhythm** | how and when they book | hexagon | teal `#2FA8A0` |
 | **Place** | where they've stayed | pentagon | ocean blue `#3D7BD6` |
 | **House** | behaviours the property values | rounded square | sage `#6FAE7C` |
-| **Venue** | per-venue recognition | capsule | deep rose `#B92159` |
+| **Venue** | per-venue recognition | capsule | deep plum `#6E2A4C` |
 
 Reference palette: rose gold metal `#E0A090` → `#B76E79`. No field colour —
 everything inside the rim that is not the icon is alpha.
@@ -104,12 +104,12 @@ Identical construction on every badge:
 - A soft contact shadow under the metal where it meets the surface
 
 The six badges, each a different shape and enamel colour:
-1. CIRCLE, hot pink enamel (#FF7EB3) — a fork and a knife crossed
+1. CIRCLE, terracotta enamel (#C8673F) — a fork and a knife crossed
 2. ROUNDED SHIELD, warm gold enamel (#E8B44F) — a briefcase with a clasp
 3. HEXAGON, teal enamel (#2FA8A0) — a lightning bolt
 4. PENTAGON, ocean blue enamel (#3D7BD6) — a small island with one palm tree
 5. ROUNDED SQUARE, sage green enamel (#6FAE7C) — an open eye
-6. CAPSULE, deep rose enamel (#B92159) — a shopfront with an awning
+6. CAPSULE, deep plum enamel (#6E2A4C) — a shopfront with an awning
 
 Style: glossy, jewel-like, premium. Slight three-quarter perspective so the
 metal reads as raised. Soft studio lighting, gentle bloom, rich reflections in
@@ -155,7 +155,7 @@ it and the rim open.
 
 ## Taste — 14
 
-`[SHAPE]` = **a circle** · `[COLOUR]` = **hot pink enamel (#FF7EB3)**
+`[SHAPE]` = **a circle** · `[COLOUR]` = **terracotta enamel (#C8673F)**
 
 | # | Badge | id | Earned by | `[ICON]` |
 |---|---|---|---|---|
@@ -229,7 +229,7 @@ it and the rim open.
 
 ## Venue — 3 patterns, generated per venue
 
-`[SHAPE]` = **a capsule (rounded oblong)** · `[COLOUR]` = **deep rose enamel (#B92159)**
+`[SHAPE]` = **a capsule (rounded oblong)** · `[COLOUR]` = **deep plum enamel (#6E2A4C)**
 
 | # | Badge | id | Earned by | `[ICON]` |
 |---|---|---|---|---|

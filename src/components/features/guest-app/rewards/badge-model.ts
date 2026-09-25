@@ -65,12 +65,12 @@ export type BadgeProgress = {
 };
 
 export const BADGE_FAMILIES: Record<BadgeFamily, { label: string; shape: string; enamel: string }> = {
-  taste: { label: 'How you eat and unwind', shape: 'circle', enamel: '#FF7EB3' },
+  taste: { label: 'How you eat and unwind', shape: 'circle', enamel: '#C8673F' },
   company: { label: 'Who you travel with', shape: 'shield', enamel: '#E8B44F' },
   rhythm: { label: 'How you book', shape: 'hexagon', enamel: '#2FA8A0' },
   place: { label: 'Where you have been', shape: 'pentagon', enamel: '#3D7BD6' },
   house: { label: 'Good guest', shape: 'square', enamel: '#6FAE7C' },
-  venue: { label: 'Your regulars', shape: 'capsule', enamel: '#B92159' },
+  venue: { label: 'Your regulars', shape: 'capsule', enamel: '#6E2A4C' },
 };
 
 /* --------------------------------------------------------------------------

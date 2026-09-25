@@ -4693,43 +4693,70 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'notifications': {
         if (!notifications.length) {
           return (
-            <div className="guest-stack">
-              <div className="guest-page-title"><h1>Notifications</h1></div>
-              <div className="guest-hub-empty">
+            <div className="guest-stack guest-inbox">
+              <div className="guest-inbox__title"><h1>Notifications</h1></div>
+              <div className="guest-inbox__empty">
                 <h2>You’re all caught up</h2>
-                <p>Room updates, booking confirmations and new room charges appear here.</p>
+                <p>Room updates, confirmations and new charges will show up here.</p>
               </div>
             </div>
           );
         }
 
+        /*
+          Grouped by when, like any inbox: what happened today, and the rest
+          of the stay. One card per group with hairlines between rows, not a
+          stack of floating cards -- and the red dot is the only colour on a
+          row, so unread is the one thing that stands out.
+        */
+        const isToday = (time: string) => /now|\d+\s*[mh]\b|min|hour/i.test(time);
+        const groups = [
+          { label: 'Today', items: notifications.filter((item) => isToday(item.time)) },
+          { label: 'Earlier this stay', items: notifications.filter((item) => !isToday(item.time)) },
+        ].filter((group) => group.items.length);
+        const unreadIds = notifications.filter((item) => !readNotificationIds.includes(item.id)).map((item) => item.id);
+
         return (
-          <div className="guest-stack">
-            <div className="guest-page-title"><h1>Notifications</h1></div>
-            <div className="guest-notifications">
-              {notifications.map((item) => {
-                const unread = !readNotificationIds.includes(item.id);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="guest-notification"
-                    data-unread={unread}
-                    onClick={() => openNotification(item)}
-                  >
-                    <span className={`guest-notification__icon guest-notification__icon--${item.tone}`} aria-hidden="true">
-                      <NotificationIcon tone={item.tone} />
-                    </span>
-                    <div className="guest-notification__body">
-                      <b>{item.title}</b>
-                      <p>{item.body}</p>
-                      <small>{item.time}</small>
-                    </div>
-                    {unread ? <span className="guest-notification__dot"><span className="sr-only">Unread</span></span> : null}
-                  </button>
-                );
-              })}
+          <div className="guest-stack guest-inbox">
+            <div className="guest-inbox__title">
+              <h1>Notifications</h1>
+              {unreadIds.length ? (
+                <button type="button" className="guest-inbox__mark" onClick={() => setReadNotificationIds((current) => [...new Set([...current, ...unreadIds])])}>
+                  Mark all as read
+                </button>
+              ) : null}
             </div>
+            {groups.map((group) => (
+              <section key={group.label} className="guest-inbox__group" aria-label={group.label}>
+                <h2>{group.label}</h2>
+                <div className="guest-notifications">
+                  {group.items.map((item) => {
+                    const unread = !readNotificationIds.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="guest-notification"
+                        data-unread={unread}
+                        onClick={() => openNotification(item)}
+                      >
+                        <span className="guest-notification__icon" aria-hidden="true">
+                          <NotificationIcon tone={item.tone} />
+                        </span>
+                        <span className="guest-notification__body">
+                          <span className="guest-notification__head">
+                            <b>{item.title}</b>
+                            <small>{item.time}</small>
+                          </span>
+                          <span className="guest-notification__text">{item.body}</span>
+                        </span>
+                        {unread ? <span className="guest-notification__dot"><span className="sr-only">Unread</span></span> : <span aria-hidden="true" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         );
       }

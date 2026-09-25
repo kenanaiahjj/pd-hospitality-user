@@ -73,11 +73,19 @@ export const SERVICE_VENUES: ServiceVenue[] = [
   },
   {
     id: 'sakay-rentals',
-    name: 'Sakay Scooter Hire',
+    name: 'Sakay Rentals',
     location: 'Driveway, ground floor',
     kind: 'venue',
-    operates: ['scooter'],
+    operates: ['scooter', 'motorcycle', 'e-bike'],
     image: storyImage('food-crawl'),
+  },
+  {
+    id: 'byahe-car-rental',
+    name: 'Byahe Car Rental',
+    location: 'Driveway, ground floor',
+    kind: 'venue',
+    operates: ['car-rental', 'suv-rental'],
+    image: PROPERTY_IMAGE,
   },
   {
     id: 'bantay-care',

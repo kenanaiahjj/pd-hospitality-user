@@ -1,4 +1,4 @@
-import type { ServiceImageDefinition } from '../service-images';
+import { getItemCardImage, type ServiceImageDefinition } from '../service-images';
 
 /*
   Placeholder photography, copied locally for the approved Explore promotion.
@@ -64,6 +64,11 @@ export const STORY_IMAGERY: Record<string, ServiceImageDefinition> = {
   tour: shot('photo-1570560258879-af7f8e1447ac', 'Island shoreline'),
   'sunset-cruise': shot('photo-1689239719024-8f0866438b46', 'Boat at sunset'),
   'heritage-walk': shot('photo-1636405189493-181ecf851006', 'Old city street'),
+
+  /* Rentals borrow the listing's own photographs, which are still remote --
+     the one exception to the rule above until they are copied in too. */
+  ...Object.fromEntries(['rental', 'e-bike', 'scooter', 'motorcycle', 'car-rental', 'suv-rental']
+    .map((id) => [id, getItemCardImage(id, 'rentals')])),
 };
 
 /* The property itself. Also the fallback, because a shot of the hotel is the

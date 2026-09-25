@@ -2095,6 +2095,68 @@ describe('booking another stay', () => {
    Lifecycle gates
    -------------------------------------------------------------------------- */
 
+/*
+  Rentals: their own category, reached from Browse. Ways it could fail:
+  1. No Rentals row in Browse, or it lands on another category.
+  2. The bikes and scooters still sit in Hotel Services too.
+  3. A chip over the listing holds nothing.
+  4. A motorbike or car books without saying a licence is needed; or the
+     push bike does.
+  5. Searching "motorbike" or "car" finds none of them.
+*/
+describe('rentals', () => {
+  it('opens its own listing from Browse, split into two wheels and cars', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await openCategory(user, 'Rentals');
+    expect(screen.getByRole('heading', { name: 'Rentals', level: 1 })).toBeInTheDocument();
+    const chips = within(screen.getByLabelText('Explore subcategories')).getAllByRole('button').map((chip) => chip.textContent);
+    expect(chips).toEqual(['All', 'Two wheels', 'Cars']);
+    for (const name of ['City bicycle', 'E-bike', 'Scooter', 'Motorcycle', 'Compact car', 'SUV']) {
+      expect(screen.getByRole('heading', { name: new RegExp(name) })).toBeInTheDocument();
+    }
+
+    await user.click(screen.getByRole('button', { name: 'Cars' }));
+    expect(screen.queryByRole('heading', { name: /Scooter/ })).toBeNull();
+  });
+
+  it('leaves Hotel Services to the hotel, with the private car as a transfer', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await openCategory(user, 'Hotel Services');
+    expect(screen.queryByRole('heading', { name: /City bicycle|Scooter/ })).toBeNull();
+    expect(screen.getByRole('heading', { name: /Private car/ })).toBeInTheDocument();
+  });
+
+  it('asks for a licence on a motorbike, not on a push bike', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+
+    await openCategory(user, 'Rentals');
+    await user.click(screen.getByRole('button', { name: /Motorcycle/ }));
+    expect(screen.getByText(/driver.s licence/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Go back' }));
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    expect(screen.queryByText(/driver.s licence/i)).toBeNull();
+  });
+
+  it('finds rentals by the words a guest would type', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="marketplace" initialSession={activeSession} />);
+
+    await user.click(screen.getByRole('button', { name: 'Search' }));
+    const box = screen.getByRole('searchbox', { name: 'Ask anything about your stay' });
+    await user.type(box, 'motorbike');
+    expect(screen.getByRole('button', { name: /Motorcycle/ })).toBeInTheDocument();
+    await user.clear(box);
+    await user.type(box, 'car rental');
+    expect(screen.getByRole('button', { name: /Compact car/ })).toBeInTheDocument();
+  });
+});
+
 describe('booking the service the guest picked', () => {
   /*
     The form sold one thing -- the Hilom massage at ₱2,400 -- whatever had been

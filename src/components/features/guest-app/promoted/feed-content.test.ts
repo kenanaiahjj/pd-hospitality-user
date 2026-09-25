@@ -46,6 +46,20 @@ describe('feed content', () => {
     expect(feedAt(3, 19).map((entry) => entry.story.id)).toContain('moment-late-checkout');
   });
 
+  it('offers a day on wheels mid-stay without filling the morning with it', () => {
+    const top = feedAt(2, 8).slice(0, 8).filter((entry) => entry.story.id.startsWith('service-') && /rental|bicycle|e-bike|scooter|motorcycle/.test(entry.story.id));
+    expect(top.length).toBeGreaterThan(0);
+    expect(top.length).toBeLessThanOrEqual(2);
+  });
+
+  it('offers no self-drive car once the guest is going home', () => {
+    for (const day of [3, 4]) {
+      const ids = feedAt(day, 8).map((entry) => entry.story.id);
+      expect(ids).not.toContain('service-car-rental');
+      expect(ids).not.toContain('service-suv-rental');
+    }
+  });
+
   it('opens a morning on breakfast or coffee', () => {
     const first = feedAt(2, 8)[0]!;
     expect(['moment-breakfast', 'venue-cafe', 'venue-apartment-1b', 'nearby-kape-lab-manila']).toContain(first.story.id);

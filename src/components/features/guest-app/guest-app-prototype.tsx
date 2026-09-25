@@ -37,6 +37,7 @@ import {
   CaretDown,
   Sparkle,
   Storefront,
+  Moped,
   SwimmingPool,
   Ticket,
   ShieldCheck,
@@ -184,6 +185,7 @@ import {
   getItemThumbnail,
   getItemCardImage,
   getArrivalServiceImage,
+  getCategoryCoverImage,
   type ServiceImageDefinition,
   type ServiceImageKey,
 } from './service-images';
@@ -3741,8 +3743,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const matchesSubcategory = (row: { id: string }) => matchesListingSubcategory(selectedCategory, selectedSubcategory, row);
         const visibleVenues = stayVenues.filter(matchesSubcategory);
         const visibleServices = categoryServices.filter(matchesSubcategory);
-        const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', services: 'Explore hotel services and independent options nearby.' };
-        const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', services: 'Independent services available near the hotel.' };
+        const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', rentals: 'Motorbikes, cars and bikes by the day, from the hotel driveway.', services: 'Explore hotel services and independent options nearby.' };
+        const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', rentals: 'Independent rental shops near the hotel.', services: 'Independent services available near the hotel.' };
         return (
           <div className="guest-stack guest-category-listing">
             <div className="guest-page-title">
@@ -3822,7 +3824,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     }}
                   >
                     <div className="guest-catalog-option-card__media">
-                      <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="card" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <Compass /> : <Storefront />} decorative />
+                      <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="card" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <Compass /> : service.categoryId === 'rentals' ? <Moped /> : <Storefront />} decorative />
                       <h2 className="guest-catalog-option-card__name">{service.name}</h2>
                     </div>
                     <div className="guest-catalog-option-card__details">
@@ -4115,6 +4117,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Provider" value={provider} />
               <SummaryRow label="Total" value={servicePayment === 'complimentary' ? 'Complimentary' : serviceCharge} strong />
             </div>
+            {'requires' in selectedService && selectedService.requires ? (
+              <Notice icon={<IdentificationCard />} title={selectedService.requires}>
+                Bring it with you. The desk checks it when you collect the keys; nothing is uploaded here.
+              </Notice>
+            ) : null}
             {servicePayment === 'complimentary' ? null : (
               <>
                 <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={appliedPoints} onChange={setAppliedPoints} />
@@ -6730,7 +6737,7 @@ const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = [
   { id: 'intramuros-cycling', city: 'Manila', categoryId: 'entertainment', name: 'Intramuros Cycle Tours', type: 'Bike tours', distance: '1.8 km away', description: 'Independent guided bicycle tours through Intramuros and nearby streets.', address: 'General Luna Street, Intramuros, Manila', hours: 'Daily · 7:00 AM–6:00 PM', contact: '+63 917 555 0109', image: 'https://images.unsplash.com/photo-1529422643029-d4585747aaf2?auto=format&fit=crop&w=900&q=80' },
   { id: 'escolta-craft-market', city: 'Manila', categoryId: 'services' as const, name: 'Escota Craft Market', type: 'Handicrafts & gifts', distance: '900 m away', description: 'Independent makers offering local crafts, keepsakes, and small gifts.', address: 'Escota Street, Binondo, Manila', hours: 'Friday–Sunday · 10:00 AM–7:00 PM', contact: '+63 917 123 4567', image: 'https://images.unsplash.com/photo-1528698827591-e19ccd7bc23d?auto=format&fit=crop&w=900&q=80' },
   { id: 'manila-laundry-co', city: 'Manila', categoryId: 'services' as const, name: 'Manila Laundry Co.', type: 'Laundry service', distance: '500 m away', description: 'Independent wash-and-fold service with convenient hotel-area pickup.', address: '12 Harrison Street, Pasay City', hours: 'Daily · 8:00 AM–8:00 PM', contact: '+63 917 555 0181', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=900&q=80' },
-  { id: 'city-bike-rentals', city: 'Manila', categoryId: 'services' as const, name: 'City Bike Rentals', type: 'Bike rental', distance: '1.1 km away', description: 'Independent bicycle rentals for exploring the bay and nearby neighborhoods.', address: '88 M. H. del Pilar Street, Manila', hours: 'Daily · 7:00 AM–7:00 PM', contact: '+63 917 555 0147', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80' },
+  { id: 'city-bike-rentals', city: 'Manila', categoryId: 'rentals' as const, name: 'City Bike Rentals', type: 'Bike rental', distance: '1.1 km away', description: 'Independent bicycle rentals for exploring the bay and nearby neighborhoods.', address: '88 M. H. del Pilar Street, Manila', hours: 'Daily · 7:00 AM–7:00 PM', contact: '+63 917 555 0147', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80' },
   { id: 'manila-makers-market', city: 'Manila', categoryId: 'gifts', name: 'Manila Makers Market', type: 'Local crafts & souvenirs', distance: '750 m away', description: 'Independent makers offering keepsakes, home décor, and pasalubong.', address: '33 Escolta Street, Manila', hours: 'Tue–Sun · 10:00 AM–7:00 PM', contact: '+63 917 555 0116', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
   { id: 'binondo-pasalubong', city: 'Manila', categoryId: 'gifts', name: 'Binondo Pasalubong House', type: 'Local delicacies', distance: '1.4 km away', description: 'Independent shop for regional snacks, sweets, and take-home treats.', address: '168 Ongpin Street, Binondo, Manila', hours: 'Daily · 9:00 AM–8:00 PM', contact: '+63 917 555 0128', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80' },
   { id: 'artisan-home-studio', city: 'Manila', categoryId: 'gifts', name: 'Artisan Home Studio', type: 'Home décor & crafts', distance: '1.6 km away', description: 'Independent local artists’ studio with ceramics, candles, and small décor.', address: '52 Escolta Street, Manila', hours: 'Wed–Sun · 10:00 AM–6:00 PM', contact: '+63 917 555 0170', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=900&q=80' },
@@ -6762,6 +6769,7 @@ const BROWSE_CATEGORIES: BrowseCategory[] = [
   { id: 'dining', label: 'Food & Drinks', detail: 'Restaurants, bars and room service', image: storyImage('dining') },
   { id: 'spa', label: 'Spa & Wellness', detail: 'Massages, facials and grooming', image: storyImage('spa') },
   { id: 'entertainment', label: 'Activities & Tours', detail: 'Tours, workshops and live music', image: storyImage('tour') },
+  { id: 'rentals', label: 'Rentals', detail: 'Motorbikes, cars and bikes', image: getCategoryCoverImage('rentals') },
   { id: 'services', label: 'Hotel Services', detail: 'Transfers, laundry and celebrations', image: storyImage('pool') },
   { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs', detail: 'Pasalubong and keepsakes', image: storyImage('food-crawl') },
   { id: 'nearby', label: 'Nearby', detail: 'Independent places around the hotel', image: storyImage('heritage-walk') },

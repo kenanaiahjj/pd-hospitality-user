@@ -2625,7 +2625,7 @@ export function describeCancellationWindow(
   return `Cancel yourself until ${time} on ${day}. After that, contact the front desk. The booking remains.`;
 }
 
-export type MiniAppCategoryId = 'dining' | 'spa' | 'entertainment' | 'services';
+export type MiniAppCategoryId = 'dining' | 'spa' | 'entertainment' | 'rentals' | 'services';
 
 export type MiniAppCategory = {
   id: MiniAppCategoryId;
@@ -2672,11 +2672,20 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
     tone: 'sun',
   },
   {
+    id: 'rentals',
+    screen: 'category-listing',
+    title: 'Rentals',
+    shortTitle: 'Rentals',
+    subtitle: 'Motorbikes, cars and bikes',
+    badge: 'By the day',
+    tone: 'blue',
+  },
+  {
     id: 'services',
     screen: 'category-listing',
     title: 'Hotel Services',
     shortTitle: 'Services',
-    subtitle: 'Transfers, rentals & amenities',
+    subtitle: 'Transfers, laundry & amenities',
     badge: 'Front desk',
     tone: 'blue',
   },
@@ -3317,8 +3326,14 @@ export const SERVICES = [
   /* Hotel services */
   { id: 'transfer', name: 'Airport transfer', category: 'Transfers', categoryId: 'services', operator: 'Hotel arranged', price: '₱1,200', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
   { id: 'private-car', name: 'Private car & driver', category: 'Transfers', categoryId: 'services', operator: 'Hotel arranged', price: '₱4,800 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
-  { id: 'rental', name: 'City bicycle', category: 'Vehicle & bike rental', categoryId: 'services', operator: 'Hotel operated', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
-  { id: 'scooter', name: 'Scooter rental', category: 'Vehicle & bike rental', categoryId: 'services', operator: 'Third-party on property', price: '₱900 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  /* Rentals -- by the day. Anything with an engine needs a licence, which
+     the desk checks at pickup; the app only says so. */
+  { id: 'rental', name: 'City bicycle', category: 'Bike rental', categoryId: 'rentals', operator: 'Hotel operated', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  { id: 'e-bike', name: 'E-bike', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱600 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  { id: 'scooter', name: 'Scooter · 125cc', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱900 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'motorcycle', name: 'Motorcycle · 150cc', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱1,500 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'car-rental', name: 'Compact car · self-drive', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱2,800 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'suv-rental', name: 'SUV · 7 seats, self-drive', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱4,200 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
   { id: 'laundry', name: 'Express laundry & pressing', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'From ₱250', cutoff: 'Same-day service', tone: 'blue' },
   { id: 'luggage', name: 'Luggage storage & delivery', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Same-day service', tone: 'blue' },
   { id: 'celebration', name: 'Flowers & celebration setup', category: 'Hotel services', categoryId: 'services', operator: 'Curated guide', price: 'From ₱1,600', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
@@ -3430,8 +3445,12 @@ export const LISTING_SUBCATEGORIES: Record<MiniAppCategoryId, ReadonlyArray<{ la
     { label: 'Day Trips', ids: ['tour'] },
     { label: 'Live Entertainment', ids: ['music', 'film-night'] },
   ],
+  rentals: [
+    { label: 'Two wheels', ids: ['rental', 'e-bike', 'scooter', 'motorcycle'] },
+    { label: 'Cars', ids: ['car-rental', 'suv-rental'] },
+  ],
   services: [
-    { label: 'Transportation', ids: ['transfer', 'private-car', 'rental', 'scooter'] },
+    { label: 'Transportation', ids: ['transfer', 'private-car'] },
     { label: 'Guest Assistance', ids: ['babysitting', 'meeting-room', 'doctor', 'trainer'] },
     { label: 'Room & Luggage', ids: ['luggage'] },
     { label: 'Laundry & Housekeeping', ids: ['laundry'] },

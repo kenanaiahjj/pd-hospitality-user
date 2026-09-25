@@ -16,7 +16,7 @@ import type { Story } from './story-model';
 
 export type StayPhase = 'arrival-day' | 'first-night' | 'mid-stay' | 'last-day' | 'checkout-day';
 export type Daypart = 'morning' | 'afternoon' | 'evening' | 'late';
-export type FeedCategory = 'dining' | 'spa' | 'entertainment' | 'services' | 'gifts' | 'nearby';
+export type FeedCategory = 'dining' | 'spa' | 'entertainment' | 'rentals' | 'services' | 'gifts' | 'nearby';
 
 /** The prototype's clock: which day of the stay it is, and the hour. */
 export type FeedClock = { dayOfStay: number; hour: number };

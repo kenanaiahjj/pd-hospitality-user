@@ -397,6 +397,7 @@ describe('mini-app categories and restaurant menus', () => {
       'dining',
       'spa',
       'entertainment',
+      'rentals',
       'services',
     ]);
   });

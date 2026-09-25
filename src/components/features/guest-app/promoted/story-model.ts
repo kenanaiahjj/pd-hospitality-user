@@ -62,6 +62,12 @@ const STORY_FRAMES: Record<string, string[]> = {
   'heritage-walk': ['heritage-walk', 'food-crawl', 'tour'],
   'food-crawl': ['food-crawl', 'heritage-walk', 'cafe'],
   'museum-pass': ['heritage-walk', 'tour', 'food-crawl'],
+  rental: ['rental', 'e-bike'],
+  'e-bike': ['e-bike', 'rental'],
+  scooter: ['scooter', 'motorcycle'],
+  motorcycle: ['motorcycle', 'scooter'],
+  'car-rental': ['car-rental', 'suv-rental'],
+  'suv-rental': ['suv-rental', 'car-rental'],
 };
 
 /**

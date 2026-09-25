@@ -47,6 +47,16 @@ const SERVICE_TAGS: Record<string, TagsWithoutId> = {
   'cooking-class': { phases: ['mid-stay'], fits: 'family' },
   music: { dayparts: ['evening'], whenLabel: 'Tonight · 6:00 PM' },
   'film-night': { dayparts: ['evening'], fits: 'family' },
+  /* Rentals: one of each kind leads a mid-stay morning (the e-bike, the car);
+     the rest wait lower, or six of the top eight are vehicles. A self-drive
+     car is a day out, so it is gone once the guest is heading home -- the
+     transfer is the car that matters then. */
+  rental: { phases: ['mid-stay'] },
+  'e-bike': { phases: ['mid-stay'], dayparts: ['morning'] },
+  scooter: { phases: ['mid-stay'], dayparts: ['afternoon'] },
+  motorcycle: { phases: ['mid-stay'] },
+  'car-rental': { phases: ['mid-stay'], dayparts: ['morning'], onlyIn: ['arrival-day', 'first-night', 'mid-stay'] },
+  'suv-rental': { phases: ['mid-stay'], fits: 'group', onlyIn: ['arrival-day', 'first-night', 'mid-stay'] },
 };
 
 const stills = (story: Story): Story => ({
@@ -202,7 +212,7 @@ export function buildFeedCandidates(input: { nearby: NearbyStoryInput[] }): Feed
     action: { kind: 'item', id: venue.id },
   }));
   const services: FeedCandidate[] = SERVICES
-    .filter((service) => service.categoryId === 'spa' || service.categoryId === 'entertainment')
+    .filter((service) => service.categoryId === 'spa' || service.categoryId === 'entertainment' || service.categoryId === 'rentals')
     .map((service) => ({
       story: stills(serviceStory(service)),
       tags: { itemId: service.id, category: service.categoryId as FeedTags['category'], ...SERVICE_TAGS[service.id] },

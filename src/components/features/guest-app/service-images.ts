@@ -132,6 +132,11 @@ export const CATEGORY_IMAGES: Record<string, ServiceImageDefinition> = {
     alt: 'Tropical island excursion and crystal clear waters',
     focalPoint: '50% 46%',
   },
+  rentals: {
+    src: 'https://images.unsplash.com/photo-1558980664-10e7170b5df9?auto=format&fit=crop&w=1200&q=82',
+    alt: 'A rider on a motorcycle on an open road',
+    focalPoint: '50% 50%',
+  },
   services: {
     src: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1200&q=82',
     alt: 'Hotel swimming pool and premium guest amenities',
@@ -302,6 +307,26 @@ export const ITEM_THUMBNAIL_IMAGES: Record<string, ServiceImageDefinition> = {
     alt: 'Handcrafted city bicycle parked by hotel courtyard wall',
     focalPoint: '50% 50%',
   },
+  'e-bike': {
+    src: 'https://images.unsplash.com/photo-1593764592116-bfb2a97c642a?auto=format&fit=crop&w=600&q=80',
+    alt: 'Electric bike against a white wall',
+    focalPoint: '50% 50%',
+  },
+  'motorcycle': {
+    src: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
+    alt: 'Street motorcycle parked by a dark wall',
+    focalPoint: '50% 50%',
+  },
+  'car-rental': {
+    src: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+    alt: 'Compact hatchback parked on a street',
+    focalPoint: '50% 50%',
+  },
+  'suv-rental': {
+    src: 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=600&q=80',
+    alt: 'White SUV on a mountain road',
+    focalPoint: '50% 50%',
+  },
   scooter: {
     src: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=600&q=80',
     alt: 'Modern electric scooter available for local exploration',
@@ -449,6 +474,26 @@ export const ITEM_CARD_IMAGES: Record<string, ServiceImageDefinition> = {
   rental: {
     src: 'https://images.unsplash.com/photo-1532298229144-0ec0c57515c7?auto=format&fit=crop&w=1200&q=82',
     alt: 'Fleet of handcrafted city cruiser bicycles parked along palm walk',
+    focalPoint: '50% 50%',
+  },
+  'e-bike': {
+    src: 'https://images.unsplash.com/photo-1593764592116-bfb2a97c642a?auto=format&fit=crop&w=1200&q=82',
+    alt: 'Electric bike against a white wall',
+    focalPoint: '50% 50%',
+  },
+  'motorcycle': {
+    src: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=1200&q=82',
+    alt: 'Street motorcycle parked by a dark wall',
+    focalPoint: '50% 50%',
+  },
+  'car-rental': {
+    src: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=1200&q=82',
+    alt: 'Compact hatchback parked on a street',
+    focalPoint: '50% 50%',
+  },
+  'suv-rental': {
+    src: 'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=1200&q=82',
+    alt: 'White SUV on a mountain road',
     focalPoint: '50% 50%',
   },
   scooter: {

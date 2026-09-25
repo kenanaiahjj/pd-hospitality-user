@@ -8674,3 +8674,61 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   .guest-estate-card__image,
   .guest-estate-card__go { transition: none; }
 }
+
+/* --- Signed in, no booking: room to breathe, and how to reach a hotel -------- */
+.guest-empty-history { display: grid; gap: 16px; }
+.guest-empty-history > .guest-section-heading-row { margin-bottom: -2px; }
+.guest-empty-history > .guest-text-link { justify-self: start; margin-top: 2px; }
+
+.guest-hotel-contacts { display: grid; gap: 6px; margin-top: 12px; }
+.guest-hotel-contacts__title {
+  margin: 0;
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.guest-hotel-contacts__lead { margin: 0 0 8px; color: var(--guest-muted); font-size: 14px; line-height: 1.45; }
+.guest-hotel-contacts__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  list-style: none;
+}
+.guest-hotel-contact {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 14px 14px 16px;
+}
+.guest-hotel-contact + .guest-hotel-contact { border-top: 1px solid var(--guest-line); }
+.guest-hotel-contact__thumb { display: block; width: 52px; height: 52px; overflow: hidden; border-radius: 14px; }
+.guest-hotel-contact__thumb .guest-property-image { width: 100%; height: 100%; border-radius: 0; }
+.guest-hotel-contact__copy { display: grid; gap: 2px; min-width: 0; }
+.guest-hotel-contact__copy b { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.guest-hotel-contact__phone { color: var(--guest-ink); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.guest-hotel-contact__copy small { color: var(--guest-muted); font-size: 12.5px; }
+.guest-hotel-contact__actions { display: flex; gap: 8px; }
+.guest-hotel-contact__action {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--guest-line);
+  border-radius: 50%;
+  background: var(--guest-paper);
+  color: var(--guest-brand);
+  transition: transform 160ms var(--ease-out), background 160ms var(--ease-out);
+}
+.guest-hotel-contact__action svg { width: 18px; height: 18px; }
+.guest-hotel-contact__action:active { transform: scale(0.94); }
+.guest-hotel-contact__action:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .guest-hotel-contact__action:hover { background: var(--guest-surface); }
+}
+@media (prefers-reduced-motion: reduce) { .guest-hotel-contact__action { transition: none; } }

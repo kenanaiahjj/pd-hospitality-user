@@ -1552,6 +1552,12 @@ export type EstateProperty = {
   islandGroup: 'luzon' | 'visayas' | 'mindanao';
   /** ISO date the property opened. */
   openedOn?: string;
+  /**
+   * How to reach the front desk without the app's chat -- for a guest with no
+   * booking connected, who has no thread to write in.
+   * PLACEHOLDERS except Manila's number: replace with the property's own.
+   */
+  desk: { phone: string; email: string; hours: string };
   roomTypes: PropertyRoomType[];
 };
 
@@ -1573,6 +1579,7 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
     tagline: 'Post-war villas and garden courtyards in Pasay',
     islandGroup: 'luzon',
     openedOn: '2019-03-01',
+    desk: { phone: '+63 2 8807 8888', email: 'frontdesk.manila@thehenry.ph', hours: 'Front desk · 6:00 AM–10:00 PM' },
     roomTypes: [
       { id: 'manila-king', name: 'King room', detail: '32 sqm · Courtyard view · Sleeps 2', nightlyRate: '₱6,200', maxGuests: 2 },
       { id: 'manila-suite', name: 'Garden suite', detail: '48 sqm · Private terrace · Sleeps 3', nightlyRate: '₱9,400', maxGuests: 3 },
@@ -1587,6 +1594,7 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
     tagline: 'Pool deck, Azotea rooftop, ten minutes from Mactan',
     islandGroup: 'visayas',
     openedOn: '2022-06-15',
+    desk: { phone: '+63 32 888 0100', email: 'frontdesk.cebu@thehenry.ph', hours: 'Front desk · 24 hours' },
     roomTypes: [
       { id: 'cebu-deluxe', name: 'Deluxe room', detail: '28 sqm · Pool view · Sleeps 2', nightlyRate: '₱5,600', maxGuests: 2 },
       { id: 'cebu-suite', name: 'Garden suite', detail: '44 sqm · Ground floor garden · Sleeps 3', nightlyRate: '₱8,800', maxGuests: 3 },
@@ -1600,6 +1608,7 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
     tagline: 'Quiet sea-facing wing, walking distance to Rizal Boulevard',
     islandGroup: 'visayas',
     openedOn: '2026-09-01',
+    desk: { phone: '+63 35 422 0100', email: 'frontdesk.dumaguete@thehenry.ph', hours: 'Front desk · 7:00 AM–11:00 PM' },
     roomTypes: [
       { id: 'dumaguete-deluxe', name: 'Deluxe room', detail: '26 sqm · Sea view · Sleeps 2', nightlyRate: '₱4,900', maxGuests: 2 },
       { id: 'dumaguete-suite', name: 'Corner suite', detail: '40 sqm · Balcony · Sleeps 4', nightlyRate: '₱7,600', maxGuests: 4 },

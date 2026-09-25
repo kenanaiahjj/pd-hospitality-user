@@ -30,6 +30,7 @@ import {
   Person,
   PersonSimpleWalk,
   Phone,
+  EnvelopeSimple,
   Plus,
   QrCode,
   Receipt,
@@ -6068,7 +6069,7 @@ function EmptyStayHome({
       </button>
 
       {recent.length > 0 ? (
-        <section>
+        <section className="guest-empty-history">
           <div className="guest-section-heading-row">
             <SectionHeading title="Previous stays" />
             {pastStays.length > recent.length ? (
@@ -6088,7 +6089,30 @@ function EmptyStayHome({
         </section>
       ) : null}
 
-      <TextButton onClick={() => onNavigate('front-desk-assist')}>Ask the front desk for help</TextButton>
+      {/*
+        No booking, so no front-desk chat: the one way to reach a hotel is the
+        phone or email. Every property, since the question may be about any.
+      */}
+      <section className="guest-hotel-contacts" aria-labelledby="guest-hotel-contacts-title">
+        <h2 id="guest-hotel-contacts-title" className="guest-hotel-contacts__title">Contact a hotel</h2>
+        <p className="guest-hotel-contacts__lead">Questions about a booking, or a stay to come? The front desk can help.</p>
+        <ul className="guest-hotel-contacts__list">
+          {ESTATE_PROPERTIES.map((property) => (
+            <li key={property.id} className="guest-hotel-contact">
+              <span className="guest-hotel-contact__thumb" aria-hidden="true"><PropertyImage property={property.name} aspectRatio="1" decorative /></span>
+              <span className="guest-hotel-contact__copy">
+                <b>{property.name}</b>
+                <span className="guest-hotel-contact__phone">{property.desk.phone}</span>
+                <small>{property.desk.hours}</small>
+              </span>
+              <span className="guest-hotel-contact__actions">
+                <a className="guest-hotel-contact__action" href={`tel:${property.desk.phone.replace(/\s/g, '')}`} aria-label={`Call ${property.name}, ${property.desk.phone}`}><Phone aria-hidden="true" /></a>
+                <a className="guest-hotel-contact__action" href={`mailto:${property.desk.email}`} aria-label={`Email ${property.name}, ${property.desk.email}`}><EnvelopeSimple aria-hidden="true" /></a>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

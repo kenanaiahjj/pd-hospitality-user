@@ -2812,6 +2812,25 @@ describe('signed-in home with no booking', () => {
   const returning = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
   const brandNew = createAccountSession('Ana Santos', 'ana@example.com', 'google');
 
+  /*
+    With no booking there is no front-desk chat, so the home has to say how
+    to reach a hotel. Ways it could fail:
+    1. A link into a chat the guest cannot use.
+    2. A number that is text only, so a phone cannot dial it.
+    3. Only one hotel, when the guest may be asking about another.
+  */
+  it('lists every hotel with a number to call and an address to email', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
+
+    const contacts = screen.getByRole('region', { name: 'Contact a hotel' });
+    for (const name of ['The Henry Manila', 'The Henry Cebu', 'The Henry Dumaguete']) {
+      expect(within(contacts).getByText(name)).toBeInTheDocument();
+    }
+    expect(within(contacts).getAllByRole('link', { name: /^Call / })[0]).toHaveAttribute('href', expect.stringMatching(/^tel:\+63/));
+    expect(within(contacts).getAllByRole('link', { name: /^Email / })[0]).toHaveAttribute('href', expect.stringMatching(/^mailto:/));
+    expect(screen.queryByRole('button', { name: 'Ask the front desk for help' })).toBeNull();
+  });
+
   it('starts the signed-in, no-booking flow at booking lookup after Google SSO', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
@@ -2856,7 +2875,8 @@ describe('signed-in home with no booking', () => {
     expect(screen.getByRole('heading', { name: 'Hello, Ana' })).toBeInTheDocument();
 
     expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
-    expect(screen.queryByText(/The Henry Cebu/)).toBeNull();
+    // Cebu is still named under Contact a hotel; what must be absent is a stay there.
+    expect(document.querySelector('.guest-history-card')).toBeNull();
     expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
   });
 

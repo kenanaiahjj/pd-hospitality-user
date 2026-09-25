@@ -8,11 +8,12 @@ import type { Map as LeafletMap, Marker } from 'leaflet';
 /*
   Nearby places on a map, with the hotel at the centre.
 
-  Leaflet over OpenStreetMap's standard tiles, turned grey in CSS: no key,
-  and the quiet base lets the photo pins carry the colour. (CARTO's grey
-  tiles now require a key and watermark without one.) Leaflet touches `window`, so it
-  is imported inside the effect rather than at module load, which keeps the
-  page prerenderable.
+  Leaflet over Esri's Light Gray Canvas: a muted base of soft roads and
+  quiet labels, warmed a touch in CSS, so the photo pins carry the colour
+  -- the look of a maps app's muted style. OpenStreetMap's standard tiles,
+  greyed, stayed busy (every land use still drawn), and CARTO's grey tiles
+  need a key. Leaflet touches `window`, so it is imported inside the effect
+  rather than at module load, which keeps the page prerenderable.
 */
 
 type LatLng = [number, number];
@@ -112,18 +113,27 @@ export function NearbyMap({ city, property, propertyImage, places, onSelect }: P
     void import('leaflet').then((L) => {
       if (cancelled || !mapNode.current) return;
       const map = L.map(mapNode.current, { zoomControl: false, attributionControl: true, zoomSnap: 0.25 }).setView(hotel, 15);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19,
+      const canvas = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas';
+      // Base and labels are separate layers, so the labels sit crisp over the warmed base.
+      L.tileLayer(`${canvas}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`, {
+        attribution: 'Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+        maxNativeZoom: 16,
+        maxZoom: 18,
+      }).addTo(map);
+      L.tileLayer(`${canvas}/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, {
+        maxNativeZoom: 16,
+        maxZoom: 18,
+        className: 'guest-map-labels',
       }).addTo(map);
       L.marker(hotel, {
-        icon: L.divIcon({ className: 'guest-map-marker', html: pinHtml(propertyImage, property, true), iconSize: [52, 52], iconAnchor: [26, 26] }),
+        icon: L.divIcon({ className: 'guest-map-marker guest-map-marker--hotel', html: pinHtml(propertyImage, property, true), iconSize: [46, 46], iconAnchor: [23, 23] }),
         keyboard: false,
         zIndexOffset: 1000,
       }).addTo(map);
       for (const { place, at } of positions) {
         const marker = L.marker(at, {
-          icon: L.divIcon({ className: 'guest-map-marker', html: pinHtml(place.image, place.name), iconSize: [40, 40], iconAnchor: [20, 20] }),
+          // Anchored at the tail's tip: the pin stands on its place, as a maps app's does.
+          icon: L.divIcon({ className: 'guest-map-marker', html: pinHtml(place.image, place.name), iconSize: [38, 38], iconAnchor: [19, 44] }),
           title: place.name,
         }).addTo(map);
         marker.on('click', () => {
@@ -134,7 +144,7 @@ export function NearbyMap({ city, property, propertyImage, places, onSelect }: P
       }
       if (positions.length) {
         // Extra room below the points for the hotel's label, which hangs under its pin.
-        map.fitBounds(L.latLngBounds([hotel, ...positions.map((entry) => entry.at)]), { paddingTopLeft: [28, 28], paddingBottomRight: [28, 64], maxZoom: 17 });
+        map.fitBounds(L.latLngBounds([hotel, ...positions.map((entry) => entry.at)]), { paddingTopLeft: [36, 72], paddingBottomRight: [36, 56], maxZoom: 16 });
       }
       markers.get(activeRef.current ?? '')?.getElement()?.classList.add('is-active');
       mapRef.current = map;

@@ -6971,49 +6971,62 @@
   height: clamp(200px, calc(100dvh - 540px), 380px);
   border-radius: var(--guest-radius-lg);
   overflow: hidden;
-  background: #e8e6e1;
-  box-shadow: var(--shadow-sm), inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  background: #e6e2da;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
   /* Leaflet's panes sit at z-index 400+; keep them under the app bar and sheets. */
   isolation: isolate;
   z-index: 0;
 }
-/* OpenStreetMap's colour, quietened to the Places grey. */
-.guest-nearby-map__canvas .leaflet-tile-pane { filter: grayscale(1) sepia(0.1) brightness(1.05) contrast(0.86); }
-.guest-nearby-map__canvas .leaflet-control-attribution { font-size: 9px; background: rgb(255 255 255 / 0.7); }
+/* Esri's grey canvas, warmed toward the muted beige of a maps app. */
+.guest-nearby-map__canvas .leaflet-tile-pane { filter: sepia(0.14) saturate(0.55) brightness(0.985) contrast(0.92); }
+.guest-nearby-map__canvas .guest-map-labels { opacity: 0.8; }
+.guest-nearby-map__canvas .leaflet-control-attribution { padding: 0 6px; font-size: 8.5px; background: rgb(255 255 255 / 0.55); color: rgb(0 0 0 / 0.45); }
+.guest-nearby-map__canvas .leaflet-control-attribution a { color: inherit; }
 .guest-map-marker { background: none; border: 0; }
+
+/* A photo in a white rounded square that stands on its place with a small tail. */
 .guest-map-pin {
+  position: relative;
   display: block;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   padding: 3px;
-  border-radius: 12px;
+  border-radius: 11px;
   background: #fff;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.22);
-  transition: transform var(--duration-fast) var(--ease-out);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.16), 0 4px 12px rgb(0 0 0 / 0.16);
+  transform-origin: 50% calc(100% + 6px);
+  transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+.guest-map-pin::after {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  content: '';
+  border-radius: 0 0 3px 0;
+  background: #fff;
+  transform: translateX(-50%) rotate(45deg);
 }
 /* Out-specifies Leaflet's own `.leaflet-marker-pane img { width: auto }`, which stretched the photos. */
-.leaflet-container .leaflet-marker-pane .guest-map-pin img { display: block; width: 100%; height: 100%; border-radius: 9px; object-fit: cover; }
-.guest-map-marker.is-active .guest-map-pin { transform: scale(1.35); box-shadow: 0 0 0 2px var(--guest-accent-strong), 0 4px 10px rgb(0 0 0 / 0.28); }
-.guest-map-pin--hotel {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--guest-accent-strong);
-}
+.leaflet-container .leaflet-marker-pane .guest-map-pin img { position: relative; z-index: 1; display: block; width: 100%; height: 100%; border-radius: 8px; object-fit: cover; }
+.guest-map-marker.is-active .guest-map-pin { transform: scale(1.55); box-shadow: 0 2px 4px rgb(0 0 0 / 0.16), 0 10px 22px rgb(0 0 0 / 0.22); }
+
+/* The hotel: round, the same white rim, named underneath like a map label. */
+.guest-map-pin--hotel { width: 46px; height: 46px; border-radius: 50%; transform-origin: 50% 50%; }
+.guest-map-pin--hotel::after { display: none; }
 .leaflet-container .leaflet-marker-pane .guest-map-pin--hotel img { border-radius: 50%; }
 .guest-map-pin__label {
   position: absolute;
-  top: 56px;
+  top: 50px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: var(--guest-ink);
-  color: #fff;
-  font-size: 11.5px;
-  font-weight: 650;
+  color: #57524b;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   white-space: nowrap;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+  text-shadow: 0 0 2px #f4f1ea, 0 0 4px #f4f1ea, 0 0 6px #f4f1ea;
 }
 .guest-nearby-map__rail {
   display: grid;

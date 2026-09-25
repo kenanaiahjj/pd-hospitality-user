@@ -2269,8 +2269,8 @@
 .guest-message--desk p { border: 1px solid var(--guest-line); }
 .guest-message small { color: var(--guest-subtle); font-size: 11px; }
 .guest-message--guest { align-self: flex-end; justify-items: end; }
-.guest-message--guest p { background: var(--guest-invert); color: var(--guest-on-invert); }
-.guest-message--guest small { color: var(--guest-on-invert-muted); }
+.guest-message--guest p { background: var(--guest-brand); color: var(--guest-on-accent); }
+.guest-message--guest small { color: var(--guest-muted); }
 .guest-message--continued.guest-message--desk p { border-top-left-radius: 8px; }
 .guest-message--continued.guest-message--guest p { border-top-right-radius: 8px; }
 .guest-chat--welcome .guest-message { max-width: min(92%, 360px); }
@@ -4309,6 +4309,25 @@
   align-items: center;
   margin-bottom: 8px;
 }
+
+/* The stay as a one-line reminder on its own detail screens. */
+.guest-stay-card--compact {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 10px;
+  border: 0;
+  border-radius: var(--guest-radius-md);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line);
+}
+.guest-stay-card__thumb { overflow: hidden; width: 52px; height: 52px; border-radius: 12px; }
+.guest-stay-card__thumb .guest-property-image { width: 100%; height: 100%; border-radius: 0; }
+.guest-stay-card__summary { display: grid; gap: 2px; min-width: 0; }
+.guest-stay-card__summary b { overflow: hidden; font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.guest-stay-card__summary small { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-stay-card__state { color: var(--guest-positive); font-size: 12px; font-weight: 650; }
 
 /* --------------------------------------------------------------------------
    Who's staying: one manifest for everyone on the booking, lead first.

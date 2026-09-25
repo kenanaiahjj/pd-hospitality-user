@@ -3590,7 +3590,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const bookingGuests = listBookingGuests(displayBooking, session);
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system.">
-            <StayCard booking={displayBooking} />
+            <StayCard booking={displayBooking} compact />
             <RoomExtensionCard booking={displayBooking} onExtend={openExtensionChat} />
 
             {/*
@@ -6231,9 +6231,26 @@ function TextButton({ children, onClick, disabled }: { children: ReactNode; onCl
   return <Button className="guest-text-button" variant="ghost" type="button" onClick={onClick} disabled={disabled}>{children}</Button>;
 }
 
-function StayCard({ booking }: { booking: Booking }) {
+/**
+ * `compact` is a one-line reminder of which stay a detail screen is about --
+ * the home already shows this stay large, so a second hero only pushes the
+ * details below the fold.
+ */
+function StayCard({ booking, compact = false }: { booking: Booking; compact?: boolean }) {
   const checkIn = new Date(`${booking.checkIn}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   const checkOut = new Date(`${booking.checkOut}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  if (compact) {
+    return (
+      <div className="guest-stay-card guest-stay-card--compact">
+        <span className="guest-stay-card__thumb"><PropertyImage property={booking.property} aspectRatio="1" decorative /></span>
+        <span className="guest-stay-card__summary">
+          <b>{booking.property}</b>
+          <small>{booking.roomType} · {formatStayDateRange(booking)}</small>
+        </span>
+        <span className="guest-stay-card__state">Confirmed</span>
+      </div>
+    );
+  }
   return (
     <div className="guest-stay-card">
       <div className="guest-stay-card__art">

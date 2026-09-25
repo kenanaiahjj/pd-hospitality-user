@@ -8564,3 +8564,113 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-preference-chip.is-selected { border-color: var(--guest-ink); box-shadow: 0 0 0 1px var(--guest-ink); }
 .guest-preference-chip:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .guest-preference-chip { transition: none; } }
+
+/* --- Book another stay: the estate as tall photo cards ------------------------ */
+.guest-book-stay { gap: 22px; }
+.guest-book-stay__title { gap: 6px; }
+.guest-book-stay__direct {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 6px 12px 6px 9px;
+  border: 1px solid var(--guest-line);
+  border-radius: 999px;
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  font-size: 13px;
+  font-weight: 550;
+}
+.guest-book-stay__direct svg { width: 16px; height: 16px; color: oklch(0.72 0.11 80); }
+.guest-book-stay__list { display: grid; gap: 18px; }
+
+.guest-estate-card {
+  position: relative;
+  display: grid;
+  align-items: end;
+  aspect-ratio: 4 / 5;
+  max-height: 520px;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 26px;
+  background: oklch(0.2 0.02 350);
+  box-shadow: 0 2px 4px oklch(0 0 0 / 0.06), 0 18px 40px oklch(0 0 0 / 0.14);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  isolation: isolate;
+  transition: transform 260ms var(--ease-out), box-shadow 260ms var(--ease-out);
+}
+.guest-estate-card__image { z-index: -2; object-fit: cover; transition: transform 700ms var(--ease-out); }
+.guest-estate-card__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(to bottom, oklch(0 0 0 / 0.28), transparent 26%),
+    linear-gradient(to top, oklch(0.12 0.02 350 / 0.92), oklch(0.12 0.02 350 / 0.55) 38%, transparent 66%);
+}
+.guest-estate-card__badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.92);
+  color: var(--guest-brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.guest-estate-card__badge[data-kind="new"] { background: oklch(0.8 0.1 85); color: oklch(0.25 0.04 60); }
+.guest-estate-card__body { display: grid; gap: 6px; padding: 22px 20px 20px; }
+.guest-estate-card__where { color: oklch(1 0 0 / 0.78); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.guest-estate-card__name {
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.guest-estate-card__tagline { max-width: 34ch; color: oklch(1 0 0 / 0.84); font-size: 14px; line-height: 1.4; }
+.guest-estate-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.guest-estate-card__rate {
+  display: grid;
+  gap: 2px;
+  padding: 9px 14px;
+  border: 1px solid oklch(1 0 0 / 0.22);
+  border-radius: 16px;
+  background: oklch(1 0 0 / 0.14);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+.guest-estate-card__rate b { font-size: 14.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.guest-estate-card__rate small { color: oklch(1 0 0 / 0.76); font-size: 12px; }
+.guest-estate-card__go {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--guest-brand);
+  transition: transform 260ms var(--ease-out);
+}
+.guest-estate-card__go svg { width: 18px; height: 18px; }
+.guest-estate-card:active { transform: scale(0.985); }
+.guest-estate-card:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) {
+  .guest-estate-card:hover { transform: translateY(-3px); box-shadow: 0 4px 8px oklch(0 0 0 / 0.08), 0 26px 52px oklch(0 0 0 / 0.18); }
+  .guest-estate-card:hover .guest-estate-card__image { transform: scale(1.04); }
+  .guest-estate-card:hover .guest-estate-card__go { transform: translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guest-estate-card,
+  .guest-estate-card__image,
+  .guest-estate-card__go { transition: none; }
+}

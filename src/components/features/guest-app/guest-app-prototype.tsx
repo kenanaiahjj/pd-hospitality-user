@@ -38,6 +38,7 @@ import {
   Sparkle,
   Storefront,
   Moped,
+  SealCheck,
   NavigationArrow,
   SwimmingPool,
   Ticket,
@@ -2932,38 +2933,54 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'identify':
         return renderBookingLookup();
 
-      case 'book-stay':
+      case 'book-stay': {
+        const lastStay = lastStayProperty(session);
+        const firstName = session.guestName.trim().split(/\s+/)[0];
         return (
-          <div className="guest-stack guest-category-listing">
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">Book another stay</p>
+          <div className="guest-stack guest-book-stay">
+            <div className="guest-page-title guest-book-stay__title">
+              <p className="guest-eyebrow">{firstName ? `Welcome back, ${firstName}` : 'Book another stay'}</p>
               <h1>Where to next?</h1>
-              <p>Three properties in the estate. Booking here is direct with the hotel, with no agency in between.</p>
+              <p className="guest-book-stay__direct"><SealCheck weight="fill" aria-hidden="true" />Direct with the hotel · no agency in between</p>
             </div>
 
-            {ESTATE_PROPERTIES.map((property) => (
-              <button
-                key={property.id}
-                className="guest-property-card"
-                type="button"
-                onClick={() => {
-                  setStayDraft((draft) => ({ ...draft, propertyId: property.id, roomTypeId: '' }));
-                  go('book-stay-dates');
-                }}
-              >
-                <PropertyImage property={property.name} aspectRatio="16/8" decorative />
-                <span className="guest-property-card__body">
-                  <b>{property.name}</b>
-                  <small>{property.tagline}</small>
-                  <span className="guest-property-card__rate">
-                    From {propertyFromRate(property)} a night
-                    <CaretRight aria-hidden="true" />
-                  </span>
-                </span>
-              </button>
-            ))}
+            <div className="guest-book-stay__list">
+              {ESTATE_PROPERTIES.map((property) => {
+                const image = getPropertyImage(property.name);
+                const sleeps = Math.max(...property.roomTypes.map((room) => room.maxGuests));
+                const badge = property.name === lastStay ? 'Your last stay' : isNewlyOpened(property) ? 'New' : undefined;
+                return (
+                  <button
+                    key={property.id}
+                    className="guest-estate-card"
+                    type="button"
+                    onClick={() => {
+                      setStayDraft((draft) => ({ ...draft, propertyId: property.id, roomTypeId: '' }));
+                      go('book-stay-dates');
+                    }}
+                  >
+                    <Image className="guest-estate-card__image" src={image.src} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 480px" style={{ objectPosition: image.focalPoint }} />
+                    <span className="guest-estate-card__scrim" aria-hidden="true" />
+                    {badge ? <span className="guest-estate-card__badge" data-kind={badge === 'New' ? 'new' : 'last'}>{badge}</span> : null}
+                    <span className="guest-estate-card__body">
+                      <small className="guest-estate-card__where">{property.city} · {ISLAND_GROUP_LABEL[property.islandGroup] ?? property.islandGroup}</small>
+                      <b className="guest-estate-card__name">{property.name}</b>
+                      <span className="guest-estate-card__tagline">{property.tagline}</span>
+                      <span className="guest-estate-card__foot">
+                        <span className="guest-estate-card__rate">
+                          <b>From {propertyFromRate(property)} a night</b>
+                          <small>{countOf(property.roomTypes.length, 'room type')} · sleeps up to {sleeps}</small>
+                        </span>
+                        <span className="guest-estate-card__go" aria-hidden="true"><ArrowRight /></span>
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         );
+      }
 
       case 'book-stay-dates': {
         const property = findEstateProperty(stayDraft.propertyId);
@@ -6747,6 +6764,23 @@ function defaultFeedClock(booking: Booking): FeedClock {
   const nights = Math.max(1, countNightsBetween(booking.checkIn, booking.checkOut));
   const day = countNightsBetween(booking.checkIn, PROTOTYPE_TODAY) + 1;
   return { dayOfStay: Math.min(nights + 1, Math.max(1, day)), hour: 19 };
+}
+
+const ISLAND_GROUP_LABEL: Record<string, string> = { luzon: 'Luzon', visayas: 'Visayas', mindanao: 'Mindanao' };
+
+/** Opened within the last half year: "New" means new, not "newer than Manila". */
+function isNewlyOpened(property: { openedOn?: string }) {
+  if (!property.openedOn || property.openedOn > PROTOTYPE_TODAY) return false;
+  return countNightsBetween(property.openedOn, PROTOTYPE_TODAY) <= 183;
+}
+
+/** Where the guest last stayed: the latest stay already over, from bookings or history. */
+function lastStayProperty(session: GuestSession): string | undefined {
+  const over = [
+    ...session.bookings.filter((booking) => booking.checkOut <= PROTOTYPE_TODAY),
+    ...session.pastStays,
+  ].sort((a, b) => b.checkOut.localeCompare(a.checkOut));
+  return over[0]?.property;
 }
 
 /** Browse, the old-fashioned way: each lands on its existing page. */

@@ -2025,6 +2025,23 @@ describe('booking another stay', () => {
   });
 
   /*
+    Badges only from facts the app holds. Ways they could lie:
+    1. "Your last stay" on a hotel the guest has not stayed at.
+    2. "New" on a property that has been open for years.
+    3. A badge on every card, so none of them means anything.
+  */
+  it('marks the hotel of the last stay and the newly opened one, and nothing else', () => {
+    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
+
+    const card = (name: string) => screen.getByRole('button', { name: new RegExp(name) });
+    expect(card('The Henry Manila')).toHaveTextContent('Your last stay');
+    expect(card('The Henry Dumaguete')).toHaveTextContent('New');
+    expect(card('The Henry Cebu')).not.toHaveTextContent(/Your last stay|New/);
+    expect(card('The Henry Manila')).toHaveTextContent('3 room types · sleeps up to 5');
+    expect(screen.getByText(/Welcome back/)).toBeInTheDocument();
+  });
+
+  /*
     Offering a room that cannot hold the party and refusing it at checkout
     wastes the guest's time, so capacity filters the list.
   */

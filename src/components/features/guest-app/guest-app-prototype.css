@@ -2210,7 +2210,28 @@
 .guest-chat__welcome p { margin: 0; color: var(--guest-muted); font-size: 16px; }
 .guest-chat__welcome h2 { max-width: 24ch; margin: 0; font-size: clamp(23px, 6vw, 28px); font-weight: 550; letter-spacing: -0.026em; line-height: 1.22; }
 /* Before the first message, the requests sit under the question they answer. */
-.guest-chat__welcome .guest-quick-actions { justify-self: stretch; width: 100%; margin-top: 20px; text-align: left; }
+.guest-chat__welcome .guest-quick-actions { justify-self: stretch; width: 100%; margin-top: 20px; }
+.guest-quick-actions.guest-quick-actions--chips .guest-quick-actions__rail {
+  flex-wrap: wrap;
+  justify-content: center;
+  overflow: visible;
+  padding: 0;
+  scroll-snap-type: none;
+}
+/* Doubled class: this sits before the card rules it overrides. */
+.guest-quick-actions.guest-quick-actions--chips button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 40px;
+  padding: 9px 16px;
+  border: 1px solid var(--guest-line-strong);
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-paper);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* The request rail stays above the composer and scrolls independently on
    narrow screens, keeping every existing action one swipe away. */

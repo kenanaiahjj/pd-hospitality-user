@@ -1511,8 +1511,6 @@ describe('pre-arrival onboarding flow', () => {
 
     // Marco Santos is listed after the lead, removable
     expect(screen.getByText('Marco Santos')).toBeInTheDocument();
-    expect(screen.getByText('Booking for 2 guests')).toBeInTheDocument();
-
     // 2. The list's last row adds a guest and opens the details step
     await user.click(screen.getByRole('button', { name: 'Add a guest' }));
     expect(screen.getByRole('heading', { name: 'Who is staying with you?' })).toBeInTheDocument();

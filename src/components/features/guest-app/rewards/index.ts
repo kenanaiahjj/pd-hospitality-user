@@ -8,13 +8,15 @@ export { BadgeShelf } from './badge-shelf';
 export type { BadgeShelfProps } from './badge-shelf';
 export { EstateMap } from './estate-map';
 export type { EstateMapProps } from './estate-map';
+export { AchievementSections } from './achievement-sections';
+export type { AchievementSectionsProps } from './achievement-sections';
 export { PointsApply, maxApplicable, pesosOff } from './points-apply';
 export { PointsEarned } from './points-earned';
 export type { PointsEarnedProps } from './points-earned';
 export type { PointsApplyProps } from './points-apply';
 export { RewardDetail, RewardMenu } from './reward-menu';
 export type { RewardDetailProps, RewardMenuProps } from './reward-menu';
-export { PointsWallet, rewardFloorValue } from './points-wallet';
+export { PointsActivity, PointsWallet, rewardFloorValue } from './points-wallet';
 export type { PointsWalletProps } from './points-wallet';
 
 export {

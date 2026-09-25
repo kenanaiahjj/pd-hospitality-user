@@ -1,5 +1,6 @@
 'use client';
 
+import { CaretRight } from '@phosphor-icons/react';
 import { formatPesoAmount } from '../prototype-model';
 import { BadgeMedal } from './badge-medal';
 import type { BadgeProgress } from './badge-model';
@@ -25,6 +26,8 @@ export type PointsWalletProps = {
   expiry: string;
   /** The badge nearest to earned, shown as the other thing in reach. */
   nearest?: BadgeProgress;
+  /** Keep the ledger in the wallet on screens that do not split it into a tab. */
+  showActivity?: boolean;
   /**
    * Absent until the reward detail screen exists. A control that navigates
    * nowhere is worse than a line of text, so without this the block is text.
@@ -48,7 +51,7 @@ function Pressable({
 }
 
 export function PointsWallet({
-  balance, affordable, nextUp, ledger, expiry, nearest, onOpenReward,
+  balance, affordable, nextUp, ledger, expiry, nearest, showActivity = true, onOpenReward,
 }: PointsWalletProps) {
   /* The best thing in reach, which is what the balance means today. */
   const best = affordable[affordable.length - 1];
@@ -60,34 +63,49 @@ export function PointsWallet({
         <span>points · {pointsAsPesos(balance)} off anything</span>
       </p>
 
-      {best ? (
-        <Pressable
-          className="points-wallet__buys"
-          onPress={onOpenReward ? () => onOpenReward(best.id) : undefined}
-        >
-          <span>That is</span>
-          <b>{best.title}</b>
-          <small>
-            {points(best.points)} points
-            {balance > best.points ? ` · ${points(balance - best.points)} left over` : null}
-          </small>
-        </Pressable>
-      ) : (
-        <p className="points-wallet__buys points-wallet__buys--empty">
-          Book anything on property and this starts filling in.
-        </p>
-      )}
+      <section className="points-wallet__reach" aria-labelledby="points-wallet-reach-heading">
+        <h3 className="points-wallet__heading" id="points-wallet-reach-heading">Rewards within reach</h3>
+        <div className="points-wallet__opportunities">
+          {best ? (
+            <Pressable
+              className="points-wallet__buys"
+              onPress={onOpenReward ? () => onOpenReward(best.id) : undefined}
+            >
+              <span className="points-wallet__opportunity-copy">
+                <b>{best.title}</b>
+                <small>{best.detail}</small>
+              </span>
+              <span className="points-wallet__opportunity-cost">
+                <b>{points(best.points)} points</b>
+                <small>{balance > best.points ? `${points(balance - best.points)} points left over` : 'Ready to redeem'}</small>
+              </span>
+              {onOpenReward ? <CaretRight aria-hidden="true" /> : null}
+            </Pressable>
+          ) : (
+            <p className="points-wallet__buys points-wallet__buys--empty">
+              Book anything on property and this starts filling in.
+            </p>
+          )}
 
-      {/* Something out of reach, or the balance has nothing left to pull toward. */}
-      {nextUp ? (
-        <Pressable
-          className="points-wallet__next"
-          onPress={onOpenReward ? () => onOpenReward(nextUp.id) : undefined}
-        >
-          <b>{nextUp.title}</b>
-          <small>{points(nextUp.points - balance)} points away</small>
-        </Pressable>
-      ) : null}
+          {/* The next reward keeps a useful target in view without competing with the balance. */}
+          {nextUp ? (
+            <Pressable
+              className="points-wallet__next"
+              onPress={onOpenReward ? () => onOpenReward(nextUp.id) : undefined}
+            >
+              <span className="points-wallet__opportunity-copy">
+                <b>{nextUp.title}</b>
+                <small>{nextUp.detail}</small>
+              </span>
+              <span className="points-wallet__opportunity-cost">
+                <b>{points(nextUp.points - balance)}</b>
+                <small>points away</small>
+              </span>
+              {onOpenReward ? <CaretRight aria-hidden="true" /> : null}
+            </Pressable>
+          ) : null}
+        </div>
+      </section>
 
       {nearest ? (
         <div className="points-wallet__nearest">
@@ -99,7 +117,28 @@ export function PointsWallet({
         </div>
       ) : null}
 
-      <h2 className="points-wallet__heading">Recent activity</h2>
+      {showActivity ? <PointsActivity ledger={ledger} expiry={expiry} /> : null}
+    </section>
+  );
+}
+
+export function PointsActivity({
+  ledger,
+  expiry,
+  showHeading = true,
+}: Pick<PointsWalletProps, 'ledger' | 'expiry'> & { showHeading?: boolean }) {
+  if (ledger.length === 0) {
+    return (
+      <>
+        {showHeading ? <h2 className="points-wallet__heading">Recent activity</h2> : null}
+        <p className="points-wallet__empty">Points you earn will appear here.</p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {showHeading ? <h2 className="points-wallet__heading">Recent activity</h2> : null}
       <ul className="points-wallet__ledger">
         {ledger.map((entry) => (
           <li key={entry.id}>
@@ -117,7 +156,7 @@ export function PointsWallet({
       <p className="points-wallet__expiry">
         Points last until {expiry}. Any new stay resets the clock.
       </p>
-    </section>
+    </>
   );
 }
 

@@ -199,10 +199,10 @@ evidence that the requested app is covered.
 - On-property booking and charge-to-room are gated on
   `canUseOnPropertyServices`, never on dates alone. Do not re-derive the gate
   at a call site.
-- The second tab slot is resolved by `describeBookingSlot`: Arrival before the
-  stay window opens, Explore once it does, Book again after checkout. Four
-  slots always, in fixed order. Explore is locked only for a guest who has
-  arrived and not scanned.
+- The second tab slot is always `Explore`, resolved by `describeBookingSlot`.
+  It shows arrival services before the room scan, the on-property catalogue
+  after the scan, and partner hotels after checkout. It is locked only for a
+  guest who has arrived and not scanned.
 - The front desk is reachable in every gate except a stay whose 24-hour
   post-checkout window has closed.
 - Reviews are private to the property. Nothing publishes a score.
@@ -366,6 +366,23 @@ The confirmation repeats that the charge was added to the room and settles
 with the hotel folio at checkout. `My bookings` shows the confirmed service
 and its property, room, and settlement context. `Room charges` shows the
 service as a folio line.
+
+During a verified active stay, every paid order placed through the hotel's
+on-property catalogue — including food, shop items, rentals, and partner
+services — is added to the active room folio automatically and settled at
+checkout. Do not offer an immediate card, GCash, or Maya payment choice for
+these orders. Keep room verification as the gate for in-stay ordering and
+charging. Pre-arrival services remain a separate flow.
+
+Rental forms ask for the number of units being rented, separately from the
+number of guests. Store this as `rentalQuantity` and multiply the per-unit rate
+by that quantity when calculating the folio amount.
+
+`My Stay` shows a scannable vendor folio QR only for a verified active stay
+with an assigned room. It is distinct from the room-presence QR and encodes
+only the property and folio reference, not guest details. The prototype does
+not connect that reference to a vendor portal or hotel-tab settlement; a live
+integration needs server-issued validation and an affiliated-vendor flow.
 
 ### Cancellation and support
 
@@ -584,14 +601,12 @@ and inspect `git status --short` before and after any commit.
   test suite deterministic.
 - QR linking, booking lookup, ID capture, and hotel availability are simulated.
   So is the verification code on `verify-contact`: any six digits pass.
-### Finished stay: receipt, and booking another
+### Finished stay: settled receipt and partner hotels
 
 My Stay branches on `describeStayStatus(...).status === 'checked-out'`. A stay
-that is over is a receipt, not a running total: the live dot goes, "This stay so
-far" is replaced by the settled summary, and the docked action becomes `Book
-another stay` with the front desk demoted to a quiet row beneath it. The
-Upcoming/Past tabs stay so guests can distinguish future services from
-completed or cancelled bookings.
+that is over is a receipt, not a running total: the live dot goes and "This stay
+so far" is replaced by the settled summary. The Upcoming/Past tabs stay so
+guests can distinguish future services from completed or cancelled bookings.
 
 `toFinishedStay(session, booking)` renders the finished `Booking` as the
 `PastStay` it has become, so the receipt on My Stay and the one on `stay-detail`
@@ -604,22 +619,16 @@ are the same object. It is deliberately not `getRoomCharges`, which answers
 `folioTotal`: that is the total charged *against* the room, so using it as the
 room's own price understates the room and counts every extra twice.
 
-```text
-my-stay -> book-stay -> book-stay-dates -> book-stay-rooms
-        -> book-stay-checkout -> book-stay-confirmation
-```
+After checkout, the second navigation tab stays named `Explore` and opens
+`partner-hotels`. The directory has the three Henry properties in the current
+prototype. Each opens `partner-hotel-detail`, which shows hotel information and
+links to Agoda, Booking.com, and the hotel's website. Rates, availability,
+reservations, and payment stay on those external sites; Cabana does not create a
+hotel booking.
 
-`ESTATE_PROPERTIES` holds the three properties with their room types and nightly
-rates. `quoteStay` applies 12% — the same rate `rate-detail` already shows for an
-OTA booking, so a direct booking does not appear to be taxed differently.
-`createStayBooking` mints the reservation with `source: 'Direct booking'` and
-pre-arrival reset to zero: a different property holds its own registration
-record and has not seen this guest's ID.
-
-This is not hotel search, and `no-booking` keeps its line about Cabana not being
-a place to compare hotels. The flow is reachable only from a stay the guest has
-already finished — retention, not acquisition — and a direct booking displaces
-an OTA's commission.
+`ESTATE_PROPERTIES` remains the source for room-rate fallback and front-desk
+contact fixtures. It is not booking inventory. `no-booking` still has no hotel
+directory, so guests without a finished stay cannot use post-stay discovery.
 
 - The floating `PrototypeControls` panel (collapsed behind a wrench, bottom
   right) switches the stay between `signed-out`, `pre-arrival`, `live` and

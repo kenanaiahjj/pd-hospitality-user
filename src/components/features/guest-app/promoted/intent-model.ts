@@ -123,7 +123,7 @@ export type IntentResult = {
     id: string;
     title: string;
     category: string;
-    price: string;
+    price?: string;
     why: string;
     image: ServiceImageDefinition;
   }>;
@@ -137,7 +137,11 @@ function describe(id: string) {
   }
   const venue = RESTAURANTS.find((entry) => entry.id === id);
   if (venue) {
-    return { title: venue.name, category: venue.category, price: venue.priceRange };
+    return {
+      title: venue.name,
+      category: venue.category,
+      ...(venue.priceRange ? { price: venue.priceRange } : {}),
+    };
   }
   return undefined;
 }

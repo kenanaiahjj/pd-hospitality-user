@@ -33,6 +33,7 @@ export function ReelView({ entry, active, onAction }: ReelViewProps) {
   const { story } = entry;
   const reducedMotion = usePrefersReducedMotion();
   const [frame, setFrame] = useState(0);
+  const priceInAction = Boolean(story.price && /₱\s*[\d,]+/.test(story.price));
   const count = story.slides.length;
   const slide = story.slides[Math.min(frame, count - 1)]!;
 
@@ -83,22 +84,26 @@ export function ReelView({ entry, active, onAction }: ReelViewProps) {
       ) : null}
 
       <div className="reel__foot">
-        <p className="reel__why">{entry.why}</p>
-        <p className="reel__author">
-          <span className="reel__avatar" aria-hidden="true">
-            <Image src={story.author.image.src} alt="" fill sizes="28px" style={{ objectPosition: story.author.image.focalPoint }} />
-          </span>
-          {story.author.name}
-          {story.author.kind === 'property' ? <SealCheck className="reel__badge" weight="fill" aria-label="Posted by the hotel" /> : null}
-        </p>
-        {/* The place's name holds across frames; each frame adds its own line
-            under it ("Open today · 6:30 AM – 11:00 PM"), never the price twice. */}
-        <h2 className="reel__title">{story.title}</h2>
-        {frameLine ? <p className="reel__detail">{frameLine}</p> : null}
+        <div className="reel__story">
+          <h2 className="reel__title">{story.title}</h2>
+          {story.subtitle ? <p className="reel__subtitle">{story.subtitle}</p> : null}
+          {/* The place's name holds across frames; each frame adds its own line
+              under it ("Open today · 6:30 AM – 11:00 PM"), never the price twice. */}
+          {frameLine ? <p className="reel__detail">{frameLine}</p> : null}
+          <p className="reel__author">
+            <span className="reel__avatar" aria-hidden="true">
+              <Image src={story.author.image.src} alt="" fill sizes="28px" style={{ objectPosition: story.author.image.focalPoint }} />
+            </span>
+            {story.author.name}
+            {story.author.kind === 'property' ? <SealCheck className="reel__badge" weight="fill" aria-label="Posted by the hotel" /> : null}
+          </p>
+        </div>
         <div className="reel__meta">
-          <span>{story.price}</span>
-          <button type="button" className="reel__action" onClick={() => onAction(entry)}>
-            {story.cta}<ArrowRight aria-hidden="true" />
+          {story.price && !priceInAction ? <span>{story.price}</span> : null}
+          <button type="button" className={`reel__action${priceInAction ? ' reel__action--priced' : ''}`} onClick={() => onAction(entry)}>
+            <span className="reel__action-label">{story.cta}</span>
+            {priceInAction ? <span className="reel__action-price">{story.price}</span> : null}
+            <ArrowRight aria-hidden="true" />
           </button>
         </div>
       </div>

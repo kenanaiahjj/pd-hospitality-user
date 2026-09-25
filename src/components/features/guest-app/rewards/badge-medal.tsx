@@ -11,7 +11,7 @@ import {
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 
-import { BADGE_FAMILIES } from './badge-model';
+import { BADGE_FAMILIES, BADGE_STAMP_GOLD } from './badge-model';
 import type { BadgeDefinition } from './badge-model';
 
 /*
@@ -101,6 +101,7 @@ export function BadgeMedal({ badge, earned, size = 48, shimmer = false, decorati
       style={{
         '--medal-size': `${size}px`,
         '--medal-enamel': family.enamel,
+        '--medal-stamp-gold': BADGE_STAMP_GOLD,
         // The shimmer is masked by the art itself, so it follows the drawn medal.
         ...(badge.art ? { '--medal-art': `url(${badge.art})` } : {}),
       } as React.CSSProperties}
@@ -114,7 +115,7 @@ export function BadgeMedal({ badge, earned, size = 48, shimmer = false, decorati
           <Lock className="badge-medal__lock" weight="fill" aria-hidden="true" />
         </span>
       ) : badge.art ? (
-        <Image src={badge.art} alt="" width={size * 4} height={size * 4} />
+        <Image className="badge-medal__art" src={badge.art} alt="" width={size * 4} height={size * 4} />
       ) : (
         <span className="badge-medal__field">
           {Glyph ? <Glyph weight="duotone" aria-hidden="true" /> : null}

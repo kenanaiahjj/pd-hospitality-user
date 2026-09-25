@@ -27,6 +27,9 @@ import type { GuestSession } from '../prototype-model';
 
 export type BadgeFamily = 'taste' | 'company' | 'rhythm' | 'place' | 'house' | 'venue';
 
+/** The shared foil tone for an earned achievement stamp. */
+export const BADGE_STAMP_GOLD = '#B08A43';
+
 type IslandGroup = 'luzon' | 'visayas' | 'mindanao';
 
 export type BadgeDefinition = {

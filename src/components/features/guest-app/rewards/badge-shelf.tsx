@@ -42,22 +42,20 @@ const standing = (row: BadgeProgress): number => {
 export function BadgeShelf({ earned, nearly, all, onOpenBadge }: BadgeShelfProps) {
   const accented = new Set(nearly.slice(0, ACCENTED).map((row) => row.definition.id));
   const hero = rarestBadge(earned);
-  const ordered = [...all].sort((a, b) => standing(a) - standing(b));
+  const ordered = [...all]
+    .filter((row) => row.definition.id !== hero?.definition.id)
+    .sort((a, b) => standing(a) - standing(b));
 
   return (
     <section className="badge-shelf">
-      <h2 className="badge-shelf__heading">
-        Achievements
-        <small>{earned.length}/{all.length}</small>
+      <h2 className="badge-shelf__heading" aria-label="Your badges">
+        Your badges
+        <small aria-hidden="true">{all.length}</small>
       </h2>
 
       {hero ? (
         <HeroTile row={hero} onOpen={onOpenBadge} />
-      ) : (
-        <p className="badge-shelf__empty">
-          Nothing yet. Book anything and the first of these fills in.
-        </p>
-      )}
+      ) : null}
 
       <ul className="badge-shelf__grid">
         {ordered.map((row, index) => (
@@ -89,10 +87,11 @@ function HeroTile({ row, onOpen }: { row: BadgeProgress; onOpen?: (id: string) =
           }
         : {})}
     >
-      <span className="badge-shelf__eyebrow">Your rarest badge</span>
-      <BadgeMedal badge={definition} earned size={144} shimmer decorative />
-      <b>{definition.name}</b>
-      <small>Earned by {formatRarity(badgeRarity(definition))} of guests</small>
+      <BadgeMedal badge={definition} earned size={64} shimmer decorative />
+      <span className="badge-shelf__hero-copy">
+        <b>{definition.name}</b>
+        <small>Earned by {formatRarity(badgeRarity(definition))} of guests</small>
+      </span>
       <span className="badge-pill badge-pill--held">Unlocked</span>
     </Tag>
   );
@@ -122,8 +121,11 @@ function BadgeTile({
           ? { type: 'button' as const, 'aria-label': label, onClick: () => onOpen(definition.id) }
           : { role: 'group' as const, 'aria-label': label })}
       >
-        <BadgeMedal badge={definition} earned={earned} size={64} shimmer={earned} decorative />
-        <b>{definition.name}</b>
+        <BadgeMedal badge={definition} earned={earned} size={48} shimmer={earned} decorative />
+        <span className="badge-shelf__copy">
+          <b>{definition.name}</b>
+          <small>{definition.requirement}</small>
+        </span>
         {earned ? (
           <span className="badge-pill badge-pill--held">Unlocked</span>
         ) : count ? (

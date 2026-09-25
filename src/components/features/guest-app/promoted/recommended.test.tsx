@@ -62,14 +62,14 @@ describe('recommendedPicks', () => {
 });
 
 describe('RecommendedRail', () => {
-  it('shows why, what and where, and hands the tapped pick back', async () => {
+  it('shows what and where, and hands the tapped pick back without a reason badge', async () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();
     render(<RecommendedRail entries={[entry('facial'), entry('bar')]} onOpen={onOpen} />);
 
     const rail = screen.getByRole('region', { name: 'Recommended for you' });
     const card = within(rail).getByRole('button', { name: /Title facial/ });
-    expect(card).toHaveTextContent('Why facial');
+    expect(card).not.toHaveTextContent('Why facial');
     expect(card).toHaveTextContent('Venue facial');
     expect(card).toHaveTextContent('₱1,000');
 

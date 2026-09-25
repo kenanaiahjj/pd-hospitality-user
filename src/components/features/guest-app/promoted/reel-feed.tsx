@@ -1,9 +1,10 @@
 'use client';
 
-import { CaretDown, MagnifyingGlass, SquaresFour, X } from '@phosphor-icons/react';
+import { CaretDown, SquaresFour, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import type { FeedEntry } from './feed-model';
 import { ReelView } from './reel-view';
+import { StayReviewForm, type StayReviewFormProps } from '../stay-review-form';
 import './reels.css';
 
 /*
@@ -20,18 +21,21 @@ export type ReelFeedProps = {
   entries: FeedEntry[];
   onAction: (entry: FeedEntry) => void;
   /** The feed's own bar and end card; a venue player has neither. */
-  onSearch?: () => void;
   onBrowse?: () => void;
   onSeeEverything?: () => void;
   /** When set, the feed is a player over another screen (a venue's rings) and shows a close button. */
   onClose?: () => void;
   /** A label for the player mode, e.g. the venue's name. */
   title?: string;
+  /** A stay-end check-in that belongs inside the Explore feed. */
+  stayFeedback?: Omit<StayReviewFormProps, 'mode' | 'onBackToMyStay'>;
 };
 
-export function ReelFeed({ entries, onAction, onSearch, onBrowse, onSeeEverything, onClose, title }: ReelFeedProps) {
+export function ReelFeed({ entries, onAction, onBrowse, onSeeEverything, onClose, title, stayFeedback }: ReelFeedProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const hasStayFeedback = Boolean(stayFeedback);
+  const hasCloseButton = Boolean(onClose);
 
   useEffect(() => {
     const root = scroller.current;
@@ -45,7 +49,10 @@ export function ReelFeed({ entries, onAction, onSearch, onBrowse, onSeeEverythin
     }, { root, threshold: [0.6] });
     for (const child of Array.from(root.children)) observer.observe(child);
     return () => observer.disconnect();
-  }, [entries]);
+  }, [entries, hasStayFeedback, hasCloseButton]);
+
+  const feedbackIndex = Math.min(3, entries.length);
+  const feedbackOffset = stayFeedback ? 1 : 0;
 
   return (
     <div className={`reel-feed${onClose ? ' reel-feed--player' : ''}`} data-testid="reel-feed">
@@ -57,7 +64,6 @@ export function ReelFeed({ entries, onAction, onSearch, onBrowse, onSeeEverythin
           </>
         ) : (
           <>
-            <button type="button" className="reel-feed__icon" aria-label="Search" onClick={onSearch}><MagnifyingGlass aria-hidden="true" /></button>
             <b className="reel-feed__title">For you</b>
             <button type="button" className="reel-feed__browse" onClick={onBrowse}>Browse<CaretDown aria-hidden="true" /></button>
           </>
@@ -65,13 +71,26 @@ export function ReelFeed({ entries, onAction, onSearch, onBrowse, onSeeEverythin
       </div>
 
       <div ref={scroller} className="reel-feed__scroller">
-        {entries.map((entry, index) => (
+        {entries.slice(0, feedbackIndex).map((entry, index) => (
           <div key={entry.story.id} className="reel-feed__slot" data-index={index}>
             <ReelView entry={entry} active={index === active} onAction={onAction} />
           </div>
         ))}
+        {stayFeedback ? (
+          <div className="reel-feed__slot" key="stay-feedback" data-index={feedbackIndex}>
+            <StayReviewForm mode="feed" {...stayFeedback} />
+          </div>
+        ) : null}
+        {entries.slice(feedbackIndex).map((entry, offset) => {
+          const index = feedbackIndex + feedbackOffset + offset;
+          return (
+            <div key={entry.story.id} className="reel-feed__slot" data-index={index}>
+              <ReelView entry={entry} active={index === active} onAction={onAction} />
+            </div>
+          );
+        })}
         {onClose ? null : (
-          <div className="reel-feed__slot" data-index={entries.length}>
+          <div className="reel-feed__slot" data-index={entries.length + feedbackOffset}>
             <section className="reel-end" aria-labelledby="reel-end-title">
               <SquaresFour className="reel-end__mark" aria-hidden="true" />
               <h2 id="reel-end-title">That&rsquo;s everything for now</h2>

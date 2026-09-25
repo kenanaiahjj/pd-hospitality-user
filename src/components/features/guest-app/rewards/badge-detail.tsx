@@ -93,7 +93,6 @@ export function BadgeDetail({ row, holder, onMute }: BadgeDetailProps) {
       <section className="guest-badge-detail__proof" aria-labelledby="badge-detail-proof-title">
         <div className="guest-badge-detail__section-head">
           <div>
-            <span>The record</span>
             <h2 id="badge-detail-proof-title">{earned ? 'Why you earned it' : 'Your progress'}</h2>
           </div>
           <strong>

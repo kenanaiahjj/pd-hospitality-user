@@ -102,8 +102,8 @@ export type Story = {
   title: string;
   /** Where on property, or who runs it. */
   subtitle: string;
-  /** What booking it costs, verbatim from the catalogue. */
-  price: string;
+  /** A verified price, when the catalogue provides one. */
+  price?: string;
   /** The label on the story's own action. */
   cta: string;
   cover: ServiceImageDefinition;
@@ -210,7 +210,7 @@ export const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
     id: `venue-${venue.id}`,
     title: venue.name,
     subtitle: venue.location,
-    price: venue.priceRange,
+    ...(venue.priceRange ? { price: venue.priceRange } : {}),
     cta: 'See the menu',
     /* The opening frame, not `storyImage(id)`. The ring should show what the
        story actually starts on -- and an id with no art of its own fell back
@@ -220,7 +220,7 @@ export const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
       // Titled like a place, not shouted: the venue's own name opens it.
       { headline: venue.name, detail: venue.description, image: frames[0]!, video: clip },
       { headline: 'Open today', detail: venue.hours, image: frames[1]! },
-      { headline: venue.priceRange, detail: venue.cutoff, image: frames[2]! },
+      { headline: 'Good to know', detail: venue.cutoff, image: frames[2]! },
     ],
     author: { name: venue.name, kind: authorKind(venue.operator), image },
     ...postingFor(venue.id),
@@ -313,7 +313,7 @@ export type SearchableItem = {
   title: string;
   /** What it is, in the guest's words. Matched on, and shown under the title. */
   category: string;
-  price: string;
+  price?: string;
   /** Who runs it, or where it is. One line, for a card. */
   detail: string;
   image: ServiceImageDefinition;
@@ -348,7 +348,7 @@ export function buildSearchIndex(): SearchableItem[] {
       id: venue.id,
       title: venue.name,
       category: venue.category,
-      price: venue.priceRange,
+      ...(venue.priceRange ? { price: venue.priceRange } : {}),
       detail: venue.location,
       image: storyImage(venue.id),
       where: venue.location,

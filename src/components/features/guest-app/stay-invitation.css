@@ -7,12 +7,12 @@
                          corners the face's mask cuts)
      .stay-pass__tilt    the held-in-hand turn, written every frame by the
                          loop in stay-invitation.tsx -- no transition here
-     .stay-pass__press   the give under the seal when it is stamped
+     .stay-pass__press   the confirmation mark over the card
      .stay-pass__face    the card, masked to the scalloped shape
 
-   The palette is the system's white, ink and plum, plus one champagne foil
-   for the seal and the status. Pearl is white with the faintest shift of hue
-   in it, so the frame reads as a material, not a colour.
+   The palette is the system's white, ink and plum, with champagne for the
+   status mark. Pearl is white with the faintest shift of hue in it, so the
+   frame reads as a material, not a colour.
    -------------------------------------------------------------------------- */
 .stay-pass {
   --sp-rx: 0deg;
@@ -26,7 +26,7 @@
   --sp-frame: 8px;
   --sp-scoop: 20px;
   --sp-plum: oklch(0.2 0.05 350);
-  /* Champagne foil: warm, never brassy, with a bright fold in the middle. */
+  /* Champagne foil for the status line. */
   --sp-gold: linear-gradient(100deg, oklch(0.93 0.06 90), oklch(0.76 0.1 78) 38%, oklch(0.94 0.07 92) 55%, oklch(0.68 0.1 70));
   /* Nacre: near-white, with just enough hue to shift as the light moves. */
   --sp-pearl:
@@ -69,7 +69,11 @@
   will-change: transform;
 }
 
-.stay-pass__press { position: relative; display: grid; transform-origin: 78% 18%; }
+.stay-pass__press {
+  position: relative;
+  display: grid;
+  transform-origin: 78% 18%;
+}
 
 /* --- Face ----------------------------------------------------------------- */
 .stay-pass__face {
@@ -170,7 +174,6 @@
 .stay-pass__mark { height: 18px; width: auto; color: oklch(1 0 0 / 0.92); filter: drop-shadow(0 1px 3px oklch(0 0 0 / 0.35)); }
 
 .stay-pass__body {
-  --seal-room: 92px; /* the stub's right side, kept clear for the seal */
   position: relative;
   z-index: 4;
   align-self: end;
@@ -265,14 +268,14 @@
   white-space: nowrap;
 }
 
-/* The stub, below a perforation; its right side is the seal's. */
+/* The stub, below a perforation. */
 .stay-pass__stub {
   display: grid;
   grid-template-columns: 1.4fr 0.7fr 1fr;
   gap: 10px;
   width: 100%;
   margin: 16px 0 0;
-  padding: 13px var(--seal-room) 0 0;
+  padding: 13px 0 0;
   border-top: 1.5px dashed oklch(1 0 0 / 0.22);
   text-align: left;
 }
@@ -292,7 +295,7 @@
 }
 .stay-pass[data-active] .stay-pass__glare { opacity: 1; }
 
-/* A single band of light crossing the card: on arrival, and again once sealed. */
+/* A single band of light crossing the card: on arrival and after confirmation. */
 .stay-pass__sweep {
   position: absolute;
   inset: 0;
@@ -306,131 +309,78 @@
 }
 .stay-pass[data-phase='done'] .stay-pass__sweep { animation-name: stay-pass-sweep-again; animation-delay: 0ms; }
 
-/* The small mark steps aside for the seal that carries it. */
+/* The small mark steps aside for the approval stamp. */
 .stay-pass__mark { transition: opacity 240ms var(--ease-out); }
 .stay-pass:not([data-phase='idle']) .stay-pass__mark { opacity: 0; }
 
-/* --- Seal ------------------------------------------------------------------
-   Plum wax with a gold-foil crest, pressed over the perforation and hanging
-   off the card's right edge the way a seal overhangs an envelope. It lands a
-   few degrees off square, as a hand would leave it.
+/* --- Digital stamp ---------------------------------------------------------
+   A compact, crisp approval mark sits at the card's upper-right corner.
    -------------------------------------------------------------------------- */
-.stay-pass__seal-spot {
-  --seal: 132px;
+.stay-pass__stamp-spot {
+  --stamp-size: 82px;
   position: absolute;
-  right: -34px;
-  bottom: -16px;
-  z-index: 10;
-  width: var(--seal);
-  height: var(--seal);
-  transform: translateZ(30px);
+  top: 78px;
+  right: 24px;
+  z-index: 5;
+  width: var(--stamp-size);
+  height: var(--stamp-size);
   pointer-events: none;
 }
 
-.stay-pass__seal {
+.stay-pass__stamp {
   position: absolute;
   inset: 0;
-  transform: rotate(-8deg);
-  filter:
-    drop-shadow(0 1px 1px oklch(0.15 0.05 350 / 0.45))
-    drop-shadow(0 7px 12px oklch(0.15 0.05 350 / 0.38));
-  animation: stay-pass-stamp 800ms both;
+  animation: stay-pass-stamp-impact 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.stay-pass__seal-disc {
-  --impression: radial-gradient(circle, #000 32%, #0000 33.5%);
+.stay-pass__stamp-lockup {
   position: absolute;
   inset: 0;
   display: block;
 }
-.stay-pass__seal-art { display: block; width: 100%; height: 100%; overflow: visible; }
-/* The wax catches the light as the card tilts... */
-.stay-pass__seal-disc::before {
-  content: '';
+.stay-pass__stamp-art {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at calc(34% + var(--sp-x) * 24%) calc(28% + var(--sp-y) * 24%), oklch(1 0 0 / 0.14), oklch(1 0 0 / 0) 40%);
-  mix-blend-mode: screen;
-  -webkit-mask: radial-gradient(circle, #000 40%, #0000 42%);
-  mask: radial-gradient(circle, #000 40%, #0000 42%);
-  pointer-events: none;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 0.84;
 }
-/* ...and one band of light crosses the foil once the press lifts. */
-.stay-pass__seal-disc::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, oklch(1 0 0 / 0) 38%, oklch(0.97 0.05 90 / 0.8) 50%, oklch(1 0 0 / 0) 62%) 160% 0 / 260% 100% no-repeat;
-  mix-blend-mode: screen;
-  -webkit-mask: var(--impression);
-  mask: var(--impression);
-  animation: stay-pass-seal-glint 900ms 780ms var(--ease-out) both;
-  pointer-events: none;
-}
-.stay-pass__seal-legend {
-  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
-  font-size: 6.3px;
-  font-weight: 600;
+.stay-pass__stamp-type {
+  fill: #ead59e;
+  font-family: var(--font-sans), Arial, sans-serif;
+  font-size: 6px;
+  font-weight: 700;
   letter-spacing: 0.12em;
+  text-anchor: middle;
+}
+.stay-pass__stamp-type--bottom {
+  font-size: 4.8px;
+  letter-spacing: 0.1em;
 }
 
-/* The wax spreading out from under the die as it lands. */
-.stay-pass__spread {
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, oklch(0.3 0.08 350 / 0) 62%, oklch(0.3 0.08 350 / 0.4) 80%, oklch(0.3 0.08 350 / 0) 100%);
-  opacity: 0;
-  animation: stay-pass-spread 700ms 600ms var(--ease-out) both;
-}
-
-/* --- Ceremony --------------------------------------------------------------
-   Hover, then a hand pressing down: the seal hangs above and ahead of the
-   card while its shadow tightens, drops fast, squashes on contact, and
-   settles at its angle. The card gives under it and springs back.
-   -------------------------------------------------------------------------- */
+/* The card gives slightly at contact while the flat mark lands and settles. */
 .stay-pass[data-phase='stamping'] .stay-pass__press {
-  animation: stay-pass-give 440ms 620ms var(--ease-out) both;
+  animation: stay-pass-card-impact 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-@keyframes stay-pass-stamp {
-  0% {
-    opacity: 0;
-    transform: translate(-14px, -70px) scale(1.55) rotate(-24deg);
-    filter: drop-shadow(0 1px 1px oklch(0.15 0.05 350 / 0)) drop-shadow(-10px 60px 30px oklch(0.15 0.05 350 / 0.1));
-    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
-  }
-  32% {
-    opacity: 1;
-    transform: translate(-6px, -44px) scale(1.34) rotate(-15deg);
-    filter: drop-shadow(0 1px 1px oklch(0.15 0.05 350 / 0.05)) drop-shadow(-6px 40px 22px oklch(0.15 0.05 350 / 0.18));
-    animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.4);
-  }
-  62% {
-    transform: translate(0, 0) scale(1.02) rotate(-8deg);
-    filter: drop-shadow(0 1px 1px oklch(0.15 0.05 350 / 0.35)) drop-shadow(0 4px 6px oklch(0.15 0.05 350 / 0.4));
-    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
-  }
-  72% { transform: scale(0.93) rotate(-8deg); }
-  86% { transform: scale(1.015) rotate(-8deg); }
-  100% {
-    opacity: 1;
-    transform: rotate(-8deg);
-    filter: drop-shadow(0 1px 1px oklch(0.15 0.05 350 / 0.45)) drop-shadow(0 7px 12px oklch(0.15 0.05 350 / 0.38));
-  }
+@keyframes stay-pass-stamp-impact {
+  0% { opacity: 0; transform: translateY(-22px) rotate(5deg) scale(1.08); }
+  42% { opacity: 1; transform: translateY(2px) rotate(-1.5deg) scale(0.92); }
+  54% { transform: translateY(-1px) rotate(0.4deg) scale(1.03); }
+  72% { transform: translateY(0) rotate(-0.2deg) scale(0.99); }
+  100% { opacity: 1; transform: none; }
 }
-@keyframes stay-pass-give {
+@keyframes stay-pass-card-impact {
   0%, 100% { transform: none; }
-  26% { transform: scale(0.975) rotateX(-2deg) rotateY(-2.5deg); }
-}
-@keyframes stay-pass-spread {
-  0% { opacity: 0.9; transform: scale(0.8); }
-  100% { opacity: 0; transform: scale(1.45); }
+  42% { transform: translateY(1px) scale(0.993); }
+  54% { transform: translateY(-0.5px) scale(1.004); }
+  72% { transform: none; }
 }
 @keyframes stay-pass-status {
   from { opacity: 0; letter-spacing: 0.7em; text-indent: 0.7em; filter: blur(3px); }
   to { opacity: 1; letter-spacing: 0.34em; text-indent: 0.34em; filter: none; }
 }
 @keyframes stay-pass-foil { from { background-position: 100% 0; } to { background-position: 0 0; } }
-@keyframes stay-pass-seal-glint { from { background-position: 160% 0; } to { background-position: -60% 0; } }
 @keyframes stay-pass-sweep { from { background-position: 130% 0; } to { background-position: -30% 0; } }
 @keyframes stay-pass-sweep-again { from { background-position: 130% 0; } to { background-position: -30% 0; } }
 @keyframes stay-pass-in {
@@ -438,7 +388,7 @@
   to { opacity: 1; transform: none; }
 }
 
-/* The screen around the card steps back while it is sealed. */
+/* The screen around the card steps back while the stay is confirmed. */
 .stay-confirm__title { animation: stay-confirm-in 420ms var(--ease-out) both; }
 .stay-confirm[data-phase='done'] .stay-confirm__title { animation-delay: 80ms; }
 .stay-confirm__title,
@@ -466,11 +416,9 @@
   .stay-pass { animation-name: stay-pass-fade; }
   .stay-pass__tilt,
   .stay-pass__photo { transform: none; }
-  .stay-pass[data-phase] .stay-pass__press { animation: none; }
   .stay-pass__sweep,
-  .stay-pass__spread,
-  .stay-pass__seal-disc::after { display: none; }
-  .stay-pass__seal { animation: stay-pass-fade 300ms both; }
+  .stay-pass__stamp { animation: stay-pass-fade 300ms both; }
+  .stay-pass[data-phase='stamping'] .stay-pass__press { animation: none; }
   .stay-pass:not([data-phase='idle']) .stay-pass__status { animation: stay-pass-fade 300ms both; }
   .stay-confirm__title { animation-name: stay-pass-fade; }
   .stay-confirm__title,

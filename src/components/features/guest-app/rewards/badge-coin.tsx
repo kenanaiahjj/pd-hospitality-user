@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useEffect, useRef } from 'react';
 
 import { BADGE_ART_BOUNDS, type ArtBounds } from './badge-art-bounds';
-import { BADGE_FAMILIES } from './badge-model';
+import { BADGE_FAMILIES, BADGE_STAMP_GOLD } from './badge-model';
 import type { BadgeDefinition } from './badge-model';
 
 /*
@@ -222,7 +222,7 @@ export function BadgeCoin({ badge, holder, earnedOn, serial }: BadgeCoinProps) {
       data-shape={family.shape}
       aria-label={`Turn the ${badge.name} medal over`}
       style={{
-        '--medal-enamel': family.enamel,
+        '--medal-enamel': BADGE_STAMP_GOLD,
         ...(BADGE_ART_BOUNDS[badge.id]
           ? {
             '--coin-shape': fittedShape(family.shape, BADGE_ART_BOUNDS[badge.id]!),

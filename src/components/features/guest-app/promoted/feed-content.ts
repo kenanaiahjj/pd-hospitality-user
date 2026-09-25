@@ -193,7 +193,7 @@ export function nearbyStory(place: NearbyStoryInput): Story {
     title: place.name,
     subtitle: [place.type, place.distance].filter(Boolean).join(' · '),
     price: place.distance ?? 'Nearby',
-    cta: 'See the place',
+    cta: 'Visit',
     cover: place.image,
     slides: [{ headline: place.name, detail: place.type, image: place.image }],
     author: { name: place.name, kind: 'venue', image: place.image },
@@ -227,4 +227,3 @@ export function buildFeedCandidates(input: { nearby: NearbyStoryInput[] }): Feed
 
   return [...moments, ...venues, ...services, ...nearby].filter((candidate) => storyIsLive(candidate.story));
 }
-

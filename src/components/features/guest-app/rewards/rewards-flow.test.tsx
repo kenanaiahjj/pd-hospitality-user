@@ -229,15 +229,12 @@ describe('the door from Profile', () => {
 
     await userEvent.click(door);
 
-    // A profile hero: "Your achievements" is the eyebrow, the guest's name the heading.
-    expect(screen.getByText('Your achievements')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: MOCK_SESSION.guestName })).toBeInTheDocument();
-    expect(screen.getByText('37,220')).toBeInTheDocument();
-    expect(screen.getByText(`13/${BADGES.length}`)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Achievements' })).toBeInTheDocument();
+    expect(screen.getByText('13 earned · 37,220 points')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Your badges' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
     expect(document.querySelector('.guest-profile-hero')).toBeInTheDocument();
-    expect(document.querySelector('.guest-profile-hero__image')).toBeInTheDocument();
-    expect(document.querySelector('.guest-achievements-points')).toBeInTheDocument();
+    expect(document.querySelector('.guest-achievement-sections')).toBeInTheDocument();
   });
 
   /* Rewards lives inside Profile, so the bar must not lose its highlight. */

@@ -57,6 +57,46 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
   const composerRef = useRef<HTMLFormElement | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  useEffect(() => {
+    const textArea = textAreaRef.current;
+    const device = composerRef.current?.closest<HTMLElement>('.guest-device');
+    const viewport = window.visualViewport;
+    if (!textArea || !device || !viewport) return undefined;
+
+    let textAreaFocused = document.activeElement === textArea;
+    const updateVisibleHeight = () => {
+      if (!textAreaFocused) {
+        device.style.removeProperty('--guest-chat-visible-height');
+        return;
+      }
+      device.style.setProperty('--guest-chat-visible-height', `${Math.round(viewport.height + viewport.offsetTop)}px`);
+    };
+    const handleFocus = () => {
+      textAreaFocused = true;
+      updateVisibleHeight();
+    };
+    const handleBlur = () => {
+      textAreaFocused = false;
+      updateVisibleHeight();
+    };
+
+    updateVisibleHeight();
+    textArea.addEventListener('focus', handleFocus);
+    textArea.addEventListener('blur', handleBlur);
+    viewport.addEventListener('resize', updateVisibleHeight);
+    viewport.addEventListener('scroll', updateVisibleHeight);
+    window.addEventListener('resize', updateVisibleHeight);
+
+    return () => {
+      textArea.removeEventListener('focus', handleFocus);
+      textArea.removeEventListener('blur', handleBlur);
+      viewport.removeEventListener('resize', updateVisibleHeight);
+      viewport.removeEventListener('scroll', updateVisibleHeight);
+      window.removeEventListener('resize', updateVisibleHeight);
+      device.style.removeProperty('--guest-chat-visible-height');
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const textArea = textAreaRef.current;
     if (!textArea) return;

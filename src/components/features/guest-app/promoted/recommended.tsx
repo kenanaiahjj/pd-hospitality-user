@@ -50,13 +50,15 @@ export function RecommendedRail({ entries, onOpen, heading }: RecommendedRailPro
             <button key={story.id} type="button" className="recommended__card" onClick={() => onOpen(entry)}>
               <span className="recommended__photo">
                 <Image src={story.cover.src} alt="" fill sizes="168px" style={{ objectPosition: story.cover.focalPoint }} />
-                <span className="recommended__why">{entry.why}</span>
-              </span>
-              <span className="recommended__copy">
-                <b>{story.title}</b>
-                <small>{where}</small>
-                {/* A venue's "Menu in Chat" is not a price; venue cards never show it. */}
-                {story.price && story.price !== 'Menu in Chat' ? <span className="recommended__price">{story.price}</span> : null}
+                <span className="recommended__copy">
+                  <b>{story.title}</b>
+                  <small>{where}</small>
+                  {story.price ? (
+                    <span className="recommended__price">{story.price}</span>
+                  ) : (
+                    <span className="recommended__cta">{story.cta}</span>
+                  )}
+                </span>
               </span>
             </button>
           );

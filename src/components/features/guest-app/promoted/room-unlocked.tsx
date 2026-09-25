@@ -86,6 +86,11 @@ export function RoomUnlocked({
   const open = (target: OpenNowTarget) => (onOpen ? onOpen(target) : onExplore());
   return (
     <div className="unlocked" data-testid="room-unlocked">
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        Room connected. {roomNumber
+          ? `On-property services are now available and can be charged to Room ${roomNumber}.`
+          : 'On-property services are now available and can be charged to your room.'}
+      </p>
       {/*
         The stage: a graphic, what happened, and the single thing to do next.
 

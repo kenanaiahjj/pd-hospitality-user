@@ -55,7 +55,7 @@ export function AskAnswer({
               {/* The reason, not the category. A list that explains itself is
                   the whole difference between this and a filtered catalogue. */}
               <small>{item.why}</small>
-              <span>{item.price}</span>
+              {item.price ? <span>{item.price}</span> : null}
             </span>
             <ArrowRight aria-hidden="true" />
           </button>

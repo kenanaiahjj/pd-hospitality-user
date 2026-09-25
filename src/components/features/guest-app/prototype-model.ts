@@ -7,6 +7,8 @@ export type ScreenId =
   | 'room-qr-landing'
   | 'wifi-landing'
   | 'identify'
+  | 'partner-hotels'
+  | 'partner-hotel-detail'
   | 'book-stay'
   | 'book-stay-dates'
   | 'book-stay-rooms'
@@ -137,11 +139,6 @@ export const SCREENS: PrototypeScreen[] = [
   screen(44, 'Stay', 'stay-entry', 'Booking receipt'),
   screen(45, 'Entry', 'identify-returning', 'Log in with a booking'),
   screen(46, 'Entry', 'verify-contact', 'Verify it is you'),
-  screen(47, 'Stay', 'book-stay', 'Book another stay'),
-  screen(48, 'Stay', 'book-stay-dates', 'Dates and guests'),
-  screen(49, 'Stay', 'book-stay-rooms', 'Choose a room'),
-  screen(50, 'Stay', 'book-stay-checkout', 'Confirm and pay'),
-  screen(51, 'Stay', 'book-stay-confirmation', 'Stay booked'),
   screen(52, 'Pre-arrival', 'pre-arrival-services', 'Arrange your arrival'),
   screen(56, 'Pre-arrival', 'transfer-booking', 'Book a hotel transfer'),
   screen(57, 'Pre-arrival', 'transfer-confirmation', 'Transfer booked'),
@@ -150,6 +147,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(55, 'Entry', 'scan-room-code', 'Scan the room code'),
   screen(72, 'Entry', 'sign-in', 'Log in'),
   screen(73, 'Entry', 'verify-code', 'Check your email'),
+  screen(74, 'Stay', 'partner-hotels', 'Partner hotels'),
+  screen(75, 'Stay', 'partner-hotel-detail', 'Hotel details'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -161,6 +160,8 @@ export type InAppBookingCharge = {
   amount: string;
   /** ISO date on which the guest confirmed the charge. */
   date: string;
+  /** Room-folio charges settle at checkout; post-stay charges can settle at the desk. */
+  settlement?: 'room-folio' | 'front-desk';
 };
 
 export type Booking = {
@@ -230,9 +231,8 @@ export type Booking = {
    */
   roomRate?: string;
   /**
-   * App-booked room charges that are not service bookings, such as a room
-   * upgrade or an extension. Keeping these separate from `folioTotal` makes
-   * their reward eligibility auditable and survives a room transfer.
+   * Extra charges tied to the stay outside service bookings, such as room
+   * upgrades, extensions, or a post-stay purchase paid at the front desk.
    */
   inAppCharges?: InAppBookingCharge[];
   /**
@@ -310,10 +310,12 @@ export type ServiceBooking = {
    * a service is renamed -- which is exactly the drift badges cannot tolerate,
    * since a badge that quietly stops counting looks to the guest like one that
    * was taken away.
-   */
+  */
   serviceId?: string;
   /** How many guests the booking is for, when the form asked. */
   partySize?: number;
+  /** How many rental units the guest booked. Kept separate from guest count. */
+  rentalQuantity?: number;
   amount: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   provider?: string;
@@ -1062,14 +1064,14 @@ export function requestFrontDeskUnlock(
 /**
  * The second tab: one slot, three contents.
  *
- * The slot always answers the same question -- what can I book right now.
- * Before the room scan it shows the arrival-only roster. `locked` records
- * that the full on-property catalogue is still gated, not that the slot is
- * empty; the arrival roster carries the scan action when the stay is underway.
+ * Explore keeps one place in the bottom bar while its content follows the
+ * stay: arrival services before a room scan, the on-property catalogue after
+ * it, and partner hotels after checkout. `locked` records only the in-stay
+ * room-verification gate.
  */
 export type BookingSlot = {
-  label: 'Explore' | 'Book again';
-  screen: Extract<ScreenId, 'pre-arrival-services' | 'marketplace' | 'book-stay'>;
+  label: 'Explore';
+  screen: Extract<ScreenId, 'pre-arrival-services' | 'marketplace' | 'partner-hotels'>;
   locked: boolean;
 };
 
@@ -1080,7 +1082,7 @@ export function describeBookingSlot(
   const { gate } = describeGuestGate(booking, today);
 
   if (gate === 'post-stay') {
-    return { label: 'Book again', screen: 'book-stay', locked: false };
+    return { label: 'Explore', screen: 'partner-hotels', locked: false };
   }
 
   if (gate === 'in-stay' && booking) {
@@ -1349,6 +1351,8 @@ export type PastStayCharge = {
   serviceId?: string;
   /** Property-posted charges earn nothing; app-booked charges earn points. */
   pointsSource?: 'in-app-booking' | 'property-posted';
+  /** Whether this line settled with the room or was paid at the front desk. */
+  settlement?: 'room-folio' | 'front-desk';
 };
 
 export type PastStay = {
@@ -1480,7 +1484,7 @@ export function restoreProfileSession(): GuestSession {
 }
 
 /**
- * The four states of a stay worth demonstrating, for the prototype control.
+ * The stay states worth demonstrating in the prototype control.
  *
  * Reaching the finished state by playing the app forward is impossible -- there
  * is no checkout to perform -- so without a switch the post-checkout app is
@@ -1492,6 +1496,7 @@ export type PrototypeStayState =
   | 'pre-arrival'
   | 'arrived'
   | 'live'
+  | 'checkout-day'
   | 'just-checked-out'
   | 'closed';
 
@@ -1516,6 +1521,7 @@ export function getPrototypeStayState(session: GuestSession): PrototypeStayState
     return describePostStayWindow(booking).deskOpen ? 'just-checked-out' : 'closed';
   }
   if (status === 'checked-in') {
+    if (booking.checkOut === PROTOTYPE_TODAY) return 'checkout-day';
     // In the stay's dates; the scan is what separates arriving from living in.
     return booking.roomVerification ? 'live' : 'arrived';
   }
@@ -1523,7 +1529,7 @@ export function getPrototypeStayState(session: GuestSession): PrototypeStayState
 }
 
 /* ==========================================================================
-   The estate, and booking another stay in it
+   Estate property records and room-rate references
    ========================================================================== */
 
 export type PropertyRoomType = {
@@ -1564,13 +1570,9 @@ export type EstateProperty = {
 };
 
 /**
- * The three properties a returning guest can book into.
- *
- * This is not hotel search. It is the estate a guest who has already stayed can
- * come back to, reachable only from a finished stay -- `no-booking` still tells
- * anyone without a reservation that Cabana is not a place to compare hotels,
- * and that stays true. A direct booking here displaces an OTA's commission
- * rather than buying a new guest.
+ * Static property facts used by prototype room-rate fallback and front-desk
+ * contact surfaces. Post-stay hotel discovery uses `PARTNER_HOTELS`; the app
+ * does not collect dates, quote rates, or create a hotel reservation there.
  */
 export const ESTATE_PROPERTIES: EstateProperty[] = [
   {
@@ -1821,6 +1823,7 @@ export function toFinishedStay(session: GuestSession, booking: Booking): PastSta
       amount: charge.amount,
       category: 'Hotel services',
       pointsSource: 'in-app-booking',
+      settlement: charge.settlement ?? 'room-folio',
     });
   }
 
@@ -1902,6 +1905,7 @@ export const PROTOTYPE_STAY_STATES: Array<{
   { id: 'pre-arrival', label: 'Pre-arrival', detail: 'Booked, arrival services only' },
   { id: 'arrived', label: 'Arrived, not scanned', detail: 'In the room, code still to scan' },
   { id: 'live', label: 'Live stay', detail: 'Scanned, charging to the room' },
+  { id: 'checkout-day', label: 'Checkout day', detail: 'Request a ride or gifts before checking out' },
   { id: 'just-checked-out', label: 'Just checked out', detail: 'Settled, front desk open 24 hours' },
   { id: 'closed', label: 'Stay closed', detail: 'Desk window over, summary and review' },
 ];
@@ -2004,6 +2008,32 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
     };
   }
 
+  if (state === 'checkout-day') {
+    const booking: Booking = {
+      ...UPCOMING_BOOKING_FIXTURE,
+      status: 'active',
+      checkIn: '2026-11-08',
+      checkOut: PROTOTYPE_TODAY,
+      roomNumber: '304',
+      roomAssignment: 'ready',
+      roomReadyAt: '2:15 PM',
+      roomVerification: { method: 'scan', at: '2026-11-08' },
+      preArrivalCompleted: 2,
+      preArrivalTotal: 2,
+      nextPreArrivalStep: undefined,
+      folioTotal: '₱3,050',
+      roomRate: '₱18,600',
+    };
+
+    return {
+      ...profile,
+      bookings: [booking],
+      activeBookingId: booking.id,
+      serviceBookings: [],
+      folioTotal: '₱3,050',
+    };
+  }
+
   /*
     Finished. `status: 'completed'` is what closes the live surface -- every
     gate that guards room charging, dining orders and room-ready reporting runs
@@ -2073,6 +2103,8 @@ export function summarisePastStay(stay: PastStay) {
   return {
     groups,
     extras: formatPesoAmount(extras),
+    /** Derive the total from charge lines so later front-desk charges count. */
+    total: formatPesoAmount(parsePesoAmount(stay.roomRate) + extras),
     /** Nightly average of the room rate alone -- the extras are not per-night. */
     perNight: formatPesoAmount(Math.round(parsePesoAmount(stay.roomRate) / Math.max(stay.nights, 1))),
   };
@@ -2542,20 +2574,20 @@ export const SERVICE_TIMES = ['10:00 AM', '1:30 PM', '4:00 PM'] as const;
  * Whether this guest can book this service now, whichever way it is paid.
  *
  * On-property services need the verified room, because they are charged to it.
- * The arrival roster is the exception by design: getting there and what waits
- * in the room can be booked -- on the room or by card -- from the moment a booking
- * exists until the stay is over, which is what makes the scan mean something
- * for everything else.
+ * Arrival services can be booked before the stay begins. Once the stay is
+ * underway, every service order requires the verified room so its charge can
+ * go to the active folio.
  */
 export function canBookService(booking: Booking, serviceId: string, today: string = PROTOTYPE_TODAY): boolean {
   if (canUseOnPropertyServices(booking, today)) return true;
-  return isPreArrivalService(serviceId) && describeGuestGate(booking, today).gate !== 'post-stay';
+  const gate = describeGuestGate(booking, today).gate;
+  return gate === 'pre-arrival' && isPreArrivalService(serviceId);
 }
 
 /**
- * Whether a booking of this service has anything to pay. A paid one is the
- * guest's choice: on the room, settled at checkout, or paid now.
- * `canBookService` decides what can be booked at all; this is only how.
+ * Whether a booking of this service has anything to pay. `canBookService`
+ * decides when a service can be booked; verified in-stay bookings are charged
+ * to the room automatically.
  */
 export function describeServicePayment(price: string): 'choice' | 'complimentary' {
   return parsePesoAmount(price) === 0 ? 'complimentary' : 'choice';
@@ -2879,14 +2911,8 @@ export type RestaurantVenue = {
   name: string;
   category: string;
   operator: string;
-  /**
-   * What the card says a venue costs.
-   *
-   * "Menu in Chat" rather than a from-price: the menu is a photograph the
-   * front desk sends, so a number on the card would promise a price list the
-   * app does not hold.
-   */
-  priceRange: string;
+  /** A verified price range, when the venue provides one. */
+  priceRange?: string;
   hours: string;
   /** The hotel this venue sits inside. Its parent in the estate. */
   property: string;
@@ -2912,7 +2938,6 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'Apartment 1B',
     category: 'Restaurant & Bar',
     operator: 'Hotel operated',
-    priceRange: 'Menu in Chat',
     hours: '6:30 AM – 11:00 PM',
     property: 'The Henry Manila',
     location: 'Ground floor courtyard',
@@ -3037,7 +3062,6 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'In-Room Dining',
     category: 'Dining',
     operator: 'Hotel operated',
-    priceRange: 'Menu in Chat',
     hours: '24 hours daily',
     property: 'The Henry Manila',
     location: 'Delivered to your room',
@@ -3116,7 +3140,6 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'The Poolside Bar',
     category: 'Bar & Lounge',
     operator: 'Hotel operated',
-    priceRange: 'Menu in Chat',
     hours: '11:00 AM – 12:00 MN',
     property: 'The Henry Manila',
     location: 'Second floor pool deck',
@@ -3166,7 +3189,6 @@ export const RESTAURANTS: RestaurantVenue[] = [
     city: 'Manila',
     category: 'Café & Bakery',
     operator: 'Hotel operated',
-    priceRange: 'Menu in Chat',
     hours: '6:00 AM – 8:00 PM',
     property: 'The Henry Manila',
     location: 'Lobby, beside reception',
@@ -3241,7 +3263,6 @@ export const RESTAURANTS: RestaurantVenue[] = [
     name: 'Azotea Rooftop',
     category: 'Fine Dining',
     operator: 'Hotel operated',
-    priceRange: 'Menu in Chat',
     hours: '5:30 PM – 12:00 MN',
     property: 'The Henry Manila',
     location: 'Ninth floor terrace',

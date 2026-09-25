@@ -923,7 +923,6 @@ function WelcomeStepCopy({ index }: Pick<PagerHandle, 'index'>) {
       <ol className="guest-welcome__steps-track" style={trackOffset(index)}>
         {WELCOME_STEPS.map((item, position) => (
           <li key={item.step} className="guest-welcome__step" aria-hidden={position !== index}>
-            <p className="guest-welcome__step-stage"><span aria-hidden="true">{item.step}</span>{item.stage}</p>
             <p className="guest-welcome__step-title">{item.title}</p>
           </li>
         ))}
@@ -981,7 +980,7 @@ function WelcomeScreen({
           <WelcomeStepCopy index={pager.index} />
           <WelcomeDots index={pager.index} show={pager.show} engaged={pager.engaged} />
           {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Log in needs a connection">Reconnect to continue.</Notice> : null}
-          <div className="guest-welcome__actions" role="group" aria-label="Log in options">
+          <div className="guest-welcome__actions" role="group" aria-label="Ways to continue">
             <Button
               className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--solid"
               type="button"
@@ -1020,7 +1019,7 @@ function WelcomeScreen({
               disabled={!online}
               onClick={onEmailLogin}
             >
-              Log in with email<ArrowRight aria-hidden="true" />
+              Continue with email
             </Button>
             <Button
               className="guest-welcome__guest-link"
@@ -1029,7 +1028,7 @@ function WelcomeScreen({
               disabled={!online}
               onClick={onGuestLogin}
             >
-              Log in as guest<ArrowRight aria-hidden="true" />
+              Continue as guest
             </Button>
           </div>
         </div>

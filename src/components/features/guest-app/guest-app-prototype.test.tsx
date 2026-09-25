@@ -130,7 +130,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getAllByText('Cabana', { exact: true })).toHaveLength(2);
     expect(screen.getAllByText('Your Home Away From Home')).toHaveLength(2);
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Create account' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Log in' })).toBeNull();
     expect(screen.queryByText(/travel|flights/i)).toBeNull();
@@ -142,7 +142,7 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
@@ -163,7 +163,7 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
@@ -204,12 +204,12 @@ describe('GuestAppPrototype', () => {
   it('offers every log-in option on the welcome screen', () => {
     render(<GuestAppPrototype />);
 
-    const sheet = screen.getByRole('group', { name: 'Log in options' });
+    const sheet = screen.getByRole('group', { name: 'Ways to continue' });
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Log in with email' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Log in as guest' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Continue with email' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Continue as guest' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
     expect(screen.queryByText(/Create your account|Already have an account|Don't have an account/)).toBeNull();
   });
@@ -218,9 +218,9 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Log in as guest' }));
+    await user.click(screen.getByRole('button', { name: 'Continue as guest' }));
 
-    expect(screen.queryByRole('group', { name: 'Log in options' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Ways to continue' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
@@ -230,7 +230,7 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Log in with email' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with email' }));
     const email = screen.getByLabelText('Email *');
     expect(email).toHaveAttribute('autocomplete', 'email');
     expect(email).toHaveAttribute('spellcheck', 'false');
@@ -255,7 +255,7 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Log in with email' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with email' }));
     await user.type(screen.getByLabelText('Email *'), 'guest@example.com');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.type(screen.getByLabelText('6-digit code *'), '123');
@@ -272,7 +272,7 @@ describe('GuestAppPrototype', () => {
   it('disables both SSO providers when the connection is offline', () => {
     render(<GuestAppPrototype initialOnline={false} />);
 
-    const sheet = screen.getByRole('group', { name: 'Log in options' });
+    const sheet = screen.getByRole('group', { name: 'Ways to continue' });
     expect(within(sheet.closest('.guest-welcome__message') as HTMLElement).getByText('Log in needs a connection')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue with Apple' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeDisabled();
@@ -763,7 +763,7 @@ describe('guest account and entry flows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
 
-    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
@@ -779,7 +779,7 @@ describe('guest account and entry flows', () => {
 
     expect(screen.queryByText(/Offline mode active/i)).toBeNull();
 
-    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
     /*
       Apple returns a guest the estate already knows, reservation included, so
@@ -1691,10 +1691,10 @@ describe('session persistence', () => {
       two-pass behaviour explicit rather than something a future reader has to
       infer from a `findBy` that happens to wait.
     */
-    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
 
     expect(await screen.findByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Log in options' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Ways to continue' })).toBeNull();
   });
 
   it('keeps a signed-out record from landing anywhere but the entry hub', async () => {
@@ -1703,7 +1703,7 @@ describe('session persistence', () => {
     render(<GuestAppPrototype />);
     await act(async () => { await Promise.resolve(); });
 
-    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
   });
 
   it('ignores storage entirely when a session is supplied', async () => {
@@ -1712,7 +1712,7 @@ describe('session persistence', () => {
     render(<GuestAppPrototype initialSession={ANONYMOUS_SESSION} />);
     await act(async () => { await Promise.resolve(); });
 
-    expect(screen.getByRole('group', { name: 'Log in options' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 

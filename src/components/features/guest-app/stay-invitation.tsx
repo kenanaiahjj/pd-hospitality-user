@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, ty
 import { Button } from '@/components/ui';
 import { CabanaMark } from '@/components/ui/cabana-logo';
 import { usePrefersReducedMotion } from '@/lib/hooks';
-import type { Booking } from './prototype-model';
+import { CHECK_IN_FROM, CHECK_OUT_BY, type Booking } from './prototype-model';
 import './stay-invitation.css';
 
 /*
@@ -15,74 +15,108 @@ import './stay-invitation.css';
   lets go back into the drift.
 
   Confirming is a small ceremony rather than a page change: the screen's
-  chrome steps back, the card steadies, and a blind-embossed pearl seal is
-  pressed onto its corner -- the card gives under it, then light catches the
-  relief. Only then does the guest move on, so the moment the stay becomes
-  theirs is one they see.
+  chrome steps back, the card steadies, and a plum wax seal with a gold-foil
+  crest is pressed over the perforation -- it hovers, drops, squashes, the
+  card gives under it and the wax spreads, then light crosses the foil and
+  "Confirmed" settles in above the property. Only then does the guest move
+  on, so the moment the stay becomes theirs is one they see.
 */
 
 const MAX_TILT = 11; // degrees, at full finger deflection
 /** The press, start to settle. Must cover the seal animations in stay-invitation.css. */
 const STAMP_MS = 1150;
+/** When the wax meets the card, within the press. Matches the 62% keyframe of `stay-pass-stamp`. */
+const IMPACT_MS = 620;
 
 const day = (isoDate: string) => new Date(`${isoDate}T12:00:00`);
-const format = (isoDate: string) => day(isoDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+/** "Mon 9 Nov": day before month reads as a travel document, not a US form. */
+const format = (isoDate: string) => day(isoDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
 type Phase = 'idle' | 'stamping' | 'done';
 
 /*
-  Glints thrown off the seal as it lands. Deterministic, so every press (and
-  every screenshot) is the same.
+  The wax's outline: a disc whose edge wanders the way poured wax does,
+  built from a few unrelated ripples so it never looks machined. Drawn in a
+  120-unit box and used both as the seal's shape and as its sheen's mask.
 */
-const SPARKS = Array.from({ length: 16 }, (_, i) => ({
-  angle: i * (360 / 16) + ((i * 37) % 17) - 8,
-  distance: 62 + ((i * 29) % 52),
-  size: 8 + ((i * 11) % 8),
-  delay: ((i * 7) % 5) * 20,
-  tone: i % 3,
-}));
-
-/*
-  The seal's outline: a rosette of 32 scallops, round on the outside and
-  pinched between, like the edge of a pressed wax or foil seal. Built once as
-  a path in a 120-unit box and used as the disc's mask.
-*/
-const ROSETTE_PATH = (() => {
-  const steps = 384;
+const WAX_PATH = (() => {
+  const steps = 240;
   const points: string[] = [];
   for (let i = 0; i < steps; i += 1) {
     const t = (i / steps) * Math.PI * 2;
-    const r = 55 + 4.4 * Math.sqrt(Math.abs(Math.sin(t * 16)));
+    const r = 54.5 + 2.1 * Math.sin(t * 5 + 1.1) + 1.3 * Math.sin(t * 11 + 0.4) + 0.7 * Math.sin(t * 23 + 2.2);
     points.push(`${(60 + r * Math.cos(t)).toFixed(2)} ${(60 + r * Math.sin(t)).toFixed(2)}`);
   }
   return `M${points.join('L')}Z`;
 })();
-const ROSETTE_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><path d='${ROSETTE_PATH}'/></svg>`)}")`;
-const BEADS = Array.from({ length: 44 }, (_, i) => {
-  const t = (i / 44) * Math.PI * 2;
-  return { cx: (60 + 47.6 * Math.cos(t)).toFixed(2), cy: (60 + 47.6 * Math.sin(t)).toFixed(2) };
+const WAX_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><path d='${WAX_PATH}'/></svg>`)}")`;
+const BEADS = Array.from({ length: 36 }, (_, i) => {
+  const t = (i / 36) * Math.PI * 2;
+  return { cx: (60 + 32.6 * Math.cos(t)).toFixed(2), cy: (60 + 32.6 * Math.sin(t)).toFixed(2) };
 });
 
-/** The seal itself: pearl, with everything on it raised rather than printed. */
-function StaySeal({ legend }: { legend: string }) {
-  const ring = useId();
+/*
+  Guilloche: the fine interlaced line-work on banknotes and certificates.
+  Three families of phase-shifted waves, drawn once, etched faintly into the
+  lower panel where it reads as texture rather than pattern.
+*/
+const GUILLOCHE = (() => {
+  const paths: string[] = [];
+  for (let family = 0; family < 3; family += 1) {
+    for (let k = 0; k < 9; k += 1) {
+      const points: string[] = [];
+      for (let x = 0; x <= 360; x += 6) {
+        const y = 60 + (18 + family * 7) * Math.sin(x * (0.021 + family * 0.006) + k * 0.7 + family) * Math.cos(x * 0.004 + k * 0.2);
+        points.push(`${x} ${y.toFixed(1)}`);
+      }
+      paths.push(`M${points.join('L')}`);
+    }
+  }
+  return paths;
+})();
+
+/** The seal itself: plum wax, with a crest and legend pressed into it and foiled in gold. */
+function WaxSeal({ legend }: { legend: string }) {
+  const id = useId();
+  const [ring, gold, wax, well] = ['ring', 'gold', 'wax', 'well'].map((name) => `${id}-${name}`);
   return (
-    <span className="stay-pass__seal-disc" style={{ '--seal-mask': ROSETTE_MASK } as CSSProperties}>
+    <span className="stay-pass__seal-disc" style={{ '--seal-mask': WAX_MASK } as CSSProperties}>
       <svg className="stay-pass__seal-art" viewBox="0 0 120 120" aria-hidden="true">
         <defs>
+          <radialGradient id={wax} cx="38%" cy="32%" r="78%">
+            <stop offset="0" stopColor="#7d2d55" />
+            <stop offset="0.55" stopColor="#4e1834" />
+            <stop offset="1" stopColor="#2a0a1b" />
+          </radialGradient>
+          {/* The pressed well: dark where the die's edge shades it, lit where it faces the light. */}
+          <linearGradient id={well} x1="0.2" y1="0.1" x2="0.8" y2="0.95">
+            <stop offset="0" stopColor="#2c0b1d" />
+            <stop offset="1" stopColor="#5e1f40" />
+          </linearGradient>
+          <linearGradient id={gold} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#f6e3b0" />
+            <stop offset="0.38" stopColor="#c9a052" />
+            <stop offset="0.62" stopColor="#f1d898" />
+            <stop offset="1" stopColor="#a77c33" />
+          </linearGradient>
           {/* Starts at the left and runs clockwise over the top, so the legend reads upright. */}
-          <path id={ring} d="M 22.5 60 A 37.5 37.5 0 1 1 97.5 60 A 37.5 37.5 0 1 1 22.5 60" />
+          <path id={ring} d="M 17.5 60 A 42.5 42.5 0 1 1 102.5 60 A 42.5 42.5 0 1 1 17.5 60" />
         </defs>
-        <circle cx="60" cy="60" r="53.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        {BEADS.map((bead, i) => <circle key={i} cx={bead.cx} cy={bead.cy} r="0.95" fill="currentColor" />)}
-        <circle cx="60" cy="60" r="44" fill="none" stroke="currentColor" strokeWidth="0.8" />
-        <text className="stay-pass__seal-legend" fill="currentColor">
-          <textPath href={`#${ring}`} textLength="230" lengthAdjust="spacing">{legend}</textPath>
+        <path d={WAX_PATH} fill={`url(#${wax})`} />
+        {/* The raised lip the die squeezes up around its edge. */}
+        <circle cx="60" cy="60" r="48.5" fill="none" stroke="#ffffff" strokeOpacity="0.16" strokeWidth="1.2" />
+        <circle cx="60" cy="60" r="47.2" fill="none" stroke="#1d0612" strokeOpacity="0.45" strokeWidth="0.8" />
+        <circle cx="60" cy="60" r="46" fill={`url(#${well})`} />
+        <text className="stay-pass__seal-legend" fill={`url(#${gold})`}>
+          <textPath href={`#${ring}`} textLength="262" lengthAdjust="spacing">{legend}</textPath>
         </text>
-        <circle cx="60" cy="60" r="30.5" fill="none" stroke="currentColor" strokeWidth="1.1" />
-        <circle cx="60" cy="60" r="28.3" fill="none" stroke="currentColor" strokeWidth="0.5" />
+        <circle cx="60" cy="60" r="35.6" fill="none" stroke={`url(#${gold})`} strokeWidth="0.9" />
+        {BEADS.map((bead, i) => <circle key={i} cx={bead.cx} cy={bead.cy} r="0.8" fill={`url(#${gold})`} />)}
+        <circle cx="60" cy="60" r="29.6" fill="none" stroke={`url(#${gold})`} strokeWidth="0.5" />
+        <svg x="36" y="44" width="48" height="31.4" viewBox="12.32 4.11 277.98 181.58" overflow="visible">
+          <CabanaMark style={{ fill: `url(#${gold})` }} />
+        </svg>
       </svg>
-      <CabanaMark className="stay-pass__seal-mark" />
     </span>
   );
 }
@@ -103,6 +137,7 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
 
   const nights = Math.max(1, Math.round((day(booking.checkOut).getTime() - day(booking.checkIn).getTime()) / 86_400_000));
   const legend = `Confirmed stay · ${booking.city} · ${booking.checkIn.slice(0, 4)} · `.toUpperCase();
+  const sealed = phase !== 'idle';
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -171,7 +206,12 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
   useEffect(() => {
     if (phase !== 'stamping') return;
     const timer = window.setTimeout(() => onStamped?.(), reducedMotion ? 0 : STAMP_MS);
-    return () => window.clearTimeout(timer);
+    // A single tick as the wax lands, where the device has one to give.
+    const impact = reducedMotion ? 0 : window.setTimeout(() => navigator.vibrate?.(12), IMPACT_MS);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(impact);
+    };
   }, [phase, reducedMotion, onStamped]);
 
   const hold = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -214,22 +254,36 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
                 <CabanaMark className="stay-pass__mark" />
               </div>
 
+              <svg className="stay-pass__guilloche" viewBox="0 0 360 120" preserveAspectRatio="none" aria-hidden="true">
+                {GUILLOCHE.map((d, i) => <path key={i} d={d} />)}
+              </svg>
+
               <div className="stay-pass__body">
+                {/* Always laid out, so the card does not reflow when it appears. */}
+                <p className="stay-pass__status" aria-hidden={!sealed}>Confirmed</p>
                 <h2 className="stay-pass__property">{booking.property}</h2>
                 <p className="stay-pass__room">{booking.roomType} · {booking.city}</p>
-                <p className="stay-pass__dates">
-                  <span>{format(booking.checkIn)}</span>
-                  <i aria-hidden="true" />
-                  <span>{format(booking.checkOut)}</span>
-                  <b>{nights} {nights === 1 ? 'night' : 'nights'}</b>
-                </p>
+
+                <div className="stay-pass__dates">
+                  <div>
+                    <small>Check-in</small>
+                    <b>{format(booking.checkIn)}</b>
+                    <span>from {CHECK_IN_FROM}</span>
+                  </div>
+                  <i><span>{nights} {nights === 1 ? 'night' : 'nights'}</span></i>
+                  <div>
+                    <small>Check-out</small>
+                    <b>{format(booking.checkOut)}</b>
+                    <span>until {CHECK_OUT_BY}</span>
+                  </div>
+                </div>
 
                 <dl className="stay-pass__stub">
                   <div><dt>Guest</dt><dd>{booking.guestName}</dd></div>
-                  <div><dt>Guests</dt><dd>{booking.guestCount} guests</dd></div>
-                  <div><dt>Booked through</dt><dd>{booking.source}</dd></div>
+                  <div><dt>Guests</dt><dd>{booking.guestCount}</dd></div>
+                  <div><dt>Booked via</dt><dd>{booking.source}</dd></div>
                 </dl>
-                <small className="stay-pass__ref">Booking {booking.id}</small>
+                <small className="stay-pass__ref">No. {booking.id}</small>
               </div>
             </div>
             <span className="stay-pass__glare" aria-hidden="true" />
@@ -237,30 +291,18 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
           </article>
         </div>
 
-        {phase === 'idle' ? null : (
-          <span className="stay-pass__seal-spot" aria-hidden="true">
-            <span className="stay-pass__ripple" />
-            <span className="stay-pass__seal">
-              <StaySeal legend={legend} />
-            </span>
-            {reducedMotion ? null : (
-              <span className="stay-pass__sparks">
-                {SPARKS.map((spark, i) => (
-                  <i
-                    key={i}
-                    className={`stay-pass__spark stay-pass__spark--${spark.tone}`}
-                    style={{
-                      '--a': `${spark.angle}deg`,
-                      '--d': `${spark.distance}px`,
-                      '--s': `${spark.size}px`,
-                      animationDelay: `${680 + spark.delay}ms`,
-                    } as CSSProperties}
-                  />
-                ))}
+        <span className="stay-pass__seal-spot" aria-hidden="true">
+          {/* Where the seal will go: a faint pressed ring, so the empty corner reads as waiting. */}
+          <span className="stay-pass__seal-well" />
+          {sealed ? (
+            <>
+              <span className="stay-pass__spread" />
+              <span className="stay-pass__seal">
+                <WaxSeal legend={legend} />
               </span>
-            )}
-          </span>
-        )}
+            </>
+          ) : null}
+        </span>
       </div>
     </div>
   );

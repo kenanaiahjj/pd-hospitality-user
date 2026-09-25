@@ -291,8 +291,8 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
     expect(screen.getByText('The Henry Manila')).toBeInTheDocument();
-    expect(screen.getByText('Booking HEN-241109')).toBeInTheDocument();
-    expect(screen.getByText('Booked through')).toBeInTheDocument();
+    expect(screen.getByText('No. HEN-241109')).toBeInTheDocument();
+    expect(screen.getByText('Booked via')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Yes this is my booking' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: "No, this isn't my booking" })).toBeInTheDocument();
   });
@@ -1112,7 +1112,7 @@ describe('booking lookup', () => {
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
 
     expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
-    expect(screen.getByText('Booking ABC-999')).toBeInTheDocument();
+    expect(screen.getByText('No. ABC-999')).toBeInTheDocument();
     expect(screen.getByText('Ana Reyes')).toBeInTheDocument();
   });
 

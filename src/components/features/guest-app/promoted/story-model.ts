@@ -71,7 +71,7 @@ const STORY_FRAMES: Record<string, string[]> = {
  * and still better than a hole -- `storiesUseDistinctFrames` in the tests is
  * what stops that fallback quietly becoming the norm again.
  */
-const framesFor = (id: string, slideCount: number): ServiceImageDefinition[] => {
+export const framesFor = (id: string, slideCount: number): ServiceImageDefinition[] => {
   const keys = STORY_FRAMES[id] ?? [id];
   return Array.from({ length: slideCount }, (_, i) => storyImage(keys[i % keys.length]!));
 };
@@ -187,7 +187,7 @@ const POSTED_HOURS_AGO: Record<string, number> = {
 const DEFAULT_POSTED_HOURS_AGO = 7;
 const STORY_LIFETIME_HOURS = 24;
 
-const postingFor = (id: string) => ({
+export const postingFor = (id: string) => ({
   postedHoursAgo: POSTED_HOURS_AGO[id] ?? DEFAULT_POSTED_HOURS_AGO,
   livesForHours: STORY_LIFETIME_HOURS,
 });
@@ -196,7 +196,7 @@ const postingFor = (id: string) => ({
 const authorKind = (operator: string): StoryAuthor['kind'] =>
   operator.startsWith('Hotel') ? 'property' : 'venue';
 
-const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
+export const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
   const image = storyImage(venue.id);
   const frames = framesFor(venue.id, 3);
   const clip = storyVideo(venue.id);
@@ -221,7 +221,7 @@ const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
   };
 };
 
-const serviceStory = (service: (typeof SERVICES)[number]): Story => {
+export const serviceStory = (service: (typeof SERVICES)[number]): Story => {
   const frames = framesFor(service.id, 2);
   const clip = storyVideo(service.id);
   const house = venueForService(service.id);

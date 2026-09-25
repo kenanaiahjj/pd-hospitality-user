@@ -107,7 +107,9 @@ export function stayContext(
    Scoring
    -------------------------------------------------------------------------- */
 
-const WEIGHT = { follow: 4, phase: 3, daypart: 3, fit: 2, property: 1 } as const;
+/* A follow-up is the most specific thing the hotel knows -- the guest just
+   booked its lead-in -- so it outweighs a time-and-party match (3 + 2). */
+const WEIGHT = { follow: 6, phase: 3, daypart: 3, fit: 2, property: 1 } as const;
 /** A reel scoring this or more is a top pick for the moment. */
 const TAILORED_MIN = 3;
 const TAILORED_CAP = 12;

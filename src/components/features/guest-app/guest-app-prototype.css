@@ -7502,7 +7502,7 @@ button.guest-field__row { cursor: pointer; }
 .guest-field__row > b { color: var(--guest-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .guest-field__row > b.guest-field__aside { color: var(--guest-subtle); font-weight: 500; }
 .guest-field.is-open > .guest-field__row { color: var(--guest-ink); }
-.guest-field__body { padding: 0 14px 16px; }
+.guest-field__body { display: grid; gap: 10px; padding: 0 14px 16px; }
 
 .guest-calendar { display: grid; gap: 14px; }
 .guest-calendar__label {
@@ -7647,6 +7647,43 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])):f
 label.guest-field > small { grid-column: 1 / -1; padding-bottom: 12px; }
 label.guest-field:has(textarea) { grid-template-columns: 1fr; row-gap: 6px; padding: 14px 18px; }
 label.guest-field textarea { padding: 0; border: 0; background: transparent; font-size: 15px; outline: none; }
+/*
+  Typing rows stack: the label above, the value below it, left-aligned and
+  full width. Inline label-left / value-right suits picking and reviewing a
+  short answer, but for typing it hid where to tap, grew text leftward from
+  the caret, clipped long values, and left no room for a hint. Selects and
+  the picker rows (dates, guests, steppers, collapsed summaries) keep the
+  inline layout.
+*/
+label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [type="date"], [type="number"], [type="search"], [type="password"], :not([type])))
+{
+  grid-template-columns: 1fr;
+  row-gap: 2px;
+  min-height: 64px;
+  padding: 10px 18px 11px;
+  cursor: text;
+}
+label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [type="date"], [type="number"], [type="search"], [type="password"], :not([type]))) > span {
+  color: var(--guest-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [type="date"], [type="number"], [type="search"], [type="password"], :not([type]))) > input {
+  min-height: 26px;
+  /* 16px keeps iOS Safari from zooming the page on focus. */
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  text-align-last: left;
+}
+label.guest-field:has(> input[type="date"]) > input::-webkit-date-and-time-value { text-align: left; }
+label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [type="date"], [type="number"], [type="search"], [type="password"], :not([type]))) > small {
+  padding-bottom: 0;
+  padding-top: 4px;
+}
+
 /* Side by side, two label-and-value rows are too narrow to read. */
 .guest-form__row { grid-template-columns: 1fr; gap: 12px; }
 

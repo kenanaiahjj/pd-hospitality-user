@@ -8762,8 +8762,10 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   font-weight: 650;
 }
 .guest-prototype-trigger svg { flex: 0 0 auto; width: 16px; height: 16px; }
-/* Draggable: no scroll or text selection under the finger, and a lift while held. */
-.guest-prototype-stage .guest-prototype-trigger { touch-action: none; user-select: none; -webkit-user-select: none; }
+/* Draggable: no scroll or text selection under the finger, and a lift while held.
+   Above the app bar (40), which it now shares the top of the screen with and
+   which otherwise painted over it; under the rig's own backdrop (60). */
+.guest-prototype-stage .guest-prototype-trigger { z-index: 55; touch-action: none; user-select: none; -webkit-user-select: none; }
 .guest-prototype-stage .guest-prototype-trigger.is-dragging { cursor: grabbing; transform: scale(1.08); box-shadow: 0 8px 22px oklch(0 0 0 / 0.22); transition: none; }
 .guest-prototype-trigger__state { overflow: hidden; color: var(--ds-ink); text-overflow: ellipsis; white-space: nowrap; }
 

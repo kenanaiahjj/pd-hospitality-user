@@ -100,14 +100,6 @@
     linear-gradient(calc(125deg + var(--sp-x) * 30deg), oklch(1 0 0 / 0) 28%, oklch(1 0 0 / 0.9) 46%, oklch(1 0 0 / 0) 62%) calc(50% - var(--sp-x) * 70%) calc(50% - var(--sp-y) * 40%) / 260% 260%,
     repeating-linear-gradient(118deg, var(--sp-pearl)) calc(50% + var(--sp-x) * 40%) calc(50% + var(--sp-y) * 40%) / 300% 300%;
 }
-/* A hairline bevel where the frame meets the panel. */
-.stay-pass__foil::after {
-  content: '';
-  position: absolute;
-  inset: calc(var(--sp-frame) - 1px);
-  border-radius: 2px;
-  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.95), 0 0 0 2px oklch(0.78 0.08 80 / 0.35);
-}
 
 /* The panel sits inside the frame; its scoops are concentric with the frame's. */
 .stay-pass__panel {
@@ -130,20 +122,8 @@
     radial-gradient(circle var(--inner) at var(--off) calc(100% - var(--off)), #0000 98%, #000) 0 100% / 51% 51% no-repeat,
     radial-gradient(circle var(--inner) at calc(100% - var(--off)) calc(100% - var(--off)), #0000 98%, #000) 100% 100% / 51% 51% no-repeat;
 }
-/* Two hairlines down the sides, as on a printed ticket. */
-.stay-pass__panel::before,
-.stay-pass__panel::after {
-  content: '';
-  position: absolute;
-  top: 16%;
-  bottom: 16%;
-  z-index: 3;
-  width: 1px;
-  background: linear-gradient(oklch(1 0 0 / 0), oklch(1 0 0 / 0.34) 20%, oklch(1 0 0 / 0.34) 80%, oklch(1 0 0 / 0));
-  pointer-events: none;
-}
-.stay-pass__panel::before { left: 9px; }
-.stay-pass__panel::after { right: 9px; }
+/* No side hairlines: a 1px line under a 3D tilt shimmers as it crosses pixel
+   rows, and read as the card blinking. */
 
 /* Photograph across the top, drifting against the tilt for parallax, fading into plum. */
 .stay-pass__photo {

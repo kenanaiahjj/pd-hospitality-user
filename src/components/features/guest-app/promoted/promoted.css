@@ -1597,10 +1597,28 @@
 
 /* The scan's own earn, stated at the moment it happened. */
 .unlocked__earned {
-  margin: 4px 0 0;
-  font-size: 15px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 6px 0 0;
+  padding: 7px 14px 7px 10px;
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px oklch(0.78 0.08 80 / 0.55), 0 2px 8px oklch(0.6 0.08 75 / 0.12);
+  color: var(--guest-muted);
+  font-size: 13.5px;
   font-variant-numeric: tabular-nums;
+}
+.unlocked__earned b { color: var(--guest-ink); font-size: 14.5px; font-weight: 700; }
+.unlocked__earned-star {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f1dca6, #c49a4d);
+  color: #fff;
+  font-size: 11px;
 }
 
 /* --------------------------------------------------------------------------

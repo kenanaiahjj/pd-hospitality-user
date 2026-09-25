@@ -119,8 +119,11 @@ export function RoomUnlocked({
             Dining, the spa and anything else you book goes straight onto your room.
           </p>
           {earned ? (
+            // A reward, so it reads as one: a chip, the amount first.
             <p className="unlocked__earned">
-              +{earned.toLocaleString('en-US')} points for scanning in
+              <span className="unlocked__earned-star" aria-hidden="true">✦</span>
+              <b>+{earned.toLocaleString('en-US')} points</b>
+              <span>earned for scanning in</span>
             </p>
           ) : null}
         </div>

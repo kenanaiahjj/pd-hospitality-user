@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Review` |
+| **Status** | `Approved` |
 | **Created** | 2026-09-25 |
 | **Updated** | 2026-09-25 |
 | **Owner** | Kenanaiah Jo |

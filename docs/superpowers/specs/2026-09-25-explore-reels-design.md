@@ -276,8 +276,12 @@ export function rankFeed(context: StayContext, candidates: FeedCandidate[]): Fee
 
 **Ranking rules** (the behaviour tests pin):
 
-- Score = phase match (3) + daypart match (3) + follow-up of a booked id (4) +
-  party fit (2) + property-authored on arrival day / first night (1).
+- Score = phase match (3; 2 mid-stay, 4 on the last day and checkout day) +
+  daypart match (3) + follow-up of a booked id (6) + party fit (2) +
+  property-authored on arrival day / first night (1). *(Amended during
+  execution: follow-up 4 → 6 and the phase bias; see the plan's Decision Log.)*
+- A candidate tagged `onlyIn` is left out of the feed on any other phase:
+  late checkout and the airport car never appear before the last day.
 - A candidate whose `itemId` is booked is dropped from the tailored set and
   kept in the tail.
 - Diversity: after sorting, no two adjacent entries share `story.author.name`

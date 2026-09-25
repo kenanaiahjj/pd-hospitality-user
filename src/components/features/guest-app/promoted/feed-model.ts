@@ -44,6 +44,8 @@ export type FeedTags = {
   category: FeedCategory;
   /** Best on these days of the stay. */
   phases?: StayPhase[];
+  /** Left out of the feed on any other day: late checkout means nothing on night one. */
+  onlyIn?: StayPhase[];
   /** Best at these times. */
   dayparts?: Daypart[];
   fits?: 'couple' | 'family' | 'group' | 'solo';
@@ -137,6 +139,8 @@ function fits(tag: FeedTags['fits'], context: StayContext): boolean {
   return context.partySize >= 4;
 }
 
+const PHASE_BIAS: Record<StayPhase, number> = { 'arrival-day': 0, 'first-night': 0, 'mid-stay': -1, 'last-day': 1, 'checkout-day': 1 };
+
 type Scored = { candidate: FeedCandidate; score: number; why: string; priority: number; booked: boolean };
 
 function score(candidate: FeedCandidate, context: StayContext, titleOf: (id: string) => string | undefined): Scored {
@@ -148,8 +152,10 @@ function score(candidate: FeedCandidate, context: StayContext, titleOf: (id: str
   if (trigger) matched.push({ weight: WEIGHT.follow, why: `Goes well with your ${(titleOf(trigger) ?? 'booking').toLowerCase()}`, priority: 5 });
   /* Mid-stay is true all week, so it is the weakest day signal: at 7 PM the
      timely dinner should beat the generic "made for today" tour. */
+  /* The going-home days lean the other way: a reel about getting home should
+     beat a follow-up treatment on the morning of the flight. */
   if (tags.phases?.includes(context.phase)) {
-    matched.push({ weight: context.phase === 'mid-stay' ? WEIGHT.phase - 1 : WEIGHT.phase, why: PHASE_WHY[context.phase], priority: context.phase === 'mid-stay' ? 2.5 : 4 });
+    matched.push({ weight: WEIGHT.phase + PHASE_BIAS[context.phase], why: PHASE_WHY[context.phase], priority: context.phase === 'mid-stay' ? 2.5 : 4 });
   }
   if (tags.dayparts?.includes(context.daypart)) matched.push({ weight: WEIGHT.daypart, why: tags.whenLabel ?? DAYPART_WHY[context.daypart], priority: 3 });
   if (fits(tags.fits, context)) matched.push({ weight: WEIGHT.fit, why: FIT_WHY[tags.fits!], priority: 2 });
@@ -204,7 +210,7 @@ function spread(ordered: Scored[]): Scored[] {
 export function rankFeed(context: StayContext, candidates: FeedCandidate[]): FeedEntry[] {
   if (!candidates.length) return [];
   const titleOf = (id: string) => candidates.find((entry) => entry.tags.itemId === id)?.story.title;
-  const scored = candidates.map((candidate) => score(candidate, context, titleOf));
+  const scored = candidates.filter((candidate) => !candidate.tags.onlyIn || candidate.tags.onlyIn.includes(context.phase)).map((candidate) => score(candidate, context, titleOf));
 
   const open = scored.filter((entry) => !entry.booked).sort(byRelevance);
   const done = scored.filter((entry) => entry.booked).sort(byRelevance);

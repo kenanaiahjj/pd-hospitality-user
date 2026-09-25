@@ -130,7 +130,7 @@ const MOMENTS: Moment[] = [
       { headline: 'Leave the traffic to us', detail: 'A hotel driver, door to departures.', image: remote('photo-1764089859662-7b4773dff85b', 'Executive sedan at the kerb') },
       { headline: 'On your room bill', detail: 'Pick a time and it goes on your room.', image: remote('photo-1449965408869-eaa3f722e40d', 'Highway toward the airport') },
     ],
-    tags: { itemId: 'moment-transfer-home', category: 'services', phases: ['last-day', 'checkout-day'], dayparts: ['morning', 'afternoon'] },
+    tags: { itemId: 'moment-transfer-home', category: 'services', phases: ['last-day', 'checkout-day'], onlyIn: ['last-day', 'checkout-day'], dayparts: ['morning', 'afternoon'] },
     action: { kind: 'departure-ride' },
     postedHoursAgo: 4,
   },
@@ -143,7 +143,7 @@ const MOMENTS: Moment[] = [
     slides: [
       { headline: 'No rush tomorrow', detail: 'Ask for your room until 2:00 PM.', image: getRoomImage('King room') },
     ],
-    tags: { itemId: 'moment-late-checkout', category: 'services', phases: ['last-day'], dayparts: ['evening', 'late'] },
+    tags: { itemId: 'moment-late-checkout', category: 'services', phases: ['last-day'], onlyIn: ['last-day'], dayparts: ['evening', 'late'] },
     action: { kind: 'late-checkout' },
     postedHoursAgo: 6,
   },

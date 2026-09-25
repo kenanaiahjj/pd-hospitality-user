@@ -31,6 +31,21 @@ describe('feed content', () => {
     expect(['moment-pasalubong', 'moment-transfer-home']).toContain(feedAt(3, 9)[0]!.story.id);
   });
 
+  it('leads the last day with going home even after a booked massage', () => {
+    // Seen in the browser: the facial follow-up tied the pasalubong reel and
+    // won the tie, so the day you fly home opened on another treatment.
+    expect(['moment-pasalubong', 'moment-transfer-home']).toContain(feedAt(3, 8, ['spa'])[0]!.story.id);
+  });
+
+  it('never offers going home before the last day', () => {
+    // Seen in the browser: on night one the late-checkout reel scored on
+    // "evening" alone and sat fifth in the feed.
+    const ids = [1, 2].flatMap((day) => [8, 19, 23].flatMap((hour) => feedAt(day, hour).map((entry) => entry.story.id)));
+    expect(ids).not.toContain('moment-late-checkout');
+    expect(ids).not.toContain('moment-transfer-home');
+    expect(feedAt(3, 19).map((entry) => entry.story.id)).toContain('moment-late-checkout');
+  });
+
   it('opens a morning on breakfast or coffee', () => {
     const first = feedAt(2, 8)[0]!;
     expect(['moment-breakfast', 'venue-cafe', 'venue-apartment-1b', 'nearby-kape-lab-manila']).toContain(first.story.id);

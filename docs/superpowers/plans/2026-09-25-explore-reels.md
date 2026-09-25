@@ -31,8 +31,8 @@ Off-ramps: `Blocked` (say what unblocks it in Decision Log) · `Abandoned`.
 | 2 | Feed content: tags, new stories, actions | ✅ Complete | 2026-09-25 | 2026-09-25 | `ed85850` |
 | 3 | Reel player: `ReelView` + `ReelFeed` | ✅ Complete | 2026-09-25 | 2026-09-25 | `62d1a4e` |
 | 4 | Search and Browse sheets | ✅ Complete | 2026-09-25 | 2026-09-25 | `ee0a93e` |
-| 5 | Wire Explore to the feed; prototype clock | ✅ Complete | 2026-09-25 | 2026-09-25 | `5eb3aec` |
-| 6 | Verification walkthrough and artifact | ⬜ Not started | — | — | — |
+| 5 | Wire Explore to the feed; prototype clock | ✅ Complete | 2026-09-25 | 2026-09-25 | `2c14089` |
+| 6 | Verification walkthrough and artifact | ✅ Complete | 2026-09-25 | 2026-09-25 | `HASH` |
 | 7 | Phase 2: home venue rings | ⬜ Not started | — | — | — |
 
 Legend: ⬜ Not started · 🔄 In progress · 🔁 Fix round *R*/5 · ✅ Complete · ⛔ Blocked · ⏭️ Descoped
@@ -175,8 +175,8 @@ prototype's session shape; the prototype derives them.
 
 ## Task 6: Verification walkthrough
 
-- [ ] In the browser: set the clock to Day 1 · Evening and record the first three reels and their why lines; then Last day · Morning; swipe, step frames, book from a reel, open Browse and Search.
-- [ ] Save the screenshots under `.superpowers/sdd/2026-09-25-explore-reels/artifacts/` and record the observed order in the ledger.
+- [x] In the browser: set the clock to Day 1 · Evening and record the first three reels and their why lines; then Last day · Morning; swipe, step frames, book from a reel, open Browse and Search.
+- [x] Save the screenshots under `.superpowers/sdd/2026-09-25-explore-reels/artifacts/` and record the observed order in the ledger.
 
 ## Task 7: Phase 2 — home venue rings
 
@@ -201,5 +201,8 @@ prototype's session shape; the prototype derives them.
 | 2026-09-25 | A mid-stay match weighs 2, not 3, and yields to the time of day on a tie | Mid-stay is true all week; at 7 PM dinner should lead over a generic tour | Mid-stay-only content ranks lower; retune the weight |
 | 2026-09-25 | Follow-up weight 6, not 4 | With 4, a couples massage (fit + afternoon = 5) out-ranked the facial after a booked massage; a follow-up is the most specific signal | Follow-ups can crowd the top; lower toward 5 |
 | 2026-09-25 | Delete `DiscoverFeed`, `SwipeDeck` and `SwipeStoryViewer` | Nothing outside their own tests imported them once Explore moved to the feed; the search test moved to `SearchSheet` | Reinstating the card deck means restoring them from git |
+| 2026-09-25 | `onlyIn` hard gate for going-home reels | Walkthrough: on night one, late checkout scored on "evening" alone and sat fifth | A reel wrongly gated never shows; widen its `onlyIn` |
+| 2026-09-25 | Last-day and checkout-day phase weight 4, not 3 | Walkthrough: with a spa booked, the facial follow-up (6) tied pasalubong (3+3) and won the tie, opening the flight morning on a treatment | Follow-ups sink one place on the last day |
+| 2026-09-25 | Walkthrough artifact is an observations log, not PNGs | The browser pane's screenshots cannot be written to disk from this session | Re-run the steps in the log to reproduce |
 | 2026-09-25 | Feed reels play stills, not the three bundled clips | The clips' baked-in push-in steps in whole pixels and juddered full screen (the welcome-screen fault) | No motion in the feed until smooth footage exists; `ReelView` still supports video |
 

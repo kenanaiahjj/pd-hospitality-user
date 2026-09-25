@@ -430,6 +430,8 @@
   --guest-warning: var(--ds-warning);
   --guest-warning-soft: var(--ds-warning-soft);
   --guest-danger: var(--ds-danger);
+  /* Unread and alert dots: a bright signal red, not the darker error text red. */
+  --guest-notify: oklch(0.62 0.21 27);
   --guest-danger-soft: var(--ds-danger-soft);
 
   /* Shape and rhythm. Nested shapes stay concentric: an inner radius plus its
@@ -2207,6 +2209,8 @@
 }
 .guest-chat__welcome p { margin: 0; color: var(--guest-muted); font-size: 16px; }
 .guest-chat__welcome h2 { max-width: 24ch; margin: 0; font-size: clamp(23px, 6vw, 28px); font-weight: 550; letter-spacing: -0.026em; line-height: 1.22; }
+/* Before the first message, the requests sit under the question they answer. */
+.guest-chat__welcome .guest-quick-actions { justify-self: stretch; width: 100%; margin-top: 20px; text-align: left; }
 
 /* The request rail stays above the composer and scrolls independently on
    narrow screens, keeping every existing action one swipe away. */
@@ -2307,13 +2311,20 @@
   align-items: end;
   gap: 8px;
 }
+/* 44px against the row's 48px: lifted by half the difference so its centre
+   matches the text and the voice button. */
+.guest-composer__row > .guest-composer__tool { margin-bottom: 2px; }
 .guest-composer__text-input {
   box-sizing: border-box;
   min-width: 0;
-  min-height: 52px;
+  /* 48px, like the voice button: with the row aligned to its end, one line of
+     text and every control share a centre 24px up, and a longer message
+     still grows upward from the same baseline. */
+  min-height: 48px;
   max-height: 112px;
   margin: 0;
-  padding: 12px 4px;
+  /* 11 + 24 + 11, plus the 1px transparent border each side, is the 48. */
+  padding: 11px 4px;
   overflow-x: hidden;
   overflow-y: hidden;
   resize: none;
@@ -4447,7 +4458,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--guest-accent-strong);
+  background: var(--guest-notify);
   /* A ring in the bar's own colour, so the dot stays legible where it overlaps
      the glyph's stroke. */
   box-shadow: 0 0 0 2px var(--guest-canvas);
@@ -4503,7 +4514,7 @@
   height: 8px;
   margin-top: 7px;
   border-radius: 50%;
-  background: var(--guest-accent-strong);
+  background: var(--guest-notify);
 }
 
 /* --------------------------------------------------------------------------

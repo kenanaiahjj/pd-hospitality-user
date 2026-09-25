@@ -64,7 +64,11 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
     const previousScrollTop = textArea.scrollTop;
     const caretAtEnd = textArea.selectionStart === textArea.value.length;
     textArea.style.height = 'auto';
-    const nextHeight = Math.min(textArea.scrollHeight, MAX_COMPOSER_TEXTAREA_HEIGHT);
+    // border-box: `scrollHeight` leaves out the border, so add it back or a
+    // single line sits 2px short of the controls beside it.
+    const { borderTopWidth, borderBottomWidth } = getComputedStyle(textArea);
+    const border = (parseFloat(borderTopWidth) || 0) + (parseFloat(borderBottomWidth) || 0);
+    const nextHeight = Math.min(textArea.scrollHeight + border, MAX_COMPOSER_TEXTAREA_HEIGHT);
     textArea.style.height = `${nextHeight}px`;
     const isOverflowing = textArea.scrollHeight > MAX_COMPOSER_TEXTAREA_HEIGHT;
     textArea.style.overflowY = isOverflowing ? 'auto' : 'hidden';

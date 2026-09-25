@@ -2601,6 +2601,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     ] : chatMessages;
     const chatStarted = displayedChatMessages.some((message) => message.from === 'guest');
 
+    const showChatWelcome = !chatStarted && !chatDisabled && !restaurantChat;
+    const chatQuickActions = (
+      <div className="guest-quick-actions" aria-label="Popular requests">
+        <div className="guest-quick-actions__rail">
+          {CHAT_QUICK_ACTIONS.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              disabled={chatDisabled}
+              onClick={() => sendQuickMessage(action.message(contextRoom))}
+            >
+              <span className="guest-quick-actions__copy">
+                <b>{action.label}</b>
+                <small>{action.description}</small>
+              </span>
+              <CaretRight aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
     return (
       <div
         className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''}${restaurantChat ? ' guest-chat--restaurant' : ''} ${chatStarted ? 'guest-chat--conversation' : 'guest-chat--welcome'}`}
@@ -2624,10 +2645,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         {restaurantChat ? <p className="guest-chat__order-context">Ordering from {chatOrderVenue}</p> : null}
 
         <div className="guest-messages" aria-label="Conversation" aria-live="polite">
-          {!chatStarted && !chatDisabled && !restaurantChat ? (
+          {showChatWelcome ? (
             <div className="guest-chat__welcome" aria-labelledby="guest-chat-welcome-title">
               <p>Good afternoon, Ana.</p>
               <h2 id="guest-chat-welcome-title">How can we help with your stay?</h2>
+              {/* Before the first message the requests answer the question
+                  above them; once the thread starts they dock by the composer. */}
+              {chatQuickActions}
             </div>
           ) : null}
           {displayedChatMessages.map((message, index) => {
@@ -2688,26 +2712,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         </div>
 
         <div className="guest-chat__dock">
-          {!restaurantChat ? (
-            <div className="guest-quick-actions" aria-label="Popular requests">
-              <div className="guest-quick-actions__rail">
-                {CHAT_QUICK_ACTIONS.map((action) => (
-                  <button
-                    key={action.label}
-                    type="button"
-                    disabled={chatDisabled}
-                    onClick={() => sendQuickMessage(action.message(contextRoom))}
-                  >
-                    <span className="guest-quick-actions__copy">
-                      <b>{action.label}</b>
-                      <small>{action.description}</small>
-                    </span>
-                    <CaretRight aria-hidden="true" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          {!restaurantChat && !showChatWelcome ? chatQuickActions : null}
           <ChatComposer
             disabled={chatDisabled}
             draft={chatDraft}

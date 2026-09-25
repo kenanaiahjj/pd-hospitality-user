@@ -2322,9 +2322,21 @@ describe('lifecycle gates', () => {
       expect(within(chat).getByRole('button', { name: new RegExp(`^${label}`) })).toBeInTheDocument();
     }
 
-    expect(chat.querySelector('.guest-chat__dock .guest-quick-actions')).toBeInTheDocument();
+    // Empty: the requests sit under the question they answer, not by the composer.
+    expect(chat.querySelector('.guest-chat__welcome .guest-quick-actions')).toBeInTheDocument();
+    expect(chat.querySelector('.guest-chat__dock .guest-quick-actions')).toBeNull();
     expect(within(chat).queryByText('Popular requests')).toBeNull();
-    expect(chat.querySelector('.guest-messages .guest-quick-actions')).toBeNull();
+  });
+
+  it('docks the requests above the composer once the conversation starts', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="chat" initialSession={verified} />);
+
+    await user.click(screen.getByRole('button', { name: /^Towels/ }));
+
+    const chat = screen.getByRole('region', { name: 'Front desk conversation' });
+    expect(chat.querySelector('.guest-chat__dock .guest-quick-actions')).toBeInTheDocument();
+    expect(chat.querySelector('.guest-chat__welcome')).toBeNull();
   });
 
   it('changes to conversation mode after a prompt sends through the existing path', async () => {

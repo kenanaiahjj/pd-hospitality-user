@@ -168,6 +168,8 @@ import {
   type AuthMethod,
   type RoomPreferences,
   ROOM_PREFERENCE_OPTIONS,
+  CHECK_IN_FROM,
+  CHECK_OUT_BY,
   summarizeRoomPreferences,
 } from './prototype-model';
 import {
@@ -3724,7 +3726,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
               <strong>₱1,500</strong>
             </div>
-            <Notice title="Charged to your room folio">
+            <Notice title="Added to your room bill">
               The hotel confirms availability first. If approved, the ₱1,500 charge is added to your room and settled at checkout.
             </Notice>
             <Button
@@ -4103,7 +4105,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </fieldset>
             {diningOrderError ? <Notice tone={!online ? 'offline' : 'warning'} title={diningOrderError}>Your cart is saved. Review it and try again when you’re ready.</Notice> : null}
             <PaymentChoice allowPayNow={false} provider="Operated by the hotel" roomNumber={contextBooking.roomNumber} value={checkoutPayment} method={paymentMethod} onChange={setCheckoutPayment} onMethodChange={setPaymentMethod} />
-            <Notice title="Nothing is charged yet">Your room folio changes only after you review and place this order.</Notice>
+            <Notice title="Nothing is charged yet">Nothing is added to your room until you review and place this order.</Notice>
             <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0 || checkoutPayment !== 'room'} onClick={confirmDiningOrder}>{checkoutPayment === 'room' ? `Charge ${cartSummary.formattedTotal} to room` : 'Choose Charge to Room'}<ArrowRight aria-hidden="true" /></Button>
             <TextButton onClick={() => go('restaurant-menu')}>Add more from {venue.name}</TextButton>
           </div>
@@ -4209,7 +4211,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Fare" value={transferBooking ? (transferBooking.vehicle === 'Private van' ? '₱1,800' : transferBooking.vehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200') : '₱1,200'} strong />
             </div>
             <PointsEarned points={Math.floor(transferAmount / 100) * 50} badges={[]} />
-            <Notice title={transferPaidNow ? 'Payment successful' : `Added to ${contextRoom.toLowerCase()}`}>{transferPaidNow ? 'Your receipt is available in this booking.' : 'This hotel transfer is included in Additional charges and settles with your hotel folio at checkout.'}</Notice>
+            <Notice title={transferPaidNow ? 'Payment successful' : `Added to ${contextRoom.toLowerCase()}`}>{transferPaidNow ? 'Your receipt is available in this booking.' : 'This hotel transfer is included in Additional charges and is paid with your room bill at checkout.'}</Notice>
             <Notice icon={<Car />} title="Driver details coming soon">The hotel will add your driver’s name, contact details, and vehicle plate here once they assign the transfer.</Notice>
             <Notice title="Operated by the hotel">Your transfer is coordinated directly by {contextBooking.property}.</Notice>
             {primary('View my stay', 'rate-detail')}
@@ -4309,7 +4311,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ? `Paid with ${methodLabel}, direct to the hotel. Your receipt is in My Stay.`
               : paidBy === 'complimentary'
                 ? 'Complimentary, so there is nothing to pay. It is on your stay in My Stay.'
-                : `The charge has been added to ${contextRoom.toLowerCase()} and settles with your hotel folio at checkout.`}
+                : `The charge has been added to ${contextRoom.toLowerCase()} and is paid with your room bill at checkout.`}
           >
             <div className="guest-ticket"><div><small>{slot}</small><h2>{time}</h2><p>{booked?.title ?? bookedService.name} · {guests} {guests === 1 ? 'guest' : 'guests'}</p></div><Tag>Confirmed</Tag></div>
             <div className="guest-summary">
@@ -4431,32 +4433,29 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack guest-my-stay-page">
             {/* The stay in full lives here; Home carries only the compact reminder. */}
-            <UpcomingBookingCard booking={contextBooking} primary onNavigate={go} statusLabel={stayStatus.label} />
+            <UpcomingBookingCard booking={contextBooking} primary onNavigate={go} statusLabel={stayStatus.label} showCountdown />
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
+            {/*
+              The countdown lives on the stay card now; the card above already
+              opens the booking, so a second row doing the same was redundant.
+              What is left here is only what the stay can still do.
+            */}
+            {(!checkedOut && contextBooking.status === 'active') || (started && !checkedOut) ? (
             <div className="guest-stay-context guest-checkout-card">
-              <button type="button" onClick={() => go('rate-detail')}>
-                <span className="guest-stay-context__clock" aria-hidden="true"><ClockCountdown /></span>
-                {/*
-                  The helper, not a hardcoded date. Comparing against
-                  '2026-11-12' meant every other stay fell through to a raw
-                  ISO date, and a stay before arrival was told when it checks
-                  out rather than when it begins.
-                */}
-                <span className="guest-stay-context__text"><b>{describeCheckoutCountdown(contextBooking)}</b><small>{formatStayDateRange(contextBooking)} · 12:00 PM</small></span>
-              </button>
               {!checkedOut && contextBooking.status === 'active' ? <div className="guest-checkout-card__actions">{checkoutIsDue ? <button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button> : null}<div className="guest-checkout-card__requests"><button type="button" onClick={openLateCheckoutChat}><Clock aria-hidden="true" /><span><b>Request late checkout</b><small>Ask for a later checkout time.</small></span><CaretRight /></button><button type="button" onClick={openExtensionChat}><CalendarPlus aria-hidden="true" /><span><b>Extend your stay</b><small>Ask if your room is available for another night.</small></span><CaretRight /></button></div></div> : null}
 
               {/* Live-stay folio access belongs with the other stay details. */}
               {started && !checkedOut ? (
                 <button className="guest-my-stay-folio-link" type="button" aria-label="Room charges" onClick={() => go('folio')}>
                   <span className="guest-my-stay-folio-link__icon" aria-hidden="true"><GuestNavIcon icon={HugeReceiptTextIcon} /></span>
-                  <span className="guest-my-stay-folio-link__copy"><b>Room charges</b><small>View your complete folio</small></span>
+                  <span className="guest-my-stay-folio-link__copy"><b>Room charges</b><small>Everything added to your room so far</small></span>
                   <HugeiconsIcon icon={HugeChevronRightIcon} size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />
                 </button>
               ) : null}
             </div>
+            ) : null}
 
             {/*
               Live stays only. After checkout the folio is a closed ledger, and
@@ -4792,7 +4791,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ? { title: 'Your payment is refunded', body: 'It goes back the way you paid. Nothing else changes.' }
           : paidBy === 'complimentary'
             ? { title: 'Nothing to refund', body: 'This one was complimentary.' }
-            : { title: 'The folio line will be removed', body: 'This service has not settled. No money moves when you cancel.' };
+            : { title: 'The charge will be removed from your room', body: 'This service has not settled. No money moves when you cancel.' };
         return <ScreenIntro eyebrow={`${hoursLeft} hours before service`} title="Cancel this booking?" text={`This is before the provider’s ${cutoffHours ?? 24}-hour cutoff, so you can cancel it yourself.`}><div className="guest-ticket"><div><small>{cancellable.scheduledFor}</small><h2>{time}</h2><p>{cancellable.title} · {cancellable.amount}{paidBy === 'room' ? ` · ${contextRoom}` : ''}</p></div></div><Notice tone="positive" title={settlement.title}>{settlement.body}</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">Cancel service</button><TextButton onClick={() => go('my-stay')}>Keep booking</TextButton><div className="guest-provisional"><b>Provisional decision</b><p>Confirm that third-party providers accept a 24-hour self-service cancellation window.</p></div></ScreenIntro>;
       }
 
@@ -6161,7 +6160,22 @@ function StayEntryCard({ entry, onOpen, showWhen = true }: { entry: StayEntry; o
   return <button className="guest-stay-entry" type="button" data-status={entry.status} onClick={onOpen}>{body}</button>;
 }
 
-function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean }) {
+/**
+ * "Checks out tomorrow" -> label "Check-out", value "Tomorrow · 12:00 PM": the
+ * countdown as a stat cell on the stay card, where the dates already are.
+ */
+function countdownCell(booking: Booking): { label: string; value: string } | undefined {
+  const text = describeCheckoutCountdown(booking);
+  const match = text.match(/^Checks (in|out) (.+)$/);
+  if (!match) return undefined;
+  const [, which, rest] = match as unknown as [string, 'in' | 'out', string];
+  const when = rest.replace(/ from .+$/, '');
+  const at = which === 'in' ? CHECK_IN_FROM : CHECK_OUT_BY;
+  return { label: which === 'in' ? 'Check-in' : 'Check-out', value: `${when.charAt(0).toUpperCase()}${when.slice(1)} · ${at}` };
+}
+
+function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showCountdown = false }: { booking: Booking; primary?: boolean; onNavigate: (screen: ActiveScreen) => void; statusLabel?: string; showRoomBadge?: boolean; hideEyebrow?: boolean; showCountdown?: boolean }) {
+  const countdown = showCountdown ? countdownCell(booking) : undefined;
   return (
     <section className="guest-stay-hero-card guest-stay-hero-card--photo">
       <div className="guest-stay-hero-card__media">
@@ -6181,6 +6195,7 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel
           {booking.roomNumber ? <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber}</b></div> : null}
         <div><small>Guests</small><b>{booking.guestCount} guests</b></div>
         <div><small>Nights</small><b>{countNights(booking)}</b></div>
+        {countdown ? <div><small>{countdown.label}</small><b>{countdown.value}</b></div> : null}
       </div>
       <button className="guest-stay-hero-card__booking" onClick={() => onNavigate('rate-detail')} type="button">
         <span><Ticket /></span>
@@ -7093,7 +7108,7 @@ function GiftOrderCartScreen({ fulfillment, onFulfillmentChange, cart, onChangeQ
   const checkedOut = booking.status === 'completed';
   const items = GIFT_PRODUCTS.filter((product) => (cart[product.name] ?? 0) > 0);
   const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0);
-  return <div className="guest-stack guest-order-cart"><div className="guest-page-title"><p className="guest-eyebrow">Gifts &amp; Souvenirs</p><h1>Your gift order</h1><p>Review your items, choose fulfillment, and select how you&rsquo;d like to pay.</p></div><p className="guest-provider-label">Operated by the hotel</p><div className="guest-order-cart__summary"><span>{countOf(items.reduce((sum, product) => sum + (cart[product.name] ?? 0), 0), 'item')}</span><strong>{formatPesoAmount(total)}</strong></div><div className="guest-order-items">{items.map((product) => <div className="guest-order-item" key={product.name}><div><b>{product.name}</b><small>{product.price} each</small></div><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output>{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div></div>)}</div><fieldset className="guest-fulfillment-options"><legend>How would you like your order?</legend><div>{!checkedOut ? <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} aria-pressed={fulfillment === 'room'} disabled={!booking.roomNumber} onClick={() => onFulfillmentChange('room')}><b>Deliver to room</b><small>{booking.roomNumber ? `Room ${booking.roomNumber}` : 'Room assignment required'}</small></button> : null}<button type="button" className={fulfillment === 'lobby' || checkedOut ? 'is-active' : ''} aria-pressed={fulfillment === 'lobby' || checkedOut} onClick={() => onFulfillmentChange('lobby')}><b>Pick up at the lobby</b><small>Hotel lobby</small></button></div></fieldset><PaymentChoice allowPayNow={false} provider="Operated by the hotel" roomNumber={booking.roomNumber} value={payment} method={paymentMethod} onChange={onPaymentChange} onMethodChange={onPaymentMethodChange} /><Notice title="Nothing is charged yet">Your room folio changes only after you place the order.</Notice><Button className="guest-button guest-button--primary" type="button" disabled={!items.length || (!checkedOut && fulfillment === 'room' && !booking.roomNumber) || !payment} onClick={onConfirm}>{payment === 'room' ? `Charge ${formatPesoAmount(total)} to room` : 'Choose how to pay'}<ArrowRight /></Button><TextButton onClick={onBack}>Continue shopping</TextButton></div>;
+  return <div className="guest-stack guest-order-cart"><div className="guest-page-title"><p className="guest-eyebrow">Gifts &amp; Souvenirs</p><h1>Your gift order</h1><p>Review your items, choose fulfillment, and select how you&rsquo;d like to pay.</p></div><p className="guest-provider-label">Operated by the hotel</p><div className="guest-order-cart__summary"><span>{countOf(items.reduce((sum, product) => sum + (cart[product.name] ?? 0), 0), 'item')}</span><strong>{formatPesoAmount(total)}</strong></div><div className="guest-order-items">{items.map((product) => <div className="guest-order-item" key={product.name}><div><b>{product.name}</b><small>{product.price} each</small></div><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output>{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div></div>)}</div><fieldset className="guest-fulfillment-options"><legend>How would you like your order?</legend><div>{!checkedOut ? <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} aria-pressed={fulfillment === 'room'} disabled={!booking.roomNumber} onClick={() => onFulfillmentChange('room')}><b>Deliver to room</b><small>{booking.roomNumber ? `Room ${booking.roomNumber}` : 'Room assignment required'}</small></button> : null}<button type="button" className={fulfillment === 'lobby' || checkedOut ? 'is-active' : ''} aria-pressed={fulfillment === 'lobby' || checkedOut} onClick={() => onFulfillmentChange('lobby')}><b>Pick up at the lobby</b><small>Hotel lobby</small></button></div></fieldset><PaymentChoice allowPayNow={false} provider="Operated by the hotel" roomNumber={booking.roomNumber} value={payment} method={paymentMethod} onChange={onPaymentChange} onMethodChange={onPaymentMethodChange} /><Notice title="Nothing is charged yet">Nothing is added to your room until you place the order.</Notice><Button className="guest-button guest-button--primary" type="button" disabled={!items.length || (!checkedOut && fulfillment === 'room' && !booking.roomNumber) || !payment} onClick={onConfirm}>{payment === 'room' ? `Charge ${formatPesoAmount(total)} to room` : 'Choose how to pay'}<ArrowRight /></Button><TextButton onClick={onBack}>Continue shopping</TextButton></div>;
 }
 
 function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {

@@ -1891,7 +1891,7 @@ export const PROTOTYPE_STAY_STATES: Array<{
   { id: 'signed-out', label: 'Signed out', detail: 'Welcome screen, nothing connected' },
   { id: 'account-only', label: 'Signed in, no booking', detail: 'Has an account, no current stay' },
   { id: 'pre-arrival', label: 'Pre-arrival', detail: 'Booked, arrival services only' },
-  { id: 'live', label: 'Live stay', detail: 'Scanned, charging to the folio' },
+  { id: 'live', label: 'Live stay', detail: 'Scanned, charging to the room' },
   { id: 'just-checked-out', label: 'Just checked out', detail: 'Settled, front desk open 24 hours' },
   { id: 'closed', label: 'Stay closed', detail: 'Desk window over, summary and review' },
 ];

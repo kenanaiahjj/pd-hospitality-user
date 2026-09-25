@@ -506,7 +506,7 @@ describe('GuestAppPrototype', () => {
 
     expect(await screen.findByRole('heading', { name: /Hilom signature massage is booked/i })).toBeInTheDocument();
     expect(screen.getByText(/added to room 512/i)).toBeInTheDocument();
-    expect(screen.getByText(/hotel folio at checkout/i)).toBeInTheDocument();
+    expect(screen.getByText(/paid with your room bill at checkout/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
     expect(screen.getByRole('button', { name: /Room charges/i })).not.toHaveTextContent('₱5,450');
@@ -522,7 +522,7 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByRole('button', { name: /request early check-in/i })).toBeInTheDocument();
     expect(screen.queryByText(/gcash|maya|card|insurance/i)).toBeNull();
-    expect(screen.getByText(/charged to your room folio/i)).toBeInTheDocument();
+    expect(screen.getByText(/added to your room bill/i)).toBeInTheDocument();
   });
 
   it('keeps confirmed services and cancellation status in the active stay', async () => {
@@ -1020,7 +1020,7 @@ describe('booking detail', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
 
-    await user.click(screen.getByRole('button', { name: /Checks out|Checks in/ }));
+    await user.click(screen.getByRole('button', { name: /View booking/ }));
 
     expect(screen.getByRole('heading', { name: 'Guests' })).toBeInTheDocument();
     expect(screen.getByText('Ana Santos')).toBeInTheDocument();
@@ -1410,8 +1410,10 @@ describe('my stay', () => {
   it('leads with where the stay sits in time', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
-    // The reference stay runs 9-12 November against a fixed prototype today.
-    expect(screen.getByText('Checks out tomorrow')).toBeInTheDocument();
+    // The reference stay runs 9-12 November against a fixed prototype today;
+    // the countdown is a cell on the stay card, beside the dates.
+    expect(screen.getByText('Check-out')).toBeInTheDocument();
+    expect(screen.getByText('Tomorrow · 12:00 PM')).toBeInTheDocument();
   });
 
   it('uses one restrained glass layer and a pink selected tab state', () => {
@@ -1443,7 +1445,7 @@ describe('my stay', () => {
 
     // No folio can exist yet, so the block is absent rather than showing zero.
     expect(screen.queryByRole('button', { name: /room charges/i })).toBeNull();
-    expect(screen.getByText('Checks in in 3 days')).toBeInTheDocument();
+    expect(screen.getByText('In 3 days · 3:00 PM')).toBeInTheDocument();
   });
 
   it('keeps the front desk one tap from My Stay', async () => {
@@ -2396,7 +2398,7 @@ describe('lifecycle gates', () => {
     await user.click(screen.getByRole('button', { name: /Charge ₱[\d,]+ to room/ }));
 
     expect(screen.getByRole('heading', { name: /Private car & driver is booked/ })).toBeInTheDocument();
-    expect(screen.getByText(/settles with your hotel folio at checkout/)).toBeInTheDocument();
+    expect(screen.getByText(/is paid with your room bill at checkout/)).toBeInTheDocument();
   });
 
   it('lists arrival services by name alone before a room is assigned', async () => {

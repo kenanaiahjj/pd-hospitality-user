@@ -24,11 +24,9 @@ import {
   MapPin,
   Megaphone,
   Minus,
-  Pause,
   Person,
   PersonSimpleWalk,
   Phone,
-  Play,
   Plus,
   QrCode,
   Receipt,
@@ -690,10 +688,10 @@ function withActiveRoom(current: GuestSession): GuestSession {
  * The three things a booking unlocks, shown one at a time as an onboarding
  * pager. Array order is the reading order and the paging order.
  *
- * Each step is full bleed: a Henry photograph, and over it a short film of
- * the estate where one is good enough to lead with. The photograph is the
- * still -- what shows under reduced motion, before the film can play, or when
- * autoplay is refused -- and a step with no film is just the still, drifting.
+ * Each step is full bleed: a Henry photograph with a slow CSS drift. There
+ * were short films on steps 2 and 3, but their push-in was baked into the
+ * footage in whole-pixel steps, so it juddered however it was composited;
+ * a still drifting on the compositor is smooth, and needs no pause control.
  */
 /**
  * The property photographs are landscape, cropped here to fill a portrait
@@ -705,7 +703,7 @@ const fullBleed = (image: ServiceImageDefinition, focalPoint: string): ServiceIm
   focalPoint,
 });
 
-const WELCOME_STEPS: { step: string; stage: string; title: string; photo: ServiceImageDefinition; film?: string }[] = [
+const WELCOME_STEPS: { step: string; stage: string; title: string; photo: ServiceImageDefinition }[] = [
   {
     step: '01',
     stage: 'Before you arrive',
@@ -719,14 +717,13 @@ const WELCOME_STEPS: { step: string; stage: string; title: string; photo: Servic
     stage: 'At the hotel',
     title: 'Skip the front desk paperwork',
     photo: fullBleed(PROPERTY_IMAGES.manila, '58% 50%'),
-    film: '/experiments/clip-food-crawl.mp4',
   },
   {
     step: '03',
     stage: 'During your stay',
-    title: 'View charges and hotel services',
+    // Everything on the property -- dining, the spa, rentals -- goes on the room.
+    title: 'Charge it all to your room',
     photo: fullBleed(PROPERTY_IMAGES.dumaguete, '50% 50%'),
-    film: '/experiments/clip-spa.mp4',
   },
 ];
 
@@ -803,48 +800,14 @@ type PagerHandle = ReturnType<typeof useWelcomePager>;
  */
 const trackOffset = (index: number) => ({ transform: `translateX(${index * -100}%)` });
 
-function playFilm(video: HTMLVideoElement) {
-  try {
-    void Promise.resolve(video.play()).catch(() => {});
-  } catch {
-    // Autoplay refused or unsupported: the photograph underneath stays.
-  }
-}
-
 /**
  * Decorative: every step's meaning is carried by its copy further down.
  *
- * The frames cross-fade in place rather than slide -- a film sliding sideways
- * reads as a carousel, a dissolve as a title sequence. Only the current film
- * plays, from its first frame, and all three preload behind the splash so a
- * step change never waits on the network.
+ * The frames cross-fade in place rather than slide -- a photo sliding
+ * sideways reads as a carousel, a dissolve as a title sequence. All three
+ * load behind the splash so a step change never waits on the network.
  */
-function WelcomeArt({ index, paused }: Pick<PagerHandle, 'index'> & { paused: boolean }) {
-  const reducedMotion = usePrefersReducedMotion();
-  const films = useRef<(HTMLVideoElement | null)[]>([]);
-
-  /*
-    A step arriving starts its film from the top, not wherever it was left --
-    rewound while still paused, before play. Seeking a film already playing
-    stalls it for a beat, which read as a jolt as the step came in.
-  */
-  const arrived = useRef(-1);
-  useEffect(() => {
-    const sync = () => {
-      const fresh = arrived.current !== index;
-      arrived.current = index;
-      films.current.forEach((video, position) => {
-        if (!video) return;
-        if (position === index && !paused && !document.hidden) {
-          if (fresh && video.readyState > 0) video.currentTime = 0;
-          playFilm(video);
-        } else video.pause();
-      });
-    };
-    sync();
-    document.addEventListener('visibilitychange', sync);
-    return () => document.removeEventListener('visibilitychange', sync);
-  }, [index, paused, reducedMotion]);
+function WelcomeArt({ index }: Pick<PagerHandle, 'index'>) {
 
   return (
     <div className="guest-welcome__art" aria-hidden="true">
@@ -861,19 +824,6 @@ function WelcomeArt({ index, paused }: Pick<PagerHandle, 'index'> & { paused: bo
               style={{ objectPosition: item.photo.focalPoint }}
               {...(position === 0 ? { priority: true } : { loading: 'eager' as const })}
             />
-            {reducedMotion || !item.film ? null : (
-              <video
-                ref={(node) => { films.current[position] = node; }}
-                className="guest-welcome__film"
-                src={item.film}
-                muted
-                loop
-                playsInline
-                preload="auto"
-                onPlaying={(event) => { event.currentTarget.dataset.playing = 'true'; }}
-                onError={(event) => { event.currentTarget.hidden = true; }}
-              />
-            )}
           </span>
         ))}
       </div>
@@ -943,28 +893,14 @@ function WelcomeScreen({
   onGuestLogin: () => void;
 }) {
   const pager = useWelcomePager();
-  const reducedMotion = usePrefersReducedMotion();
-  const [filmPaused, setFilmPaused] = useState(false);
 
   return (
     <section className="guest-welcome" aria-labelledby="guest-welcome-title">
       <div className="guest-welcome__splash" aria-hidden="true">
         <CabanaFullLockup className="guest-welcome__splash-brand" markWidth={92} />
       </div>
-      <WelcomeArt index={pager.index} paused={filmPaused} />
+      <WelcomeArt index={pager.index} />
       <div className="guest-welcome__content" onFocus={pager.engage}>
-        {/* Moving backgrounds need a way to stop them (WCAG 2.2.2). */}
-        {reducedMotion || !WELCOME_STEPS[pager.index]?.film ? null : (
-          <button
-            type="button"
-            className="guest-welcome__film-toggle"
-            aria-label={filmPaused ? 'Play background video' : 'Pause background video'}
-            aria-pressed={filmPaused}
-            onClick={() => setFilmPaused((current) => !current)}
-          >
-            {filmPaused ? <Play weight="fill" aria-hidden="true" /> : <Pause weight="fill" aria-hidden="true" />}
-          </button>
-        )}
         <CabanaFullLockup className="guest-welcome__brand" markWidth={44} />
         {/*
           The rotating step copy took this slot, so the heading goes to screen
@@ -974,7 +910,7 @@ function WelcomeScreen({
         */}
         <h1 id="guest-welcome-title" className="sr-only">Welcome to your stay</h1>
         {/* The open middle of the screen is where a thumb pages the steps;
-            the film behind it is out of reach under the content layer. */}
+            the art behind it is out of reach under the content layer. */}
         <div className="guest-welcome__swipe" {...pager.swipe} />
         <div className="guest-welcome__message">
           <WelcomeStepCopy index={pager.index} />

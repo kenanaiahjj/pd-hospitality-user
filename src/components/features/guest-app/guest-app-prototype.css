@@ -3233,12 +3233,12 @@
 }
 
 /* --------------------------------------------------------------------------
-   Welcome screen: branded splash, then the estate on film behind the stay
+   Welcome screen: branded splash, then the estate in photographs behind the stay
    introduction and login choices -- photo-first, after Places.
 
-   Three layers, back to front: the art (films over Henry stills, then the
+   Three layers, back to front: the art (drifting Henry stills, then the
    legibility stack), the content column, and the splash over both until it
-   fades. Everything on the content layer is set light, on the film.
+   fades. Everything on the content layer is set light, on the photograph.
    -------------------------------------------------------------------------- */
 .guest-device.is-welcome { background: var(--welcome-night); }
 
@@ -3294,9 +3294,9 @@
 .guest-welcome__art-track { position: absolute; inset: 0; }
 
 /* Frames stack and dissolve. The one arriving settles from a slight zoom,
-   so each step opens like a cut in a title sequence. The zoom is the
-   still's alone: scaling a playing <video> re-snaps every decoded frame to
-   a new size, and a slow zoom over a film read as the screen shaking. */
+   so each step opens like a cut in a title sequence. The zoom runs on the
+   compositor, which interpolates it smoothly; the films it replaced moved
+   in whole-pixel steps baked into the footage and juddered. */
 .guest-welcome__art-frame {
   position: absolute;
   inset: 0;
@@ -3312,17 +3312,13 @@
 }
 .guest-welcome__art-frame.is-active .guest-welcome__still { transform: scale(1); }
 
-.guest-welcome__still,
-.guest-welcome__film {
+.guest-welcome__still {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-/* The film fades up over its still once it is actually playing. */
-.guest-welcome__film { opacity: 0; transition: opacity 600ms ease; }
-.guest-welcome__film[data-playing] { opacity: 1; }
 
 .guest-welcome__scrim,
 .guest-welcome__blur,
@@ -3381,36 +3377,6 @@
   animation: guest-welcome-rise 700ms var(--ease-out) 1250ms forwards;
 }
 .guest-welcome .guest-welcome__brand.cabana-full-lockup { color: var(--welcome-on); }
-
-.guest-welcome__film-toggle {
-  position: absolute;
-  top: max(24px, env(safe-area-inset-top));
-  right: 12px;
-  display: grid;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  place-items: center;
-  color: var(--welcome-on);
-  background: none;
-  cursor: pointer;
-  opacity: 0;
-  animation: guest-welcome-rise 700ms var(--ease-out) 1400ms forwards;
-}
-/* 30px visible disc inside the 44px target. */
-.guest-welcome__film-toggle::before {
-  position: absolute;
-  inset: 7px;
-  border-radius: 50%;
-  background: var(--welcome-glass);
-  box-shadow: inset 0 0 0 1px var(--welcome-glass-line);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  content: '';
-}
-.guest-welcome__film-toggle svg { position: relative; width: 13px; height: 13px; }
-.guest-welcome__film-toggle:active { transform: scale(0.96); }
 
 /* The open middle: the thumb's paging surface. */
 .guest-welcome__swipe {

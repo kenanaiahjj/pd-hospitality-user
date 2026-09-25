@@ -188,18 +188,18 @@ import {
   type ServiceImageKey,
 } from './service-images';
 import {
-  DiscoverFeed,
+  BrowseSheet,
+  ReelFeed,
   RoomScanner,
   RoomUnlocked,
+  SearchSheet,
   StoryViewer,
-  SwipeDeck,
-  SwipeStoryViewer,
-  buildCategoryCards,
-  buildFeaturedDeck,
+  buildFeedCandidates,
   buildSearchIndex,
-  buildStories,
+  rankFeed,
+  stayContext,
 } from './promoted';
-import type { Story } from './promoted';
+import type { BrowseCategory, FeedAction, FeedClock, Story } from './promoted';
 import { storyImage } from './promoted/story-imagery';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
 import { StayConfirm } from './stay-invitation';
@@ -312,10 +312,7 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
  */
 const SCAN_DETECT_MS = 2000;
 
-const EXPLORE_STORIES = buildStories();
-const EXPLORE_CATEGORIES = buildCategoryCards();
 const EXPLORE_SEARCH_INDEX = buildSearchIndex();
-const EXPLORE_DECK = buildFeaturedDeck();
 
 type HomeStoryCategoryId = MiniAppCategoryId | 'gifts-souvenirs';
 
@@ -1564,9 +1561,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
   const [scanSuccessToast, setScanSuccessToast] = useState(false);
-  const [openExploreStoryId, setOpenExploreStoryId] = useState<string | null>(null);
+  /** The prototype's feed clock; null follows the booking and the prototype's today. */
+  const [feedClock, setFeedClock] = useState<FeedClock | null>(null);
+  const [feedSheet, setFeedSheet] = useState<'search' | 'browse' | null>(null);
   const [openHomeStoryId, setOpenHomeStoryId] = useState<HomeStoryCategoryId | null>(null);
-  const [exploreIntroPlaying, setExploreIntroPlaying] = useState(false);
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
   /*
     Two sets, because "the bell has stopped nagging me" and "I have read this
@@ -2147,6 +2145,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     the tab bar and the buttons inside it cannot disagree.
   */
   const bookingSlot = describeBookingSlot(contextBooking);
+  /* The feed owns its whole screen: no app bar, no page padding or scroll. */
+  const reelsOnScreen = activeScreen === 'marketplace' && !bookingSlot.locked;
   const bookingNavLabel = bookingSlot.label;
   const unlockPending = session.unlockRequest?.bookingId === contextBooking.id;
 
@@ -2284,40 +2284,31 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('category-listing');
   };
 
-  const closeExploreStory = () => {
-    setOpenExploreStoryId(null);
-    setExploreIntroPlaying(false);
-  };
-
-  const openExploreStory = (storyId: string) => {
-    if (!EXPLORE_STORIES.some((story) => story.id === storyId)) return;
-    setOpenExploreStoryId(storyId);
-    setExploreIntroPlaying(false);
-  };
-
+  /* "Start exploring" lands on the feed's first reel, behind the same gate. */
   const openExploreIntro = () => {
-    const firstStory = EXPLORE_STORIES[0];
-    if (!firstStory) {
-      go('marketplace');
-      return;
-    }
-    if (!primaryBooking) {
-      go('marketplace');
-      return;
-    }
-    if (!canUseOnPropertyServices(primaryBooking)) {
+    if (primaryBooking && !canUseOnPropertyServices(primaryBooking)) {
       go(bookingSlot.screen);
       return;
     }
-    setOpenExploreStoryId(firstStory.id);
-    setExploreIntroPlaying(true);
     go('marketplace');
   };
 
-  const bookExploreStory = (storyId: string) => {
-    closeExploreStory();
-    const itemId = storyId.replace(/^(?:venue|service)-/, '');
-    openExploreItem(itemId);
+  /** Every reel resolves to somewhere the app already goes. */
+  const runFeedAction = (action: FeedAction) => {
+    setFeedSheet(null);
+    if (action.kind === 'item') openExploreItem(action.id);
+    else if (action.kind === 'nearby') { setSelectedNearbyEstablishmentId(action.id); go('nearby-establishment'); }
+    else if (action.kind === 'screen') go(action.screen);
+    else if (action.kind === 'departure-ride') openDepartureRide();
+    else openLateCheckoutChat();
+  };
+
+  const openBrowseCategory = (id: string) => {
+    setFeedSheet(null);
+    if (id === 'gifts-souvenirs') { go('gifts-souvenirs'); return; }
+    if (id === 'nearby') { setSelectedCategory('dining'); go('nearby-recommendations'); return; }
+    setSelectedCategory(id as MiniAppCategoryId);
+    go('category-listing');
   };
 
   const openHomeStory = (categoryId: HomeStoryCategoryId) => {
@@ -3844,50 +3835,41 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           return renderArrivalServices();
         }
 
-        const openStory = openExploreStoryId
-          ? EXPLORE_STORIES.find((story) => story.id === openExploreStoryId)
-          : undefined;
-
-        if (openStory) {
-          return exploreIntroPlaying ? (
-            <StoryViewer
-              story={openStory}
-              onClose={closeExploreStory}
-              onBook={bookExploreStory}
-              onFinished={closeExploreStory}
-            />
-          ) : (
-            <SwipeStoryViewer
-              stories={EXPLORE_STORIES}
-              initialStoryId={openStory.id}
-              onClose={closeExploreStory}
-              onBook={bookExploreStory}
-            />
-          );
-        }
-
+        /*
+          For you: the catalogue as reels, ordered for this guest right now
+          (see promoted/feed-model.ts). Category pages and search stay one
+          tap away in the sheets over it.
+        */
+        const nights = Math.max(1, countNightsBetween(contextBooking.checkIn, contextBooking.checkOut));
+        const clock = feedClock ?? defaultFeedClock(contextBooking);
+        const feedEntries = rankFeed(
+          stayContext({
+            nights,
+            guestCount: contextBooking.guestCount,
+            companions: session.additionalGuests.length,
+            booked: session.serviceBookings
+              .filter((service) => service.bookingId === contextBooking.id && service.status !== 'cancelled')
+              .map((service) => service.serviceId)
+              .filter((id): id is string => Boolean(id)),
+          }, clock),
+          buildFeedCandidates({ nearby: nearbyFeedInputs(contextBooking.city) }),
+        );
         return (
-          <DiscoverFeed
-            property={contextBooking.property}
-            stories={EXPLORE_STORIES}
-            categories={EXPLORE_CATEGORIES}
-            searchIndex={EXPLORE_SEARCH_INDEX}
-            onOpenStory={openExploreStory}
-            onOpenItem={openExploreItem}
-            onOpenCategory={(categoryId) => {
-              if (categoryId === 'gifts-souvenirs') {
-                go('gifts-souvenirs');
-                return;
-              }
-              setSelectedCategory(categoryId as MiniAppCategoryId);
-              go('category-listing');
-            }}
-            onBrowseAll={() => {
-              setSelectedCategory('services');
-              go('category-listing');
-            }}
-            deck={<SwipeDeck items={EXPLORE_DECK} onOpen={openExploreItem} />}
-          />
+          <>
+            <ReelFeed
+              entries={feedEntries}
+              onAction={(entry) => runFeedAction(entry.action)}
+              onSearch={() => setFeedSheet('search')}
+              onBrowse={() => setFeedSheet('browse')}
+              onSeeEverything={() => { setSelectedCategory('services'); go('category-listing'); }}
+            />
+            {feedSheet === 'search' ? (
+              <SearchSheet index={EXPLORE_SEARCH_INDEX} onOpenItem={(id) => { setFeedSheet(null); openExploreItem(id); }} onClose={() => setFeedSheet(null)} />
+            ) : null}
+            {feedSheet === 'browse' ? (
+              <BrowseSheet categories={BROWSE_CATEGORIES} onOpen={openBrowseCategory} onClose={() => setFeedSheet(null)} />
+            ) : null}
+          </>
         );
       }
 
@@ -5203,6 +5185,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onToggleStrictLookup={() => setStrictLookup((on) => !on)}
         simulatePostStayExpired={simulatePostStayExpired}
         onTogglePostStayExpired={() => setSimulatePostStayExpired((expired) => !expired)}
+        feedClock={contextBooking ? feedClock ?? defaultFeedClock(contextBooking) : undefined}
+        feedNights={contextBooking ? Math.max(1, countNightsBetween(contextBooking.checkIn, contextBooking.checkOut)) : 0}
+        onFeedClockChange={setFeedClock}
         onReset={resetPrototype}
       />
 
@@ -5225,7 +5210,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       <main className="guest-prototype guest-app">
         <section className={`guest-device ${isWelcome ? 'is-welcome' : ''}`} aria-label="Cabana guest app">
-          {!isWelcome && activeScreen !== 'restaurant-menu' && activeScreen !== 'nearby-establishment' && !isChatScreen(activeScreen) ? <header className="guest-appbar" data-scrolled={scrolled}>
+          {!isWelcome && !reelsOnScreen && activeScreen !== 'restaurant-menu' && activeScreen !== 'nearby-establishment' && !isChatScreen(activeScreen) ? <header className="guest-appbar" data-scrolled={scrolled}>
             <div className="guest-appbar__side">
               {activeScreen !== 'stay-overview' ? <button className="guest-icon-button guest-icon-button--back" type="button" onClick={history.length ? back : () => go('stay-overview')} aria-label="Go back"><ArrowLeft /></button> : <span className="guest-brand"><CabanaLockup className="guest-brand__lockup" /><span className="sr-only">Cabana</span></span>}
             </div>
@@ -5252,7 +5237,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </header> : null}
 
           <div
-            className={`guest-screen ${showPrimaryNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''} ${isChatScreen(activeScreen) ? 'guest-screen--chat' : ''} ${activeScreen === 'restaurant-menu' || activeScreen === 'nearby-establishment' ? 'guest-screen--hero' : ''}`}
+            className={`guest-screen ${showPrimaryNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''} ${isChatScreen(activeScreen) ? 'guest-screen--chat' : ''} ${activeScreen === 'restaurant-menu' || activeScreen === 'nearby-establishment' ? 'guest-screen--hero' : ''} ${reelsOnScreen ? 'guest-screen--reels' : ''}`}
             key={activeScreen}
             onScroll={(event) => {
               const next = event.currentTarget.scrollTop > 4;
@@ -5360,6 +5345,9 @@ function PrototypeControls({
   onToggleStrictLookup,
   simulatePostStayExpired,
   onTogglePostStayExpired,
+  feedClock,
+  feedNights,
+  onFeedClockChange,
   onReset,
 }: {
   online: boolean;
@@ -5382,6 +5370,10 @@ function PrototypeControls({
   onToggleStrictLookup: () => void;
   simulatePostStayExpired: boolean;
   onTogglePostStayExpired: () => void;
+  /** The For you feed's clock, so a demo can move through the stay and the day. */
+  feedClock?: FeedClock;
+  feedNights: number;
+  onFeedClockChange: (clock: FeedClock) => void;
   onReset: () => void;
 }) {
   /*
@@ -5477,6 +5469,29 @@ function PrototypeControls({
           cover the corners inside them -- re-running a scan, checking what a
           guest with no history sees, taking a rating twice.
         */}
+        {feedClock ? (
+          <fieldset className="guest-prototype-states guest-prototype-clock">
+            <legend>Feed clock</legend>
+            <label>
+              <span>Stay day</span>
+              <select value={feedClock.dayOfStay} onChange={(event) => onFeedClockChange({ ...feedClock, dayOfStay: Number(event.target.value) })}>
+                {Array.from({ length: feedNights + 1 }, (_, i) => i + 1).map((day) => (
+                  <option key={day} value={day}>{day > feedNights ? 'Checkout day' : day === 1 ? 'Day 1 (arrival)' : day === feedNights ? `Day ${day} (last night)` : `Day ${day}`}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Time of day</span>
+              <select value={feedClock.hour} onChange={(event) => onFeedClockChange({ ...feedClock, hour: Number(event.target.value) })}>
+                <option value={8}>Morning · 8 AM</option>
+                <option value={14}>Afternoon · 2 PM</option>
+                <option value={19}>Evening · 7 PM</option>
+                <option value={23}>Late · 11 PM</option>
+              </select>
+            </label>
+          </fieldset>
+        ) : null}
+
         <fieldset className="guest-prototype-states">
           <legend>Gates and state</legend>
 
@@ -6908,6 +6923,37 @@ const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = [
   { id: 'manila-makers-market', city: 'Manila', categoryId: 'gifts', name: 'Manila Makers Market', type: 'Local crafts & souvenirs', distance: '750 m away', description: 'Independent makers offering keepsakes, home décor, and pasalubong.', address: '33 Escolta Street, Manila', hours: 'Tue–Sun · 10:00 AM–7:00 PM', contact: '+63 917 555 0116', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
   { id: 'binondo-pasalubong', city: 'Manila', categoryId: 'gifts', name: 'Binondo Pasalubong House', type: 'Local delicacies', distance: '1.4 km away', description: 'Independent shop for regional snacks, sweets, and take-home treats.', address: '168 Ongpin Street, Binondo, Manila', hours: 'Daily · 9:00 AM–8:00 PM', contact: '+63 917 555 0128', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80' },
   { id: 'artisan-home-studio', city: 'Manila', categoryId: 'gifts', name: 'Artisan Home Studio', type: 'Home décor & crafts', distance: '1.6 km away', description: 'Independent local artists’ studio with ceramics, candles, and small décor.', address: '52 Escolta Street, Manila', hours: 'Wed–Sun · 10:00 AM–6:00 PM', contact: '+63 917 555 0170', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=900&q=80' },
+];
+
+/** The nearby places as feed reels; cafés are a morning thing. */
+function nearbyFeedInputs(city: string) {
+  return NEARBY_ESTABLISHMENTS
+    .filter((place) => place.city === city)
+    .map((place) => ({
+      id: place.id,
+      name: place.name,
+      type: place.type,
+      distance: place.distance,
+      image: { src: place.image, alt: place.name, focalPoint: '50% 50%' },
+      dayparts: /coffee|café|cafe|bakery/i.test(place.type) ? ['morning' as const] : undefined,
+    }));
+}
+
+/** The feed's clock by default: today within the stay, at 7 PM. */
+function defaultFeedClock(booking: Booking): FeedClock {
+  const nights = Math.max(1, countNightsBetween(booking.checkIn, booking.checkOut));
+  const day = countNightsBetween(booking.checkIn, PROTOTYPE_TODAY) + 1;
+  return { dayOfStay: Math.min(nights + 1, Math.max(1, day)), hour: 19 };
+}
+
+/** Browse, the old-fashioned way: each lands on its existing page. */
+const BROWSE_CATEGORIES: BrowseCategory[] = [
+  { id: 'dining', label: 'Food & Drinks', detail: 'Restaurants, bars and room service', image: storyImage('dining') },
+  { id: 'spa', label: 'Spa & Wellness', detail: 'Massages, facials and grooming', image: storyImage('spa') },
+  { id: 'entertainment', label: 'Activities & Tours', detail: 'Tours, workshops and live music', image: storyImage('tour') },
+  { id: 'services', label: 'Hotel Services', detail: 'Transfers, laundry and celebrations', image: storyImage('pool') },
+  { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs', detail: 'Pasalubong and keepsakes', image: storyImage('food-crawl') },
+  { id: 'nearby', label: 'Nearby', detail: 'Independent places around the hotel', image: storyImage('heritage-walk') },
 ];
 
 const ROOM_UPGRADES = [

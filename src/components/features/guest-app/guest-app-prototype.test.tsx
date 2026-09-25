@@ -682,8 +682,8 @@ describe('GuestAppPrototype', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Explore' }));
-    expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'What’s on at The Henry Manila', level: 1 })).toBeInTheDocument();
+    expect(screen.getByTestId('reel-feed')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Browse' })).toBeInTheDocument();
   });
 
   it('labels the booking state and the notification bell for assistive technology', () => {
@@ -1670,9 +1670,9 @@ describe('home mini-apps and browsable restaurant menu', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="marketplace" initialSession={activeSession} />);
 
-    expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'What’s on at The Henry Manila', level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Everything at the hotel' })).toBeInTheDocument();
+    expect(screen.getByTestId('reel-feed')).toBeInTheDocument();
+    // Each reel says why it is there.
+    expect(document.querySelectorAll('.reel__why').length).toBeGreaterThan(3);
     // The guest's own bookings live in My Trip. A catalogue that also listed
     // them is what made the old hub tell people to go elsewhere to browse.
     expect(screen.queryByRole('heading', { name: 'Upcoming & Confirmed' })).toBeNull();
@@ -1680,7 +1680,8 @@ describe('home mini-apps and browsable restaurant menu', () => {
 
     expect(screen.queryByText(/travel|flights/i)).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: /Food & Drinks/ }));
+    await user.click(screen.getByRole('button', { name: 'Browse' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Browse' })).getByRole('button', { name: /Food & Drinks/ }));
     expect(screen.getByRole('heading', { name: 'Food & Drinks', level: 1 })).toBeInTheDocument();
   });
 });
@@ -2458,7 +2459,7 @@ describe('lifecycle gates', () => {
 
     await user.click(secondTab());
 
-    expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
+    expect(screen.getByTestId('reel-feed')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Scan the code in your room' })).toBeNull();
   });
 
@@ -2466,8 +2467,8 @@ describe('lifecycle gates', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="marketplace" initialSession={verified} />);
 
-    const categories = screen.getByRole('region', { name: 'Categories' });
-    await user.click(within(categories).getByRole('button', { name: /Spa & Wellness/ }));
+    await user.click(screen.getByRole('button', { name: 'Browse' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Browse' })).getByRole('button', { name: /Spa & Wellness/ }));
 
     expect(screen.getByRole('heading', { name: 'Spa & Wellness', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Explore' })).toBeInTheDocument();
@@ -2491,7 +2492,7 @@ describe('lifecycle gates', () => {
       expect(screen.queryByText(/you.{0,3}re checked in/i)).toBeNull();
 
       fireEvent.click(within(screen.getByTestId('room-unlocked')).getByRole('button', { name: /Start exploring/ }));
-      expect(screen.getByTestId('story-viewer')).toBeInTheDocument();
+      expect(screen.getByTestId('reel-feed')).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -2527,7 +2528,7 @@ describe('lifecycle gates', () => {
     // As above: out of the focused chat before the tab bar is there to use.
     await user.click(screen.getByRole('button', { name: 'Go back' }));
     await user.click(secondTab());
-    expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
+    expect(screen.getByTestId('reel-feed')).toBeInTheDocument();
   });
 
   /*
@@ -2948,7 +2949,7 @@ describe('prototype controls', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     await user.click(within(nav).getAllByRole('button')[1]);
-    expect(screen.getByTestId('discover-feed')).toBeInTheDocument();
+    expect(screen.getByTestId('reel-feed')).toBeInTheDocument();
   });
 
   it('re-locks a verified room so the scan can be run again', async () => {

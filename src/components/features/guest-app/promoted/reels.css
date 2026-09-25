@@ -257,3 +257,30 @@
 @media (prefers-reduced-motion: reduce) {
   .feed-sheet--search, .feed-sheet--browse, .feed-sheet-backdrop { animation: none; }
 }
+
+/* --- The screen the feed owns ---------------------------------------------- */
+/* Out-specifies `.guest-screen.has-nav:not(.guest-screen--chat)`, which pads for the
+   tab bar and paints paper: the feed runs under the floating bar instead. */
+.guest-device .guest-screen.guest-screen--reels.guest-screen--reels {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  background: oklch(0.16 0.02 350);
+}
+.guest-screen--reels > .reel-feed { flex: 1 1 auto; }
+
+/* --- Prototype toolbar: the feed clock ------------------------------------- */
+.guest-prototype-clock { display: grid; gap: 8px; }
+.guest-prototype-clock label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; }
+.guest-prototype-clock select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--guest-line-strong);
+  border-radius: 10px;
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  font: inherit;
+  font-size: 13px;
+}

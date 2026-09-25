@@ -11,6 +11,7 @@ describe('Explore → ordering', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="marketplace" initialSession={live} />);
 
+    await user.click(screen.getByRole('button', { name: 'Browse' }));
     await user.click(screen.getByRole('button', { name: /Food & Drinks/ }));
     await user.click(screen.getAllByRole('button', { name: /Apartment 1B/ })[0]!);
 
@@ -33,6 +34,7 @@ describe('Explore → ordering', () => {
   it('shows no price on a venue card, because the menu is a photograph', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="marketplace" initialSession={live} />);
+    await user.click(screen.getByRole('button', { name: 'Browse' }));
     await user.click(screen.getByRole('button', { name: /Food & Drinks/ }));
 
     const body = document.body.textContent || '';

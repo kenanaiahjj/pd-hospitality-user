@@ -28,10 +28,10 @@ Off-ramps: `Blocked` (say what unblocks it in Decision Log) · `Abandoned`.
 | # | Task | Status | Started | Completed | Commit |
 |---|---|---|---|---|---|
 | 1 | Ranking model (`feed-model.ts`) | ✅ Complete | 2026-09-25 | 2026-09-25 | `a625564` |
-| 2 | Feed content: tags, new stories, actions | ⬜ Not started | — | — | — |
-| 3 | Reel player: `ReelView` + `ReelFeed` | ⬜ Not started | — | — | — |
-| 4 | Search and Browse sheets | ⬜ Not started | — | — | — |
-| 5 | Wire Explore to the feed; prototype clock | ⬜ Not started | — | — | — |
+| 2 | Feed content: tags, new stories, actions | ✅ Complete | 2026-09-25 | 2026-09-25 | `ed85850` |
+| 3 | Reel player: `ReelView` + `ReelFeed` | ✅ Complete | 2026-09-25 | 2026-09-25 | `62d1a4e` |
+| 4 | Search and Browse sheets | ✅ Complete | 2026-09-25 | 2026-09-25 | `ee0a93e` |
+| 5 | Wire Explore to the feed; prototype clock | ✅ Complete | 2026-09-25 | 2026-09-25 | `5eb3aec` |
 | 6 | Verification walkthrough and artifact | ⬜ Not started | — | — | — |
 | 7 | Phase 2: home venue rings | ⬜ Not started | — | — | — |
 
@@ -165,13 +165,13 @@ prototype's session shape; the prototype derives them.
 
 **Files:** modify `guest-app-prototype.tsx`, tests.
 
-- [ ] Feed clock state `{ dayOfStay, hour }`, defaulted from the booking and `PROTOTYPE_TODAY` with hour 19; toolbar fieldset "Feed clock" with Stay day (Day 1…N) and Time of day (Morning 8 · Afternoon 14 · Evening 19 · Late 23).
-- [ ] Derive `stayContext` input from the primary booking and session (nights, guest count, companions, booked non-cancelled service ids); `rankFeed(context, buildFeedCandidates(...))` memoised on those inputs.
-- [ ] `marketplace` after the scan renders `ReelFeed` + sheets; before the scan, unchanged. `openExploreIntro` goes to `marketplace` with the feed at its first reel (no tap-through viewer).
-- [ ] `onAction` maps `FeedAction` → `openExploreItem` / nearby-establishment / `go('gifts-souvenirs')` / `openDepartureRide` / `openLateCheckoutChat`. Browse ids → `setSelectedCategory` + `go('category-listing')`, gifts → `gifts-souvenirs`, nearby → `nearby-recommendations`.
-- [ ] Remove the Explore use of `DiscoverFeed`, `SwipeStoryViewer` and the intro `StoryViewer`; keep the modules if other surfaces still import them, otherwise delete them and their CSS.
-- [ ] Rewrite the tests that asserted the rail, deck or tap-through against the feed.
-- [ ] Gate, commit `feat: Explore is a stay-aware reel feed`.
+- [x] Feed clock state `{ dayOfStay, hour }`, defaulted from the booking and `PROTOTYPE_TODAY` with hour 19; toolbar fieldset "Feed clock" with Stay day (Day 1…N) and Time of day (Morning 8 · Afternoon 14 · Evening 19 · Late 23).
+- [x] Derive `stayContext` input from the primary booking and session (nights, guest count, companions, booked non-cancelled service ids); `rankFeed(context, buildFeedCandidates(...))` memoised on those inputs.
+- [x] `marketplace` after the scan renders `ReelFeed` + sheets; before the scan, unchanged. `openExploreIntro` goes to `marketplace` with the feed at its first reel (no tap-through viewer).
+- [x] `onAction` maps `FeedAction` → `openExploreItem` / nearby-establishment / `go('gifts-souvenirs')` / `openDepartureRide` / `openLateCheckoutChat`. Browse ids → `setSelectedCategory` + `go('category-listing')`, gifts → `gifts-souvenirs`, nearby → `nearby-recommendations`.
+- [x] Remove the Explore use of `DiscoverFeed`, `SwipeStoryViewer` and the intro `StoryViewer`; keep the modules if other surfaces still import them, otherwise delete them and their CSS.
+- [x] Rewrite the tests that asserted the rail, deck or tap-through against the feed.
+- [x] Gate, commit `feat: Explore is a stay-aware reel feed`.
 
 ## Task 6: Verification walkthrough
 
@@ -200,5 +200,6 @@ prototype's session shape; the prototype derives them.
 | 2026-09-25 | Mixing beats strict grouping: a lower reel may sit between two top picks | An evening's top picks can all be dinner; three dinners in a row breaks the no-adjacent rule | The "tailored first" block is not contiguous; `tailored` stays per entry |
 | 2026-09-25 | A mid-stay match weighs 2, not 3, and yields to the time of day on a tie | Mid-stay is true all week; at 7 PM dinner should lead over a generic tour | Mid-stay-only content ranks lower; retune the weight |
 | 2026-09-25 | Follow-up weight 6, not 4 | With 4, a couples massage (fit + afternoon = 5) out-ranked the facial after a booked massage; a follow-up is the most specific signal | Follow-ups can crowd the top; lower toward 5 |
+| 2026-09-25 | Delete `DiscoverFeed`, `SwipeDeck` and `SwipeStoryViewer` | Nothing outside their own tests imported them once Explore moved to the feed; the search test moved to `SearchSheet` | Reinstating the card deck means restoring them from git |
 | 2026-09-25 | Feed reels play stills, not the three bundled clips | The clips' baked-in push-in steps in whole pixels and juddered full screen (the welcome-screen fault) | No motion in the feed until smooth footage exists; `ReelView` still supports video |
 

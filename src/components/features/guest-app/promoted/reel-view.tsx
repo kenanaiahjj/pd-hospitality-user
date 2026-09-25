@@ -44,6 +44,9 @@ export function ReelView({ entry, active, onAction }: ReelViewProps) {
     return () => window.clearTimeout(timer);
   }, [active, reducedMotion, count, frame]);
 
+  const extra = slide.headline !== story.title && slide.headline !== story.price ? slide.headline : undefined;
+  const frameLine = [extra, slide.detail].filter(Boolean).join(' · ');
+
   const step = (by: number) => setFrame((current) => Math.min(count - 1, Math.max(0, current + by)));
 
   return (
@@ -88,8 +91,10 @@ export function ReelView({ entry, active, onAction }: ReelViewProps) {
           {story.author.name}
           {story.author.kind === 'property' ? <SealCheck className="reel__badge" weight="fill" aria-label="Posted by the hotel" /> : null}
         </p>
-        <h2 className="reel__title">{slide.headline}</h2>
-        {slide.detail ? <p className="reel__detail">{slide.detail}</p> : null}
+        {/* The place's name holds across frames; each frame adds its own line
+            under it ("Open today · 6:30 AM – 11:00 PM"), never the price twice. */}
+        <h2 className="reel__title">{story.title}</h2>
+        {frameLine ? <p className="reel__detail">{frameLine}</p> : null}
         <div className="reel__meta">
           <span>{story.price}</span>
           <button type="button" className="reel__action" onClick={() => onAction(entry)}>

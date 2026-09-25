@@ -284,3 +284,18 @@
   font: inherit;
   font-size: 13px;
 }
+
+/* --- Home: one ring per venue, and the player it opens ---------------------- */
+.venue-ring[data-seen] .discover__story-ring { background: var(--guest-line, oklch(0.88 0.005 350)); }
+
+.reel-player {
+  /* Over the app bar and the tab bar, as the story viewer was. */
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-backdrop);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.reel-player > .reel-feed { flex: 1 1 auto; }
+.reel-player .reel__foot { padding-bottom: 28px; }

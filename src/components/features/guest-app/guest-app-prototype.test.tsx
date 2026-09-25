@@ -78,13 +78,14 @@ const activeSession = sessionFor(
   { activeBookingId: 'active', folioTotal: '₱3,050' },
 );
 
-const openHomeStory = async (
+/* A category page, reached the old-fashioned way: Explore, then Browse. */
+const openCategory = async (
   user: ReturnType<typeof userEvent.setup>,
   label: string,
 ) => {
-  await user.click(screen.getByRole('button', { name: label }));
-  expect(screen.getByTestId('story-viewer')).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: new RegExp(`^Visit ${label}`) }));
+  await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getAllByRole('button')[1]!);
+  await user.click(screen.getByRole('button', { name: 'Browse' }));
+  await user.click(within(screen.getByRole('dialog', { name: 'Browse' })).getByRole('button', { name: new RegExp(label) }));
 };
 
 const assignedSession = sessionFor([
@@ -1006,7 +1007,7 @@ describe('category listing presentation', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await openHomeStory(user, story);
+    await openCategory(user, story);
 
     expect(screen.getByRole('heading', { name: 'At the hotel' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Recommended' })).toBeNull();
@@ -1610,45 +1611,37 @@ describe('home mini-apps and browsable restaurant menu', () => {
     const upgradeRoom = screen.getByRole('button', { name: /Upgrade room/ });
     expect(upgradeRoom).toHaveClass('guest-stay-hero-card__booking--upgrade');
     expect(upgradeRoom.closest('.guest-stay-hero-card__body')).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Food & Drinks' })).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Stay stories' })).getByRole('button', { name: /^The Henry Manila/ })).toBeInTheDocument();
   });
 
-  it('renders mini-app categories on home and opens category listing', async () => {
+  it('rings each venue on home and plays only that venue, once watched', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    const diningBtn = screen.getByRole('button', { name: 'Food & Drinks' });
-    const spaBtn = screen.getByRole('button', { name: 'Spa & Wellness' });
-    const toursBtn = screen.getByRole('button', { name: 'Activities & Tours' });
-    const servicesBtn = screen.getByRole('button', { name: 'Hotel Services' });
+    const rail = screen.getByRole('group', { name: 'Stay stories' });
+    const rings = within(rail).getAllByRole('button');
+    // The hotel's own ring leads; every ring previews a photograph.
+    expect(rings[0]).toHaveAccessibleName(/^The Henry Manila/);
+    for (const ring of rings) expect(ring.querySelector('img')).toBeInTheDocument();
 
-    expect(diningBtn).toBeInTheDocument();
-    expect(spaBtn).toBeInTheDocument();
-    expect(toursBtn).toBeInTheDocument();
-    expect(servicesBtn).toBeInTheDocument();
+    const spa = within(rail).getByRole('button', { name: /^Hilom/ });
+    const venue = spa.textContent!;
+    await user.click(spa);
+    const player = screen.getByRole('dialog', { name: venue });
+    const reels = within(player).getAllByRole('region', { name: /.+/ }).filter((node) => node.getAttribute('aria-roledescription') === 'reel');
+    expect(reels.length).toBeGreaterThan(0);
+    expect(within(player).queryByRole('button', { name: 'Browse' })).toBeNull();
 
-    expect(diningBtn.querySelector('img')).toBeInTheDocument();
-    expect(spaBtn.querySelector('img')).toBeInTheDocument();
-    expect(toursBtn.querySelector('img')).toBeInTheDocument();
-    expect(servicesBtn.querySelector('img')).toBeInTheDocument();
-
-    await user.click(diningBtn);
-    expect(screen.getByRole('heading', { name: 'MAKE A TABLE OF IT' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByRole('heading', { name: 'DINNER, THEN ONE MORE' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Visit Food & Drinks/ }));
-
-    expect(screen.getByRole('heading', { name: 'Food & Drinks', level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Apartment 1B' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'In-Room Dining' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'The Poolside Bar' })).toBeInTheDocument();
+    await user.click(within(player).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: venue })).toBeNull();
+    expect(within(screen.getByRole('group', { name: 'Stay stories' })).getByRole('button', { name: venue })).toHaveAttribute('data-seen', 'true');
   });
 
   it('does not repeat the bookings hub inside a service category listing', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    await openHomeStory(user, 'Activities & Tours');
+    await openCategory(user, 'Activities & Tours');
 
     expect(screen.getByRole('heading', { name: 'Entertainment & Tours', level: 1 })).toBeInTheDocument();
     expect(screen.queryByText('View your active and upcoming bookings')).toBeNull();
@@ -2129,7 +2122,7 @@ describe('booking the service the guest picked', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={inStay} />);
 
-    await openHomeStory(user, 'Spa & Wellness');
+    await openCategory(user, 'Spa & Wellness');
     await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
 
     expect(screen.getByText(/Live availability is shown for Hot stone therapy/)).toBeInTheDocument();
@@ -3079,10 +3072,9 @@ describe('scan discoverability', () => {
 
     expect(screen.getByRole('heading', { name: 'Make the most of your stay' })).toBeInTheDocument();
     expect(document.querySelector('.guest-home-stories')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Food & Drinks' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Spa & Wellness' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Activities & Tours' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hotel Services' })).toBeInTheDocument();
+    // Places, not categories: the categories live behind Browse in Explore.
+    expect(within(screen.getByRole('group', { name: 'Stay stories' })).getAllByRole('button').length).toBeGreaterThan(3);
+    expect(screen.queryByRole('button', { name: 'Spa & Wellness' })).toBeNull();
     expect(document.querySelector('.guest-featured-rail')).toBeNull();
   });
 

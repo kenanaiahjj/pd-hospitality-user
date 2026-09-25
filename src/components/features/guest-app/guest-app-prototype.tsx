@@ -193,13 +193,13 @@ import {
   RoomScanner,
   RoomUnlocked,
   SearchSheet,
-  StoryViewer,
+  VenueRings,
   buildFeedCandidates,
   buildSearchIndex,
   rankFeed,
   stayContext,
 } from './promoted';
-import type { BrowseCategory, FeedAction, FeedClock, Story } from './promoted';
+import type { BrowseCategory, FeedAction, FeedClock, FeedEntry } from './promoted';
 import { storyImage } from './promoted/story-imagery';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
 import { StayConfirm } from './stay-invitation';
@@ -313,141 +313,6 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
 const SCAN_DETECT_MS = 2000;
 
 const EXPLORE_SEARCH_INDEX = buildSearchIndex();
-
-type HomeStoryCategoryId = MiniAppCategoryId | 'gifts-souvenirs';
-
-const HOME_GIFT_STORY_IMAGE: ServiceImageDefinition = {
-  src: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=1200&q=80',
-  alt: 'Wrapped gift box with a ribbon',
-  focalPoint: 'center',
-};
-
-const createHomeStory = ({
-  categoryId,
-  title,
-  subtitle,
-  price,
-  cta,
-  frames,
-  headlines,
-  details,
-  postedHoursAgo,
-}: {
-  categoryId: HomeStoryCategoryId;
-  title: string;
-  subtitle: string;
-  price: string;
-  cta: string;
-  frames: ServiceImageDefinition[];
-  headlines: string[];
-  details: string[];
-  postedHoursAgo: number;
-}): Story => ({
-  id: `home-${categoryId}`,
-  title,
-  subtitle,
-  price,
-  cta,
-  cover: frames[0]!,
-  slides: frames.map((image, index) => ({
-    headline: headlines[index] ?? title.toUpperCase(),
-    detail: details[index],
-    image,
-  })),
-  author: {
-    name: 'The Henry',
-    kind: 'property',
-    image: getPropertyImage('The Henry Manila'),
-  },
-  postedHoursAgo,
-  livesForHours: 24,
-});
-
-const HOME_CATEGORY_STORIES: Record<HomeStoryCategoryId, Story> = {
-  dining: createHomeStory({
-    categoryId: 'dining',
-    title: 'Food & Drinks',
-    subtitle: 'The Henry Manila',
-    price: 'From ₱180',
-    cta: 'Explore Food & Drinks',
-    frames: [
-      storyImage('apartment-1b'),
-      storyImage('poolside-bar'),
-      storyImage('cafe'),
-    ],
-    headlines: ['MAKE A TABLE OF IT', 'DINNER, THEN ONE MORE', 'SLOW MORNINGS START HERE'],
-    details: ['Filipino favorites, easy lunches, and late-night bites.', 'Stay for sunset drinks at the poolside bar.', 'Coffee, pastries, and a softer start to the day.'],
-    postedHoursAgo: 1,
-  }),
-  spa: createHomeStory({
-    categoryId: 'spa',
-    title: 'Spa & Wellness',
-    subtitle: 'Hilom Spa & Wellness',
-    price: 'From ₱900',
-    cta: 'Explore Spa & Wellness',
-    frames: [
-      storyImage('spa'),
-      storyImage('scrub'),
-      storyImage('couples-massage'),
-    ],
-    headlines: ['RESET YOUR PACE', 'A LITTLE TIME TO YOURSELF', 'MAKE IT A SHARED RITUAL'],
-    details: ['Signature massages and quiet treatments, just steps from your room.', 'Body rituals that make an afternoon feel longer.', 'A slower way to spend the stay together.'],
-    postedHoursAgo: 2,
-  }),
-  entertainment: createHomeStory({
-    categoryId: 'entertainment',
-    title: 'Activities & Tours',
-    subtitle: 'Curated by The Henry',
-    price: 'From ₱850',
-    cta: 'Explore Activities & Tours',
-    frames: [
-      storyImage('tour'),
-      storyImage('sunset-cruise'),
-      storyImage('heritage-walk'),
-    ],
-    headlines: ['MAKE A DAY OF IT', 'MEET THE SUNSET OUTSIDE', 'SEE THE CITY DIFFERENTLY'],
-    details: ['Island days, local guides, and easy ways to get out and explore.', 'The golden-hour plan is already waiting.', 'Stories, streets, and the places worth taking your time with.'],
-    postedHoursAgo: 3,
-  }),
-  services: createHomeStory({
-    categoryId: 'services',
-    title: 'Hotel Services',
-    subtitle: 'The Henry Manila',
-    price: 'From ₱250',
-    cta: 'Explore Hotel Services',
-    frames: [
-      storyImage('pool'),
-      storyImage('business-centre'),
-      storyImage('gym'),
-    ],
-    headlines: ['MAKE THE STAY EASIER', 'GET OUT, YOUR WAY', 'ONE LESS THING TO THINK ABOUT'],
-    details: ['Transfers, rentals, and the practical help that keeps plans moving.', 'Bikes and scooters for a little more freedom.', 'Fresh clothes and small conveniences, handled.'],
-    postedHoursAgo: 4,
-  }),
-  'gifts-souvenirs': createHomeStory({
-    categoryId: 'gifts-souvenirs',
-    title: 'Gifts & Souvenirs',
-    subtitle: 'The Henry Manila',
-    price: 'From ₱350',
-    cta: 'Explore Gifts & Souvenirs',
-    frames: [
-      HOME_GIFT_STORY_IMAGE,
-      storyImage('dining'),
-      HOME_GIFT_STORY_IMAGE,
-    ],
-    headlines: ['TAKE A LITTLE HOME', 'A THOUGHTFUL EXTRA', 'KEEP THE STAY CLOSE'],
-    details: ['Local treats and small keepsakes for the people you came to see.', 'Add a little celebration before you check out.', 'A gift is one more way to remember the place.'],
-    postedHoursAgo: 5,
-  }),
-};
-
-const HOME_STORY_CATEGORIES: ReadonlyArray<{ id: HomeStoryCategoryId; label: string }> = [
-  { id: 'dining', label: 'Food & Drinks' },
-  { id: 'spa', label: 'Spa & Wellness' },
-  { id: 'entertainment', label: 'Activities & Tours' },
-  { id: 'services', label: 'Hotel Services' },
-  { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs' },
-];
 
 /** One glyph per arrival service, so the column reads as four things. */
 /** One line under each arrival card, in the guest's terms. */
@@ -1564,7 +1429,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** The prototype's feed clock; null follows the booking and the prototype's today. */
   const [feedClock, setFeedClock] = useState<FeedClock | null>(null);
   const [feedSheet, setFeedSheet] = useState<'search' | 'browse' | null>(null);
-  const [openHomeStoryId, setOpenHomeStoryId] = useState<HomeStoryCategoryId | null>(null);
+  // The home's venue rings: which one is playing, and which the guest has watched.
+  const [openVenue, setOpenVenue] = useState<string | null>(null);
+  const [seenVenues, setSeenVenues] = useState<string[]>([]);
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
   /*
     Two sets, because "the bell has stopped nagging me" and "I have read this
@@ -2311,25 +2178,31 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('category-listing');
   };
 
-  const openHomeStory = (categoryId: HomeStoryCategoryId) => {
-    if (!HOME_CATEGORY_STORIES[categoryId]) return;
-    setOpenHomeStoryId(categoryId);
+  /*
+    For you: the catalogue as reels, ordered for this guest right now (see
+    promoted/feed-model.ts). Explore mixes them; the home's rings play them
+    one venue at a time.
+  */
+  const stayFeed = (booking: Booking) => {
+    const nights = Math.max(1, countNightsBetween(booking.checkIn, booking.checkOut));
+    const clock = feedClock ?? defaultFeedClock(booking);
+    return rankFeed(
+      stayContext({
+        nights,
+        guestCount: booking.guestCount,
+        companions: session.additionalGuests.length,
+        booked: session.serviceBookings
+          .filter((service) => service.bookingId === booking.id && service.status !== 'cancelled')
+          .map((service) => service.serviceId)
+          .filter((id): id is string => Boolean(id)),
+      }, clock),
+      buildFeedCandidates({ nearby: nearbyFeedInputs(booking.city) }),
+    );
   };
 
-  const closeHomeStory = () => setOpenHomeStoryId(null);
-
-  const bookHomeStory = (storyId: string) => {
-    const categoryId = (Object.keys(HOME_CATEGORY_STORIES) as HomeStoryCategoryId[])
-      .find((id) => HOME_CATEGORY_STORIES[id].id === storyId);
-    if (!categoryId) return;
-
-    closeHomeStory();
-    if (categoryId === 'gifts-souvenirs') {
-      go('gifts-souvenirs');
-      return;
-    }
-    setSelectedCategory(categoryId);
-    go('category-listing');
+  const openVenueReels = (venue: string) => {
+    setOpenVenue(venue);
+    setSeenVenues((current) => (current.includes(venue) ? current : [...current, venue]));
   };
 
   const confirmService = () => {
@@ -3484,7 +3357,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} venueReels={primaryBooking ? stayFeed(primaryBooking) : []} seenVenues={seenVenues} onOpenVenue={openVenueReels} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
 
       /*
         Details and ID used to be two steps. The passport scan fills most of
@@ -3840,20 +3713,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           (see promoted/feed-model.ts). Category pages and search stay one
           tap away in the sheets over it.
         */
-        const nights = Math.max(1, countNightsBetween(contextBooking.checkIn, contextBooking.checkOut));
-        const clock = feedClock ?? defaultFeedClock(contextBooking);
-        const feedEntries = rankFeed(
-          stayContext({
-            nights,
-            guestCount: contextBooking.guestCount,
-            companions: session.additionalGuests.length,
-            booked: session.serviceBookings
-              .filter((service) => service.bookingId === contextBooking.id && service.status !== 'cancelled')
-              .map((service) => service.serviceId)
-              .filter((id): id is string => Boolean(id)),
-          }, clock),
-          buildFeedCandidates({ nearby: nearbyFeedInputs(contextBooking.city) }),
-        );
+        const feedEntries = stayFeed(contextBooking);
         return (
           <>
             <ReelFeed
@@ -5247,13 +5107,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {renderScreen()}
           </div>
 
-          {openHomeStoryId ? (
-            <StoryViewer
-              story={HOME_CATEGORY_STORIES[openHomeStoryId]}
-              onClose={closeHomeStory}
-              onBook={bookHomeStory}
-              onFinished={closeHomeStory}
-            />
+          {openVenue ? (
+            <div className="reel-player" role="dialog" aria-modal="true" aria-label={openVenue}>
+              <ReelFeed
+                title={openVenue}
+                entries={(primaryBooking ? stayFeed(primaryBooking) : []).filter((entry) => entry.story.author.name === openVenue)}
+                onClose={() => setOpenVenue(null)}
+                onAction={(entry) => { setOpenVenue(null); runFeedAction(entry.action); }}
+              />
+            </div>
           ) : null}
 
           {orderTrayOpen ? orderTrayOpen === 'restaurant' ? (() => {
@@ -5633,7 +5495,10 @@ type StayOverviewHomeProps = {
   booking?: Booking;
   online?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
-  onOpenStory: (categoryId: HomeStoryCategoryId) => void;
+  /** The stay's reels, for the venue rings. */
+  venueReels: FeedEntry[];
+  seenVenues: string[];
+  onOpenVenue: (venue: string) => void;
   onOpenStay: (id: string) => void;
   /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
@@ -5641,37 +5506,7 @@ type StayOverviewHomeProps = {
   deskOpen?: boolean;
 };
 
-function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: HomeStoryCategoryId) => void; onSeeAll?: () => void }) {
-  return (
-    <section className="guest-home-discovery">
-      <SectionHeading title="Make the most of your stay" action={onSeeAll ? 'See all' : undefined} onAction={onSeeAll} />
-      <div className="discover__rail guest-home-stories" role="group" aria-label="Stay stories">
-        {HOME_STORY_CATEGORIES.map((item) => {
-          const story = HOME_CATEGORY_STORIES[item.id];
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="discover__story guest-home-story"
-              aria-label={item.label}
-              title={`Open ${item.label} story`}
-              onClick={() => onOpenStory(item.id)}
-            >
-              <span className="discover__story-ring">
-                <span className="discover__story-art">
-                  <Image src={story.cover.src} alt="" fill sizes="68px" style={{ objectPosition: story.cover.focalPoint }} />
-                </span>
-              </span>
-              <b>{item.label}</b>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay, onRequestRide, deskOpen = false }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, venueReels, seenVenues, onOpenVenue, onOpenStay, onRequestRide, deskOpen = false }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -5759,31 +5594,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
           <span className="guest-next-service-card__action" aria-hidden="true"><span className="guest-next-service-card__action-icon"><HugeiconsIcon icon={HugeChevronRightIcon} size={15} strokeWidth={1.75} focusable="false" /></span></span>
         </button></section> : null}
         {canUseOnPropertyServices(booking) ? (
-          <section className="guest-home-discovery">
-            <SectionHeading title="Make the most of your stay" />
-            <div className="discover__rail guest-home-stories" role="group" aria-label="Stay stories">
-              {HOME_STORY_CATEGORIES.map((item) => {
-                const story = HOME_CATEGORY_STORIES[item.id];
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="discover__story guest-home-story"
-                    aria-label={item.label}
-                    title={`Open ${item.label} story`}
-                    onClick={() => onOpenStory(item.id)}
-                  >
-                    <span className="discover__story-ring">
-                      <span className="discover__story-art">
-                        <Image src={story.cover.src} alt="" fill sizes="68px" style={{ objectPosition: story.cover.focalPoint }} />
-                      </span>
-                    </span>
-                    <b>{item.label}</b>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+          <VenueRings entries={venueReels} lead={booking.property} seen={seenVenues} onOpen={onOpenVenue} heading={<SectionHeading title="Make the most of your stay" />} />
         ) : null}
       </div>
     );
@@ -5975,7 +5786,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         though, and an empty home is no welcome: they get what the scan will
         open, the day's updates, and the essentials a lobby needs.
       */}
-      {booking.roomVerification ? <HomeStoryRail onOpenStory={onOpenStory} onSeeAll={() => onNavigate('marketplace')} /> : null}
+      {booking.roomVerification ? <VenueRings entries={venueReels} lead={booking.property} seen={seenVenues} onOpen={onOpenVenue} heading={<SectionHeading title="Make the most of your stay" action="See all" onAction={() => onNavigate('marketplace')} />} /> : null}
       {!booking.roomVerification && isStayUnderWay(booking) ? (
         <>
           {/* The ready-room card above carries the scan once there is a room; one button, not two. */}

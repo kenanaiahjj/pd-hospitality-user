@@ -19,9 +19,10 @@ import './reels.css';
 export type ReelFeedProps = {
   entries: FeedEntry[];
   onAction: (entry: FeedEntry) => void;
-  onSearch: () => void;
-  onBrowse: () => void;
-  onSeeEverything: () => void;
+  /** The feed's own bar and end card; a venue player has neither. */
+  onSearch?: () => void;
+  onBrowse?: () => void;
+  onSeeEverything?: () => void;
   /** When set, the feed is a player over another screen (a venue's rings) and shows a close button. */
   onClose?: () => void;
   /** A label for the player mode, e.g. the venue's name. */

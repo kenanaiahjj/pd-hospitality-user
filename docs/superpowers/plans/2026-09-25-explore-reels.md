@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Progress` |
+| **Status** | `Complete` |
 | **Created** | 2026-09-25 |
 | **Updated** | 2026-09-25 |
 | **Owner** | Kenanaiah Jo |
@@ -32,8 +32,8 @@ Off-ramps: `Blocked` (say what unblocks it in Decision Log) · `Abandoned`.
 | 3 | Reel player: `ReelView` + `ReelFeed` | ✅ Complete | 2026-09-25 | 2026-09-25 | `62d1a4e` |
 | 4 | Search and Browse sheets | ✅ Complete | 2026-09-25 | 2026-09-25 | `ee0a93e` |
 | 5 | Wire Explore to the feed; prototype clock | ✅ Complete | 2026-09-25 | 2026-09-25 | `2c14089` |
-| 6 | Verification walkthrough and artifact | ✅ Complete | 2026-09-25 | 2026-09-25 | `HASH` |
-| 7 | Phase 2: home venue rings | ⬜ Not started | — | — | — |
+| 6 | Verification walkthrough and artifact | ✅ Complete | 2026-09-25 | 2026-09-25 | `5b768d3` |
+| 7 | Phase 2: home venue rings | ✅ Complete | 2026-09-25 | 2026-09-25 | `HASH` |
 
 Legend: ⬜ Not started · 🔄 In progress · 🔁 Fix round *R*/5 · ✅ Complete · ⛔ Blocked · ⏭️ Descoped
 
@@ -182,10 +182,10 @@ prototype's session shape; the prototype derives them.
 
 **Files:** create `venue-rings.tsx`; modify `guest-app-prototype.tsx`, `reels.css`, tests.
 
-- [ ] One ring per author with live stories (hotel first, then partners by recency); unseen rings get a gold ring, seen ones go neutral.
-- [ ] Tapping a ring opens that venue's stories in the reel player as a modal (`ReelFeed` with a close button, entries limited to that author).
-- [ ] Replace the home's "Make the most of your stay" category circles with the rings (after the scan, as today).
-- [ ] Gate, commit `feat: per-venue story rings on the home`.
+- [x] One ring per author with live stories (hotel first, then in feed order, at most 12); unseen rings get a gold ring, seen ones go neutral.
+- [x] Tapping a ring opens that venue's stories in the reel player as a modal (`ReelFeed` with a close button, entries limited to that author).
+- [x] Replace the home's "Make the most of your stay" category circles with the rings (after the scan, as today).
+- [x] Gate, commit `feat: per-venue story rings on the home`.
 
 ---
 
@@ -204,5 +204,8 @@ prototype's session shape; the prototype derives them.
 | 2026-09-25 | `onlyIn` hard gate for going-home reels | Walkthrough: on night one, late checkout scored on "evening" alone and sat fifth | A reel wrongly gated never shows; widen its `onlyIn` |
 | 2026-09-25 | Last-day and checkout-day phase weight 4, not 3 | Walkthrough: with a spa booked, the facial follow-up (6) tied pasalubong (3+3) and won the tie, opening the flight morning on a treatment | Follow-ups sink one place on the last day |
 | 2026-09-25 | Walkthrough artifact is an observations log, not PNGs | The browser pane's screenshots cannot be written to disk from this session | Re-run the steps in the log to reproduce |
+| 2026-09-25 | Rings follow feed order after the hotel, not recency; at most 12 | The feed already ranks for the moment; 25 rings (every nearby partner) was a rail with no end | A partner outside the top 12 has no ring; raise `MAX_RINGS` |
+| 2026-09-25 | The hotel ring is picked by name (`lead`), not by `kind: 'property'` | Hotel-run outlets are `property` too, so kind-first pulled five restaurants ahead of the spa the feed ranked second | A property renamed in fixtures loses its lead spot |
+| 2026-09-25 | Delete `StoryViewer` and the home category stories; keep the `.story` CSS | Nothing renders them now; the CSS block also carries `.guest-device { position: relative }`, which the player depends on | Dead CSS until a cleanup moves that rule out |
 | 2026-09-25 | Feed reels play stills, not the three bundled clips | The clips' baked-in push-in steps in whole pixels and juddered full screen (the welcome-screen fault) | No motion in the feed until smooth footage exists; `ReelView` still supports video |
 

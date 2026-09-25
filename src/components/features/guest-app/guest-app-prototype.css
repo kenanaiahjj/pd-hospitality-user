@@ -4347,6 +4347,85 @@
   margin-bottom: 8px;
 }
 
+/* --- Before the scan: what it unlocks, and the house essentials ------------ */
+.guest-unlock,
+.guest-essentials {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line), var(--shadow-xs);
+}
+.guest-unlock > h2 {
+  margin: 0;
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
+}
+.guest-unlock__list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.guest-unlock__list li {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-height: 78px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--guest-surface);
+  color: var(--guest-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.guest-unlock__icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: var(--guest-paper); color: var(--guest-brand); }
+.guest-unlock__icon svg { width: 16px; height: 16px; }
+.guest-unlock__lock { position: absolute; top: 12px; right: 12px; width: 13px; height: 13px; color: var(--guest-subtle); }
+.guest-unlock .guest-button { margin-top: 2px; }
+
+.guest-essentials > h2 {
+  margin: 0;
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.guest-essentials__list { display: grid; margin: 0; }
+.guest-essentials__list > div {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 0;
+}
+.guest-essentials__list > div + div { box-shadow: inset 0 1px 0 var(--guest-line); }
+.guest-essentials__list dt { display: inline-flex; align-items: center; gap: 8px; color: var(--guest-muted); font-size: 13px; }
+.guest-essentials__list dt svg { width: 16px; height: 16px; color: var(--guest-brand); }
+.guest-essentials__list dd { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; margin: 0; font-size: 13.5px; }
+.guest-essentials__list dd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guest-essentials__list dd b { font-family: var(--font-mono), ui-monospace, monospace; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+.guest-essentials__copy {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--guest-radius-pill);
+  box-shadow: inset 0 0 0 1px var(--guest-line-strong);
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.guest-essentials__copy svg { width: 13px; height: 13px; }
+
 /* --- Pre-arrival as a checklist ------------------------------------------ */
 .guest-checklist {
   display: grid;

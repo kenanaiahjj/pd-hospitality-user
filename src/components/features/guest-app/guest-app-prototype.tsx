@@ -16,6 +16,8 @@ import {
   Clock,
   ClockCountdown,
   Compass,
+  Coffee,
+  Copy,
   CreditCard,
   ForkKnife,
   Gift,
@@ -35,6 +37,7 @@ import {
   CaretDown,
   Sparkle,
   Storefront,
+  SwimmingPool,
   Ticket,
   ShieldCheck,
   SuitcaseRolling,
@@ -3490,7 +3493,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenNearby={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} onViewNearby={() => { setSelectedCategory('dining'); go('nearby-recommendations'); }} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
 
       /*
         Details and ID used to be two steps. The passport scan fills most of
@@ -5612,9 +5615,6 @@ type StayOverviewHomeProps = {
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
   /** Whether the front desk still answers after checkout: the 24-hour window. */
   deskOpen?: boolean;
-  /** Nearby places, for a guest on property who has not scanned in yet. */
-  onOpenNearby?: (id: string) => void;
-  onViewNearby?: () => void;
 };
 
 function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: HomeStoryCategoryId) => void; onSeeAll?: () => void }) {
@@ -5647,7 +5647,7 @@ function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: Ho
   );
 }
 
-function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay, onRequestRide, deskOpen = false, onOpenNearby, onViewNearby }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay, onRequestRide, deskOpen = false }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -5724,6 +5724,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         </section>
         {/* One line under the stay: what changed at the property today. */}
         <AnnouncementsSection booking={booking} />
+        <HotelEssentials booking={booking} />
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" aria-label={`View details for ${confirmedServices[0].title}`} onClick={() => onNavigate('my-stay')}>
           <span className="guest-next-service-card__marker" aria-hidden="true"><HugeiconsIcon icon={HugeCalendarCheckIcon} size={20} strokeWidth={1.75} focusable="false" /></span>
           <span className="guest-next-service-card__details">
@@ -5947,22 +5948,16 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
       {/*
         The hotel's own services open with the scan, so the story rail waits
         for it. A guest already inside the stay's dates is on property,
-        though, and an empty home is no welcome: they get the day's updates
-        and places nearby, which need no room to enjoy.
+        though, and an empty home is no welcome: they get what the scan will
+        open, the day's updates, and the essentials a lobby needs.
       */}
       {booking.roomVerification ? <HomeStoryRail onOpenStory={onOpenStory} onSeeAll={() => onNavigate('marketplace')} /> : null}
       {!booking.roomVerification && isStayUnderWay(booking) ? (
         <>
+          {/* The ready-room card above carries the scan once there is a room; one button, not two. */}
+          <UnlockTeaser onScan={roomAssignment.state === 'pending' ? () => onNavigate('scan-room-code') : undefined} />
           <AnnouncementsSection booking={booking} />
-          {onOpenNearby ? (
-            <NearbyRecommendations
-              categoryId="dining"
-              city={booking.city}
-              description={`Cafés and dining a short walk from ${booking.property}.`}
-              onViewAll={() => onViewNearby?.()}
-              onSelect={onOpenNearby}
-            />
-          ) : null}
+          <HotelEssentials booking={booking} />
         </>
       ) : null}
       {/* Arrival offers: once the stay has begun the guest is already here. */}
@@ -6395,6 +6390,95 @@ function RoomExtensionCard({ booking, onExtend }: { booking: Booking; onExtend: 
 
 function StayMiniCard({ booking, status }: { booking: Booking; status: string }) {
   return <div className="guest-mini-stay"><span><House /></span><div><b>{booking.property}</b><small>{status}</small></div><CheckCircle /></div>;
+}
+
+/** What the room scan opens, in the order a guest reaches for it. */
+const SCAN_UNLOCKS = [
+  { label: 'Dining to your room', icon: <ForkKnife /> },
+  { label: 'Spa & wellness', icon: <Sparkle /> },
+  { label: 'Tours & activities', icon: <Compass /> },
+  { label: 'Charge to your room', icon: <Receipt /> },
+];
+
+/*
+  A guest on property who has not scanned in sees what the scan opens,
+  each behind a small lock -- a reason to scan rather than an empty home.
+  Once scanned, this card goes and the services themselves take its place.
+*/
+function UnlockTeaser({ onScan }: { onScan?: () => void }) {
+  return (
+    <section className="guest-unlock" aria-labelledby="guest-unlock-title">
+      <h2 id="guest-unlock-title">Scan your room code to unlock</h2>
+      <ul className="guest-unlock__list">
+        {SCAN_UNLOCKS.map((item) => (
+          <li key={item.label}>
+            <span className="guest-unlock__icon" aria-hidden="true">{item.icon}</span>
+            <span>{item.label}</span>
+            <Lock className="guest-unlock__lock" weight="fill" aria-label="Locked" />
+          </li>
+        ))}
+      </ul>
+      {onScan ? (
+        <Button className="guest-button guest-button--primary" type="button" onClick={onScan}>
+          <QrCode aria-hidden="true" />Scan room code
+        </Button>
+      ) : null}
+    </section>
+  );
+}
+
+/** The house facts a guest asks the desk for first, by property. */
+const ESSENTIALS: Record<string, { wifi: string; password: string; breakfast: string; pool: string }> = {
+  Manila: { wifi: 'HenryGuest', password: 'manila2026', breakfast: '6:00–10:30 AM · Kape Manila Café', pool: 'Rooftop · 7:00 AM–10:00 PM' },
+  Cebu: { wifi: 'HenryGuest', password: 'cebu2026', breakfast: '6:30–10:30 AM · The Garden', pool: 'Garden pool · 7:00 AM–9:00 PM' },
+};
+
+/*
+  What a guest in the lobby actually needs, none of it tied to the room:
+  Wi-Fi with its password one tap from the clipboard, breakfast, the pool
+  (today's closure wins over the usual hours), and when the stay ends.
+*/
+function HotelEssentials({ booking }: { booking: Booking }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+  const facts = ESSENTIALS[booking.city];
+  if (!facts) return null;
+  const poolNotice = PROPERTY_ANNOUNCEMENTS.find((item) => item.id === 'announcement-pool' && item.activeFrom <= booking.checkOut && item.activeUntil >= booking.checkIn);
+  const checkout = new Date(`${booking.checkOut}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const copy = () => {
+    try {
+      void navigator.clipboard?.writeText(facts.password);
+    } catch {
+      // No clipboard: the password is on screen to read anyway.
+    }
+    setCopied(true);
+  };
+  return (
+    <section className="guest-essentials" aria-labelledby="guest-essentials-title">
+      <h2 id="guest-essentials-title">Hotel essentials</h2>
+      <dl className="guest-essentials__list">
+        <div>
+          <dt><WifiHigh aria-hidden="true" />Wi-Fi</dt>
+          <dd>
+            <span>{facts.wifi} · <b>{facts.password}</b></span>
+            <button type="button" className="guest-essentials__copy" onClick={copy} aria-label={copied ? 'Password copied' : 'Copy Wi-Fi password'}>
+              {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}{copied ? 'Copied' : 'Copy'}
+            </button>
+          </dd>
+        </div>
+        <div><dt><Coffee aria-hidden="true" />Breakfast</dt><dd><span>{facts.breakfast}</span></dd></div>
+        <div>
+          <dt><SwimmingPool aria-hidden="true" />Pool</dt>
+          <dd><span>{poolNotice ? `${facts.pool.split(' · ')[0]} · reopens 11:00 AM` : facts.pool}</span></dd>
+        </div>
+        <div><dt><SignOut aria-hidden="true" />Check-out</dt><dd><span>{checkout} · {CHECK_OUT_BY}</span></dd></div>
+      </dl>
+    </section>
+  );
 }
 
 /** The pre-arrival steps, in order, and where each one is done. */

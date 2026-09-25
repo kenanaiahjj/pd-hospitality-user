@@ -405,7 +405,7 @@ export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
   The room key: the stay pass's sibling for the moment the scan succeeds.
   Same pearl frame, sheen and tilt, cut to a key card's landscape shape --
   the hotel photograph fading into plum on the right, the room number large
-  in the serif, and the guest, dates and a contactless mark along the foot.
+  in the serif, and the guest and dates along the foot.
   "Unlocked" settles in under it in the gold foil the pass says Confirmed in.
 */
 export function RoomKey({ property, roomNumber, guestName, dates, art }: {
@@ -439,9 +439,6 @@ export function RoomKey({ property, roomNumber, guestName, dates, art }: {
                   </span>
                   <span className="room-key__foot">
                     <span>{[guestName, dates].filter(Boolean).join(' · ')}</span>
-                    <svg className="room-key__contactless" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M8 7.5a6.5 6.5 0 0 1 0 9" /><path d="M11.5 5a10 10 0 0 1 0 14" /><path d="M15 2.5a13.5 13.5 0 0 1 0 19" />
-                    </svg>
                   </span>
                 </div>
                 <CabanaMark className="room-key__mark" />

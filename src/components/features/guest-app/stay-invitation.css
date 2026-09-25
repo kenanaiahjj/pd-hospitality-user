@@ -514,7 +514,6 @@
   text-shadow: 0 1px 14px oklch(0.2 0.05 350 / 0.5);
 }
 .room-key__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: oklch(1 0 0 / 0.78); font-size: 11.5px; }
-.room-key__contactless { flex: 0 0 auto; width: 20px; height: 20px; fill: none; stroke: oklch(1 0 0 / 0.85); stroke-width: 1.7; stroke-linecap: round; }
 .room-key__mark { position: absolute; top: 14px; right: 16px; z-index: 4; height: 14px; width: auto; color: oklch(1 0 0 / 0.9); filter: drop-shadow(0 1px 3px oklch(0 0 0 / 0.35)); }
 
 /* The same champagne foil the pass says Confirmed in. */

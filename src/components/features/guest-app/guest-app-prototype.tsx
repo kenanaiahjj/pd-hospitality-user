@@ -3488,7 +3488,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0]}`} text="Your saved identity is ready for this stay at a new property."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="No typing needed">Review what we already have, then confirm your stay.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} onOpenStory={openHomeStory} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenNearby={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} onViewNearby={() => { setSelectedCategory('dining'); go('nearby-recommendations'); }} />;
 
       /*
         Details and ID used to be two steps. The passport scan fills most of
@@ -4570,7 +4570,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </div>
               ) : (
                 <div className={`guest-hub-empty${stayTab === 'upcoming' && !started ? ' guest-hub-empty--services' : ''}`}>
-                  <h2>{stayTab === 'upcoming' && !started ? 'No upcoming services yet' : stayTab === 'upcoming' ? 'Nothing booked yet' : 'Nothing here yet'}</h2>
+                  <h2>{stayTab === 'upcoming' && !started ? 'No upcoming services yet' : stayTab === 'upcoming' && !checkedOut && bookingSlot.locked ? 'Scan in to browse services' : stayTab === 'upcoming' ? 'Nothing booked yet' : 'Nothing here yet'}</h2>
                   {/*
                     A stay that is over cannot be sold anything. This block
                     was inviting a checked-out guest to charge to a room they
@@ -4584,6 +4584,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                         ? 'Services you book for your upcoming stay will appear here.'
                         : checkedOut
                         ? 'Nothing was left open when you checked out.'
+                        // Gated, and said so: services open with the room scan, not before it.
+                        : bookingSlot.locked
+                        ? `Dining, spa, tours and hotel services open once you scan the code in your room. Bookings then go on ${contextBooking.roomNumber ? `room ${contextBooking.roomNumber}` : 'your room'} and settle at checkout.`
                         : `Dining, spa, tours, and hotel services are in Explore. Bookings are added to ${contextRoom.toLowerCase()} and settle at checkout.`}
                   </p>
                   {stayTab === 'upcoming' && !started ? (
@@ -4591,9 +4594,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       Browse arrival services<ArrowRight aria-hidden="true" />
                     </Button>
                   ) : stayTab === 'upcoming' && !checkedOut ? (
-                    <Button className="guest-button guest-button--primary" type="button" onClick={() => go(bookingSlot.screen)}>
-                      {bookingSlot.locked ? 'Browse arrival services' : 'Explore on-property'}<ArrowRight aria-hidden="true" />
-                    </Button>
+                    bookingSlot.locked ? (
+                      <Button className="guest-button guest-button--primary" type="button" onClick={() => go('scan-room-code')}>
+                        <QrCode aria-hidden="true" />Scan room code
+                      </Button>
+                    ) : (
+                      <Button className="guest-button guest-button--primary" type="button" onClick={() => go(bookingSlot.screen)}>
+                        Explore on-property<ArrowRight aria-hidden="true" />
+                      </Button>
+                    )
                   ) : null}
                 </div>
               )}
@@ -5604,6 +5613,9 @@ type StayOverviewHomeProps = {
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
   /** Whether the front desk still answers after checkout: the 24-hour window. */
   deskOpen?: boolean;
+  /** Nearby places, for a guest on property who has not scanned in yet. */
+  onOpenNearby?: (id: string) => void;
+  onViewNearby?: () => void;
 };
 
 function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: HomeStoryCategoryId) => void; onSeeAll?: () => void }) {
@@ -5636,7 +5648,7 @@ function HomeStoryRail({ onOpenStory, onSeeAll }: { onOpenStory: (categoryId: Ho
   );
 }
 
-function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay, onRequestRide, deskOpen = false }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenStay, onRequestRide, deskOpen = false, onOpenNearby, onViewNearby }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -5928,11 +5940,32 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         </section>
       ) : null}
       {/*
-        Kept out of sight until the guest has scanned in: services on offer
-        are not a thing to browse before the room itself confirms they are
-        on property.
+        Browsing opens once the guest is on property -- scanned in, or simply
+        inside the stay's dates -- so a guest standing in the lobby is not
+        left looking at an empty home. Booking stays behind the scan: the
+        booking flow checks that, not this rail.
+      */}
+      {/*
+        The hotel's own services open with the scan, so the story rail waits
+        for it. A guest already inside the stay's dates is on property,
+        though, and an empty home is no welcome: they get the day's updates
+        and places nearby, which need no room to enjoy.
       */}
       {booking.roomVerification ? <HomeStoryRail onOpenStory={onOpenStory} onSeeAll={() => onNavigate('marketplace')} /> : null}
+      {!booking.roomVerification && isStayUnderWay(booking) ? (
+        <>
+          <AnnouncementsSection booking={booking} />
+          {onOpenNearby ? (
+            <NearbyRecommendations
+              categoryId="dining"
+              city={booking.city}
+              description={`Cafés and dining a short walk from ${booking.property}.`}
+              onViewAll={() => onViewNearby?.()}
+              onSelect={onOpenNearby}
+            />
+          ) : null}
+        </>
+      ) : null}
       {/* Arrival offers: once the stay has begun the guest is already here. */}
       {!booking.roomVerification && booking.status === 'upcoming' && !hasStayStarted(booking) ? (
         <>

@@ -4291,6 +4291,9 @@
 .guest-hub-empty .guest-button {
   margin-top: 4px;
 }
+/* Room under the tab rule before whatever the tab shows. */
+.guest-tabs + .guest-hub-empty,
+.guest-tabs + .guest-stay-entries { margin-top: 16px; }
 .guest-hub-empty--services {
   width: min(100%, 360px);
   margin: 0 auto;
@@ -7067,6 +7070,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 /* Nearby is a secondary preview on category pages; the full list has its own
    route so the category page keeps the hotel's options in focus. */
 .guest-nearby-section { gap: 0; margin-top: 32px; padding-top: 24px; border-top: 0; }
+/* On the home it is one section among the stack's own rhythm, not a page break. */
+.guest-home-booking > .guest-nearby-section { margin-top: 6px; padding-top: 0; }
 .guest-nearby-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .guest-nearby-heading h2 { margin: 0; color: var(--guest-ink); font-size: 20px; font-weight: 650; }
 .guest-nearby-heading button { flex: 0 0 auto; padding: 0; border: 0; background: transparent; color: var(--guest-accent-strong); font-size: 14px; font-weight: 550; }

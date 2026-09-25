@@ -4344,6 +4344,63 @@
   margin-bottom: 8px;
 }
 
+/* --- Pre-arrival as a checklist ------------------------------------------ */
+.guest-checklist {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px 14px;
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line), var(--shadow-xs);
+}
+.guest-checklist__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 4px; }
+.guest-checklist__head h2 {
+  margin: 0;
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.guest-checklist__progress { display: inline-flex; align-items: center; gap: 7px; color: var(--guest-ink); font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.guest-checklist__progress svg { width: 20px; height: 20px; transform: rotate(-90deg); }
+.guest-checklist__progress circle { fill: none; stroke: var(--guest-line); stroke-width: 3; }
+.guest-checklist__progress circle + circle { stroke: var(--guest-brand); stroke-linecap: round; transition: stroke-dashoffset var(--duration-base) var(--ease-out); }
+
+.guest-checklist__steps { display: grid; margin: 0; padding: 0; list-style: none; }
+.guest-checklist__steps li + li { box-shadow: inset 0 1px 0 var(--guest-line); }
+.guest-checklist__step {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--guest-muted);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+.guest-checklist__mark {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--guest-line-strong);
+}
+.guest-checklist__step.is-done .guest-checklist__mark { background: var(--guest-positive); box-shadow: none; color: #fff; }
+.guest-checklist__mark svg { width: 12px; height: 12px; }
+.guest-checklist__step.is-next { color: var(--guest-ink); font-weight: 650; }
+.guest-checklist__step.is-next .guest-checklist__mark { box-shadow: inset 0 0 0 1.5px var(--guest-brand); }
+.guest-checklist__action { display: inline-flex; align-items: center; gap: 2px; color: var(--guest-brand); font-size: 14px; font-weight: 650; }
+.guest-checklist__action svg { width: 14px; height: 14px; }
+.guest-checklist__note { margin: 4px 0 0; color: var(--guest-muted); font-size: 12.5px; line-height: 1.4; }
+
 /* --- Make it yours: the two things to shape before arriving ---------------- */
 .guest-make-it-yours { display: grid; gap: 10px; }
 .guest-make-it-yours > h2 {
@@ -4374,7 +4431,23 @@
   text-align: left;
   transition: transform var(--duration-press) var(--ease-out), box-shadow var(--duration-fast) ease;
 }
-button.guest-tile { cursor: pointer; }
+button.guest-tile { position: relative; cursor: pointer; }
+/* The corner cue: what tapping does, so a tile of answers does not read as fixed. */
+.guest-tile__cue {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: var(--guest-radius-pill);
+  box-shadow: inset 0 0 0 1px var(--guest-line-strong);
+  color: var(--guest-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+.guest-tile__cue svg { width: 12px; height: 12px; }
 button.guest-tile:active { transform: scale(0.98); }
 .guest-tile__icon {
   display: grid;

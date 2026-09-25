@@ -24,6 +24,7 @@ import {
   MapPin,
   Megaphone,
   Minus,
+  PencilSimple,
   Person,
   PersonSimpleWalk,
   Phone,
@@ -5843,12 +5844,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
         onOpen={() => onNavigate('rate-detail')}
       />
       {booking.preArrivalCompleted < booking.preArrivalTotal ? (
-        <section className="guest-home-booking guest-home-booking--primary">
-          <div className="guest-home-booking__heading"><div><small>Pre-arrival</small><h2>{booking.preArrivalCompleted} of {booking.preArrivalTotal} steps complete</h2></div><strong>{Math.round((booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%</strong></div>
-          <div className="guest-home-progress" role="progressbar" aria-label="Pre-arrival progress" aria-valuemin={0} aria-valuemax={booking.preArrivalTotal} aria-valuenow={booking.preArrivalCompleted}><span style={{ width: `${Math.min(100, (booking.preArrivalCompleted / Math.max(booking.preArrivalTotal, 1)) * 100)}%` }} /></div>
-          <p>{booking.nextPreArrivalStep ?? 'Review your stay details before arrival.'}</p>
-          <Button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('guest-details')}>Complete pre-arrival<ArrowRight aria-hidden="true" /></Button>
-        </section>
+        <PreArrivalChecklist booking={booking} onNavigate={onNavigate} />
       ) : roomAssignment.state !== 'pending' ? (
         booking.roomVerification ? null : (
           <section className="guest-home-booking guest-home-booking--primary guest-room-ready-card" data-testid="guest-room-ready-card">
@@ -5919,6 +5915,7 @@ function StayOverviewHome({ session, booking, onNavigate, onOpenStory, onOpenSta
             ) : (
               <button className="guest-tile" type="button" onClick={() => onNavigate('early-check-in')} data-testid="guest-early-checkin-card">
                 <span className="guest-tile__icon" aria-hidden="true"><Clock /></span>
+                <span className="guest-tile__cue" aria-hidden="true">Request</span>
                 <small>Check in early</small>
                 <b>{EARLY_CHECK_IN.time}</b>
                 <span className="guest-tile__meta">{EARLY_CHECK_IN.fee} · on your room</span>
@@ -6352,13 +6349,78 @@ function StayMiniCard({ booking, status }: { booking: Booking; status: string })
   return <div className="guest-mini-stay"><span><House /></span><div><b>{booking.property}</b><small>{status}</small></div><CheckCircle /></div>;
 }
 
+/** The pre-arrival steps, in order, and where each one is done. */
+const PRE_ARRIVAL_STEPS: { label: string; screen: ActiveScreen }[] = [
+  { label: 'You and your ID', screen: 'guest-details' },
+  { label: 'Who else is staying', screen: 'additional-guests' },
+];
+
+/*
+  Pre-arrival as the checklist it is: the steps are the card, the next one
+  carries the action, and a single ring says how far along. It replaced a
+  heading, a percentage, a bar and a sentence that all said "1 of 2", with
+  the actual next step in the smallest grey type on the card.
+*/
+function PreArrivalChecklist({ booking, onNavigate }: { booking: Booking; onNavigate: (screen: ActiveScreen) => void }) {
+  const total = Math.max(booking.preArrivalTotal, 1);
+  const done = Math.min(booking.preArrivalCompleted, total);
+  const steps = PRE_ARRIVAL_STEPS.slice(0, total);
+  const left = total - done;
+  const ring = 2 * Math.PI * 9;
+  return (
+    <section className="guest-checklist" aria-labelledby="guest-checklist-title">
+      <div className="guest-checklist__head">
+        <h2 id="guest-checklist-title">Check-in before arrival</h2>
+        <span
+          className="guest-checklist__progress"
+          role="progressbar"
+          aria-label="Pre-arrival progress"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={done}
+        >
+          <svg viewBox="0 0 22 22" aria-hidden="true">
+            <circle cx="11" cy="11" r="9" />
+            <circle cx="11" cy="11" r="9" strokeDasharray={ring} strokeDashoffset={ring * (1 - done / total)} />
+          </svg>
+          {done} of {total}
+        </span>
+      </div>
+      <ol className="guest-checklist__steps">
+        {steps.map((step, index) => {
+          const complete = index < done;
+          const next = index === done;
+          return (
+            <li key={step.label}>
+              <button
+                type="button"
+                className={`guest-checklist__step${complete ? ' is-done' : ''}${next ? ' is-next' : ''}`}
+                onClick={() => onNavigate(step.screen)}
+              >
+                <span className="guest-checklist__mark" aria-hidden="true">{complete ? <Check weight="bold" /> : null}</span>
+                <span className="guest-checklist__label">{step.label}<span className="sr-only">{complete ? ', done' : ', to do'}</span></span>
+                {next ? <span className="guest-checklist__action" aria-hidden="true">{complete ? 'Edit' : 'Add'}<CaretRight /></span> : null}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="guest-checklist__note">
+        {`About ${left} ${left === 1 ? 'minute' : 'minutes'} left · the hotel has it all before you land.`}
+      </p>
+    </section>
+  );
+}
+
 function RoomPreferencesCard({ preferences, onOpen }: { preferences: RoomPreferences; onOpen: () => void }) {
   const picks = summarizeRoomPreferences(preferences);
   const [first, second, ...rest] = picks;
   return (
     <button className="guest-tile" type="button" onClick={onOpen} data-testid="guest-room-preferences-card">
       <span className="guest-tile__icon" aria-hidden="true"><Bed /></span>
-      <small>Your room</small>
+      {/* Says what it is and that it changes: a tile of answers alone read as fixed facts. */}
+      <span className="guest-tile__cue" aria-hidden="true"><PencilSimple />Edit</span>
+      <small>Room preferences</small>
       <b>{first ?? 'Set your preferences'}</b>
       <span className="guest-tile__meta">
         {second ?? (first ? 'Tap to add more' : 'Bed, floor, view and more')}

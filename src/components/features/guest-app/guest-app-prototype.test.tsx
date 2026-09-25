@@ -146,7 +146,7 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
-    expect(screen.getByText('Pre-arrival')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Check-in before arrival' })).toBeInTheDocument();
     expect(screen.queryByText('Choose how to connect your stay.')).toBeNull();
 
     /*
@@ -810,10 +810,10 @@ describe('pre-arrival progress card', () => {
   it('shows remaining work and the next step while incomplete', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
 
-    expect(screen.getByText('1 of 2 steps complete')).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Pre-arrival progress' })).toBeInTheDocument();
-    expect(screen.getByText('Add who else is staying')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Complete pre-arrival/ })).toBeInTheDocument();
+    // One progress signal, and the steps themselves: done, then the next one to act on.
+    expect(screen.getByRole('progressbar', { name: 'Pre-arrival progress' })).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.getByRole('button', { name: /You and your ID, done/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Who else is staying, to do/ })).toBeInTheDocument();
   });
 
   it('drops the progress framing once every step is done', () => {
@@ -2758,7 +2758,7 @@ describe('signed-in home with no booking', () => {
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
-    expect(screen.getByText('Pre-arrival')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Check-in before arrival' })).toBeInTheDocument();
   });
 
   it('shows the guest their recent stays and links to the full list', async () => {

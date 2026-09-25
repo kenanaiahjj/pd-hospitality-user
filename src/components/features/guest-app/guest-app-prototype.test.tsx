@@ -307,7 +307,7 @@ describe('GuestAppPrototype', () => {
     // The surname is the match key; the reservation supplies the name, so the
     // greeting uses what the property holds rather than what was typed.
     expect(screen.getByText('Welcome, Ana')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'You’re checked in' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'You’re all set' })).toBeNull();
   });
 
   /*
@@ -2490,7 +2490,7 @@ describe('lifecycle gates', () => {
       expect(screen.getByRole('heading', { name: 'You’re all set' })).toBeInTheDocument();
       expect(screen.queryByText(/you.{0,3}re checked in/i)).toBeNull();
 
-      fireEvent.click(within(screen.getByTestId('room-unlocked')).getByRole('button', { name: 'Explore' }));
+      fireEvent.click(within(screen.getByTestId('room-unlocked')).getByRole('button', { name: /Start exploring/ }));
       expect(screen.getByTestId('story-viewer')).toBeInTheDocument();
     } finally {
       vi.useRealTimers();

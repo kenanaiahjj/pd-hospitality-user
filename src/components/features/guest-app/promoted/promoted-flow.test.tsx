@@ -115,10 +115,10 @@ describe('promoted room QR surfaces', () => {
     );
 
     expect(screen.getByRole('heading', { name: /all set/i })).toBeInTheDocument();
-    expect(screen.getByText(/Room 304 is confirmed/)).toBeInTheDocument();
+    expect(screen.getByText(/goes on Room 304/)).toBeInTheDocument();
     expect(screen.getByText('Charge to room')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Explore' }));
+    await user.click(screen.getByRole('button', { name: /Start exploring/ }));
     await user.click(screen.getByRole('button', { name: 'Back to my stay' }));
 
     expect(onExplore).toHaveBeenCalledOnce();

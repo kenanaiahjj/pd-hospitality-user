@@ -406,7 +406,8 @@ export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
   Same pearl frame, sheen and tilt, cut to a key card's landscape shape --
   the hotel photograph fading into plum on the right, the room number large
   in the serif, and the guest and dates along the foot.
-  "Unlocked" settles in under it in the gold foil the pass says Confirmed in.
+  "Unlocked" is stamped in the corner in the gold foil the pass says
+  Confirmed in, and the card rests on a lit stage with a floor shadow.
 */
 export function RoomKey({ property, roomNumber, guestName, dates, art }: {
   property: string;
@@ -441,7 +442,8 @@ export function RoomKey({ property, roomNumber, guestName, dates, art }: {
                     <span>{[guestName, dates].filter(Boolean).join(' · ')}</span>
                   </span>
                 </div>
-                <CabanaMark className="room-key__mark" />
+                {/* Stamped on the key itself, in the corner a mark would take. */}
+                <span className="room-key__stamp">Unlocked</span>
               </div>
               <span className="stay-pass__glare" aria-hidden="true" />
               <span className="stay-pass__sweep" aria-hidden="true" />
@@ -449,7 +451,6 @@ export function RoomKey({ property, roomNumber, guestName, dates, art }: {
           </div>
         </div>
       </div>
-      <p className="room-key__status">Unlocked</p>
     </div>
   );
 }

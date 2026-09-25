@@ -489,7 +489,9 @@
 .room-key .stay-pass__photo { inset: 0 0 0 34%; }
 .room-key .stay-pass__photo::after {
   background: linear-gradient(90deg, var(--sp-plum) 0%, oklch(0.2 0.05 350 / 0.55) 30%, oklch(0.2 0.05 350 / 0) 70%),
-    linear-gradient(0deg, oklch(0.2 0.05 350 / 0.55), oklch(0.2 0.05 350 / 0) 45%);
+    linear-gradient(0deg, oklch(0.2 0.05 350 / 0.55), oklch(0.2 0.05 350 / 0) 45%),
+    /* A shade along the top, so the gold stamp holds on a bright photo. */
+    linear-gradient(180deg, oklch(0.2 0.05 350 / 0.6), oklch(0.2 0.05 350 / 0) 38%);
 }
 .room-key__body {
   position: relative;
@@ -514,26 +516,54 @@
   text-shadow: 0 1px 14px oklch(0.2 0.05 350 / 0.5);
 }
 .room-key__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: oklch(1 0 0 / 0.78); font-size: 11.5px; }
-.room-key__mark { position: absolute; top: 14px; right: 16px; z-index: 4; height: 14px; width: auto; color: oklch(1 0 0 / 0.9); filter: drop-shadow(0 1px 3px oklch(0 0 0 / 0.35)); }
 
-/* The same champagne foil the pass says Confirmed in. */
-/* Doubled class: app-wide paragraph rules otherwise reset the clip. */
-.room-key__status.room-key__status {
-  margin: 0;
-  background-image: linear-gradient(100deg, oklch(0.8 0.08 85), oklch(0.62 0.1 72) 45%, oklch(0.82 0.08 88) 60%, oklch(0.56 0.1 68));
+/* The key rests on a lit stage: a soft plum-to-pearl glow behind it and a
+   floor shadow under it, so it reads as an object presented, not placed. */
+.room-key-stage { position: relative; padding: 18px 0 26px; isolation: isolate; }
+.room-key-stage::before {
+  position: absolute;
+  inset: -8% -14% 0;
+  z-index: -1;
+  content: '';
+  background: radial-gradient(58% 52% at 50% 44%, oklch(0.9 0.035 340 / 0.9), oklch(0.96 0.012 330 / 0.6) 55%, transparent 78%);
+  pointer-events: none;
+}
+.room-key-stage::after {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  z-index: -1;
+  width: min(78%, 270px);
+  height: 18px;
+  content: '';
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0.2 0.05 350 / 0.28), transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* The same champagne foil the pass says Confirmed in, stamped in the corner. */
+.room-key__stamp.room-key__stamp {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 4;
+  text-shadow: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px oklch(0.82 0.08 85 / 0.6);
+  background-image: linear-gradient(100deg, oklch(0.93 0.06 90), oklch(0.78 0.1 78) 45%, oklch(0.95 0.07 92) 60%, oklch(0.72 0.1 70));
   background-size: 200% 100%;
-  -webkit-text-fill-color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.34em;
-  text-indent: 0.34em;
+  -webkit-text-fill-color: transparent;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   animation: stay-pass-status 520ms 650ms var(--ease-out) both;
 }
-.room-key__status::before { content: '✦ '; }
 @media (prefers-reduced-motion: reduce) {
-  .room-key__status { animation: stay-pass-fade 300ms both; }
+  .room-key__stamp { animation: stay-pass-fade 300ms both; }
 }

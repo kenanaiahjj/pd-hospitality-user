@@ -197,33 +197,65 @@
   display: grid;
   /* Top-aligned and sized to its content: centring it in 62vh left a band
      of nothing above the art and below the buttons. */
-  gap: 18px;
+  gap: 16px;
   align-content: start;
   justify-items: center;
-  padding: 14px 22px 4px;
+  padding: 6px 22px 4px;
   text-align: center;
 }
 
-.unlocked__say { display: grid; gap: 10px; justify-items: center; }
-/* accentStrong, not the brand pink: pink is a light surface colour and fails
-   as text on a light ground. DESIGN.md's rule, and the one screen where the
-   accent is allowed to carry a headline at all. */
+/* Editorial: the words sit left under the centred key, like a caption. */
+.unlocked__say { display: grid; gap: 8px; justify-items: start; width: 100%; text-align: left; }
+.unlocked__eyebrow {
+  margin: 0;
+  color: oklch(0.58 0.09 75);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
 .unlocked__title {
   margin: 0;
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.024em;
-  line-height: 1.08;
-  color: var(--guest-accent-strong);
+  color: var(--guest-ink);
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
   text-wrap: balance;
 }
 .unlocked__subtitle {
   margin: 0;
-  max-width: 32ch;
   color: var(--guest-muted);
   font-size: 15px;
   line-height: 1.5;
   text-wrap: pretty;
+}
+/* A receipt line: hairline above, the reward left, the state right. */
+.unlocked__reward {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 10px 0 0;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--guest-line);
+  color: var(--guest-ink);
+  font-size: 14.5px;
+  font-variant-numeric: tabular-nums;
+}
+.unlocked__reward b { font-weight: 700; }
+.unlocked__reward > span:last-child { color: var(--guest-positive); font-size: 13px; font-weight: 650; }
+.unlocked__reward-star {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f1dca6, #c49a4d);
+  color: #fff;
+  font-size: 11px;
 }
 
 .unlocked__go { display: grid; gap: 2px; justify-items: center; width: 100%; }
@@ -1596,31 +1628,6 @@
 
 
 /* The scan's own earn, stated at the moment it happened. */
-.unlocked__earned {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 6px 0 0;
-  padding: 7px 14px 7px 10px;
-  border-radius: var(--guest-radius-pill);
-  background: var(--guest-paper);
-  box-shadow: inset 0 0 0 1px oklch(0.78 0.08 80 / 0.55), 0 2px 8px oklch(0.6 0.08 75 / 0.12);
-  color: var(--guest-muted);
-  font-size: 13.5px;
-  font-variant-numeric: tabular-nums;
-}
-.unlocked__earned b { color: var(--guest-ink); font-size: 14.5px; font-weight: 700; }
-.unlocked__earned-star {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #f1dca6, #c49a4d);
-  color: #fff;
-  font-size: 11px;
-}
-
 /* --------------------------------------------------------------------------
    Marriott-style signed-in shell refinement
 

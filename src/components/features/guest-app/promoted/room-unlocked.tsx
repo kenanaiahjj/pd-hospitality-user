@@ -35,6 +35,7 @@ import { PROPERTY_IMAGE, storyImage } from './story-imagery';
 export type RoomUnlockedProps = {
   roomNumber?: string;
   property?: string;
+  /** Unused since the key card carries the dates; kept so callers need not change. */
   checkOut?: string;
   /** Printed on the key. */
   guestName?: string;
@@ -88,7 +89,6 @@ const BANNER = PROPERTY_IMAGE;
 export function RoomUnlocked({
   roomNumber,
   property = 'The Henry Manila',
-  checkOut = 'November 12',
   guestName,
   dates,
   onExplore,
@@ -112,25 +112,27 @@ export function RoomUnlocked({
           art={<Image src={BANNER.src} alt="" fill sizes="340px" priority style={{ objectPosition: BANNER.focalPoint }} />}
         />
 
+        {/* Editorial, left-aligned: a welcome, what happened, and one line on what it means. */}
         <div className="unlocked__say">
+          <p className="unlocked__eyebrow">Welcome to {property}</p>
+          {/* Never "checked in": the scan proves presence, and check-in is the desk's, against the property's PMS. */}
           <h1 className="unlocked__title">You&rsquo;re all set</h1>
           <p className="unlocked__subtitle">
-            {roomNumber ? `Room ${roomNumber} is confirmed.` : 'Your stay is confirmed.'}{' '}
-            Dining, the spa and anything else you book goes straight onto your room.
+            Everything you book now goes on {roomNumber ? `Room ${roomNumber}` : 'your room'}.
           </p>
           {earned ? (
-            // A reward, so it reads as one: a chip, the amount first.
-            <p className="unlocked__earned">
-              <span className="unlocked__earned-star" aria-hidden="true">✦</span>
+            // A line on the receipt, not a sticker: the reward, and that it landed.
+            <p className="unlocked__reward">
+              <span className="unlocked__reward-star" aria-hidden="true">✦</span>
               <b>+{earned.toLocaleString('en-US')} points</b>
-              <span>earned for scanning in</span>
+              <span>Added</span>
             </p>
           ) : null}
         </div>
 
         <div className="unlocked__go">
           <Button className="guest-button guest-button--primary" type="button" onClick={onExplore}>
-            Explore<ArrowRight aria-hidden="true" />
+            Start exploring<ArrowRight aria-hidden="true" />
           </Button>
           <button className="unlocked__quiet" type="button" onClick={onViewStay}>
             Back to my stay
@@ -173,20 +175,6 @@ export function RoomUnlocked({
         </ul>
       </section>
 
-      <section className="unlocked__card">
-        <header>
-          <span className="unlocked__card-icon" aria-hidden="true"><House /></span>
-          <h2>Your stay</h2>
-        </header>
-        <dl className="unlocked__rows">
-          <div><dt>Property</dt><dd>{property}</dd></div>
-          {roomNumber ? <div><dt>Room</dt><dd>{roomNumber}</dd></div> : null}
-          <div><dt>Checking out</dt><dd>{checkOut}</dd></div>
-        </dl>
-        <p className="unlocked__note">
-          Anything you book is added to your room and settles when you check out.
-        </p>
-      </section>
 
     </div>
   );

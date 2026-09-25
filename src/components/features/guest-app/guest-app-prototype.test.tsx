@@ -1483,17 +1483,18 @@ describe('pre-arrival onboarding flow', () => {
 
     expect(screen.getByRole('heading', { name: 'Who else is staying?' })).toBeInTheDocument();
 
-    // 1. Shows the main person as Primary guest, not as additional
-    expect(screen.getByText('Primary guest')).toBeInTheDocument();
-    expect(screen.getByText('Ana Santos')).toBeInTheDocument();
-    expect(screen.getByText(/Lead booker/)).toBeInTheDocument();
-    expect(screen.getByText(/Details & ID verified/)).toBeInTheDocument();
+    // 1. One list, lead first: the booker is marked Lead, not shown as a companion
+    const lead = screen.getByText('Ana Santos').closest('li')!;
+    expect(within(lead).getByText('Lead')).toBeInTheDocument();
+    expect(within(lead).getByText('ID on file')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove Ana Santos' })).toBeNull();
 
-    // Marco Santos is listed under Additional guests
+    // Marco Santos is listed after the lead, removable
     expect(screen.getByText('Marco Santos')).toBeInTheDocument();
+    expect(screen.getByText('Booking for 2 guests')).toBeInTheDocument();
 
-    // 2. Tapping "Add another guest" triggers form fill up step
-    await user.click(screen.getByRole('button', { name: 'Add another guest' }));
+    // 2. The list's last row adds a guest and opens the details step
+    await user.click(screen.getByRole('button', { name: 'Add a guest' }));
     expect(screen.getByRole('heading', { name: 'Who is staying with you?' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Full name/)).toBeInTheDocument();
 

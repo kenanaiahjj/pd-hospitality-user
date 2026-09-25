@@ -4300,191 +4300,137 @@
 }
 
 /* --------------------------------------------------------------------------
-   Primary Guest & Additional Guests
+   Who's staying: one manifest for everyone on the booking, lead first.
    -------------------------------------------------------------------------- */
-.guest-primary-guest-card {
+.guest-manifest { display: grid; gap: 10px; }
+.guest-manifest__head {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-paper);
-  border: 1.5px solid var(--guest-line);
-  box-shadow: var(--shadow-xs);
-}
-
-.guest-primary-guest-card__header {
-  display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  padding-inline: 2px;
 }
-
-.guest-primary-guest-card__verified {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.guest-manifest__head h2 {
+  margin: 0;
+  color: var(--guest-muted);
   font-size: 11px;
   font-weight: 650;
-  color: #059669;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
+.guest-manifest__head > span { color: var(--guest-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 
-.guest-primary-guest-card__body {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.guest-primary-guest-card__avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: #FBDCE6;
-  color: var(--guest-brand);
-  flex-shrink: 0;
-}
-
-.guest-primary-guest-card__info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.guest-primary-guest-card__info strong {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--guest-ink);
-  letter-spacing: -0.01em;
-}
-
-.guest-primary-guest-card__info small {
-  font-size: 12.5px;
-  color: var(--guest-muted);
-}
-
-.guest-companions-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 4px;
-}
-
-.guest-companions-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--guest-muted);
-}
-
-.guest-companions-header strong {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--guest-ink);
-}
-
-.guest-companion-count {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--guest-subtle);
-}
-
-.guest-companions-empty {
-  padding: 14px 16px;
-  border-radius: var(--guest-radius-sm);
-  background: var(--guest-surface);
-  border: 1px dashed var(--guest-line-strong);
-  text-align: center;
-}
-
-.guest-companions-empty p {
+.guest-manifest__list {
+  display: grid;
   margin: 0;
-  font-size: 13px;
-  color: var(--guest-muted);
-}
-
-.guest-companions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.guest-companion-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--guest-radius-sm);
-  background: var(--guest-surface);
-  border: 1px solid var(--guest-line);
-  box-shadow: var(--shadow-xs);
-}
-
-.guest-companion-card__avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--guest-line);
-  color: var(--guest-muted);
-  flex-shrink: 0;
-}
-
-.guest-companion-card__info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.guest-companion-card__info strong {
-  font-size: 14px;
-  font-weight: 650;
-  color: var(--guest-ink);
-}
-
-.guest-companion-card__info small {
-  font-size: 12px;
-  color: var(--guest-muted);
-}
-
-.guest-companion-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
   padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--guest-line);
+  overflow: hidden;
+  list-style: none;
+  border-radius: var(--guest-radius-lg);
   background: var(--guest-paper);
+  box-shadow: inset 0 0 0 1px var(--guest-line-strong);
+}
+.guest-manifest__row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 68px;
+  padding: 12px 12px 12px 16px;
+}
+.guest-manifest__row + .guest-manifest__row { box-shadow: inset 0 1px 0 var(--guest-line); }
+
+.guest-manifest__monogram {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--guest-chip);
+  color: var(--guest-ink);
+  font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.guest-manifest__row.is-lead .guest-manifest__monogram { background: var(--guest-brand); color: var(--guest-on-accent); }
+
+.guest-manifest__who { display: grid; gap: 3px; min-width: 0; }
+.guest-manifest__who b {
+  overflow: hidden;
+  color: var(--guest-ink);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.guest-manifest__who small {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  min-width: 0;
+  color: var(--guest-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.guest-manifest__who small i { font-style: normal; color: var(--guest-subtle); }
+.guest-manifest__ok { display: inline-flex; align-items: center; gap: 4px; color: var(--guest-positive); font-weight: 600; }
+.guest-manifest__ok svg { width: 12px; height: 12px; }
+
+.guest-manifest__role {
+  padding-right: 6px;
+  color: var(--guest-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* A bare glyph with a full-size target (see .guest-companion-remove::after). */
+.guest-manifest__remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
   color: var(--guest-subtle);
   cursor: pointer;
-  flex-shrink: 0;
-  transition: color var(--duration-fast) ease, border-color var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
+.guest-manifest__remove svg { width: 16px; height: 16px; }
+.guest-manifest__remove:hover { background: var(--guest-chip); color: var(--guest-ink); }
 
-.guest-companion-remove:hover {
-  color: var(--guest-ink);
-  border-color: var(--guest-line-strong);
-  background: var(--guest-surface);
-}
-
-.guest-add-guest-button {
-  width: 100%;
-  display: flex;
+/* The last row adds to the list rather than sitting under it as a button. */
+.guest-manifest__row--add { display: block; padding: 0; }
+.guest-manifest__add {
+  display: grid;
+  grid-template-columns: 40px 1fr;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: var(--guest-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
+.guest-manifest__add .guest-manifest__monogram {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--guest-line-strong);
+}
+.guest-manifest__add svg { width: 16px; height: 16px; }
+.guest-manifest__add:hover { background: var(--guest-surface); }
+
 
 /* --------------------------------------------------------------------------
    Notifications: the bell in the app bar, and the inbox behind it.

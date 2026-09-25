@@ -1156,9 +1156,23 @@ function PassportCapturePanel({
 type AdditionalGuestsScreenProps = {
   primaryGuestName: string;
   primaryGuestEmail?: string;
+  /** How many the reservation is for, so the list can say who is still missing. */
+  guestCount?: number;
   initialGuests: string[];
   onSave: (validGuests: string[]) => void;
 };
+
+/** "Ana Santos" -> "AS"; one name gives one letter. */
+function initialsOf(name: string) {
+  return name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]!.toUpperCase()).join('') || '?';
+}
+
+/** What the list says about itself, measured against the reservation. */
+function describeHeadcount(listed: number, booked?: number) {
+  if (!booked) return `${listed} ${listed === 1 ? 'guest' : 'guests'}`;
+  if (listed < booked) return `${listed} of ${booked} added`;
+  return `Booking for ${booked} ${booked === 1 ? 'guest' : 'guests'}`;
+}
 
 /** The one early check-in slot the prototype offers. */
 const EARLY_CHECK_IN = { time: '11:00 AM', fee: '₱1,500' };
@@ -1192,6 +1206,7 @@ function IdentityStep({ guestName, email, passportFields, onPassportFieldsChange
 function AdditionalGuestsScreen({
   primaryGuestName,
   primaryGuestEmail = 'ana@example.com',
+  guestCount,
   initialGuests,
   onSave,
 }: AdditionalGuestsScreenProps) {
@@ -1332,83 +1347,63 @@ function AdditionalGuestsScreen({
       title="Who else is staying?"
       text="Additional guests do not need their own accounts."
     >
-      <div className="guest-primary-guest-card">
-        <div className="guest-primary-guest-card__header">
-          <Tag tone="dark">Primary guest</Tag>
-          <span className="guest-primary-guest-card__verified">
-            <CheckCircle size={15} weight="fill" aria-hidden="true" /> Details &amp; ID verified
-          </span>
+      {/*
+        One list for everyone on the booking, lead first -- a manifest, not a
+        card for the booker and a different one for the rest.
+      */}
+      <section className="guest-manifest" aria-labelledby="guest-manifest-title">
+        <div className="guest-manifest__head">
+          <h2 id="guest-manifest-title">Who&rsquo;s staying</h2>
+          <span>{describeHeadcount(1 + companions.length, guestCount)}</span>
         </div>
-        <div className="guest-primary-guest-card__body">
-          <div className="guest-primary-guest-card__avatar" aria-hidden="true">
-            <Person size={22} />
-          </div>
-          <div className="guest-primary-guest-card__info">
-            <strong>{primaryGuestName}</strong>
-            <small>Lead booker · {primaryGuestEmail}</small>
-          </div>
-        </div>
-      </div>
-
-      <div className="guest-companions-section">
-        <div className="guest-companions-header">
-          <strong>Additional guests</strong>
-          <span className="guest-companion-count">
-            {companions.length === 0 ? 'None added' : `${companions.length} companion${companions.length > 1 ? 's' : ''}`}
-          </span>
-        </div>
-
-        {companions.length === 0 ? (
-          <div className="guest-companions-empty">
-            <p>No additional guests added yet. You can continue directly.</p>
-          </div>
-        ) : (
-          <div className="guest-companions-list">
-            {companions.map((companion, idx) => (
-              <div key={idx} className="guest-companion-card">
-                <div className="guest-companion-card__avatar" aria-hidden="true">
-                  <Users size={18} />
-                </div>
-                <div className="guest-companion-card__info">
-                  <strong>{companion.name}</strong>
-                  <small>{companion.nationality ? `${companion.nationality} · ` : ''}Details &amp; ID on file</small>
-                </div>
-                <button
-                  type="button"
-                  className="guest-companion-remove"
-                  aria-label={`Remove ${companion.name}`}
-                  onClick={() => handleRemoveGuest(idx)}
-                >
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <button
-          type="button"
-          className="guest-button guest-button--secondary guest-add-guest-button"
-          onClick={() => {
-            setDraft({
-              name: '',
-              nationality: 'Filipino',
-              email: '',
-              mobile: '',
-              documentNumber: '',
-              expiry: '',
-            });
-            setMode('details');
-          }}
-        >
-          <Plus size={16} aria-hidden="true" />
-          Add another guest
-        </button>
-      </div>
-
-      <Notice title="One booking, one account">
-        You stay in control of the booking. The people staying with you do not need their own accounts.
-      </Notice>
+        <ul className="guest-manifest__list">
+          <li className="guest-manifest__row is-lead">
+            <span className="guest-manifest__monogram" aria-hidden="true">{initialsOf(primaryGuestName)}</span>
+            <span className="guest-manifest__who">
+              <b>{primaryGuestName}</b>
+              <small>{primaryGuestEmail}<i aria-hidden="true">·</i><span className="guest-manifest__ok"><Check aria-hidden="true" />ID on file</span></small>
+            </span>
+            <span className="guest-manifest__role">Lead</span>
+          </li>
+          {companions.map((companion, idx) => (
+            <li key={idx} className="guest-manifest__row">
+              <span className="guest-manifest__monogram" aria-hidden="true">{initialsOf(companion.name)}</span>
+              <span className="guest-manifest__who">
+                <b>{companion.name}</b>
+                <small>{companion.nationality ? <>{companion.nationality}<i aria-hidden="true">·</i></> : null}<span className="guest-manifest__ok"><Check aria-hidden="true" />ID on file</span></small>
+              </span>
+              <button
+                type="button"
+                className="guest-companion-remove guest-manifest__remove"
+                aria-label={`Remove ${companion.name}`}
+                onClick={() => handleRemoveGuest(idx)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+          <li className="guest-manifest__row guest-manifest__row--add">
+            <button
+              type="button"
+              className="guest-manifest__add"
+              onClick={() => {
+                setDraft({
+                  name: '',
+                  nationality: 'Filipino',
+                  email: '',
+                  mobile: '',
+                  documentNumber: '',
+                  expiry: '',
+                });
+                setMode('details');
+              }}
+            >
+              <span className="guest-manifest__monogram" aria-hidden="true"><Plus /></span>
+              Add a guest
+            </button>
+          </li>
+        </ul>
+      </section>
 
       <Button
         className="guest-button guest-button--primary"
@@ -3488,6 +3483,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <AdditionalGuestsScreen
             primaryGuestName={session.guestName || 'Ana Santos'}
             primaryGuestEmail={session.email || 'ana@example.com'}
+            guestCount={contextBooking.guestCount}
             initialGuests={session.additionalGuests}
             onSave={(validGuests) => {
               completePreArrival({ additionalGuests: validGuests });

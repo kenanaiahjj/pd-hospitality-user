@@ -209,7 +209,7 @@ describe('GuestAppPrototype', () => {
     expect(sheet).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Apple' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Continue with email' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Use email' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Continue as guest' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Welcome to your stay' })).toBeInTheDocument();
     expect(screen.queryByText(/Create your account|Already have an account|Don't have an account/)).toBeNull();
@@ -231,7 +231,7 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Continue with email' }));
+    await user.click(screen.getByRole('button', { name: 'Use email' }));
     const email = screen.getByLabelText('Email *');
     expect(email).toHaveAttribute('autocomplete', 'email');
     expect(email).toHaveAttribute('spellcheck', 'false');
@@ -256,7 +256,7 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
-    await user.click(screen.getByRole('button', { name: 'Continue with email' }));
+    await user.click(screen.getByRole('button', { name: 'Use email' }));
     await user.type(screen.getByLabelText('Email *'), 'guest@example.com');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.type(screen.getByLabelText('6-digit code *'), '123');

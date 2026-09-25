@@ -3579,6 +3579,11 @@
 
 /* --- Actions -------------------------------------------------------------------- */
 .guest-welcome__actions { display: grid; gap: 10px; }
+.guest-welcome__sso { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.guest-welcome__sso .guest-welcome__login-logo { width: 22px; height: 22px; }
+.guest-welcome__sso .guest-welcome__login-logo--google { height: auto; }
+.guest-welcome__alt { display: flex; align-items: center; justify-content: center; gap: 2px; margin: 2px 0 0; color: oklch(1 0 0 / 0.5); }
+.guest-app .guest-welcome__alt .guest-welcome__guest-link { padding: 0 10px; font-size: 14.5px; }
 
 .guest-welcome__login-button {
   width: 100%;

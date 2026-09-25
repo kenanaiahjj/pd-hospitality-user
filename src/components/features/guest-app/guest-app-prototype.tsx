@@ -787,55 +787,41 @@ function WelcomeScreen({
           <WelcomeDots index={pager.index} show={pager.show} engaged={pager.engaged} />
           {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Log in needs a connection">Reconnect to continue.</Notice> : null}
           <div className="guest-welcome__actions" role="group" aria-label="Ways to continue">
-            <Button
-              className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--solid"
-              type="button"
-              disabled={!online}
-              onClick={() => onSso('apple')}
-            >
-              <Image
-                src="/brand/apple.svg"
-                width={20}
-                height={20}
-                alt=""
-                aria-hidden="true"
-                className="guest-welcome__login-logo"
-              />
-              Continue with Apple
-            </Button>
-            <Button
-              className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--glass"
-              type="button"
-              disabled={!online}
-              onClick={() => onSso('google')}
-            >
-              <Image
-                src="/brand/google-g.png"
-                width={200}
-                height={204}
-                alt=""
-                aria-hidden="true"
-                className="guest-welcome__login-logo guest-welcome__login-logo--google"
-              />
-              Continue with Google
-            </Button>
-            <Button
-              className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--glass"
-              type="button"
-              disabled={!online}
-              onClick={onEmailLogin}
-            >
-              Continue with email
-            </Button>
-            <Button
-              className="guest-welcome__guest-link"
-              variant="ghost"
-              type="button"
-              disabled={!online}
-              onClick={onGuestLogin}
-            >
-              Continue as guest
-            </Button>
+            {/*
+              Apple and Google side by side and alike: both are single sign-on,
+              and neither should read as the lesser choice. Logo-only is the
+              one form both brands allow at half width; the full "Continue
+              with ..." stays as each button's name for assistive technology.
+            */}
+            <div className="guest-welcome__sso">
+              <Button
+                className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--solid"
+                type="button"
+                aria-label="Continue with Apple"
+                disabled={!online}
+                onClick={() => onSso('apple')}
+              >
+                <Image src="/brand/apple.svg" width={22} height={22} alt="" aria-hidden="true" className="guest-welcome__login-logo" />
+              </Button>
+              <Button
+                className="guest-button guest-button--secondary guest-welcome__login-button guest-welcome__login-button--solid"
+                type="button"
+                aria-label="Continue with Google"
+                disabled={!online}
+                onClick={() => onSso('google')}
+              >
+                <Image src="/brand/google-g.png" width={200} height={204} alt="" aria-hidden="true" className="guest-welcome__login-logo guest-welcome__login-logo--google" />
+              </Button>
+            </div>
+            <p className="guest-welcome__alt">
+              <Button className="guest-welcome__guest-link" variant="ghost" type="button" disabled={!online} onClick={onEmailLogin}>
+                Use email
+              </Button>
+              <span aria-hidden="true">·</span>
+              <Button className="guest-welcome__guest-link" variant="ghost" type="button" disabled={!online} onClick={onGuestLogin}>
+                Continue as guest
+              </Button>
+            </p>
           </div>
         </div>
       </div>

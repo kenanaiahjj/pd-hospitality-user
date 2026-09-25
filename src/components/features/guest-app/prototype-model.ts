@@ -35,8 +35,6 @@ export type ScreenId =
   | 'nearby-recommendations'
   | 'nearby-establishment'
   | 'gifts-souvenirs'
-  | 'gift-order-cart'
-  | 'gift-order-confirmation'
   | 'room-upgrades'
   | 'room-upgrade-confirmation'
   | 'room-upgrade-success'

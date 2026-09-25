@@ -70,7 +70,6 @@ import {
 } from '@hugeicons-pro/core-stroke-rounded';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { CabanaLockup, CabanaFullLockup } from '@/components/ui/cabana-logo';
-import { afterSheetExit } from './sheet-exit';
 import { NearbyMap, PlaceMiniMap, type MapClock } from './nearby-map';
 import { directionsUrl, openStatus, walkLabel } from './nearby-place';
 import { CalendarPicker, ExpandableField, StepperField, TimeWheel } from './field-controls';
@@ -105,8 +104,6 @@ import {
   getVenueCartSummary,
   getRoomCharges,
   getRoomChargesTotal,
-  LISTING_SORTS,
-  type ListingSort,
   canReportRoomReady,
   markRoomReady,
   describeRoomAssignment,
@@ -287,8 +284,6 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
   'nearby-recommendations',
   'nearby-establishment',
   'gifts-souvenirs',
-  'gift-order-cart',
-  'gift-order-confirmation',
   'room-upgrades',
   'room-upgrade-confirmation',
   'room-upgrade-success',
@@ -1422,7 +1417,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [extensionDate, setExtensionDate] = useState('2026-11-14');
   const [exploreSubcategory, setExploreSubcategory] = useState('All');
   const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
-  const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | 'gifts' | null>(null);
+  const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | null>(null);
   const [, setOrderTrayStep] = useState<'tray' | 'review'>('tray');
   const [diningMethod, setDiningMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
@@ -1472,9 +1467,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** The open field on the stay and ride forms; one at a time. */
   const [openFormField, setOpenFormField] = useState<'check-in' | 'check-out' | 'ride-date' | 'ride-time' | null>(null);
   const [ridePassengers, setRidePassengers] = useState(2);
-  const [giftFulfillment, setGiftFulfillment] = useState<'room' | 'lobby'>('room');
-  const [giftCart, setGiftCart] = useState<Record<string, number>>({});
-  const [giftOrder, setGiftOrder] = useState<{ items: typeof GIFT_PRODUCTS[number][]; total: number; paymentStatus: 'charged-to-room' | 'paid'; paymentMethod: 'room' | 'card' | 'gcash' | 'maya' } | null>(null);
   const [checkoutPayment, setCheckoutPayment] = useState<'room' | 'pay-now' | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
   /* Read by the retired `transfer-confirmation` screen only; rides are requested in Chat now. */
@@ -1639,7 +1631,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   }, [activeScreen]);
 
   const go = (next: ActiveScreen) => {
-    if (['restaurant-cart', 'gift-order-cart', 'service-booking', 'transfer-booking'].includes(next)) {
+    if (['restaurant-cart', 'service-booking', 'transfer-booking'].includes(next)) {
       setCheckoutPayment(null);
       setPaymentMethod(null);
     }
@@ -1785,7 +1777,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('chat');
   };
 
-  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'gift-order-cart', 'gift-order-confirmation', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1977,36 +1969,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setRestaurantCarts((carts) => ({ ...carts, [venue.id]: {} }));
     setDiningOrderError(null);
     go('dining-order-confirmation');
-  };
-
-  const changeGiftQuantity = (productName: string, delta: number) => {
-    setGiftCart((cart) => ({ ...cart, [productName]: Math.max(0, (cart[productName] ?? 0) + delta) }));
-  };
-
-  const confirmGiftOrder = () => {
-    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
-    const items = GIFT_PRODUCTS.filter((product) => (giftCart[product.name] ?? 0) > 0);
-    const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (giftCart[product.name] ?? 0), 0);
-    // A room charge: online, and behind the room scan like every other one.
-    if (!online || !booking || !canUseOnPropertyServices(booking) || !items.length) return;
-    if (checkoutPayment !== 'room') return;
-    const fulfillment = giftFulfillment === 'room' ? `Deliver to Room ${booking.roomNumber}` : 'Pick up at the lobby';
-    const serviceBooking: ServiceBooking = {
-      id: `gift-order-${session.serviceBookings.length + 1}`,
-      bookingId: booking.id,
-      title: 'Gifts & Souvenirs',
-      scheduledFor: `${fulfillment} · Today`,
-      scheduledDate: PROTOTYPE_TODAY,
-      amount: formatPesoAmount(total),
-      status: 'confirmed',
-      provider: 'Operated by the hotel',
-      paymentStatus: 'charged-to-room',
-      paymentMethod: 'room',
-    };
-    setSession((current) => ({ ...current, serviceBookings: [serviceBooking, ...current.serviceBookings], folioTotal: formatPesoAmount(parsePesoAmount(current.folioTotal) + total) }));
-    setGiftOrder({ items, total, paymentStatus: 'charged-to-room', paymentMethod: 'room' });
-    setGiftCart({});
-    go('gift-order-confirmation');
   };
 
   /*
@@ -3878,12 +3840,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'gifts-souvenirs':
         return <EstablishmentChatScreen kind="gift" booking={contextBooking} online={online} onChat={(message) => { setChatDraft(message); go('chat'); }} />;
 
-      case 'gift-order-cart':
-        return <GiftOrderCartScreen fulfillment={giftFulfillment} onFulfillmentChange={setGiftFulfillment} cart={giftCart} onChangeQuantity={changeGiftQuantity} onConfirm={confirmGiftOrder} onBack={() => go('gifts-souvenirs')} booking={contextBooking} payment={checkoutPayment} paymentMethod={paymentMethod} onPaymentChange={setCheckoutPayment} onPaymentMethodChange={setPaymentMethod} />;
-
-      case 'gift-order-confirmation':
-        return <ScreenIntro icon={<CheckCircle size={30} />} eyebrow={giftOrder?.paymentStatus === 'paid' ? 'Order confirmed · paid' : 'Order confirmed · charged to room'} title="Your gifts are confirmed" text={giftOrder?.paymentStatus === 'paid' ? 'Payment was successful and your receipt is available in this order.' : 'Your hotel shop order has been added to your room charges.'}><div className="guest-summary"><SummaryRow label="Provider" value="Operated by the hotel" /><SummaryRow label="Items" value={`${giftOrder?.items.length ?? 0}`} /><SummaryRow label={giftOrder?.paymentStatus === 'paid' ? 'Paid' : 'Added to room charges'} value={giftOrder ? formatPesoAmount(giftOrder.total) : '₱0'} strong /><SummaryRow label="Fulfillment" value={giftFulfillment === 'room' ? `Deliver to ${contextRoom}` : 'Pick up at the lobby'} /></div><PointsEarned points={giftOrder ? Math.floor(giftOrder.total / 100) * 50 : 0} badges={[]} /><Notice title={giftOrder?.paymentStatus === 'paid' ? 'Payment successful' : 'Pay at checkout'}>{giftOrder?.paymentStatus === 'paid' ? `Paid with ${giftOrder.paymentMethod === 'gcash' ? 'GCash' : giftOrder.paymentMethod === 'maya' ? 'Maya' : 'Card'}.` : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>{giftOrder?.paymentStatus === 'charged-to-room' ? primary('View room charges', 'folio') : null}<TextButton onClick={() => go('gifts-souvenirs')}>Shop more gifts</TextButton></ScreenIntro>;
-
       case 'nearby-recommendations':
         return <NearbyRecommendationsPage categoryId={selectedCategory} city={contextBooking.city} property={contextBooking.property} now={mapClock} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
 
@@ -5140,11 +5096,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </div>
 
 
-          {orderTrayOpen ? orderTrayOpen === 'restaurant' ? (() => {
+          {orderTrayOpen === 'restaurant' ? (() => {
             const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
             const summary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
             return <OrderTray title="Your order" establishment={venue.name} items={summary.items.map((item) => ({ id: item.id, name: item.name, unitPrice: item.unitPrice, quantity: item.quantity, image: getMenuItemImage(item.id) }))} total={summary.formattedTotal} roomNumber={contextBooking.roomNumber} onChangeQuantity={(id, delta) => changeCartQuantity(venue.id, id, delta)} onClose={() => setOrderTrayOpen(null)} onCheckout={() => setOrderTrayStep((step) => step === 'tray' ? 'review' : step)} />;
-          })() : <OrderTray title="Your order" establishment="Gifts & Souvenirs" items={GIFT_PRODUCTS.filter((product) => (giftCart[product.name] ?? 0) > 0).map((product) => ({ id: product.name, name: product.name, unitPrice: product.price, quantity: giftCart[product.name] ?? 0, image: product.image }))} total={formatPesoAmount(GIFT_PRODUCTS.reduce((sum, product) => sum + parsePesoAmount(product.price) * (giftCart[product.name] ?? 0), 0))} roomNumber={contextBooking.roomNumber} onChangeQuantity={(id, delta) => changeGiftQuantity(id, delta)} onClose={() => setOrderTrayOpen(null)} onCheckout={() => setOrderTrayStep((step) => step === 'tray' ? 'review' : step)} /> : null}
+          })() : null}
 
           {showPrimaryNav ? (
             <nav className="guest-bottom-nav" aria-label="Primary navigation">
@@ -6515,199 +6471,6 @@ function TimelineItem({ title, text, done }: { title: string; text: string; done
   return <div className={`guest-timeline__item ${done ? 'is-done' : ''}`}><span>{done ? <Check /> : null}</span><div><b>{title}</b><small>{text}</small></div></div>;
 }
 
-/** One facet on the filter bar: a pill that opens a sheet of choices. */
-type Facet = {
-  key: string;
-  /** Pill label when nothing is chosen. */
-  label: string;
-  options: { value: string; label: string }[];
-  selected: string[];
-  onChange: (next: string[]) => void;
-  /** Single-select facets (sort) render radios and always have a value. */
-  single?: boolean;
-};
-
-/**
- * The filter sheet.
- *
- * A native <dialog> opened with showModal(), which puts it in the browser's
- * top layer: it cannot be clipped by the device frame's overflow, and it is
- * immune to the ancestor-transform trap that broke the cart's fixed
- * positioning. Focus trapping, Escape, and inertness of the page behind all
- * come with it rather than being rebuilt by hand.
- *
- * Choices are staged and committed on Apply. Applying each tap live makes the
- * list jump under the finger while the guest is still choosing.
- */
-function FilterSheet({
-  title,
-  facets,
-  onClose,
-  onApply,
-}: {
-  title: string;
-  facets: Facet[];
-  onClose: () => void;
-  onApply: (draft: Record<string, string[]>) => void;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const [draft, setDraft] = useState<Record<string, string[]>>(
-    () => Object.fromEntries(facets.map((facet) => [facet.key, facet.selected])),
-  );
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog || dialog.open) return;
-    dialog.showModal();
-  }, []);
-
-  const toggle = (facet: Facet, value: string) => {
-    setDraft((current) => {
-      const chosen = current[facet.key] ?? [];
-      if (facet.single) return { ...current, [facet.key]: [value] };
-      return {
-        ...current,
-        [facet.key]: chosen.includes(value) ? chosen.filter((item) => item !== value) : [...chosen, value],
-      };
-    });
-  };
-
-  const cleared = Object.fromEntries(
-    facets.map((facet) => [facet.key, facet.single ? [facet.options[0]!.value] : []]),
-  );
-  const hasChanges = facets.some((facet) => {
-    const selected = draft[facet.key] ?? [];
-    return facet.single
-      ? selected[0] !== facet.options[0]?.value
-      : selected.length > 0;
-  });
-
-  return (
-    <dialog
-      ref={ref}
-      id="guest-filter-sheet"
-      className="guest-sheet"
-      aria-labelledby="guest-filter-sheet-title"
-      onClose={onClose}
-      onClick={(event) => { if (event.target === ref.current) ref.current?.close(); }}
-    >
-      <div className="guest-sheet__panel">
-        <span className="guest-sheet__grip" aria-hidden="true" />
-        <div className="guest-sheet__head">
-          <h2 id="guest-filter-sheet-title">{title}</h2>
-          <button type="button" className="guest-sheet__clear" onClick={() => setDraft(cleared)} disabled={!hasChanges}>
-            Clear all
-          </button>
-        </div>
-        <div className="guest-sheet__body">
-          {facets.map((facet) => (
-            <fieldset key={facet.key} className="guest-sheet__group">
-              {/* One facet means the sheet title already says this; the legend
-                  stays for the group's accessible name, just not on screen. */}
-              <legend className={facets.length > 1 ? undefined : 'sr-only'}>{facet.label}</legend>
-              {facet.options.map((option) => {
-                const checked = (draft[facet.key] ?? []).includes(option.value);
-                return (
-                  <label key={option.value} className="guest-sheet__option">
-                    <span>{option.label}</span>
-                    <input
-                      type={facet.single ? 'radio' : 'checkbox'}
-                      name={`sheet-${facet.key}`}
-                      checked={checked}
-                      onChange={() => toggle(facet, option.value)}
-                    />
-                  </label>
-                );
-              })}
-            </fieldset>
-          ))}
-        </div>
-        <div className="guest-sheet__foot">
-          <Button
-            className="guest-button guest-button--primary"
-            type="button"
-            onClick={() => { onApply(draft); ref.current?.close(); }}
-          >
-            Apply
-          </Button>
-        </div>
-      </div>
-    </dialog>
-  );
-}
-
-/**
- * The filter bar: one scrolling row of pills that open the sheet, replacing
- * the stacked rows of inline pills. Those were fine at three options; the
- * catalogue now reaches seven types and four operators in one category, which
- * is four rows of chrome above the content the guest came for.
- */
-function ListingControls({
-  facets,
-  count,
-  nouns,
-  narrowed,
-  onClear,
-  showCount = true,
-}: {
-  facets: Facet[];
-  count: number;
-  nouns: [string, string];
-  narrowed: boolean;
-  onClear: () => void;
-  showCount?: boolean;
-}) {
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const open = facets.filter((facet) => facet.key === openKey);
-  const apply = (draft: Record<string, string[]>) => {
-    for (const facet of facets) {
-      const next = draft[facet.key];
-      if (next) facet.onChange(next);
-    }
-  };
-
-  return (
-    <div className="guest-listing-controls">
-      <div className="guest-filter-bar">
-        {facets.map((facet) => {
-          const chosen = facet.selected;
-          const active = facet.single ? chosen[0] !== facet.options[0]?.value : chosen.length > 0;
-          const label = facet.single
-            ? (facet.options.find((option) => option.value === chosen[0])?.label ?? facet.label)
-            : chosen.length === 1
-              ? facet.options.find((option) => option.value === chosen[0])?.label ?? facet.label
-              : chosen.length > 1 ? `${facet.label} · ${chosen.length}` : facet.label;
-          return (
-            <button
-              key={facet.key}
-              type="button"
-              className={`guest-filter-pill ${active ? 'is-active' : ''}`}
-              aria-controls="guest-filter-sheet"
-              aria-expanded={openKey === facet.key}
-              onClick={() => setOpenKey(facet.key)}
-            >
-              {label}<CaretDown aria-hidden="true" />
-            </button>
-          );
-        })}
-      </div>
-      {showCount || narrowed ? <p className="guest-listing-status">
-        {showCount ? <span aria-live="polite">{count} {count === 1 ? nouns[0] : nouns[1]}</span> : null}
-        {narrowed ? <button type="button" className="guest-listing-clear" onClick={onClear}>Clear</button> : null}
-      </p> : null}
-      {openKey ? (
-        <FilterSheet
-          key={openKey}
-          title={openKey === 'all' ? 'Filters' : open[0]!.label}
-          facets={open}
-          onClose={() => afterSheetExit(() => setOpenKey(null))}
-          onApply={apply}
-        />
-      ) : null}
-    </div>
-  );
-}
-
 function SectionHeading({ title, action, onAction, count }: { title: string; action?: string; onAction?: () => void; count?: string }) {
   return <div className="guest-section-heading"><h2>{title}</h2>{count ? <span className="guest-section-heading__count">{count}</span> : action ? <button onClick={onAction}>{action}<CaretRight /></button> : null}</div>;
 }
@@ -7089,53 +6852,7 @@ function OrderTray({ title, establishment, items, total, roomNumber, onChangeQua
   );
 }
 
-function GiftsSouvenirsScreen({ booking, fulfillment, cart, onChangeQuantity, onOpenCart, giftType, onGiftTypeChange, giftSort, onGiftSortChange, onSelectNearby }: { booking: Booking; fulfillment: 'room' | 'lobby'; cart: Record<string, number>; onChangeQuantity: (name: string, delta: number) => void; onOpenCart: () => void; giftType: string[]; onGiftTypeChange: (value: string[]) => void; giftSort: ListingSort; onGiftSortChange: (value: ListingSort) => void; onSelectNearby: (id: string) => void }) {
-  const groups = [...new Set(GIFT_PRODUCTS.map((product) => product.group))];
-  const nearbyGifts = NEARBY_ESTABLISHMENTS.filter((item) => item.categoryId === 'gifts' && item.city === booking.city);
-  const displayedFulfillment = booking.status === 'completed' ? 'lobby' : fulfillment;
-  const visibleProducts = GIFT_PRODUCTS.filter((product) => !giftType.length || giftType.includes(product.group));
-  const giftFacets: Facet[] = [{ key: 'sort', label: 'Sort by', single: true, options: LISTING_SORTS.map((option) => ({ value: option.id, label: option.label })), selected: [giftSort], onChange: (next) => onGiftSortChange(next[0] as ListingSort) }, { key: 'type', label: 'Type', options: groups.map((group) => ({ value: group, label: group })), selected: giftType, onChange: onGiftTypeChange }];
-  return (
-    <div className="guest-stack guest-gifts-screen">
-      <div className="guest-establishment-cover">
-        <Image src={GIFT_PRODUCTS[0].image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" />
-      </div>
-      <div className="guest-page-title">
-        <p className="guest-eyebrow">Make the most of your stay</p>
-        <h1>Gifts &amp; Souvenirs</h1>
-        <p>Explore gifts and souvenirs available at the hotel and from nearby independent shops.</p>
-        <div className="guest-establishment-meta"><span>Operated by the hotel</span><span><MapPin size={15} /> The Henry Manila · Hotel lobby</span><span>Daily · 8:00 AM–10:00 PM</span></div>
-      </div>
-      <SectionHeading title="At the hotel" count={`${visibleProducts.length} options`} />
-      <ListingControls facets={giftFacets} count={visibleProducts.length} nouns={['option', 'options']} narrowed={giftType.length > 0 || giftSort !== 'recommended'} showCount={false} onClear={() => { onGiftTypeChange([]); onGiftSortChange('recommended'); }} />
-      {groups.map((group) => (
-        <section key={group}>
-          <SectionHeading title={group} />
-          <div className="guest-gift-grid">
-            {visibleProducts.filter((product) => product.group === group).map((product) => (
-                <article className="guest-gift-card" key={product.name}>
-                  <div className="guest-gift-card__thumb"><Image src={product.image} alt="" fill sizes="92px" /></div>
-                  <div><h2>{product.name}</h2><strong>{product.price}</strong><small>{product.availability} · {displayedFulfillment === 'room' ? 'Deliver to room' : 'Pick up at the lobby'}</small></div>
-                  <div className="guest-gift-card__actions">{cart[product.name] ? <div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output aria-live="polite">{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div> : <button className="guest-menu-add guest-menu-add--round" type="button" aria-label={`Add ${product.name}`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button>}</div>
-                </article>
-            ))}
-          </div>
-        </section>
-      ))}
-      {Object.values(cart).some((quantity) => quantity > 0) ? <button className="guest-mini-cart" type="button" onClick={onOpenCart}><span><small>Gift order</small><b>{countOf(Object.values(cart).reduce((sum, quantity) => sum + quantity, 0), 'item')}</b></span><strong>{formatPesoAmount(GIFT_PRODUCTS.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0))}</strong><CaretRight /></button> : null}
-      {nearbyGifts.length ? <section className="guest-nearby-section"><SectionHeading title="Nearby recommendations" /><p className="guest-nearby-description">Nearby shops for gifts, local products, and souvenirs.</p><div className="guest-nearby-list">{nearbyGifts.map((item) => <button className="guest-nearby-card" type="button" key={item.id} onClick={() => onSelectNearby(item.id)}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.type}</small>{item.distance ? <small>{item.distance}</small> : null}<p>{item.description}</p></span><CaretRight /></button>)}</div></section> : null}
-    </div>
-  );
-}
 
-void GiftsSouvenirsScreen;
-
-function GiftOrderCartScreen({ fulfillment, onFulfillmentChange, cart, onChangeQuantity, onConfirm, onBack, booking, payment, paymentMethod, onPaymentChange, onPaymentMethodChange }: { fulfillment: 'room' | 'lobby'; onFulfillmentChange: (value: 'room' | 'lobby') => void; cart: Record<string, number>; onChangeQuantity: (name: string, delta: number) => void; onConfirm: () => void; onBack: () => void; booking: Booking; payment: 'room' | 'pay-now' | null; paymentMethod: 'card' | 'gcash' | 'maya' | null; onPaymentChange: (value: 'room' | 'pay-now') => void; onPaymentMethodChange: (value: 'card' | 'gcash' | 'maya') => void }) {
-  const checkedOut = booking.status === 'completed';
-  const items = GIFT_PRODUCTS.filter((product) => (cart[product.name] ?? 0) > 0);
-  const total = items.reduce((sum, product) => sum + parsePesoAmount(product.price) * (cart[product.name] ?? 0), 0);
-  return <div className="guest-stack guest-order-cart"><div className="guest-page-title"><p className="guest-eyebrow">Gifts &amp; Souvenirs</p><h1>Your gift order</h1><p>Review your items, choose fulfillment, and select how you&rsquo;d like to pay.</p></div><p className="guest-provider-label">Operated by the hotel</p><div className="guest-order-cart__summary"><span>{countOf(items.reduce((sum, product) => sum + (cart[product.name] ?? 0), 0), 'item')}</span><strong>{formatPesoAmount(total)}</strong></div><div className="guest-order-items">{items.map((product) => <div className="guest-order-item" key={product.name}><div><b>{product.name}</b><small>{product.price} each</small></div><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, -1)}><Minus /></button><output>{cart[product.name]}</output><button type="button" aria-label={`Increase ${product.name} quantity`} onClick={() => onChangeQuantity(product.name, 1)}><Plus /></button></div></div>)}</div><fieldset className="guest-fulfillment-options"><legend>How would you like your order?</legend><div>{!checkedOut ? <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} aria-pressed={fulfillment === 'room'} disabled={!booking.roomNumber} onClick={() => onFulfillmentChange('room')}><b>Deliver to room</b><small>{booking.roomNumber ? `Room ${booking.roomNumber}` : 'Room assignment required'}</small></button> : null}<button type="button" className={fulfillment === 'lobby' || checkedOut ? 'is-active' : ''} aria-pressed={fulfillment === 'lobby' || checkedOut} onClick={() => onFulfillmentChange('lobby')}><b>Pick up at the lobby</b><small>Hotel lobby</small></button></div></fieldset><PaymentChoice allowPayNow={false} provider="Operated by the hotel" roomNumber={booking.roomNumber} value={payment} method={paymentMethod} onChange={onPaymentChange} onMethodChange={onPaymentMethodChange} /><Notice title="Nothing is charged yet">Nothing is added to your room until you place the order.</Notice><Button className="guest-button guest-button--primary" type="button" disabled={!items.length || (!checkedOut && fulfillment === 'room' && !booking.roomNumber) || !payment} onClick={onConfirm}>{payment === 'room' ? `Charge ${formatPesoAmount(total)} to room` : 'Choose how to pay'}<ArrowRight /></Button><TextButton onClick={onBack}>Continue shopping</TextButton></div>;
-}
 
 function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return <button className="guest-action-tile" onClick={onClick}><span>{icon}</span><b>{label}</b><CaretRight /></button>;

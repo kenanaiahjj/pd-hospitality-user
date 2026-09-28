@@ -8368,34 +8368,68 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-my-stay-folio-link:hover { background: var(--guest-surface); }
 .guest-my-stay-hero small { font-size: 12px; }
 
-/* --- Booked services as saved-place rows ---------------------------------- */
-.guest-stay-entry { position: relative; padding-left: 84px !important; min-height: 84px; }
+/* --- Booked services as saved-place rows ----------------------------------
+   Photo, then title over one muted line, then the price: one sans scale, the
+   same as the Room charges and View booking rows around it. */
+.guest-app .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entries { gap: 20px; }
+.guest-app .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entries__date-group { gap: 8px; }
+.guest-app .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entries__date-group > h2 {
+  margin: 0;
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.guest-app .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-areas: none;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+  padding: 12px 16px 12px 12px;
+}
 .guest-stay-entry__thumb {
-  position: absolute;
-  top: 50%;
-  left: 14px;
-  width: 56px;
-  height: 56px;
+  position: relative;
+  width: 48px;
+  height: 48px;
   overflow: hidden;
   border-radius: 10px;
   background: var(--guest-sunken);
-  transform: translateY(-50%);
 }
 .guest-stay-entry__thumb img { object-fit: cover; }
-.guest-app.guest-app .guest-stay-entry__headline h2 {
-  font-family: var(--font-serif), Georgia, serif;
-  font-size: 19px;
-  font-weight: 400;
-  letter-spacing: -0.005em;
+.guest-app .guest-my-stay-page .guest-stay-entry__body { display: grid; min-width: 0; gap: 2px; }
+.guest-app .guest-my-stay-page .guest-stay-entry__body h2 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--guest-ink);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 20px;
+  letter-spacing: -0.008em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.guest-my-stay-page .guest-stay-entries__date-group > h2 {
+.guest-app .guest-my-stay-page .guest-stay-entry__line,
+.guest-app .guest-my-stay-page .guest-stay-entry__settlement {
+  overflow: hidden;
   color: var(--guest-muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 13px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.guest-app .guest-my-stay-page .guest-stay-entry__settlement { color: var(--guest-subtle); font-size: 12px; }
+.guest-app .guest-my-stay-page .guest-stay-entry__amount {
+  align-self: start;
+  color: var(--guest-ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 20px;
+}
+.guest-app .guest-my-stay-page .guest-stay-entry[data-status='cancelled'] .guest-stay-entry__body h2,
+.guest-app .guest-my-stay-page .guest-stay-entry[data-status='cancelled'] .guest-stay-entry__amount { color: var(--guest-muted); }
 
 /* --- Arrival services as photo cards, after Places' Discover ------------- */
 .guest-arrival-cards { display: grid; gap: 12px; }

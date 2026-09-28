@@ -1356,9 +1356,9 @@ describe('my stay', () => {
     expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entries__date-group-cards\s*\{[\s\S]*?overflow:\s*hidden;[\s\S]*?border:\s*1px solid var\(--guest-line\);[\s\S]*?border-radius:\s*16px;/);
     expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entry\s*\{[\s\S]*?padding:\s*18px 16px;[\s\S]*?background:\s*var\(--guest-paper\);/);
 
-    const parentIcons = Array.from(document.querySelectorAll('.guest-stay-entry__parent svg'));
-    expect(parentIcons.length).toBeGreaterThan(0);
-    expect(parentIcons.every((icon) => icon.getAttribute('viewBox') === '0 0 24 24')).toBe(true);
+    // Grouped by day, so each card's line carries the time, not the date again.
+    const lines = Array.from(document.querySelectorAll('.guest-stay-entry__line')).map((line) => line.textContent);
+    expect(lines).toContain('1:30 PM');
   });
 
   it('names the parent property on each booking card', () => {
@@ -1388,9 +1388,11 @@ describe('my stay', () => {
 
     // A guest moving between properties cannot be asked to remember which
     // building a venue was in, so the card says so before they ask.
-    const card = document.querySelector('.guest-stay-entry__parent');
-    expect(card?.textContent).toContain('The Henry Manila');
-    expect(card?.textContent).toContain('Ninth floor terrace');
+    // building a venue was in -- but on a stay at that same hotel, naming it
+    // on every card is noise, so the line gives the spot inside it instead.
+    const line = document.querySelector('.guest-stay-entry__line');
+    expect(line?.textContent).toContain('Ninth floor terrace');
+    expect(line?.textContent).not.toContain('The Henry Manila');
   });
 
   it('switches between upcoming and past without losing either', async () => {

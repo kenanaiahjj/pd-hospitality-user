@@ -63,7 +63,6 @@ import {
   Home04Icon as HugeHomeIcon,
   MessageCircleMoreIcon as HugeChatIcon,
   ReceiptTextIcon as HugeReceiptTextIcon,
-  Store01Icon as HugeStoreIcon,
   TrophyIcon as HugeTrophyIcon,
   UserRoundIcon as HugeProfileIcon,
 } from '@hugeicons-pro/core-stroke-rounded';
@@ -4155,14 +4154,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                           return groups;
                         }, {})).map(([date, entries]) => (
                           <section className="guest-stay-entries__date-group" key={date}>
-                            <h2>{new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h2>
-                            <div className="guest-stay-entries__date-group-cards">{entries.map((entry) => <StayEntryCard key={entry.id} entry={entry} showWhen={false} onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }} />)}</div>
+                            <h2>{date === PROTOTYPE_TODAY ? 'Tonight' : new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h2>
+                            <div className="guest-stay-entries__date-group-cards">{entries.map((entry) => <StayEntryCard key={entry.id} entry={entry} showWhen={false} homeProperty={contextBooking.property} onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }} />)}</div>
                           </section>
                         ))
                       : visibleStayEntries.map((entry) => (
                           <StayEntryCard
                             key={entry.id}
                             entry={entry}
+                            homeProperty={contextBooking.property}
                             onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }}
                           />
                         ))}
@@ -5732,32 +5732,32 @@ function AnnouncementsSection({ booking }: { booking?: Booking }) {
  * that was; "The Henry Manila · Ninth floor terrace" answers it before they
  * ask.
  */
-function StayEntryCard({ entry, onOpen, showWhen = true }: { entry: StayEntry; onOpen?: () => void; showWhen?: boolean }) {
+function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry: StayEntry; onOpen?: () => void; showWhen?: boolean; homeProperty?: string }) {
   const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
-  const when = `${entry.date === PROTOTYPE_TODAY ? 'Tonight' : date}${time ? ` · ${time}` : ''}`;
+  const day = entry.date === PROTOTYPE_TODAY ? 'Tonight' : date;
+  /*
+    One quiet line: when, then where. The hotel is named only when it is not
+    the one this stay is at -- repeating "The Henry Manila" on every card of a
+    Henry Manila stay said nothing, while a venue at another property still
+    answers "which building?" before the guest asks.
+  */
+  const place = homeProperty && entry.parent === homeProperty ? entry.parentDetail : entry.parent;
+  const line = [showWhen ? day : undefined, time, place].filter(Boolean).join(' · ');
+  // A food tour is still food: the tour photograph is an island beach.
+  const image = entry.category === 'entertainment' && /food|dining|dinner|breakfast|market/i.test(entry.title) ? CATEGORY_IMAGES.dining! : CATEGORY_IMAGES[entry.category] ?? CATEGORY_IMAGES.services!;
   const body = (
     <>
-      {/*
-        Named from the entry, not from a list of titles. This was an allowlist
-        of two -- 'Apartment 1B' and 'Azotea Rooftop' -- so every other venue
-        in a growing catalogue silently lost the line that says which building
-        it is in, which is the question the card exists to answer.
-      */}
       {/* A square photograph, as Places lists a saved place. */}
       <span className="guest-stay-entry__thumb" aria-hidden="true">
-        <Image src={(CATEGORY_IMAGES[entry.category] ?? CATEGORY_IMAGES.services!).src} alt="" fill sizes="56px" />
+        <Image src={image.src} alt="" fill sizes="48px" />
       </span>
-      <span className="guest-stay-entry__parent">
-        <span aria-hidden="true"><HugeiconsIcon icon={HugeStoreIcon} size={16} strokeWidth={1.75} aria-hidden="true" focusable="false" /></span>
-        <span>{entry.parentDetail ? `${entry.parent} · ${entry.parentDetail}` : entry.parent}</span>
-      </span>
-      <span className="guest-stay-entry__headline">
+      <span className="guest-stay-entry__body">
         <h2>{entry.title}</h2>
-        <strong>{entry.amount}</strong>
+        {line ? <span className="guest-stay-entry__line">{line}</span> : null}
+        {entry.settlement ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
       </span>
-      {showWhen ? <span className="guest-stay-entry__when">{when}</span> : null}
-      {entry.settlement ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
+      <strong className="guest-stay-entry__amount">{entry.amount}</strong>
     </>
   );
 

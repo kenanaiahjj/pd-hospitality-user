@@ -3827,8 +3827,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           Grouped by when, like any inbox: what happened today, and the rest
           of the stay. One card per group with hairlines between rows, not a
           stack of floating cards. Three lines a row: what, detail, when. The
-          red dot sits on the icon, so unread stands out without a stray
-          column at the edge.
+          red dot keeps the right edge to itself, centred on the row.
         */
         const isToday = (time: string) => /today|now|\d+\s*[mh]\b|min|hour/i.test(time);
         const groups = [
@@ -3863,13 +3862,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       >
                         <span className="guest-notification__icon">
                           <NotificationIcon tone={item.tone} />
-                          {unread ? <span className="guest-notification__dot"><span className="sr-only">Unread</span></span> : null}
                         </span>
                         <span className="guest-notification__body">
                           <b>{item.title}</b>
                           <span className="guest-notification__text">{item.body}</span>
                           <small>{item.time}</small>
                         </span>
+                        {unread ? <span className="guest-notification__dot"><span className="sr-only">Unread</span></span> : <span aria-hidden="true" />}
                       </button>
                     );
                   })}

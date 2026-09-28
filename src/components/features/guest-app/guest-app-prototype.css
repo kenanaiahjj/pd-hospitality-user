@@ -4758,8 +4758,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-notification {
   display: grid;
   width: 100%;
-  grid-template-columns: 36px minmax(0, 1fr);
-  align-items: start;
+  grid-template-columns: 36px minmax(0, 1fr) 8px;
+  align-items: center;
   gap: 14px;
   padding: 14px 16px;
   border: 0;
@@ -4775,7 +4775,6 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-notification:active { background: var(--guest-surface); }
 
 .guest-notification__icon {
-  position: relative;
   display: grid;
   width: 36px;
   height: 36px;
@@ -4810,16 +4809,11 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 }
 .guest-notification[data-unread='false'] .guest-notification__icon { color: var(--guest-muted); }
 
-/* Sits on the icon's shoulder, ringed in the card colour so it reads as a badge. */
 .guest-notification__dot {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--guest-notify);
-  box-shadow: 0 0 0 2px var(--guest-paper);
 }
 
 /* --------------------------------------------------------------------------

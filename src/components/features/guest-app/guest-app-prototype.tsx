@@ -2529,11 +2529,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setCode('');
     setCodeNotice(null);
     setScrolled(false);
-    const initialScreen: ActiveScreen = state === 'signed-out'
-      ? 'entry-hub'
-      : state === 'account-only'
-        ? 'identify'
-        : 'stay-overview';
+    // An account with no booking lands on its home -- Home and Profile, with
+    // "Add a booking" there -- not straight on the lookup form.
+    const initialScreen: ActiveScreen = state === 'signed-out' ? 'entry-hub' : 'stay-overview';
     setActiveScreen(initialScreen);
   };
 

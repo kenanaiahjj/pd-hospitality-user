@@ -3382,16 +3382,18 @@ describe('navigation without a booking', () => {
     expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Profile']);
   });
 
-  it('starts the signed-in no-booking control state at booking lookup', async () => {
+  it('starts the signed-in no-booking control state on its home, with only Home and Profile', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
 
     await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
     await user.click(screen.getByRole('radio', { name: /Signed in, no booking/ }));
 
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
+    // No stay means no Explore, My Stay or Chat -- and not the lookup form either.
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Profile']);
+    expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
+    expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
   });
 
   it('restores them once a booking exists', () => {

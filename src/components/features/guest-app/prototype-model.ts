@@ -675,7 +675,7 @@ export const MOCK_SESSION: GuestSession = {
       partySize: 2,
       amount: '₱4,400',
       status: 'confirmed',
-      provider: 'Binondo Food Trails',
+      provider: 'Kalye Manila Walks',
       // Off property and paid up front: not every line lands on the room.
       paymentStatus: 'paid',
       paymentMethod: 'gcash',
@@ -685,7 +685,7 @@ export const MOCK_SESSION: GuestSession = {
         { label: 'Duration', value: 'About 2 hours' },
         { label: 'Guests', value: '2' },
         { label: 'Guide', value: 'Lito Santos' },
-        { label: 'Run by', value: 'Binondo Food Trails' },
+        { label: 'Run by', value: 'Kalye Manila Walks' },
         { label: 'Bring', value: 'Comfortable shoes and an appetite' },
       ],
     },
@@ -701,7 +701,7 @@ export const MOCK_SESSION: GuestSession = {
       rentalQuantity: 2,
       amount: '₱1,200',
       status: 'confirmed',
-      provider: 'Pedal Manila',
+      provider: 'Sakay Rentals',
       // A rental is a window and a count, not a moment.
       summary: '11:00 AM – 12:00 PM · 2 e-bikes',
       facts: [
@@ -709,7 +709,7 @@ export const MOCK_SESSION: GuestSession = {
         { label: 'Return', value: 'By 12:00 PM, same desk' },
         { label: 'Included', value: '2 helmets and a lock' },
         { label: 'Bring', value: 'A valid ID, held until return' },
-        { label: 'Run by', value: 'Pedal Manila, on property' },
+        { label: 'Run by', value: 'Sakay Rentals, on property' },
       ],
     },
     {
@@ -742,14 +742,14 @@ export const MOCK_SESSION: GuestSession = {
       scheduledDate: '2026-11-12',
       amount: '₱2,400',
       status: 'confirmed',
-      provider: 'Hilom Wellness',
+      provider: 'Hilom Spa & Wellness',
       placeDetail: 'Hilom Spa, fourth floor',
       summary: '1:30 PM · 90 min · Hilom Spa, 4F',
       facts: [
         { label: 'Duration', value: '90 minutes' },
         { label: 'Therapist', value: 'Assigned on arrival' },
         { label: 'Arrive', value: '10 minutes early for a short consult' },
-        { label: 'Run by', value: 'Hilom Wellness, on property' },
+        { label: 'Run by', value: 'Hilom Spa & Wellness, on property' },
       ],
     },
     {

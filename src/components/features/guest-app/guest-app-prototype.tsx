@@ -266,6 +266,15 @@ const CHAT_QUICK_ACTIONS: ChatQuickAction[] = [
   { label: 'Transfers', description: 'Arrange transportation', message: () => 'We need help arranging a transfer.' },
 ];
 
+/* Before arrival there are no towels to change or rooms to fix: the asks are about getting there. */
+const PRE_ARRIVAL_QUICK_ACTIONS: ChatQuickAction[] = [
+  { label: 'Arrival time', description: 'Tell us when you land', message: () => 'Just letting you know our arrival time: we land in the afternoon and should reach the hotel by 3:00 PM.' },
+  { label: 'Airport pick-up', description: 'Arrange a ride in', message: () => 'Could you arrange an airport pick-up for our arrival?' },
+  { label: 'Early check-in', description: 'Ask for the room sooner', message: () => 'Is early check-in possible on our arrival day?' },
+  { label: 'Special occasion', description: 'Birthday, anniversary…', message: () => 'We’re celebrating a special occasion during our stay. Could you help us plan something?' },
+  { label: 'Parking', description: 'Bringing a car', message: () => 'We’re driving in. Is there parking at the hotel?' },
+];
+
 const formatChatDuration = (seconds: number) => {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
   const remainder = (seconds % 60).toString().padStart(2, '0');
@@ -1112,14 +1121,14 @@ function IdentityStep({ guestName, email, passportFields, onPassportFieldsChange
     <FormScreen step="1 of 2" title="You and your ID" text="Scan your passport or ID and we fill in the rest. Sent securely to the property for registration.">
       <PassportCapturePanel subjectName={person.name} onAutofill={readDocument} />
       <Field label="Full name" name="guest-name" value={person.name} onValueChange={(name) => setPerson((current) => ({ ...current, name }))} required />
-      <Field label="Nationality" name="nationality" value={person.nationality} onValueChange={(nationality) => setPerson((current) => ({ ...current, nationality }))} />
-      <Field label="Document number" name="document-number" placeholder="Enter document number" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} />
-      <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} />
+      <Field label="Nationality" name="nationality" placeholder="e.g. Filipino" value={person.nationality} onValueChange={(nationality) => setPerson((current) => ({ ...current, nationality }))} required />
+      <Field label="Passport or ID number" name="document-number" placeholder="As printed on the document" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} required />
+      <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} required />
       <ExpandableField label="Contact" value={[contact.email, contact.mobile].filter(Boolean).join(' · ') || 'Add contact details'} aside={email ? 'From your account' : 'Optional'} open={contactOpen} onToggle={() => setContactOpen((open) => !open)}>
         <Field label="Email" name="guest-email" type="email" value={contact.email} onValueChange={(value) => setContact((current) => ({ ...current, email: value }))} />
         <Field label="Mobile" name="guest-mobile" type="tel" value={contact.mobile} onValueChange={(mobile) => setContact((current) => ({ ...current, mobile }))} />
       </ExpandableField>
-      <Button className="guest-button guest-button--primary" type="button" disabled={!person.name.trim()} onClick={() => onContinue({ name: person.name.trim(), email: contact.email.trim() })}>Continue<ArrowRight aria-hidden="true" /></Button>
+      <Button className="guest-button guest-button--primary" type="button" disabled={!person.name.trim() || !person.nationality.trim() || !passportFields.documentNumber?.trim() || !passportFields.expiry} onClick={() => onContinue({ name: person.name.trim(), email: contact.email.trim() })}>{person.name.trim() && person.nationality.trim() && passportFields.documentNumber?.trim() && passportFields.expiry ? 'Continue' : 'Scan or fill in your ID to continue'}<ArrowRight aria-hidden="true" /></Button>
     </FormScreen>
   );
 }
@@ -1320,11 +1329,11 @@ function AdditionalGuestsScreen({
 }
 
 /** Chips answer the empty chat's question; the docked cards carry a line of detail. */
-function ChatQuickActions({ chips = false, disabled, onPick }: { chips?: boolean; disabled: boolean; onPick: (action: ChatQuickAction) => void }) {
+function ChatQuickActions({ chips = false, disabled, onPick, preArrival = false }: { chips?: boolean; disabled: boolean; onPick: (action: ChatQuickAction) => void; preArrival?: boolean }) {
   return (
     <div className={`guest-quick-actions${chips ? ' guest-quick-actions--chips' : ''}`} aria-label="Popular requests">
       <div className="guest-quick-actions__rail">
-        {CHAT_QUICK_ACTIONS.map((action) => (
+        {(preArrival ? PRE_ARRIVAL_QUICK_ACTIONS : CHAT_QUICK_ACTIONS).map((action) => (
           <button
             key={action.label}
             type="button"
@@ -1774,7 +1783,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const [hours = 10, minutes = 0] = rideTime.split(':').map(Number);
     const clock = `${((hours + 11) % 12) + 1}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
     const schedule = (rideWhen === 'later' && rideDate && rideTime ? ` on ${formatServiceDay(rideDate).long} at ${clock}` : ' now') + (rideFlight.trim() ? `, meeting flight ${rideFlight.trim().toUpperCase()}` : '');
-    const guestMessage = `I’d like to request a ride from ${from} to ${to} for ${ridePassengers} ${ridePassengers === 1 ? 'guest' : 'guests'}${schedule}.${checkoutDayDeparture ? ' Please confirm the fare first; if I approve, add it to my room charges for settlement at checkout.' : ''}`;
+    const guestMessage = `I’d like to request a ride from ${from} to ${to} for ${ridePassengers} ${ridePassengers === 1 ? 'guest' : 'guests'}${schedule}.${checkoutDayDeparture ? ' Please add the ₱1,200 fare to my room charges.' : ''}`;
     // An airport ride is a booking with a fixed fare; it belongs on My Stay, not only in the chat.
     const airport = airportFor(contextBooking);
     if (from === airport || to === airport) {
@@ -1811,7 +1820,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       const reply = checkedOut
         ? 'Thanks. We’ll confirm vehicle availability, the fare, and accepted payment methods here. Since you’ve checked out, the front desk will take payment before the ride and add the paid fare to your stay’s total charges.'
         : checkoutDayDeparture
-          ? 'Thanks. We’ll confirm vehicle availability and the fare first. If you approve, we’ll add the ride to your room charges for settlement with the rest of your bill at checkout.'
+          ? 'Thanks. We’ll confirm the driver and pick-up time here, and add the ₱1,200 fare to your room charges.'
         : 'Thanks. We’ll confirm availability, vehicle details, estimated fare, and pickup instructions here shortly.';
       setChatMessages((messages) => [...messages, { from: 'desk', body: reply, state: 'Seen' }]);
       setSending(false);
@@ -2584,11 +2593,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         <Field
           label="Booking or confirmation number"
           name="booking-number"
-          placeholder="HEN-241109"
+          placeholder="e.g. HEN-241109"
           helper="Hotel, Agoda, or Booking.com reference"
           required
         />
-        <Field label="Last name" name="last-name" placeholder="Santos" required />
+        <Field label="Last name" name="last-name" placeholder="As on the booking" autoComplete="family-name" required />
         <Button className="guest-button guest-button--primary" type="submit">
           Find booking<ArrowRight aria-hidden="true" />
         </Button>
@@ -2636,7 +2645,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <h2 id="guest-chat-welcome-title">How can we help with your stay?</h2>
               {/* Before the first message the requests answer the question
                   above them; once the thread starts they dock by the composer. */}
-              <ChatQuickActions chips disabled={chatDisabled} onPick={(action) => sendQuickMessage(action.message(contextRoom))} />
+              <ChatQuickActions chips preArrival={!hasStayStarted(contextBooking)} disabled={chatDisabled} onPick={(action) => sendQuickMessage(action.message(contextRoom))} />
             </div>
           ) : null}
           {displayedChatMessages.map((message, index) => {
@@ -2697,7 +2706,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         </div>
 
         <div className="guest-chat__dock">
-          {!restaurantChat && !showChatWelcome ? <ChatQuickActions disabled={chatDisabled} onPick={(action) => sendQuickMessage(action.message(contextRoom))} /> : null}
+          {!restaurantChat && !showChatWelcome ? <ChatQuickActions preArrival={!hasStayStarted(contextBooking)} disabled={chatDisabled} onPick={(action) => sendQuickMessage(action.message(contextRoom))} /> : null}
           <ChatComposer
             disabled={chatDisabled}
             draft={chatDraft}
@@ -3057,7 +3066,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 helper="From a confirmation email, or the receipt for a stay you have finished"
                 required
               />
-              <Field label="Last name" name="reentry-last-name" placeholder="Santos" required />
+              <Field label="Last name" name="reentry-last-name" placeholder="As on the booking" autoComplete="family-name" required />
               <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
                 Continue<ArrowRight aria-hidden="true" />
               </Button>
@@ -3633,10 +3642,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="card" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <Compass /> : service.categoryId === 'rentals' ? <Moped /> : <Storefront />} decorative />
                       <h2 className="guest-catalog-option-card__name">{service.name}</h2>
                     </div>
+                    {/* The price and who runs it: "Third-party on property" and a cutoff were supplier-contract terms. */}
                     <div className="guest-catalog-option-card__details">
                       <p>{service.category}</p>
-                      <small>{service.cutoff}</small>
-                      <small>{service.operator}</small>
+                      <small>{service.price}</small>
+                      <small>{SERVICE_SCHEDULES[service.id]?.label ?? providerFor(service)}</small>
                     </div>
                   </button>
                 ))}
@@ -3802,7 +3812,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <div><small>From</small><strong>{ride.from}</strong></div>
                 <div><small>To</small><strong>{ride.to}</strong>{transferDestinationAddress ? <span>{transferDestinationAddress}</span> : null}</div>
               </section>
-              {checkedOut ? <Notice icon={<Car />} title="Pay at the front desk">The front desk will confirm the fare and accepted payment methods, take payment before the ride, and add the paid fare to your stay’s total charges.</Notice> : checkoutDayDeparture ? <Notice icon={<Car />} title="Confirm the fare before checkout">The front desk will confirm the fare first. If you approve the ride, it will be added to your room charges and settled at checkout.</Notice> : null}
+              {checkedOut ? <Notice icon={<Car />} title="Pay at the front desk">The front desk will confirm the fare and accepted payment methods, take payment before the ride, and add the paid fare to your stay’s total charges.</Notice> : checkoutDayDeparture ? <Notice icon={<Car />} title="₱1,200, on your room">A hotel car to the airport. The fare is added to your room charges and settled with them at the front desk.</Notice> : null}
               {/* Before the stay starts there is no "now": the guest is not at the airport yet. */}
               {pickUp && !hasStayStarted(contextBooking) ? null : (
                 <fieldset className="guest-ride-choice">
@@ -5413,19 +5423,25 @@ function DepartureOptionsSection({
 }) {
   return (
     <section className="guest-before-you-go" data-testid="guest-departure-options-before-checkout">
-      <SectionHeading title="Before checkout" />
-      <p className="guest-departure-options__note">
-        Request anything you need before checkout. The front desk confirms availability and the price before adding approved requests to your room charges.
-      </p>
+      {/*
+        Check-out is done by the front desk, not the app -- so the day's one
+        fact is when and where, with the charges one tap away.
+      */}
+      <button className="guest-list-row guest-checkout-today" type="button" onClick={() => onNavigate('folio')}>
+        <span><SignOut aria-hidden="true" /></span>
+        <div><b>{`Check-out today by ${CHECK_OUT_BY}`}</b><small>At the front desk, where your room charges are settled</small></div>
+        <CaretRight aria-hidden="true" />
+      </button>
+      <SectionHeading title="Before you go" />
       <button className="guest-ride-card" type="button" onClick={() => (onRequestRide ? onRequestRide('departure') : onNavigate('transfer-booking'))}>
         <Image className="guest-ride-card__image" src={getServiceImage('transfer').src} alt="" fill sizes="(max-width: 720px) 100vw, 560px" style={{ objectPosition: getServiceImage('transfer').focalPoint }} />
         <span className="guest-ride-card__action" aria-hidden="true"><ArrowRight /></span>
         <span className="guest-ride-card__body">
           <small>Airport drop-off</small>
           <b>Need a ride to the airport?</b>
-          <span>The front desk confirms the fare first. If you approve, it goes on your room charges for checkout.</span>
+          <span>A hotel car from the door to departures. It goes on your room charges.</span>
           <span className="guest-ride-card__pills">
-            <span><Car aria-hidden="true" />Confirm fare first</span>
+            <span><Car aria-hidden="true" />₱1,200</span>
             <span><Users aria-hidden="true" />{`${booking.guestCount} ${booking.guestCount === 1 ? 'guest' : 'guests'}`}</span>
           </span>
         </span>
@@ -5903,7 +5919,7 @@ function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry
         <Image src={image.src} alt="" fill sizes="48px" style={{ objectPosition: image.focalPoint }} />
       </span>
       <span className="guest-stay-entry__body">
-        <h2>{entry.title}</h2>
+        <h3>{entry.title}</h3>
         {line ? <span className="guest-stay-entry__line">{line}</span> : null}
         {entry.settlement && !(entry.paidBy === 'complimentary' && !entry.cancelled) ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
       </span>

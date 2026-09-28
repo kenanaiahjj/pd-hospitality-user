@@ -6659,7 +6659,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 .guest-my-stay-page .guest-stay-entry__body { display: grid; min-width: 0; gap: 4px; }
-.guest-my-stay-page .guest-stay-entry__body h2 { margin: 0; overflow: hidden; color: var(--guest-ink); font-size: 16px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.guest-my-stay-page .guest-stay-entry__body h3 { margin: 0; overflow: hidden; color: var(--guest-ink); font-size: 16px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .guest-my-stay-page .guest-stay-entry__service { color: var(--guest-ink); font-size: 14px; line-height: 1.3; }
 .guest-my-stay-page .guest-stay-entry__settlement,
 .guest-my-stay-page .guest-stay-entry__when { color: var(--guest-muted); font-size: 12.5px; line-height: 1.3; }
@@ -8417,7 +8417,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 }
 .guest-stay-entry__thumb img { object-fit: cover; }
 .guest-app .guest-my-stay-page .guest-stay-entry__body { display: grid; min-width: 0; gap: 2px; }
-.guest-app .guest-my-stay-page .guest-stay-entry__body h2 {
+.guest-app .guest-my-stay-page .guest-stay-entry__body h3 {
   margin: 0;
   overflow: hidden;
   color: var(--guest-ink);
@@ -8455,7 +8455,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
    receipt behind it says what happened. */
 .guest-app .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entry[data-cancelled] { background: var(--guest-surface); }
 .guest-app .guest-my-stay-page .guest-stay-entry[data-cancelled] .guest-stay-entry__thumb { opacity: 0.5; filter: grayscale(1); }
-.guest-app .guest-my-stay-page .guest-stay-entry[data-cancelled] .guest-stay-entry__body h2,
+.guest-app .guest-my-stay-page .guest-stay-entry[data-cancelled] .guest-stay-entry__body h3,
 .guest-app .guest-my-stay-page .guest-stay-entry[data-cancelled] .guest-stay-entry__amount { color: var(--guest-subtle); }
 .guest-app .guest-my-stay-page .guest-stay-entry[data-cancelled] .guest-stay-entry__amount { text-decoration: line-through; }
 

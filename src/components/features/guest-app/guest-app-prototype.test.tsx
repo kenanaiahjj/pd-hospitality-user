@@ -78,6 +78,13 @@ const activeSession = sessionFor(
   { activeBookingId: 'active', folioTotal: '₱3,050' },
 );
 
+/* Registration needs the document itself, not only a name. */
+const fillIdentityDocument = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.type(screen.getByLabelText(/Nationality/), 'Filipino');
+  await user.type(screen.getByLabelText(/Passport or ID number/), 'P1234567A');
+  fireEvent.change(screen.getByLabelText(/Expiry date/), { target: { value: '2031-06-30' } });
+};
+
 /* A category page, reached the old-fashioned way: Explore, then Browse. */
 const openCategory = async (
   user: ReturnType<typeof userEvent.setup>,
@@ -294,7 +301,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
     expect(screen.getByText('The Henry Manila')).toBeInTheDocument();
     expect(screen.getByText('Booked via')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Yes this is my booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Yes, this is my booking' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: "No, this isn't my booking" })).toBeInTheDocument();
   });
 
@@ -748,7 +755,7 @@ describe('guest account and entry flows', () => {
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-241109');
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
-    await user.click(screen.getByRole('button', { name: 'Yes this is my booking' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, this is my booking' }));
     // The card is stamped, holds a beat, then opens pre-arrival by itself --
     // step 1 of 2, without an account creation gate.
     expect(await screen.findByRole('heading', { name: 'You and your ID' }, { timeout: 4000 })).toBeInTheDocument();
@@ -871,6 +878,7 @@ describe('room assignment through the flow', () => {
     render(<GuestAppPrototype initialScreen="guest-details" initialSession={MOCK_SESSION} />);
 
     // Before: the stay is pre-registered but unallocated.
+    await fillIdentityDocument(user);
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(screen.getByRole('button', { name: 'Finish' }));
 
@@ -1134,7 +1142,7 @@ describe('booking lookup', () => {
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'demo-1');
     await user.type(screen.getByLabelText(/Last name/), 'Cruz');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
-    await user.click(screen.getByRole('button', { name: /Yes this is my booking/ }));
+    await user.click(screen.getByRole('button', { name: /Yes, this is my booking/ }));
     await screen.findByRole('heading', { name: 'You and your ID' }, { timeout: 4000 });
 
     /*
@@ -1488,6 +1496,7 @@ describe('pre-arrival onboarding flow', () => {
     expect(screen.getByText('1 of 2')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'You and your ID' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Contact/ })).toHaveTextContent('ana@example.com');
+    await fillIdentityDocument(user);
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
     // Step 2 of 2: additional guests. Room preferences and early check-in are

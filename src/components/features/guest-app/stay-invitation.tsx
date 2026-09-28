@@ -311,7 +311,7 @@ export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
         aria-disabled={phase !== 'idle' || undefined}
         onClick={() => { if (phase === 'idle') setPhase('stamping'); }}
       >
-        Yes this is my booking
+        Yes, this is my booking
         <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
       </Button>
       <div className="stay-confirm__secondary">{secondary}</div>

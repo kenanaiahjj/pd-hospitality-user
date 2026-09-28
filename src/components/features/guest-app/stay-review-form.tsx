@@ -110,11 +110,7 @@ export function StayReviewForm({
 
   return (
     <div className="guest-stack guest-stay-review">
-      {onBackToMyStay ? (
-        <button className="guest-stay-review__back" type="button" onClick={onBackToMyStay}>
-          <ArrowLeft aria-hidden="true" />My stay
-        </button>
-      ) : null}
+      {/* No back link here: the app bar's back already goes to My Stay. */}
       {content}
     </div>
   );

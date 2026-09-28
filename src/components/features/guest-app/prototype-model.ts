@@ -322,6 +322,28 @@ export type ServiceBooking = {
   paymentStatus?: 'charged-to-room' | 'paid' | 'payment-pending' | 'pending-confirmation' | 'complimentary' | 'refunded';
   paymentMethod?: 'room' | 'card' | 'gcash' | 'maya';
   diningOrder?: DiningOrderDetails;
+  /**
+   * What a booking card says under its title, when time-and-place is not the
+   * useful answer: a rental's window and count, a transfer's route.
+   */
+  summary?: string;
+  /**
+   * Where it happens when that is not the hotel -- a tour's meeting point
+   * across town, a partner shop that charged the room by QR. Absent means
+   * on property.
+   */
+  place?: string;
+  placeDetail?: string;
+  /** Itemised lines for a purchase that is not a dining order. */
+  items?: DiningOrderItem[];
+  /** The category, for a booking that is not in the catalogue to be looked up by name. */
+  categoryId?: MiniAppCategoryId;
+  /**
+   * The facts that differ by kind of booking, in the order a guest needs
+   * them: a rental's pick-up and return, a tour's meeting point and guide, a
+   * transfer's flight and vehicle.
+   */
+  facts?: { label: string; value: string }[];
 };
 
 export type AuthState = 'anonymous' | 'authenticated';
@@ -597,26 +619,21 @@ export const MOCK_SESSION: GuestSession = {
   ],
   /*
     A populated stay, so the relationships are visible without having to book
-    five things by hand first. Read as a set these say: two venues and a spa
-    inside The Henry Manila, one hotel-arranged activity, and one order already
-    delivered. Every line settles on room 512's folio at hotel checkout.
+    eleven things by hand first. One of every kind of booking, each carrying
+    the facts that kind needs: hotel restaurants and in-room dining, a spa run
+    by a partner on property, rentals (on-property partner and hotel-run), a
+    hotel transfer, tours off property, a partner shop charged by room QR, and
+    complimentary services. The set is chosen so the rewards demo still
+    reads as designed: nothing here completes Homegrown, Culture or
+    Spontaneous, which the reference guest stands one step from. Most settle on the room at checkout; the food
+    crawl was paid with GCash and the free ones cost nothing, so the folio is
+    one answer of three.
 
     Dates straddle PROTOTYPE_TODAY (2026-11-11) on purpose, so Upcoming and
     Past both have something in them.
   */
   serviceBookings: [
-    {
-      id: 'service-hilom-1',
-      bookingId: 'HEN-241109',
-      serviceId: 'spa',
-      scheduledHour: 13,
-      bookedAt: '2026-11-09',
-      title: 'Hilom signature massage',
-      scheduledFor: 'Thursday · November 12 · 1:30 PM',
-      scheduledDate: '2026-11-12',
-      amount: '₱2,400',
-      status: 'confirmed',
-    },
+    /* ---- Upcoming: tonight and checkout day ---------------------------- */
     {
       id: 'service-rooftop-1',
       bookingId: 'HEN-241109',
@@ -632,11 +649,17 @@ export const MOCK_SESSION: GuestSession = {
         venueId: 'rooftop',
         venueName: 'Azotea Rooftop',
         items: [
-          { id: 'tasting', name: 'Chef\u2019s tasting menu', unitPrice: '₱1,200', quantity: 2 },
+          { id: 'tasting', name: 'Chef’s tasting menu', unitPrice: '₱1,200', quantity: 2 },
           { id: 'wine', name: 'Wine pairing', unitPrice: '₱450', quantity: 1 },
         ],
         fulfillment: { method: 'pickup', timing: 'scheduled', scheduledFor: 'November 11 · 7:30 PM' },
       },
+      // A hotel restaurant: the table and the room it is in.
+      facts: [
+        { label: 'Party', value: '2 guests' },
+        { label: 'Table', value: 'Terrace, by the railing' },
+        { label: 'Dress code', value: 'Smart casual' },
+      ],
     },
     {
       id: 'service-tour-1',
@@ -645,13 +668,113 @@ export const MOCK_SESSION: GuestSession = {
       scheduledHour: 9,
       bookedAt: '2026-11-02',
       title: 'Binondo food crawl',
-      // Checkout morning, not the day after: a room charge has to fall inside
-      // the stay it is charged to.
+      // Checkout morning, not the day after: a booking has to fall inside the
+      // stay it belongs to.
       scheduledFor: 'Thursday · November 12 · 9:00 AM',
       scheduledDate: '2026-11-12',
+      partySize: 2,
       amount: '₱4,400',
       status: 'confirmed',
+      provider: 'Binondo Food Trails',
+      // Off property and paid up front: not every line lands on the room.
+      paymentStatus: 'paid',
+      paymentMethod: 'gcash',
+      place: 'Binondo Church',
+      facts: [
+        { label: 'Meeting point', value: 'Binondo Church, main steps' },
+        { label: 'Duration', value: 'About 2 hours' },
+        { label: 'Guests', value: '2' },
+        { label: 'Guide', value: 'Lito Santos' },
+        { label: 'Run by', value: 'Binondo Food Trails' },
+        { label: 'Bring', value: 'Comfortable shoes and an appetite' },
+      ],
     },
+    {
+      id: 'service-ebike-1',
+      bookingId: 'HEN-241109',
+      serviceId: 'e-bike',
+      scheduledHour: 11,
+      bookedAt: '2026-11-11',
+      title: 'E-bike',
+      scheduledFor: 'Thursday · November 12 · 11:00 AM',
+      scheduledDate: '2026-11-12',
+      rentalQuantity: 2,
+      amount: '₱1,200',
+      status: 'confirmed',
+      provider: 'Pedal Manila',
+      // A rental is a window and a count, not a moment.
+      summary: '11:00 AM – 12:00 PM · 2 e-bikes',
+      facts: [
+        { label: 'Pick up', value: 'Concierge desk, lobby' },
+        { label: 'Return', value: 'By 12:00 PM, same desk' },
+        { label: 'Included', value: '2 helmets and a lock' },
+        { label: 'Bring', value: 'A valid ID, held until return' },
+        { label: 'Run by', value: 'Pedal Manila, on property' },
+      ],
+    },
+    {
+      id: 'service-luggage-1',
+      bookingId: 'HEN-241109',
+      serviceId: 'luggage',
+      scheduledHour: 12,
+      bookedAt: '2026-11-11',
+      title: 'Luggage storage & delivery',
+      scheduledFor: 'Thursday · November 12 · 12:00 PM',
+      scheduledDate: '2026-11-12',
+      amount: 'Free',
+      status: 'confirmed',
+      paymentStatus: 'complimentary',
+      summary: '12:00 – 4:00 PM · 3 bags',
+      facts: [
+        { label: 'Drop off', value: 'Concierge desk, at checkout' },
+        { label: 'Collect', value: 'Brought to your car at 4:00 PM' },
+        { label: 'Bags', value: '3, tagged at drop-off' },
+      ],
+    },
+    {
+      id: 'service-hilom-1',
+      bookingId: 'HEN-241109',
+      serviceId: 'spa',
+      scheduledHour: 13,
+      bookedAt: '2026-11-09',
+      title: 'Hilom signature massage',
+      scheduledFor: 'Thursday · November 12 · 1:30 PM',
+      scheduledDate: '2026-11-12',
+      amount: '₱2,400',
+      status: 'confirmed',
+      provider: 'Hilom Wellness',
+      placeDetail: 'Hilom Spa, 3F',
+      summary: '1:30 PM · 90 min · Hilom Spa, 3F',
+      facts: [
+        { label: 'Duration', value: '90 minutes' },
+        { label: 'Therapist', value: 'Assigned on arrival' },
+        { label: 'Arrive', value: '10 minutes early for a short consult' },
+        { label: 'Run by', value: 'Hilom Wellness, on property' },
+      ],
+    },
+    {
+      id: 'service-transfer-departure',
+      bookingId: 'HEN-241109',
+      serviceId: 'transfer',
+      scheduledHour: 16,
+      bookedAt: '2026-11-10',
+      title: 'Airport transfer',
+      scheduledFor: 'Thursday · November 12 · 4:00 PM',
+      scheduledDate: '2026-11-12',
+      amount: '₱1,200',
+      status: 'confirmed',
+      // A transfer is a route.
+      summary: '4:00 PM · Lobby → NAIA Terminal 3',
+      facts: [
+        { label: 'Pick up', value: 'Main lobby' },
+        { label: 'Drop off', value: 'NAIA Terminal 3, Departures' },
+        { label: 'Flight', value: 'PR 2815 · departs 7:05 PM' },
+        { label: 'Vehicle', value: 'Sedan · up to 3 bags' },
+        { label: 'Driver', value: 'Name and plate sent an hour before' },
+      ],
+    },
+
+    /* ---- Past: the first two days -------------------------------------- */
     {
       id: 'service-dining-past',
       bookingId: 'HEN-241109',
@@ -669,6 +792,95 @@ export const MOCK_SESSION: GuestSession = {
         items: [{ id: 'ribeye', name: 'Grilled Angus Ribeye', unitPrice: '₱1,850', quantity: 1 }],
         fulfillment: { method: 'delivery', timing: 'asap', scheduledFor: 'November 10 · 8:00 PM' },
       },
+      summary: '8:00 PM · Delivered to your room',
+      facts: [
+        { label: 'Ordered', value: '8:00 PM' },
+        { label: 'Delivered', value: '8:24 PM, to room 304' },
+      ],
+    },
+    {
+      id: 'service-partner-crafts',
+      bookingId: 'HEN-241109',
+      scheduledHour: 16,
+      // A walk-in purchase, not a booking: nothing was booked ahead.
+      title: 'Casa Capiz Crafts',
+      scheduledFor: 'Yesterday · November 10 · 4:12 PM',
+      scheduledDate: '2026-11-10',
+      amount: '₱3,650',
+      status: 'completed',
+      provider: 'Casa Capiz Crafts',
+      // A partner shop across town, charged by scanning the room QR: the
+      // purchase, itemised, and where it was made.
+      place: 'Intramuros',
+      summary: '4:12 PM · Intramuros',
+      items: [
+        { id: 'runner', name: 'Handwoven table runner', unitPrice: '₱1,450', quantity: 1 },
+        { id: 'lamp', name: 'Capiz shell lamp', unitPrice: '₱2,200', quantity: 1 },
+      ],
+      facts: [
+        { label: 'Charged via', value: 'Your room QR' },
+        { label: 'Partner', value: 'Casa Capiz Crafts, Intramuros' },
+        { label: 'Shop receipt', value: 'CC-10482' },
+      ],
+    },
+    {
+      id: 'service-bike-past',
+      bookingId: 'HEN-241109',
+      serviceId: 'rental',
+      scheduledHour: 14,
+      bookedAt: '2026-11-09',
+      title: 'City bicycle',
+      scheduledFor: 'Yesterday · November 10 · 2:00 PM',
+      scheduledDate: '2026-11-10',
+      rentalQuantity: 1,
+      amount: '₱350',
+      status: 'completed',
+      summary: '2:00 – 4:00 PM · 1 bicycle',
+      facts: [
+        { label: 'Picked up', value: '2:00 PM, concierge desk' },
+        { label: 'Returned', value: '3:50 PM' },
+        { label: 'Rate', value: '₱350 per day' },
+      ],
+    },
+    {
+      id: 'service-kalesa-past',
+      bookingId: 'HEN-241109',
+      categoryId: 'entertainment',
+      scheduledHour: 17,
+      bookedAt: '2026-11-09',
+      title: 'Intramuros kalesa ride',
+      scheduledFor: 'Yesterday · November 10 · 5:30 PM',
+      scheduledDate: '2026-11-10',
+      partySize: 2,
+      amount: '₱1,800',
+      status: 'completed',
+      provider: 'Kalesa Ko',
+      place: 'Intramuros',
+      summary: '5:30 – 6:30 PM · Intramuros',
+      facts: [
+        { label: 'Meeting point', value: 'Plaza de Roma, by the cathedral' },
+        { label: 'Duration', value: '1 hour' },
+        { label: 'Guests', value: '2' },
+        { label: 'Run by', value: 'Kalesa Ko, a partner of the hotel' },
+      ],
+    },
+    {
+      id: 'service-film-past',
+      bookingId: 'HEN-241109',
+      serviceId: 'film-night',
+      scheduledHour: 20,
+      bookedAt: '2026-11-05',
+      title: 'Poolside film night',
+      scheduledFor: 'Monday · November 9 · 8:00 PM',
+      scheduledDate: '2026-11-09',
+      amount: 'Free',
+      status: 'completed',
+      paymentStatus: 'complimentary',
+      placeDetail: 'Pool deck',
+      facts: [
+        { label: 'Seats', value: '2 loungers, held under your name' },
+        { label: 'Showing', value: 'A Filipino classic, with subtitles' },
+      ],
     },
     {
       id: 'service-cafe-cancelled',
@@ -681,6 +893,7 @@ export const MOCK_SESSION: GuestSession = {
       scheduledDate: '2026-11-09',
       amount: '₱480',
       status: 'cancelled',
+      placeDetail: 'Lobby',
     },
   ],
   folioTotal: '₱12,730',
@@ -2156,6 +2369,14 @@ export type StayEntry = {
   settlement?: string;
   /** The real cancellation, even once `status` files it under completed. */
   cancelled?: boolean;
+  /** The card's second line, when the booking supplies one. */
+  summary?: string;
+  /** Kind-specific facts for the receipt's Details section. */
+  facts?: { label: string; value: string }[];
+  /** What was booked, as `SERVICES[].id`, for the card's photograph. */
+  serviceId?: string;
+  /** Hour of day, 0-23, so a day's bookings read in the order they happen. */
+  hour?: number;
   /**
    * Which category sold it, for the card's glyph. `kind` was standing in for
    * this and could not tell a massage from a food crawl -- both are
@@ -2265,6 +2486,13 @@ export function getStayEntries(
           detail: item.quantity > 1 ? `${item.quantity} × ${item.unitPrice}` : undefined,
           amount: formatPesoAmount(parsePesoAmount(item.unitPrice) * item.quantity),
         }))
+      : service.items
+        ? service.items.map((item) => ({
+            id: item.id,
+            label: item.name,
+            detail: item.quantity > 1 ? `${item.quantity} × ${item.unitPrice}` : undefined,
+            amount: formatPesoAmount(parsePesoAmount(item.unitPrice) * item.quantity),
+          }))
       // A service is one thing at one price; the receipt still shows a line so
       // every booking reads the same way when opened.
       : [{ id: service.id, label: service.title, amount: service.amount }];
@@ -2294,8 +2522,9 @@ export function getStayEntries(
       status: service.status === 'cancelled' && service.scheduledDate < PROTOTYPE_TODAY ? 'completed' : service.status,
       // The hotel is the parent whether or not the venue is in the catalogue:
       // an on-property booking belongs to the property it was made at.
-      parent: booking.property,
-      parentDetail: venue?.location,
+      // ...unless it happened somewhere else: a partner shop, a tour's meeting point.
+      parent: service.place ?? booking.property,
+      parentDetail: service.place ? service.placeDetail : venue?.location ?? service.placeDetail,
       /*
         The real status, never the grouped one.
 
@@ -2308,8 +2537,12 @@ export function getStayEntries(
       */
       settlement: describeServiceSettlement(service, booking.roomNumber),
       cancelled: service.status === 'cancelled',
+      summary: service.summary,
+      facts: service.facts,
+      serviceId: service.serviceId,
+      hour: service.scheduledHour,
       paidBy: describeServicePaidBy(service),
-      category: service.diningOrder ? 'dining' : categoryOf(service.title),
+      category: service.diningOrder ? 'dining' : service.categoryId ?? categoryOf(service.title),
       date: service.scheduledDate,
       /*
         Every entry opens its receipt, past ones included. Confirmed bookings
@@ -2331,7 +2564,7 @@ export function getStayEntries(
   const isAhead = (entry: StayEntry) =>
     entry.status === 'confirmed' && dayIndex(entry.date) >= today;
 
-  const byDateAscending = (a: StayEntry, b: StayEntry) => a.date.localeCompare(b.date);
+  const byDateAscending = (a: StayEntry, b: StayEntry) => a.date.localeCompare(b.date) || (a.hour ?? 0) - (b.hour ?? 0);
 
   return {
     upcoming: entries.filter(isAhead).sort(byDateAscending),

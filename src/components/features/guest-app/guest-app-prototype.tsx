@@ -4237,6 +4237,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <p>{entry.detail}</p>
             </div>
 
+            {/* What differs by kind: a rental's pick-up and return, a tour's meeting point and guide. */}
+            {entry.facts?.length ? (
+              <section>
+                <SectionHeading title="Details" />
+                <div className="guest-summary">
+                  {entry.facts.map((fact) => <SummaryRow key={fact.label} label={fact.label} value={fact.value} />)}
+                </div>
+              </section>
+            ) : null}
+
             {/*
               The itemisation is the reason to open this. The card can only say
               "3 items", which is a count rather than an answer -- a guest
@@ -4265,7 +4275,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               tone={entryCancelled ? 'neutral' : 'positive'}
               title={entryCancelled ? 'Cancelled' : entry.paidBy === 'card' ? 'Paid up front' : entry.paidBy === 'complimentary' ? 'Complimentary' : 'Charged to your room'}
             >
-              {entryCancelled ? `Nothing was charged to ${contextRoom.toLowerCase()}.` : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
+              {entryCancelled ? `Nothing was charged to ${contextRoom.toLowerCase()}.` : entry.paidBy === 'complimentary' ? `On the house. Nothing is added to ${contextRoom.toLowerCase()}.` : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
             </Notice>
 
             {/*
@@ -5352,7 +5362,8 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
   if (variant === 'active') {
     const confirmedServices = session.serviceBookings.filter(
       (service) => service.status === 'confirmed' && service.bookingId === booking.id && service.scheduledDate >= PROTOTYPE_TODAY,
-    );
+    // Soonest first: "Next up" is the next thing, not the first one booked.
+    ).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || (a.scheduledHour ?? 0) - (b.scheduledHour ?? 0));
     const roomLabel = booking.roomNumber ? `Room ${booking.roomNumber}` : 'Active room';
     const roomUpgrade = booking.roomUpgrade;
     return (
@@ -5746,9 +5757,16 @@ function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry
     answers "which building?" before the guest asks.
   */
   const place = homeProperty && entry.parent === homeProperty ? entry.parentDetail : entry.parent;
-  const line = [showWhen ? day : undefined, time, place].filter(Boolean).join(' · ');
+  // A booking that knows its own best line (a rental's window, a transfer's route) says it.
+  const line = [showWhen ? day : undefined, ...(entry.summary ? [entry.summary] : [time, place])].filter(Boolean).join(' · ');
   // A food tour is still food: the tour photograph is an island beach.
-  const image = entry.category === 'entertainment' && /food|dining|dinner|breakfast|market/i.test(entry.title) ? CATEGORY_IMAGES.dining! : CATEGORY_IMAGES[entry.category] ?? CATEGORY_IMAGES.services!;
+  const image = entry.serviceId === 'transfer' || entry.serviceId === 'private-car'
+    ? getServiceImage('transfer')
+    : entry.category === 'entertainment' && /food|dining|dinner|breakfast|market/i.test(entry.title)
+      ? CATEGORY_IMAGES.dining!
+      : entry.serviceId === 'film-night' || entry.serviceId === 'luggage'
+        ? getServiceImage('amenity')
+        : CATEGORY_IMAGES[entry.category] ?? CATEGORY_IMAGES.services!;
   const body = (
     <>
       {/* A square photograph, as Places lists a saved place. */}
@@ -5758,7 +5776,7 @@ function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry
       <span className="guest-stay-entry__body">
         <h2>{entry.title}</h2>
         {line ? <span className="guest-stay-entry__line">{line}</span> : null}
-        {entry.settlement ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
+        {entry.settlement && !(entry.paidBy === 'complimentary' && !entry.cancelled) ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
       </span>
       <strong className="guest-stay-entry__amount">{entry.amount}</strong>
     </>
@@ -6824,7 +6842,11 @@ function RestaurantMenuScreen({ venue, onOrder, onBack, onNotifications }: { ven
 
 /* A count and the newest line, never the total: the peso figure belongs on the folio, not on My Stay. */
 function describeRoomCharges(charges: ReturnType<typeof getRoomCharges>) {
-  const latest = charges.at(-1);
+  // Newest by when it happened, not by list order: posted charges and app bookings arrive in separate runs.
+  const year = PROTOTYPE_TODAY.slice(0, 4);
+  const endOfToday = Date.parse(`${PROTOTYPE_TODAY}T23:59:59`);
+  const at = (charge: (typeof charges)[number]) => Date.parse(`${charge.date} ${year} ${charge.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '12:00 AM'}`) || 0;
+  const latest = charges.filter((charge) => at(charge) <= endOfToday).sort((a, b) => at(a) - at(b)).at(-1) ?? charges.at(-1);
   if (!latest) return 'Nothing charged yet';
   return `${charges.length} ${charges.length === 1 ? 'charge' : 'charges'} · Latest: ${latest.title}`;
 }

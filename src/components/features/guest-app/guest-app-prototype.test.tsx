@@ -3291,7 +3291,8 @@ describe('scan discoverability', () => {
     const nextUp = screen.getByRole('heading', { name: 'Next up' });
     const nearby = screen.getByRole('heading', { name: 'Recommended for you' });
     expect(nextUp.compareDocumentPosition(nearby) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'View details for Hilom signature massage' })).toBeInTheDocument();
+    // The soonest booking: tonight's dinner, ahead of tomorrow's massage.
+    expect(screen.getByRole('button', { name: 'View details for Azotea Rooftop' })).toBeInTheDocument();
   });
 
   it('uses the catalog layout in the live home state', () => {

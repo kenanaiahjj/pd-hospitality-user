@@ -1130,9 +1130,9 @@ describe('a finished stay read as a receipt', () => {
     const stay = toFinishedStay(session, booking);
 
     expect(stay.roomRate).toBe('₱18,600');
-    // ₱18,600 room + ₱14,550 charged against it: what the property posted plus
+    // ₱18,600 room + ₱18,350 charged against it: what the property posted plus
     // everything the guest booked in the app during the stay.
-    expect(stay.total).toBe('₱33,150');
+    expect(stay.total).toBe('₱36,950');
     expect(stay.nights).toBe(3);
   });
 
@@ -1202,7 +1202,7 @@ describe('a finished stay read as a receipt', () => {
     const summary = summarisePastStay(toFinishedStay(session, booking));
 
     expect(summary.groups.map((group) => group.category)).toContain('Hotel services');
-    expect(summary.extras).toBe('₱14,550');
+    expect(summary.extras).toBe('₱18,350');
   });
 });
 

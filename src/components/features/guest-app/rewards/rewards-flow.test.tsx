@@ -106,8 +106,8 @@ describe('PointsWallet', () => {
   it('states the balance, its floor value, and what it buys', () => {
     renderWallet();
 
-    expect(screen.getByText('37,220')).toBeInTheDocument();
-    expect(screen.getByText(/₱3,700 off anything/)).toBeInTheDocument();
+    expect(screen.getByText('41,270')).toBeInTheDocument();
+    expect(screen.getByText(/₱4,100 off anything/)).toBeInTheDocument();
     expect(screen.getByText('Couples massage suite')).toBeInTheDocument();
   });
 
@@ -115,7 +115,7 @@ describe('PointsWallet', () => {
     renderWallet();
 
     expect(screen.getByText('A night on us')).toBeInTheDocument();
-    expect(screen.getByText('17,780 points away')).toBeInTheDocument();
+    expect(screen.getByText('13,730 points away')).toBeInTheDocument();
   });
 
   it('opens a reward from the balance', async () => {
@@ -225,12 +225,12 @@ describe('the door from Profile', () => {
     render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
 
     const door = screen.getByRole('button', { name: /achievements/i });
-    expect(within(door).getByText(/13 badges · 37,220 points/)).toBeInTheDocument();
+    expect(within(door).getByText(/13 badges · 41,270 points/)).toBeInTheDocument();
 
     await userEvent.click(door);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Achievements' })).toBeInTheDocument();
-    expect(screen.getByText('13 earned · 37,220 points')).toBeInTheDocument();
+    expect(screen.getByText('13 earned · 41,270 points')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Your badges' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
     expect(document.querySelector('.guest-profile-hero')).toBeInTheDocument();
@@ -371,7 +371,7 @@ describe('RewardMenu', () => {
 
     const night = screen.getByRole('button', { name: /a night on us/i });
     expect(night).toBeDisabled();
-    expect(within(night).getByText('17,780 away')).toBeInTheDocument();
+    expect(within(night).getByText('13,730 away')).toBeInTheDocument();
 
     expect(screen.getByRole('button', { name: /couples massage suite/i })).toBeEnabled();
   });
@@ -421,8 +421,8 @@ describe('redeeming from the app', () => {
     await userEvent.click(screen.getByRole('button', { name: /hilom signature massage/i }));
     await userEvent.click(screen.getByRole('button', { name: /redeem/i }));
 
-    // 37,220 − 16,000, and no earn for the redemption itself.
-    expect(screen.getByText('21,220')).toBeInTheDocument();
+    // 41,270 − 16,000, and no earn for the redemption itself.
+    expect(screen.getByText('25,270')).toBeInTheDocument();
     expect(screen.getByText('-16,000')).toBeInTheDocument();
   });
 });
@@ -531,8 +531,8 @@ describe('points where money is already being discussed', () => {
   it('offers the balance against the folio', () => {
     render(<GuestAppPrototype initialSession={live} initialScreen="folio" />);
 
-    expect(screen.getByText(/38,220 points/)).toBeInTheDocument();
-    expect(screen.getByText(/₱3,800 off this bill/)).toBeInTheDocument();
+    expect(screen.getByText(/42,270 points/)).toBeInTheDocument();
+    expect(screen.getByText(/₱4,200 off this bill/)).toBeInTheDocument();
   });
 
   /*

@@ -41,9 +41,6 @@ export type ScreenId =
   | 'room-upgrade-confirmation'
   | 'room-upgrade-success'
   | 'room-transfer-details'
-  | 'extend-stay'
-  | 'extend-stay-review'
-  | 'extend-stay-success'
   | 'hotel-service'
   | 'vendor-service'
   | 'restaurant-menu'
@@ -2990,8 +2987,6 @@ export function describeServicePayment(price: string): 'choice' | 'complimentary
 
 /** Who a guest is dealing with, said the same way on the form and the receipt. */
 export function describeServiceProvider(service: { id: string; operator: string }): string {
-  // The one partner the catalogue names, as its detail page always has.
-  if (service.id === 'spa') return 'Operated by Sans Rival';
   if (service.operator === 'Hotel operated') return 'Operated by the hotel';
   if (service.operator === 'Hotel arranged') return 'Arranged by the hotel';
   if (service.operator === 'Curated guide') return 'Run by a guide the hotel works with';

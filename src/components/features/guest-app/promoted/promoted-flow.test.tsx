@@ -1,7 +1,7 @@
 import userEvent from '@testing-library/user-event';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BrowseSheet, SearchSheet } from './feed-sheets';
+import { BrowseSheet } from './feed-sheets';
 import { RoomScanner } from './room-scanner';
 import { RoomUnlocked } from './room-unlocked';
 import type { SearchableItem } from './story-model';
@@ -108,9 +108,9 @@ describe('feed sheets', () => {
   it('falls back to catalogue results when typed search has no intent', async () => {
     const user = userEvent.setup();
     const onOpenItem = vi.fn();
-    render(<SearchSheet index={[item]} onOpenItem={onOpenItem} onClose={vi.fn()} />);
+    render(<BrowseSheet categories={[]} index={[item]} onOpenItem={onOpenItem} onOpen={vi.fn()} onClose={vi.fn()} />);
 
-    await user.type(screen.getByRole('searchbox', { name: 'Ask anything about your stay' }), 'signature');
+    await user.type(screen.getByRole('searchbox', { name: 'Search or ask about your stay' }), 'signature');
     await user.click(screen.getByRole('button', { name: /Hilom signature massage/ }));
 
     expect(onOpenItem).toHaveBeenCalledWith('spa');

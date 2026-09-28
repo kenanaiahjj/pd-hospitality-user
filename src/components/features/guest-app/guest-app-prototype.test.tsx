@@ -11,7 +11,7 @@ import {
 import { ANONYMOUS_SESSION, connectBooking, applyPrototypeStayState, restoreProfileSession, SERVICES } from './prototype-model';
 import type { Booking, GuestSession } from './prototype-model';
 import { readStoredSession, writeStoredSession } from './session-storage';
-import { SearchSheet, buildSearchIndex } from './promoted';
+import { BrowseSheet, buildSearchIndex } from './promoted';
 import { Home04Icon as Home04SolidIcon } from '@hugeicons-pro/core-solid-rounded';
 
 const globalStyles = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
@@ -2112,10 +2112,10 @@ describe('rentals', () => {
 
   it('finds rentals by the words a guest would type', async () => {
     const user = userEvent.setup();
-    // Explore no longer opens search from the feed; the sheet and its index remain.
-    render(<SearchSheet index={buildSearchIndex()} onOpenItem={() => {}} onClose={() => {}} />);
+    // Search lives in the Browse sheet.
+    render(<BrowseSheet categories={[]} index={buildSearchIndex()} onOpenItem={() => {}} onOpen={() => {}} onClose={() => {}} />);
 
-    const box = screen.getByRole('searchbox', { name: 'Ask anything about your stay' });
+    const box = screen.getByRole('searchbox', { name: 'Search or ask about your stay' });
     await user.type(box, 'motorbike');
     expect(screen.getByRole('button', { name: /Motorcycle/ })).toBeInTheDocument();
     await user.clear(box);

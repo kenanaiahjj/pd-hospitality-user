@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { DesignSystemGallery } from './design-system-gallery';
 
-describe('DesignSystemGallery', () => {
+// Whole-screen journeys: under a busy full-suite run they outlast the 5s default.
+describe('DesignSystemGallery', { timeout: 15_000 }, () => {
   it('keeps the light consumer treatment canonical and filters to one category', async () => {
     const user = userEvent.setup();
     render(<DesignSystemGallery />);

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { GuestAppPrototype } from './guest-app-prototype';
 import { applyPrototypeStayState } from './prototype-model';
 
-describe('Explore → ordering', () => {
+// Whole-screen journeys: under a busy full-suite run they outlast the 5s default.
+describe('Explore → ordering', { timeout: 15_000 }, () => {
   const live = applyPrototypeStayState('live');
 
   it('walks Explore to a venue menu and into chat', async () => {

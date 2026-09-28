@@ -3826,10 +3826,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         /*
           Grouped by when, like any inbox: what happened today, and the rest
           of the stay. One card per group with hairlines between rows, not a
-          stack of floating cards -- and the red dot is the only colour on a
-          row, so unread is the one thing that stands out.
+          stack of floating cards. Three lines a row: what, detail, when. The
+          red dot sits on the icon, so unread stands out without a stray
+          column at the edge.
         */
-        const isToday = (time: string) => /now|\d+\s*[mh]\b|min|hour/i.test(time);
+        const isToday = (time: string) => /today|now|\d+\s*[mh]\b|min|hour/i.test(time);
         const groups = [
           { label: 'Today', items: notifications.filter((item) => isToday(item.time)) },
           { label: 'Earlier this stay', items: notifications.filter((item) => !isToday(item.time)) },
@@ -3860,17 +3861,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                         data-unread={unread}
                         onClick={() => openNotification(item)}
                       >
-                        <span className="guest-notification__icon" aria-hidden="true">
+                        <span className="guest-notification__icon">
                           <NotificationIcon tone={item.tone} />
+                          {unread ? <span className="guest-notification__dot"><span className="sr-only">Unread</span></span> : null}
                         </span>
                         <span className="guest-notification__body">
-                          <span className="guest-notification__head">
-                            <b>{item.title}</b>
-                            <small>{item.time}</small>
-                          </span>
+                          <b>{item.title}</b>
                           <span className="guest-notification__text">{item.body}</span>
+                          <small>{item.time}</small>
                         </span>
-                        {unread ? <span className="guest-notification__dot"><span className="sr-only">Unread</span></span> : <span aria-hidden="true" />}
                       </button>
                     );
                   })}

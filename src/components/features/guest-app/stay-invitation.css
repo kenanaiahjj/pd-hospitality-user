@@ -431,10 +431,17 @@
    Room key -- the pass's landscape sibling, for the moment the scan succeeds.
    -------------------------------------------------------------------------- */
 .room-key-stage { display: grid; justify-items: center; gap: 14px; width: 100%; }
-.room-key { width: min(100%, 330px); --sp-scoop: 16px; }
-.room-key .stay-pass__face { aspect-ratio: 1.58 / 1; }
+/* No pearl frame: around a dark key card it read as a white rim, not trim. */
+.room-key { width: min(100%, 330px); --sp-scoop: 16px; --sp-frame: 0px; }
+.room-key .stay-pass__face { aspect-ratio: 1.58 / 1; background: var(--sp-plum); }
+.room-key .stay-pass__foil { display: none; }
 /* The photograph takes the right of the card and fades into plum toward the words. */
-.room-key .stay-pass__photo { inset: 0 0 0 34%; }
+.room-key .stay-pass__photo {
+  inset: 0 0 0 34%;
+  /* Fade the photo's own edge too, or its holo layer leaves a seam. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%);
+  mask-image: linear-gradient(90deg, transparent, #000 24%);
+}
 .room-key .stay-pass__photo::after {
   background: linear-gradient(90deg, var(--sp-plum) 0%, oklch(0.2 0.05 350 / 0.55) 30%, oklch(0.2 0.05 350 / 0) 70%),
     linear-gradient(0deg, oklch(0.2 0.05 350 / 0.55), oklch(0.2 0.05 350 / 0) 45%),

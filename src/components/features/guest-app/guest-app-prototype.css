@@ -440,13 +440,30 @@
   gap: 8px;
   min-height: 56px;
   padding: max(10px, env(safe-area-inset-top)) var(--app-inset) 10px;
-  border-bottom: 1px solid transparent;
+  position: relative;
   background: var(--guest-canvas);
-  transition: border-color var(--duration-base) ease;
 }
 
-/* The hairline only appears once content has moved under the bar. */
-.guest-appbar[data-scrolled='true'] { border-bottom-color: var(--guest-line); }
+/* No hairline: once content has moved under the bar, a short band below its
+   edge blurs and fades that content out instead. The band sits over the
+   scroll area, so it takes no taps. */
+.guest-appbar::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 18px;
+  background: linear-gradient(to bottom, var(--guest-appbar-fade, var(--guest-canvas)), transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+  opacity: 0;
+  pointer-events: none;
+  content: '';
+  transition: opacity var(--duration-base) ease;
+}
+.guest-appbar[data-scrolled='true']::after { opacity: 1; }
 
 .guest-appbar__side { display: flex; min-width: 0; justify-content: flex-start; }
 .guest-appbar__side--end { justify-content: flex-end; }
@@ -7887,6 +7904,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-screen.has-nav:not(.guest-screen--chat) {
   background: var(--guest-paper);
 }
+.guest-device:has(.guest-screen.has-nav:not(.guest-screen--chat)) .guest-appbar { --guest-appbar-fade: var(--guest-paper); }
 
 .guest-screen.has-nav:not(.guest-screen--chat) .guest-home-booking--active {
   gap: 28px;

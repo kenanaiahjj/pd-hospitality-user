@@ -161,7 +161,7 @@ export function RoomUnlocked({
           </div>
         </div>
         <p className="unlocked__open-note">
-          Charge to your room and settle at check-out, or pay as you go.
+          Everything goes on your room and settles at check-out.
         </p>
       </section>
 

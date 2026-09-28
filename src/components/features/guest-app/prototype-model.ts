@@ -623,11 +623,10 @@ export const MOCK_SESSION: GuestSession = {
     the facts that kind needs: hotel restaurants and in-room dining, a spa run
     by a partner on property, rentals (on-property partner and hotel-run), a
     hotel transfer, tours off property, a partner shop charged by room QR, and
-    complimentary services. The set is chosen so the rewards demo still
+    complimentary services. Everything is charged to the room, bar the free
+    services. The set is chosen so the rewards demo still
     reads as designed: nothing here completes Homegrown, Culture or
-    Spontaneous, which the reference guest stands one step from. Most settle on the room at checkout; the food
-    crawl was paid with GCash and the free ones cost nothing, so the folio is
-    one answer of three.
+    Spontaneous, which the reference guest stands one step from. All of it settles at the front desk at checkout.
 
     Dates straddle PROTOTYPE_TODAY (2026-11-11) on purpose, so Upcoming and
     Past both have something in them.
@@ -676,9 +675,6 @@ export const MOCK_SESSION: GuestSession = {
       amount: '₱4,400',
       status: 'confirmed',
       provider: 'Kalye Manila Walks',
-      // Off property and paid up front: not every line lands on the room.
-      paymentStatus: 'paid',
-      paymentMethod: 'gcash',
       place: 'Binondo Church',
       facts: [
         { label: 'Meeting point', value: 'Binondo Church, main steps' },

@@ -18,7 +18,6 @@ import {
   Compass,
   Coffee,
   Copy,
-  CreditCard,
   ForkKnife,
   Gift,
   House,
@@ -28,6 +27,7 @@ import {
   Minus,
   PencilSimple,
   Person,
+  Phone,
   PersonSimpleWalk,
   Plus,
   QrCode,
@@ -37,7 +37,6 @@ import {
   Sparkle,
   Storefront,
   Moped,
-  SealCheck,
   NavigationArrow,
   SwimmingPool,
   Ticket,
@@ -402,32 +401,6 @@ function Field({ label, name, type = 'text', placeholder, autoComplete, spellChe
         required={required}
       />
       {helper ? <small id={helperId}>{helper}</small> : null}
-    </label>
-  );
-}
-
-function SelectField({ label, name, children, defaultValue, value, onValueChange }: {
-  label: string;
-  name: string;
-  children: ReactNode;
-  defaultValue?: string;
-  /** Pass with `onValueChange` to drive the field from state instead. */
-  value?: string;
-  onValueChange?: (next: string) => void;
-}) {
-  const controlled = value !== undefined && onValueChange !== undefined;
-  return (
-    <label className="guest-field" htmlFor={name}>
-      <span>{label}</span>
-      <select
-        id={name}
-        name={name}
-        {...(controlled
-          ? { value, onChange: (event) => onValueChange(event.target.value) }
-          : { defaultValue })}
-      >
-        {children}
-      </select>
     </label>
   );
 }
@@ -1480,8 +1453,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** The open field on the stay and ride forms; one at a time. */
   const [openFormField, setOpenFormField] = useState<'check-in' | 'check-out' | 'ride-date' | 'ride-time' | null>(null);
   const [ridePassengers, setRidePassengers] = useState(2);
-  const [checkoutPayment, setCheckoutPayment] = useState<'room' | 'pay-now' | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
+  // Bookings all go on the room now; only the resets remain.
+  const [, setCheckoutPayment] = useState<'room' | 'pay-now' | null>(null);
+  const [, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
   /* Read by the retired `transfer-confirmation` screen only; rides are requested in Chat now. */
   const [transferBooking] = useState<{
     destination: string;
@@ -2270,11 +2244,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
-    const payment = describeServicePayment(selectedService.price) === 'complimentary'
-      ? 'complimentary'
-      : checkoutPayment === 'pay-now' ? 'card'
-        : canUseOnPropertyServices(booking) || checkoutPayment === 'room' ? 'room' : 'card';
-    if (payment === 'card' && (checkoutPayment !== 'pay-now' || !paymentMethod)) return;
+    // Every booking goes on the room and is settled at the front desk; free ones cost nothing.
+    const payment: 'room' | 'complimentary' = describeServicePayment(selectedService.price) === 'complimentary' ? 'complimentary' : 'room';
 
     const days = bookableServiceDays(booking, PROTOTYPE_TODAY, selectedService.id);
     if (!days.length) return;
@@ -2315,8 +2286,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       amount: formatPesoAmount(Math.max(0, servicePrice - pesosOff(appliedPoints))),
       status: 'confirmed',
       provider: providerFor(selectedService),
-      paymentStatus: payment === 'room' ? 'charged-to-room' : payment === 'card' ? 'paid' : 'complimentary',
-      paymentMethod: payment === 'room' ? 'room' : payment === 'card' ? paymentMethod ?? 'card' : undefined,
+      paymentStatus: payment === 'room' ? 'charged-to-room' : 'complimentary',
+      paymentMethod: payment === 'room' ? 'room' : undefined,
     };
 
     const booked: GuestSession = {
@@ -2838,8 +2809,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </section>
         ) : (
           <Notice title="Hotel confirmation">
-            Some arrival requests depend on hotel availability. Charge a service to your room and settle it at checkout, or pay now by card, GCash or Maya. We&rsquo;ll show whether it is complimentary or needs hotel confirmation before you book.
-          </Notice>
+            Some arrival requests depend on hotel availability. Everything you book is charged to your room and settled at the front desk at checkout. We&rsquo;ll show whether it is complimentary or needs hotel confirmation before you book.</Notice>
         )}
       </div>
     );
@@ -3903,18 +3873,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const rentalRate = selectedService.price.replace(/\s*\/\s*day$/i, '').trim();
         const rentalRateLabel = `${rentalRate} / ${rentalUnit.singular} / day`;
         const chargeToRoom = canUseOnPropertyServices(contextBooking);
-        // Room by default once the room is verified; paying now is always on offer.
-        const payChoice = checkoutPayment ?? (chargeToRoom ? 'room' : null);
-        const ready = Boolean(day) && (servicePayment === 'complimentary'
-          || payChoice === 'room'
-          || (payChoice === 'pay-now' && Boolean(paymentMethod)));
+        // One way to pay: the room, settled at the front desk.
+        const ready = Boolean(day);
         const submitLabel = !day
           ? 'Not on during your stay'
           : servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
-          : !ready
-            ? 'Choose how to pay'
-            : payChoice === 'room' ? (chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`) : `Pay ${serviceCharge}`;
+          : chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`;
         return (
           <FormScreen step={chargeToRoom ? 'Confirm booking' : 'Review and pay'} title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
             <div className="guest-field-stack">
@@ -3966,15 +3931,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {servicePayment === 'complimentary' ? null : (
               <>
                 <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={appliedPoints} onChange={setAppliedPoints} />
-                <PaymentChoice
-                  allowRoom
-                  provider={provider}
-                  roomNumber={contextBooking.roomNumber}
-                  value={payChoice}
-                  method={paymentMethod}
-                  onChange={setCheckoutPayment}
-                  onMethodChange={setPaymentMethod}
-                />
+                <Notice title={contextBooking.roomNumber ? `Charged to Room ${contextBooking.roomNumber}` : 'Charged to your room'}>
+                  {contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}
+                </Notice>
               </>
             )}
             <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={confirmService}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
@@ -6104,6 +6063,16 @@ function EmptyStayHome({
         <ArrowRight aria-hidden="true" />
       </button>
 
+      {/* No booking means no front-desk chat, so the way to reach a hotel has to be here. */}
+      <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('partner-hotels')}>
+        <span className="guest-add-booking-card__glyph" aria-hidden="true"><Phone /></span>
+        <span className="guest-add-booking-card__text">
+          <b>Contact a hotel</b>
+          <small>A number to call and an address to email for every partner hotel.</small>
+        </span>
+        <ArrowRight aria-hidden="true" />
+      </button>
+
       {recent.length > 0 ? (
         <section className="guest-empty-history">
           <div className="guest-section-heading-row">
@@ -6751,54 +6720,7 @@ function getMenuItemImage(itemId: string, categoryId = 'dining') {
   return MENU_ITEM_IMAGE_URLS[itemId] ?? getItemThumbnail(itemId, categoryId).src;
 }
 
-function PaymentChoice({ provider, roomNumber, value, method, allowPayNow = true, allowRoom = Boolean(roomNumber), onChange, onMethodChange }: { provider: string; roomNumber?: string; value: 'room' | 'pay-now' | null; method: 'card' | 'gcash' | 'maya' | null; allowPayNow?: boolean; allowRoom?: boolean; onChange: (value: 'room' | 'pay-now') => void; onMethodChange: (value: 'card' | 'gcash' | 'maya') => void }) {
-  return <fieldset className="guest-payment-choice"><legend>How would you like to pay?</legend><p className="guest-provider-label">{provider}</p><div className="guest-payment-options">{allowRoom ? <button type="button" aria-pressed={value === 'room'} className={value === 'room' ? 'is-active' : ''} onClick={() => onChange('room')}><b>{roomNumber ? `Charge to Room ${roomNumber}` : 'Charge to your room'}</b><small>Add this purchase to your hotel bill and settle it at checkout.</small></button> : null}{allowPayNow ? <button type="button" aria-pressed={value === 'pay-now'} className={value === 'pay-now' ? 'is-active' : ''} onClick={() => onChange('pay-now')}><b>Pay now</b><small>Pay securely using your preferred payment method.</small></button> : null}</div>{allowPayNow && value === 'pay-now' ? <div className="guest-payment-method-sheet" role="dialog" aria-label="Payment methods"><b>Choose a payment method</b><button type="button" className={method === 'card' ? 'is-active' : ''} onClick={() => onMethodChange('card')}><CreditCard />Card</button><button type="button" className={method === 'gcash' ? 'is-active' : ''} onClick={() => onMethodChange('gcash')}>GCash</button><button type="button" className={method === 'maya' ? 'is-active' : ''} onClick={() => onMethodChange('maya')}>Maya</button></div> : null}</fieldset>;
-}
-
 type OrderTrayItem = { id: string; name: string; unitPrice: string; quantity: number; image: string };
-
-function LegacyOrderTray({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; quantity?: number; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
-  void title;
-  const [page, setPage] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [fulfillment, setFulfillment] = useState<'room' | 'pickup' | null>(null);
-  const [schedule, setSchedule] = useState<'asap' | 'later' | null>(null);
-  const [payment, setPayment] = useState<'room' | 'pay-now' | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
-  const canChargeRoom = Boolean(roomNumber);
-  const canContinue = page === 2 ? Boolean(fulfillment) : page === 3 ? Boolean(schedule) : page === 4 ? Boolean(payment) && (payment !== 'pay-now' || Boolean(paymentMethod)) : true;
-  const goBack = () => setPage((current) => current === 1 ? 1 : (current - 1) as 1 | 2 | 3 | 4 | 5);
-  const next = () => setPage((current) => (current + 1) as 1 | 2 | 3 | 4 | 5);
-  return <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="guest-order-tray guest-order-tray--multipage" role="dialog" aria-modal="true" aria-labelledby="order-tray-title"><div className="guest-order-tray__header"><div>{page > 1 ? <button className="guest-order-tray__back" type="button" onClick={goBack} aria-label="Back"><ArrowLeft /></button> : null}<h2 id="order-tray-title">{page === 1 ? 'Your order' : page === 2 ? 'How would you like to receive your order?' : page === 3 ? (fulfillment === 'pickup' ? 'When would you like to pick it up?' : 'When would you like it delivered?') : page === 4 ? 'How would you like to pay?' : 'Review and confirm'}</h2><p>{establishment}</p></div><button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button></div>{page === 1 ? <><div className="guest-order-tray__items">{items.map((item) => <div className="guest-order-tray__item" key={item.id}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.unitPrice} each</small></span><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => onChangeQuantity(item.id, -1)}><Minus /></button><output>{item.quantity}</output><button type="button" aria-label={`Increase ${item.name}`} onClick={() => onChangeQuantity(item.id, 1)}><Plus /></button></div><button className="guest-order-tray__remove" type="button" onClick={() => onChangeQuantity(item.id, -item.quantity)}>Remove</button></div>)}</div><div className="guest-order-tray__total"><span>Items <b>{items.reduce((count, item) => count + item.quantity, 0)}</b></span><strong>Subtotal <b>{total}</b></strong></div><Button className="guest-button guest-button--primary" type="button" onClick={() => setPage(2)}>Checkout · {total}<ArrowRight /></Button></> : page === 2 ? <><div className="guest-tray-options"><button className={fulfillment === 'room' ? 'is-active' : ''} type="button" disabled={!canChargeRoom} onClick={() => setFulfillment('room')}><b>Deliver to room</b><small>{roomNumber ? `Room ${roomNumber}` : 'Room assignment required'}</small>{fulfillment === 'room' ? <Check /> : null}</button><button className={fulfillment === 'pickup' ? 'is-active' : ''} type="button" onClick={() => setFulfillment('pickup')}><b>Pick up</b><small>Hotel lobby</small>{fulfillment === 'pickup' ? <Check /> : null}</button></div><Button className="guest-button guest-button--primary" type="button" disabled={!canContinue} onClick={next}>Continue<ArrowRight /></Button></> : page === 3 ? <><div className="guest-tray-options guest-tray-options--stacked"><button className={schedule === 'asap' ? 'is-active' : ''} type="button" onClick={() => setSchedule('asap')}><b>As soon as possible</b><small>{fulfillment === 'pickup' ? 'Ready in about 20–30 minutes' : 'Estimated delivery in 30–40 minutes'}</small>{schedule === 'asap' ? <Check /> : null}</button><button className={schedule === 'later' ? 'is-active' : ''} type="button" onClick={() => setSchedule('later')}><b>Schedule for later</b><small>Choose an available date and time</small>{schedule === 'later' ? <Check /> : null}</button></div><Button className="guest-button guest-button--primary" type="button" disabled={!canContinue} onClick={next}>Continue<ArrowRight /></Button></> : page === 4 ? <><PaymentChoice provider={establishment} roomNumber={roomNumber} value={payment} method={paymentMethod} onChange={setPayment} onMethodChange={setPaymentMethod} /><Button className="guest-button guest-button--primary" type="button" disabled={!canContinue} onClick={next}>Review order<ArrowRight /></Button></> : <><div className="guest-order-tray__review"><SummaryRow label="Establishment" value={establishment} /><SummaryRow label="Items" value={`${items.reduce((count, item) => count + item.quantity, 0)}`} /><SummaryRow label="Fulfillment" value={fulfillment === 'room' ? `Deliver to room ${roomNumber}` : 'Pick up · Hotel lobby'} /><SummaryRow label="Schedule" value={schedule === 'asap' ? 'As soon as possible' : 'Scheduled for later'} /><SummaryRow label="Payment" value={payment === 'room' ? `Charge to Room ${roomNumber}` : `Pay now · ${paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'maya' ? 'Maya' : 'Card'}`} /><SummaryRow label="Subtotal" value={total} /><SummaryRow label="Total" value={total} strong /></div><Button className="guest-button guest-button--primary" type="button" onClick={onCheckout}>{payment === 'room' ? `Charge ${total} to room` : `Pay ${total} now`}<ArrowRight /></Button></>}</section></div>;
-}
-
-void LegacyOrderTray;
-void LegacyOrderTray2;
-void LegacyOrderTray3;
-
-function LegacyOrderTray3({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
-  const [page, setPage] = useState(1);
-  const [fulfillment, setFulfillment] = useState<'room' | 'pickup' | null>(null);
-  const [schedule, setSchedule] = useState<'asap' | 'later' | null>(null);
-  const [payment, setPayment] = useState<'room' | 'pay-now' | null>(null);
-  const [method, setMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
-  const count = items.reduce((sum, item) => sum + item.quantity, 0);
-  const ready = page === 2 ? Boolean(fulfillment) : page === 3 ? Boolean(schedule) : page === 4 ? Boolean(payment && (payment === 'room' || method)) : true;
-  const heading = page === 1 ? title : page === 2 ? 'Complete your order' : page === 3 ? (fulfillment === 'pickup' ? 'When would you like to pick it up?' : 'When would you like it delivered?') : page === 4 ? 'How would you like to pay?' : 'Review and confirm';
-  return <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="guest-order-tray guest-order-tray--multipage" role="dialog" aria-modal="true" aria-labelledby="order-tray-title"><header className="guest-order-tray__header"><div>{page > 1 ? <button className="guest-order-tray__back" type="button" onClick={() => setPage((current) => current - 1)} aria-label="Back"><ArrowLeft /></button> : null}<h2 id="order-tray-title">{heading}</h2>{page === 1 ? <p>{establishment}</p> : null}</div><button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button></header><div className="guest-order-tray__scroll">{page === 1 ? <><div className="guest-order-tray__items">{items.map((item) => <div className="guest-order-tray__item" key={item.id}><Image src={item.image} alt="" width={72} height={72} /><span><b>{item.name}</b><small>{item.unitPrice} each</small></span><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => onChangeQuantity(item.id, -1)}><Minus /></button><output>{item.quantity}</output><button type="button" aria-label={`Increase ${item.name}`} onClick={() => onChangeQuantity(item.id, 1)}><Plus /></button></div><button className="guest-order-tray__remove" type="button" onClick={() => onChangeQuantity(item.id, -item.quantity)}>Remove</button></div>)}</div></> : page === 2 ? <section className="guest-tray-page"><h3>How would you like to receive your order?</h3><div className="guest-tray-options"><button type="button" className={fulfillment === 'room' ? 'is-active' : ''} disabled={!roomNumber} onClick={() => setFulfillment('room')}><b>Deliver to room</b>{fulfillment === 'room' ? <Check /> : null}</button><button type="button" className={fulfillment === 'pickup' ? 'is-active' : ''} onClick={() => setFulfillment('pickup')}><b>Pick up</b>{fulfillment === 'pickup' ? <Check /> : null}</button></div></section> : page === 3 ? <section className="guest-tray-page"><div className="guest-tray-options guest-tray-options--stacked"><button type="button" className={schedule === 'asap' ? 'is-active' : ''} onClick={() => setSchedule('asap')}><b>As soon as possible</b><small>30–40 minutes</small>{schedule === 'asap' ? <Check /> : null}</button><button type="button" className={schedule === 'later' ? 'is-active' : ''} onClick={() => setSchedule('later')}><b>Schedule for later</b><small>Choose a date and time</small>{schedule === 'later' ? <Check /> : null}</button></div></section> : page === 4 ? <section className="guest-tray-page"><div className="guest-tray-options guest-tray-options--stacked"><button type="button" className={payment === 'room' ? 'is-active' : ''} disabled={!roomNumber} onClick={() => setPayment('room')}><b>Charge to Room {roomNumber}</b><small>Added to your hotel bill.</small>{payment === 'room' ? <Check /> : null}</button><button type="button" className={payment === 'pay-now' ? 'is-active' : ''} onClick={() => setPayment('pay-now')}><b>Pay now</b><small>Choose a payment method.</small>{payment === 'pay-now' ? <Check /> : null}</button></div>{payment === 'pay-now' ? <div className="guest-payment-method-sheet">{(['card', 'gcash', 'maya'] as const).map((option) => <button key={option} type="button" className={method === option ? 'is-active' : ''} onClick={() => setMethod(option)}>{option === 'card' ? 'Card' : option === 'gcash' ? 'GCash' : 'Maya'}</button>)}</div> : null}</section> : <section className="guest-tray-page guest-order-tray__review"><SummaryRow label="Establishment" value={establishment} /><SummaryRow label="Items" value={`${count}`} /><SummaryRow label="Fulfillment" value={fulfillment === 'room' ? `Deliver to room ${roomNumber}` : 'Pick up · Hotel lobby'} /><SummaryRow label="Schedule" value={schedule === 'asap' ? 'As soon as possible · 30–40 minutes' : 'Scheduled for later'} /><SummaryRow label="Payment" value={payment === 'room' ? `Charge to Room ${roomNumber}` : `Pay now · ${method ?? 'Card'}`} /><SummaryRow label="Subtotal" value={total} /><SummaryRow label="Total" value={total} strong /></section>}</div>{page === 1 ? <div className="guest-order-tray__total"><span>Items <b>{count}</b></span><strong>Subtotal <b>{total}</b></strong></div> : null}<footer className="guest-order-tray__footer"><Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => page === 5 ? onCheckout() : setPage((current) => current + 1)}>{page === 1 ? `Checkout · ${total}` : page === 5 ? (payment === 'room' ? `Charge ${total} to room` : `Pay ${total} now`) : page === 4 ? 'Review order' : 'Continue'}<ArrowRight /></Button></footer></section></div>;
-}
-
-function LegacyOrderTray2({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
-  void title;
-  const [page, setPage] = useState<1 | 2 | 3>(1);
-  const [fulfillment, setFulfillment] = useState<'room' | 'pickup' | null>(null);
-  const [schedule, setSchedule] = useState<'asap' | 'later' | null>(null);
-  const [payment, setPayment] = useState<'room' | 'pay-now' | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
-  const itemCount = items.reduce((count, item) => count + item.quantity, 0);
-  const canContinue = Boolean(fulfillment && schedule && payment && (payment !== 'pay-now' || paymentMethod));
-  const back = () => setPage((current) => current === 1 ? 1 : (current - 1) as 1 | 2 | 3);
-  return <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="guest-order-tray guest-order-tray--multipage" role="dialog" aria-modal="true" aria-labelledby="order-tray-title"><header className="guest-order-tray__header"><div>{page > 1 ? <button className="guest-order-tray__back" type="button" onClick={back} aria-label="Back"><ArrowLeft /></button> : null}<h2 id="order-tray-title">{page === 1 ? 'Your order' : page === 2 ? 'Complete your order' : 'Review and confirm'}</h2><p>{establishment}</p></div><button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button></header>{page === 1 ? <><div className="guest-order-tray__items">{items.map((item) => <div className="guest-order-tray__item" key={item.id}><Image src={item.image} alt="" width={88} height={88} /><span><b>{item.name}</b><small>{item.unitPrice} each</small></span><div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => onChangeQuantity(item.id, -1)}><Minus /></button><output>{item.quantity}</output><button type="button" aria-label={`Increase ${item.name}`} onClick={() => onChangeQuantity(item.id, 1)}><Plus /></button></div><button className="guest-order-tray__remove" type="button" onClick={() => onChangeQuantity(item.id, -item.quantity)}>Remove</button></div>)}</div><div className="guest-order-tray__total"><span>Items <b>{itemCount}</b></span><strong>Subtotal <b>{total}</b></strong></div><Button className="guest-button guest-button--primary" type="button" onClick={() => setPage(2)}>Checkout · {total}<ArrowRight /></Button></> : page === 2 ? <><div className="guest-tray-checkout"><section><h3>How would you like to receive your order?</h3><div className="guest-tray-options"><button className={fulfillment === 'room' ? 'is-active' : ''} type="button" disabled={!roomNumber} onClick={() => setFulfillment('room')}><b>Deliver to room</b><small>{roomNumber ? `Room ${roomNumber}` : 'Room assignment required'}</small>{fulfillment === 'room' ? <Check /> : null}</button><button className={fulfillment === 'pickup' ? 'is-active' : ''} type="button" onClick={() => setFulfillment('pickup')}><b>Pick up</b><small>Hotel lobby</small>{fulfillment === 'pickup' ? <Check /> : null}</button></div></section><section><h3>{fulfillment === 'pickup' ? 'When would you like to pick it up?' : 'When would you like it delivered?'}</h3><div className="guest-tray-options guest-tray-options--stacked"><button className={schedule === 'asap' ? 'is-active' : ''} type="button" disabled={!fulfillment} onClick={() => setSchedule('asap')}><b>As soon as possible</b><small>{fulfillment === 'pickup' ? 'Ready in about 20–30 minutes' : 'Estimated delivery in 30–40 minutes'}</small>{schedule === 'asap' ? <Check /> : null}</button><button className={schedule === 'later' ? 'is-active' : ''} type="button" disabled={!fulfillment} onClick={() => setSchedule('later')}><b>Schedule for later</b><small>Choose an available date and time</small>{schedule === 'later' ? <Check /> : null}</button></div></section><section><h3>How would you like to pay?</h3><PaymentChoice provider={establishment} roomNumber={roomNumber} value={payment} method={paymentMethod} onChange={setPayment} onMethodChange={setPaymentMethod} /></section></div><Button className="guest-button guest-button--primary" type="button" disabled={!canContinue} onClick={() => setPage(3)}>Review order<ArrowRight /></Button></> : <><div className="guest-order-tray__review"><SummaryRow label="Establishment" value={establishment} /><SummaryRow label="Items" value={`${itemCount}`} /><SummaryRow label="Fulfillment" value={fulfillment === 'room' ? `Deliver to room ${roomNumber}` : 'Pick up · Hotel lobby'} /><SummaryRow label="Schedule" value={schedule === 'asap' ? 'As soon as possible' : 'Scheduled for later'} /><SummaryRow label="Payment" value={payment === 'room' ? `Charge to Room ${roomNumber}` : `Pay now · ${paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'maya' ? 'Maya' : 'Card'}`} /><SummaryRow label="Total" value={total} strong /></div><Button className="guest-button guest-button--primary" type="button" onClick={onCheckout}>{payment === 'room' ? `Charge ${total} to room` : `Pay ${total} now`}<ArrowRight /></Button></>}</section></div>;
-}
 
 function OrderTray({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
   void title;

@@ -115,7 +115,9 @@ describe('PointsWallet', () => {
     renderWallet();
 
     expect(screen.getByText('A night on us')).toBeInTheDocument();
-    expect(screen.getByText('13,730 points away')).toBeInTheDocument();
+    // The figure and its unit are set apart: "13,730" over "points away".
+    const next = screen.getByText('A night on us').closest('.points-wallet__next')!;
+    expect(next).toHaveTextContent('13,730points away');
   });
 
   it('opens a reward from the balance', async () => {
@@ -151,7 +153,8 @@ describe('BadgeShelf', () => {
     renderShelf();
 
     const rarest = rarestBadge(earnedBadges(MOCK_SESSION))!;
-    expect(screen.getByText(`13/${BADGES.length}`)).toBeInTheDocument();
+    // The shelf counts the whole collection; the rarest held badge leads, set apart from the grid.
+    expect(screen.getByRole('heading', { name: 'Your badges' })).toHaveTextContent(String(BADGES.length));
     expect(screen.getByRole('button', { name: `${rarest.definition.name}, your rarest badge` }))
       .toBeInTheDocument();
     expect(screen.getByText(`Earned by ${formatRarity(badgeRarity(rarest.definition))} of guests`))
@@ -161,9 +164,10 @@ describe('BadgeShelf', () => {
   it('shows every badge exactly once, held first', () => {
     renderShelf();
 
+    // Every badge once: the rarest in the hero, the rest in the grid, held first.
     const tiles = screen.getAllByTestId('badge-tile');
-    expect(tiles).toHaveLength(BADGES.length);
-    expect(tiles.slice(0, 13).every((tile) => tile.dataset.state === 'earned')).toBe(true);
+    expect(tiles).toHaveLength(BADGES.length - 1);
+    expect(tiles.slice(0, 12).every((tile) => tile.dataset.state === 'earned')).toBe(true);
   });
 
   /*
@@ -230,10 +234,10 @@ describe('the door from Profile', () => {
     await userEvent.click(door);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Achievements' })).toBeInTheDocument();
-    expect(screen.getByText('13 earned · 41,270 points')).toBeInTheDocument();
+    expect(screen.getByText('13 badges earned')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Your badges' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
-    expect(document.querySelector('.guest-profile-hero')).toBeInTheDocument();
+    expect(document.querySelector('.guest-achievements-header')).toBeInTheDocument();
     expect(document.querySelector('.guest-achievement-sections')).toBeInTheDocument();
   });
 
@@ -305,7 +309,7 @@ describe('the badge detail page', () => {
     await userEvent.click(screen.getByRole('button', { name: /turn this off/i }));
 
     expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
-    expect(screen.getByText(`12/${BADGES.length - 1}`)).toBeInTheDocument();
+    expect(screen.getByText('12 badges earned')).toBeInTheDocument();
   });
 
   /*
@@ -327,7 +331,7 @@ describe('the badge detail page', () => {
     await userEvent.click(screen.getByRole('button', { name: /achievements/i }));
 
     expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
-    expect(screen.getByText(`12/${BADGES.length - 1}`)).toBeInTheDocument();
+    expect(screen.getByText('12 badges earned')).toBeInTheDocument();
   });
 
   it('shows what is left on a badge still in progress without opening it', async () => {
@@ -417,12 +421,16 @@ describe('redeeming from the app', () => {
 
   it('spends the points, and earns nothing back for spending them', async () => {
     await openRewards();
+    await userEvent.click(screen.getByRole('tab', { name: 'Points' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Redeem points' }));
 
     await userEvent.click(screen.getByRole('button', { name: /hilom signature massage/i }));
     await userEvent.click(screen.getByRole('button', { name: /redeem/i }));
 
     // 41,270 − 16,000, and no earn for the redemption itself.
+    await userEvent.click(screen.getByRole('tab', { name: 'Points' }));
     expect(screen.getByText('25,270')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: 'Recent activity' }));
     expect(screen.getByText('-16,000')).toBeInTheDocument();
   });
 });
@@ -479,8 +487,8 @@ describe('booking with points', () => {
   };
 
   const openBooking = async (session = beforeMassage) => {
+    // Room only, so there is no payment choice to make first.
     render(<GuestAppPrototype initialSession={session} initialScreen="service-booking" />);
-    await userEvent.click(screen.getByRole('button', { name: /charge to room 304/i }));
   };
 
   it('charges less when points are applied', async () => {

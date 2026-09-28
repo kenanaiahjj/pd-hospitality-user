@@ -11,6 +11,8 @@ import {
 import { ANONYMOUS_SESSION, connectBooking, applyPrototypeStayState, restoreProfileSession, SERVICES } from './prototype-model';
 import type { Booking, GuestSession } from './prototype-model';
 import { readStoredSession, writeStoredSession } from './session-storage';
+import { SearchSheet, buildSearchIndex } from './promoted';
+import { Home04Icon as Home04SolidIcon } from '@hugeicons-pro/core-solid-rounded';
 
 const globalStyles = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
 const guestStyles = readFileSync(resolve(process.cwd(), 'src/components/features/guest-app/guest-app-prototype.css'), 'utf8');
@@ -92,7 +94,8 @@ const openCategory = async (
 ) => {
   await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getAllByRole('button')[1]!);
   await user.click(screen.getByRole('button', { name: 'Browse' }));
-  await user.click(within(screen.getByRole('dialog', { name: 'Browse' })).getByRole('button', { name: new RegExp(label) }));
+  // Anchored: "Hilom Spa & Wellness" in the recommended row also contains the category's name.
+  await user.click(within(screen.getByRole('dialog', { name: 'Browse' })).getByRole('button', { name: new RegExp(`^${label}`) }));
 };
 
 const assignedSession = sessionFor([
@@ -302,7 +305,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText('The Henry Manila')).toBeInTheDocument();
     expect(screen.getByText('Booked via')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Yes, this is my booking' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: "No, this isn't my booking" })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'No, this isn’t my booking' })).toBeInTheDocument();
   });
 
   it('opens the active stay home as soon as a room QR links the stay', async () => {
@@ -348,8 +351,9 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByRole('heading', { name: 'Connect a hotel booking' })).toBeInTheDocument();
     expect(screen.getByText('Cabana connects to confirmed hotel bookings.')).toBeInTheDocument();
-    expect(screen.getByText('Try your confirmation number or ask the front desk for a link.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Contact front desk' })).toBeInTheDocument();
+    expect(screen.getByText('Try the confirmation number from your hotel or booking provider.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Use a booking reference/ })).toBeInTheDocument();
   });
 
   it('keeps the booking connection copy concise and destination-specific', async () => {
@@ -361,20 +365,19 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
     expect(screen.queryByText(/You’ll need a booking first/)).toBeNull();
     expect(screen.getByText('Enter the number from your booking confirmation.')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('HEN-241109')).toBeInTheDocument();
+    // An example, marked as one, so it cannot be mistaken for a value already typed.
+    expect(screen.getByPlaceholderText('e.g. HEN-241109')).toBeInTheDocument();
     expect(screen.getByText('Hotel, Agoda, or Booking.com reference')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Find another way' })).toBeNull();
 
     unmount();
     render(<GuestAppPrototype initialScreen="lookup-fallback" />);
-    expect(screen.getByRole('heading', { name: 'Use more booking details' })).toBeInTheDocument();
-    expect(screen.getByText('Enter the details from your booking.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Try another way' })).toBeInTheDocument();
+    expect(screen.getByText('Use the reference from your hotel, Agoda or Booking.com confirmation.')).toBeInTheDocument();
     expect(screen.queryByText('No match yet')).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Continue to front desk' }));
-
-    expect(screen.getByRole('heading', { name: 'Let the front desk connect you' })).toBeInTheDocument();
-    expect(screen.getByText('Ask for a secure link or a 6-digit code.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Call front desk' })).toHaveAttribute('href', 'tel:+63288078888');
+    // Back to the lookup, not on to a desk the guest has no stay with yet.
+    await user.click(screen.getByRole('button', { name: 'Enter a confirmation number' }));
+    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
   });
 
   it('returns a pre-arrival guest to the upcoming home after registration', async () => {
@@ -501,17 +504,15 @@ describe('GuestAppPrototype', () => {
     );
 
     /*
-      The point is that a guest with a verified room never has to produce a
-      card. Settling to the room is offered by name, and the payment methods
-      stay behind "Pay now" -- chosen only if the guest would rather.
+      Every booking goes on the room: there is no card to produce and no
+      payment choice to make, only the room it lands on.
     */
-    expect(screen.getByRole('button', { name: /Charge to Room 512/i })).toBeInTheDocument();
-    expect(screen.getByText(/settle it at checkout/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Pay now/i })).toBeInTheDocument();
+    expect(screen.getByText('Charged to Room 512')).toBeInTheDocument();
+    expect(screen.getByText(/settled at the front desk at checkout/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pay now/i })).toBeNull();
     expect(screen.queryByText(/gcash|maya/i)).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: /Charge to Room 512/i }));
-    await user.click(screen.getByRole('button', { name: /^Charge .* to room/i }));
+    await user.click(screen.getByRole('button', { name: /Confirm and charge .* to room/i }));
 
     expect(await screen.findByRole('heading', { name: /Hilom signature massage is booked/i })).toBeInTheDocument();
     expect(screen.getByText(/added to room 512/i)).toBeInTheDocument();
@@ -1041,7 +1042,7 @@ describe('booking detail', () => {
     expect(screen.getByRole('heading', { name: 'Guests' })).toBeInTheDocument();
     expect(screen.getByText('Ana Santos')).toBeInTheDocument();
     expect(screen.getByText('Marco Santos')).toBeInTheDocument();
-    expect(screen.getByText('Lead booker · ID on file')).toBeInTheDocument();
+    expect(screen.getByText('Lead booker')).toBeInTheDocument();
     // The reference booking reserves two and names two, so nothing is pending.
     expect(screen.queryByText(/not yet named/)).toBeNull();
   });
@@ -1076,7 +1077,9 @@ describe('booking detail', () => {
   it('reports the party size on the My Stay card', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
 
-    expect(screen.getByText('2 guests')).toBeInTheDocument();
+    // A stat cell on the stay card: the label, then the count.
+    const guests = screen.getByText('Guests', { selector: 'small' }).parentElement!;
+    expect(guests).toHaveTextContent('Guests2');
   });
 
   it('labels a stay under way as checked in, not upcoming', () => {
@@ -1178,7 +1181,7 @@ describe('booking lookup', () => {
     render(<GuestAppPrototype initialScreen="rate-detail" initialSession={connected} />);
 
     expect(screen.getByText('Ana Santos')).toBeInTheDocument();
-    expect(screen.getByText('Lead booker · ID on file')).toBeInTheDocument();
+    expect(screen.getByText('Lead booker')).toBeInTheDocument();
     expect(screen.queryByText('Lead booker · name needed')).toBeNull();
   });
 
@@ -1443,17 +1446,18 @@ describe('my stay', () => {
     expect(guestStyles).toContain('.guest-my-stay-page .guest-checkout-card {');
     expect(guestStyles).toContain('-webkit-backdrop-filter: blur(18px) saturate(1.12);');
     expect(guestStyles).toContain('backdrop-filter: blur(18px) saturate(1.12);');
-    expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-tabs\s*\{[\s\S]*?border-radius:\s*18px;[\s\S]*?background:\s*var\(--guest-surface\);/);
-    expect(guestStyles).toContain('.guest-my-stay-page .guest-tab::after { display: none; }');
-    expect(guestStyles).toMatch(/\.guest-my-stay-page \.guest-tab\[aria-selected='true'\]\s*\{[\s\S]*?background:\s*var\(--guest-soft\);/);
+    // The bookings tabs are the plain underline variant now, not a pink pill.
     expect(guestStyles).toContain('.guest-my-stay-page .guest-stay-entry {');
     expect(guestStyles).toContain('.guest-my-stay-page .guest-stay-entries { animation: none; }');
   });
 
-  it('does not show checkout before the scheduled checkout day', () => {
+  it('does not show checkout before the scheduled checkout day', async () => {
+    const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
     expect(screen.queryByRole('button', { name: 'Check out now' })).toBeNull();
+    // Stay changes live with the booking, one tap in.
+    await user.click(screen.getByRole('button', { name: /View booking/ }));
     expect(screen.getByRole('button', { name: /Request late checkout/ })).toBeInTheDocument();
   });
 
@@ -1519,7 +1523,6 @@ describe('pre-arrival onboarding flow', () => {
     // 1. One list, lead first: the booker is marked Lead, not shown as a companion
     const lead = screen.getByText('Ana Santos').closest('li')!;
     expect(within(lead).getByText('Lead')).toBeInTheDocument();
-    expect(within(lead).getByText('ID on file')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove Ana Santos' })).toBeNull();
 
     // Marco Santos is listed after the lead, removable
@@ -1571,9 +1574,7 @@ describe('pre-arrival onboarding flow', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="repeat-review" initialSession={MOCK_SESSION} />);
 
-    expect(screen.getByText(/Saved from your Cebu stay/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Review, then confirm' })).toBeInTheDocument();
-    expect(screen.getByText(/Passport on file/)).toBeInTheDocument();
     expect(screen.getByText(/Higher floor · King bed/)).toBeInTheDocument();
     expect(screen.getByText('Marco Santos')).toBeInTheDocument();
 
@@ -1599,9 +1600,8 @@ describe('guest profile', () => {
     render(<GuestAppPrototype initialScreen="profile" initialSession={MOCK_SESSION} />);
 
     expect(document.querySelector('.guest-profile-page')).toBeInTheDocument();
-    expect(document.querySelector('.guest-profile-identity')).toBeInTheDocument();
+    expect(document.querySelector('.guest-profile-intro')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument();
-    expect(screen.getByText('Passport on file')).toBeInTheDocument();
     expect(document.querySelector('.guest-profile-action-list')).toBeInTheDocument();
   });
 
@@ -1680,8 +1680,8 @@ describe('home mini-apps and browsable restaurant menu', () => {
     render(<GuestAppPrototype initialScreen="marketplace" initialSession={activeSession} />);
 
     expect(screen.getByTestId('reel-feed')).toBeInTheDocument();
-    // Each reel says why it is there.
-    expect(document.querySelectorAll('.reel__why').length).toBeGreaterThan(3);
+    // A feed, not a single card.
+    expect(document.querySelectorAll('.reel__title').length).toBeGreaterThan(3);
     // The guest's own bookings live in My Trip. A catalogue that also listed
     // them is what made the old hub tell people to go elsewhere to browse.
     expect(screen.queryByRole('heading', { name: 'Upcoming & Confirmed' })).toBeNull();
@@ -1934,7 +1934,8 @@ describe('finished-stay prototype switch', () => {
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     await user.click(within(nav).getAllByRole('button')[1]);
 
-    expect(screen.getByRole('heading', { name: 'Where to next?' })).toBeInTheDocument();
+    // Rebooking is the partner directory: the stay is booked on the hotel's or a partner's site.
+    expect(screen.getByRole('heading', { name: 'Partner hotels' })).toBeInTheDocument();
   });
 
   it('reports the state it is actually in', () => {
@@ -1977,7 +1978,7 @@ describe('a finished stay on My Stay', () => {
   it('leads with booking another stay', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
 
-    expect(screen.getByRole('button', { name: /Book another stay/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Explore partner hotels/ })).toBeInTheDocument();
   });
 
   it('keeps the front desk reachable for the 24 hours after checkout', async () => {
@@ -2032,111 +2033,32 @@ describe('a finished stay on My Stay', () => {
   });
 });
 
+/*
+  Booking another stay happens off-app: the directory names each partner hotel
+  and hands the booking to the hotel or a booking partner. The in-app booking
+  form these tests used to drive (rooms, dates, payment) is gone by design.
+*/
 describe('booking another stay', () => {
   const finished = applyPrototypeStayState('closed');
 
-  it('offers the estate, priced from its cheapest room', async () => {
+  it('opens the partner hotel directory from the old booking routes', () => {
     render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
 
-    expect(screen.getByRole('heading', { name: 'Where to next?' })).toBeInTheDocument();
-    expect(screen.getByText('The Henry Dumaguete')).toBeInTheDocument();
-    expect(screen.getByText('From ₱4,900 a night')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Partner hotels' })).toBeInTheDocument();
+    expect(screen.getByText(/Rates and availability are shown on the hotel or booking partner/)).toBeInTheDocument();
   });
 
-  /*
-    Badges only from facts the app holds. Ways they could lie:
-    1. "Your last stay" on a hotel the guest has not stayed at.
-    2. "New" on a property that has been open for years.
-    3. A badge on every card, so none of them means anything.
-  */
-  it('marks the hotel of the last stay and the newly opened one, and nothing else', () => {
-    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
-
-    const card = (name: string) => screen.getByRole('button', { name: new RegExp(name) });
-    expect(card('The Henry Manila')).toHaveTextContent('Your last stay');
-    expect(card('The Henry Dumaguete')).toHaveTextContent('New');
-    expect(card('The Henry Cebu')).not.toHaveTextContent(/Your last stay|New/);
-    expect(card('The Henry Manila')).toHaveTextContent('3 room types · sleeps up to 5');
-    expect(screen.getByText(/Welcome back/)).toBeInTheDocument();
-  });
-
-  /*
-    Offering a room that cannot hold the party and refusing it at checkout
-    wastes the guest's time, so capacity filters the list.
-  */
-  it('hides rooms that cannot hold the party', async () => {
+  it('sends the booking to the hotel or a booking partner, not an in-app checkout', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
+    render(<GuestAppPrototype initialScreen="partner-hotels" initialSession={finished} />);
 
-    await user.click(screen.getByText('The Henry Cebu'));
-    while (screen.getByRole('group', { name: 'Guests' }).querySelector('output')?.textContent !== '4') {
-      await user.click(screen.getByRole('button', { name: 'More guests' }));
-    }
-    await user.click(screen.getByRole('button', { name: /See rooms/ }));
+    await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Cebu/ })[0]!);
 
-    expect(screen.getByText(/No room here sleeps that many/)).toBeInTheDocument();
-    expect(screen.queryByText('Deluxe room')).toBeNull();
-  });
-
-  it('refuses a checkout date that is not after check in', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
-
-    await user.click(screen.getByText('The Henry Cebu'));
-    // The calendar cannot produce one: the check-in day and everything before
-    // it are struck out of the check-out calendar.
-    await user.click(screen.getByRole('button', { name: /^Check out/ }));
-    expect(screen.getByRole('button', { name: 'Friday · December 11' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Saturday · December 12' })).toBeEnabled();
-  });
-
-  it('books the stay direct and makes it the one the app is about', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
-
-    await user.click(screen.getByText('The Henry Cebu'));
-    await user.click(screen.getByRole('button', { name: /See rooms/ }));
-    await user.click(screen.getByText('Deluxe room'));
-    await user.click(screen.getByRole('button', { name: /Continue to payment/ }));
-
-    expect(screen.getByText('₱5,600 × 3 nights')).toBeInTheDocument();
-    expect(screen.getByText('₱2,016')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Pay ₱18,816' }));
-
-    expect(screen.getByRole('heading', { name: /going back to Cebu/ })).toBeInTheDocument();
-    expect(screen.getByText('HEN-CEBU-261211')).toBeInTheDocument();
-    // The commercial point: this one is not an OTA's.
-    expect(screen.getByText('Direct booking')).toBeInTheDocument();
-  });
-
-  it('will not take payment offline, because the rate moves', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} initialOnline={false} />);
-
-    await user.click(screen.getByText('The Henry Cebu'));
-    await user.click(screen.getByRole('button', { name: /See rooms/ }));
-    await user.click(screen.getByText('Deluxe room'));
-    await user.click(screen.getByRole('button', { name: /Continue to payment/ }));
-
-    expect(screen.getByRole('button', { name: /Pay ₱18,816/ })).toBeDisabled();
-    expect(screen.getByText(/Booking needs a connection/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Agoda/ })).toHaveAttribute('href', expect.stringContaining('agoda.com'));
+    expect(screen.queryByRole('button', { name: /Pay|Confirm and book/ })).toBeNull();
   });
 });
 
-/* --------------------------------------------------------------------------
-   Lifecycle gates
-   -------------------------------------------------------------------------- */
-
-/*
-  Rentals: their own category, reached from Browse. Ways it could fail:
-  1. No Rentals row in Browse, or it lands on another category.
-  2. The bikes and scooters still sit in Hotel Services too.
-  3. A chip over the listing holds nothing.
-  4. A motorbike or car books without saying a licence is needed; or the
-     push bike does.
-  5. Searching "motorbike" or "car" finds none of them.
-*/
 describe('rentals', () => {
   it('opens its own listing from Browse, split into two wheels and cars', async () => {
     const user = userEvent.setup();
@@ -2178,9 +2100,9 @@ describe('rentals', () => {
 
   it('finds rentals by the words a guest would type', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="marketplace" initialSession={activeSession} />);
+    // Explore no longer opens search from the feed; the sheet and its index remain.
+    render(<SearchSheet index={buildSearchIndex()} onOpenItem={() => {}} onClose={() => {}} />);
 
-    await user.click(screen.getByRole('button', { name: 'Search' }));
     const box = screen.getByRole('searchbox', { name: 'Ask anything about your stay' });
     await user.type(box, 'motorbike');
     expect(screen.getByRole('button', { name: /Motorcycle/ })).toBeInTheDocument();
@@ -2223,8 +2145,7 @@ describe('booking the service the guest picked', () => {
     expect(screen.getByText(/Live availability is shown for Hot stone therapy/)).toBeInTheDocument();
     expect(screen.queryByText(/Hilom signature massage/)).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: /Charge to Room 304/i }));
-    await user.click(screen.getByRole('button', { name: 'Charge ₱3,200 to room' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm and charge ₱3,200 to room' }));
     expect(screen.getByRole('heading', { name: 'Hot stone therapy is booked' })).toBeInTheDocument();
 
     // The massage already on the stay is still there, at its own time.
@@ -2234,26 +2155,25 @@ describe('booking the service the guest picked', () => {
     expect(screen.getByRole('tab', { name: /Upcoming \(2\)/ })).toBeInTheDocument();
   });
 
-  it('books an arrival service by card before there is a room to charge', async () => {
+  it('books an arrival service to the room before there is a room number', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
 
     await user.click(screen.getByRole('button', { name: /Private car & driver/ }));
 
     expect(screen.getByText(/Live availability is shown for Private car & driver/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Charge to Room/i })).toBeNull();
     // The stay's own days, with the weekdays 2026 actually has: the Date row
     // states the day, and its calendar opens on it.
     await user.click(screen.getByRole('button', { name: /^Date/ }));
     expect(screen.getByRole('button', { name: 'Friday · November 20' })).toHaveAttribute('aria-pressed', 'true');
 
-    await user.click(screen.getByRole('button', { name: /Pay now/ }));
-    await user.click(screen.getByRole('button', { name: 'Card' }));
-    await user.click(screen.getByRole('button', { name: 'Pay ₱4,800' }));
+    // No card before arrival either: it goes on the room the guest is given.
+    expect(screen.queryByRole('button', { name: /Pay now/ })).toBeNull();
+    expect(screen.getByText('Charged to your room')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Charge ₱4,800 to room' }));
 
     expect(screen.getByRole('heading', { name: 'Private car & driver is booked' })).toBeInTheDocument();
-    expect(screen.getByText(/Paid with card, direct to the hotel/)).toBeInTheDocument();
-    expect(screen.queryByText(/added to room/i)).toBeNull();
+    expect(screen.getByText(/paid with your room bill at checkout/)).toBeInTheDocument();
   });
 
   it('books a complimentary arrival service without asking how to pay', async () => {
@@ -2340,8 +2260,9 @@ describe('lifecycle gates', () => {
     expect(secondTab()).toHaveAccessibleName('Explore');
     cleanup();
 
+    // After checkout it is still Explore, opening the partner hotels.
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={settled} />);
-    expect(secondTab()).toHaveAccessibleName('Book again');
+    expect(secondTab()).toHaveAccessibleName('Explore');
   });
 
   it('keeps stay stories behind the room QR unlock', () => {
@@ -2365,11 +2286,12 @@ describe('lifecycle gates', () => {
     confirm one and put ₱3,600 on a room the property had not seen them in.
   */
   it('offers a room upgrade only once the room is verified', () => {
-    render(<GuestAppPrototype initialScreen="my-stay" initialSession={arrivedUnverified} />);
+    // Stay changes live on the booking detail.
+    render(<GuestAppPrototype initialScreen="rate-detail" initialSession={arrivedUnverified} />);
     expect(screen.queryByRole('button', { name: /Upgrade room/ })).toBeNull();
 
     cleanup();
-    render(<GuestAppPrototype initialScreen="my-stay" initialSession={verified} />);
+    render(<GuestAppPrototype initialScreen="rate-detail" initialSession={verified} />);
     expect(screen.getByRole('button', { name: /Upgrade room/ })).toBeInTheDocument();
   });
 
@@ -2483,10 +2405,8 @@ describe('lifecycle gates', () => {
     await user.click(secondTab());
     await user.click(screen.getByRole('button', { name: /Private car & driver/ }));
 
-    // Either way is the guest's call, and the room one must not loop back to
-    // "open when you check in" as it once did.
-    expect(screen.getByRole('button', { name: /Pay now/ })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Charge to your room/ }));
+    // Room only, and it must not loop back to "open when you check in" as it once did.
+    expect(screen.queryByRole('button', { name: /Pay now/ })).toBeNull();
     await user.click(screen.getByRole('button', { name: /Charge ₱[\d,]+ to room/ }));
 
     expect(screen.getByRole('heading', { name: /Private car & driver is booked/ })).toBeInTheDocument();
@@ -2559,7 +2479,7 @@ describe('lifecycle gates', () => {
     render(<GuestAppPrototype initialScreen="marketplace" initialSession={verified} />);
 
     await user.click(screen.getByRole('button', { name: 'Browse' }));
-    await user.click(within(screen.getByRole('dialog', { name: 'Browse' })).getByRole('button', { name: /Spa & Wellness/ }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Browse' })).getByRole('button', { name: /^Spa & Wellness/ }));
 
     expect(screen.getByRole('heading', { name: 'Spa & Wellness', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Explore' })).toBeInTheDocument();
@@ -2841,16 +2761,20 @@ describe('signed-in home with no booking', () => {
     2. A number that is text only, so a phone cannot dial it.
     3. Only one hotel, when the guest may be asking about another.
   */
-  it('lists every hotel with a number to call and an address to email', () => {
+  it('lists every hotel with a number to call and an address to email', async () => {
+    const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
-    const contacts = screen.getByRole('region', { name: 'Contact a hotel' });
-    for (const name of ['The Henry Manila', 'The Henry Cebu', 'The Henry Dumaguete']) {
-      expect(within(contacts).getByText(name)).toBeInTheDocument();
-    }
-    expect(within(contacts).getAllByRole('link', { name: /^Call / })[0]).toHaveAttribute('href', expect.stringMatching(/^tel:\+63/));
-    expect(within(contacts).getAllByRole('link', { name: /^Email / })[0]).toHaveAttribute('href', expect.stringMatching(/^mailto:/));
     expect(screen.queryByRole('button', { name: 'Ask the front desk for help' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Contact a hotel/ }));
+
+    // Every partner hotel is listed, and each one's page can be dialled and emailed.
+    for (const name of [/The Henry Hotel Manila/, /The Henry Hotel Cebu/, /The Henry Resort Dumaguete/]) {
+      expect(screen.getAllByRole('button', { name })[0]).toBeInTheDocument();
+    }
+    await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Manila/ })[0]!);
+    expect(screen.getByRole('link', { name: /\+63/ })).toHaveAttribute('href', expect.stringMatching(/^tel:\+63/));
+    expect(document.querySelector('a[href^="mailto:"]')).toBeInTheDocument();
   });
 
   it('starts the signed-in, no-booking flow at booking lookup after Google SSO', async () => {
@@ -2897,7 +2821,7 @@ describe('signed-in home with no booking', () => {
     expect(screen.getByRole('heading', { name: 'Hello, Ana' })).toBeInTheDocument();
 
     expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
-    // Cebu is still named under Contact a hotel; what must be absent is a stay there.
+    // What must be absent is a stay the account has not had.
     expect(document.querySelector('.guest-history-card')).toBeNull();
     expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
   });
@@ -3357,10 +3281,15 @@ describe('design tokens', () => {
     // next/font registers these on <html> at runtime (`variable: '--font-serif'`), not in a stylesheet.
     const layoutSource = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8');
     const fontDefined = new Set([...layoutSource.matchAll(/variable:\s*'(--[a-z0-9-]+)'/g)].map((m) => m[1]));
+    // Set from script at runtime (the chat composer tracks the visual viewport).
+    const scriptSource = ['chat-composer.tsx', 'guest-app-prototype.tsx']
+      .map((file) => readFileSync(resolve(process.cwd(), 'src/components/features/guest-app', file), 'utf8'))
+      .join('\n');
+    const scriptDefined = new Set([...scriptSource.matchAll(/setProperty\('(--[a-z0-9-]+)'/g)].map((m) => m[1]));
     const used = [...guestStyles.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]);
 
     const undefinedTokens = [...new Set(used)].filter(
-      (token) => !defined.has(token) && !globalDefined.has(token) && !fontDefined.has(token),
+      (token) => !defined.has(token) && !globalDefined.has(token) && !fontDefined.has(token) && !scriptDefined.has(token),
     );
 
     expect(undefinedTokens).toEqual([]);
@@ -3464,7 +3393,8 @@ describe('floating tab bar styling', () => {
 
     const homeButton = screen.getByRole('button', { name: 'Home' });
 
-    expect(homeButton.querySelector('path[d="M16 17H8"]')).toBeInTheDocument();
+    // Home04, the rounded house: the filled version while Home is the tab in view.
+    expect(homeButton.querySelector(`path[d="${Home04SolidIcon[0]![1].d}"]`)).toBeInTheDocument();
   });
 
   it('uses a neutral red badge for unread front-desk messages', () => {

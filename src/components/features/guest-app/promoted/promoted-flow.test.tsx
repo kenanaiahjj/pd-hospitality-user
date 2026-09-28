@@ -85,7 +85,7 @@ describe('promoted room QR surfaces', () => {
     expect(screen.getByRole('heading', { name: /all set/i })).toBeInTheDocument();
     expect(screen.getByText(/goes on Room 304/)).toBeInTheDocument();
     // Charging to the room is the line under the places, not a place of its own.
-    expect(screen.getByText(/settle at check-out/)).toBeInTheDocument();
+    expect(screen.getByText(/settles at check-out/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Start exploring/ }));
     await user.click(screen.getByRole('button', { name: 'Back to my stay' }));

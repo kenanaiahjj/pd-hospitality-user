@@ -5761,9 +5761,9 @@ function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry
     </>
   );
 
-  if (!onOpen) return <div className="guest-stay-entry is-static" data-status={entry.status}>{body}</div>;
+  if (!onOpen) return <div className="guest-stay-entry is-static" data-status={entry.status} data-cancelled={entry.cancelled || undefined}>{body}</div>;
 
-  return <button className="guest-stay-entry" type="button" data-status={entry.status} onClick={onOpen}>{body}</button>;
+  return <button className="guest-stay-entry" type="button" data-status={entry.status} data-cancelled={entry.cancelled || undefined} onClick={onOpen}>{body}</button>;
 }
 
 /**

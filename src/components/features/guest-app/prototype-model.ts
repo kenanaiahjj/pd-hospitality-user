@@ -2154,6 +2154,8 @@ export type StayEntry = {
    * card said nothing per-card.
    */
   settlement?: string;
+  /** The real cancellation, even once `status` files it under completed. */
+  cancelled?: boolean;
   /**
    * Which category sold it, for the card's glyph. `kind` was standing in for
    * this and could not tell a massage from a food crawl -- both are
@@ -2305,6 +2307,7 @@ export function getStayEntries(
         never get wrong.
       */
       settlement: describeServiceSettlement(service, booking.roomNumber),
+      cancelled: service.status === 'cancelled',
       paidBy: describeServicePaidBy(service),
       category: service.diningOrder ? 'dining' : categoryOf(service.title),
       date: service.scheduledDate,

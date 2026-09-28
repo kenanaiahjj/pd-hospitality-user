@@ -3282,6 +3282,43 @@ describe('signed-in shell surfaces', () => {
   });
 });
 
+describe('empty and error states in the prototype controls', () => {
+  const openPage = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) => {
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Pages' }));
+    await user.click(screen.getByRole('button', { name }));
+  };
+
+  it('opens an empty state directly, for documenting it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
+
+    await openPage(user, /Room charges · empty bill/);
+    expect(screen.getByRole('region', { name: 'Nothing on your bill yet' })).toBeInTheDocument();
+  });
+
+  it('shows last-known data, marked as such, when the hotel system is down', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
+
+    await openPage(user, /Hotel system down · Room charges/);
+    expect(screen.getByText('Can’t reach the hotel’s system')).toBeInTheDocument();
+    expect(screen.getByText(/as of 6:40 PM/)).toBeInTheDocument();
+    // The bill is still there to read.
+    expect(screen.getByText('Current total')).toBeInTheDocument();
+  });
+
+  it('falls back to the front desk when a booking fails', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
+
+    await openPage(user, /Booking didn.t go through/);
+    expect(screen.getByRole('heading', { name: 'Your booking didn’t go through' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Send it to the front desk instead/ }));
+    expect(screen.getByText(/Could you book it for me/)).toBeInTheDocument();
+  });
+});
+
 describe('orders and requests that go through the front desk', () => {
   const live = () => applyPrototypeStayState('live');
 

@@ -50,6 +50,7 @@ import {
   WifiHigh,
   WifiSlash,
   X,
+  WarningCircle,
 } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
@@ -363,7 +364,9 @@ const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
   the stay has started. It shares the screen because the answer is the same
   place -- arrival services now, the room on arrival day.
 */
-type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out' | 'scanned-early';
+type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out' | 'scanned-early' | 'failed' | 'pms-down' | 'scan-failed';
+/** When the prototype's "hotel system down" data was last in sync. */
+const PMS_LAST_SYNC = '6:40 PM';
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
   'my-stay',
@@ -424,6 +427,43 @@ function HeroIcon({ children, tone = 'plain' }: { children: ReactNode; tone?: st
 
 function Tag({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'positive' | 'warning' | 'dark' }) {
   return <span className={`guest-tag guest-tag--${tone}`}>{children}</span>;
+}
+
+/**
+ * Every empty and error state, one pattern: what is going on, in the guest's
+ * words, then what they can do next. An empty screen is never a dead end, and
+ * an error always offers the front desk when the app cannot finish the job.
+ */
+function StatePanel({ tone = 'empty', icon, title, children, actions }: { tone?: 'empty' | 'error'; icon: ReactNode; title: string; children: ReactNode; actions?: ReactNode }) {
+  return (
+    <section className={`guest-state-panel guest-state-panel--${tone}`} role={tone === 'error' ? 'alert' : undefined} aria-label={title}>
+      <span className="guest-state-panel__icon" aria-hidden="true">{icon}</span>
+      <h2>{title}</h2>
+      <p>{children}</p>
+      {actions ? <div className="guest-state-panel__actions">{actions}</div> : null}
+    </section>
+  );
+}
+
+/**
+ * The hotel's system is out of reach, so this is what the app last heard: the
+ * figures stay readable, marked with when they were true, and the guest can
+ * retry or ask the desk, who can see the live system.
+ */
+function StaleDataNotice({ asOf, onRetry, onAsk }: { asOf: string; onRetry: () => void; onAsk: () => void }) {
+  return (
+    <div className="guest-stale-notice" role="status">
+      <WarningCircle aria-hidden="true" />
+      <div>
+        <b>Can’t reach the hotel’s system</b>
+        <small>{`Showing what we had as of ${asOf}. It may have changed since.`}</small>
+        <span className="guest-stale-notice__actions">
+          <button type="button" onClick={onRetry}>Try again</button>
+          <button type="button" onClick={onAsk}>Ask the front desk</button>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function Notice({ icon, title, children, tone = 'neutral' }: { icon?: ReactNode; title: string; children: ReactNode; tone?: 'neutral' | 'positive' | 'warning' | 'offline' }) {
@@ -1417,6 +1457,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [justEarned, setJustEarned] = useState<string[]>([]);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
   const [online, setOnline] = useState(initialOnline ?? true);
+  /*
+    Conditions the prototype can switch on, for showing and documenting the
+    app's error and empty states: the hotel's system out of reach (the app
+    shows what it last had), the next booking, message or scan failing once,
+    and a catalogue with nothing in it.
+  */
+  const [pmsDown, setPmsDown] = useState(false);
+  const [failNext, setFailNext] = useState({ booking: false, chat: false, scan: false });
+  const [emptyCatalogue, setEmptyCatalogue] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
   const [code, setCode] = useState('');
   const [codeNotice, setCodeNotice] = useState<string | null>(null);
@@ -1696,6 +1745,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setChatDraft('');
     const state = online ? 'Sent' : 'Will send when connected';
     if (attachment?.url.startsWith('blob:')) chatObjectUrlsRef.current.add(attachment.url);
+    if (failNext.chat && online) {
+      setFailNext((current) => ({ ...current, chat: false }));
+      setChatMessages((messages) => [...messages, { from: 'guest', body: messageBody, state: 'Not sent', attachment }]);
+      return;
+    }
     setChatMessages((messages) => [...messages, { from: 'guest', body: messageBody, state, attachment }]);
     if (!online) return;
     setSending(true);
@@ -1756,6 +1810,43 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const sendQuickMessage = (body: string) => sendChatMessage(body);
+
+  /* A message that did not go is sent again as itself, in the same place in the thread. */
+  const retryChatMessage = (index: number) => {
+    const failed = chatMessages[index];
+    if (!failed) return;
+    setAllChatMessages((messages) => messages.filter((message) => message !== failed));
+    sendChatMessage(failed.body, failed.attachment);
+  };
+
+  /* When the app cannot book it, the desk can: the request goes to them, and waits on My Stay. */
+  const sendBookingToDesk = () => {
+    const request: ServiceBooking = {
+      id: `service-desk-${selectedService.id}-${contextBooking.id}`,
+      bookingId: contextBooking.id,
+      serviceId: selectedService.id,
+      title: selectedService.name,
+      scheduledFor: `${formatServiceDay(serviceDate ?? PROTOTYPE_TODAY).long} · ${serviceTime}`,
+      scheduledDate: serviceDate ?? PROTOTYPE_TODAY,
+      scheduledHour: parseClockTime(serviceTime).hour,
+      bookedAt: PROTOTYPE_TODAY,
+      amount: selectedService.price.replace(/^From\s+/i, ''),
+      status: 'confirmed',
+      paymentStatus: 'pending-confirmation',
+      summary: `${serviceTime} · sent to the front desk`,
+      facts: [
+        { label: 'Sent to', value: 'The front desk, who books it for you' },
+        { label: 'Status', value: 'Waiting for the desk to confirm' },
+      ],
+    };
+    setSession((cur) => ({ ...cur, serviceBookings: [request, ...cur.serviceBookings.filter((service) => service.id !== request.id)] }));
+    setChatMessages((messages) => [
+      ...messages,
+      { from: 'guest', body: `The app couldn’t book ${selectedService.name} for ${formatServiceDay(serviceDate ?? PROTOTYPE_TODAY).long} at ${serviceTime}. Could you book it for me?`, state: 'Sent' },
+      { from: 'desk', body: `Of course. We’ll book ${selectedService.name} and confirm here. It shows on My Stay in the meantime.`, state: 'Seen' },
+    ]);
+    goReplacing('chat');
+  };
 
   /* Ordering opens the chat already knowing which venue it is about. */
   const openRestaurantChat = (venue: RestaurantVenue) => {
@@ -1979,8 +2070,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setAllChatMessages((messages) => update(messages).map((message) => (message.bookingId ? message : { ...message, bookingId })));
   };
   /** What this stay's own hotel offers: a Manila-only row stays in Manila. */
-  const stayVenues = RESTAURANTS.filter(offeredIn(contextBooking.city));
-  const stayServices = SERVICES.filter(offeredIn(contextBooking.city));
+  // The prototype's "empty catalogue" condition empties every listing at once.
+  const stayVenues = emptyCatalogue ? [] : RESTAURANTS.filter(offeredIn(contextBooking.city));
+  const stayServices = emptyCatalogue ? [] : SERVICES.filter(offeredIn(contextBooking.city));
   const selectedService = SERVICES.find((service) => service.id === selectedServiceId) ?? SERVICES.find((service) => service.id === 'spa')!;
   const serviceIsRental = selectedService.categoryId === 'rentals';
   const rentalUnit = rentalUnitFor(selectedService.id);
@@ -2272,6 +2364,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       replaceScreen('booking-blocked');
       return;
     }
+    if (failNext.scan) {
+      setFailNext((current) => ({ ...current, scan: false }));
+      setBookingBlockedReason('scan-failed');
+      replaceScreen('booking-blocked');
+      return;
+    }
     setSession((current) => verifyRoomPresence(current, primaryBooking.id, 'scan'));
     replaceScreen('room-qr-midstay');
   };
@@ -2407,6 +2505,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
     if (!online) {
       setBookingBlockedReason('offline');
+      go('booking-blocked');
+      return;
+    }
+    if (pmsDown || failNext.booking) {
+      setFailNext((current) => ({ ...current, booking: false }));
+      setBookingBlockedReason(pmsDown ? 'pms-down' : 'failed');
       go('booking-blocked');
       return;
     }
@@ -2632,6 +2736,58 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   /*
+    Every empty and error state, one tap away, for demoing and documenting
+    them. Each page sets up its stay and conditions from scratch, so the
+    screens show exactly the state named and nothing left over from before.
+  */
+  const openPrototypePage = (setup: { state: PrototypeStayState; patch?: (current: GuestSession) => GuestSession; online?: boolean; pmsDown?: boolean; emptyCatalogue?: boolean; postStayExpired?: boolean; reason?: BlockedReason; category?: MiniAppCategoryId; chat?: ChatMessage[]; screen: ActiveScreen }) => {
+    applyStayState(setup.state);
+    const bookingId = applyPrototypeStayState(setup.state).activeBookingId;
+    if (setup.patch) setSession((current) => setup.patch!(current));
+    setOnline(setup.online ?? true);
+    setPmsDown(Boolean(setup.pmsDown));
+    setEmptyCatalogue(Boolean(setup.emptyCatalogue));
+    setFailNext({ booking: false, chat: false, scan: false });
+    setSimulatePostStayExpired(Boolean(setup.postStayExpired));
+    if (setup.reason) setBookingBlockedReason(setup.reason);
+    if (setup.category) setSelectedCategory(setup.category);
+    if (setup.reason === 'failed' || setup.reason === 'pms-down') setSelectedServiceId('spa');
+    if (setup.chat) setAllChatMessages(setup.chat.map((message) => ({ ...message, bookingId })));
+    setActiveScreen(setup.screen);
+  };
+  const nothingBooked = (current: GuestSession): GuestSession => ({
+    ...current,
+    serviceBookings: [],
+    folioTotal: '₱0',
+    bookings: current.bookings.map((booking) => ({ ...booking, folioTotal: undefined, inAppCharges: undefined })),
+  });
+  const brandNewAccount = (current: GuestSession): GuestSession => ({ ...current, pastStays: [], serviceBookings: [], reviews: [], bookings: [], activeBookingId: undefined });
+  const prototypePages: PrototypePage[] = [
+    { group: 'Empty states', label: 'Home · no booking', detail: 'Signed in, nothing connected', open: () => openPrototypePage({ state: 'account-only', screen: 'stay-overview' }) },
+    { group: 'Empty states', label: 'My Stay · nothing booked', detail: 'A live stay with no services', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'my-stay' }) },
+    { group: 'Empty states', label: 'Room charges · empty bill', detail: 'Nothing posted or booked yet', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'folio' }) },
+    { group: 'Empty states', label: 'Notifications · all caught up', detail: 'Nothing to report', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'notifications' }) },
+    { group: 'Empty states', label: 'Chat · no messages yet', detail: 'The front desk, before the first message', open: () => openPrototypePage({ state: 'live', screen: 'chat' }) },
+    { group: 'Empty states', label: 'Explore · nothing to book', detail: 'Empty catalogue', open: () => openPrototypePage({ state: 'live', emptyCatalogue: true, screen: 'marketplace' }) },
+    { group: 'Empty states', label: 'Category · nothing to book', detail: 'Spa & wellness, empty', open: () => openPrototypePage({ state: 'live', emptyCatalogue: true, category: 'spa', screen: 'category-listing' }) },
+    { group: 'Empty states', label: 'Nearby · no places', detail: 'No independent places listed', open: () => openPrototypePage({ state: 'live', emptyCatalogue: true, screen: 'nearby-recommendations' }) },
+    { group: 'Empty states', label: 'Achievements · new account', detail: 'No points, no badges', open: () => openPrototypePage({ state: 'account-only', patch: brandNewAccount, screen: 'rewards' }) },
+    { group: 'Empty states', label: 'Stay history · no stays', detail: 'A first-time account', open: () => openPrototypePage({ state: 'account-only', patch: brandNewAccount, screen: 'stay-history' }) },
+    { group: 'Error states', label: 'Offline · Home', detail: 'No connection, last-known stay', open: () => openPrototypePage({ state: 'live', online: false, screen: 'stay-overview' }) },
+    { group: 'Error states', label: 'Offline · Room charges', detail: 'Last-known bill', open: () => openPrototypePage({ state: 'live', online: false, screen: 'folio' }) },
+    { group: 'Error states', label: 'Offline · booking', detail: 'A time cannot be held offline', open: () => openPrototypePage({ state: 'live', online: false, reason: 'offline', screen: 'booking-blocked' }) },
+    { group: 'Error states', label: 'Hotel system down · Room charges', detail: `Last known, as of ${PMS_LAST_SYNC}`, open: () => openPrototypePage({ state: 'live', pmsDown: true, screen: 'folio' }) },
+    { group: 'Error states', label: 'Hotel system down · My Stay', detail: `Last known, as of ${PMS_LAST_SYNC}`, open: () => openPrototypePage({ state: 'live', pmsDown: true, screen: 'my-stay' }) },
+    { group: 'Error states', label: 'Hotel system down · booking', detail: 'Falls back to the front desk', open: () => openPrototypePage({ state: 'live', pmsDown: true, reason: 'pms-down', screen: 'booking-blocked' }) },
+    { group: 'Error states', label: 'Booking didn’t go through', detail: 'Retry, or send it to the desk', open: () => openPrototypePage({ state: 'live', reason: 'failed', screen: 'booking-blocked' }) },
+    { group: 'Error states', label: 'Chat message not sent', detail: 'Retry in the thread', open: () => openPrototypePage({ state: 'live', chat: [{ from: 'guest', body: 'Could we get two fresh towels, please?', state: 'Not sent' }], screen: 'chat' }) },
+    { group: 'Error states', label: 'Room scan failed', detail: 'Retry, or the desk opens it', open: () => openPrototypePage({ state: 'arrived', reason: 'scan-failed', screen: 'booking-blocked' }) },
+    { group: 'Error states', label: 'Booking not found', detail: 'The lookup found nothing', open: () => openPrototypePage({ state: 'signed-out', screen: 'no-booking' }) },
+    { group: 'Error states', label: 'Chat closed after checkout', detail: 'Past the 24-hour window', open: () => openPrototypePage({ state: 'closed', postStayExpired: true, screen: 'chat' }) },
+    { group: 'Error states', label: 'Too early to book', detail: 'On-property services before check-in', open: () => openPrototypePage({ state: 'pre-arrival', reason: 'not-arrived', screen: 'booking-blocked' }) },
+  ];
+
+  /*
     Debug affordances. Each one flips a single fact the product normally sets
     through a flow, so a corner inside a stay state can be reached without
     replaying the journey that produces it.
@@ -2839,7 +2995,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 {message.images?.length ? (
                   <ChatMenuGallery images={message.images} onOpen={openChatImagePreview} />
                 ) : null}
-                {message.from === 'guest' && message.state ? <small>{message.state}</small> : null}
+                {message.from === 'guest' && message.state === 'Not sent' ? (
+                  <button type="button" className="guest-message__retry" onClick={() => retryChatMessage(index)}>Not sent · Retry</button>
+                ) : message.from === 'guest' && message.state ? <small>{message.state}</small> : null}
               </div>
             );
           })}
@@ -3485,7 +3643,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const canManageActiveStay = displayBooking.status === 'active' && bookingStatus.status !== 'checked-out';
         const canUpgradeRoom = canOfferRoomUpgrade(displayBooking);
         return (
-          <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system.">
+          <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text={pmsDown ? `As the hotel’s system last reported them, at ${PMS_LAST_SYNC}.` : 'The latest details returned by the hotel system.'}>
+            {pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}
             {/* The card says what the rows below say: "Checked in", not a stale "Confirmed". */}
             <StayCard booking={displayBooking} compact statusLabel={describeStayStatus(displayBooking).label} />
             {canUpgradeRoom || canManageActiveStay ? (
@@ -3679,7 +3838,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           (see promoted/feed-model.ts). Search and categories stay one tap
           away in Browse.
         */
-        const feedEntries = stayFeed(contextBooking);
+        const feedEntries = emptyCatalogue ? [] : stayFeed(contextBooking);
+        if (!feedEntries.length) {
+          return (
+            <div className="guest-stack">
+              <div className="guest-page-title"><h1>Explore</h1></div>
+              <StatePanel icon={<Compass />} title="Nothing to book right now" actions={<><Button className="guest-button guest-button--secondary" type="button" onClick={() => go('nearby-recommendations')}>See places nearby<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('chat')}>Ask the front desk</TextButton></>}>
+                {`${contextBooking.property} has nothing open to book at the moment. Dining, spa and tours come back here as they open; the front desk can still arrange things for you.`}
+              </StatePanel>
+            </div>
+          );
+        }
         const nights = Math.max(1, countNightsBetween(contextBooking.checkIn, contextBooking.checkOut));
         const activeFeedClock = feedClock ?? defaultFeedClock(contextBooking);
         const stayFeedbackIsDue = contextBooking.status === 'active' && activeFeedClock.dayOfStay >= nights;
@@ -3762,6 +3931,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   </button>
                 ))}
               </div>
+              ) : stayVenues.length === 0 ? (
+                <StatePanel icon={<Storefront />} title={`No ${categoryData.title.toLowerCase()} to book right now`} actions={<TextButton onClick={() => go('chat')}>Ask the front desk</TextButton>}>
+                  {`Nothing in this category is open at ${contextBooking.property} at the moment. The front desk can tell you what is coming up.`}
+                </StatePanel>
               ) : (
                 <Notice title={`Nothing under ${selectedSubcategory} at the hotel`}>
                   <TextButton onClick={() => setExploreSubcategory('All')}>{`See all ${stayVenues.length} venues`}</TextButton>
@@ -3813,6 +3986,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   </button>
                 ))}
               </div>
+              ) : categoryServices.length === 0 ? (
+                <StatePanel icon={<Storefront />} title={`No ${categoryData.title.toLowerCase()} to book right now`} actions={<TextButton onClick={() => go('chat')}>Ask the front desk</TextButton>}>
+                  {`Nothing in this category is open at ${contextBooking.property} at the moment. The front desk can tell you what is coming up.`}
+                </StatePanel>
               ) : (
                 <Notice title={`Nothing under ${selectedSubcategory} at the hotel`}>
                   <TextButton onClick={() => setExploreSubcategory('All')}>{`See all ${categoryServices.length} services`}</TextButton>
@@ -3835,6 +4012,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <EstablishmentChatScreen kind="gift" booking={contextBooking} online={online} onChat={(message) => { setChatOrderVenue(LOBBY_SHOP_NAME); setChatDraft(message); go('chat'); }} />;
 
       case 'nearby-recommendations':
+        if (emptyCatalogue) {
+          return (
+            <div className="guest-stack">
+              <div className="guest-page-title"><h1>Nearby recommendations</h1></div>
+              <StatePanel icon={<MapPin />} title="No places listed nearby yet" actions={<TextButton onClick={() => go('chat')}>Ask the front desk for a recommendation</TextButton>}>
+                {`We don’t have independent places listed around ${contextBooking.property} yet. The front desk knows the area and can point you somewhere good.`}
+              </StatePanel>
+            </div>
+          );
+        }
         return <NearbyRecommendationsPage categoryId={selectedCategory} city={contextBooking.city} property={contextBooking.property} now={mapClock} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
 
       case 'nearby-establishment': {
@@ -4225,6 +4412,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
 
+        if (bookingBlockedReason === 'failed' || bookingBlockedReason === 'pms-down') {
+          return (
+            <ScreenIntro icon={<WarningCircle size={30} />} eyebrow={selectedService.name} title={bookingBlockedReason === 'pms-down' ? 'The hotel’s system isn’t answering' : 'Your booking didn’t go through'} text={bookingBlockedReason === 'pms-down' ? 'Bookings go straight into the hotel’s system, and it can’t be reached right now.' : 'Something went wrong on the way to the hotel. Nothing was booked or charged.'}>
+              <Notice title="Nothing was charged">Try again in a moment, or have the front desk book it for you.</Notice>
+              <Button className="guest-button guest-button--primary" type="button" onClick={sendBookingToDesk}>Send it to the front desk instead<ArrowRight aria-hidden="true" /></Button>
+              <TextButton onClick={back}>Try again</TextButton>
+            </ScreenIntro>
+          );
+        }
+
+        if (bookingBlockedReason === 'scan-failed') {
+          return (
+            <ScreenIntro icon={<QrCode size={30} />} eyebrow={contextRoom} title="We couldn’t read the code" text="Hold the phone steady over the card on the desk, with the whole code in the frame and some light on it.">
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => replaceScreen('scan-room-code')}>Try again<ArrowRight aria-hidden="true" /></Button>
+              <TextButton onClick={askFrontDeskToUnlock}>Ask the front desk to open it</TextButton>
+            </ScreenIntro>
+          );
+        }
+
         if (bookingBlockedReason === 'checked-out') {
           return (
             <ScreenIntro
@@ -4274,6 +4480,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <div className="guest-stack guest-my-stay-page">
+            {pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}
             {/* The stay in full lives here; Home carries only the compact reminder. */}
             <UpcomingBookingCard
               booking={contextBooking}
@@ -4588,10 +4795,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           return (
             <div className="guest-stack guest-inbox">
               <div className="guest-inbox__title"><h1>Notifications</h1></div>
-              <div className="guest-inbox__empty">
-                <h2>You’re all caught up</h2>
-                <p>Room updates, confirmations and new charges will show up here.</p>
-              </div>
+              <StatePanel icon={<BellRinging />} title="You’re all caught up">Room updates, booking confirmations and new charges show up here as they happen.</StatePanel>
             </div>
           );
         }
@@ -4719,7 +4923,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom);
         const folioTotal = getRoomChargesTotal(session, contextBooking, contextRoom);
         const visibleCharges = folioCharges;
-        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} off this bill</small></span><CaretRight aria-hidden="true" /></button> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
+        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}{pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} off this bill</small></span><CaretRight aria-hidden="true" /></button> : null}{visibleCharges.length === 0 ? <StatePanel icon={<Receipt />} title="Nothing on your bill yet">{`What you order or book in the stay, and what the hotel posts, shows here as it lands on ${contextRoom}. It all settles at the front desk at checkout.`}</StatePanel> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
       }
 
       case 'chat':
@@ -4826,6 +5030,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 {earned.length} {earned.length === 1 ? 'badge' : 'badges'} earned
               </p>
             </section>
+            {/* A new account: nothing earned yet, so say how the first points and badges come. */}
+            {earned.length === 0 && balance === 0 ? (
+              <StatePanel icon={<Sparkle />} title="Your first points are one stay away">
+                Every charge on your room bill earns points once the front desk settles it, and badges come from what you do on a stay. Scanning your room code earns 1,000 on its own.
+              </StatePanel>
+            ) : null}
 
             <AchievementSections
               balance={balance}
@@ -4911,8 +5121,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <div className="guest-stack">
             <div className="guest-page-title">
               <h1>Stay history</h1>
-              <p>{pastStays.length} completed stays · {nights} nights · {lifetime} spent</p>
+              {pastStays.length ? <p>{pastStays.length} completed stays · {nights} nights · {lifetime} spent</p> : null}
             </div>
+            {pastStays.length === 0 ? (
+              <StatePanel icon={<SuitcaseRolling />} title="No stays yet" actions={<Button className="guest-button guest-button--secondary" type="button" onClick={() => go('partner-hotels')}>Explore partner hotels<ArrowRight aria-hidden="true" /></Button>}>
+                Every stay you finish lands here, with its receipt and what you booked, for as long as you want it.
+              </StatePanel>
+            ) : null}
             {pastStays.map((stay) => (
               <HistoryItem
                 key={stay.id}
@@ -5057,6 +5272,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         feedNights={contextBooking ? Math.max(1, countNightsBetween(contextBooking.checkIn, contextBooking.checkOut)) : 0}
         onFeedClockChange={changePrototypeClock}
         onReset={resetPrototype}
+        conditions={{ online, pmsDown, emptyCatalogue, ...failNext }}
+        onToggleCondition={(key) => {
+          if (key === 'online') setOnline((value) => !value);
+          else if (key === 'pmsDown') setPmsDown((value) => !value);
+          else if (key === 'emptyCatalogue') setEmptyCatalogue((value) => !value);
+          else setFailNext((current) => ({ ...current, [key]: !current[key] }));
+        }}
+        onEmptyAccount={() => openPrototypePage({ state: 'account-only', patch: brandNewAccount, screen: 'stay-overview' })}
+        pages={prototypePages}
       />
 
       {roomReadyNotification ? (
@@ -5229,6 +5453,23 @@ const STAY_STATE_SHORT: Record<PrototypeStayState, string> = {
 
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
+type PrototypePage = { group: 'Empty states' | 'Error states'; label: string; detail: string; open: () => void };
+type PrototypeConditions = { online: boolean; pmsDown: boolean; emptyCatalogue: boolean; booking: boolean; chat: boolean; scan: boolean };
+const CONDITION_ROWS: { group: string; rows: { key: keyof PrototypeConditions; label: string; detail: string; onText: string; icon: ReactNode; once?: boolean }[] }[] = [
+  { group: 'Connection', rows: [
+    { key: 'online', label: 'Offline', detail: 'The device has a connection.', onText: 'No connection: last-known data, nothing new booked.', icon: <WifiSlash /> },
+    { key: 'pmsDown', label: 'Hotel system down', detail: 'The hotel’s system answers.', onText: `Showing last-known data, as of ${PMS_LAST_SYNC}.`, icon: <WarningCircle /> },
+  ] },
+  { group: 'Next attempt fails', rows: [
+    { key: 'booking', label: 'Next booking fails', detail: 'Bookings go through.', onText: 'The next booking errors, once.', icon: <Receipt />, once: true },
+    { key: 'chat', label: 'Next chat message fails', detail: 'Messages send.', onText: 'The next message will not send, once.', icon: <ChatCircleDots />, once: true },
+    { key: 'scan', label: 'Next room scan fails', detail: 'The code reads.', onText: 'The next scan cannot read the code, once.', icon: <QrCode />, once: true },
+  ] },
+  { group: 'Catalogue', rows: [
+    { key: 'emptyCatalogue', label: 'Empty catalogue', detail: 'Explore, categories and nearby have content.', onText: 'Explore, categories and nearby are empty.', icon: <Storefront /> },
+  ] },
+];
+
 const CLOCK_HOURS = [
   { value: 8, label: 'Morning', short: '8 AM' },
   { value: 14, label: 'Afternoon', short: '2 PM' },
@@ -5263,6 +5504,10 @@ function PrototypeControls({
   feedNights,
   onFeedClockChange,
   onReset,
+  conditions,
+  onToggleCondition,
+  onEmptyAccount,
+  pages,
 }: {
   online: boolean;
   stayState: PrototypeStayState;
@@ -5291,6 +5536,10 @@ function PrototypeControls({
   feedNights: number;
   onFeedClockChange: (clock: FeedClock) => void;
   onReset: () => void;
+  conditions: PrototypeConditions;
+  onToggleCondition: (key: keyof PrototypeConditions) => void;
+  onEmptyAccount: () => void;
+  pages: PrototypePage[];
 }) {
   /*
     Collapsed by default. This is scaffolding, not part of the product, and as
@@ -5300,7 +5549,7 @@ function PrototypeControls({
   */
   const [open, setOpen] = useState(false);
   /* Kept while the page lives, so reopening lands where the presenter was. */
-  const [tab, setTab] = useState<'state' | 'clock' | 'events'>('state');
+  const [tab, setTab] = useState<'state' | 'clock' | 'events' | 'conditions' | 'pages'>('state');
   /* A downward swipe on the sheet's head closes it, as a phone sheet does. */
   const dragFrom = useRef<number | null>(null);
 
@@ -5419,7 +5668,7 @@ function PrototypeControls({
       </div>
 
       <div className="guest-prototype-tabs" role="tablist" aria-label="Controls">
-        {([['state', 'State'], ['clock', 'Clock'], ['events', 'Events']] as const).map(([id, label]) => (
+        {([['state', 'State'], ['clock', 'Clock'], ['events', 'Events'], ['conditions', 'Conditions'], ['pages', 'Pages']] as const).map(([id, label]) => (
           <button key={id} type="button" role="tab" id={`prototype-tab-${id}`} aria-selected={tab === id} aria-controls={`prototype-panel-${id}`} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}>
             {label}
           </button>
@@ -5506,6 +5755,52 @@ function PrototypeControls({
             <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
               Reset saved session
             </button>
+          </>
+        ) : null}
+
+        {tab === 'conditions' ? (
+          <>
+            {CONDITION_ROWS.map((group) => (
+              <section key={group.group} className="guest-prototype-events" aria-label={group.group}>
+                <h3>{group.group}</h3>
+                {group.rows.map((row) => {
+                  const on = row.key === 'online' ? !conditions.online : conditions[row.key];
+                  return (
+                    <button key={row.key} type="button" className={`guest-prototype-event${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => onToggleCondition(row.key)}>
+                      <span className="guest-prototype-event__icon" aria-hidden="true">{row.icon}</span>
+                      <span className="guest-prototype-event__copy">
+                        <b>{row.label}</b>
+                        <small>{on ? row.onText : row.detail}</small>
+                      </span>
+                      <span className="guest-prototype-event__state">{on ? (row.once ? 'Armed' : 'On') : 'Off'}</span>
+                    </button>
+                  );
+                })}
+              </section>
+            ))}
+            <section className="guest-prototype-events" aria-label="Data">
+              <h3>Data</h3>
+              <button type="button" className="guest-prototype-event" onClick={() => { onEmptyAccount(); setOpen(false); }}>
+                <span className="guest-prototype-event__icon" aria-hidden="true"><Sparkle /></span>
+                <span className="guest-prototype-event__copy"><b>Empty account</b><small>Signed in, with no bookings, charges, badges or stays.</small></span>
+              </button>
+            </section>
+          </>
+        ) : null}
+
+        {tab === 'pages' ? (
+          <>
+            {(['Empty states', 'Error states'] as const).map((group) => (
+              <section key={group} className="guest-prototype-events" aria-label={group}>
+                <h3>{group}</h3>
+                {pages.filter((page) => page.group === group).map((page) => (
+                  <button key={page.label} type="button" className="guest-prototype-event" onClick={() => { page.open(); setOpen(false); }}>
+                    <span className="guest-prototype-event__icon" aria-hidden="true">{group === 'Empty states' ? <Sparkle /> : <WarningCircle />}</span>
+                    <span className="guest-prototype-event__copy"><b>{page.label}</b><small>{page.detail}</small></span>
+                  </button>
+                ))}
+              </section>
+            ))}
           </>
         ) : null}
       </div>

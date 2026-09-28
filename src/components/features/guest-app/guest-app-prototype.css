@@ -8985,3 +8985,29 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 @media (prefers-reduced-motion: reduce) {
   .guest-partner-detail__booking-link { transition: none; }
 }
+
+/* --------------------------------------------------------------------------
+   Empty and error states: one pattern for both. A quiet icon, what is going
+   on, then what to do. Errors carry the warning tone on the icon only.
+   -------------------------------------------------------------------------- */
+.guest-state-panel { display: grid; justify-items: center; gap: 8px; padding: 36px 20px 28px; border-radius: var(--guest-radius-lg); background: var(--guest-surface); text-align: center; }
+.guest-state-panel__icon { display: grid; width: 48px; height: 48px; margin-bottom: 4px; place-items: center; border-radius: 50%; background: var(--guest-paper); color: var(--guest-muted); }
+.guest-state-panel__icon svg { width: 24px; height: 24px; }
+.guest-state-panel--error .guest-state-panel__icon { color: var(--guest-warning); }
+.guest-state-panel h2 { margin: 0; color: var(--guest-ink); font-size: 17px; font-weight: 700; }
+.guest-state-panel p { max-width: 36ch; margin: 0; color: var(--guest-muted); font-size: 14px; line-height: 1.5; }
+.guest-state-panel__actions { display: grid; width: min(100%, 320px); gap: 6px; margin-top: 10px; }
+
+.guest-stale-notice { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 12px 14px; border-radius: var(--guest-radius-md); background: color-mix(in oklch, var(--guest-warning) 10%, var(--guest-paper)); color: var(--guest-ink); }
+.guest-stale-notice > svg { width: 20px; height: 20px; margin-top: 1px; color: var(--guest-warning); }
+.guest-stale-notice b { display: block; font-size: 14px; font-weight: 700; }
+.guest-stale-notice small { display: block; margin-top: 2px; color: var(--guest-muted); font-size: 13px; line-height: 1.4; }
+.guest-stale-notice__actions { display: flex; gap: 16px; margin-top: 8px; }
+.guest-stale-notice__actions button { padding: 0; border: 0; background: none; color: var(--guest-accent-strong); font-size: 13px; font-weight: 700; cursor: pointer; }
+
+/* A chat message that did not go: the retry sits where "Sent" would. */
+.guest-message__retry { justify-self: end; padding: 0; border: 0; background: none; color: var(--guest-warning); font-size: 12px; font-weight: 700; cursor: pointer; }
+
+/* Condition switches in the prototype controls: a plain On/Off on the right. */
+.guest-prototype-event__state { margin-left: auto; color: var(--guest-muted); font-size: 12px; font-weight: 700; }
+.guest-prototype-event.is-on .guest-prototype-event__state { color: var(--guest-warning); }

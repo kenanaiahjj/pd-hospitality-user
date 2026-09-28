@@ -144,6 +144,23 @@ export const CATEGORY_IMAGES: Record<string, ServiceImageDefinition> = {
   },
 };
 
+/**
+ * Bookings that are not in the catalogue -- a partner shop charged by room QR,
+ * a partner's carriage ride -- keyed by the `serviceId` their booking carries.
+ */
+export const PARTNER_IMAGES: Record<string, ServiceImageDefinition> = {
+  'partner-crafts': {
+    src: 'https://images.unsplash.com/photo-1760182200277-fae00dfb149f?auto=format&fit=crop&w=1200&q=82',
+    alt: 'A crafts stall stacked with woven baskets and wooden pieces',
+    focalPoint: '50% 50%',
+  },
+  kalesa: {
+    src: 'https://images.unsplash.com/photo-1768294104341-662f61da2d49?auto=format&fit=crop&w=1200&q=82',
+    alt: 'Horse-drawn kalesas lined up along a Manila street',
+    focalPoint: '30% 65%',
+  },
+};
+
 export function getPropertyImage(propertyOrName?: string): ServiceImageDefinition {
   if (!propertyOrName) return PROPERTY_IMAGES.default;
   const lower = propertyOrName.toLowerCase();

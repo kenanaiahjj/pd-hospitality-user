@@ -801,6 +801,7 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-partner-crafts',
       bookingId: 'HEN-241109',
+      serviceId: 'partner-crafts',
       scheduledHour: 16,
       // A walk-in purchase, not a booking: nothing was booked ahead.
       title: 'Casa Capiz Crafts',
@@ -845,6 +846,7 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-kalesa-past',
       bookingId: 'HEN-241109',
+      serviceId: 'kalesa',
       categoryId: 'entertainment',
       scheduledHour: 17,
       bookedAt: '2026-11-09',

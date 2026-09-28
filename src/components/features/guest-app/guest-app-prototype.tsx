@@ -176,6 +176,7 @@ import {
 import { findPartnerHotel, PartnerHotelDetail, PartnerHotelDirectory } from './partner-hotels';
 import {
   CATEGORY_IMAGES,
+  PARTNER_IMAGES,
   PROPERTY_IMAGES,
   getServiceImage,
   getPropertyImage,
@@ -5760,7 +5761,9 @@ function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry
   // A booking that knows its own best line (a rental's window, a transfer's route) says it.
   const line = [showWhen ? day : undefined, ...(entry.summary ? [entry.summary] : [time, place])].filter(Boolean).join(' · ');
   // A food tour is still food: the tour photograph is an island beach.
-  const image = entry.serviceId === 'transfer' || entry.serviceId === 'private-car'
+  const image = entry.serviceId && PARTNER_IMAGES[entry.serviceId]
+    ? PARTNER_IMAGES[entry.serviceId]!
+    : entry.serviceId === 'transfer' || entry.serviceId === 'private-car'
     ? getServiceImage('transfer')
     : entry.category === 'entertainment' && /food|dining|dinner|breakfast|market/i.test(entry.title)
       ? CATEGORY_IMAGES.dining!
@@ -5771,7 +5774,7 @@ function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry
     <>
       {/* A square photograph, as Places lists a saved place. */}
       <span className="guest-stay-entry__thumb" aria-hidden="true">
-        <Image src={image.src} alt="" fill sizes="48px" />
+        <Image src={image.src} alt="" fill sizes="48px" style={{ objectPosition: image.focalPoint }} />
       </span>
       <span className="guest-stay-entry__body">
         <h2>{entry.title}</h2>

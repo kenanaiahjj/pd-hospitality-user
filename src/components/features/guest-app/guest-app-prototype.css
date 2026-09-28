@@ -8447,6 +8447,9 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   font-weight: 650;
   line-height: 20px;
 }
+/* A cancelled receipt: the figures stay readable, struck because none of it was charged. */
+.guest-summary--void .guest-summary-row b { color: var(--guest-subtle); text-decoration: line-through; }
+
 /* Cancelled reads as void at a glance: a faded photo, muted type, and the
    price struck through because it was never charged. Still tappable -- the
    receipt behind it says what happened. */

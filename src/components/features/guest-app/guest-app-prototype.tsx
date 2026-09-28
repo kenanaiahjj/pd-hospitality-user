@@ -4226,6 +4226,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
 
+        // `status` files a past cancellation under completed; the money story needs the real one.
+        const entryCancelled = entry.cancelled || entry.status === 'cancelled';
+
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
@@ -4242,7 +4245,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             */}
             <section>
               {entry.lines.length > 1 ? <SectionHeading title="Items" /> : null}
-              <div className="guest-summary">
+              <div className={`guest-summary${entryCancelled ? ' guest-summary--void' : ''}`}>
                 {entry.lines.length > 1
                   ? entry.lines.map((line) => (
                       <SummaryRow
@@ -4259,10 +4262,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </section>
 
             <Notice
-              tone={entry.status === 'cancelled' ? 'neutral' : 'positive'}
-              title={entry.status === 'cancelled' ? 'Cancelled' : entry.paidBy === 'card' ? 'Paid up front' : entry.paidBy === 'complimentary' ? 'Complimentary' : 'Charged to your room'}
+              tone={entryCancelled ? 'neutral' : 'positive'}
+              title={entryCancelled ? 'Cancelled' : entry.paidBy === 'card' ? 'Paid up front' : entry.paidBy === 'complimentary' ? 'Complimentary' : 'Charged to your room'}
             >
-              {entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
+              {entryCancelled ? `Nothing was charged to ${contextRoom.toLowerCase()}.` : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
             </Notice>
 
             {/*
@@ -4282,7 +4285,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : (
               <button className="guest-list-row" onClick={() => go('chat')} type="button">
                 <span><ChatCircleDots /></span>
-                <div><b>Ask the front desk</b><small>{entry.status === 'confirmed' ? 'To change or cancel this' : 'About this charge'}</small></div>
+                <div><b>Ask the front desk</b><small>{entry.status === 'confirmed' ? 'To change or cancel this' : entryCancelled ? 'About this booking' : 'About this charge'}</small></div>
                 <CaretRight />
               </button>
             )}

@@ -2,7 +2,7 @@ import { MINI_APP_CATEGORIES, RESTAURANTS, SERVICES } from '../prototype-model';
 import type { MiniAppCategoryId } from '../prototype-model';
 import type { ServiceImageDefinition } from '../service-images';
 import { hasStoryImage, storyImage, storyVideo } from './story-imagery';
-import { venueForService } from './service-venues';
+import { venueForService, whereForService } from './service-venues';
 
 /*
   Curated stories, built from the same catalogue the guest app sells from.
@@ -234,7 +234,7 @@ export const serviceStory = (service: (typeof SERVICES)[number]): Story => {
   return {
     id: `service-${service.id}`,
     title: service.name,
-    subtitle: house.location,
+    subtitle: whereForService(service.id),
     price: service.price,
     cta: 'Book a time',
     cover: frames[0]!,
@@ -370,7 +370,7 @@ export function buildSearchIndex(): SearchableItem[] {
            a supplier agreement. */
         detail: house.name,
         image: storyImage(service.id),
-        where: house.location,
+        where: whereForService(service.id),
         runBy: { name: house.name, kind: house.kind },
         cutoff: service.cutoff,
       };

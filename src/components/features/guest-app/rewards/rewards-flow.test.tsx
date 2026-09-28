@@ -504,7 +504,7 @@ describe('booking with points', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /charge ₱2,400 to room/i }));
 
-    expect(await screen.findByText(/you.re now wellness/i)).toBeInTheDocument();
+    expect(await screen.findByText(/new badge: wellness/i)).toBeInTheDocument();
     expect(screen.getByText(/three spa treatments/i)).toBeInTheDocument();
   });
 
@@ -519,8 +519,8 @@ describe('booking with points', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /charge ₱2,400 to room/i }));
 
-    expect(await screen.findByText(/you.re now spontaneous/i)).toBeInTheDocument();
-    expect(screen.queryByText(/you.re now wellness/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/new badge: spontaneous/i)).toBeInTheDocument();
+    expect(screen.queryByText(/new badge: wellness/i)).not.toBeInTheDocument();
   });
 });
 

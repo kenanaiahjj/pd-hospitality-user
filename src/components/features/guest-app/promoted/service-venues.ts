@@ -141,6 +141,26 @@ export const HOUSE_ACCOUNT = SERVICE_VENUES.find((venue) => venue.kind === 'prop
 export const venueForService = (serviceId: string): ServiceVenue =>
   BY_SERVICE.get(serviceId) ?? HOUSE_ACCOUNT;
 
+/*
+  Where a house-run service actually happens. The property's account sits at
+  the front desk, but a film night is on the pool deck -- quoting the desk as
+  its location sent guests to the lobby for it.
+*/
+const SERVICE_SPOTS: Record<string, string> = {
+  'film-night': 'Pool deck, second floor',
+  music: 'Lobby lounge',
+  'cooking-class': 'Apartment 1B kitchen',
+  reflexology: 'Hilom Spa, fourth floor',
+  trainer: 'Fitness centre',
+  gym: 'Fitness centre',
+  pool: 'Rooftop pool',
+  'meeting-room': 'Mezzanine, meeting rooms',
+};
+
+/** Where to go for a service: its own spot, else its account's desk. */
+export const whereForService = (serviceId: string): string =>
+  SERVICE_SPOTS[serviceId] ?? venueForService(serviceId).location;
+
 /** Service ids with no venue of their own. Empty is the passing state. */
 export const unclaimedServiceIds = (): string[] =>
   SERVICES

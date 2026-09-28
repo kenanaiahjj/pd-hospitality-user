@@ -3278,14 +3278,15 @@ describe('scan discoverability', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('live')} />);
 
-    await user.click(screen.getByRole('button', { name: /Rooftop pool closed until 11:00 AM/ }));
+    // The live stay's clock is 7 PM: the morning pool closure is over, so the
+    // evening's update leads.
+    expect(screen.queryByRole('button', { name: /Rooftop pool closed/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Azotea Rooftop: last seating 10:30 PM/ }));
 
-    // Scoped to the dialog: the compact list now shows the body as a preview,
-    // so the same sentence is on the page twice while the sheet is open.
     const sheet = screen.getByRole('dialog');
     expect(sheet).toBeInTheDocument();
-    expect(within(sheet).getByRole('heading', { name: 'Rooftop pool closed until 11:00 AM' })).toBeInTheDocument();
-    expect(within(sheet).getByText(/Azotea Rooftop remains open for drinks/)).toBeInTheDocument();
+    expect(within(sheet).getByRole('heading', { name: 'Azotea Rooftop: last seating 10:30 PM' })).toBeInTheDocument();
+    expect(within(sheet).getByText(/The bar keeps pouring until midnight/)).toBeInTheDocument();
   });
 
   it('places Next up before Explore Nearby on the live home', () => {

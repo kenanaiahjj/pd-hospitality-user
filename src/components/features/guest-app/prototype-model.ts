@@ -743,8 +743,8 @@ export const MOCK_SESSION: GuestSession = {
       amount: '₱2,400',
       status: 'confirmed',
       provider: 'Hilom Wellness',
-      placeDetail: 'Hilom Spa, 3F',
-      summary: '1:30 PM · 90 min · Hilom Spa, 3F',
+      placeDetail: 'Hilom Spa, fourth floor',
+      summary: '1:30 PM · 90 min · Hilom Spa, 4F',
       facts: [
         { label: 'Duration', value: '90 minutes' },
         { label: 'Therapist', value: 'Assigned on arrival' },
@@ -878,7 +878,7 @@ export const MOCK_SESSION: GuestSession = {
       amount: 'Free',
       status: 'completed',
       paymentStatus: 'complimentary',
-      placeDetail: 'Pool deck',
+      placeDetail: 'Pool deck, second floor',
       facts: [
         { label: 'Seats', value: '2 loungers, held under your name' },
         { label: 'Showing', value: 'A Filipino classic, with subtitles' },
@@ -1516,6 +1516,11 @@ export type PropertyAnnouncement = {
   important: boolean;
   activeFrom: string;
   activeUntil: string;
+  /**
+   * The hours of the day it is true, [from, until), 0-24. "Closed until
+   * 11:00 AM" read at 7 PM is not an update, it is a wrong fact.
+   */
+  hours?: [number, number];
 };
 
 export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
@@ -1527,6 +1532,7 @@ export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
     important: true,
     activeFrom: '2026-11-09',
     activeUntil: '2026-11-12',
+    hours: [0, 11],
   },
   {
     id: 'announcement-breakfast',
@@ -1536,8 +1542,23 @@ export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
     important: true,
     activeFrom: '2026-11-09',
     activeUntil: '2026-11-12',
+    hours: [0, 10],
+  },
+  {
+    id: 'announcement-rooftop-seating',
+    title: 'Azotea Rooftop: last seating 10:30 PM',
+    body: 'The kitchen takes its last table at 10:30 PM tonight. The bar keeps pouring until midnight.',
+    tone: 'neutral',
+    important: true,
+    activeFrom: '2026-11-08',
+    activeUntil: '2026-11-12',
+    hours: [17, 23],
   },
 ];
+
+/** Whether an update is still true at this hour of the prototype clock. */
+export const isAnnouncementLive = (announcement: PropertyAnnouncement, hour: number) =>
+  !announcement.hours || (hour >= announcement.hours[0] && hour < announcement.hours[1]);
 
 /**
  * A stay the guest has finished, with enough detail to answer "what did that
@@ -1556,7 +1577,7 @@ export type PastStayCharge = {
   title: string;
   detail: string;
   amount: string;
-  category: 'Dining' | 'Spa & wellness' | 'Tours' | 'Hotel services';
+  category: 'Dining' | 'Spa & wellness' | 'Tours' | 'Rentals' | 'Shopping' | 'Hotel services';
   /**
    * The hour it happened, 0-23. Absent where the charge has no single time --
    * three mornings of breakfast, a same-day laundry pickup.
@@ -2050,7 +2071,7 @@ export function toFinishedStay(session: GuestSession, booking: Booking): PastSta
       parent: service.diningOrder?.venueName ?? booking.property,
       title: service.title,
       detail: service.scheduledFor,
-      category: categoryLabelFor(service.title),
+      category: categoryLabelFor(service.title, service),
       serviceId: service.serviceId,
       hour: service.scheduledHour,
       amount: service.amount,
@@ -2099,13 +2120,22 @@ function deriveRoomRate(booking: Booking): string {
 }
 
 /** Maps a booked item back to the receipt heading it belongs under. */
-function categoryLabelFor(title: string): PastStayCharge['category'] {
-  const categoryId = SERVICES.find((service) => service.name === title)?.categoryId
-    ?? (RESTAURANTS.some((venue) => venue.name === title) ? 'dining' : 'services');
+/*
+  What a receipt groups a charge under. Tours, rentals and a partner shop's
+  purchase all used to fall into "Hotel services", which made that line the
+  biggest on the bill and the least informative.
+*/
+function categoryLabelFor(title: string, service?: Pick<ServiceBooking, 'categoryId' | 'items' | 'place'>): PastStayCharge['category'] {
+  const categoryId = service?.categoryId
+    ?? SERVICES.find((item) => item.name === title)?.categoryId
+    ?? (RESTAURANTS.some((venue) => venue.name === title) ? 'dining' : undefined);
 
   if (categoryId === 'dining') return 'Dining';
   if (categoryId === 'spa') return 'Spa & wellness';
   if (categoryId === 'entertainment') return 'Tours';
+  if (categoryId === 'rentals') return 'Rentals';
+  // Itemised and bought somewhere else: a purchase, not a hotel service.
+  if (service?.items?.length && service.place) return 'Shopping';
   return 'Hotel services';
 }
 
@@ -2632,7 +2662,9 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
   const notifications: GuestNotification[] = [];
   const room = booking.roomNumber ? `Room ${booking.roomNumber}` : 'your room';
 
-  if (describeRoomAssignment(booking).state === 'ready') {
+  // News only until the guest is in: once the room is scanned, "collect your
+  // key" on checkout day was telling them to go and get a key they had.
+  if (describeRoomAssignment(booking).state === 'ready' && !booking.roomVerification && booking.status !== 'completed') {
     notifications.push({
       id: `notification-room-${booking.id}`,
       tone: 'room',
@@ -2656,8 +2688,13 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
     } : {
       id: `notification-service-${service.id}`,
       tone: 'booking',
-      title: `${service.title} confirmed`,
-      body: `${service.scheduledFor} · added to ${room.toLowerCase()}`,
+      title: service.paymentStatus === 'pending-confirmation' ? `${service.title} requested` : `${service.title} confirmed`,
+      // Where the money went, not "added to your room" for every line.
+      body: `${service.scheduledFor} · ${
+        service.paymentStatus === 'pending-confirmation' ? 'awaiting hotel confirmation'
+          : service.paymentStatus === 'complimentary' ? 'complimentary'
+            : service.paymentStatus === 'paid' ? `paid with ${PAYMENT_METHOD_LABELS[service.paymentMethod ?? 'card']}`
+              : `added to ${room.toLowerCase()}`}`,
       time: '1h ago',
       screen: 'my-stay',
     });
@@ -2680,18 +2717,8 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
     });
   }
 
-  // Mirrors the message the front desk seeds into every chat, so tapping
-  // through lands on the message the notification is about.
-  if (booking.status === 'active') {
-    notifications.push({
-      id: `notification-desk-${booking.id}`,
-      tone: 'desk',
-      title: 'Front desk',
-      body: `Good afternoon, ${session.guestName.split(' ')[0] || 'there'}. How can we help with your stay?`,
-      time: 'Yesterday',
-      screen: 'chat',
-    });
-  }
+  // The front desk's standing greeting is not news, so it is not a
+  // notification: it sat unread in the bell for the whole stay.
 
   return notifications;
 }
@@ -2883,13 +2910,26 @@ const shiftIsoDate = (isoDate: string, days: number) =>
  * a stay that has not begun -- up to checkout, three at most. The strip it
  * feeds used to be three fixed chips, one of them a day already gone.
  */
-export function bookableServiceDays(booking: Booking, today: string = PROTOTYPE_TODAY): string[] {
+/*
+  Services that run on set days at a set time. Everything else can be booked
+  any day of the stay. The acoustic sessions were bookable on a Wednesday and
+  film night on any night, against the catalogue's own "Friday–Sunday" and
+  "Saturday".
+*/
+export const SERVICE_SCHEDULES: Record<string, { weekdays: number[]; time: string; label: string }> = {
+  music: { weekdays: [5, 6, 0], time: '6:00 PM', label: 'Friday to Sunday, 6:00 PM' },
+  'film-night': { weekdays: [6], time: '8:00 PM', label: 'Saturdays, 8:00 PM' },
+};
+
+export function bookableServiceDays(booking: Booking, today: string = PROTOTYPE_TODAY, serviceId?: string): string[] {
+  const schedule = serviceId ? SERVICE_SCHEDULES[serviceId] : undefined;
   const days: string[] = [];
   for (
     let day = booking.checkIn > today ? booking.checkIn : today;
     day <= booking.checkOut && days.length < 3;
     day = shiftIsoDate(day, 1)
   ) {
+    if (schedule && !schedule.weekdays.includes(utcDate(day).getUTCDay())) continue;
     days.push(day);
   }
   return days;

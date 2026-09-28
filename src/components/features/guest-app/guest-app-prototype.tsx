@@ -114,6 +114,7 @@ import {
   describeRoomAssignment,
   MINI_APP_CATEGORIES,
   PROPERTY_ANNOUNCEMENTS,
+  isAnnouncementLive,
   PROTOTYPE_TODAY,
   findPastStay,
   summarisePastStay,
@@ -141,6 +142,7 @@ import {
   hoursUntilService,
   parseClockTime,
   SERVICE_TIMES,
+  SERVICE_SCHEDULES,
   countNightsBetween,
   GUEST_PROFILE,
   maskEmail,
@@ -200,6 +202,7 @@ import {
   rankFeed,
   stayContext,
 } from './promoted';
+import { venueForService } from './promoted/service-venues';
 import type { BrowseCategory, FeedAction, FeedClock, FeedEntry } from './promoted';
 import { storyImage } from './promoted/story-imagery';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
@@ -1079,6 +1082,11 @@ function initialsOf(name: string) {
 
 /** The one early check-in slot the prototype offers. */
 const EARLY_CHECK_IN = { time: '11:00 AM', fee: '₱1,500' };
+/** Who runs it, by name where there is one: "Hilom Spa & Wellness", not a contract category. */
+const providerFor = (service: { id: string; operator: string }) => {
+  const venue = venueForService(service.id);
+  return venue.kind === 'property' ? describeServiceProvider(service) : `Run by ${venue.name}`;
+};
 const earlyCheckInBookingId = (bookingId: string) => `service-early-check-in-${bookingId}`;
 /** "Friday · November 20 · 11:00 AM" -> "Friday · November 20", for a line that sits above the time. */
 const withoutTime = (when: string) => when.replace(/\s*·\s*\d{1,2}:\d{2}\s*[AP]M.*$/i, '');
@@ -2255,11 +2263,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     const payment = describeServicePayment(selectedService.price) === 'complimentary'
       ? 'complimentary'
-      : canUseOnPropertyServices(booking) ? 'room' : checkoutPayment === 'room' ? 'room' : 'card';
+      : checkoutPayment === 'pay-now' ? 'card'
+        : canUseOnPropertyServices(booking) || checkoutPayment === 'room' ? 'room' : 'card';
     if (payment === 'card' && (checkoutPayment !== 'pay-now' || !paymentMethod)) return;
 
-    const day = serviceDate ?? bookableServiceDays(booking)[0] ?? PROTOTYPE_TODAY;
-    const { hour } = parseClockTime(serviceTime);
+    const days = bookableServiceDays(booking, PROTOTYPE_TODAY, selectedService.id);
+    if (!days.length) return;
+    const day = serviceDate && days.includes(serviceDate) ? serviceDate : days[0]!;
+    const slotTime = SERVICE_SCHEDULES[selectedService.id]?.time ?? serviceTime;
+    const { hour } = parseClockTime(slotTime);
     /*
       One booking per service per slot, so the id is the slot. It used to be the
       fixture's own `service-hilom-1` whatever was booked -- which silently moved
@@ -2278,18 +2290,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       id,
       bookingId: booking.id,
       title: selectedService.name,
-      scheduledFor: `${formatServiceDay(day).long} · ${serviceTime}`,
+      scheduledFor: `${formatServiceDay(day).long} · ${slotTime}`,
       scheduledDate: day,
       scheduledHour: hour,
       bookedAt: PROTOTYPE_TODAY,
       serviceId: selectedService.id,
+      // A day rental is a window with a return, not a moment.
+      ...(selectedService.categoryId === 'rentals'
+        ? { summary: `${slotTime} · return by 8:00 PM · ${rentalQuantity} ${rentalQuantity === 1 ? rentalUnitFor(selectedService.id).singular : rentalUnitFor(selectedService.id).plural}` }
+        : {}),
       ...(selectedService.categoryId === 'rentals'
         ? { rentalQuantity }
         : { partySize: servicePartySize }),
       /* What is actually charged: points come off before anything sees it. */
       amount: formatPesoAmount(Math.max(0, servicePrice - pesosOff(appliedPoints))),
       status: 'confirmed',
-      provider: describeServiceProvider(selectedService),
+      provider: providerFor(selectedService),
       paymentStatus: payment === 'room' ? 'charged-to-room' : payment === 'card' ? 'paid' : 'complimentary',
       paymentMethod: payment === 'room' ? 'room' : payment === 'card' ? paymentMethod ?? 'card' : undefined,
     };
@@ -2997,7 +3013,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={feedClock?.hour ?? 19} />;
 
       case 'partner-hotels':
         return <PartnerHotelDirectory onOpenHotel={openPartnerHotel} />;
@@ -3550,7 +3566,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {selectedCategory === 'dining' ? (
               <>
               <SectionHeading title="At the hotel" />
-              <p className="guest-catalog-section-description">Dining available at The Henry Hotel Manila.</p>
+              <p className="guest-catalog-section-description">Dining available at {contextBooking.property}.</p>
               {visibleVenues.length ? (
               <div className="guest-food-restaurant-list guest-catalog-option-list">
                 {visibleVenues.map((res) => (
@@ -3591,7 +3607,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : (
               <>
               <SectionHeading title="At the hotel" />
-              <p className="guest-catalog-section-description">{categoryData.title} available at The Henry Hotel Manila.</p>
+              <p className="guest-catalog-section-description">{categoryData.title} available at {contextBooking.property}.</p>
               {visibleServices.length ? (
               <div className="guest-stack guest-catalog-option-list" style={{ gap: '16px' }}>
                 {visibleServices.map((service) => (
@@ -3868,23 +3884,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => openServiceBooking('spa')} onChat={() => go('chat')} />;
 
       case 'service-booking': {
-        const days = bookableServiceDays(contextBooking);
+        const days = bookableServiceDays(contextBooking, PROTOTYPE_TODAY, selectedService.id);
         const day = serviceDate && days.includes(serviceDate) ? serviceDate : days[0];
-        const provider = describeServiceProvider(selectedService);
+        const schedule = SERVICE_SCHEDULES[selectedService.id];
+        // Party size only where it changes the booking: a table, a treatment, a tour.
+        const asksPartySize = ['spa', 'entertainment', 'dining'].includes(selectedService.categoryId);
+        const provider = providerFor(selectedService);
         const rentalRate = selectedService.price.replace(/\s*\/\s*day$/i, '').trim();
         const rentalRateLabel = `${rentalRate} / ${rentalUnit.singular} / day`;
         const chargeToRoom = canUseOnPropertyServices(contextBooking);
-        const ready = servicePayment === 'complimentary'
-          || chargeToRoom
-          || checkoutPayment === 'room'
-          || (checkoutPayment === 'pay-now' && Boolean(paymentMethod));
-        const submitLabel = servicePayment === 'complimentary'
+        // Room by default once the room is verified; paying now is always on offer.
+        const payChoice = checkoutPayment ?? (chargeToRoom ? 'room' : null);
+        const ready = Boolean(day) && (servicePayment === 'complimentary'
+          || payChoice === 'room'
+          || (payChoice === 'pay-now' && Boolean(paymentMethod)));
+        const submitLabel = !day
+          ? 'Not on during your stay'
+          : servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
-          : chargeToRoom
-            ? `Confirm and charge ${serviceCharge} to room`
-            : !ready
+          : !ready
             ? 'Choose how to pay'
-            : checkoutPayment === 'room' ? `Charge ${serviceCharge} to room` : `Pay ${serviceCharge}`;
+            : payChoice === 'room' ? (chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`) : `Pay ${serviceCharge}`;
         return (
           <FormScreen step={chargeToRoom ? 'Confirm booking' : 'Review and pay'} title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
             <div className="guest-field-stack">
@@ -3902,19 +3922,24 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   onChange={(option) => { setServiceDate(option); setOpenServiceField(null); }}
                 />
               </ExpandableField>
-              <ExpandableField
-                label="Time"
-                value={serviceTime}
-                open={openServiceField === 'time'}
-                onToggle={() => setOpenServiceField((field) => field === 'time' ? null : 'time')}
-              >
-                <TimeWheel times={SERVICE_TIMES} value={serviceTime} onChange={setServiceTime} />
-              </ExpandableField>
+              {schedule ? (
+                <SummaryRow label="Time" value={`${schedule.time} · ${schedule.label}`} />
+              ) : (
+                <ExpandableField
+                  label={serviceIsRental ? 'Pick up' : 'Time'}
+                  value={serviceTime}
+                  open={openServiceField === 'time'}
+                  onToggle={() => setOpenServiceField((field) => field === 'time' ? null : 'time')}
+                >
+                  <TimeWheel times={SERVICE_TIMES} value={serviceTime} onChange={setServiceTime} />
+                </ExpandableField>
+              )}
+              {serviceIsRental ? <SummaryRow label="Return" value="By 8:00 PM the same day" /> : null}
               {serviceIsRental ? (
                 <StepperField label={`${rentalUnit.plural.replace(/^./, (letter) => letter.toUpperCase())} to rent`} unit={rentalUnit.singular} value={rentalQuantity} min={1} max={8} onChange={setRentalQuantity} />
-              ) : (
+              ) : asksPartySize ? (
                 <StepperField label="Guests" unit="guest" value={servicePartySize} min={1} max={Math.max(2, contextBooking.guestCount)} onChange={setServicePartySize} />
-              )}
+              ) : null}
             </div>
             <div className="guest-summary">
               <SummaryRow label="Category" value={selectedService.category} />
@@ -3931,21 +3956,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {servicePayment === 'complimentary' ? null : (
               <>
                 <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={appliedPoints} onChange={setAppliedPoints} />
-                {chargeToRoom ? (
-                  <Notice title={`Added to Room ${contextBooking.roomNumber} when you confirm`}>
-                    The remaining balance goes to your room folio and is settled at checkout.
-                  </Notice>
-                ) : (
-                  <PaymentChoice
-                    allowRoom
-                    provider={provider}
-                    roomNumber={contextBooking.roomNumber}
-                    value={checkoutPayment}
-                    method={paymentMethod}
-                    onChange={setCheckoutPayment}
-                    onMethodChange={setPaymentMethod}
-                  />
-                )}
+                <PaymentChoice
+                  allowRoom
+                  provider={provider}
+                  roomNumber={contextBooking.roomNumber}
+                  value={payChoice}
+                  method={paymentMethod}
+                  onChange={setCheckoutPayment}
+                  onMethodChange={setPaymentMethod}
+                />
               </>
             )}
             <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={confirmService}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
@@ -3975,7 +3994,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           >
             <div className="guest-ticket"><div><small>{withoutTime(slot)}</small><h2>{time}</h2><p>{booked?.title ?? bookedService.name} · {bookingCount}</p></div><Tag>Confirmed</Tag></div>
             <div className="guest-summary">
-              <SummaryRow label="Provider" value={booked?.provider ?? describeServiceProvider(bookedService)} />
+              <SummaryRow label="Provider" value={booked?.provider ?? providerFor(bookedService)} />
               <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? 'Complimentary' : 'Charged to room'} />
             </div>
             <PointsEarned points={booked ? Math.floor(parsePesoAmount(booked.amount) / 100) * 50 : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />
@@ -5443,9 +5462,11 @@ type StayOverviewHomeProps = {
   deskOpen?: boolean;
   /** Opens one booking's receipt, e.g. the early check-in request. */
   onOpenEntry?: (id: string) => void;
+  /** The prototype clock's hour, so time-bound updates stop once they are over. */
+  clockHour?: number;
 };
 
-function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenStay, onRequestRide, deskOpen = false, onOpenEntry }: StayOverviewHomeProps) {
+function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenStay, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -5502,8 +5523,8 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
           )}
         </section>
         {/* One line under the stay: what changed at the property today. */}
-        <AnnouncementsSection booking={booking} />
-        <HotelEssentials booking={booking} />
+        <AnnouncementsSection booking={booking} hour={clockHour} />
+        <HotelEssentials booking={booking} hour={clockHour} />
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" aria-label={`View details for ${confirmedServices[0].title}`} onClick={() => onNavigate('my-stay')}>
           <span className="guest-next-service-card__marker" aria-hidden="true"><HugeiconsIcon icon={HugeCalendarCheckIcon} size={20} strokeWidth={1.75} focusable="false" /></span>
           <span className="guest-next-service-card__details">
@@ -5687,8 +5708,8 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
         <>
           {/* The ready-room card above carries the scan once there is a room; one button, not two. */}
           <UnlockTeaser onScan={roomAssignment.state === 'pending' ? () => onNavigate('scan-room-code') : undefined} />
-          <AnnouncementsSection booking={booking} />
-          <HotelEssentials booking={booking} />
+          <AnnouncementsSection booking={booking} hour={clockHour} />
+          <HotelEssentials booking={booking} hour={clockHour} />
         </>
       ) : null}
       {/* Arrival offers: once the stay has begun the guest is already here. */}
@@ -5786,7 +5807,7 @@ function greetGuest(guestName: string, fallback: string) {
   return first ? `Welcome, ${first}` : fallback;
 }
 
-function AnnouncementsSection({ booking }: { booking?: Booking }) {
+function AnnouncementsSection({ booking, hour = 19 }: { booking?: Booking; hour?: number }) {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<PropertyAnnouncement | null>(null);
   const [showAllUpdates, setShowAllUpdates] = useState(false);
   const relevantAnnouncements = booking
@@ -5794,6 +5815,7 @@ function AnnouncementsSection({ booking }: { booking?: Booking }) {
       announcement.important
       && announcement.activeFrom <= booking.checkOut
       && announcement.activeUntil >= booking.checkIn
+      && isAnnouncementLive(announcement, hour)
     ))
     : [];
 
@@ -6220,7 +6242,7 @@ const ESSENTIALS: Record<string, { wifi: string; password: string; breakfast: st
   Wi-Fi with its password one tap from the clipboard, breakfast, the pool
   (today's closure wins over the usual hours), and when the stay ends.
 */
-function HotelEssentials({ booking }: { booking: Booking }) {
+function HotelEssentials({ booking, hour = 19 }: { booking: Booking; hour?: number }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
@@ -6229,7 +6251,7 @@ function HotelEssentials({ booking }: { booking: Booking }) {
   }, [copied]);
   const facts = ESSENTIALS[booking.city];
   if (!facts) return null;
-  const poolNotice = PROPERTY_ANNOUNCEMENTS.find((item) => item.id === 'announcement-pool' && item.activeFrom <= booking.checkOut && item.activeUntil >= booking.checkIn);
+  const poolNotice = PROPERTY_ANNOUNCEMENTS.find((item) => item.id === 'announcement-pool' && item.activeFrom <= booking.checkOut && item.activeUntil >= booking.checkIn && isAnnouncementLive(item, hour));
   const checkout = new Date(`${booking.checkOut}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const copy = () => {
     try {
@@ -6872,7 +6894,10 @@ function RestaurantMenuScreen({ venue, onOrder, onBack, onNotifications }: { ven
   const suppressPreview = useRef(false);
   const menuImages = getRestaurantMenuImages(venue);
   const currentImage = menuImages[page] ?? menuImages[0];
-  const aboutText = `${venue.description} Settle in for an unhurried meal surrounded by the hotel’s signature garden atmosphere, with thoughtful service and a menu that moves easily from morning plates to evening drinks.`;
+  // The garden line only fits a room you sit down in; it was being added to room service too.
+  const aboutText = /room/i.test(venue.location)
+    ? `${venue.description} Order from the menu and it comes up to your door, day or night.`
+    : `${venue.description} Settle in for an unhurried meal surrounded by the hotel’s signature garden atmosphere, with thoughtful service and a menu that moves easily from morning plates to evening drinks.`;
 
   const openPreview = () => {
     if (suppressPreview.current) {

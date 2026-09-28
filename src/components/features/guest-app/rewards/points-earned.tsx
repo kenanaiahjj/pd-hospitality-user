@@ -38,9 +38,10 @@ export function PointsEarned({ points, badges }: PointsEarnedProps) {
       {badges.map((row) => (
         <div key={row.definition.id} className="points-earned__badge">
           <BadgeMedal badge={row.definition} earned size={64} decorative />
-          <b>You&rsquo;re now {row.definition.name}</b>
+          {/* Named as a badge: "You're now Host" read as a role the guest had been given. */}
+          <b>New badge: {row.definition.name}</b>
           <small>{row.definition.requirement}</small>
-          <span>Explore will lead with this. Change it any time.</span>
+          <span>You&rsquo;ll see more like this in Explore.</span>
         </div>
       ))}
     </div>

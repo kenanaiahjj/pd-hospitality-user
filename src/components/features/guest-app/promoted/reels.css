@@ -256,6 +256,7 @@
   transition: border-color var(--duration-fast, 150ms) ease, background-color var(--duration-fast, 150ms) ease, color var(--duration-fast, 150ms) ease, transform var(--duration-press, 120ms) var(--ease-out, ease);
 }
 .stay-review-form__star svg { width: 23px; height: 23px; }
+.stay-review-form__star.is-lit > span,
 .stay-review-form__star input:checked + span { border-color: oklch(0.83 0.09 83 / 0.65); background: oklch(0.83 0.09 83 / 0.16); color: oklch(0.89 0.09 83); }
 .stay-review-form__star input:focus-visible + span { outline: 2px solid oklch(0.91 0.07 84); outline-offset: 3px; }
 .stay-review-form__star:active > span { transform: scale(0.96); }

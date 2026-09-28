@@ -56,13 +56,14 @@ export function StayReviewForm({
         <legend>Rate your stay</legend>
         <div className="stay-review-form__stars">
           {RATINGS.map((value) => (
-            <label className="stay-review-form__star" key={value}>
+            // Every star up to the rating lights, not only the one tapped: four stars reads as four.
+            <label className={`stay-review-form__star${rating !== null && value <= rating ? ' is-lit' : ''}`} key={value}>
               <input
                 className="guest-visually-hidden"
                 type="radio"
                 name={`${mode}-stay-review-rating`}
                 value={value}
-                aria-label={`${value} stars`}
+                aria-label={`${value} ${value === 1 ? 'star' : 'stars'}`}
                 checked={rating === value}
                 onChange={() => setRating(value)}
               />

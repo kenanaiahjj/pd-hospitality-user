@@ -4,7 +4,7 @@ import { CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useState } from 'react';
 import type { ServiceImageDefinition } from '../service-images';
-import { AskAnswer, AskSuggestions } from './ask-panel';
+import { AskAnswer } from './ask-panel';
 import type { FeedEntry } from './feed-model';
 import { INTENTS, matchIntent, resolveIntent } from './intent-model';
 import { RecommendedRail } from './recommended';

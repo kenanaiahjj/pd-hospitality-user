@@ -6536,7 +6536,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-content: center;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   min-height: 64px;
   padding: 14px 0;
@@ -6550,19 +6550,16 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-my-stay-folio-link__icon {
   display: grid;
   align-self: start;
-  width: 28px;
-  height: 28px;
-  margin-top: -4px;
+  width: 26px;
+  height: 20px;
   place-items: center;
-  border-radius: 50%;
-  background: var(--guest-soft);
-  color: var(--guest-brand);
+  color: var(--guest-accent-strong);
 }
-.guest-my-stay-folio-link__icon svg { width: 18px; height: 18px; }
-.guest-my-stay-folio-link__copy { display: grid; min-width: 0; gap: 3px; }
-.guest-my-stay-folio-link__copy b { font-size: 15px; font-weight: 700; line-height: 20px; }
-.guest-my-stay-folio-link__copy small { color: var(--guest-muted); font-size: 13px; }
-.guest-my-stay-folio-link > svg { width: 18px; color: var(--guest-subtle); }
+.guest-my-stay-folio-link__icon svg { width: 19px; height: 19px; }
+.guest-my-stay-folio-link__copy { display: grid; min-width: 0; gap: 2px; }
+.guest-my-stay-folio-link__copy b { font-size: 14px; font-weight: 700; line-height: 20px; }
+.guest-my-stay-folio-link__copy small { overflow: hidden; color: var(--guest-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-my-stay-folio-link > svg { width: 16px; height: 16px; color: var(--guest-subtle); }
 .guest-my-stay-folio-link:hover { background: var(--guest-sunken); }
 
 .guest-vendor-folio-dialog {

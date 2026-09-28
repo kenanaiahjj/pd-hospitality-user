@@ -4046,7 +4046,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               {started && !checkedOut ? (
                 <button className="guest-my-stay-folio-link" type="button" aria-label="Room charges" onClick={() => go('folio')}>
                   <span className="guest-my-stay-folio-link__icon" aria-hidden="true"><GuestNavIcon icon={HugeReceiptTextIcon} /></span>
-                  <span className="guest-my-stay-folio-link__copy"><b>Room charges</b><small>Everything added to your room so far</small></span>
+                  <span className="guest-my-stay-folio-link__copy"><b>Room charges</b><small>{describeRoomCharges(getRoomCharges(session, contextBooking, contextRoom))}</small></span>
                   <HugeiconsIcon icon={HugeChevronRightIcon} size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />
                 </button>
               ) : null}
@@ -6817,6 +6817,13 @@ function RestaurantMenuScreen({ venue, onOrder, onBack, onNotifications }: { ven
       {previewOpen ? <div className="guest-restaurant-menu-viewer" role="dialog" aria-modal="true" aria-label={`${venue.name} information preview`} onClick={() => setPreviewOpen(false)}><button type="button" className="guest-restaurant-menu-viewer__close" aria-label="Close information preview" onClick={() => setPreviewOpen(false)}><X /></button>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__prev" aria-label="Previous information page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current - 1 + menuImages.length) % menuImages.length); }}><ArrowLeft /></button> : null}<div className="guest-restaurant-menu-viewer__image" onClick={(event) => event.stopPropagation()}><Image src={currentImage} alt={`${venue.name} information preview`} fill sizes="92vw" style={{ transform: `scale(${previewZoom})` }} /></div>{menuImages.length > 1 ? <button type="button" className="guest-restaurant-menu-viewer__next" aria-label="Next information page" onClick={(event) => { event.stopPropagation(); setPage((current) => (current + 1) % menuImages.length); }}><ArrowRight /></button> : null}<div className="guest-restaurant-menu-viewer__zoom"><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.max(1, zoom - 0.25)); }}>−</button><span>{Math.round(previewZoom * 100)}%</span><button type="button" onClick={(event) => { event.stopPropagation(); setPreviewZoom((zoom) => Math.min(2.5, zoom + 0.25)); }}>+</button></div></div> : null}
     </div>
   );
+}
+
+/* A count and the newest line, never the total: the peso figure belongs on the folio, not on My Stay. */
+function describeRoomCharges(charges: ReturnType<typeof getRoomCharges>) {
+  const latest = charges.at(-1);
+  if (!latest) return 'Nothing charged yet';
+  return `${charges.length} ${charges.length === 1 ? 'charge' : 'charges'} · Latest: ${latest.title}`;
 }
 
 function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge: ReturnType<typeof getRoomCharges>[number]; service?: ServiceBooking; roomLabel: string; onQuestion: (message: string) => void }) {

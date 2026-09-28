@@ -2749,6 +2749,16 @@ function bookedAgo(bookedAt: string | undefined, today: string = PROTOTYPE_TODAY
   return new Date(`${bookedAt}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
+/*
+  A notification row has one line for the detail, so "Thursday · November 12"
+  becomes "Thu, Nov 12" -- the long form pushed the charge note off the edge.
+*/
+function shortWhen(when: string): string {
+  return when
+    .replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*day\b\s*·\s*/g, '$1, ')
+    .replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/g, '$1');
+}
+
 export function getNotifications(session: GuestSession, booking?: Booking): GuestNotification[] {
   if (!booking) return [];
 
@@ -2775,7 +2785,7 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
       id: `notification-order-${service.id}`,
       tone: 'booking',
       title: 'Your order is being prepared',
-      body: `${service.diningOrder.venueName} · ${service.diningOrder.fulfillment.scheduledFor}`,
+      body: `${service.diningOrder.venueName} · ${shortWhen(service.diningOrder.fulfillment.scheduledFor)}`,
       time: bookedAgo(service.bookedAt),
       screen: 'stay-entry',
       entryId: service.id,
@@ -2784,7 +2794,7 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
       tone: 'booking',
       title: service.paymentStatus === 'pending-confirmation' ? `${service.title} requested` : `${service.title} confirmed`,
       // Where the money went, not "added to your room" for every line.
-      body: `${service.scheduledFor} · ${
+      body: `${shortWhen(service.scheduledFor)} · ${
         service.paymentStatus === 'pending-confirmation' ? 'awaiting hotel confirmation'
           : service.paymentStatus === 'complimentary' ? 'complimentary'
             : service.paymentStatus === 'paid' ? `paid with ${PAYMENT_METHOD_LABELS[service.paymentMethod ?? 'card']}`
@@ -2806,7 +2816,7 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
       id: `notification-folio-${booking.id}`,
       tone: 'folio',
       title: 'New charge on your room',
-      body: `${room} now stands at ${ledgerTotal}. It settles at checkout.`,
+      body: `${ledgerTotal} on ${room.toLowerCase()} · settles at checkout`,
       time: '2h ago',
       screen: 'folio',
     });

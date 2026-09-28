@@ -1214,7 +1214,9 @@ describe('booking receipt', () => {
     await user.click(screen.getByRole('button', { name: /Kape Manila Caf/ }));
 
     expect(screen.getByRole('heading', { name: /Kape Manila Caf/, level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('Cancelled · not charged')).toBeInTheDocument();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.getByText(/Nothing was charged to room/)).toBeInTheDocument();
+    expect(screen.queryByText('Charged to your room')).toBeNull();
     // Nothing to cancel on a cancelled booking.
     expect(screen.queryByRole('button', { name: /Change or cancel/ })).toBeNull();
   });

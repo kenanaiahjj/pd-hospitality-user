@@ -2274,7 +2274,10 @@ describe('booking the service the guest picked', () => {
 
     await user.click(screen.getByRole('button', { name: /Luggage storage & delivery/ }));
     await user.click(screen.getByRole('button', { name: 'Book Luggage storage & delivery' }));
+    // Back from the confirmation skips the submitted form; opening it again
+    // and confirming the same slot must find the booking already made.
     await user.click(screen.getByRole('button', { name: 'Go back' }));
+    await user.click(screen.getByRole('button', { name: /Luggage storage & delivery/ }));
     await user.click(screen.getByRole('button', { name: 'Book Luggage storage & delivery' }));
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
 
@@ -3264,9 +3267,9 @@ describe('scan discoverability', () => {
 
     expect(screen.getByRole('heading', { name: 'Book a ride' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Trip summary' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'When would you like to leave?' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Now' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Schedule for later' })).toBeInTheDocument();
+    // Before arrival there is no "now": the guest says when they land.
+    expect(screen.queryByRole('button', { name: 'Now' })).toBeNull();
+    expect(screen.getByRole('textbox', { name: /Flight number/ })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Passengers' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Request a ride/ })).toBeInTheDocument();
   });

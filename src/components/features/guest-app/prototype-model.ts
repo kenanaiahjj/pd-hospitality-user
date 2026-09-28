@@ -2450,6 +2450,7 @@ const describeServiceSettlement = (
   // total above the list is not where this one landed.
   if (paidBy === 'card') return `Paid with ${PAYMENT_METHOD_LABELS[service.paymentMethod ?? 'card']}`;
   if (paidBy === 'complimentary') return 'Complimentary';
+  if (service.paymentStatus === 'pending-confirmation') return 'Awaiting hotel confirmation';
   if (service.status === 'completed') return `Completed · charged to ${room}`;
   // Still ahead: the running total already says where this lands.
   return undefined;

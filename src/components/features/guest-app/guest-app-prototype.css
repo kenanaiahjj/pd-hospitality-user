@@ -8419,7 +8419,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.guest-app .guest-my-stay-page .guest-stay-entry__settlement { color: var(--guest-subtle); font-size: 12px; }
+/* The older card named grid areas; inside the body they only spawn stray columns. */
+.guest-app .guest-my-stay-page .guest-stay-entry__settlement { grid-area: auto; color: var(--guest-subtle); font-size: 12px; }
 .guest-app .guest-my-stay-page .guest-stay-entry__amount {
   align-self: start;
   color: var(--guest-ink);

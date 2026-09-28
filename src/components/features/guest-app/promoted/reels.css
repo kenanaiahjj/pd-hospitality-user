@@ -23,7 +23,11 @@
   scrollbar-width: none;
 }
 .reel-feed__scroller::-webkit-scrollbar { display: none; }
-.reel-feed__slot { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+/* Each slot is its own positioning context. The review form's star radios are
+   visually hidden with `position: absolute`; without this they were placed
+   against the whole feed, far below the viewport, and focusing one scrolled the
+   overflow-hidden screen under the feed until it showed nothing but black. */
+.reel-feed__slot { position: relative; height: 100%; scroll-snap-align: start; scroll-snap-stop: always; }
 
 /* --- The floating bar ------------------------------------------------------ */
 .reel-feed__bar {

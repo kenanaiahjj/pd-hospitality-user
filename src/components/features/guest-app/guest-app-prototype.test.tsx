@@ -3267,6 +3267,31 @@ describe('signed-in shell surfaces', () => {
   });
 });
 
+describe('the stay review inside the Explore feed', () => {
+  /*
+    The failure: the star radios are visually hidden with position: absolute.
+    With no positioned slot they were laid out against the whole feed, far
+    below the screen, and focusing one scrolled the overflow-hidden screen
+    until the feed was off it -- a black screen on the first tap.
+  */
+  it('keeps each reel slot a positioning context', () => {
+    const reelStyles = readFileSync(resolve(process.cwd(), 'src/components/features/guest-app/promoted/reels.css'), 'utf8');
+    expect(reelStyles).toMatch(/\.reel-feed__slot\s*\{[^}]*position:\s*relative/);
+  });
+
+  it('rates and sends from the feed without leaving it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="marketplace" initialSession={applyPrototypeStayState('live')} />);
+
+    await user.click(screen.getByRole('radio', { name: '4 stars' }));
+    await user.type(screen.getByRole('textbox', { name: /Anything you’d like the property to know/ }), 'Lovely rooftop dinner.');
+    await user.click(screen.getByRole('button', { name: /Send to the property/ }));
+
+    expect(screen.getByTestId('reel-feed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Thank you' })).toBeInTheDocument();
+  });
+});
+
 describe('design tokens', () => {
   it('never references a custom property the stylesheet does not define', () => {
     /*

@@ -602,7 +602,8 @@ describe('notifications', () => {
 
     const bookings = getNotifications(session, UPCOMING_BOOKING_FIXTURE).filter((n) => n.tone === 'booking');
     expect(bookings).toHaveLength(1);
-    expect(bookings[0]).toMatchObject({ title: 'Hilom signature massage confirmed', screen: 'my-stay' });
+    // Opens the booking it is about, not the list.
+    expect(bookings[0]).toMatchObject({ title: 'Hilom signature massage confirmed', screen: 'stay-entry', entryId: confirmedMassage.id });
   });
 
   it('reports a dining order as in preparation rather than as a booking', () => {
@@ -622,7 +623,7 @@ describe('notifications', () => {
     };
 
     const order = getNotifications(session, UPCOMING_BOOKING_FIXTURE).find((n) => n.title === 'Your order is being prepared');
-    expect(order).toMatchObject({ tone: 'booking', screen: 'my-stay' });
+    expect(order).toMatchObject({ tone: 'booking', screen: 'stay-entry', entryId: 'service-dining-1' });
   });
 
   it('raises a folio charge only for a stay that has started', () => {
@@ -1254,10 +1255,11 @@ describe('room charge ledger', () => {
 
     const charges = getRoomCharges(session, booking, 'Room 304');
 
+    // In the order they happened: laundry at 10:30, dinner at 7:00, room service at 8:00.
     expect(charges.map((charge) => charge.id)).toEqual([
       'posted-transfer',
-      'posted-dining',
       'posted-laundry',
+      'posted-dining',
       'completed-room-service',
     ]);
     expect(getRoomChargesTotal(session, booking, 'Room 304')).toBe('₱5,450');

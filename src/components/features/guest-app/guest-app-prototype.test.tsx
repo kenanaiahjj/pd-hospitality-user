@@ -776,6 +776,8 @@ describe('guest account and entry flows', () => {
     render(<GuestAppPrototype initialScreen="profile" initialSession={MOCK_SESSION} />);
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
+    // Asked first; the sheet's own button signs out.
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Sign out' }));
 
     expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
@@ -1268,8 +1270,9 @@ describe('stay history', () => {
 
     await user.click(screen.getByRole('button', { name: /March 14–17, 2026/ }));
 
-    expect(screen.getByText('Azotea Rooftop')).toBeInTheDocument();
-    expect(screen.getByText('Kape Manila Café')).toBeInTheDocument();
+    // Cebu's own venues, not the Manila hotel's.
+    expect(screen.getByText('Tala Rooftop')).toBeInTheDocument();
+    expect(screen.getByText('Kape Sugbo Café')).toBeInTheDocument();
   });
 });
 
@@ -1753,6 +1756,8 @@ describe('session persistence', () => {
 
     await user.click(screen.getByRole('button', { name: 'Profile' }));
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
+    // Asked first; the sheet's own button signs out.
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Sign out' }));
 
     expect(readStoredSession()).toBeUndefined();
   });
@@ -2299,10 +2304,10 @@ describe('lifecycle gates', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="room-upgrade-confirmation" initialSession={arrivedUnverified} />);
 
-    await user.click(screen.getByRole('button', { name: /Confirm upgrade/ }));
+    await user.click(screen.getByRole('button', { name: /Request upgrade/ }));
 
     expect(screen.getByRole('heading', { name: 'Scan the code in your room' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /Upgrade confirmed/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Upgrade requested/ })).toBeNull();
   });
 
   it('keeps Chat available in the main navigation for every connected stay', () => {
@@ -3264,6 +3269,46 @@ describe('signed-in shell surfaces', () => {
     expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.discover__search\s*\{[\s\S]*?box-shadow:\s*none/);
     expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.deck__stack\s*\{[\s\S]*?aspect-ratio:\s*4 \/ 3/);
     expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.discover__story-ring\s*\{[\s\S]*?padding:\s*1px/);
+  });
+});
+
+describe('orders and requests that go through the front desk', () => {
+  const live = () => applyPrototypeStayState('live');
+
+  it('records a chat order on My Stay and the bill, as the desk would, and keeps chat one surface', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live()} />);
+
+    await openCategory(user, 'Food & Drinks');
+    await user.click(screen.getAllByRole('button', { name: /Apartment 1B/ })[0]!);
+    await user.click(screen.getByRole('button', { name: /Order from Apartment 1B/ }));
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    // Entered from a menu, it is still the ordinary chat: quick actions and all.
+    expect(screen.getByRole('button', { name: /Towels/ })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Message the front desk'), '2 grilled calamari and one ribeye please');
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    expect(screen.getByText(/2 × Crispy Calamari, 1 × Grilled Angus Ribeye/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Go back' }));
+    await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /My Stay/ }));
+    expect(screen.getByText(/ordered through the front desk/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('asks for an upgrade instead of taking it, and charges nothing until the desk approves', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="room-upgrades" initialSession={live()} />);
+
+    await user.click(screen.getAllByRole('button', { name: 'Select room' })[0]!);
+    expect(screen.queryByText(/Room 512/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Request upgrade/ }));
+
+    expect(screen.getByRole('heading', { name: 'Upgrade requested' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View on My Stay' }));
+    expect(screen.getByRole('button', { name: /Room upgrade/ })).toHaveTextContent('Awaiting hotel confirmation');
   });
 });
 

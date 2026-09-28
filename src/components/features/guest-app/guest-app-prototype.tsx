@@ -115,6 +115,8 @@ import {
   PROPERTY_ANNOUNCEMENTS,
   isAnnouncementLive,
   PROTOTYPE_TODAY,
+  shiftIsoDay,
+  shiftServiceBooking,
   findPastStay,
   summarisePastStay,
   MOCK_SESSION,
@@ -126,7 +128,8 @@ import {
   restoreProfileSession,
   toFinishedStay,
   addInAppBookingCharge,
-  applyRoomUpgrade,
+  requestRoomUpgrade,
+  approveRoomUpgrade,
   listingSubcategories,
   matchesListingSubcategory,
   bookableServiceDays,
@@ -1688,7 +1691,43 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ? `Here is the current ${establishment} product catalog. Send the item names and quantities you’re interested in, and we’ll check stock and prices. Since you’ve checked out, the front desk will confirm the total, take payment there, and add the purchase to your stay’s total charges.`
             : `Here is the current ${establishment} product catalog. Send the item names and quantities you would like. The front desk will confirm stock and prices before adding the approved total to ${contextRoom} for settlement at checkout.`
           : 'Thanks. The front desk has received your request.';
-      setChatMessages((messages) => [...messages, { from: 'desk', body: deskReply, state: 'Seen', images: catalogImages }]);
+      /*
+        An order sent through the desk is still an order. With no backend yet,
+        the desk's side is simulated: the items named in the message are posted
+        to the room bill, the way the front desk would, and the order shows on
+        My Stay. A message naming nothing on the menu is not treated as one.
+      */
+      const order = chatOrderVenue && !productCatalogRequest && !checkedOut ? readChatOrder(chatOrderVenue, messageBody) : null;
+      if (order) {
+        const hour = feedClock?.hour ?? 19;
+        const orderBooking: ServiceBooking = {
+          id: `service-chat-${contextBooking.id}-${Date.now()}`,
+          bookingId: contextBooking.id,
+          title: order.venue,
+          scheduledFor: `${formatServiceDay(PROTOTYPE_TODAY).long} · ${clockLabel(`${String(hour).padStart(2, '0')}:00`)}`,
+          scheduledDate: PROTOTYPE_TODAY,
+          scheduledHour: hour,
+          bookedAt: PROTOTYPE_TODAY,
+          amount: order.total,
+          status: 'confirmed',
+          paymentStatus: 'charged-to-room',
+          paymentMethod: 'room',
+          provider: 'Front desk',
+          items: order.items,
+          summary: `${order.items.reduce((sum, item) => sum + item.quantity, 0)} ${order.items.length === 1 && order.items[0]!.quantity === 1 ? 'item' : 'items'} · ordered through the front desk`,
+          facts: [
+            { label: 'Ordered through', value: 'Front desk chat' },
+            { label: 'Your message', value: messageBody },
+            { label: 'Posted by', value: 'The front desk, to your room bill' },
+          ],
+        };
+        setSession((cur) => ({ ...cur, serviceBookings: [orderBooking, ...cur.serviceBookings] }));
+      }
+      // Anything that names no menu item is an ordinary message, answered as one.
+      const reply = order
+        ? `Got it: ${order.items.map((item) => `${item.quantity} × ${item.name}`).join(', ')}. We’ve added ${order.total} to ${contextRoom} for settlement at checkout.`
+        : deskReply;
+      setChatMessages((messages) => [...messages, { from: 'desk', body: reply, state: 'Seen', images: catalogImages }]);
       if (!isChatScreen(activeScreenRef.current)) setHasUnreadChat(true);
       setSending(false);
     }, 850);
@@ -1813,7 +1852,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     go('chat');
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1892,6 +1931,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* Inside the provider's cutoff, a change is the front desk's to make. */
   const canCancelYourself = (entryId: string) => {
     const service = cancellableServiceFor(entryId);
+    if (service.paymentStatus === 'pending-confirmation') return true;
     const cutoffHours = cancellationCutoffHours(cutoffFor(service));
     return cutoffHours !== null && getCancellationState(hoursUntilService(service), cutoffHours) === 'self-service';
   };
@@ -1910,7 +1950,44 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const openNotification = (item: GuestNotification) => {
     setReadNotificationIds((current) => current.includes(item.id) ? current : [...current, item.id]);
+    if (item.entryId) setSelectedStayEntryId(item.entryId);
     go(item.screen);
+  };
+
+  /*
+    The clock's day moves the stay, not only the feed. "Day 2" used to change
+    what Explore showed while My Stay still said check-out was tomorrow; now the
+    stay and its bookings shift so today really is that day of it.
+  */
+  const changePrototypeClock = (clock: FeedClock) => {
+    const booking = primaryBooking;
+    if (booking) {
+      const offset = defaultFeedClock(booking).dayOfStay - clock.dayOfStay;
+      if (offset) {
+        setSession((current) => ({
+          ...current,
+          bookings: current.bookings.map((item) => (item.id === booking.id
+            ? {
+                ...item,
+                checkIn: shiftIsoDay(item.checkIn, offset),
+                checkOut: shiftIsoDay(item.checkOut, offset),
+                roomVerification: item.roomVerification ? { ...item.roomVerification, at: shiftIsoDay(item.roomVerification.at, offset) } : undefined,
+              }
+            : item)),
+          serviceBookings: current.serviceBookings.map((service) => (service.bookingId === booking.id ? shiftServiceBooking(service, offset) : service)),
+        }));
+      }
+    }
+    setFeedClock(clock);
+  };
+
+  /* The desk's side of an upgrade: approve it, then the room is prepared and made ready. */
+  const upgradeAwaitingDesk = primaryBooking?.roomUpgrade?.status === 'requested' ? primaryBooking : undefined;
+  const simulateUpgradeApproved = () => {
+    if (!upgradeAwaitingDesk || !online) return;
+    const id = upgradeAwaitingDesk.id;
+    setSession((current) => approveRoomUpgrade(current, id));
+    window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === id && booking.roomUpgrade?.status === 'preparing' ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500);
   };
 
   const simulateRoomReady = () => {
@@ -2500,6 +2577,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     applyStayState('signed-out');
   };
 
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const signOut = () => {
     /*
       Clearing here as well as letting the write effect persist the anonymous
@@ -2580,7 +2658,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const renderChatScreen = () => {
     const chatDisabled = checkedOutNav && !postStayWindow.deskOpen;
-    const restaurantChat = Boolean(chatOrderVenue);
+    /*
+      One surface. However the chat is reached -- a venue's menu, the gift
+      shop, the tab bar -- it is the same thread with the same controls. The
+      venue an order is for is remembered quietly (so a later "2 calamari"
+      still lands on the right bill) rather than turning this into a
+      different screen without the quick actions.
+    */
     const displayedChatMessages: ChatMessage[] = chatDisabled ? [
       { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
       { from: 'guest', body: 'Could we get two fresh towels, please?', state: 'Seen' },
@@ -2588,10 +2672,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     ] : chatMessages;
     const chatStarted = displayedChatMessages.some((message) => message.from === 'guest');
 
-    const showChatWelcome = !chatStarted && !chatDisabled && !restaurantChat;
+    const showChatWelcome = !chatStarted && !chatDisabled;
     return (
       <div
-        className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''}${restaurantChat ? ' guest-chat--restaurant' : ''} ${chatStarted ? 'guest-chat--conversation' : 'guest-chat--welcome'}`}
+        className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''} ${chatStarted ? 'guest-chat--conversation' : 'guest-chat--welcome'}`}
         data-chat-mode={chatStarted ? 'conversation' : 'welcome'}
         role="region"
         aria-label="Front desk conversation"
@@ -2609,7 +2693,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         {chatDisabled ? <Notice tone="neutral" title="Chat is closed">For help after 24 hours, please contact the hotel directly.</Notice> : null}
         {!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}
 
-        {restaurantChat ? <p className="guest-chat__order-context">Ordering from {chatOrderVenue}</p> : null}
 
         <div className="guest-messages" aria-label="Conversation" aria-live="polite">
           {showChatWelcome ? (
@@ -2679,13 +2762,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         </div>
 
         <div className="guest-chat__dock">
-          {!restaurantChat && !showChatWelcome ? <ChatQuickActions preArrival={!hasStayStarted(contextBooking)} disabled={chatDisabled} onPick={(action) => sendQuickMessage(action.message(contextRoom))} /> : null}
+          {!showChatWelcome ? <ChatQuickActions preArrival={!hasStayStarted(contextBooking)} disabled={chatDisabled} onPick={(action) => sendQuickMessage(action.message(contextRoom))} /> : null}
           <ChatComposer
             disabled={chatDisabled}
             draft={chatDraft}
             onDraftChange={setChatDraft}
-            placeholder={restaurantChat ? 'Type your order…' : undefined}
-            autoFocus={restaurantChat}
             onSubmit={({ body, attachment }) => sendChatMessage(body, attachment)}
           />
         </div>
@@ -3272,12 +3353,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<Bed size={30} />} title="Confirm your room change" text="Your additional room cost will be added to your hotel folio and settled at checkout."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Selected upgrade" value={`${upgrade.name} · Room ${upgrade.roomNumber}`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="Payment method" value="Charge to room at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } setSession((current) => applyRoomUpgrade(current, contextBooking.id, upgrade)); window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500); go('room-upgrade-success'); }}>Confirm upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Request this upgrade" text="The hotel confirms the room and assigns its number. Nothing is charged until they do."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Requested upgrade" value={upgrade.name} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="If approved" value="Added to your room bill, settled at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } setSession((current) => requestRoomUpgrade(current, contextBooking.id, upgrade)); goReplacing('room-upgrade-success'); }}>Request upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
       }
 
       case 'room-upgrade-success': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<CheckCircle size={30} />} title="Upgrade confirmed" text={`Your ${upgrade.name} is being prepared. You can keep using Room ${contextBooking.roomNumber} until the transfer is ready.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.name} · Room number coming soon`} /><SummaryRow label="Additional cost" value={upgrade.price} strong /></div><PointsEarned points={Math.floor(parsePesoAmount(upgrade.price) / 100) * 50} badges={[]} /><Notice title="Your current room stays active">Room {contextBooking.roomNumber} remains available while the hotel prepares your upgrade.</Notice>{primary('Back to home', 'stay-overview')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} title="Upgrade requested" text={`The hotel will confirm your ${upgrade.name} and assign its room number. You keep Room ${contextBooking.roomNumber} until then.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="Requested" value={upgrade.name} /><SummaryRow label="If approved" value={upgrade.price} strong /></div><Notice title="Nothing charged yet">It goes on your room bill once the hotel approves. You can withdraw the request from My Stay until then.</Notice>{primary('View on My Stay', 'my-stay')}</ScreenIntro>;
       }
 
       case 'room-transfer-details': {
@@ -3297,7 +3378,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const canUpgradeRoom = canOfferRoomUpgrade(displayBooking);
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text="The latest details returned by the hotel system.">
-            <StayCard booking={displayBooking} compact />
+            {/* The card says what the rows below say: "Checked in", not a stale "Confirmed". */}
+            <StayCard booking={displayBooking} compact statusLabel={describeStayStatus(displayBooking).label} />
             {canUpgradeRoom || canManageActiveStay ? (
               <section className="guest-booking-management">
                 <SectionHeading title="Manage your stay" />
@@ -3337,7 +3419,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SectionHeading title="This booking" />
               <div className="guest-summary">
                 <SummaryRow label="Status" value={describeStayStatus(displayBooking).label} />
-                <SummaryRow label="Dates" value={`${formatStayDateRange(displayBooking)} · ${countNights(displayBooking)}`} />
+                <SummaryRow label="Dates" value={`${formatStayDateRange(displayBooking)} · ${countNights(displayBooking)} ${countNights(displayBooking) === 1 ? 'night' : 'nights'}`} />
                 <SummaryRow label="Room" value={displayBooking.roomNumber ? `${displayBooking.roomType} · ${displayBooking.roomNumber}` : `${displayBooking.roomType} · assigned at arrival`} />
                 <SummaryRow label="Party" value={describeParty(displayBooking, session)} />
                 <SummaryRow label="Booked through" value={displayBooking.source} />
@@ -3393,7 +3475,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SectionHeading title="Rate" />
               <div className="guest-summary">
                 <SummaryRow label="Room rate" value={displayBooking.roomRate ?? 'Not provided'} />
-                <SummaryRow label="Booked through" value={displayBooking.source} />
+                
                 <SummaryRow label="Payment details" value="Provided by your booking provider" />
               </div>
             </section>
@@ -3642,7 +3724,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'gifts-souvenirs':
-        return <EstablishmentChatScreen kind="gift" booking={contextBooking} online={online} onChat={(message) => { setChatDraft(message); go('chat'); }} />;
+        return <EstablishmentChatScreen kind="gift" booking={contextBooking} online={online} onChat={(message) => { setChatOrderVenue(LOBBY_SHOP_NAME); setChatDraft(message); go('chat'); }} />;
 
       case 'nearby-recommendations':
         return <NearbyRecommendationsPage categoryId={selectedCategory} city={contextBooking.city} property={contextBooking.property} now={mapClock} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
@@ -4484,7 +4566,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             )),
             bookings: cancellable.serviceId === 'early-check-in'
               ? current.bookings.map((booking) => (booking.id === cancellable.bookingId ? { ...booking, earlyCheckIn: undefined } : booking))
-              : current.bookings,
+              : cancellable.serviceId === 'room-upgrade'
+                ? current.bookings.map((booking) => (booking.id === cancellable.bookingId ? { ...booking, roomUpgrade: undefined } : booking))
+                : current.bookings,
             // A room charge comes back off the running total; nothing else touched it.
             folioTotal: paidBy === 'room'
               ? formatPesoAmount(Math.max(0, parsePesoAmount(current.folioTotal) - parsePesoAmount(cancellable.amount)))
@@ -4589,11 +4673,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </button>
               </div>
             </section>
-            <button className="guest-list-row guest-profile-signout" type="button" aria-label="Sign out" onClick={signOut}>
+            <button className="guest-list-row guest-profile-signout" type="button" aria-label="Sign out" onClick={() => setConfirmSignOut(true)}>
               <span><SignOut /></span>
               <div><b>Sign out</b><small>Return to the welcome screen</small></div>
               <CaretRight />
             </button>
+            {/* Asked first: mid-stay, signing out drops the room link and the chat until the guest signs back in. */}
+            {confirmSignOut ? (
+              <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmSignOut(false); }}>
+                <section className="guest-confirm-sheet" role="alertdialog" aria-modal="true" aria-labelledby="guest-signout-title" aria-describedby="guest-signout-text">
+                  <h2 id="guest-signout-title">Sign out of Cabana?</h2>
+                  <p id="guest-signout-text">{primaryBooking && describeStayStatus(primaryBooking).status !== 'checked-out' ? `Your stay at ${primaryBooking.property} stays booked. Sign back in to see it, your room charges and the front desk chat.` : 'Sign back in any time to see your stays.'}</p>
+                  <Button className="guest-button guest-button--primary" type="button" onClick={() => { setConfirmSignOut(false); signOut(); }}>Sign out</Button>
+                  <TextButton onClick={() => setConfirmSignOut(false)}>Stay signed in</TextButton>
+                </section>
+              </div>
+            ) : null}
           </div>
         );
 
@@ -4804,7 +4899,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {frontDeskCharges.length ? (
               <Notice title="Front-desk payment recorded">{`${frontDeskTotal} in additional charges was paid at the front desk and is included in this stay’s total. Room charges were settled at checkout.`}</Notice>
             ) : (
-              <Notice title="Settled at checkout">Every line above was charged to room {stay.roomNumber} and paid when you checked out on {formatPastStayDates(stay).split('–').pop()}.</Notice>
+              <Notice title="Settled at checkout">Every line above was charged to room {stay.roomNumber} and paid when you checked out on {new Date(`${stay.checkOut}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.</Notice>
             )}
           </div>
         );
@@ -4832,6 +4927,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onSimulateRoomAssignment={simulateRoomAssignment}
         canSimulateRoomAssignment={Boolean(eligibleRoomAssignBooking)}
         onSimulateRoomReady={simulateRoomReady}
+        onSimulateUpgradeApproved={simulateUpgradeApproved}
+        canSimulateUpgradeApproved={Boolean(upgradeAwaitingDesk)}
         canSimulateRoomReady={Boolean(eligibleRoomReadyBooking)}
         roomVerified={Boolean(primaryBooking?.roomVerification)}
         onToggleRoomVerified={toggleRoomVerified}
@@ -4848,7 +4945,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onTogglePostStayExpired={() => setSimulatePostStayExpired((expired) => !expired)}
         feedClock={contextBooking ? feedClock ?? defaultFeedClock(contextBooking) : undefined}
         feedNights={contextBooking ? Math.max(1, countNightsBetween(contextBooking.checkIn, contextBooking.checkOut)) : 0}
-        onFeedClockChange={setFeedClock}
+        onFeedClockChange={changePrototypeClock}
         onReset={resetPrototype}
       />
 
@@ -5036,6 +5133,8 @@ function PrototypeControls({
   onSimulateRoomAssignment,
   canSimulateRoomAssignment,
   onSimulateRoomReady,
+  onSimulateUpgradeApproved,
+  canSimulateUpgradeApproved,
   canSimulateRoomReady,
   roomVerified,
   onToggleRoomVerified,
@@ -5061,6 +5160,8 @@ function PrototypeControls({
   onSimulateRoomAssignment: () => void;
   canSimulateRoomAssignment: boolean;
   onSimulateRoomReady: () => void;
+  onSimulateUpgradeApproved: () => void;
+  canSimulateUpgradeApproved: boolean;
   canSimulateRoomReady: boolean;
   roomVerified: boolean;
   onToggleRoomVerified: () => void;
@@ -5161,6 +5262,7 @@ function PrototypeControls({
   const events: { group: string; icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string }[] = [
     { group: 'PMS events', icon: <Ticket />, label: 'Simulate room assignment', detail: 'The PMS assigns a room to the upcoming stay.', onClick: onSimulateRoomAssignment, unavailable: offline ?? (canSimulateRoomAssignment ? undefined : 'Needs a stay still waiting for a room') },
     { group: 'PMS events', icon: <BellRinging />, label: 'Simulate room ready', detail: 'Housekeeping marks the assigned room ready.', onClick: onSimulateRoomReady, unavailable: offline ?? (canSimulateRoomReady ? undefined : 'Needs a room that is being prepared') },
+    { group: 'PMS events', icon: <Bed />, label: 'Approve upgrade request', detail: 'The front desk confirms the upgrade and assigns the room.', onClick: onSimulateUpgradeApproved, unavailable: offline ?? (canSimulateUpgradeApproved ? undefined : 'No upgrade requested') },
     { group: 'Gates', icon: <QrCode />, label: roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)', detail: roomVerified ? 'Locks the stay again, so the scan can be run.' : 'Opens on-property services without scanning.', onClick: onToggleRoomVerified, unavailable: canToggleRoomVerified ? undefined : 'Needs a stay with a room' },
     { group: 'Gates', icon: <ClockCountdown />, label: simulatePostStayExpired ? 'Reset 24-hour chat window' : 'Simulate 24 hours after checkout', detail: simulatePostStayExpired ? 'Reopens the front desk after checkout.' : 'Closes the front desk, as a day after checkout.', onClick: onTogglePostStayExpired },
     { group: 'Data', icon: <Receipt />, label: hasHistory ? 'Clear stay history' : 'Seed stay history', detail: hasHistory ? 'As a first-time guest, with no past stays.' : 'Adds past stays to the profile.', onClick: onToggleHistory },
@@ -5484,7 +5586,8 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
         ) : null}
         <section className="guest-home-stay-actions">
           {roomUpgrade ? <div className="guest-stay-hero-card__actions">
-            {roomUpgrade?.status === 'preparing' ? <div className="guest-room-upgrade-status"><b>Room upgrade in progress</b><span>{roomUpgrade.newRoomType} · Room number coming soon</span><p>We&rsquo;re preparing your upgraded room. You can continue using Room {booking.roomNumber} until your new room is ready.</p></div> : null}
+            {roomUpgrade?.status === 'requested' ? <div className="guest-room-upgrade-status"><b>Upgrade requested</b><span>{roomUpgrade.newRoomType} · waiting for the hotel</span><p>Nothing is charged until the hotel confirms and assigns the room. You keep Room {booking.roomNumber} in the meantime.</p></div> : null}
+            {roomUpgrade?.status === 'preparing' ? <div className="guest-room-upgrade-status"><b>Room upgrade approved</b><span>{roomUpgrade.newRoomType} · Room {roomUpgrade.newRoomNumber}</span><p>We&rsquo;re preparing your upgraded room. You can continue using Room {booking.roomNumber} until your new room is ready.</p></div> : null}
             {roomUpgrade?.status === 'ready' ? <div className="guest-room-transfer-preview"><div><small>Current room</small><b>Room {booking.roomNumber} · {booking.roomType}</b><span>Available until your room transfer is completed.</span></div><div><small>New room · Ready</small><b>Room {roomUpgrade.newRoomNumber} · {roomUpgrade.newRoomType}</b><span>Your upgraded room is ready. Complete the transfer before {roomUpgrade.transferDeadline}.</span></div><button className="guest-button guest-button--primary" type="button" onClick={() => onNavigate('room-transfer-details')}>View transfer details<ArrowRight /></button></div> : null}
           </div> : null}
           {/*
@@ -6539,8 +6642,8 @@ const BROWSE_CATEGORIES: BrowseCategory[] = [
 ];
 
 const ROOM_UPGRADES = [
-  { id: 'deluxe-king-512', name: 'Deluxe King Room', type: 'Higher-floor room', features: 'King bed · Bay view · Larger workspace', guests: '2 guests', price: '₱3,600', transfer: 'Ready now · About 15 minutes to transfer', transferDeadline: '6:00 PM today', roomNumber: '512', image: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80' },
-  { id: 'garden-suite-608', name: 'Garden Suite', type: 'Suite upgrade', features: 'King bed · Separate sitting area · Balcony', guests: '3 guests', price: '₱6,000', transfer: 'Ready in about 30 minutes', transferDeadline: '8:00 PM today', roomNumber: '608', image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80' },
+  { id: 'deluxe-king-512', name: 'Deluxe King Room', type: 'Higher-floor room', features: 'King bed · Bay view · Larger workspace', guests: '2 guests', price: '₱3,600', transfer: 'Ready now · About 15 minutes to transfer', transferDeadline: '10:00 AM tomorrow', roomNumber: '512', image: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1000&q=80' },
+  { id: 'garden-suite-608', name: 'Garden Suite', type: 'Suite upgrade', features: 'King bed · Separate sitting area · Balcony', guests: '3 guests', price: '₱6,000', transfer: 'Ready in about 30 minutes', transferDeadline: '10:00 AM tomorrow', roomNumber: '608', image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1000&q=80' },
 ] as const;
 
 /*
@@ -6695,6 +6798,37 @@ const GIFT_PRODUCTS = [
   { group: 'Gift Sets', name: 'Seasonal Manila bundle', price: '₱1,450', availability: 'Limited edition', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=700&q=80' },
 ] as const;
 
+/** One name for the hotel's shop, in the feed and on its own page. */
+const LOBBY_SHOP_NAME = 'The lobby shop';
+
+/*
+  What a chat message orders: the venue's own items it names, with a quantity
+  when one is written in front ("2 calamari", "two tasting menus"). Only items
+  the venue sells, so a "thank you" is never read as an order.
+*/
+const GENERIC_ORDER_WORDS = new Set(['grilled', 'crispy', 'classic', 'fresh', 'wild', 'handmade', 'artisan', 'single', 'origin', 'seasonal', 'cabana', 'henry', 'signature', 'local', 'special', 'house', 'philippine', 'manila']);
+const NUMBER_WORDS: Record<string, number> = { one: 1, a: 1, an: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+function readChatOrder(venueName: string, message: string): { venue: string; items: { id: string; name: string; unitPrice: string; quantity: number }[]; total: string } | null {
+  const catalogue = venueName === LOBBY_SHOP_NAME
+    ? GIFT_PRODUCTS.map((product) => ({ id: slug(product.name), name: product.name, price: product.price }))
+    : (RESTAURANTS.find((venue) => venue.name === venueName)?.menu ?? []).map((item) => ({ id: item.id, name: item.name, price: item.price }));
+  const words = message.toLowerCase().replace(/[’']/g, '').split(/[^a-z0-9]+/).filter(Boolean);
+  const singular = (word: string) => word.replace(/(es|s)$/, '');
+  const items = catalogue.flatMap((item) => {
+    // The item's own words -- "calamari", "mango", "postcard" -- as a guest would type them,
+    // plural or not. Descriptive words shared across a menu ("grilled", "crispy") do not count.
+    const keys = item.name.toLowerCase().replace(/[’']/g, '').split(/[^a-z0-9]+/).filter((word) => word.length > 3 && !GENERIC_ORDER_WORDS.has(word));
+    const at = words.findIndex((word) => keys.some((key) => word === key || singular(word) === singular(key)));
+    if (at < 0) return [];
+    // A quantity in the few words before it: "2 grilled calamari", "one ribeye".
+    const count = words.slice(Math.max(0, at - 3), at).reverse().map((word) => Number(word) || NUMBER_WORDS[word] || 0).find(Boolean);
+    return [{ id: item.id, name: item.name, unitPrice: item.price, quantity: count || 1 }];
+  });
+  if (!items.length) return null;
+  const total = formatPesoAmount(items.reduce((sum, item) => sum + parsePesoAmount(item.unitPrice) * item.quantity, 0));
+  return { venue: venueName, items, total };
+}
+
 const MENU_ITEM_IMAGE_URLS: Record<string, string> = {
   'a1b-calamari': 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=600&q=80',
   'a1b-ribeye': 'https://images.unsplash.com/photo-1546964124-0cce460f38ef?auto=format&fit=crop&w=600&q=80',
@@ -6797,7 +6931,7 @@ function ServiceDetail({ kind, booking, online, onBook, onChat }: { kind: 'hotel
 function EstablishmentChatScreen({ kind, venue, booking, online, onChat }: { kind: 'restaurant' | 'gift'; venue?: RestaurantVenue; booking: Booking; online: boolean; onChat: (message: string) => void }) {
   const restaurant = kind === 'restaurant';
   const checkedOut = describeStayStatus(booking).status === 'checked-out';
-  const name = venue?.name ?? 'Cabana Gift Shop';
+  const name = venue?.name ?? LOBBY_SHOP_NAME;
   const provider = venue?.operator === 'Hotel operated' ? 'Operated by the hotel' : `Operated by ${venue?.operator ?? 'the hotel'}`;
   const location = venue?.location ?? `${booking.property} · Hotel lobby`;
   const hours = venue?.hours ?? 'Daily · 8:00 AM–10:00 PM';
@@ -6836,9 +6970,12 @@ function RestaurantMenuScreen({ venue, onOrder, onBack, onNotifications }: { ven
   const menuImages = getRestaurantMenuImages(venue);
   const currentImage = menuImages[page] ?? menuImages[0];
   // The garden line only fits a room you sit down in; it was being added to room service too.
+  // Each venue's own description. A shared "garden atmosphere, morning plates" line fit only Apartment 1B.
   const aboutText = /room/i.test(venue.location)
     ? `${venue.description} Order from the menu and it comes up to your door, day or night.`
-    : `${venue.description} Settle in for an unhurried meal surrounded by the hotel’s signature garden atmosphere, with thoughtful service and a menu that moves easily from morning plates to evening drinks.`;
+    : venue.id === 'apartment-1b'
+      ? `${venue.description} Settle in for an unhurried meal surrounded by the hotel’s signature garden atmosphere, with thoughtful service and a menu that moves easily from morning plates to evening drinks.`
+      : venue.description;
 
   const openPreview = () => {
     if (suppressPreview.current) {
@@ -6918,7 +7055,7 @@ function describeRoomCharges(charges: ReturnType<typeof getRoomCharges>) {
   // Newest by when it happened, not by list order: posted charges and app bookings arrive in separate runs.
   const year = PROTOTYPE_TODAY.slice(0, 4);
   const endOfToday = Date.parse(`${PROTOTYPE_TODAY}T23:59:59`);
-  const at = (charge: (typeof charges)[number]) => Date.parse(`${charge.date} ${year} ${charge.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '12:00 AM'}`) || 0;
+  const at = (charge: (typeof charges)[number]) => Date.parse(`${charge.date} ${year} ${charge.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '11:59 PM'}`) || 0; // no time: the most recent of its day, e.g. an upgrade just approved
   const latest = charges.filter((charge) => at(charge) <= endOfToday).sort((a, b) => at(a) - at(b)).at(-1) ?? charges.at(-1);
   if (!latest) return 'Nothing charged yet';
   return `${charges.length} ${charges.length === 1 ? 'charge' : 'charges'} · Latest: ${latest.title}`;
@@ -6947,7 +7084,7 @@ function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge:
           ...(service?.title.toLowerCase().includes('massage') ? [['Duration', '90 minutes'], ['Service location', 'Spa & Wellness']] : []),
         ];
 
-  return <div className="guest-folio-details"><h3>Order summary</h3><div className="guest-summary">{rows.map(([label, value]) => <SummaryRow key={label} label={label} value={value} />)}<SummaryRow label="Subtotal" value={charge.amount} /><SummaryRow label="Total" value={charge.amount} strong /><SummaryRow label="Payment method" value={`Charge to Room ${roomLabel}`} /><SummaryRow label="Status" value="Charged to room" /><SummaryRow label="Reference" value={`CHG-${charge.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`} /></div><button type="button" className="guest-folio-details__question" onClick={(event) => { event.stopPropagation(); onQuestion(`I have a question about the ${charge.title} charge. Could you help me review it?`); }}>Question about this charge? <ArrowRight /></button></div>;
+  return <div className="guest-folio-details"><h3>Order summary</h3><div className="guest-summary">{rows.map(([label, value]) => <SummaryRow key={label} label={label} value={value} />)}<SummaryRow label="Subtotal" value={charge.amount} /><SummaryRow label="Total" value={charge.amount} strong /><SummaryRow label="Payment method" value={`Charged to ${roomLabel}`} /><SummaryRow label="Status" value="Charged to room" /><SummaryRow label="Reference" value={`CHG-${charge.id.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`} /></div><button type="button" className="guest-folio-details__question" onClick={(event) => { event.stopPropagation(); onQuestion(`I have a question about the ${charge.title} charge. Could you help me review it?`); }}>Question about this charge? <ArrowRight /></button></div>;
 }
 
 /** "March 14–17, 2026" -- one month named once when the stay does not cross one. */

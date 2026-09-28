@@ -242,8 +242,12 @@ export type Booking = {
    */
   earlyCheckIn?: { time: string; fee: string };
   roomUpgrade?: {
-    status: 'preparing' | 'ready';
+    /** Requested by the guest, then approved by the desk, then prepared, then ready. */
+    status: 'requested' | 'preparing' | 'ready';
+    /** Empty until the hotel approves: the room is theirs to assign. */
     newRoomNumber: string;
+    /** The room the offer named, held back until the request is approved. */
+    offeredRoomNumber?: string;
     newRoomType: string;
     additionalCost: string;
     transferDeadline: string;
@@ -539,9 +543,9 @@ export const PAST_STAYS: PastStay[] = [
     roomRate: '₱18,600',
     charges: [
       { id: 'c1', parent: 'The Henry Cebu', title: 'Hilom signature massage', detail: 'Mar 15 · 2:00 PM · 2 guests', amount: '₱4,800', category: 'Spa & wellness', hour: 14, serviceId: 'spa', pointsSource: 'in-app-booking' },
-      { id: 'c2', parent: 'Azotea Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Ninth floor terrace', amount: '₱3,450', category: 'Dining', hour: 19, serviceId: 'rooftop', pointsSource: 'in-app-booking' },
+      { id: 'c2', parent: 'Tala Rooftop', title: 'Dinner for two', detail: 'Mar 15 · 7:30 PM · Rooftop terrace', amount: '₱3,450', category: 'Dining', hour: 19, serviceId: 'rooftop', pointsSource: 'in-app-booking' },
       { id: 'c3', parent: 'The Henry Cebu', title: 'Island day tour', detail: 'Mar 16 · 8:00 AM · 2 guests', amount: '₱7,600', category: 'Tours', hour: 8, serviceId: 'tour', pointsSource: 'in-app-booking' },
-      { id: 'c4', parent: 'Kape Manila Café', title: 'Breakfast · 3 mornings', detail: 'Lobby, beside reception', amount: '₱1,740', category: 'Dining', serviceId: 'cafe', pointsSource: 'in-app-booking' },
+      { id: 'c4', parent: 'Kape Sugbo Café', title: 'Breakfast · 3 mornings', detail: 'Lobby café', amount: '₱1,740', category: 'Dining', serviceId: 'cafe', pointsSource: 'in-app-booking' },
       { id: 'c5', parent: 'The Henry Cebu', title: 'Airport transfer', detail: 'Mar 17 · 11:00 AM', amount: '₱1,200', category: 'Hotel services', hour: 11, serviceId: 'transfer', pointsSource: 'in-app-booking' },
     ],
     total: '₱37,390',
@@ -578,7 +582,7 @@ export const PAST_STAYS: PastStay[] = [
     source: 'Booking.com',
     roomRate: '₱11,200',
     charges: [
-      { id: 'e1', parent: 'The Poolside Bar', title: 'Drinks and snacks', detail: 'May 8 · Second floor pool deck', amount: '₱1,420', category: 'Dining', serviceId: 'poolside-bar', pointsSource: 'in-app-booking' },
+      { id: 'e1', parent: 'The Henry Cebu pool bar', title: 'Drinks and snacks', detail: 'May 8 · Pool deck', amount: '₱1,420', category: 'Dining', serviceId: 'poolside-bar', pointsSource: 'in-app-booking' },
       { id: 'e2', parent: 'The Henry Cebu', title: 'Express foot reflexology', detail: 'May 9 · 4:00 PM', amount: '₱1,200', category: 'Spa & wellness', hour: 16, serviceId: 'reflexology', pointsSource: 'in-app-booking' },
     ],
     total: '₱13,820',
@@ -1973,6 +1977,83 @@ export type RoomUpgradeOffer = {
  * from the confirmation lands on the confirm button again, so a second press
  * has to find the upgrade already there rather than charge it twice.
  */
+export const roomUpgradeRequestId = (bookingId: string) => `service-upgrade-${bookingId}`;
+
+/*
+  An upgrade is asked for, not taken. The request sits on My Stay awaiting the
+  hotel and costs nothing yet; the desk approves it (in the prototype, from the
+  controls), and only then is the room assigned and the difference charged.
+*/
+export function requestRoomUpgrade(
+  session: GuestSession,
+  bookingId: string,
+  upgrade: RoomUpgradeOffer,
+  today: string = PROTOTYPE_TODAY,
+): GuestSession {
+  const booking = session.bookings.find((item) => item.id === bookingId);
+  if (!booking || booking.roomUpgrade || !canUseOnPropertyServices(booking, today)) return session;
+  const request: ServiceBooking = {
+    id: roomUpgradeRequestId(bookingId),
+    bookingId,
+    serviceId: 'room-upgrade',
+    title: 'Room upgrade',
+    scheduledFor: `${utcDate(today).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }).replace(', ', ' · ')}`,
+    scheduledDate: today,
+    bookedAt: today,
+    amount: upgrade.price,
+    status: 'confirmed',
+    paymentStatus: 'pending-confirmation',
+    // The row's second line says what was asked; "awaiting confirmation" is said once, below it.
+    summary: `${upgrade.name} · for the rest of your stay`,
+    facts: [
+      { label: 'Room', value: `${upgrade.name}, assigned by the hotel` },
+      { label: 'If approved', value: `${upgrade.price}, added to your room bill` },
+      { label: 'Transfer', value: upgrade.transfer },
+    ],
+  };
+  return {
+    ...session,
+    bookings: session.bookings.map((item) => (item.id === bookingId
+      ? {
+          ...item,
+          roomUpgrade: {
+            status: 'requested',
+            newRoomNumber: '',
+            offeredRoomNumber: upgrade.roomNumber,
+            newRoomType: upgrade.name,
+            additionalCost: upgrade.price,
+            transferDeadline: upgrade.transferDeadline,
+            transferTime: upgrade.transfer,
+          },
+        }
+      : item)),
+    serviceBookings: [request, ...session.serviceBookings.filter((service) => service.id !== request.id)],
+  };
+}
+
+/** The desk says yes: the room is assigned, the charge lands, the request becomes the charge. */
+export function approveRoomUpgrade(session: GuestSession, bookingId: string, today: string = PROTOTYPE_TODAY): GuestSession {
+  const booking = session.bookings.find((item) => item.id === bookingId);
+  const pending = booking?.roomUpgrade;
+  if (!booking || !pending || pending.status !== 'requested') return session;
+  const withoutRequest = { ...session, serviceBookings: session.serviceBookings.filter((service) => service.id !== roomUpgradeRequestId(bookingId)) };
+  return applyRoomUpgrade(
+    { ...withoutRequest, bookings: withoutRequest.bookings.map((item) => (item.id === bookingId ? { ...item, roomUpgrade: undefined } : item)) },
+    bookingId,
+    {
+      id: slugId(pending.newRoomType),
+      name: pending.newRoomType,
+      roomNumber: pending.offeredRoomNumber ?? '',
+      price: pending.additionalCost,
+      transfer: pending.transferTime,
+      transferDeadline: pending.transferDeadline,
+    },
+    today,
+  );
+}
+
+const slugId = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
 export function applyRoomUpgrade(
   session: GuestSession,
   bookingId: string,
@@ -2034,7 +2115,7 @@ function isChargedToRoom(service: ServiceBooking): boolean {
 export function toFinishedStay(session: GuestSession, booking: Booking): PastStay {
   const charges: PastStayCharge[] = [];
 
-  for (const posted of POSTED_ROOM_CHARGES) {
+  for (const posted of postedChargesFor(booking)) {
     charges.push({
       id: posted.id,
       parent: booking.property,
@@ -2327,7 +2408,7 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
 }
 
 /** An ISO day moved by whole days, in UTC so no timezone slides it. */
-function shiftIsoDay(day: string, days: number): string {
+export function shiftIsoDay(day: string, days: number): string {
   const date = new Date(`${day}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
@@ -2338,7 +2419,7 @@ function shiftIsoDay(day: string, days: number): string {
   new day rather than edited, since "Tonight" or "Yesterday" stop being true
   the moment the day moves.
 */
-function shiftServiceBooking(service: ServiceBooking, days: number): ServiceBooking {
+export function shiftServiceBooking(service: ServiceBooking, days: number): ServiceBooking {
   if (!days) return service;
   const scheduledDate = shiftIsoDay(service.scheduledDate, days);
   const time = service.scheduledFor.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0];
@@ -2650,7 +2731,21 @@ export type GuestNotification = {
   time: string;
   /** Where tapping the notification takes the guest. */
   screen: ScreenId;
+  /** The booking it is about, so the tap opens that booking rather than the list. */
+  entryId?: string;
 };
+
+/*
+  When a booking was made, said the way a notification says it: from the
+  booking's own date, not a fixed "1h ago" on something booked a week back.
+*/
+function bookedAgo(bookedAt: string | undefined, today: string = PROTOTYPE_TODAY): string {
+  if (!bookedAt) return 'Earlier';
+  const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${bookedAt}T00:00:00Z`)) / 86_400_000);
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return new Date(`${bookedAt}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
 
 export function getNotifications(session: GuestSession, booking?: Booking): GuestNotification[] {
   if (!booking) return [];
@@ -2679,8 +2774,9 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
       tone: 'booking',
       title: 'Your order is being prepared',
       body: `${service.diningOrder.venueName} · ${service.diningOrder.fulfillment.scheduledFor}`,
-      time: '10m ago',
-      screen: 'my-stay',
+      time: bookedAgo(service.bookedAt),
+      screen: 'stay-entry',
+      entryId: service.id,
     } : {
       id: `notification-service-${service.id}`,
       tone: 'booking',
@@ -2691,8 +2787,9 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
           : service.paymentStatus === 'complimentary' ? 'complimentary'
             : service.paymentStatus === 'paid' ? `paid with ${PAYMENT_METHOD_LABELS[service.paymentMethod ?? 'card']}`
               : `added to ${room.toLowerCase()}`}`,
-      time: '1h ago',
-      screen: 'my-stay',
+      time: bookedAgo(service.bookedAt),
+      screen: 'stay-entry',
+      entryId: service.id,
     });
   }
 
@@ -3146,6 +3243,24 @@ const POSTED_ROOM_CHARGES: RoomCharge[] = [
   { id: 'posted-laundry', date: 'Nov 10', title: 'Laundry service', detail: 'Nov 10 · 10:30 AM', amount: '₱1,000', category: 'Hotel services', pointsSource: 'property-posted' },
 ];
 
+/*
+  The hotel's own postings, dated from the stay they belong to. They were fixed
+  to 9-10 November, so a stay moved by the prototype clock or a post-stay state
+  showed a transfer on the day before it began. A posting still ahead of today
+  has not happened, so it is not on the bill yet.
+*/
+const POSTED_FROM = '2026-11-09';
+function postedChargesFor(booking: Booking): RoomCharge[] {
+  const offset = Math.round((Date.parse(`${booking.checkIn}T00:00:00Z`) - Date.parse(`${POSTED_FROM}T00:00:00Z`)) / 86_400_000);
+  return POSTED_ROOM_CHARGES.flatMap((charge) => {
+    const original = Date.parse(`${charge.date} ${POSTED_FROM.slice(0, 4)} UTC`);
+    const day = new Date(original + offset * 86_400_000);
+    if (day.toISOString().slice(0, 10) > PROTOTYPE_TODAY) return [];
+    const label = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    return [{ ...charge, date: label, detail: charge.detail.replace(charge.date, label) }];
+  });
+}
+
 /**
  * Every charge sitting on one booking's room: what the property posted, then
  * what the guest booked in the app.
@@ -3158,9 +3273,10 @@ export function getRoomCharges(
   void roomLabel;
   // A stay that has not started cannot have run anything up yet.
   const hasKnownFolio = parsePesoAmount(session.folioTotal || booking.folioTotal || '₱0') > 0;
-  const posted = booking.status === 'upcoming' || !hasKnownFolio ? [] : POSTED_ROOM_CHARGES;
+  const posted = booking.status === 'upcoming' || !hasKnownFolio ? [] : postedChargesFor(booking);
+  // A booking still ahead has not been charged yet: it is on My Stay's Upcoming, not the bill.
   const booked: RoomCharge[] = session.serviceBookings
-    .filter((service) => service.bookingId === booking.id && isChargedToRoom(service))
+    .filter((service) => service.bookingId === booking.id && isChargedToRoom(service) && service.scheduledDate <= PROTOTYPE_TODAY)
     .map((service) => {
       const date = new Date(`${service.scheduledDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const time = service.scheduledFor.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
@@ -3184,7 +3300,10 @@ export function getRoomCharges(
     category: 'Hotel services' as const,
     pointsSource: 'in-app-booking' as const,
   }));
-  return [...posted, ...bookingCharges, ...booked];
+  // In the order they happened, not in the order the systems reported them.
+  const year = booking.checkIn.slice(0, 4);
+  const at = (charge: RoomCharge) => Date.parse(`${charge.date} ${year} ${charge.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '11:59 PM'}`) || 0;
+  return [...posted, ...bookingCharges, ...booked].sort((a, b) => at(a) - at(b));
 }
 
 export const sumRoomCharges = (charges: RoomCharge[]) =>

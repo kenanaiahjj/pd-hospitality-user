@@ -241,9 +241,16 @@ export function NearbyMap({ city, property, propertyImage, places, now, onSelect
             // Anchored at the photo's tail: the chosen pin stands on its place.
             icon: L.divIcon({ className: 'guest-map-marker guest-map-marker--active', html: activeHtml(active.place), iconSize: [56, 56], iconAnchor: [28, 62] }),
             title: active.place.name,
-            zIndexOffset: 800,
+            // Above the hotel: the place the guest chose is the one being read.
+            zIndexOffset: 1200,
           }).addTo(layer);
         }
+        /* A place a few minutes' walk away sits on the hotel's own label. When
+           the chosen pin would cover it, the hotel keeps its pin and drops the
+           name, rather than the two labels printing over each other. */
+        const hotelPoint = map.latLngToLayerPoint(hotel);
+        const activePoint = active ? map.latLngToLayerPoint(active.at) : null;
+        mapNode.current?.classList.toggle('is-hotel-crowded', Boolean(activePoint && Math.abs(activePoint.x - hotelPoint.x) < 130 && activePoint.y - hotelPoint.y < 80 && hotelPoint.y - activePoint.y < 90));
       };
       layoutRef.current = layout;
       map.on('zoomend', layout);

@@ -168,7 +168,7 @@ describe('BadgeShelf', () => {
     // Every badge once: the rarest in the hero, the rest in the grid, held first.
     const tiles = screen.getAllByTestId('badge-tile');
     expect(tiles).toHaveLength(BADGES.length - 1);
-    expect(tiles.slice(0, 12).every((tile) => tile.dataset.state === 'earned')).toBe(true);
+    expect(tiles.slice(0, 11).every((tile) => tile.dataset.state === 'earned')).toBe(true);
   });
 
   /*
@@ -230,12 +230,12 @@ describe('the door from Profile', () => {
     render(<GuestAppPrototype initialSession={MOCK_SESSION} initialScreen="profile" />);
 
     const door = screen.getByRole('button', { name: /achievements/i });
-    expect(within(door).getByText(/13 badges · 31,520 points/)).toBeInTheDocument();
+    expect(within(door).getByText(/12 badges · 31,520 points/)).toBeInTheDocument();
 
     await userEvent.click(door);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Achievements' })).toBeInTheDocument();
-    expect(screen.getByText('13 badges earned')).toBeInTheDocument();
+    expect(screen.getByText('12 badges earned')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Your badges' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Foodie' })).toBeInTheDocument();
     expect(document.querySelector('.guest-achievements-header')).toBeInTheDocument();
@@ -275,9 +275,9 @@ describe('the badge detail page', () => {
     const more = within(detail).queryByRole('button', { name: /^Show all/ });
     if (more) await userEvent.click(more);
     const dinner = within(detail).getByText('Dinner for two').closest('li')!;
-    expect(within(dinner).getByText('Azotea Rooftop')).toBeInTheDocument();
+    expect(within(dinner).getByText('Tala Rooftop')).toBeInTheDocument();
     const drinks = within(detail).getByText('Drinks and snacks').closest('li')!;
-    expect(within(drinks).getByText('The Poolside Bar')).toBeInTheDocument();
+    expect(within(drinks).getByText('The Henry Cebu pool bar')).toBeInTheDocument();
     expect(within(detail).getByText('Unlocked here')).toBeInTheDocument();
   });
 
@@ -310,7 +310,7 @@ describe('the badge detail page', () => {
     await userEvent.click(screen.getByRole('button', { name: /turn this off/i }));
 
     expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
-    expect(screen.getByText('12 badges earned')).toBeInTheDocument();
+    expect(screen.getByText('11 badges earned')).toBeInTheDocument();
   });
 
   /*
@@ -332,7 +332,7 @@ describe('the badge detail page', () => {
     await userEvent.click(screen.getByRole('button', { name: /achievements/i }));
 
     expect(screen.queryByRole('button', { name: 'Foodie' })).not.toBeInTheDocument();
-    expect(screen.getByText('12 badges earned')).toBeInTheDocument();
+    expect(screen.getByText('11 badges earned')).toBeInTheDocument();
   });
 
   it('shows what is left on a badge still in progress without opening it', async () => {
@@ -528,8 +528,10 @@ describe('booking with points', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /charge ₱2,400 to room/i }));
 
+    // Today's massage is the third spa visit that has happened, so Wellness lands with it.
     expect(await screen.findByText(/new badge: spontaneous/i)).toBeInTheDocument();
-    expect(screen.queryByText(/new badge: wellness/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/new badge: wellness/i)).toBeInTheDocument();
+    expect(screen.queryByText(/new badge: culture/i)).not.toBeInTheDocument();
   });
 });
 

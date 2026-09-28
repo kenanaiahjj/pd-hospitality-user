@@ -1,5 +1,6 @@
 import {
   ESTATE_PROPERTIES,
+  PROTOTYPE_TODAY,
   countNightsBetween,
   getRewards,
 } from '../prototype-model';
@@ -154,6 +155,8 @@ export function buildHistory(session: GuestSession): GuestHistory {
     // Nothing the guest called off says anything about who they are.
     if (service.status === 'cancelled') continue;
     if (settled.has(service.bookingId)) continue;
+    // Nor does something still ahead: tomorrow's food crawl has not happened yet.
+    if (service.scheduledDate > PROTOTYPE_TODAY) continue;
 
     booked.push({
       serviceId: service.serviceId,

@@ -85,9 +85,10 @@ describe('derivation', () => {
     expect(row.earned).toBe(false);
   });
 
-  it('holds thirteen badges for the reference guest', () => {
+  it('holds twelve badges for the reference guest', () => {
+    // Tomorrow's massage has not happened, so Wellness waits one step away.
     expect(earnedBadges(MOCK_SESSION).map((row) => row.definition.id)).toEqual([
-      'foodie', 'sundowner', 'night-owl', 'wellness', 'pair', 'weekender',
+      'foodie', 'sundowner', 'night-owl', 'pair', 'weekender',
       'direct-booker', 'switched', 'regular', 'island-hopper', 'homecoming',
       'self-sufficient', 'venue-regular',
     ]);
@@ -96,7 +97,7 @@ describe('derivation', () => {
   it('puts six badges within one step, nearest first', () => {
     expect(nearlyEarnedBadges(MOCK_SESSION).map((row) => row.definition.id)).toEqual([
       // All six are one event away, so they hold their declaration order.
-      'homegrown', 'culture', 'solo', 'spontaneous', 'pre-checked', 'luzon-to-mindanao',
+      'wellness', 'culture', 'solo', 'spontaneous', 'pre-checked', 'luzon-to-mindanao',
     ]);
   });
 

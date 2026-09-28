@@ -1094,6 +1094,9 @@
 .guest-tray-schedule-options button { min-height: 38px; padding: 8px 10px; border: 1px solid var(--guest-line); border-radius: 999px; background: var(--guest-paper); color: var(--guest-ink); font-size: 12px; white-space: nowrap; }
 .guest-tray-schedule-options button.is-active { border-color: var(--guest-accent-strong); background: var(--guest-soft); color: var(--guest-accent-strong); }
 .guest-payment-method-sheet svg { width: 18px; color: var(--guest-brand); }
+.guest-confirm-sheet { display: grid; gap: 12px; width: min(100%, 480px); padding: 22px 20px calc(18px + env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; background: var(--guest-paper); color: var(--guest-ink); box-shadow: var(--shadow-sm); }
+.guest-confirm-sheet h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.guest-confirm-sheet p { margin: 0 0 6px; color: var(--guest-muted); font-size: 14px; line-height: 1.45; }
 .guest-sheet-backdrop { position: fixed; z-index: 1000; inset: 0; display: flex; align-items: flex-end; justify-content: center; background: oklch(0.18 0.02 330 / 0.38); }
 .guest-order-tray { display: flex; width: min(100%, var(--app-column)); max-height: min(94vh, 860px); flex-direction: column; overflow: hidden; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); border-radius: 28px 28px 0 0; background: var(--guest-paper); box-shadow: 0 -12px 36px oklch(0.2 0.02 330 / 0.18); }
 .guest-order-tray__header { position: sticky; z-index: 2; top: -24px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-top: 24px; background: var(--guest-paper); }
@@ -2217,13 +2220,6 @@
   font-weight: 650;
 }
 .guest-chat__response-time { max-width: 52ch; margin: 0 0 0 50px; color: var(--guest-muted); font-size: 12px; line-height: 1.4; }
-.guest-chat--restaurant .guest-chat__context { gap: 0; }
-.guest-chat__order-context {
-  margin: 2px 0 0;
-  color: var(--guest-subtle);
-  font-size: 12px;
-  text-align: center;
-}
 
 .guest-chat__welcome {
   display: grid;
@@ -7575,6 +7571,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 }
 .guest-map-drop svg { width: 15px; height: 15px; transform: rotate(45deg); }
 .guest-place-minimap .guest-map-hotel__label { display: none; }
+/* The chosen place stands on the hotel's name: the pin stays, the name goes. */
+.guest-nearby-map__canvas.is-hotel-crowded .guest-map-hotel__label { display: none; }
 .guest-place-location__body { display: grid; gap: 10px; padding: 16px 18px 18px; }
 .guest-place-location__address,
 .guest-place-location__walk { display: flex; align-items: flex-start; gap: 10px; margin: 0; }

@@ -2,7 +2,10 @@ import {
   PROTOTYPE_TODAY,
   formatPesoAmount,
   getRewards,
+  getRoomCharges,
+  hasStayStarted,
   parsePesoAmount,
+  toFinishedStay,
 } from '../prototype-model';
 import type { GuestSession, PastStay } from '../prototype-model';
 
@@ -61,7 +64,13 @@ export type Reward = {
 export const POINTS_PER_100 = {
   'stay-direct': 70,
   'stay-ota': 20,
-  'in-app-booking': 50,
+  /*
+    Every charge on the bill, one rate, however it got there: booked in the
+    app, ordered through the front desk, or a desk fallback when the app could
+    not take it. Most orders go through the desk, so earning only on in-app
+    bookings paid nothing on most of what a guest spends.
+  */
+  'room-charge': 50,
 } as const;
 
 /** Flat earns that cost the property no cash and save it real desk time. */
@@ -119,17 +128,31 @@ type RoomEarnSource = Extract<PointsEarnSource, 'stay-direct' | 'stay-ota'>;
 const roomRateFor = (stay: PastStay): RoomEarnSource =>
   isDirect(stay.source) ? 'stay-direct' : 'stay-ota';
 
-/** What one settled stay earned: its room at its own rate, then everything on it. */
+/** What one settled stay earned: its room at its own rate, then every charge on its bill. */
 export function earnedForStay(stay: PastStay): number {
   const room = pointsFor(stay.roomRate, POINTS_PER_100[roomRateFor(stay)]);
   const extras = stay.charges.reduce(
-    (sum, charge) => charge.pointsSource === 'in-app-booking'
-      ? sum + pointsFor(charge.amount, POINTS_PER_100['in-app-booking'])
-      : sum,
+    (sum, charge) => sum + pointsFor(charge.amount, POINTS_PER_100['room-charge']),
     0,
   );
   return room + extras;
 }
+
+/**
+ * Points on their way: every line on a stay's running bill, at the one charge
+ * rate. They are confirmed when the front desk settles the stay -- the guest
+ * does not check out in the app, the desk does, so the app shows them as
+ * pending until the backend says the bill is closed.
+ */
+export function pendingPoints(session: GuestSession): number {
+  return session.bookings
+    .filter((booking) => booking.status !== 'completed' && hasStayStarted(booking))
+    .reduce((sum, booking) => sum + getRoomCharges(session, booking, booking.roomNumber ? `Room ${booking.roomNumber}` : 'your room')
+      .reduce((lines, charge) => lines + pointsFor(charge.amount, POINTS_PER_100['room-charge']), 0), 0);
+}
+
+/** What one charge will earn once its stay settles. */
+export const pointsForCharge = (amount: string): number => pointsFor(amount, POINTS_PER_100['room-charge']);
 
 /**
  * What the same stay would have earned booked direct, or nothing to say if it
@@ -159,39 +182,21 @@ export function buildPointsLedger(session: GuestSession): PointsEntry[] {
   }
 
   /*
-    A stay that has settled already counted its services as charges:
-    `toFinishedStay` copies them across and leaves them on the session, so
-    paying for both would pay twice for one massage.
+    A stay the desk has just settled is still a `Booking` rather than an entry
+    in `pastStays`: its bill confirms here, room and charges together. Stays
+    still under way earn nothing yet -- their bill is `pendingPoints`.
   */
   const settled = new Set(session.pastStays.map((stay) => stay.id));
-
   for (const booking of session.bookings) {
-    if (settled.has(booking.id)) continue;
-
-    for (const charge of booking.inAppCharges ?? []) {
-      entries.push({
-        id: `booking-charge-${charge.id}`,
-        date: charge.date,
-        title: charge.title,
-        detail: charge.detail,
-        source: 'in-app-booking',
-        points: pointsFor(charge.amount, POINTS_PER_100['in-app-booking']),
-      });
-    }
-  }
-
-  for (const service of session.serviceBookings) {
-    // Nothing is owed for something the guest called off.
-    if (service.status === 'cancelled') continue;
-    if (settled.has(service.bookingId)) continue;
-
+    if (booking.status !== 'completed' || !booking.checkedOutAt || settled.has(booking.id)) continue;
+    const stay = toFinishedStay(session, booking);
     entries.push({
-      id: `service-${service.id}`,
-      date: service.scheduledDate,
-      title: service.title,
-      detail: service.scheduledFor,
-      source: 'in-app-booking',
-      points: pointsFor(service.amount, POINTS_PER_100['in-app-booking']),
+      id: `stay-${stay.id}`,
+      date: stay.checkOut,
+      title: stay.property,
+      detail: `${stay.nights} ${stay.nights === 1 ? 'night' : 'nights'} · ${stay.source}`,
+      source: roomRateFor(stay),
+      points: earnedForStay(stay),
     });
   }
 

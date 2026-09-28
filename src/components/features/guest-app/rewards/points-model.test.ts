@@ -6,6 +6,7 @@ import {
   affordableRewards,
   buildPointsLedger,
   earnedForStay,
+  pendingPoints,
   pointsAsPesos,
   pointsBalance,
   pointsExpiry,
@@ -15,7 +16,7 @@ import {
 const reward = (id: string) => REWARD_MENU.find((entry) => entry.id === id)!;
 
 describe('earning', () => {
-  it('does not pay points for a charge posted by the property', () => {
+  it('pays the same rate for a charge posted by the property', () => {
     const [posted, ...booked] = PAST_STAYS[0]!.charges;
     const stay = {
       ...PAST_STAYS[0]!,
@@ -25,11 +26,12 @@ describe('earning', () => {
       ],
     };
 
-    // The direct room rate and the remaining four in-app charges still earn.
-    expect(earnedForStay(stay)).toBe(22370 - 2400);
+    // Every line on the bill earns at one rate, however it got there: most
+    // orders go through the front desk, and a desk fallback must not cost points.
+    expect(earnedForStay(stay)).toBe(earnedForStay(PAST_STAYS[0]!));
   });
 
-  it('pays points for room upgrades and extensions booked in the app', () => {
+  it('holds points for upgrades and extensions as pending until the stay settles', () => {
     const booking = {
       ...MOCK_SESSION.bookings[0]!,
       roomVerification: undefined,
@@ -47,7 +49,9 @@ describe('earning', () => {
       serviceBookings: [],
     };
 
-    expect(pointsBalance(session)).toBe(4_300);
+    // ₱8,600 on the bill at 50 per ₱100; the desk settles it, then it counts.
+    expect(pendingPoints(session)).toBe(4_300);
+    expect(pointsBalance(session)).toBe(0);
   });
 
 });

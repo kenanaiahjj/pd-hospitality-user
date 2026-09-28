@@ -227,6 +227,8 @@ import {
   nearlyEarnedBadges,
   pointsAsPesos,
   pointsBalance,
+  pendingPoints,
+  pointsForCharge,
   pointsExpiry,
   pesosOff,
   redeemReward,
@@ -3757,7 +3759,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Items" value={`${order?.diningOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0}`} />
               <SummaryRow label={paidNow ? 'Paid' : 'Added to room charges'} value={order?.amount ?? '₱0'} strong />
             </div>
-            <PointsEarned points={order ? Math.floor(parsePesoAmount(order.amount) / 100) * 50 : 0} badges={[]} />
+            <PointsEarned points={order ? pointsForCharge(order.amount) : 0} badges={[]} />
             <Notice title={paidNow ? 'Payment successful' : 'Pay at checkout'}>{paidNow ? 'Your receipt is available in this order.' : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>
             {!paidNow ? primary('View room charges', 'folio') : null}
             <TextButton onClick={() => go('category-listing')}>Order from another establishment</TextButton>
@@ -3848,7 +3850,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label={transferPaidNow ? 'Payment status' : 'Charged to'} value={transferPaidNow ? 'Paid' : contextRoom} />
               <SummaryRow label="Fare" value={transferBooking ? (transferBooking.vehicle === 'Private van' ? '₱1,800' : transferBooking.vehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200') : '₱1,200'} strong />
             </div>
-            <PointsEarned points={Math.floor(transferAmount / 100) * 50} badges={[]} />
+            <PointsEarned points={pointsForCharge(formatPesoAmount(transferAmount))} badges={[]} />
             <Notice title={transferPaidNow ? 'Payment successful' : `Added to ${contextRoom.toLowerCase()}`}>{transferPaidNow ? 'Your receipt is available in this booking.' : 'This hotel transfer is included in Additional charges and is paid with your room bill at checkout.'}</Notice>
             <Notice icon={<Car />} title="Driver details coming soon">The hotel will add your driver’s name, contact details, and vehicle plate here once they assign the transfer.</Notice>
             <Notice title="Operated by the hotel">Your transfer is coordinated directly by {contextBooking.property}.</Notice>
@@ -3966,7 +3968,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Provider" value={booked?.provider ?? providerFor(bookedService)} />
               <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? 'Complimentary' : 'Charged to room'} />
             </div>
-            <PointsEarned points={booked ? Math.floor(parsePesoAmount(booked.amount) / 100) * 50 : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />
+            <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />
             <Notice title="Cancellation cutoff">{booked ? describeCancellationWindow(cutoffFor(booked), booked) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
             {primary('View my stay', 'my-stay')}
             {/* Back to the catalogue this guest can use: arrival services before the stay, Explore during it. */}
@@ -4622,6 +4624,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
             <AchievementSections
               balance={balance}
+              pending={pendingPoints(session)}
               affordable={affordableRewards(balance)}
               nextUp={REWARD_MENU.find((reward) => reward.points > balance)}
               ledger={buildPointsLedger(session)}

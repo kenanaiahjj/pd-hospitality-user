@@ -18,6 +18,7 @@ type AchievementTabId = (typeof ACHIEVEMENT_TABS)[number]['id'];
 export type AchievementSectionsProps = {
   children: ReactNode;
   balance: number;
+  pending?: number;
   affordable: Reward[];
   nextUp?: Reward;
   ledger: PointsEntry[];
@@ -29,6 +30,7 @@ export type AchievementSectionsProps = {
 export function AchievementSections({
   children,
   balance,
+  pending = 0,
   affordable,
   nextUp,
   ledger,
@@ -86,6 +88,7 @@ export function AchievementSections({
             ) : (
               <PointsWallet
                 balance={balance}
+                pending={pending}
                 affordable={affordable}
                 nextUp={nextUp}
                 ledger={ledger}

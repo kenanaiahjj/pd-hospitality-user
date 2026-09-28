@@ -211,6 +211,9 @@
   /* Any number that can change is tabular, so the row never shifts. */
   font-variant-numeric: tabular-nums;
 }
+/* Points on the current bill: stated under the balance, quieter than it. */
+.points-wallet__pending { margin: -4px 0 0; color: var(--guest-muted); font-size: 13px; line-height: 1.4; }
+.points-wallet__pending b { color: var(--guest-ink); font-weight: 650; font-variant-numeric: tabular-nums; }
 
 .points-wallet__balance span { font-size: 14px; color: var(--ink-soft, #6b6a76); }
 

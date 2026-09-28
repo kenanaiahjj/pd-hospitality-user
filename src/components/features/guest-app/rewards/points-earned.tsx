@@ -11,7 +11,7 @@ import type { BadgeProgress } from './badge-model';
   now a Foodie" on its own is a sticker; saying what it will do next is the
   difference between a reward and a decoration.
 
-  Confetti only when a badge lands. Points arrive on every booking, and a
+  Confetti only when a badge lands. Points arrive on every charge, and a
   celebration that fires every time stops being one.
 */
 
@@ -28,10 +28,11 @@ export function PointsEarned({ points, badges }: PointsEarnedProps) {
     <div className="points-earned">
       {badges.length ? <Confetti /> : null}
 
+      {/* Pending, not banked: the desk settles the bill, and that is when points confirm. */}
       {points > 0 ? (
         <p className="points-earned__points">
           <b>+{points.toLocaleString('en-US')}</b>
-          <span>points</span>
+          <span>points, added when your stay is settled</span>
         </p>
       ) : null}
 

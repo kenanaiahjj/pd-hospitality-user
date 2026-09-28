@@ -18,6 +18,8 @@ import type { PointsEntry, Reward } from './points-model';
 
 export type PointsWalletProps = {
   balance: number;
+  /** Points on the current stay's bill, confirmed once the desk settles it. */
+  pending?: number;
   /** Everything the balance covers, cheapest first. */
   affordable: Reward[];
   /** The cheapest thing it does not, if there is one left to aim at. */
@@ -51,7 +53,7 @@ function Pressable({
 }
 
 export function PointsWallet({
-  balance, affordable, nextUp, ledger, expiry, nearest, showActivity = true, onOpenReward,
+  balance, pending = 0, affordable, nextUp, ledger, expiry, nearest, showActivity = true, onOpenReward,
 }: PointsWalletProps) {
   /* The best thing in reach, which is what the balance means today. */
   const best = affordable[affordable.length - 1];
@@ -62,6 +64,11 @@ export function PointsWallet({
         <b>{points(balance)}</b>
         <span>points · {pointsAsPesos(balance)} off anything</span>
       </p>
+      {pending > 0 ? (
+        <p className="points-wallet__pending">
+          <b>+{points(pending)}</b> pending from this stay&rsquo;s bill, added when the front desk settles it
+        </p>
+      ) : null}
 
       <section className="points-wallet__reach" aria-labelledby="points-wallet-reach-heading">
         <h3 className="points-wallet__heading" id="points-wallet-reach-heading">Rewards within reach</h3>

@@ -857,8 +857,8 @@ describe('pre-arrival progress card', () => {
       }),
     ]);
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assigned} />);
-    expect(screen.getByText('Room 512 is ready')).toBeInTheDocument();
-    expect(screen.getByText('Deluxe King Room')).toBeInTheDocument();
+    expect(screen.getByText('Room 512 is held for you')).toBeInTheDocument();
+    expect(screen.getByText('King room')).toBeInTheDocument();
     expect(screen.getByText('Higher floor · King bed')).toBeInTheDocument();
     expect(screen.queryByText('Your room')).toBeNull();
     expect(screen.queryByText('Assigned')).toBeNull();
@@ -876,7 +876,7 @@ describe('room assignment through the flow', () => {
 
     // After: the property allocated one, and the app reports it rather than
     // claiming to have chosen it.
-    expect(screen.getByText('Room 512 is ready')).toBeInTheDocument();
+    expect(screen.getByText('Room 512 is held for you')).toBeInTheDocument();
     expect(screen.getByText('Higher floor · King bed')).toBeInTheDocument();
     expect(screen.queryByText(/allocates rooms from its own inventory/)).toBeNull();
   });
@@ -3005,7 +3005,7 @@ describe('scanning outside the stay window', () => {
   it('holds the room card without a scan until the stay starts', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={early} />);
 
-    expect(screen.getByText('Room 512 is ready')).toBeInTheDocument();
+    expect(screen.getByText('Room 512 is held for you')).toBeInTheDocument();
     expect(screen.queryByTestId('guest-room-qr-row')).toBeNull();
     expect(screen.getByText(/Held for your arrival on Nov 20/)).toBeInTheDocument();
   });

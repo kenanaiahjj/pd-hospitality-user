@@ -240,6 +240,8 @@ type ActiveScreen = ScreenId | 'entry-hub';
 const isChatScreen = (screen: ActiveScreen) => screen === 'chat' || screen === 'chat-after-hours';
 
 type ChatMessage = {
+  /** The stay this thread belongs to; stamped when the message is added. */
+  bookingId?: string;
   from: 'guest' | 'desk';
   body: string;
   state?: string;
@@ -1404,7 +1406,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [primaryPassportFields, setPrimaryPassportFields] = useState<PassportFields>({ documentNumber: '', expiry: '' });
   const codeInputRef = useRef<HTMLInputElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [allChatMessages, setAllChatMessages] = useState<ChatMessage[]>([]);
   const [chatOrderVenue, setChatOrderVenue] = useState<string | null>(null);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [chatDraft, setChatDraft] = useState('');
@@ -1439,7 +1441,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     what clears the dot on the bell; a row keeps its own dot until it is
     actually opened.
   */
-  const [stayTab, setStayTab] = useState<'upcoming' | 'past'>('upcoming');
+  // Unset until the guest picks one: a finished stay opens on what happened, a live one on what is ahead.
+  const [stayTabChoice, setStayTab] = useState<'upcoming' | 'past' | null>(null);
   const [expandedChargeId, setExpandedChargeId] = useState<string | null>(null);
   const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
   const [selectedPartnerHotelId, setSelectedPartnerHotelId] = useState('manila');
@@ -1843,6 +1846,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const displayBooking = primaryBooking ?? lookupBooking ?? MOCK_SESSION.bookings[0]!;
 
   const contextBooking = primaryBooking ?? displayBooking;
+  /*
+    One front-desk thread per stay. Requests made for next month's booking
+    were showing up in the chat for this one, room number and all.
+  */
+  const chatMessages = allChatMessages.filter((message) => (message.bookingId ?? contextBooking.id) === contextBooking.id);
+  const setChatMessages = (update: (messages: ChatMessage[]) => ChatMessage[]) => {
+    const bookingId = contextBooking.id;
+    setAllChatMessages((messages) => update(messages).map((message) => (message.bookingId ? message : { ...message, bookingId })));
+  };
   /** What this stay's own hotel offers: a Manila-only row stays in Manila. */
   const stayVenues = RESTAURANTS.filter(offeredIn(contextBooking.city));
   const stayServices = SERVICES.filter(offeredIn(contextBooking.city));
@@ -1892,6 +1904,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const stayEntries = getStayEntries(session, primaryBooking);
+  const stayTab = stayTabChoice ?? (primaryBooking?.status === 'completed' ? 'past' : 'upcoming');
   const visibleStayEntries = stayTab === 'upcoming' ? stayEntries.upcoming : stayEntries.past;
 
   const notifications = getNotifications(session, primaryBooking);
@@ -2033,8 +2046,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ? new Date(Date.parse(contextBooking.checkedOutAt) + POST_STAY_DESK_HOURS * 3_600_000).toISOString()
       : undefined,
   );
-  /** This guest's own history. Empty for an account that has not stayed yet. */
-  const pastStays = session.pastStays;
+  /*
+    This guest's own history. Empty for an account that has not stayed yet.
+    A stay the guest has just checked out of is still a `Booking` rather than
+    an entry in `pastStays`, so it is read in as finished -- otherwise history
+    skipped the stay they had just left.
+  */
+  const pastStays = [
+    ...(primaryBooking && primaryBooking.status === 'completed' && !session.pastStays.some((stay) => stay.id === primaryBooking.id)
+      ? [toFinishedStay(session, primaryBooking)]
+      : []),
+    ...session.pastStays,
+  ];
   const [autoDetectScans, setAutoDetectScans] = useState(true);
   const stayReview = session.reviews.find((review) => review.bookingId === contextBooking.id);
 
@@ -4229,7 +4252,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                           return groups;
                         }, {})).map(([date, entries]) => (
                           <section className="guest-stay-entries__date-group" key={date}>
-                            <h2>{date === PROTOTYPE_TODAY ? 'Tonight' : new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h2>
+                            <h2>{date === PROTOTYPE_TODAY ? 'Today' : new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h2>
                             <div className="guest-stay-entries__date-group-cards">{entries.map((entry) => <StayEntryCard key={entry.id} entry={entry} showWhen={false} homeProperty={contextBooking.property} onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }} />)}</div>
                           </section>
                         ))
@@ -4571,7 +4594,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </button>
                 <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('stay-history')}>
                   <span><SuitcaseRolling /></span>
-                  <div><b>Stay history</b><small>3 stays across 2 properties</small></div>
+                  <div><b>Stay history</b><small>{pastStays.length} {pastStays.length === 1 ? 'stay' : 'stays'} across {new Set(pastStays.map((stay) => stay.property)).size} {new Set(pastStays.map((stay) => stay.property)).size === 1 ? 'property' : 'properties'}</small></div>
                   <CaretRight />
                 </button>
               </div>
@@ -5522,11 +5545,6 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--completed" data-testid="guest-home-completed">
         <div className="guest-page-title"><h1>Your latest stay</h1></div>
-        <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('partner-hotels')}>
-          <span className="guest-add-booking-card__glyph" aria-hidden="true"><Plus /></span>
-          <span className="guest-add-booking-card__text"><b>Explore partner hotels</b><small>Choose where you want to stay next.</small></span>
-          <ArrowRight aria-hidden="true" />
-        </button>
         <Notice tone="positive" icon={<CheckCircle />} title="Stay complete">Your previous room charges were settled at checkout.</Notice>
         <UpcomingBookingCard booking={booking} onNavigate={onNavigate} statusLabel="Checked out" showRoomBadge={false} hideEyebrow />
         {deskOpen ? (
@@ -5539,6 +5557,12 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
             <strong>Open chat<ArrowRight aria-hidden="true" /></strong>
           </button>
         ) : null}
+        {/* The stay first, then where to go next: selling before closing read as pushy. */}
+        <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('partner-hotels')}>
+          <span className="guest-add-booking-card__glyph" aria-hidden="true"><Plus /></span>
+          <span className="guest-add-booking-card__text"><b>Explore partner hotels</b><small>Choose where you want to stay next.</small></span>
+          <ArrowRight aria-hidden="true" />
+        </button>
         {/* Stay history lives in Profile; a second way in here was noise. */}
       </div>
     );
@@ -5567,10 +5591,11 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
         booking.roomVerification ? null : (
           <section className="guest-home-booking guest-home-booking--primary guest-room-ready-card" data-testid="guest-room-ready-card">
             <div className="guest-home-booking__heading">
-              <h2>{`Room ${booking.roomNumber ?? 'assigned'} is ready`}</h2>
+              {/* "Ready" days before arrival promised a room the hotel has only set aside. */}
+              <h2>{roomAssignment.state === 'ready' && booking.checkIn <= PROTOTYPE_TODAY ? `Room ${booking.roomNumber ?? 'assigned'} is ready` : `Room ${booking.roomNumber ?? 'assigned'} is held for you`}</h2>
             </div>
             <p className="guest-home-booking__room-type">
-              <b>{booking.roomType === 'King room' ? 'Deluxe King Room' : booking.roomType}</b>
+              <b>{booking.roomType}</b>
               <small>{(booking.honouredPreferences?.length ? booking.honouredPreferences : summarizeRoomPreferences(session.roomPreferences)).join(' · ')}</small>
             </p>
             {/*
@@ -5829,7 +5854,7 @@ function AnnouncementsSection({ booking }: { booking?: Booking }) {
 function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry: StayEntry; onOpen?: () => void; showWhen?: boolean; homeProperty?: string }) {
   const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
-  const day = entry.date === PROTOTYPE_TODAY ? 'Tonight' : date;
+  const day = entry.date === PROTOTYPE_TODAY ? ((entry.hour ?? 0) >= 17 ? 'Tonight' : 'Today') : date;
   /*
     One quiet line: when, then where. The hotel is named only when it is not
     the one this stay is at -- repeating "The Henry Manila" on every card of a
@@ -5894,7 +5919,7 @@ function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel
           {showRoomBadge && booking.roomNumber ? <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">Room {booking.roomNumber}</span> : null}
         </div>
         <div className="guest-stay-hero-card__overlay">
-          {!hideEyebrow ? <p className="guest-eyebrow">{isStayUnderWay(booking) ? 'Your current stay' : primary ? 'Your next stay' : 'Upcoming stay'}</p> : null}
+          {!hideEyebrow ? <p className="guest-eyebrow">{isStayUnderWay(booking) ? 'Your current stay' : booking.status === 'completed' ? 'Your last stay' : primary ? 'Your next stay' : 'Upcoming stay'}</p> : null}
           <h1>{booking.property}</h1>
         </div>
       </div>

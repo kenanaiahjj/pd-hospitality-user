@@ -2262,17 +2262,23 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
     -- the window is real arithmetic, it simply never has to elapse in front
     of anyone watching a demo.
   */
+  /*
+    The stay ends when the state says checkout was: today for just checked
+    out, two days back for closed. The reference bookings move with it by the
+    same number of days, so none of them falls after the stay they belong to.
+  */
+  const offset = state === 'just-checked-out' ? -1 : -3;
+  const checkIn = shiftIsoDay(UPCOMING_BOOKING_FIXTURE.checkIn, offset);
+  const checkOut = shiftIsoDay(UPCOMING_BOOKING_FIXTURE.checkOut, offset);
   const booking: Booking = {
     ...UPCOMING_BOOKING_FIXTURE,
     status: 'completed',
-    checkIn: '2026-11-02',
-    checkOut: '2026-11-05',
-    checkedOutAt: state === 'just-checked-out'
-      ? `${PROTOTYPE_TODAY}T11:00:00Z`
-      : '2026-11-05T11:00:00Z',
+    checkIn,
+    checkOut,
+    checkedOutAt: `${checkOut}T11:00:00Z`,
     roomNumber: '304',
     roomAssignment: 'ready',
-    roomVerification: { method: 'scan', at: '2026-11-05' },
+    roomVerification: { method: 'scan', at: checkIn },
     preArrivalCompleted: 2,
     preArrivalTotal: 2,
     nextPreArrivalStep: undefined,
@@ -2287,10 +2293,35 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
     // Settled at checkout: nothing is owing on a stay that is over.
     folioTotal: '₱0',
     serviceBookings: profile.serviceBookings.map((service) => ({
-      ...service,
+      ...shiftServiceBooking(service, offset),
       bookingId: booking.id,
       status: service.status === 'cancelled' ? 'cancelled' : 'completed',
     })),
+  };
+}
+
+/** An ISO day moved by whole days, in UTC so no timezone slides it. */
+function shiftIsoDay(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/*
+  A booking moved in time with its stay. The prose date is rebuilt from the
+  new day rather than edited, since "Tonight" or "Yesterday" stop being true
+  the moment the day moves.
+*/
+function shiftServiceBooking(service: ServiceBooking, days: number): ServiceBooking {
+  if (!days) return service;
+  const scheduledDate = shiftIsoDay(service.scheduledDate, days);
+  const time = service.scheduledFor.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0];
+  const day = new Date(`${scheduledDate}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }).replace(', ', ' · ');
+  return {
+    ...service,
+    scheduledDate,
+    scheduledFor: time ? `${day} · ${time}` : day,
+    bookedAt: service.bookedAt ? shiftIsoDay(service.bookedAt, days) : undefined,
   };
 }
 

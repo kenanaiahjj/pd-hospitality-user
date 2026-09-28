@@ -276,7 +276,8 @@
   resize: vertical;
 }
 .stay-review-form__note textarea::placeholder { color: oklch(1 0 0 / 0.5); }
-.stay-review-form__note textarea:focus-visible { outline: 2px solid oklch(0.91 0.07 84); outline-offset: 2px; }
+/* On the dark card: a light hairline and halo, not a 2px gold outline. */
+.stay-review-form__note textarea:focus-visible { outline: none; border-color: oklch(0.91 0.07 84 / 0.5); box-shadow: 0 0 0 4px oklch(0.91 0.07 84 / 0.1); }
 .stay-feedback-reel__submit {
   display: inline-flex;
   min-height: 52px;

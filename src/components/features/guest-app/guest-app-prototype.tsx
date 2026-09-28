@@ -270,6 +270,14 @@ const CHAT_QUICK_ACTIONS: ChatQuickAction[] = [
   { label: 'Transfers', description: 'Arrange transportation', message: () => 'We need help arranging a transfer.' },
 ];
 
+/* After checkout the room is gone: the asks are about the bill and what was left behind. */
+const POST_STAY_QUICK_ACTIONS: ChatQuickAction[] = [
+  { label: 'A charge', description: 'Question about the bill', message: () => 'I have a question about a charge on my bill from this stay.' },
+  { label: 'Lost item', description: 'Something left behind', message: () => 'I think I left something in the room. Could you check for me?' },
+  { label: 'Receipt', description: 'A copy of the invoice', message: () => 'Could you send me a copy of my receipt for this stay?' },
+  { label: 'Ride', description: 'Back to the airport', message: () => 'Could you arrange a car to the airport for me?' },
+];
+
 /* Before arrival there are no towels to change or rooms to fix: the asks are about getting there. */
 const PRE_ARRIVAL_QUICK_ACTIONS: ChatQuickAction[] = [
   { label: 'Arrival time', description: 'Tell us when you land', message: () => 'Just letting you know our arrival time: we land in the afternoon and should reach the hotel by 3:00 PM.' },
@@ -1056,6 +1064,8 @@ function PassportCapturePanel({
 }
 
 type AdditionalGuestsScreenProps = {
+  /** How many the booking is for, lead included. */
+  bookedGuests?: number;
   primaryGuestName: string;
   primaryGuestEmail?: string;
   initialGuests: string[];
@@ -1112,6 +1122,7 @@ function IdentityStep({ guestName, email, passportFields, onPassportFieldsChange
 }
 
 function AdditionalGuestsScreen({
+  bookedGuests,
   primaryGuestName,
   primaryGuestEmail = '',
   initialGuests,
@@ -1190,15 +1201,19 @@ function AdditionalGuestsScreen({
           <Field
             label="Nationality"
             name="companion-nationality"
+            placeholder="e.g. Filipino"
             value={draft.nationality ?? ''}
             onValueChange={(nationality) => setDraft((current) => ({ ...current, nationality }))}
+            required
           />
+          {/* The hotel registers every guest, so a companion needs the same ID details as the lead. */}
           <Field
-            label="Document number"
+            label="Passport or ID number"
             name="companion-document"
-            placeholder="Enter document number"
+            placeholder="As printed on the document"
             value={draft.documentNumber ?? ''}
             onValueChange={(documentNumber) => setDraft((current) => ({ ...current, documentNumber }))}
+            required
           />
           <Field
             label="Expiry date"
@@ -1206,6 +1221,7 @@ function AdditionalGuestsScreen({
             type="date"
             value={draft.expiry ?? ''}
             onValueChange={(expiry) => setDraft((current) => ({ ...current, expiry }))}
+            required
           />
           <Field
             label="Email (optional)"
@@ -1223,8 +1239,8 @@ function AdditionalGuestsScreen({
             value={draft.mobile ?? ''}
             onValueChange={(mobile) => setDraft((current) => ({ ...current, mobile }))}
           />
-          <Button className="guest-button guest-button--primary" type="submit">
-            Save guest<ArrowRight aria-hidden="true" />
+          <Button className="guest-button guest-button--primary" type="submit" disabled={!draft.name.trim() || !draft.nationality?.trim() || !draft.documentNumber?.trim() || !draft.expiry}>
+            {draft.name.trim() && draft.nationality?.trim() && draft.documentNumber?.trim() && draft.expiry ? 'Save guest' : 'Scan or fill in their ID to save'}<ArrowRight aria-hidden="true" />
           </Button>
           <TextButton onClick={() => setMode('list')}>Cancel</TextButton>
         </form>
@@ -1238,6 +1254,12 @@ function AdditionalGuestsScreen({
       title="Who else is staying?"
       text="Additional guests do not need their own accounts."
     >
+      {/* More guests than the booking was made for is the hotel's call, and possibly a charge. */}
+      {bookedGuests && companions.length + 1 > bookedGuests ? (
+        <Notice tone="warning" title={`Your booking is for ${bookedGuests} ${bookedGuests === 1 ? 'guest' : 'guests'}`}>
+          {`You have listed ${companions.length + 1}. The front desk confirms whether the room takes an extra guest, and any charge for one.`}
+        </Notice>
+      ) : null}
       {/*
         One list for everyone on the booking, lead first -- a manifest, not a
         card for the booker and a different one for the rest.
@@ -1257,7 +1279,7 @@ function AdditionalGuestsScreen({
               <span className="guest-manifest__monogram" aria-hidden="true">{initialsOf(companion.name)}</span>
               <span className="guest-manifest__who">
                 <b>{companion.name}</b>
-                <small>{companion.nationality || 'Additional guest'}</small>
+                <small>Additional guest</small>
               </span>
               <button
                 type="button"
@@ -1307,11 +1329,11 @@ function AdditionalGuestsScreen({
 }
 
 /** Chips answer the empty chat's question; the docked cards carry a line of detail. */
-function ChatQuickActions({ chips = false, disabled, onPick, preArrival = false }: { chips?: boolean; disabled: boolean; onPick: (action: ChatQuickAction) => void; preArrival?: boolean }) {
+function ChatQuickActions({ chips = false, disabled, onPick, preArrival = false, postStay = false }: { chips?: boolean; disabled: boolean; onPick: (action: ChatQuickAction) => void; preArrival?: boolean; postStay?: boolean }) {
   return (
     <div className={`guest-quick-actions${chips ? ' guest-quick-actions--chips' : ''}`} aria-label="Popular requests">
       <div className="guest-quick-actions__rail">
-        {(preArrival ? PRE_ARRIVAL_QUICK_ACTIONS : CHAT_QUICK_ACTIONS).map((action) => (
+        {(postStay ? POST_STAY_QUICK_ACTIONS : preArrival ? PRE_ARRIVAL_QUICK_ACTIONS : CHAT_QUICK_ACTIONS).map((action) => (
           <button
             key={action.label}
             type="button"
@@ -1699,7 +1721,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       */
       const order = chatOrderVenue && !productCatalogRequest && !checkedOut ? readChatOrder(chatOrderVenue, messageBody) : null;
       if (order) {
-        const hour = feedClock?.hour ?? 19;
+        const hour = clockHour;
         const orderBooking: ServiceBooking = {
           id: `service-chat-${contextBooking.id}-${Date.now()}`,
           bookingId: contextBooking.id,
@@ -1815,7 +1837,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         amount: '₱1,200',
         status: 'confirmed',
         paymentStatus: 'pending-confirmation',
-        summary: `${rideWhen === 'later' ? clock : 'Now'} · ${from === airport ? `${airport} → hotel` : `Hotel → ${airport}`}`,
+        summary: `${rideWhen === 'later' ? clock : 'Leaving now'} · ${from === airport ? `${airport} → hotel` : `Hotel → ${airport}`}`,
         facts: [
           { label: 'Pick up', value: from },
           { label: 'Drop off', value: to },
@@ -1842,17 +1864,84 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 850);
   };
 
+  /*
+    Stay changes are requests the desk answers, like early check-in: each one
+    is sent, sits on My Stay awaiting the hotel, and can be withdrawn there.
+    They used to leave only a chat draft, so nothing showed what had been asked.
+  */
+  const requestStayChange = (change: { id: string; serviceId: string; title: string; day: string; hour: number; time: string; amount: string; summary: string; facts: { label: string; value: string }[]; message: string; reply: string }) => {
+    const existing = session.serviceBookings.find((service) => service.id === change.id && service.status === 'confirmed');
+    if (existing) {
+      setSelectedStayEntryId(existing.id);
+      go('stay-entry');
+      return;
+    }
+    const request: ServiceBooking = {
+      id: change.id,
+      bookingId: contextBooking.id,
+      serviceId: change.serviceId,
+      title: change.title,
+      scheduledFor: `${formatServiceDay(change.day).long} · ${change.time}`,
+      scheduledDate: change.day,
+      scheduledHour: change.hour,
+      bookedAt: PROTOTYPE_TODAY,
+      amount: change.amount,
+      status: 'confirmed',
+      paymentStatus: 'pending-confirmation',
+      summary: change.summary,
+      facts: change.facts,
+    };
+    setSession((cur) => ({ ...cur, serviceBookings: [request, ...cur.serviceBookings.filter((service) => service.id !== request.id)] }));
+    setChatMessages((messages) => [
+      ...messages,
+      { from: 'guest', body: change.message, state: online ? 'Sent' : 'Will send when connected' },
+      { from: 'desk', body: change.reply, state: 'Seen' },
+    ]);
+    if (!isChatScreen(activeScreen)) go('chat');
+  };
+
   const openExtensionChat = () => {
-    setChatDraft('Hi! I’d like to ask if I can extend my stay for one more night. Is my current room available, and how much would the additional night cost?');
-    go('chat');
+    const nextDay = shiftIsoDay(contextBooking.checkOut, 1);
+    requestStayChange({
+      id: `service-extension-${contextBooking.id}`,
+      serviceId: 'stay-extension',
+      title: 'Extra night',
+      day: contextBooking.checkOut,
+      hour: 12,
+      time: `until ${formatServiceDay(nextDay).short}`,
+      amount: '₱5,000',
+      summary: `One more night · check out ${formatServiceDay(nextDay).short}`,
+      facts: [
+        { label: 'New check-out', value: `${formatServiceDay(nextDay).long} · ${CHECK_OUT_BY}` },
+        { label: 'Room', value: `The same room, if the hotel has it free` },
+        { label: 'If approved', value: '₱5,000, added to your room bill' },
+      ],
+      message: `I’d like to extend my stay by one night, checking out on ${formatServiceDay(nextDay).long}. Is my current room available?`,
+      reply: 'Thanks. We’re checking your room for another night and will confirm here. Nothing is charged until we do.',
+    });
   };
 
   const openLateCheckoutChat = () => {
-    setChatDraft('Hi! I’d like to request a later checkout time. Is late checkout available, and are there any additional fees?');
-    go('chat');
+    requestStayChange({
+      id: `service-late-checkout-${contextBooking.id}`,
+      serviceId: 'late-checkout',
+      title: 'Late checkout',
+      day: contextBooking.checkOut,
+      hour: 14,
+      time: '2:00 PM',
+      amount: 'Fee to confirm',
+      summary: `Until 2:00 PM · instead of ${CHECK_OUT_BY}`,
+      facts: [
+        { label: 'Check out by', value: `2:00 PM instead of ${CHECK_OUT_BY}` },
+        { label: 'Fee', value: 'The hotel confirms it, if there is one' },
+        { label: 'Status', value: 'Waiting for the hotel to confirm' },
+      ],
+      message: `I’d like to request late checkout until 2:00 PM on ${formatServiceDay(contextBooking.checkOut).long}. Is it available, and is there a fee?`,
+      reply: 'Noted. We’ll confirm late checkout and any fee here. Nothing changes until we do.',
+    });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'extend-stay', 'extend-stay-review', 'extend-stay-success', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1878,6 +1967,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const displayBooking = primaryBooking ?? lookupBooking ?? MOCK_SESSION.bookings[0]!;
 
   const contextBooking = primaryBooking ?? displayBooking;
+  /** The prototype clock's hour: the one chosen, else the stay's own default. */
+  const clockHour = (feedClock ?? defaultFeedClock(contextBooking)).hour;
   /*
     One front-desk thread per stay. Requests made for next month's booking
     were showing up in the chat for this one, room number and all.
@@ -1933,7 +2024,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const service = cancellableServiceFor(entryId);
     if (service.paymentStatus === 'pending-confirmation') return true;
     const cutoffHours = cancellationCutoffHours(cutoffFor(service));
-    return cutoffHours !== null && getCancellationState(hoursUntilService(service), cutoffHours) === 'self-service';
+    return cutoffHours !== null && getCancellationState(hoursUntilService(service, PROTOTYPE_TODAY, clockHour), cutoffHours) === 'self-service';
   };
 
   const stayEntries = getStayEntries(session, primaryBooking);
@@ -2225,7 +2316,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setSelectedServiceId(serviceId);
     setServiceDate(null);
     setServiceTime('1:30 PM');
-    setServicePartySize(1);
+    // The party the booking is for, not one: a couples massage for 1 was the default.
+    setServicePartySize(Math.max(1, contextBooking.guestCount));
     setRentalQuantity(1);
     setAppliedPoints(0);
     if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; }
@@ -2304,11 +2396,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           .filter((id): id is string => Boolean(id)),
       }, clock),
       buildFeedCandidates({ nearby: nearbyFeedInputs(booking.city) }),
-    );
+    // A weekend-only event is not promoted to a stay with no weekend in it.
+    ).filter((entry) => !(SERVICE_SCHEDULES[entry.itemId] && bookableServiceDays(booking, PROTOTYPE_TODAY, entry.itemId).length === 0));
   };
 
   /* "Open now" on a nearby place reads the same clock as the feed. */
-  const mapClock: MapClock = { date: PROTOTYPE_TODAY, hour: feedClock?.hour ?? 19 };
+  const mapClock: MapClock = { date: PROTOTYPE_TODAY, hour: clockHour };
 
   const confirmService = () => {
     const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -2524,6 +2617,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const applyStayState = (state: PrototypeStayState) => {
     const next = applyPrototypeStayState(state);
     setSession(next);
+    // A new state is a new stay as far as the demo goes: its chat starts empty.
+    setAllChatMessages([]);
+    setChatOrderVenue(null);
     setHistory([]);
     setProfileMatch(null);
     setCode('');
@@ -2663,11 +2759,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       still lands on the right bill) rather than turning this into a
       different screen without the quick actions.
     */
-    const displayedChatMessages: ChatMessage[] = chatDisabled ? [
-      { from: 'desk', body: 'Good afternoon, Ana. How can we help with your stay?', state: 'Seen' },
-      { from: 'guest', body: 'Could we get two fresh towels, please?', state: 'Seen' },
-      { from: 'desk', body: `Of course — we’ll send two fresh towels to ${contextRoom.toLowerCase()} shortly.`, state: 'Seen' },
-    ] : chatMessages;
+    // The guest's own thread, closed or not: a closed chat is read-only, not replaced.
+    const displayedChatMessages: ChatMessage[] = chatMessages;
+    const deskContact = findPartnerHotel(contextBooking.city.toLowerCase());
     const chatStarted = displayedChatMessages.some((message) => message.from === 'guest');
 
     const showChatWelcome = !chatStarted && !chatDisabled;
@@ -2688,7 +2782,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </div>
         </div>
 
-        {chatDisabled ? <Notice tone="neutral" title="Chat is closed">For help after 24 hours, please contact the hotel directly.</Notice> : null}
+        {chatDisabled ? (
+          <Notice tone="neutral" title="Chat is closed">
+            The front desk answers here for 24 hours after checkout. For anything since, contact {contextBooking.property} directly
+            {deskContact?.phone ? <> on <a href={`tel:${deskContact.phone.replace(/[^+\d]/g, '')}`}>{deskContact.phone}</a></> : null}
+            {deskContact?.email ? <> or at <a href={`mailto:${deskContact.email}`}>{deskContact.email}</a></> : null}.
+          </Notice>
+        ) : null}
         {!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}
 
 
@@ -2699,7 +2799,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <h2 id="guest-chat-welcome-title">How can we help with your stay?</h2>
               {/* Before the first message the requests answer the question
                   above them; once the thread starts they dock by the composer. */}
-              <ChatQuickActions chips preArrival={!hasStayStarted(contextBooking)} disabled={chatDisabled} onPick={(action) => sendQuickMessage(action.message(contextRoom))} />
+              <ChatQuickActions chips preArrival={!hasStayStarted(contextBooking)} postStay={checkedOutNav} disabled={chatDisabled} onPick={(action) => (action.label === 'Late checkout' ? openLateCheckoutChat() : sendQuickMessage(action.message(contextRoom)))} />
             </div>
           ) : null}
           {displayedChatMessages.map((message, index) => {
@@ -2760,7 +2860,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         </div>
 
         <div className="guest-chat__dock">
-          {!showChatWelcome ? <ChatQuickActions preArrival={!hasStayStarted(contextBooking)} disabled={chatDisabled} onPick={(action) => sendQuickMessage(action.message(contextRoom))} /> : null}
+          {!showChatWelcome && !chatDisabled ? <ChatQuickActions preArrival={!hasStayStarted(contextBooking)} postStay={checkedOutNav} disabled={chatDisabled} onPick={(action) => (action.label === 'Late checkout' ? openLateCheckoutChat() : sendQuickMessage(action.message(contextRoom)))} /> : null}
           <ChatComposer
             disabled={chatDisabled}
             draft={chatDraft}
@@ -2809,11 +2909,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         />
       );
     }
+    /*
+      Once the stay has begun the guest is past arriving: no pick-up "met at
+      arrivals", no early check-in. What is left is what they can still use
+      before the scan, and the transfer runs the other way, to the airport.
+    */
+    const inStay = hasStayStarted(contextBooking);
     const arrivalServices = [
       ...SERVICES.filter((service) => isPreArrivalService(service.id)),
-      { id: 'early-check-in', name: 'Early check-in', note: contextBooking.earlyCheckIn ? 'Requested' : 'Subject to hotel confirmation' },
+      ...(inStay ? [] : [{ id: 'early-check-in', name: 'Early check-in', note: contextBooking.earlyCheckIn ? 'Requested' : 'Subject to hotel confirmation' }]),
     ];
-    const arrivalDescription = bookingSlot.locked
+    const arrivalDescription = inStay
+      ? 'Scan the code in your room to open dining, spa, tours and room charging. Until then, the hotel can still arrange these.'
+      : bookingSlot.locked
       ? contextBooking.roomNumber
         ? 'Arrange a transfer, luggage help, or another arrival service. Scan the code in your room to unlock dining, spa, tours, and room charging.'
         : 'Arrange a transfer, luggage help, or another arrival service while the hotel assigns your room. The on-property catalogue opens after your room is assigned and you scan in.'
@@ -2822,7 +2930,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     return (
       <div className="guest-stack">
         <div className="guest-page-title">
-          <h1>Arrival services</h1>
+          <h1>{inStay ? 'Before you scan in' : 'Arrival services'}</h1>
           <p>{arrivalDescription}</p>
         </div>
 
@@ -2840,14 +2948,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   key={service.id}
                   className="guest-arrival-card"
                   type="button"
-                  onClick={() => service.id === 'transfer' ? openArrivalRide() : service.id === 'early-check-in' ? (contextBooking.earlyCheckIn ? (setSelectedStayEntryId(earlyCheckInBookingId(contextBooking.id)), go('stay-entry')) : go('early-check-in')) : openServiceBooking(service.id)}
+                  onClick={() => service.id === 'transfer' ? (inStay ? openDepartureRide() : openArrivalRide()) : service.id === 'early-check-in' ? (contextBooking.earlyCheckIn ? (setSelectedStayEntryId(earlyCheckInBookingId(contextBooking.id)), go('stay-entry')) : go('early-check-in')) : openServiceBooking(service.id)}
                 >
                   <Image className="guest-arrival-card__image" src={image.src} alt="" fill sizes="(max-width: 720px) 100vw, 560px" style={{ objectPosition: image.focalPoint }} />
                   {'note' in service ? <span className="guest-arrival-card__chip">{service.note}</span> : null}
                   <span className="guest-arrival-card__copy">
                     <span className="guest-arrival-card__glyph" aria-hidden="true">{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
                     <b>{service.name}</b>
-                    <small>{ARRIVAL_BLURBS[service.id] ?? 'Arranged by the hotel before you arrive.'}</small>
+                    <small>{inStay && service.id === 'transfer' ? 'A hotel car from the door to departures.' : ARRIVAL_BLURBS[service.id] ?? 'Arranged by the hotel before you arrive.'}</small>
                   </span>
                   <CaretRight className="guest-arrival-card__caret" aria-hidden="true" />
                 </button>
@@ -3073,7 +3181,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={feedClock?.hour ?? 19} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />;
 
       case 'partner-hotels':
         return <PartnerHotelDirectory onOpenHotel={openPartnerHotel} />;
@@ -3089,6 +3197,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'identify-returning':
         return (
           <ScreenIntro
+            eyebrow="Step 1 of 2"
             title="Log in with a booking"
             text="Any reference from a stay with us works — the one you are on now, or one from years ago."
           >
@@ -3237,7 +3346,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'no-booking':
-        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try the confirmation number from your hotel or booking provider.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try the confirmation number from your hotel or booking provider.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('partner-hotels')}>Contact a hotel for help</TextButton></ScreenIntro>;
 
       case 'welcome-back':
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0] || 'there'}`} text="Review the details saved to your Cabana account for this stay."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="Your stay is connected">Check the saved details before you continue.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
@@ -3277,6 +3386,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'additional-guests':
         return (
           <AdditionalGuestsScreen
+            bookedGuests={contextBooking.guestCount}
             primaryGuestName={session.guestName || 'Guest'}
             primaryGuestEmail={session.email}
             initialGuests={session.additionalGuests}
@@ -3980,7 +4090,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 />
               </ExpandableField>
               {schedule ? (
-                <SummaryRow label="Time" value={`${schedule.time} · ${schedule.label}`} />
+                <SummaryRow label="When" value={schedule.label} />
               ) : (
                 <ExpandableField
                   label={serviceIsRental ? 'Pick up' : 'Time'}
@@ -4049,7 +4159,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? 'Complimentary' : 'Charged to room'} />
             </div>
             <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />
-            <Notice title="Cancellation cutoff">{booked ? describeCancellationWindow(cutoffFor(booked), booked) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
+            <Notice title="Cancellation cutoff">{booked ? describeCancellationWindow(cutoffFor(booked), booked, PROTOTYPE_TODAY, clockHour) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
             {primary('View my stay', 'my-stay')}
             {/* Back to the catalogue this guest can use: arrival services before the stay, Explore during it. */}
             <TextButton onClick={() => go(bookingSlot.screen)}>Book another service</TextButton>
@@ -4396,6 +4506,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         // `status` files a past cancellation under completed; the money story needs the real one.
         const entryCancelled = entry.cancelled || entry.status === 'cancelled';
+        // Still ahead, so not on the bill yet: it goes on once it has happened.
+        const entryAhead = !entryCancelled && entry.status === 'confirmed' && entry.date > PROTOTYPE_TODAY;
 
         return (
           <div className="guest-stack">
@@ -4441,9 +4553,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
             <Notice
               tone={entryCancelled || entry.settlement === 'Awaiting hotel confirmation' ? 'neutral' : 'positive'}
-              title={entryCancelled ? 'Cancelled' : entry.settlement === 'Awaiting hotel confirmation' ? 'Awaiting hotel confirmation' : entry.paidBy === 'card' ? 'Paid up front' : entry.paidBy === 'complimentary' ? 'Complimentary' : 'Charged to your room'}
+              title={entryCancelled ? 'Cancelled' : entry.settlement === 'Awaiting hotel confirmation' ? 'Awaiting hotel confirmation' : entryAhead && entry.paidBy === 'room' ? 'Goes on your room' : entry.paidBy === 'card' ? 'Paid up front' : entry.paidBy === 'complimentary' ? 'Complimentary' : 'Charged to your room'}
             >
-              {entryCancelled ? `Nothing was charged to ${contextRoom.toLowerCase()}.` : entry.settlement === 'Awaiting hotel confirmation' ? 'Nothing is charged until the hotel confirms. You can withdraw the request until then.' : entry.paidBy === 'complimentary' ? `On the house. Nothing is added to ${contextRoom.toLowerCase()}.` : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
+              {entryCancelled ? `Nothing was charged to ${contextRoom.toLowerCase()}.` : entry.settlement === 'Awaiting hotel confirmation' ? 'Nothing is charged until the hotel confirms. You can withdraw the request until then.' : entry.paidBy === 'complimentary' ? `On the house. Nothing is added to ${contextRoom.toLowerCase()}.` : entryAhead ? `Added to ${contextRoom.toLowerCase()} once it has happened, and settled at the front desk at checkout.` : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
             </Notice>
 
             {/*
@@ -4546,7 +4658,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'cancel-after-cutoff': {
         const cancellable = cancellableServiceFor(selectedStayEntryId);
         const cutoffHours = cancellationCutoffHours(cutoffFor(cancellable));
-        const hoursLeft = Math.max(0, Math.floor(hoursUntilService(cancellable)));
+        const hoursLeft = Math.max(0, Math.floor(hoursUntilService(cancellable, PROTOTYPE_TODAY, clockHour)));
         const paidBy = describeServicePaidBy(cancellable);
         const time = cancellable.scheduledFor.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
 
@@ -5691,8 +5803,8 @@ function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onO
         booking.roomVerification ? null : (
           <section className="guest-home-booking guest-home-booking--primary guest-room-ready-card" data-testid="guest-room-ready-card">
             <div className="guest-home-booking__heading">
-              {/* "Ready" days before arrival promised a room the hotel has only set aside. */}
-              <h2>{roomAssignment.state === 'ready' && booking.checkIn <= PROTOTYPE_TODAY ? `Room ${booking.roomNumber ?? 'assigned'} is ready` : `Room ${booking.roomNumber ?? 'assigned'} is held for you`}</h2>
+              {/* One fact for the heading and the line under it: "ready" once the stay is under way, "held" before. */}
+              <h2>{isStayUnderWay(booking) ? `Room ${booking.roomNumber ?? 'assigned'} is ready` : `Room ${booking.roomNumber ?? 'assigned'} is held for you`}</h2>
             </div>
             <p className="guest-home-booking__room-type">
               <b>{booking.roomType}</b>
@@ -6395,7 +6507,8 @@ function PreArrivalChecklist({ booking, onNavigate }: { booking: Booking; onNavi
   return (
     <section className="guest-checklist" aria-labelledby="guest-checklist-title">
       <div className="guest-checklist__head">
-        <h2 id="guest-checklist-title">Check-in before arrival</h2>
+        {/* Already at the hotel, "before arrival" is past: it is registration left to finish. */}
+        <h2 id="guest-checklist-title">{hasStayStarted(booking) ? 'Finish your registration' : 'Check-in before arrival'}</h2>
         <span
           className="guest-checklist__progress"
           role="progressbar"
@@ -6621,11 +6734,15 @@ function nearbyFeedInputs(city: string) {
     }));
 }
 
-/** The feed's clock by default: today within the stay, at 7 PM. */
+/**
+ * The feed's clock by default: today within the stay, at 7 PM -- except on
+ * checkout day, which starts in the morning. At 7 PM "check out by 12:00 PM"
+ * and "before you go" were both seven hours stale.
+ */
 function defaultFeedClock(booking: Booking): FeedClock {
   const nights = Math.max(1, countNightsBetween(booking.checkIn, booking.checkOut));
-  const day = countNightsBetween(booking.checkIn, PROTOTYPE_TODAY) + 1;
-  return { dayOfStay: Math.min(nights + 1, Math.max(1, day)), hour: 19 };
+  const day = Math.min(nights + 1, Math.max(1, countNightsBetween(booking.checkIn, PROTOTYPE_TODAY) + 1));
+  return { dayOfStay: day, hour: day > nights ? 8 : 19 };
 }
 
 /** Browse, the old-fashioned way: each lands on its existing page. */

@@ -561,8 +561,9 @@ describe('GuestAppPrototype', () => {
             bookingId: 'active',
             title: 'Hilom signature massage',
             serviceId: 'spa',
-            scheduledFor: 'Thursday · November 12 · 1:30 PM',
-            scheduledDate: '2026-11-12',
+            // Two days out: clear of the 24-hour cutoff at the prototype's 7 PM.
+            scheduledFor: 'Friday · November 13 · 1:30 PM',
+            scheduledDate: '2026-11-13',
             scheduledHour: 13,
             amount: '₱2,400',
             status: 'confirmed',
@@ -604,9 +605,9 @@ describe('GuestAppPrototype', () => {
             bookingId: 'active',
             title: 'Hilom signature massage',
             serviceId: 'spa',
-            scheduledFor: 'Wednesday · November 11 · 4:00 PM',
+            scheduledFor: 'Wednesday · November 11 · 10:00 PM',
             scheduledDate: '2026-11-11',
-            scheduledHour: 16,
+            scheduledHour: 22,
             amount: '₱2,400',
             status: 'confirmed',
           }],
@@ -618,7 +619,8 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
 
     expect(screen.getByRole('heading', { name: 'Contact the front desk to change this' })).toBeInTheDocument();
-    expect(screen.getByText('4 hours before service')).toBeInTheDocument();
+    // Measured from the prototype clock's 7 PM, not a fixed noon.
+    expect(screen.getByText('3 hours before service')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /cancel service/i })).toBeNull();
   });
 
@@ -631,7 +633,7 @@ describe('GuestAppPrototype', () => {
     };
     const walk = {
       id: 'service-walk', bookingId: 'active', title: 'Old Manila cultural walk', serviceId: 'heritage-walk',
-      scheduledFor: 'Thursday · November 12 · 4:00 PM', scheduledDate: '2026-11-12', scheduledHour: 16, amount: '₱1,500', status: 'confirmed' as const,
+      scheduledFor: 'Friday · November 13 · 4:00 PM', scheduledDate: '2026-11-13', scheduledHour: 16, amount: '₱1,500', status: 'confirmed' as const,
     };
     render(
       <GuestAppPrototype
@@ -886,8 +888,8 @@ describe('room assignment through the flow', () => {
     await user.click(screen.getByRole('button', { name: 'Finish' }));
 
     // After: the property allocated one, and the app reports it rather than
-    // claiming to have chosen it.
-    expect(screen.getByText('Room 512 is held for you')).toBeInTheDocument();
+    // claiming to have chosen it. The stay is under way, so it is ready.
+    expect(screen.getByText('Room 512 is ready')).toBeInTheDocument();
     expect(screen.getByText('Higher floor · King bed')).toBeInTheDocument();
     expect(screen.queryByText(/allocates rooms from its own inventory/)).toBeNull();
   });
@@ -1538,7 +1540,7 @@ describe('pre-arrival onboarding flow', () => {
     expect(screen.queryByRole('button', { name: 'Continue to ID' })).toBeNull();
     await user.click(screen.getByRole('button', { name: /Take a photo/ }));
     expect(await screen.findByDisplayValue('Elena Santos', {}, { timeout: 2000 })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Document number/)).toHaveValue('P7734120B');
+    expect(screen.getByLabelText(/Passport or ID number/)).toHaveValue('P7734120B');
 
     await user.click(screen.getByRole('button', { name: 'Save guest' }));
 
@@ -1637,7 +1639,12 @@ describe('home mini-apps and browsable restaurant menu', () => {
 
   it('recommends specific things on home, each opening its own page', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
+    // The massage is booked, so the rail must not offer it back.
+    const withMassage = {
+      ...activeSession,
+      serviceBookings: [{ id: 'booked-massage', bookingId: 'active', title: 'Hilom signature massage', serviceId: 'spa', scheduledFor: 'Thursday · November 12 · 1:30 PM', scheduledDate: '2026-11-12', scheduledHour: 13, amount: '₱2,400', status: 'confirmed' as const }],
+    };
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={withMassage} />);
 
     const rail = screen.getByRole('region', { name: 'Recommended for you' });
     // The cards, not the heading's See all.
@@ -2463,7 +2470,8 @@ describe('lifecycle gates', () => {
 
     await user.click(secondTab());
 
-    expect(screen.getByRole('heading', { name: 'Arrival services' })).toBeInTheDocument();
+    // In the stay but not scanned in: not "arrival" any more.
+    expect(screen.getByRole('heading', { name: 'Before you scan in' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Scan room code$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /I can.{1,3}t scan/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Categories' })).toBeNull();
@@ -2688,7 +2696,9 @@ describe('post-stay front desk window', () => {
   it('disables quick actions and media controls when the post-stay chat is closed', () => {
     render(<GuestAppPrototype initialScreen="chat" initialSession={closed} />);
 
-    expect(screen.getByRole('button', { name: /^Towels/ })).toBeDisabled();
+    // A closed chat offers nothing to ask, and says how to reach the hotel instead.
+    expect(screen.queryByRole('button', { name: /^Towels/ })).toBeNull();
+    expect(screen.getByRole('link', { name: /\+63/ })).toHaveAttribute('href', expect.stringMatching(/^tel:/));
     expect(screen.getByRole('button', { name: 'Open attachment menu' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Start voice recording' })).toBeDisabled();
   });

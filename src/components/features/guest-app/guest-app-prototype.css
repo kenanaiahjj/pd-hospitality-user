@@ -392,6 +392,12 @@
   --guest-radius-xs: 8px;
   --guest-radius-sm: 10px;
   --guest-radius-field: 14px;
+  /*
+    The focus state for anything typed into: a hairline in a muted brand tone
+    and a faint halo. It was a solid 2px ring in the darkest accent, which read
+    as an error state rather than "you are here".
+  */
+  --guest-focus-ring: 0 0 0 1px color-mix(in oklch, var(--guest-accent-strong) 38%, var(--guest-line-strong)), 0 0 0 4px color-mix(in oklch, var(--guest-accent) 9%, transparent);
   --guest-radius-md: 16px;
   --guest-radius-lg: 20px;
   --guest-radius-xl: 24px;
@@ -1538,8 +1544,8 @@
 .guest-field input:focus,
 .guest-field select:focus,
 .guest-composer__text-input:focus {
-  border-color: var(--guest-accent-strong);
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--guest-accent) 30%, transparent);
+  border-color: color-mix(in oklch, var(--guest-accent-strong) 38%, var(--guest-line-strong));
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--guest-accent) 9%, transparent);
 }
 .guest-field input::placeholder,
 .guest-composer__text-input::placeholder { color: var(--guest-subtle); }
@@ -2381,7 +2387,7 @@
   outline: none;
   transition: background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
-.guest-composer__text-input:focus { background: var(--guest-surface); box-shadow: 0 0 0 2px color-mix(in oklch, var(--guest-accent-strong) 60%, transparent); }
+.guest-composer__text-input:focus { background: var(--guest-surface); box-shadow: var(--guest-focus-ring); }
 .guest-composer__text-input::placeholder { color: var(--guest-subtle); opacity: 1; }
 .guest-composer__submit {
   display: grid;
@@ -5750,7 +5756,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   color: var(--guest-ink);
 }
 .guest-stay-review .stay-review-form__note textarea::placeholder { color: var(--guest-subtle); }
-.guest-stay-review .stay-review-form__note textarea:focus-visible { outline: 2px solid var(--guest-accent); outline-offset: 2px; }
+.guest-stay-review .stay-review-form__note textarea:focus-visible { outline: none; box-shadow: var(--guest-focus-ring); }
 .stay-review-form__privacy { margin: -10px 0 0; font-size: 12px; text-align: center; }
 .stay-review-form__thanks--page { display: grid; justify-items: start; gap: 13px; }
 .stay-review-form__thanks--page > svg { width: 38px; height: 38px; color: var(--guest-positive); }
@@ -8213,7 +8219,7 @@ label.guest-field input::-webkit-date-and-time-value { text-align: right; }
 label.guest-field input:focus,
 label.guest-field select:focus { border: 0; box-shadow: none; outline: none; }
 label.guest-field input::placeholder { color: var(--guest-subtle); font-weight: 400; }
-label.guest-field:focus-within { background: var(--guest-paper); box-shadow: 0 0 0 2px var(--guest-accent-strong); }
+label.guest-field:focus-within { background: var(--guest-paper); box-shadow: var(--guest-focus-ring); }
 /* Text entry rows add the I-beam and a darker placeholder to the shared
    resting state. */
 label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])) {
@@ -8228,7 +8234,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])) >
 }
 label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"])):focus-within {
   background: var(--guest-paper);
-  box-shadow: 0 0 0 2px var(--guest-accent-strong);
+  box-shadow: var(--guest-focus-ring);
 }
 label.guest-field > small { grid-column: 1 / -1; padding-bottom: 12px; }
 label.guest-field:has(textarea) { grid-template-columns: 1fr; row-gap: 6px; padding: 14px 18px; }

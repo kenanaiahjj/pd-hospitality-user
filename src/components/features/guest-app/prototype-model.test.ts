@@ -318,7 +318,8 @@ describe('account sessions', () => {
 
     expect(apple).toMatchObject({ auth: 'authenticated', accountStatus: 'returning', authMethod: 'apple' });
     expect(google).toMatchObject({ auth: 'authenticated', accountStatus: 'returning', authMethod: 'google' });
-    expect(apple.bookings).toEqual([UPCOMING_BOOKING_FIXTURE]);
+    // The reference booking, moved clear of the prototype clock so it is genuinely ahead.
+    expect(apple.bookings).toEqual([expect.objectContaining({ id: UPCOMING_BOOKING_FIXTURE.id, status: 'upcoming', checkIn: '2026-11-20', checkOut: '2026-11-23' })]);
     expect(apple.activeBookingId).toBe(UPCOMING_BOOKING_FIXTURE.id);
     expect(google.bookings).toEqual([]);
     expect(google.activeBookingId).toBeUndefined();

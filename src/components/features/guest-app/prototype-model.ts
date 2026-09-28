@@ -951,7 +951,9 @@ export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
     ...identity,
     // Apple keeps the upcoming stay, so auth opens in pre-arrival state.
     // Google has none, so auth opens at booking lookup.
-    bookings: method === 'apple' ? [UPCOMING_BOOKING_FIXTURE] : [],
+    // Before the stay, as the demo intends: the reference fixture's dates
+    // include today, which put a checked-in guest on a pre-arrival checklist.
+    bookings: method === 'apple' ? [{ ...UPCOMING_BOOKING_FIXTURE, ...PRE_ARRIVAL_DATES }] : [],
     activeBookingId: method === 'apple' ? UPCOMING_BOOKING_FIXTURE.id : undefined,
     serviceBookings: [],
     folioTotal: '₱0',
@@ -2232,6 +2234,9 @@ export const PROTOTYPE_STAY_STATES: Array<{
   { id: 'closed', label: 'Stay closed', detail: 'Desk window over, summary and review' },
 ];
 
+/** The upcoming stay the demo opens before arrival: clear of the prototype clock. */
+const PRE_ARRIVAL_DATES = { status: 'upcoming' as const, checkIn: '2026-11-20', checkOut: '2026-11-23', roomNumber: undefined, roomAssignment: 'pending' as const, folioTotal: undefined };
+
 export function applyPrototypeStayState(state: PrototypeStayState): GuestSession {
   if (state === 'signed-out') return { ...ANONYMOUS_SESSION };
 
@@ -3070,10 +3075,12 @@ const PROTOTYPE_NOW_HOUR = 12;
 export function hoursUntilService(
   service: Pick<ServiceBooking, 'scheduledDate' | 'scheduledFor' | 'scheduledHour'>,
   today: string = PROTOTYPE_TODAY,
+  /** The prototype clock's hour. The app passes it; noon is only the fallback. */
+  nowHour: number = PROTOTYPE_NOW_HOUR,
 ): number {
   const { hour, minute } = parseClockTime(service.scheduledFor);
   const days = dayIndex(service.scheduledDate) - dayIndex(today);
-  return days * 24 + (service.scheduledHour ?? hour) + minute / 60 - PROTOTYPE_NOW_HOUR;
+  return days * 24 + (service.scheduledHour ?? hour) + minute / 60 - nowHour;
 }
 
 /**
@@ -3085,10 +3092,11 @@ export function describeCancellationWindow(
   cutoff: string,
   service: Pick<ServiceBooking, 'scheduledDate' | 'scheduledFor' | 'scheduledHour'>,
   today: string = PROTOTYPE_TODAY,
+  nowHour: number = PROTOTYPE_NOW_HOUR,
 ): string {
   const cutoffHours = cancellationCutoffHours(cutoff);
   if (cutoffHours === null) return 'Changes to this booking go through the front desk. The booking remains.';
-  if (getCancellationState(hoursUntilService(service, today), cutoffHours) === 'front-desk') {
+  if (getCancellationState(hoursUntilService(service, today, nowHour), cutoffHours) === 'front-desk') {
     return `This is inside the provider’s ${cutoffHours}-hour cutoff, so changes go through the front desk. The booking remains.`;
   }
 

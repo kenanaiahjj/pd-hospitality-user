@@ -95,7 +95,7 @@ export const REWARD_MENU: Reward[] = [
   { id: 'breakfast-two', title: 'Breakfast for two', detail: 'Kape Manila Café', points: 5000, cashPrice: '₱1,160' },
   { id: 'airport-transfer', title: 'Airport transfer', detail: 'Hotel arranged', points: 8000, cashPrice: '₱1,200' },
   { id: 'room-upgrade', title: 'Room upgrade, one night', detail: 'Subject to availability', points: 12000 },
-  { id: 'hilom-massage', title: 'Hilom signature massage', detail: '60 minutes', points: 16000, cashPrice: '₱2,400' },
+  { id: 'hilom-massage', title: 'Hilom signature massage', detail: '90 minutes', points: 16000, cashPrice: '₱2,400' },
   { id: 'couples-suite', title: 'Couples massage suite', detail: '90 minutes, two guests', points: 32000, cashPrice: '₱4,600' },
   /*
     The top of the menu, and the only thing on it the reference guest cannot

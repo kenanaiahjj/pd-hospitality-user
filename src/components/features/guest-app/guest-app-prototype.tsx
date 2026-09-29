@@ -502,6 +502,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* Badges the last confirmed booking tipped over, for the confirmation. */
   const [justEarned, setJustEarned] = useState<string[]>([]);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
+  /** The screen the stamped stay pass zooms into, so it can enter out of that zoom. */
+  const [passEntranceScreen, setPassEntranceScreen] = useState<ActiveScreen | null>(null);
   const [online, setOnline] = useState(initialOnline ?? true);
   /*
     Conditions the prototype can switch on, for showing and documenting the
@@ -732,6 +734,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   }, [activeScreen]);
 
   const go = (next: ActiveScreen) => {
+    setPassEntranceScreen(null);
     if (['restaurant-cart', 'service-booking', 'transfer-booking'].includes(next)) {
       setCheckoutPayment(null);
       setPaymentMethod(null);
@@ -1733,7 +1736,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setSession(next);
     // A booking-first guest still needs the registration flow. Authenticated
     // guests use the shared pre-arrival home after connecting another stay.
-    go(session.auth === 'authenticated' ? getPostAuthScreen(next) : 'guest-details');
+    const target = session.auth === 'authenticated' ? getPostAuthScreen(next) : 'guest-details';
+    go(target);
+    // The stamped card zoomed away; the screen it opens settles in out of that zoom.
+    setPassEntranceScreen(target);
   };
 
   /*
@@ -4348,6 +4354,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <div
             className={`guest-screen ${showPrimaryNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''} ${isChatScreen(activeScreen) ? 'guest-screen--chat' : ''} ${activeScreen === 'restaurant-menu' || activeScreen === 'nearby-establishment' ? 'guest-screen--hero' : ''} ${reelsOnScreen ? 'guest-screen--reels' : ''}`}
             key={activeScreen}
+            data-entrance={passEntranceScreen === activeScreen ? 'pass' : undefined}
             onScroll={(event) => {
               const next = event.currentTarget.scrollTop > 4;
               setScrolled((current) => (current === next ? current : next));

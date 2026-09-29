@@ -16,23 +16,27 @@ import './stay-invitation.css';
 
   Confirming is a small ceremony rather than a page change: the screen's
   chrome steps back, the card steadies, and a crisp Cabana approval mark
-  lands in its upper-right corner with a brief, weighted contact. Only then
-  does the guest move on, so the moment the stay becomes theirs is one they see.
+  lands in its upper-right corner with a brief, weighted contact. Then
+  everything else is gone -- the question, the buttons, the app bar -- and
+  the card, holding alone for a beat, zooms toward the guest and dissolves
+  into the next screen, which settles in out of the same zoom.
 */
 
 const MAX_TILT = 11; // degrees, at full finger deflection
 /** The confirmation beat. It must cover the stamp animation in stay-invitation.css. */
 const STAMP_MS = 1150;
-/** A brief haptic cue when the stamp contacts the card. */
-const IMPACT_MS = 202;
-/** The beat between the stamp appearing and the stay opening. */
-const SETTLE_MS = 1100;
+/** A brief haptic cue when the stamp contacts the card: 40% into its 620ms slam. */
+const IMPACT_MS = 250;
+/** The beat the stamped card holds alone before it leaves. */
+const HOLD_MS = 850;
+/** The card's zoom-out; it must cover `stay-pass-leave` in stay-invitation.css. */
+const LEAVE_MS = 560;
 
 const day = (isoDate: string) => new Date(`${isoDate}T12:00:00`);
 /** "Mon 9 Nov": day before month reads as a travel document, not a US form. */
 const format = (isoDate: string) => day(isoDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
-type Phase = 'idle' | 'stamping' | 'done';
+type Phase = 'idle' | 'stamping' | 'done' | 'leaving';
 
 const STAMP_EDGE = (() => {
   const points = Array.from({ length: 144 }, (_, index) => {
@@ -172,15 +176,15 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
   phase?: Phase;
   onStamped?: () => void;
 }) {
-  /** Read by the tilt loop, which outlives renders: a card being stamped holds still. */
-  const steady = useRef(phase === 'stamping');
+  /** Read by the tilt loop, which outlives renders: a card being stamped or leaving holds still. */
+  const steady = useRef(phase === 'stamping' || phase === 'leaving');
   const { root, reducedMotion, pointer } = usePassTilt(steady);
 
   const nights = Math.max(1, Math.round((day(booking.checkOut).getTime() - day(booking.checkIn).getTime()) / 86_400_000));
   const confirmed = phase !== 'idle';
 
   useEffect(() => {
-    steady.current = phase === 'stamping';
+    steady.current = phase === 'stamping' || phase === 'leaving';
   }, [phase]);
 
   /*
@@ -276,24 +280,31 @@ export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
   secondary?: ReactNode;
 }) {
   const [phase, setPhase] = useState<Phase>('idle');
-  const done = phase === 'done';
+  const done = phase === 'done' || phase === 'leaving';
+  const reducedMotion = usePrefersReducedMotion();
   // Stable, so a parent re-render mid-press does not restart the press's timer.
   const finishStamp = useCallback(() => setPhase('done'), []);
 
   /*
-    No button to leave: once confirmed, the guest gets a beat to take it in and
-    the stay opens by itself. The latest `onConfirm` is read through a ref so
-    a parent re-render during that beat cannot restart it.
+    No button to leave: once confirmed, the guest gets a beat to take it in,
+    the card zooms away, and the stay opens by itself. The latest `onConfirm`
+    is read through a ref so a parent re-render during that beat cannot
+    restart it.
   */
   const confirmRef = useRef(onConfirm);
   useEffect(() => {
     confirmRef.current = onConfirm;
   }, [onConfirm]);
   useEffect(() => {
-    if (!done) return;
-    const timer = window.setTimeout(() => confirmRef.current(), SETTLE_MS);
+    if (phase !== 'done') return;
+    const timer = window.setTimeout(() => setPhase('leaving'), reducedMotion ? HOLD_MS / 2 : HOLD_MS);
     return () => window.clearTimeout(timer);
-  }, [done]);
+  }, [phase, reducedMotion]);
+  useEffect(() => {
+    if (phase !== 'leaving') return;
+    const timer = window.setTimeout(() => confirmRef.current(), reducedMotion ? LEAVE_MS / 2 : LEAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase, reducedMotion]);
 
   return (
     <div className="guest-stack guest-stack--intro stay-confirm" data-phase={phase}>

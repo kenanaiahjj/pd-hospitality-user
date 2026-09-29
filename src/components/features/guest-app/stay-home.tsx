@@ -223,7 +223,6 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         {canUseOnPropertyServices(booking) ? (
           <RecommendedRail entries={picks} onOpen={onOpenPick} heading={<SectionHeading title="Recommended for you" action="See all" onAction={() => onNavigate('marketplace')} />} />
         ) : null}
-        <BookAnotherStayCard onNavigate={onNavigate} />
       </div>
     );
   }
@@ -245,7 +244,6 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
             {upcomingBookings.filter((item) => item.id !== booking.id).map((item) => <UpcomingBookingCard key={item.id} booking={item} onNavigate={onNavigate} />)}
           </div>
         </section>
-        <BookAnotherStayCard onNavigate={onNavigate} />
       </div>
     );
   }
@@ -435,7 +433,6 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
       ) : null}
       {/* No property updates before arrival: a pool closing this morning is
           noise to a guest who lands next month. They start on the stay home. */}
-      <BookAnotherStayCard onNavigate={onNavigate} />
     </div>
   );
 }

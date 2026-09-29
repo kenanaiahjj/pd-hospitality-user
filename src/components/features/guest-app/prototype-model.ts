@@ -1,3 +1,4 @@
+import type { Reservation } from './stay-booking/model';
 export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
 
 export type ScreenId =
@@ -11,6 +12,8 @@ export type ScreenId =
   | 'partner-hotel-detail'
   | 'book-stay'
   | 'book-stay-dates'
+  | 'book-stay-results'
+  | 'book-stay-hotel'
   | 'book-stay-rooms'
   | 'book-stay-checkout'
   | 'book-stay-confirmation'
@@ -250,6 +253,8 @@ export type Booking = {
     transferDeadline: string;
     transferTime: string;
   };
+  /** Set when the stay was booked and paid for in the app. */
+  reservation?: Reservation;
 };
 
 /**

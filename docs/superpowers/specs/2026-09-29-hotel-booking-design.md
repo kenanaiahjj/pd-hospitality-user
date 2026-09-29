@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | `Approved` |
+| **Status** | `Implemented` |
 | **Created** | 2026-09-29 |
 | **Updated** | 2026-09-29 |
 | **Owner** | Kenanaiah Jo |
@@ -277,3 +277,5 @@ None.
 | 2026-09-29 | Guests are split per room after picking rooms | Needed so different room classes can be mixed | Move the rooms count into the search |
 | 2026-09-29 | Draft isn't persisted | Keeps the session storage shape the same | A reload mid-booking starts over |
 | 2026-09-29 | Cancel only, no in-app modify | Scope | Add a modify flow later |
+| 2026-09-29 | Breakfast is a flat ₱600 × `sleeps` per room per night, not per person | A per-person price can't be shown before guests are split across rooms | Price it after the split instead |
+| 2026-09-29 | `partner-hotels.tsx` and its off-site booking links are removed; `partner-hotels` is now the in-app directory | Superseded by in-app booking | Restore from git history |

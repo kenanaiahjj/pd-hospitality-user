@@ -149,10 +149,11 @@ import {
   CHECK_OUT_BY,
   summarizeRoomPreferences,
 } from './prototype-model';
-import { findPartnerHotel } from './partner-hotels';
 import {
+  ANYWHERE,
   DEFAULT_RESULTS_VIEW,
   DEFAULT_STAY_SEARCH,
+  HotelResultCard,
   ReservationCard,
   StayAssignGuestsScreen,
   StayCheckoutScreen,
@@ -168,6 +169,7 @@ import {
   hotelsForLocation,
   peso,
   quoteStay,
+  searchHotels,
   stayDatesLabel,
   type ResultsView,
   type StayBookingDraft,
@@ -2024,7 +2026,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     */
     // The guest's own thread, closed or not: a closed chat is read-only, not replaced.
     const displayedChatMessages: ChatMessage[] = chatMessages;
-    const deskContact = findPartnerHotel(contextBooking.city.toLowerCase());
+    // The booked hotel's own line when it is a partner the app knows; else the city's Henry.
+    const deskContact = findStayHotel(contextBooking.reservation?.hotelId) ?? findStayHotel(contextBooking.city.toLowerCase());
     const chatStarted = displayedChatMessages.some((message) => message.from === 'guest');
 
     const showChatWelcome = !chatStarted && !chatDisabled;
@@ -2283,6 +2286,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       </div>
     );
     if (activeScreen === 'book-stay' || activeScreen === 'book-stay-dates') return searchPage;
+    if (activeScreen === 'partner-hotels') {
+      const everyHotel = { ...search, location: ANYWHERE };
+      return (
+        <div className="guest-stack">
+          <div className="guest-page-title">
+            <p className="guest-eyebrow">The Henry Hotels &amp; Resorts and partners</p>
+            <h1>Partner hotels</h1>
+            <p>Search your dates, or open a hotel for its rooms, rates and contact details.</p>
+          </div>
+          <StaySearchCard value={search} onSearch={startStaySearch} />
+          <div className="sb-results__list">
+            {searchHotels(everyHotel).map((result) => <HotelResultCard key={result.hotel.id} result={result} search={everyHotel} onOpen={() => openPartnerHotel(result.hotel.id)} />)}
+          </div>
+        </div>
+      );
+    }
     if (activeScreen === 'book-stay-results') {
       return <StayResultsScreen search={search} view={resultsView} onViewChange={setResultsView} onSearch={(next) => setStayDraft((draft) => ({ ...draft, search: next }))} onOpenHotel={openPartnerHotel} />;
     }

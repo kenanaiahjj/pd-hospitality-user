@@ -2052,21 +2052,60 @@ describe('a finished stay on My Stay', () => {
 describe('booking another stay', () => {
   const finished = applyPrototypeStayState('closed');
 
-  it('opens the partner hotel directory from the old booking routes', () => {
+  it('opens the hotel search from the old booking routes', () => {
     render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
 
-    expect(screen.getByRole('heading', { name: 'Partner hotels' })).toBeInTheDocument();
-    expect(screen.getByText(/Rates and availability are shown on the hotel or booking partner/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Book a stay' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Search hotels/ })).toBeInTheDocument();
   });
 
-  it('sends the booking to the hotel or a booking partner, not an in-app checkout', async () => {
+  it('books a partner hotel in the app rather than sending the guest to another site', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="partner-hotels" initialSession={finished} />);
 
     await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Cebu/ })[0]!);
 
-    expect(screen.getByRole('link', { name: /Agoda/ })).toHaveAttribute('href', expect.stringContaining('agoda.com'));
-    expect(screen.queryByRole('button', { name: /Pay|Confirm and book/ })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Choose your rooms' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Agoda/ })).toBeNull();
+  });
+
+  /*
+    The one path worth a test: the booking apps allow one room class per
+    booking, and this one's point is a mix. Ways it could fail: the cart
+    merging classes, the split losing a child, the payment not creating the
+    booking, or Home not switching to the new stay.
+  */
+  it('books two classes of room in one booking, splits the party, pays, and lands on the new stay', async () => {
+    const user = userEvent.setup();
+    const noBooking = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={noBooking} />);
+
+    await user.click(screen.getByRole('button', { name: /Who/ }));
+    await user.click(screen.getByRole('button', { name: 'More adults' }));
+    await user.click(screen.getByRole('button', { name: 'More children' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Child 1 age' }), '8');
+    await user.click(screen.getByRole('button', { name: /Search hotels/ }));
+
+    await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Manila/ })[0]!);
+    await user.click(screen.getByRole('button', { name: 'Add a King Room, Room only' }));
+    await user.click(screen.getByRole('button', { name: 'Add a Garden Suite, With breakfast' }));
+    expect(screen.getByText('Fits your 4 guests')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Continue/ }));
+
+    expect(screen.getByRole('heading', { name: 'Who’s in each room?' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: /Room 1, King Room/ })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: /Room 2, Garden Suite/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Continue to details/ }));
+
+    await user.click(screen.getByRole('button', { name: /^Pay ₱/ }));
+    await user.click(screen.getByRole('button', { name: /GCash/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Secure checkout' });
+    await user.click(within(dialog).getByRole('button', { name: /^Pay ₱/ }));
+
+    expect(await screen.findByText('Booking confirmed', {}, { timeout: 2000 })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Go to your stay/ }));
+    expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+    expect(screen.getByText(/King Room \+ Garden Suite/)).toBeInTheDocument();
   });
 });
 

@@ -1811,7 +1811,7 @@ export type EstateProperty = {
 
 /**
  * Static property facts used by prototype room-rate fallback and front-desk
- * contact surfaces. Post-stay hotel discovery uses `PARTNER_HOTELS`; the app
+ * contact surfaces. Hotel search and booking use `STAY_HOTELS` in `stay-booking/model.ts`; the app
  * does not collect dates, quote rates, or create a hotel reservation there.
  */
 export const ESTATE_PROPERTIES: EstateProperty[] = [

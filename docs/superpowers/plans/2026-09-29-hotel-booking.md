@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Progress` |
+| **Status** | `Complete` |
 | **Created** | 2026-09-29 |
 | **Updated** | 2026-09-29 |
 | **Owner** | Kenanaiah Jo |
@@ -22,15 +22,15 @@
 
 | # | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Model: inventory, pricing, availability, capacity, booking | 🔄 In progress | — |
-| 2 | Search card + full-page search | ⬜ Not started | — |
-| 3 | Results: list, sort, filters, map | ⬜ Not started | — |
-| 4 | Hotel page + rate steppers + sticky cart | ⬜ Not started | — |
-| 5 | Guest split | ⬜ Not started | — |
-| 6 | Checkout + gateway + confirmation → upcoming stay | ⬜ Not started | — |
-| 7 | Entry points: no-booking home, "Book another stay", partner routes | ⬜ Not started | — |
-| 8 | Cancellation from My Stay | ⬜ Not started | — |
-| 9 | Tests green + one flow test; browser verification | ⬜ Not started | — |
+| 1 | Model: inventory, pricing, availability, capacity, booking | ✅ Complete | see git log |
+| 2 | Search card + full-page search | ✅ Complete | see git log |
+| 3 | Results: list, sort, filters, map | ✅ Complete | see git log |
+| 4 | Hotel page + rate steppers + sticky cart | ✅ Complete | see git log |
+| 5 | Guest split | ✅ Complete | see git log |
+| 6 | Checkout + gateway + confirmation → upcoming stay | ✅ Complete | see git log |
+| 7 | Entry points: no-booking home, "Book another stay", partner routes | ✅ Complete | see git log |
+| 8 | Cancellation from My Stay | ✅ Complete | see git log |
+| 9 | Tests green + one flow test; browser verification | ✅ Complete | see git log |
 
 ## Global Constraints
 
@@ -71,12 +71,12 @@ the tile helpers).
 Each task is committed on its own once `npm run typecheck && npm run lint` pass.
 Tasks 2–8 are checked in the browser at 390px width.
 
-- [ ] 1. Model: every function in spec § Interfaces, following spec § Rules exactly.
-- [ ] 2. Search: `StaySearchCard` (location suggestions, range calendar, guests + child ages) and the `book-stay` page.
-- [ ] 3. Results: `searchHotels`, sort chips, filter sheet, list/map toggle, empty state.
-- [ ] 4. Hotel page: room classes × rate plans, steppers capped by availability, sold-out handling, change dates, sticky cart with fit message.
-- [ ] 5. Guest split: `defaultAllocation` prefill, adult steppers, child → room selects, `validateAllocation` messages.
-- [ ] 6. Checkout: prefilled contact, per-room lead and bed preference, arrival time, requests, promo, quote breakdown, policy, gateway → `bookingFromDraft` → confirmation → Home shows the upcoming stay.
-- [ ] 7. Entry points: search card on `EmptyStayHome`, featured hotels with from-prices, "Book another stay" on the other homes, `partner-hotels` / `partner-hotel-detail` → hotel page.
-- [ ] 8. Cancel: a reservation card in My Stay with the policy, cancel confirmation, the booking removed, a refund notice on Home.
-- [ ] 9. Fix the tests the new home breaks (cheapest path), add one flow test, run the full gate, take browser screenshots.
+- [x] 1. Model: every function in spec § Interfaces, following spec § Rules exactly.
+- [x] 2. Search: `StaySearchCard` (location suggestions, range calendar, guests + child ages) and the `book-stay` page.
+- [x] 3. Results: `searchHotels`, sort chips, filter sheet, list/map toggle, empty state.
+- [x] 4. Hotel page: room classes × rate plans, steppers capped by availability, sold-out handling, change dates, sticky cart with fit message.
+- [x] 5. Guest split: `defaultAllocation` prefill, adult steppers, child → room selects, `validateAllocation` messages.
+- [x] 6. Checkout: prefilled contact, per-room lead and bed preference, arrival time, requests, promo, quote breakdown, policy, gateway → `bookingFromDraft` → confirmation → Home shows the upcoming stay.
+- [x] 7. Entry points: search card on `EmptyStayHome`, featured hotels with from-prices, "Book another stay" on the other homes, `partner-hotels` / `partner-hotel-detail` → hotel page.
+- [x] 8. Cancel: a reservation card in My Stay with the policy, cancel confirmation, the booking removed, a refund notice on Home.
+- [x] 9. Fix the tests the new home breaks (cheapest path), add one flow test, run the full gate, take browser screenshots.

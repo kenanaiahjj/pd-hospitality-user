@@ -361,13 +361,20 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
                 <b>{booking.earlyCheckIn.time}</b>
                 <span className="guest-tile__meta"><CheckCircle weight="fill" aria-hidden="true" />Requested · view or withdraw</span>
               </button>
+            ) : session.cart?.some((line) => line.earlyCheckIn && line.booking.bookingId === booking.id) ? (
+              <button className="guest-tile is-done" type="button" data-testid="guest-early-checkin-incart" onClick={() => onNavigate('early-check-in')}>
+                <span className="guest-tile__icon" aria-hidden="true"><Clock /></span>
+                <small>Check in early</small>
+                <b>{EARLY_CHECK_IN.time}</b>
+                <span className="guest-tile__meta"><CheckCircle weight="fill" aria-hidden="true" />In your cart · review</span>
+              </button>
             ) : (
               <button className="guest-tile" type="button" onClick={() => onNavigate('early-check-in')} data-testid="guest-early-checkin-card">
                 <span className="guest-tile__icon" aria-hidden="true"><Clock /></span>
                 <span className="guest-tile__cue" aria-hidden="true">Request</span>
                 <small>Check in early</small>
                 <b>{EARLY_CHECK_IN.time}</b>
-                <span className="guest-tile__meta">{EARLY_CHECK_IN.fee} · on your room</span>
+                <span className="guest-tile__meta">{EARLY_CHECK_IN.fee} · on your room later</span>
               </button>
             )}
             {roomAssignment.state === 'pending' ? (

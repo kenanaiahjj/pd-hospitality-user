@@ -239,6 +239,9 @@ import { EARLY_CHECK_IN, earlyCheckInBookingId } from './guest-shared';
 import type { ActiveScreen } from './guest-shared';
 import { NEARBY_ESTABLISHMENTS, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs } from './places';
 import { GATEWAY_METHOD_LABELS, GatewayCheckout, type GatewayMethod } from './gateway-checkout';
+import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
+import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
+import type { CartLine } from './prototype-model';
 import { EstablishmentChatScreen, GIFT_PRODUCTS, LOBBY_SHOP_NAME, OrderTray, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getMenuItemImage, getRestaurantMenuImages, readChatOrder } from './dining';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
@@ -303,6 +306,8 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
   'pre-arrival-services',
   'transfer-booking',
   'transfer-confirmation',
+  'arrival-cart',
+  'arrival-cart-confirmation',
   'marketplace',
   'category-listing',
   'nearby-recommendations',
@@ -519,6 +524,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* Only third-party vendors offer pay-now; everything else stays on the room. */
   const [servicePayChoice, setServicePayChoice] = useState<'room' | 'pay-now'>('room');
   const [gatewayOpen, setGatewayOpen] = useState(false);
+  /* What the last cart checkout booked, for its one receipt. */
+  const [cartReceipt, setCartReceipt] = useState<{ ids: string[]; method?: GatewayMethod }>({ ids: [] });
   /*
     The service the booking form is for, and the slot being picked. Defaults to
     the Hilom massage, the one thing the form sold before every listing could
@@ -1135,7 +1142,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-confirmation', 'pre-arrival-services', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1185,6 +1192,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const serviceCharge = formatPesoAmount(Math.max(0, servicePrice - pesosOff(appliedPoints)));
   /* Room, card or nothing -- decided by the gate, never by the form. */
   const servicePayment = describeServicePayment(selectedService.price);
+  /* Before arrival everything is arranged into one cart and paid once; in the stay each booking stands alone. */
+  const preArrival = !hasStayStarted(contextBooking);
+  const cartLines = cartFor(session, contextBooking.id);
+  const cartSummary = cartTotals(cartLines);
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
   const contextService = session.serviceBookings.find(
     (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
@@ -1711,6 +1722,86 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     goReplacing('booking-confirmation');
   };
 
+  /*
+    Before arrival a service is not booked on the spot: it goes in the cart with
+    its price, and is booked when the whole cart is paid. Same slot id as a
+    direct booking, so the two can never both exist.
+  */
+  const addServiceToCart = () => {
+    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+    if (!booking || !canBookService(booking, selectedService.id)) {
+      setBookingBlockedReason(booking ? blockedReasonFor(booking) : 'not-arrived');
+      go('booking-blocked');
+      return;
+    }
+    const days = bookableServiceDays(booking, PROTOTYPE_TODAY, selectedService.id);
+    if (!days.length) return;
+    const day = serviceDate && days.includes(serviceDate) ? serviceDate : days[0]!;
+    const slotTime = SERVICE_SCHEDULES[selectedService.id]?.time ?? serviceTime;
+    const { hour } = parseClockTime(slotTime);
+    const id = `service-${selectedService.id}-${booking.id}-${day}-${hour}`;
+    if (session.serviceBookings.some((service) => service.id === id && service.status === 'confirmed')) {
+      setLastServiceBookingId(id);
+      goReplacing('booking-confirmation');
+      return;
+    }
+    const line: CartLine = {
+      settle: servicePayment === 'complimentary' ? 'free' : 'pay-now',
+      booking: {
+        id,
+        bookingId: booking.id,
+        title: selectedService.name,
+        scheduledFor: `${formatServiceDay(day).long} · ${slotTime}`,
+        scheduledDate: day,
+        scheduledHour: hour,
+        bookedAt: PROTOTYPE_TODAY,
+        serviceId: selectedService.id,
+        ...(selectedService.categoryId === 'rentals'
+          ? { summary: `${slotTime} · return by 8:00 PM · ${rentalQuantity} ${rentalQuantity === 1 ? rentalUnitFor(selectedService.id).singular : rentalUnitFor(selectedService.id).plural}`, rentalQuantity }
+          : { partySize: servicePartySize }),
+        amount: formatPesoAmount(servicePrice),
+        status: 'confirmed',
+        provider: providerFor(selectedService),
+        paymentStatus: 'payment-pending',
+      },
+    };
+    setSession((cur) => addToCart(cur, line));
+    returnToArrivalServices();
+  };
+
+  /* The airport ride before the stay: a fixed fare, in the cart, either direction. */
+  const addRideToCart = () => {
+    const { from, to } = rideEnds();
+    const airport = airportFor(contextBooking);
+    const [hours = 10, minutes = 0] = rideTime.split(':').map(Number);
+    const clock = `${((hours + 11) % 12) + 1}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
+    const arriving = to === contextBooking.property;
+    const rideBooking: ServiceBooking = {
+      id: `service-ride-${contextBooking.id}-${arriving ? 'in' : 'out'}-${rideDate}-${hours}${minutes}`,
+      bookingId: contextBooking.id,
+      serviceId: 'transfer',
+      title: arriving ? 'Airport transfer · to the hotel' : 'Airport transfer · to the airport',
+      scheduledFor: `${formatServiceDay(rideDate).long} · ${clock}`,
+      scheduledDate: rideDate,
+      scheduledHour: hours,
+      bookedAt: PROTOTYPE_TODAY,
+      amount: '₱1,200',
+      status: 'confirmed',
+      paymentStatus: 'payment-pending',
+      provider: 'Arranged by the hotel',
+      summary: `${clock} · ${arriving ? `${airport} → hotel` : `Hotel → ${airport}`}`,
+      facts: [
+        { label: 'Pick up', value: from },
+        { label: 'Drop off', value: to },
+        ...(arriving && rideFlight.trim() ? [{ label: 'Flight', value: rideFlight.trim().toUpperCase() }] : []),
+        { label: 'Passengers', value: `${ridePassengers}` },
+        { label: 'Status', value: 'Paid · waiting for the hotel to confirm the driver' },
+      ],
+    };
+    setSession((cur) => addToCart(cur, { booking: rideBooking, settle: 'pay-now' }));
+    returnToArrivalServices();
+  };
+
   const linkRoomStay = (lastName?: string) => {
     const next = withActiveRoom(session);
     setSession({
@@ -1726,13 +1817,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const requestEarlyCheckIn = () => {
     const request = EARLY_CHECK_IN;
-    setChatMessages((messages) => [
-      ...messages,
-      { from: 'guest', body: `I’d like to request early check-in from ${request.time} on ${formatStayDateRange(contextBooking).split('–')[0]}.`, state: online ? 'Sent' : 'Will send when connected' },
-      { from: 'desk', body: 'Noted. We’ll confirm early check-in before you arrive. If it’s approved, the fee goes on your room at checkout.', state: 'Seen' },
-    ]);
     // An extra charge, so it is a booking like any other: it shows on My Stay
-    // and can be withdrawn there while the hotel has not confirmed it.
+    // and can be withdrawn there while the hotel has not confirmed it. Its fee
+    // is a room charge, so it waits in the cart with no payment attached.
     const requestBooking: ServiceBooking = {
       id: earlyCheckInBookingId(contextBooking.id),
       bookingId: contextBooking.id,
@@ -1745,20 +1832,61 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       amount: request.fee,
       status: 'confirmed',
       paymentStatus: 'pending-confirmation',
+      paymentMethod: 'room',
       summary: `${request.time} · instead of ${CHECK_IN_FROM}`,
       facts: [
         { label: 'Room from', value: `${request.time} instead of ${CHECK_IN_FROM}` },
         { label: 'Status', value: 'Waiting for the hotel to confirm' },
-        { label: 'If approved', value: `${request.fee}, added to your room bill` },
+        { label: 'If approved', value: `${request.fee}, added to your room bill once you have a room` },
       ],
     };
-    setSession((cur) => ({
-      ...cur,
-      bookings: cur.bookings.map((booking) => (booking.id === contextBooking.id ? { ...booking, earlyCheckIn: request } : booking)),
-      serviceBookings: [requestBooking, ...cur.serviceBookings.filter((service) => service.id !== requestBooking.id)],
-    }));
+    setSession((cur) => addToCart(cur, { booking: requestBooking, settle: 'room-later', earlyCheckIn: request }));
+    // Back to where the guest asked from: the home tile, or the arrival roster.
     if (history.length > 0) back();
     else go('stay-overview');
+  };
+
+  /** Back to the roster the guest came from, without stacking a second copy of it in history. */
+  const returnToArrivalServices = () => {
+    if (history[history.length - 1] === 'pre-arrival-services') back();
+    else goReplacing('pre-arrival-services');
+  };
+
+  /* Not a network problem, and not the guest's to fix: say which it is before any money moves. */
+  const cartCanCheckOut = () => {
+    if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return false; }
+    if (pmsDown || failNext.booking) {
+      setFailNext((current) => ({ ...current, booking: false }));
+      setBookingBlockedReason(pmsDown ? 'pms-down' : 'failed');
+      go('booking-blocked');
+      return false;
+    }
+    return true;
+  };
+
+  /* One payment, then every booking at once -- and the desk hears about the two that need a person. */
+  const settleArrivalCart = (method?: GatewayMethod) => {
+    const { session: next, bookingIds } = settleCart(session, contextBooking.id, method);
+    const asks = bookingIds
+      .map((id) => next.serviceBookings.find((service) => service.id === id))
+      .filter((service): service is ServiceBooking => Boolean(service) && (service!.serviceId === 'transfer' || service!.serviceId === 'early-check-in'));
+    if (asks.length) {
+      setChatMessages((messages) => [
+        ...messages,
+        ...asks.flatMap((service): ChatMessage[] => service.serviceId === 'early-check-in'
+          ? [
+              { from: 'guest', body: `I’d like to request early check-in from ${EARLY_CHECK_IN.time} on ${formatStayDateRange(contextBooking).split('–')[0]}.`, state: 'Sent' },
+              { from: 'desk', body: 'Noted. We’ll confirm early check-in before you arrive. If it’s approved, the fee goes on your room once you have one.', state: 'Seen' },
+            ]
+          : [
+              { from: 'guest', body: `I’ve booked and paid for an airport transfer: ${service.summary ?? ''} on ${service.scheduledFor.split(' · ')[0]}. Please confirm the driver.`, state: 'Sent' },
+              { from: 'desk', body: 'Thanks, we have your payment. We’ll confirm the driver and pick-up details here. If we can’t arrange it, you’ll be refunded.', state: 'Seen' },
+            ]),
+      ]);
+    }
+    setSession(next);
+    setCartReceipt({ ids: bookingIds, method });
+    goReplacing('arrival-cart-confirmation');
   };
 
   /** `patch` lands in the same write, so a last-step save is not overwritten by this one. */
@@ -2186,8 +2314,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const inStay = hasStayStarted(contextBooking);
     const arrivalServices = [
       ...SERVICES.filter((service) => isPreArrivalService(service.id)),
-      ...(inStay ? [] : [{ id: 'early-check-in', name: 'Early check-in', note: contextBooking.earlyCheckIn ? 'Requested' : 'Subject to hotel confirmation' }]),
+      ...(inStay ? [] : [{ id: 'early-check-in', name: 'Early check-in', note: cartLines.some((line) => line.earlyCheckIn) ? 'In your cart' : contextBooking.earlyCheckIn ? 'Requested' : 'Subject to hotel confirmation' }]),
     ];
+    const inCartIds = new Set(cartLines.map((line) => line.booking.serviceId));
     const arrivalDescription = inStay
       ? 'Scan the code in your room to open dining, spa, tours and room charging. Until then, the hotel can still arrange these.'
       : bookingSlot.locked
@@ -2220,7 +2349,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   onClick={() => service.id === 'transfer' ? (inStay ? openDepartureRide() : openArrivalRide()) : service.id === 'early-check-in' ? (contextBooking.earlyCheckIn ? (setSelectedStayEntryId(earlyCheckInBookingId(contextBooking.id)), go('stay-entry')) : go('early-check-in')) : openServiceBooking(service.id)}
                 >
                   <Image className="guest-arrival-card__image" src={image.src} alt="" fill sizes="(max-width: 720px) 100vw, 560px" style={{ objectPosition: image.focalPoint }} />
-                  {'note' in service ? <span className="guest-arrival-card__chip">{service.note}</span> : null}
+                  {'note' in service ? <span className="guest-arrival-card__chip">{service.note}</span> : inCartIds.has(service.id) ? <span className="guest-arrival-card__chip">In your cart</span> : null}
                   <span className="guest-arrival-card__copy">
                     <span className="guest-arrival-card__glyph" aria-hidden="true">{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
                     <b>{service.name}</b>
@@ -2266,9 +2395,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             )}
           </section>
         ) : (
-          <Notice title="Hotel confirmation">
+          preArrival ? (
+            <Notice title="One cart, one payment">
+              Add what you need and pay once, with card, GCash or Maya. Some requests depend on hotel availability, and the hotel confirms them after you pay. Early check-in is the exception: its fee goes on your room once you have one.
+            </Notice>
+          ) : <Notice title="Hotel confirmation">
             Some arrival requests depend on hotel availability. Hotel services are charged to your room and settled at the front desk at checkout; partners on property can also be paid now. We&rsquo;ll show whether it is complimentary or needs hotel confirmation before you book.</Notice>
         )}
+        {preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}
       </div>
     );
   };
@@ -2572,7 +2706,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'stay-overview':
-        return <>{cancelNotice ? <div className="sb-cancel-notice" role="status"><Notice tone="positive" icon={<CheckCircle />} title="Booking cancelled">{cancelNotice}</Notice><button type="button" aria-label="Dismiss" onClick={() => setCancelNotice(null)}><X /></button></div> : null}<StayOverviewHome staySearch={stayDraft.search} onSearchStay={startStaySearch} session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} /></>;
+        return <>{cancelNotice ? <div className="sb-cancel-notice" role="status"><Notice tone="positive" icon={<CheckCircle />} title="Booking cancelled">{cancelNotice}</Notice><button type="button" aria-label="Dismiss" onClick={() => setCancelNotice(null)}><X /></button></div> : null}<StayOverviewHome staySearch={stayDraft.search} onSearchStay={startStaySearch} session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />{primaryBooking && preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}</>;
 
       case 'partner-hotels':
       case 'partner-hotel-detail':
@@ -2970,7 +3104,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <ScreenIntro
             title="Check in earlier"
-            text="Standard check-in is 3:00 PM. Request a room from 11:00 AM and settle the added charge with the hotel at checkout."
+            text="Standard check-in is 3:00 PM. Request a room from 11:00 AM; the added charge goes on your room once you have one."
           >
             <div className="guest-price-card">
               <div>
@@ -2979,17 +3113,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
               <strong>₱1,500</strong>
             </div>
-            <Notice title="Added to your room bill">
-              The hotel confirms availability first. If approved, the ₱1,500 charge is added to your room and settled at checkout.
+            <Notice title="Not paid today">
+              The hotel confirms availability first. If approved, the ₱1,500 charge is added to your room once you have one and settled at checkout.
             </Notice>
-            <Button
-              className="guest-button guest-button--primary"
-              type="button"
-              onClick={requestEarlyCheckIn}
-            >
-              Request early check-in<ArrowRight aria-hidden="true" />
-            </Button>
-            <TextButton onClick={() => (history.length > 0 ? back() : go('stay-overview'))}>Not now, keep 3:00 PM</TextButton>
+            {cartLines.some((line) => line.earlyCheckIn) ? (
+              <>
+                <Notice tone="positive" icon={<CheckCircle />} title="In your cart">Sent to the hotel when you check out with the rest of your arrival.</Notice>
+                <Button className="guest-button guest-button--primary" type="button" onClick={() => go('arrival-cart')}>Review cart<ArrowRight aria-hidden="true" /></Button>
+                <TextButton onClick={() => setSession((cur) => removeFromCart(cur, earlyCheckInBookingId(contextBooking.id)))}>Remove from cart</TextButton>
+              </>
+            ) : (
+              <>
+                <Button
+                  className="guest-button guest-button--primary"
+                  type="button"
+                  onClick={requestEarlyCheckIn}
+                >
+                  Add to cart<ArrowRight aria-hidden="true" />
+                </Button>
+                <TextButton onClick={() => (history.length > 0 ? back() : go('stay-overview'))}>Not now, keep 3:00 PM</TextButton>
+              </>
+            )}
           </ScreenIntro>
         );
 
@@ -3016,6 +3160,29 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'pre-arrival-services':
         return renderArrivalServices();
+
+      case 'arrival-cart':
+        return (
+          <ArrivalCartScreen
+            property={contextBooking.property}
+            lines={cartLines}
+            totals={cartSummary}
+            onRemove={(id) => setSession((cur) => removeFromCart(cur, id))}
+            onStartPay={cartCanCheckOut}
+            onSettle={settleArrivalCart}
+            onBrowse={() => go('pre-arrival-services')}
+          />
+        );
+
+      case 'arrival-cart-confirmation':
+        return (
+          <ArrivalCartConfirmation
+            bookings={cartReceipt.ids.map((id) => session.serviceBookings.find((service) => service.id === id)).filter((service): service is ServiceBooking => Boolean(service))}
+            method={cartReceipt.method}
+            onViewStay={() => go('my-stay')}
+            onBrowse={() => go('pre-arrival-services')}
+          />
+        );
 
       case 'stay-review':
       case 'stay-review-sent':
@@ -3356,6 +3523,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const pickUp = ride.to === contextBooking.property;
         const checkedOut = describeStayStatus(contextBooking).status === 'checked-out';
         const checkoutDayDeparture = !checkedOut && !pickUp && contextBooking.checkOut <= PROTOTYPE_TODAY;
+        /* Before the stay a ride is an airport run in the cart, either way round. */
+        const preStay = !hasStayStarted(contextBooking);
+        const airport = airportFor(contextBooking);
+        const toCart = preStay && (ride.from === airport || ride.to === airport);
+        const chooseDirection = (arriving: boolean) => {
+          setTransferOrigin(arriving ? airport : contextBooking.property);
+          setTransferDestination(arriving ? contextBooking.property : airport);
+          setTransferDestinationAddress('');
+          setRideDate(arriving ? contextBooking.checkIn : contextBooking.checkOut);
+          setRideWhen('later');
+        };
         return (
           <div className="guest-stack guest-ride-request-page">
             <div className="guest-page-title">
@@ -3363,14 +3541,24 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <h1>Book a ride</h1>
               <p>{pickUp ? `The hotel meets you at ${ride.from} and brings you to ${contextBooking.property}.` : `Request a hotel-arranged ride from ${ride.from} to ${ride.to}.`}</p>
             </div>
-            <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); openRideRequestChat(); }}>
+            <form className="guest-form" onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (toCart) addRideToCart(); else openRideRequestChat(); }}>
+              {toCart ? (
+                <fieldset className="guest-ride-choice">
+                  <legend>Which way?</legend>
+                  <div className="guest-ride-choice__segmented">
+                    <button type="button" className={pickUp ? 'is-active' : ''} aria-pressed={pickUp} onClick={() => chooseDirection(true)}>To the hotel</button>
+                    <button type="button" className={!pickUp ? 'is-active' : ''} aria-pressed={!pickUp} onClick={() => chooseDirection(false)}>To the airport</button>
+                  </div>
+                </fieldset>
+              ) : null}
               <section className="guest-ride-summary" aria-label="Trip summary">
                 <div><small>From</small><strong>{ride.from}</strong></div>
                 <div><small>To</small><strong>{ride.to}</strong>{transferDestinationAddress ? <span>{transferDestinationAddress}</span> : null}</div>
               </section>
               {checkedOut ? <Notice icon={<Car />} title="Pay at the front desk">The front desk will confirm the fare and accepted payment methods, take payment before the ride, and add the paid fare to your stay’s total charges.</Notice> : checkoutDayDeparture ? <Notice icon={<Car />} title="₱1,200, on your room">A hotel car to the airport. The fare is added to your room charges and settled with them at the front desk.</Notice> : null}
+              {toCart ? <Notice icon={<Car />} title="₱1,200, paid now">Added to your cart and paid with everything else. The hotel then confirms your driver; if it can&rsquo;t, you&rsquo;re refunded.</Notice> : null}
               {/* Before the stay starts there is no "now": the guest is not at the airport yet. */}
-              {pickUp && !hasStayStarted(contextBooking) ? null : (
+              {preStay ? null : (
                 <fieldset className="guest-ride-choice">
                   <legend>{pickUp ? 'When do you land?' : 'When would you like to leave?'}</legend>
                   <div className="guest-ride-choice__segmented">
@@ -3379,7 +3567,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   </div>
                 </fieldset>
               )}
-              {rideWhen === 'later' || (pickUp && !hasStayStarted(contextBooking)) ? (
+              {rideWhen === 'later' || preStay ? (
                 <div className="guest-field-stack guest-ride-schedule">
                   <ExpandableField
                     label="Date"
@@ -3404,7 +3592,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <Field label="Flight number (optional)" name="ride-flight" placeholder="e.g. PR 102" value={rideFlight} onValueChange={setRideFlight} helper="The driver tracks it, so a delay does not leave you waiting." />
               ) : null}
               <StepperField label="Passengers" unit="passenger" value={ridePassengers} min={1} max={8} onChange={setRidePassengers} />
-              <Button className="guest-button guest-button--primary" type="submit">Request a ride<ArrowRight aria-hidden="true" /></Button>
+              <Button className="guest-button guest-button--primary" type="submit" disabled={toCart && !rideDate}>{toCart ? 'Add to cart · ₱1,200' : 'Request a ride'}<ArrowRight aria-hidden="true" /></Button>
             </form>
           </div>
         );
@@ -3461,18 +3649,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const chargeToRoom = canUseOnPropertyServices(contextBooking);
         // The room, settled at the front desk -- or, for a third-party vendor, paid now through the gateway.
         const payNowOffered = acceptsPayNow(selectedService);
-        const payingNow = payNowOffered && servicePayChoice === 'pay-now';
+        const payingNow = chargeToRoom && payNowOffered && servicePayChoice === 'pay-now';
         const merchant = merchantFrom(provider);
         const ready = Boolean(day);
         const submitLabel = !day
           ? 'Not on during your stay'
+          : preArrival
+          ? servicePayment === 'complimentary' ? 'Add to cart' : `Add to cart · ${formatPesoAmount(servicePrice)}`
           : servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
           : payingNow ? `Continue to pay ${serviceCharge}`
           : chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`;
         const roomLine = contextBooking.roomNumber ? `Charge to Room ${contextBooking.roomNumber}` : 'Charge to your room';
         return (
-          <FormScreen step={chargeToRoom ? 'Confirm booking' : 'Review and pay'} title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
+          <FormScreen step={preArrival ? 'Add to your cart' : chargeToRoom ? 'Confirm booking' : 'Review and pay'} title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
             <div className="guest-field-stack">
               <ExpandableField
                 label="Date"
@@ -3521,8 +3711,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : null}
             {servicePayment === 'complimentary' ? null : (
               <>
-                <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={appliedPoints} onChange={setAppliedPoints} />
-                {payNowOffered ? (
+                {preArrival ? null : <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={appliedPoints} onChange={setAppliedPoints} />}
+                {preArrival ? (
+                  <Notice title="Paid now, with your cart">
+                    Card, GCash or Maya, in one payment for everything you arrange. Not added to a room bill.
+                  </Notice>
+                ) : payNowOffered ? (
                   <fieldset className="guest-payment-choice">
                     <legend>How would you like to pay?</legend>
                     <div className="guest-payment-options">
@@ -3543,7 +3737,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 )}
               </>
             )}
-            <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => (payingNow ? setGatewayOpen(true) : confirmService())}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
+            <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => (preArrival ? addServiceToCart() : payingNow ? setGatewayOpen(true) : confirmService())}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
             {gatewayOpen && payingNow ? (
               <GatewayCheckout
                 merchant={merchant}

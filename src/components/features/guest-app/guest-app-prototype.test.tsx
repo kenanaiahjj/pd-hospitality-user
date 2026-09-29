@@ -401,12 +401,24 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByTestId('guest-early-checkin-requested')).toBeNull();
 
     await user.click(screen.getByTestId('guest-early-checkin-card'));
-    await user.click(screen.getByRole('button', { name: 'Request early check-in' }));
-    // The tile turns into the request itself, rather than a notice below it.
+    await user.click(screen.getByRole('button', { name: 'Add to cart' }));
+    // It waits in the cart: nothing is sent to the hotel until the guest checks out.
+    const inCart = screen.getByTestId('guest-early-checkin-incart');
+    expect(inCart).toHaveTextContent('11:00 AM');
+    expect(inCart).toHaveTextContent('In your cart');
+    expect(screen.queryByTestId('guest-early-checkin-requested')).toBeNull();
+    expect(screen.queryByTestId('guest-early-checkin-card')).toBeNull();
+
+    // Checking out with only early check-in has nothing to pay: it is a room charge.
+    await user.click(screen.getByRole('button', { name: 'Review cart' }));
+    expect(screen.queryByRole('dialog', { name: 'Secure checkout' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Confirm requests' }));
+    expect(screen.getByRole('heading', { name: 'Your arrival is arranged' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'Home' }));
     const requested = screen.getByTestId('guest-early-checkin-requested');
     expect(requested).toHaveTextContent('11:00 AM');
     expect(requested).toHaveTextContent('Requested');
-    expect(screen.queryByTestId('guest-early-checkin-card')).toBeNull();
   });
 
   it('opens the upcoming home immediately after online pre-arrival completion', async () => {
@@ -529,9 +541,9 @@ describe('GuestAppPrototype', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: /request early check-in/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add to cart' })).toBeInTheDocument();
     expect(screen.queryByText(/gcash|maya|card|insurance/i)).toBeNull();
-    expect(screen.getByText(/added to your room bill/i)).toBeInTheDocument();
+    expect(screen.getByText(/added to your room once you have one/i)).toBeInTheDocument();
   });
 
   it('keeps confirmed services and cancellation status in the active stay', async () => {
@@ -2224,7 +2236,7 @@ describe('booking the service the guest picked', () => {
     expect(screen.getByText('Paid · GCash')).toBeInTheDocument();
   });
 
-  it('books an arrival service to the room before there is a room number', async () => {
+  it('takes arrival services into a cart that is paid now, never charged to a room', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
 
@@ -2236,25 +2248,41 @@ describe('booking the service the guest picked', () => {
     await user.click(screen.getByRole('button', { name: /^Date/ }));
     expect(screen.getByRole('button', { name: 'Friday · November 20' })).toHaveAttribute('aria-pressed', 'true');
 
-    // No card before arrival either: it goes on the room the guest is given.
-    expect(screen.queryByRole('button', { name: /Pay now/ })).toBeNull();
-    expect(screen.getByText('Charged to your room')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Charge ₱4,800 to room' }));
+    // Pay now only: no room option, and no points against a cart line.
+    expect(screen.queryByRole('group', { name: /How would you like to pay/ })).toBeNull();
+    expect(screen.queryByText('Charged to your room')).toBeNull();
+    expect(screen.getByText('Paid now, with your cart')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add to cart · ₱4,800' }));
 
-    expect(screen.getByRole('heading', { name: 'Private car & driver is booked' })).toBeInTheDocument();
-    expect(screen.getByText(/paid with your room bill at checkout/)).toBeInTheDocument();
+    // Back on the roster with the cart docked, and nothing booked yet.
+    expect(screen.getByTestId('arrival-cart-dock')).toHaveTextContent('₱4,800');
+    expect(screen.queryByRole('heading', { name: 'Private car & driver is booked' })).toBeNull();
+    await user.click(within(screen.getByTestId('arrival-cart-dock')).getByRole('button', { name: 'Review cart' }));
+    await user.click(screen.getByRole('button', { name: 'Pay ₱4,800' }));
+
+    const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
+    await user.click(within(gateway).getByRole('button', { name: /GCash/ }));
+    await user.click(within(gateway).getByRole('button', { name: 'Pay ₱4,800' }));
+
+    expect(await screen.findByRole('heading', { name: 'Your arrival is arranged' }, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText(/Paid ₱4,800 with GCash/)).toBeInTheDocument();
+    expect(screen.getByText(/Private car & driver/)).toBeInTheDocument();
   });
 
-  it('books a complimentary arrival service without asking how to pay', async () => {
+  it('carries a free arrival service in the cart without opening the gateway', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
 
     await user.click(screen.getByRole('button', { name: /Luggage storage & delivery/ }));
     expect(screen.queryByRole('group', { name: /How would you like to pay/ })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Book Luggage storage & delivery' }));
+    await user.click(screen.getByRole('button', { name: 'Add to cart' }));
 
-    expect(screen.getByRole('heading', { name: 'Luggage storage & delivery is booked' })).toBeInTheDocument();
-    expect(screen.getByText(/Complimentary, so there is nothing to pay/)).toBeInTheDocument();
+    expect(screen.getByTestId('arrival-cart-dock')).toHaveTextContent('Nothing to pay now');
+    await user.click(screen.getByRole('button', { name: 'Review cart' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm requests' }));
+
+    expect(screen.getByRole('heading', { name: 'Your arrival is arranged' })).toBeInTheDocument();
+    expect(screen.getByText('Complimentary')).toBeInTheDocument();
   });
 
   it('still keeps on-property services behind the scan', async () => {
@@ -2266,20 +2294,51 @@ describe('booking the service the guest picked', () => {
     expect(screen.getByRole('heading', { name: 'On-property services open when you check in' })).toBeInTheDocument();
   });
 
-  it('finds the booking already made when the same slot is confirmed again', async () => {
+  it('checks out a transfer each way, a service and early check-in in one payment', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
+
+    await user.click(screen.getByRole('button', { name: /Airport transfer/ }));
+    await user.click(screen.getByRole('button', { name: 'Add to cart · ₱1,200' }));
+    await user.click(screen.getByRole('button', { name: /Airport transfer/ }));
+    await user.click(screen.getByRole('button', { name: 'To the airport' }));
+    await user.click(screen.getByRole('button', { name: 'Add to cart · ₱1,200' }));
+    await user.click(screen.getByRole('button', { name: /Flowers & celebration setup/ }));
+    await user.click(screen.getByRole('button', { name: /Add to cart/ }));
+    await user.click(screen.getByRole('button', { name: /Early check-in/ }));
+    await user.click(screen.getByRole('button', { name: 'Add to cart' }));
+
+    await user.click(screen.getByRole('button', { name: 'Review cart' }));
+    const lines = within(screen.getByRole('list', { name: 'Cart items' })).getAllByRole('listitem');
+    expect(lines).toHaveLength(4);
+    // Early check-in is a room charge later, so it stays out of what the gateway takes.
+    expect(screen.getByText('Pay now').nextSibling).toHaveTextContent('₱4,000');
+    expect(screen.getByText('Charged to your room later').nextSibling).toHaveTextContent('₱1,500');
+
+    await user.click(screen.getByRole('button', { name: 'Pay ₱4,000' }));
+    const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
+    await user.click(within(gateway).getByRole('button', { name: /Card/ }));
+    await user.click(within(gateway).getByRole('button', { name: 'Pay ₱4,000' }));
+
+    expect(await screen.findByRole('heading', { name: 'Your arrival is arranged' }, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText(/Airport transfer · to the hotel/)).toBeInTheDocument();
+    expect(screen.getByText(/Airport transfer · to the airport/)).toBeInTheDocument();
+    expect(screen.queryByTestId('arrival-cart-dock')).toBeNull();
+  });
+
+  it('holds one line per slot when the same service is added twice', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
 
     await user.click(screen.getByRole('button', { name: /Luggage storage & delivery/ }));
-    await user.click(screen.getByRole('button', { name: 'Book Luggage storage & delivery' }));
-    // Back from the confirmation skips the submitted form; opening it again
-    // and confirming the same slot must find the booking already made.
-    await user.click(screen.getByRole('button', { name: 'Go back' }));
+    await user.click(screen.getByRole('button', { name: 'Add to cart' }));
     await user.click(screen.getByRole('button', { name: /Luggage storage & delivery/ }));
-    await user.click(screen.getByRole('button', { name: 'Book Luggage storage & delivery' }));
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'Add to cart' }));
+    await user.click(screen.getByRole('button', { name: 'Review cart' }));
 
-    expect(screen.getAllByRole('button', { name: /Luggage storage & delivery/ })).toHaveLength(1);
+    expect(within(screen.getByRole('list', { name: 'Cart items' })).getAllByRole('listitem')).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Remove Luggage storage & delivery' }));
+    expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toBeInTheDocument();
   });
 });
 
@@ -2467,19 +2526,18 @@ describe('lifecycle gates', () => {
     }
   });
 
-  it('lets an arrival service go on the room before a room is assigned', async () => {
+  it('lets an arrival service be added and paid for before a room is assigned', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
 
     await user.click(secondTab());
     await user.click(screen.getByRole('button', { name: /Private car & driver/ }));
 
-    // Room only, and it must not loop back to "open when you check in" as it once did.
-    expect(screen.queryByRole('button', { name: /Pay now/ })).toBeNull();
-    await user.click(screen.getByRole('button', { name: /Charge ₱[\d,]+ to room/ }));
+    // Cart only, and it must not loop back to "open when you check in" as it once did.
+    expect(screen.queryByRole('button', { name: /Charge ₱[\d,]+ to room/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Add to cart/ }));
 
-    expect(screen.getByRole('heading', { name: /Private car & driver is booked/ })).toBeInTheDocument();
-    expect(screen.getByText(/is paid with your room bill at checkout/)).toBeInTheDocument();
+    expect(screen.getByTestId('arrival-cart-dock')).toBeInTheDocument();
   });
 
   it('lists arrival services by name alone before a room is assigned', async () => {
@@ -3273,7 +3331,7 @@ describe('scan discoverability', () => {
     expect(screen.queryByRole('button', { name: 'Now' })).toBeNull();
     expect(screen.getByRole('textbox', { name: /Flight number/ })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Passengers' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Request a ride/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add to cart · ₱1,200' })).toBeInTheDocument();
   });
 
   it('opens a property update when selected', async () => {

@@ -66,6 +66,8 @@ export type ScreenId =
   | 'pre-arrival-services'
   | 'transfer-booking'
   | 'transfer-confirmation'
+  | 'arrival-cart'
+  | 'arrival-cart-confirmation'
   | 'stay-review'
   | 'scan-room-code'
   | 'stay-review-sent'
@@ -142,6 +144,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(52, 'Pre-arrival', 'pre-arrival-services', 'Arrange your arrival'),
   screen(56, 'Pre-arrival', 'transfer-booking', 'Book a hotel transfer'),
   screen(57, 'Pre-arrival', 'transfer-confirmation', 'Transfer booked'),
+  screen(76, 'Pre-arrival', 'arrival-cart', 'Your cart'),
+  screen(77, 'Pre-arrival', 'arrival-cart-confirmation', 'Arrival booked'),
   screen(53, 'Stay', 'stay-review', 'Rate your stay'),
   screen(54, 'Stay', 'stay-review-sent', 'Review sent'),
   screen(55, 'Entry', 'scan-room-code', 'Scan the room code'),
@@ -431,6 +435,19 @@ export type RewardsState = {
   mutedBadges: string[];
 };
 
+/**
+ * One thing in the pre-arrival cart: the booking it becomes once paid, and how
+ * it settles. Lines are keyed by that booking's id -- the slot -- so the same
+ * slot added twice is one line.
+ */
+export type CartLine = {
+  booking: ServiceBooking;
+  /** Through the gateway, on the room later (early check-in), or nothing to pay. */
+  settle: 'pay-now' | 'room-later' | 'free';
+  /** Early check-in only: the terms to put on the stay when it is booked. */
+  earlyCheckIn?: { time: string; fee: string };
+};
+
 export type GuestSession = {
   guestName: string;
   email: string;
@@ -462,6 +479,12 @@ export type GuestSession = {
    * which is true. Read it through `getRewards` rather than directly.
    */
   rewards?: RewardsState;
+  /**
+   * What the guest has lined up to arrange before arriving, paid in one go.
+   * Optional and additive, like `rewards`: a stored session from before the
+   * cart existed simply has nothing in it.
+   */
+  cart?: CartLine[];
 };
 
 /**

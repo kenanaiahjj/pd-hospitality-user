@@ -8965,3 +8965,21 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-gateway__wallet { display: grid; width: 22px; height: 22px; flex: 0 0 auto; place-items: center; border-radius: 6px; background: var(--guest-ink); color: var(--guest-paper); font-size: 12px; font-weight: 800; }
 .guest-gateway__note { display: flex; gap: 8px; margin: 0; color: var(--guest-muted); font-size: 12px; line-height: 1.4; }
 .guest-gateway__note svg { width: 16px; height: 16px; flex: 0 0 auto; }
+
+/* --------------------------------------------------------------------------
+   Pre-arrival cart: one list, one payment.
+   -------------------------------------------------------------------------- */
+.guest-app .guest-cart-dock { grid-template-columns: minmax(0, 1fr) auto; }
+.guest-app .guest-cart-dock .guest-button { width: auto; padding: 0 20px; gap: 8px; }
+.guest-cart__lines { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-surface); }
+.guest-cart__line { display: grid; grid-template-columns: minmax(0, 1fr) auto 32px; align-items: start; gap: 10px; padding: 14px 8px 14px 16px; }
+.guest-cart__line + .guest-cart__line { border-top: 1px solid var(--guest-line); }
+.guest-cart__what { display: grid; gap: 2px; min-width: 0; }
+.guest-cart__what b { font-size: 15px; font-weight: 650; }
+.guest-cart__what small { color: var(--guest-muted); font-size: 13px; line-height: 1.35; }
+.guest-cart__price { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.guest-cart__price strong { font-size: 15px; font-variant-numeric: tabular-nums; font-weight: 650; }
+.guest-cart__price small { color: var(--guest-muted); font-size: 12px; }
+.guest-cart__remove { display: grid; place-items: center; width: 32px; height: 32px; margin: -4px 0 0; border: 0; border-radius: var(--guest-radius-pill); background: transparent; color: var(--guest-muted); cursor: pointer; }
+.guest-cart__remove:hover { background: var(--guest-sunken); color: var(--guest-ink); }
+.guest-cart__lines--receipt .guest-cart__line { grid-template-columns: minmax(0, 1fr) auto; padding-right: 16px; }

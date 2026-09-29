@@ -51,19 +51,23 @@ const STAMP_EDGE = (() => {
 /** The same scalloped edge as a CSS mask, so the sticker sheen stops where the stamp does. */
 const STAMP_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='${STAMP_EDGE}'/></svg>`)}")`;
 
-/* The seal's engraving: a milled rim, like a coin's, and a guilloché rosette behind the mark. */
+/* The seal's engraving: a milled rim, like a coin's, and a fine sunburst behind the mark, like a watch dial. */
 const STAMP_MILLING = Array.from({ length: 96 }, (_, index) => {
   const angle = (index / 96) * Math.PI * 2;
   const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
   return `M${(50 + 40.7 * cos).toFixed(2)} ${(50 + 40.7 * sin).toFixed(2)}L${(50 + 42 * cos).toFixed(2)} ${(50 + 42 * sin).toFixed(2)}`;
 }).join('');
-const STAMP_ROSETTE = Array.from({ length: 18 }, (_, index) => index * 10);
+const STAMP_SUNBURST = Array.from({ length: 120 }, (_, index) => {
+  const angle = (index / 120) * Math.PI * 2;
+  const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+  return `M${(50 + 3 * cos).toFixed(2)} ${(50 + 3 * sin).toFixed(2)}L${(50 + 23.4 * cos).toFixed(2)} ${(50 + 23.4 * sin).toFixed(2)}`;
+}).join('');
 
 /*
   An approval seal, finished like a premium foil sticker: a pearl die-cut
   edge (the card's own frame, in miniature) around a champagne-gold foil
   disc with a bevelled rim, deep plum for every line and letter, lightly
-  debossed, over a fine engraved rosette. On top, a holographic foil and a gloss band
+  debossed, over a fine engraved sunburst. On top, a holographic foil and a gloss band
   slide with the card's tilt, and one glint crosses it once it has landed.
 */
 function DigitalStamp() {
@@ -72,7 +76,6 @@ function DigitalStamp() {
   const foil = `${id}-ink`;
   const bevel = `${id}-bevel`;
   const emboss = `${id}-emboss`;
-  const inner = `${id}-inner`;
   const ink = `url(#${foil})`;
 
   return (
@@ -101,7 +104,6 @@ function DigitalStamp() {
             <feDropShadow dx="0" dy="0.4" stdDeviation="0.05" floodColor="#fff8e2" floodOpacity="0.75" />
             <feDropShadow dx="0" dy="-0.25" stdDeviation="0.1" floodColor="#5a3a12" floodOpacity="0.35" />
           </filter>
-          <clipPath id={inner}><circle cx="50" cy="50" r="24.4" /></clipPath>
         </defs>
 
         {/* Die-cut pearl edge, then the disc and its bevelled rim. */}
@@ -109,12 +111,8 @@ function DigitalStamp() {
         <path d={STAMP_EDGE} fill={`url(#${backing})`} />
         <path d={STAMP_EDGE} fill="none" stroke={`url(#${bevel})`} strokeWidth="1.4" transform="translate(50 50) scale(0.955) translate(-50 -50)" />
 
-        {/* Engraving, faint, under the foil. */}
-        <g clipPath={`url(#${inner})`} fill="none" stroke="oklch(0.3 0.07 350)" strokeWidth="0.16" opacity="0.2">
-          {STAMP_ROSETTE.map((angle) => (
-            <ellipse key={angle} cx="50" cy="50" rx="23" ry="8.5" transform={`rotate(${angle} 50 50)`} />
-          ))}
-        </g>
+        {/* Engraving, faint, under the ink. */}
+        <path d={STAMP_SUNBURST} fill="none" stroke="oklch(0.3 0.07 350)" strokeWidth="0.14" opacity="0.22" />
 
         <g filter={`url(#${emboss})`}>
           <path d={STAMP_EDGE} fill="none" stroke={ink} strokeWidth="1.2" />

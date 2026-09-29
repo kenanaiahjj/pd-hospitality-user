@@ -143,7 +143,7 @@ export function groupByCollision<T>(points: { item: T; x: number; y: number }[],
 }
 
 /** Base tiles and their labels, as separate layers so the labels stay crisp. */
-function addTiles(L: typeof import('leaflet'), map: LeafletMap) {
+export function addTiles(L: typeof import('leaflet'), map: LeafletMap) {
   const canvas = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas';
   L.tileLayer(`${canvas}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`, {
     attribution: 'Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
@@ -158,7 +158,7 @@ function addTiles(L: typeof import('leaflet'), map: LeafletMap) {
 }
 
 /* The credit folds into an ⓘ, as a maps app keeps it: owed, not shouted. */
-function addCredit(L: typeof import('leaflet'), map: LeafletMap) {
+export function addCredit(L: typeof import('leaflet'), map: LeafletMap) {
   map.attributionControl.setPrefix(false);
   const container = map.attributionControl.getContainer();
   if (!container) return;

@@ -174,8 +174,8 @@ tokens.
   Continue is enabled when the cart has no more rooms than lead-capable guests
   and total capacity covers the party.
 - **Rate plans per class:** `flex` (room only, free cancellation),
-  `flex-breakfast` (breakfast for everyone in the room, free cancellation, +₱650
-  per person aged 6+ per night) and `saver` (room only, non-refundable, 15% off).
+  `flex-breakfast` (breakfast for as many as the room sleeps, free cancellation,
+  a flat +₱600 × `sleeps` per room per night) and `saver` (room only, non-refundable, 15% off).
   A hotel may omit `saver`.
 - **Nightly price:** base × 1.15 on Friday and Saturday nights, rounded to ₱10.
   The "from ₱X / night" figure is the cheapest open rate on the search dates;

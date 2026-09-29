@@ -490,7 +490,7 @@ export function roomOffers(hotel: StayHotel, search: StaySearch): RoomOffer[] {
     left: roomsLeft(hotel.id, roomType.id, search.checkIn, search.checkOut),
     plans: roomType.plans.map((id) => {
       const total = stayRate(roomType, id, search.checkIn, search.checkOut);
-      return { id, total, perNight: Math.round(total / nights), refundable: id !== 'saver' };
+      return { id, total, perNight: round10(total / nights), refundable: id !== 'saver' };
     }),
   }));
 }
@@ -620,7 +620,7 @@ export function validateAllocation(hotel: StayHotel, search: StaySearch, cart: C
   } else if (placedChildren.size !== search.childAges.length) {
     summary = 'Choose a room for every child.';
   } else if (roomErrors.some(Boolean)) {
-    summary = 'Fix the rooms marked below to continue.';
+    summary = 'Fix the rooms marked above to continue.';
   }
   return { ok: !summary, roomErrors, summary };
 }

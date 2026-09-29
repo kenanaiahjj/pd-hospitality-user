@@ -3,7 +3,7 @@
 import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { PARTNER_HOTELS, PartnerHotelCard } from './partner-hotels';
+import { HotelResultCard, StaySearchCard, searchHotels, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
@@ -137,6 +137,9 @@ export type StayOverviewHomeProps = {
   onOpenPick: (entry: FeedEntry) => void;
   onOpenStay: (id: string) => void;
   onOpenHotel: (id: string) => void;
+  /** The hotel search the no-booking home opens with. */
+  staySearch: StaySearch;
+  onSearchStay: (search: StaySearch) => void;
   /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
   /** Whether the front desk still answers after checkout: the 24-hour window. */
@@ -147,7 +150,7 @@ export type StayOverviewHomeProps = {
   clockHour?: number;
 };
 
-export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenHotel, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
+export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenHotel, staySearch, onSearchStay, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -160,6 +163,8 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         pastStays={session.pastStays}
         onNavigate={onNavigate}
         onOpenHotel={onOpenHotel}
+        staySearch={staySearch}
+        onSearchStay={onSearchStay}
       />
     );
   }
@@ -219,6 +224,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         {canUseOnPropertyServices(booking) ? (
           <RecommendedRail entries={picks} onOpen={onOpenPick} heading={<SectionHeading title="Recommended for you" action="See all" onAction={() => onNavigate('marketplace')} />} />
         ) : null}
+        <BookAnotherStayCard onNavigate={onNavigate} />
       </div>
     );
   }
@@ -240,6 +246,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
             {upcomingBookings.filter((item) => item.id !== booking.id).map((item) => <UpcomingBookingCard key={item.id} booking={item} onNavigate={onNavigate} />)}
           </div>
         </section>
+        <BookAnotherStayCard onNavigate={onNavigate} />
       </div>
     );
   }
@@ -261,11 +268,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
           </button>
         ) : null}
         {/* The stay first, then where to go next: selling before closing read as pushy. */}
-        <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('partner-hotels')}>
-          <span className="guest-add-booking-card__glyph" aria-hidden="true"><Plus /></span>
-          <span className="guest-add-booking-card__text"><b>Explore partner hotels</b><small>Choose where you want to stay next.</small></span>
-          <ArrowRight aria-hidden="true" />
-        </button>
+        <BookAnotherStayCard onNavigate={onNavigate} />
         {/* Stay history lives in Profile; a second way in here was noise. */}
       </div>
     );
@@ -427,7 +430,19 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
       ) : null}
       {/* No property updates before arrival: a pool closing this morning is
           noise to a guest who lands next month. They start on the stay home. */}
+      <BookAnotherStayCard onNavigate={onNavigate} />
     </div>
+  );
+}
+
+/** The next trip, from any home that already has one: the same search the no-booking home leads with. */
+function BookAnotherStayCard({ onNavigate }: { onNavigate: (screen: ActiveScreen) => void }) {
+  return (
+    <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('book-stay')}>
+      <span className="guest-add-booking-card__glyph" aria-hidden="true"><Plus /></span>
+      <span className="guest-add-booking-card__text"><b>Book another stay</b><small>Partner hotels across the Philippines. Mix room types in one booking.</small></span>
+      <ArrowRight aria-hidden="true" />
+    </button>
   );
 }
 
@@ -714,13 +729,19 @@ export function EmptyStayHome({
   pastStays,
   onNavigate,
   onOpenHotel,
+  staySearch,
+  onSearchStay,
 }: {
   guestName: string;
   pastStays: PastStay[];
   onNavigate: (screen: ActiveScreen) => void;
   onOpenHotel: (id: string) => void;
+  staySearch: StaySearch;
+  onSearchStay: (search: StaySearch) => void;
 }) {
   const firstName = guestName.trim().split(' ')[0];
+  // The estate's own hotels lead; prices are for the dates in the search card.
+  const featured = searchHotels({ ...staySearch, location: 'Anywhere in the Philippines' }).filter((result) => !result.soldOut).slice(0, 6);
 
   return (
     <div className="guest-stack" data-testid="guest-home-empty">
@@ -736,10 +757,12 @@ export function EmptyStayHome({
         </h1>
         <p>
           {pastStays.length > 0
-            ? 'No stay is connected right now. Add a booking, or explore where to stay next.'
-            : 'Add your booking to open arrival details, hotel services and room charges in one place.'}
+            ? 'Where to next? Book partner hotels here, mixing room types in one booking.'
+            : 'Book a partner hotel, or add a booking you already have.'}
         </p>
       </div>
+
+      <StaySearchCard value={staySearch} onSearch={onSearchStay} />
 
       {/*
         The main action, as a card rather than a pill. It is the one thing a
@@ -751,11 +774,11 @@ export function EmptyStayHome({
         therefore no code to point a camera at -- offering it was an action
         that could not succeed.
       */}
-      <button className="guest-add-booking-card" type="button" onClick={() => onNavigate('identify')}>
+      <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('identify')}>
         <span className="guest-add-booking-card__glyph" aria-hidden="true"><Ticket /></span>
         <span className="guest-add-booking-card__text">
-          <b>Add a booking</b>
-          <small>Enter your reference and last name to open arrival details, services and room charges.</small>
+          <b>Already booked?</b>
+          <small>Add a booking made elsewhere with its reference and last name.</small>
         </span>
         <ArrowRight aria-hidden="true" />
       </button>
@@ -763,8 +786,8 @@ export function EmptyStayHome({
       {/* Previous stays live in Profile; the home offers where to stay next. */}
       <section className="guest-empty-hotels">
         <SectionHeading title="Partner hotels" />
-        <div className="guest-partner-directory__list">
-          {PARTNER_HOTELS.map((hotel) => <PartnerHotelCard key={hotel.id} hotel={hotel} onOpenHotel={onOpenHotel} />)}
+        <div className="sb-rail">
+          {featured.map((result) => <HotelResultCard key={result.hotel.id} result={result} search={staySearch} compact onOpen={() => onOpenHotel(result.hotel.id)} />)}
         </div>
       </section>
     </div>

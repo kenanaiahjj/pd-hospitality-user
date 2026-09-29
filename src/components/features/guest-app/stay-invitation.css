@@ -198,9 +198,9 @@
   text-transform: uppercase;
   opacity: 0;
 }
-.stay-pass:not([data-phase='idle']) .stay-pass__status { animation: stay-pass-status 460ms 720ms var(--ease-out) both; }
-/* Same animation names while leaving, so neither restarts mid-zoom. */
-.stay-pass:is([data-phase='done'], [data-phase='leaving']) .stay-pass__status { animation: stay-pass-foil 1600ms var(--ease-out) both; opacity: 1; }
+/* A quiet fade once the stamp has settled -- the stamp is the moment, not this. */
+.stay-pass:not([data-phase='idle']) .stay-pass__status { animation: stay-pass-fade 360ms 760ms var(--ease-out) both; }
+.stay-pass:is([data-phase='done'], [data-phase='leaving']) .stay-pass__status { animation: none; opacity: 1; }
 
 .stay-pass__property.stay-pass__property {
   margin: 0;
@@ -308,15 +308,14 @@
   animation: stay-pass-sweep 1100ms 380ms var(--ease-out) both;
   pointer-events: none;
 }
-.stay-pass:is([data-phase='done'], [data-phase='leaving']) .stay-pass__sweep { animation-name: stay-pass-sweep-again; animation-delay: 0ms; }
 
 /* The small mark steps aside for the approval stamp. */
 .stay-pass__mark { transition: opacity 240ms var(--ease-out); }
 .stay-pass:not([data-phase='idle']) .stay-pass__mark { opacity: 0; }
 
 /* --- Digital stamp ---------------------------------------------------------
-   A large approval mark slammed onto the photograph's upper right: it drops
-   from above the card, hits with a gold ring of ink, and settles at a tilt.
+   A large approval mark pressed onto the photograph's upper right: it drops
+   from above the card, lands once, and rests at a tilt.
    -------------------------------------------------------------------------- */
 .stay-pass__stamp-spot {
   --stamp-size: 132px;
@@ -335,17 +334,11 @@
   transform: rotate(-9deg);
   /* A shadow under the gold, so the mark holds on a bright photograph. */
   filter: drop-shadow(0 1px 1px oklch(0.2 0.05 350 / 0.55)) drop-shadow(0 4px 14px oklch(0.2 0.05 350 / 0.45));
-  animation: stay-pass-stamp-impact 620ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
-}
-/* The ink ring that bursts out at contact. */
-.stay-pass__stamp::after {
-  position: absolute;
-  inset: 4%;
-  content: '';
-  border: 2px solid #ead59e;
-  border-radius: 50%;
   opacity: 0;
-  animation: stay-pass-stamp-ring 700ms 240ms var(--ease-out) both;
+}
+.stay-pass:not([data-phase='idle']) .stay-pass__stamp {
+  opacity: 1;
+  animation: stay-pass-stamp-impact 620ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 .stay-pass__stamp-lockup {
   position: absolute;
@@ -400,8 +393,8 @@
   inset: 0;
   content: '';
   background: linear-gradient(105deg, oklch(1 0 0 / 0) 40%, oklch(1 0 0 / 0.75) 50%, oklch(1 0 0 / 0) 60%) 150% 0 / 300% 100% no-repeat;
-  animation: stay-pass-stamp-glint 900ms 520ms var(--ease-out) both;
 }
+.stay-pass:not([data-phase='idle']) .stay-pass__stamp-shine::after { animation: stay-pass-stamp-glint 800ms 700ms var(--ease-out) both; }
 @keyframes stay-pass-stamp-glint {
   from { background-position: 150% 0; }
   to { background-position: -50% 0; }
@@ -413,32 +406,18 @@
   letter-spacing: 0.12em;
   text-anchor: middle;
 }
-.stay-pass__stamp-type--bottom {
-  font-size: 5.4px;
-  letter-spacing: 0.1em;
-}
+.stay-pass__stamp-type--bottom { font-size: 5.4px; letter-spacing: 0.1em; }
 
-/* The card takes the hit: a real dip at contact, then a small rebound. */
-.stay-pass[data-phase='stamping'] .stay-pass__press {
-  animation: stay-pass-card-impact 620ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
-}
+/*
+  The card holds still under the stamp. It used to dip at contact, but
+  animating the card's transform inside its 3D tilt made Chrome redraw the
+  stamp's SVG lettering in the wrong place for the whole landing.
+*/
 @keyframes stay-pass-stamp-impact {
-  0% { opacity: 0; transform: translateY(-40px) rotate(-22deg) scale(2.3); }
-  28% { opacity: 1; }
-  40% { transform: translateY(2px) rotate(-8deg) scale(0.9); }
-  54% { transform: translateY(-1px) rotate(-9.5deg) scale(1.05); }
-  72% { transform: rotate(-8.8deg) scale(0.98); }
+  0% { opacity: 0; transform: translateY(-24px) rotate(-15deg) scale(1.7); }
+  30% { opacity: 1; }
+  48% { transform: rotate(-9deg) scale(0.97); }
   100% { opacity: 1; transform: rotate(-9deg); }
-}
-@keyframes stay-pass-stamp-ring {
-  0% { opacity: 0.9; transform: scale(0.9); }
-  100% { opacity: 0; transform: scale(1.7); }
-}
-@keyframes stay-pass-card-impact {
-  0%, 100% { transform: none; }
-  40% { transform: translateY(4px) scale(0.965); }
-  56% { transform: translateY(-1px) scale(1.012); }
-  76% { transform: scale(0.998); }
 }
 
 /* Leaving: the card zooms toward the guest and dissolves into what comes next. */
@@ -454,9 +433,7 @@
   from { opacity: 0; letter-spacing: 0.7em; text-indent: 0.7em; filter: blur(3px); }
   to { opacity: 1; letter-spacing: 0.34em; text-indent: 0.34em; filter: none; }
 }
-@keyframes stay-pass-foil { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @keyframes stay-pass-sweep { from { background-position: 130% 0; } to { background-position: -30% 0; } }
-@keyframes stay-pass-sweep-again { from { background-position: 130% 0; } to { background-position: -30% 0; } }
 @keyframes stay-pass-in {
   from { opacity: 0; transform: translateY(22px) rotateX(18deg) scale(0.95); }
   to { opacity: 1; transform: none; }
@@ -494,9 +471,7 @@
   .stay-pass__tilt,
   .stay-pass__photo { transform: none; }
   .stay-pass__sweep,
-  .stay-pass__stamp { animation: stay-pass-fade 300ms both; }
-  .stay-pass[data-phase='stamping'] .stay-pass__press { animation: none; }
-  .stay-pass__stamp::after,
+  .stay-pass:not([data-phase='idle']) .stay-pass__stamp { animation: stay-pass-fade 300ms both; }
   .stay-pass__stamp-shine::after { display: none; }
   .stay-pass[data-phase='leaving'] { animation: stay-pass-fade 280ms reverse both; }
   .stay-pass:not([data-phase='idle']) .stay-pass__status { animation: stay-pass-fade 300ms both; }

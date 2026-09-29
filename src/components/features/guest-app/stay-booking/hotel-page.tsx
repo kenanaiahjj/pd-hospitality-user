@@ -5,7 +5,7 @@ import { ArrowRight, Bed, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Ph
 import { useState } from 'react';
 import type { CartLine, RatePlanId, StayHotel, StaySearch } from './model';
 import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, partyLabel, peso, quoteStay, roomOffers, validSearchDates } from './model';
-import { nightsLabel, roomsLabel, stayDatesLabel } from './format';
+import { roomsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
 import { HotelHighlights, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
 
@@ -108,7 +108,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
       <section className="sb-section" aria-labelledby="sb-rooms-title">
         <div className="sb-section__head">
           <h2 id="sb-rooms-title">Choose your rooms</h2>
-          <p>Mix any room types in one booking: a family room for the kids and a king for the grandparents, each on the rate that suits it.</p>
+          <p>Mix room types and rates in one booking.</p>
         </div>
         <div className="sb-rooms">
           {offers.map((offer) => {
@@ -118,17 +118,19 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
             return (
               <article key={roomType.id} className={`sb-room${soldOut ? ' is-sold-out' : ''}`} aria-label={roomType.name}>
                 <div className="sb-room__head">
-                  <span className="sb-room__photo"><Image src={roomType.image.src} alt="" fill sizes="112px" style={{ objectPosition: roomType.image.focalPoint }} /></span>
+                  <span className="sb-room__photo">
+                    <Image src={roomType.image.src} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 440px" style={{ objectPosition: roomType.image.focalPoint }} />
+                    {soldOut ? <span className="sb-note sb-note--urgent"><Warning aria-hidden="true" />Sold out for these dates</span>
+                      : offer.left <= 3 ? <span className="sb-note sb-note--urgent">Only {offer.left} left</span> : null}
+                  </span>
                   <div className="sb-room__info">
                     <h3>{roomType.name}</h3>
                     <p className="sb-room__facts">
-                      <span><Ruler aria-hidden="true" />{roomType.sizeSqm} m²</span>
+                      <span><Users aria-hidden="true" />Sleeps {roomType.sleeps}{roomType.maxAdults < roomType.sleeps ? ` · ${roomType.maxAdults} adults max` : ''}</span>
                       <span><Bed aria-hidden="true" />{roomType.beds}</span>
-                      <span><Users aria-hidden="true" />Sleeps {roomType.sleeps}{roomType.maxAdults < roomType.sleeps ? ` · up to ${roomType.maxAdults} adults` : ''}</span>
+                      <span><Ruler aria-hidden="true" />{roomType.sizeSqm} m²</span>
                     </p>
                     <p className="sb-room__features">{[roomType.view, ...roomType.features].join(' · ')}</p>
-                    {soldOut ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Sold out for these dates</span>
-                      : offer.left <= 3 ? <span className="sb-note sb-note--urgent">Only {offer.left} left</span> : null}
                   </div>
                 </div>
                 {!soldOut ? (
@@ -186,13 +188,11 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
       <div className="guest-dock-spacer sb-dock-spacer" aria-hidden="true" />
       <div className="guest-dock sb-dock">
         <div className="guest-dock__summary">
-          {fit.rooms ? (
-            <>
-              <span>{roomsLabel(fit.rooms)} · {nightsLabel(search.checkIn, search.checkOut)}</span>
-              <strong>{peso(quote.subtotal)}</strong>
-            </>
-          ) : null}
-          <small className={`sb-dock__fit${fit.fits ? ' is-positive' : ''}${fit.rooms ? '' : ' is-empty'}`} aria-live="polite">{fit.message}</small>
+          {/* Two lines at most: the price, then one note -- the room count while it fits, else what to fix. */}
+          {fit.rooms ? <strong>{peso(quote.subtotal)}</strong> : null}
+          <small className={`sb-dock__fit${fit.fits ? ' is-positive' : ''}${fit.rooms ? '' : ' is-empty'}`} aria-live="polite">
+            {fit.fits ? `${roomsLabel(fit.rooms)} · ${fit.message.replace('Fits your', 'fits')}` : fit.message}
+          </small>
         </div>
         <button type="button" className="guest-button guest-button--primary" disabled={!fit.fits || !datesOk} onClick={onContinue}>
           Continue<ArrowRight aria-hidden="true" />

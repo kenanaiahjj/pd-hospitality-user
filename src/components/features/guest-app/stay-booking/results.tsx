@@ -114,11 +114,6 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
         <b className="sb-hotel-card__name">{hotel.name}</b>
         <small className="sb-hotel-card__area">{hotel.area}{result.distanceKm !== undefined ? ` · ${result.distanceKm} km from centre` : ''}</small>
         <HotelHighlights hotelId={hotel.id} />
-        {!compact ? (
-          <span className="sb-hotel-card__amenities">
-            {hotel.amenities.slice(0, 3).map((amenity) => <span key={amenity}>{AMENITY_LABELS[amenity]}</span>)}
-          </span>
-        ) : null}
         <span className="sb-hotel-card__foot">
           <span className="sb-hotel-card__notes">
             {result.soldOut ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Sold out on your dates</span>
@@ -127,9 +122,8 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
           </span>
           {result.fromPrice !== undefined && !result.soldOut ? (
             <span className="sb-price">
-              <small>from</small>
-              <b>{peso(result.fromPrice)}</b>
-              <small>per night · {nightsLabel(search.checkIn, search.checkOut)}</small>
+              <span><b>{peso(result.fromPrice)}</b> <small>/ night</small></span>
+              {result.fromTotal !== undefined ? <small>{peso(result.fromTotal)} for {nightsLabel(search.checkIn, search.checkOut)}</small> : null}
             </span>
           ) : null}
         </span>

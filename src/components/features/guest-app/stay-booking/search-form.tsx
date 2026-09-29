@@ -63,6 +63,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
   const [draft, setDraft] = useState<StaySearch>(value);
   const [step, setStep] = useState<SearchStep>(startAt ?? steps[0]!);
   const [tried, setTried] = useState(false);
+  const [awaitingCheckOut, setAwaitingCheckOut] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
 
@@ -117,6 +118,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
               months={6}
               onChange={(checkIn, checkOut) => setDraft((current) => ({ ...current, checkIn, checkOut }))}
               onDone={() => { const after = next('when'); if (after) setStep(after); }}
+              onPickingChange={setAwaitingCheckOut}
             />
           </SheetSection>
         ) : null}
@@ -139,7 +141,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
 
       <footer className="sb-sheet__foot">
         <span className="sb-sheet__summary">
-          <b>{datesOk ? `${compactRange(draft.checkIn, draft.checkOut)} · ${countNightsBetween(draft.checkIn, draft.checkOut)} ${countNightsBetween(draft.checkIn, draft.checkOut) === 1 ? 'night' : 'nights'}` : 'Choose dates'}</b>
+          <b>{awaitingCheckOut ? `${shortDate(draft.checkIn)} → choose check-out` : datesOk ? `${compactRange(draft.checkIn, draft.checkOut)} · ${countNightsBetween(draft.checkIn, draft.checkOut)} ${countNightsBetween(draft.checkIn, draft.checkOut) === 1 ? 'night' : 'nights'}` : 'Choose dates'}</b>
           <button type="button" className="sb-sheet__clear" onClick={() => { setDraft(steps.includes('where') ? DEFAULT_STAY_SEARCH : { ...DEFAULT_STAY_SEARCH, location: draft.location }); setTried(false); setStep(steps[0]!); }}>Clear all</button>
         </span>
         <button className="guest-button guest-button--primary sb-sheet__submit" type="button" onClick={submit}>
@@ -236,17 +238,20 @@ function monthCells(year: number, month: number) {
  * night, or across one starts over from that day. `isBlocked` marks nights
  * nobody can stay -- a hotel fully booked -- and is absent in the open search.
  */
-export function RangeCalendar({ checkIn, checkOut, onChange, onDone, isBlocked, months = 4 }: {
+export function RangeCalendar({ checkIn, checkOut, onChange, onDone, onPickingChange, isBlocked, months = 4 }: {
   checkIn: string;
   checkOut: string;
   onChange: (checkIn: string, checkOut: string) => void;
+  /** Whether the next tap sets check-out -- so a summary elsewhere can say it is waiting. */
+  onPickingChange?: (awaitingCheckOut: boolean) => void;
   /** Both dates chosen, by the second tap. */
   onDone?: () => void;
   isBlocked?: (night: string) => boolean;
   months?: number;
 }) {
   // Picking the second date: after a first tap, check-out waits for the next one.
-  const [picking, setPicking] = useState<'in' | 'out'>('in');
+  const [picking, setPickingState] = useState<'in' | 'out'>('in');
+  const setPicking = (next: 'in' | 'out') => { setPickingState(next); onPickingChange?.(next === 'out'); };
   const monthsRef = useRef<HTMLDivElement>(null);
   // Open on the month of the stay, not on this month.
   useEffect(() => {

@@ -30,7 +30,6 @@ export function StayAssignGuestsScreen({ hotel, search, cart, allocation, onChan
     const without = item.childIndexes.filter((value) => value !== child);
     return i === room ? { ...item, childIndexes: [...without, child].sort((a, b) => a - b) } : { ...item, childIndexes: without };
   }));
-  const roomOf = (child: number) => allocation.findIndex((item) => item.childIndexes.includes(child));
 
   return (
     <div className="guest-stack sb-assign">
@@ -62,39 +61,30 @@ export function StayAssignGuestsScreen({ hotel, search, cart, allocation, onChan
                   <button type="button" aria-label={`More adults in room ${index + 1}`} disabled={placedAdults >= search.adults} onClick={() => setAdults(index, current.adults + 1)}><Plus aria-hidden="true" /></button>
                 </span>
               </div>
-              {current.childIndexes.length ? (
-                <p className="sb-assign__kids">
-                  {current.childIndexes.map((child) => <span key={child}>Child {child + 1} · {childAgeLabel(search.childAges[child] ?? 0)}</span>)}
-                </p>
-              ) : null}
+              {current.childIndexes.map((child) => (
+                <div key={child} className="sb-assign__child">
+                  <span><b>Child {child + 1}</b><small>{childAgeLabel(search.childAges[child] ?? 0)}</small></span>
+                  {rooms.length > 1 ? (
+                    <label className="sb-assign__move">
+                      <span className="sr-only">Room for child {child + 1}</span>
+                      <select value={index} onChange={(event) => moveChild(child, Number(event.currentTarget.value))}>
+                        {rooms.map((option, i) => <option key={i} value={i}>{i === index ? `In room ${i + 1}` : `Move to room ${i + 1}`}</option>)}
+                      </select>
+                    </label>
+                  ) : null}
+                </div>
+              ))}
               {error ? <p className="sb-note sb-note--warning" role="status"><Warning aria-hidden="true" />{error}</p> : null}
             </article>
           );
         })}
       </div>
 
-      {search.childAges.length ? (
-        <section className="sb-section" aria-labelledby="sb-kids-title">
-          <h2 id="sb-kids-title">Children</h2>
-          <div className="sb-assign__children">
-            {search.childAges.map((age, child) => (
-              <label key={child} className="sb-field">
-                <span>Child {child + 1} · {childAgeLabel(age)}</span>
-                <select value={roomOf(child)} onChange={(event) => moveChild(child, Number(event.currentTarget.value))}>
-                  {roomOf(child) < 0 ? <option value={-1} disabled>Choose a room</option> : null}
-                  {rooms.map((room, index) => <option key={index} value={index}>Room {index + 1} · {room.roomType.name}</option>)}
-                </select>
-              </label>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       <div className="guest-dock-spacer" aria-hidden="true" />
       <div className="guest-dock">
         <div className="guest-dock__summary">
-          <span>Guests placed</span>
-          <strong>{placedAdults + placedChildren} of {search.adults + search.childAges.length}</strong>
+          <strong>{placedAdults + placedChildren} of {search.adults + search.childAges.length} placed</strong>
           <small className={`sb-dock__fit${check.ok ? ' is-positive' : ''}`} role={check.ok ? undefined : 'alert'}>{check.summary ?? 'Everyone has a bed'}</small>
         </div>
         <button type="button" className="guest-button guest-button--primary" disabled={!check.ok} onClick={onContinue}>

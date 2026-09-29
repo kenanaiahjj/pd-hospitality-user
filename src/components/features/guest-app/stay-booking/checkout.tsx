@@ -97,7 +97,7 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
                 <b>{room.roomType.name}</b>
                 <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · {RATE_PLAN_LABELS[room.ratePlanId].detail}</span>
               </header>
-              <TextField label="Guest name for this room" value={details.roomLeads[index] ?? ''} onChange={(value) => setAt('roomLeads', index, value)} placeholder={details.name || 'Lead guest'} show={false} />
+              <TextField label="Guest name for this room" value={details.roomLeads[index] ?? ''} onChange={(value) => setAt('roomLeads', index, value)} placeholder={index === 0 ? 'Lead guest' : `Optional · else ${details.name || 'you'}`} show={false} />
               <label className="sb-field">
                 <span>Bed preference</span>
                 <select value={details.bedPreferences[index] ?? BED_PREFERENCES[0]} onChange={(event) => setAt('bedPreferences', index, event.currentTarget.value)}>
@@ -129,14 +129,13 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
       <div className="guest-dock-spacer" aria-hidden="true" />
       <div className="guest-dock">
         <div className="guest-dock__summary">
-          <span>Total · {nightsLabel(search.checkIn, search.checkOut)}</span>
           <strong>{peso(quote.total)}</strong>
-          <small className={`sb-dock__fit${tried && !valid ? '' : ' is-positive'}`} role={tried && !valid ? 'alert' : undefined}>
-            {tried && !valid ? 'Check your details above' : 'Taxes and fees included'}
+          <small className={`sb-dock__fit${tried && !valid ? '' : ' is-muted'}`} role={tried && !valid ? 'alert' : undefined}>
+            {tried && !valid ? 'Check your details above' : `${nightsLabel(search.checkIn, search.checkOut)} · incl. taxes`}
           </small>
         </div>
-        <button type="button" className="guest-button guest-button--primary" onClick={next}>
-          Continue to payment<ArrowRight aria-hidden="true" />
+        <button type="button" className="guest-button guest-button--primary" onClick={next} aria-label="Continue to payment">
+          Continue<ArrowRight aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -194,7 +193,8 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
         <span className="sb-trip__text">
           <b>{hotel.name}</b>
           <small>{stayDatesLabel(search.checkIn, search.checkOut)}</small>
-          <small>{describeRooms(rooms.map((item) => ({ roomName: item.roomType.name })))} · {partyLabel(search)}</small>
+          <small>{describeRooms(rooms.map((item) => ({ roomName: item.roomType.name })))}</small>
+          <small>{partyLabel(search)}</small>
         </span>
       </section>
 
@@ -257,10 +257,9 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
       <div className="guest-dock-spacer" aria-hidden="true" />
       <div className="guest-dock">
         <div className="guest-dock__summary">
-          <span>Total · {nightsLabel(search.checkIn, search.checkOut)}</span>
           <strong>{peso(quote.total)}</strong>
-          <small className={`sb-dock__fit${quote.refundable ? ' is-positive' : ''}`}>
-            {quote.refundable ? `Free cancellation until ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
+          <small className={`sb-dock__fit${quote.refundable ? ' is-positive' : ' is-muted'}`}>
+            {quote.refundable ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
           </small>
         </div>
         <button type="button" className="guest-button guest-button--primary" disabled={!online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(quote.total)}`}>

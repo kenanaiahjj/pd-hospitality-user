@@ -84,35 +84,6 @@
 .guest-app .sb-location__list small { color: var(--guest-muted); font-size: 13px; }
 .guest-app .sb-location__none { padding: 10px 6px; color: var(--guest-muted); font-size: 14px; }
 
-/* calendar */
-.guest-app .sb-calendar { display: grid; gap: 8px; }
-.guest-app .sb-calendar__hint { margin: 0; color: var(--guest-muted); font-size: 13.5px; font-weight: 600; }
-.guest-app .sb-calendar__legend { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--guest-muted); font-size: 12.5px; }
-.guest-app .sb-calendar__legend span { width: 14px; height: 14px; border-radius: 4px; background: repeating-linear-gradient(135deg, var(--guest-sunken) 0 3px, var(--guest-line) 3px 5px); }
-.guest-app .sb-calendar__months { position: relative; display: grid; gap: 18px; max-height: 360px; overflow-y: auto; padding-right: 2px; scrollbar-width: thin; }
-.guest-app .sb-calendar__label { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
-.guest-app .sb-calendar__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; }
-.guest-app .sb-calendar__weekday { padding: 4px 0; color: var(--guest-subtle); font-size: 12px; font-weight: 600; text-align: center; }
-.guest-app .sb-calendar__day {
-  height: 42px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--guest-ink);
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 550;
-}
-.guest-app .sb-calendar__day:disabled { color: var(--guest-placeholder); }
-.guest-app .sb-calendar__day.is-inside { background: var(--guest-soft); }
-.guest-app .sb-calendar__day.is-start,
-.guest-app .sb-calendar__day.is-end { border-radius: 50%; background: var(--guest-accent); color: var(--guest-on-accent); font-weight: 700; }
-.guest-app .sb-calendar__day.is-start { box-shadow: 21px 0 0 -0px var(--guest-soft); }
-.guest-app .sb-calendar__day.is-blocked:not(.is-start):not(.is-end) {
-  color: var(--guest-subtle);
-  text-decoration: line-through;
-  background: repeating-linear-gradient(135deg, transparent 0 4px, var(--guest-sunken) 4px 7px);
-}
 
 /* guests */
 .guest-app .sb-guests { display: grid; gap: 4px; }
@@ -342,16 +313,18 @@
 .guest-app .sb-rooms { display: grid; gap: 14px; }
 .guest-app .sb-room { display: grid; gap: 0; overflow: hidden; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
 .guest-app .sb-room.is-sold-out { opacity: 0.7; }
-.guest-app .sb-room__head { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 12px; }
-.guest-app .sb-room__photo { position: relative; overflow: hidden; aspect-ratio: 1; border-radius: var(--guest-radius-sm); background: var(--guest-placeholder); }
+/* The room leads with its photo, full width: at 96px it was a thumbnail beside three cramped lines. */
+.guest-app .sb-room__head { display: grid; gap: 0; }
+.guest-app .sb-room__photo { position: relative; display: block; overflow: hidden; aspect-ratio: 2 / 1; background: var(--guest-placeholder); }
 .guest-app .sb-room__photo img { object-fit: cover; }
-.guest-app .sb-room__info { display: grid; align-content: start; gap: 4px; min-width: 0; }
-.guest-app .sb-room__info h3 { margin: 0; font-size: 16.5px; font-weight: 700; }
-.guest-app .sb-room__facts { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; color: var(--guest-ink); font-size: 12.5px; }
-.guest-app .sb-room__facts span { display: inline-flex; align-items: center; gap: 4px; }
-.guest-app .sb-room__facts svg { width: 14px; height: 14px; color: var(--guest-muted); }
-.guest-app .sb-room__features { margin: 0; color: var(--guest-muted); font-size: 12.5px; line-height: 1.4; }
-.guest-app .sb-room__info .sb-note { justify-self: start; margin-top: 2px; }
+.guest-app .sb-room__photo .sb-note { position: absolute; top: 12px; left: 12px; }
+.guest-app .sb-room__info { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 16px 16px 14px; }
+.guest-app .sb-room__info h3 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.guest-app .sb-room__facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.guest-app .sb-room__facts span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); color: var(--guest-ink); font-size: 13px; font-weight: 550; }
+.guest-app .sb-room__facts svg { width: 15px; height: 15px; color: var(--guest-muted); }
+.guest-app .sb-room__features { margin: 0; color: var(--guest-muted); font-size: 13.5px; line-height: 1.5; }
+.guest-app .sb-room__info .sb-note { justify-self: start; }
 .guest-app .sb-plans { display: grid; margin: 0; padding: 0; list-style: none; }
 .guest-app .sb-plan {
   display: grid;
@@ -595,7 +568,7 @@
   background: var(--guest-paper);
 }
 .guest-app .sb-sheet__clear { flex: 0 0 auto; white-space: nowrap; padding: 10px 4px; border: 0; background: transparent; color: var(--guest-ink); font-size: 15px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
-.guest-app .sb-sheet__submit { flex: 0 0 auto; width: auto; min-width: 132px; padding: 0 26px; }
+.guest-app .sb-sheet__foot .sb-sheet__submit { flex: 0 0 auto; width: auto; min-width: 132px; padding: 0 26px; }
 
 .guest-app .sb-place-thumb { position: relative; display: grid; width: 48px; height: 48px; flex: 0 0 48px; overflow: hidden; place-items: center; border-radius: 12px; background: var(--guest-chip); color: var(--guest-ink); }
 .guest-app .sb-place-thumb img { object-fit: cover; }
@@ -859,3 +832,39 @@
 .guest-app .sb-mini-card__price { margin-top: 4px; font-size: 13px; }
 .guest-app .sb-mini-card__price small { color: var(--guest-muted); font-size: 12.5px; }
 .guest-app .sb-mini-card__price b { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 750; }
+
+.guest-app .sb-price > span { white-space: nowrap; }
+.guest-app .sb-price > span small { font-size: 12.5px; }
+.guest-app .sb-hotel-card__foot { align-items: center; }
+.guest-app .sb-hotel__gallery { scroll-padding-inline: var(--app-gutter); }
+.guest-app .sb-plan__price { display: grid; gap: 0; }
+
+.guest-app .sb-plan { padding: 14px 16px; }
+.guest-app .sb-plan__text b { font-size: 15px; }
+.guest-app .sb-plan__price b { font-size: 18px; }
+
+.guest-app .sb-assign__child { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px 2px; border-top: 1px solid var(--guest-line); }
+.guest-app .sb-assign__child > span { display: grid; gap: 1px; }
+.guest-app .sb-assign__child b { font-size: 15px; font-weight: 650; }
+.guest-app .sb-assign__child small { color: var(--guest-muted); font-size: 13px; }
+.guest-app .sb-assign__move select {
+  min-height: 38px;
+  padding: 0 32px 0 14px;
+  border: 1px solid var(--guest-line-strong);
+  border-radius: var(--guest-radius-pill);
+  background: var(--guest-paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2356585f' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.25 8 10.25 12 6.25'/%3E%3C/svg%3E") no-repeat right 12px center / 14px;
+  color: var(--guest-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  appearance: none;
+}
+.guest-app .sb-assign__room { gap: 10px; padding: 16px; }
+
+/* Booking docks: two lines and room around them. Three stacked lines in a 64px pill read as cramped. */
+.guest-app .guest-dock:has(.sb-dock__fit) { min-height: 70px; gap: 16px; padding: 10px 10px 10px 24px; }
+.guest-app .guest-dock:has(.sb-dock__fit) .guest-dock__summary { gap: 3px; }
+.guest-app .guest-dock:has(.sb-dock__fit) .guest-dock__summary strong { font-size: 19px; line-height: 1.1; }
+.guest-app .guest-dock:has(.sb-dock__fit) .sb-dock__fit { font-size: 12.5px; line-height: 1.2; -webkit-line-clamp: 1; }
+.guest-app .guest-dock:has(.sb-dock__fit.is-empty) .sb-dock__fit { -webkit-line-clamp: 2; font-size: 14.5px; }
+.guest-app .sb-dock__fit.is-muted { color: var(--guest-muted); }
+.guest-app .guest-dock:has(.sb-dock__fit) .guest-button { min-height: 50px; padding: 0 24px; }

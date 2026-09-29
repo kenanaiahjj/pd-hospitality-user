@@ -728,6 +728,8 @@ export function hotelsForLocation(location: string): StayHotel[] {
 export type HotelResult = {
   hotel: StayHotel;
   fromPrice?: number;
+  /** The cheapest open room for the whole stay, before taxes -- what "from" adds up to. */
+  fromTotal?: number;
   /** From the searched place's centre, when the search named one. */
   distanceKm?: number;
   freeCancellation: boolean;
@@ -746,6 +748,7 @@ export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTE
     return {
       hotel,
       fromPrice: fromPrice(hotel, search),
+      fromTotal: offers.length ? Math.min(...offers.flatMap((offer) => offer.plans.map((plan) => plan.total))) : undefined,
       distanceKm: center ? Math.round(distanceKm(center, hotel.position) * 10) / 10 : undefined,
       freeCancellation: offers.some((offer) => offer.plans.some((plan) => plan.refundable)),
       soldOut: offers.length === 0,

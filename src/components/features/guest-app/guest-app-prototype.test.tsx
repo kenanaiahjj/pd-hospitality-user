@@ -2106,7 +2106,7 @@ describe('booking another stay', () => {
     await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Manila/ })[0]!);
     await user.click(screen.getByRole('button', { name: 'Add a King Room, Room only' }));
     await user.click(screen.getByRole('button', { name: 'Add a Garden Suite, With breakfast' }));
-    expect(screen.getByText('Fits your 4 guests')).toBeInTheDocument();
+    expect(screen.getByText('2 rooms · fits 4 guests')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Continue/ }));
 
     expect(screen.getByRole('heading', { name: 'Who’s in each room?' })).toBeInTheDocument();

@@ -50,16 +50,31 @@ const STAMP_EDGE = (() => {
 /** The same scalloped edge as a CSS mask, so the sticker sheen stops where the stamp does. */
 const STAMP_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='${STAMP_EDGE}'/></svg>`)}")`;
 
+/* The seal's engraving: a milled rim, like a coin's, and a guilloché rosette behind the mark. */
+const STAMP_MILLING = Array.from({ length: 96 }, (_, index) => {
+  const angle = (index / 96) * Math.PI * 2;
+  const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+  return `M${(50 + 40.7 * cos).toFixed(2)} ${(50 + 40.7 * sin).toFixed(2)}L${(50 + 42 * cos).toFixed(2)} ${(50 + 42 * sin).toFixed(2)}`;
+}).join('');
+const STAMP_ROSETTE = Array.from({ length: 18 }, (_, index) => index * 10);
+
 /*
-  An approval stamp: gold on a dark plum disc, so it holds on any photograph,
-  finished like a holographic sticker -- a gloss band and a faint rainbow
-  that slide with the card's tilt, and one glint as it lands.
+  An approval seal, finished like a premium foil sticker: a pearl die-cut
+  edge (the card's own frame, in miniature) around a deep plum disc with a
+  bevelled rim, champagne foil for every line and letter, lightly embossed,
+  over a fine engraved rosette. On top, a holographic foil and a gloss band
+  slide with the card's tilt, and one glint crosses it as it lands.
 */
 function DigitalStamp() {
   const id = useId();
   const topArc = `${id}-top-arc`;
   const bottomArc = `${id}-bottom-arc`;
   const backing = `${id}-backing`;
+  const foil = `${id}-foil`;
+  const bevel = `${id}-bevel`;
+  const emboss = `${id}-emboss`;
+  const inner = `${id}-inner`;
+  const gold = `url(#${foil})`;
 
   return (
     <span className="stay-pass__stamp-lockup">
@@ -67,25 +82,58 @@ function DigitalStamp() {
         <defs>
           <path id={topArc} d="M 17 50 A 33 33 0 1 1 83 50" />
           <path id={bottomArc} d="M 83 50 A 33 33 0 1 1 17 50" />
-          <radialGradient id={backing}>
-            <stop offset="0%" stopColor="oklch(0.26 0.06 350)" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="oklch(0.18 0.05 350)" stopOpacity="0.82" />
+          <radialGradient id={backing} cx="42%" cy="36%" r="70%">
+            <stop offset="0%" stopColor="oklch(0.3 0.07 350)" />
+            <stop offset="100%" stopColor="oklch(0.16 0.045 350)" />
           </radialGradient>
+          <linearGradient id={foil} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#fbf1cf" />
+            <stop offset="28%" stopColor="#d8b36b" />
+            <stop offset="50%" stopColor="#f8e8b6" />
+            <stop offset="74%" stopColor="#b98e47" />
+            <stop offset="100%" stopColor="#f2dea3" />
+          </linearGradient>
+          <linearGradient id={bevel} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.4" />
+            <stop offset="45%" stopColor="#fff" stopOpacity="0" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0.45" />
+          </linearGradient>
+          <filter id={emboss} x="-5%" y="-5%" width="110%" height="110%">
+            <feDropShadow dx="0" dy="0.45" stdDeviation="0.15" floodColor="#12040a" floodOpacity="0.85" />
+            <feDropShadow dx="0" dy="-0.3" stdDeviation="0.05" floodColor="#fff4d6" floodOpacity="0.35" />
+          </filter>
+          <clipPath id={inner}><circle cx="50" cy="50" r="24.4" /></clipPath>
         </defs>
-        <path d={STAMP_EDGE} fill={`url(#${backing})`} stroke="#ead59e" strokeWidth="1.8" />
-        <circle cx="50" cy="50" r="40" fill="none" stroke="#ead59e" strokeWidth="0.9" />
-        <circle cx="50" cy="50" r="25" fill="none" stroke="#ead59e" strokeWidth="0.7" />
-        <text className="stay-pass__stamp-type stay-pass__stamp-type--top">
-          <textPath href={`#${topArc}`} startOffset="50%" textAnchor="middle" textLength="34" lengthAdjust="spacing">CABANA</textPath>
-        </text>
-        <text className="stay-pass__stamp-type stay-pass__stamp-type--bottom">
-          <textPath href={`#${bottomArc}`} startOffset="50%" textAnchor="middle" textLength="38" lengthAdjust="spacing">VERIFIED STAY</textPath>
-        </text>
-        <circle cx="16.8" cy="50" r="1.5" fill="#ead59e" />
-        <circle cx="83.2" cy="50" r="1.5" fill="#ead59e" />
-        <svg x="34" y="39" width="32" height="21" viewBox="12.32 4.11 277.98 181.58" overflow="visible">
-          <CabanaMark style={{ fill: '#ead59e' }} />
-        </svg>
+
+        {/* Die-cut pearl edge, then the disc and its bevelled rim. */}
+        <path d={STAMP_EDGE} fill="none" stroke="#f6f1ea" strokeWidth="3.4" strokeLinejoin="round" />
+        <path d={STAMP_EDGE} fill={`url(#${backing})`} />
+        <path d={STAMP_EDGE} fill="none" stroke={`url(#${bevel})`} strokeWidth="1.4" transform="translate(50 50) scale(0.955) translate(-50 -50)" />
+
+        {/* Engraving, faint, under the foil. */}
+        <g clipPath={`url(#${inner})`} fill="none" stroke="#e8cf8f" strokeWidth="0.16" opacity="0.16">
+          {STAMP_ROSETTE.map((angle) => (
+            <ellipse key={angle} cx="50" cy="50" rx="23" ry="8.5" transform={`rotate(${angle} 50 50)`} />
+          ))}
+        </g>
+
+        <g filter={`url(#${emboss})`}>
+          <path d={STAMP_EDGE} fill="none" stroke={gold} strokeWidth="1.2" />
+          <path d={STAMP_MILLING} stroke={gold} strokeWidth="0.45" />
+          <circle cx="50" cy="50" r="39.6" fill="none" stroke={gold} strokeWidth="0.7" />
+          <circle cx="50" cy="50" r="25" fill="none" stroke={gold} strokeWidth="0.8" />
+          <circle cx="50" cy="50" r="23.8" fill="none" stroke={gold} strokeWidth="0.25" />
+          <text className="stay-pass__stamp-type stay-pass__stamp-type--top" style={{ fill: gold }}>
+            <textPath href={`#${topArc}`} startOffset="50%" textAnchor="middle" textLength="34" lengthAdjust="spacing">CABANA</textPath>
+          </text>
+          <text className="stay-pass__stamp-type stay-pass__stamp-type--bottom" style={{ fill: gold }}>
+            <textPath href={`#${bottomArc}`} startOffset="50%" textAnchor="middle" textLength="38" lengthAdjust="spacing">VERIFIED STAY</textPath>
+          </text>
+          <path d="M16.8 48.3l1.7 1.7-1.7 1.7-1.7-1.7zM83.2 48.3l1.7 1.7-1.7 1.7-1.7-1.7z" fill={gold} />
+          <svg x="34" y="39" width="32" height="21" viewBox="12.32 4.11 277.98 181.58" overflow="visible">
+            <CabanaMark style={{ fill: gold }} />
+          </svg>
+        </g>
       </svg>
       <span className="stay-pass__stamp-shine" style={{ maskImage: STAMP_MASK, WebkitMaskImage: STAMP_MASK }} aria-hidden="true" />
     </span>

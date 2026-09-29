@@ -3,7 +3,7 @@ export { StaySearchBar, StaySearchLauncher, StaySearchSheet, type SearchStep } f
 export { DEFAULT_RESULTS_VIEW, HotelResultCard, StayResultsScreen, type ResultsView } from './results';
 export { StayHotelScreen, clampCart } from './hotel-page';
 export { StayAssignGuestsScreen } from './assign-guests';
-export { StayCheckoutScreen, emptyGuestDetails } from './checkout';
+export { StayCheckoutScreen, StayPaymentScreen, emptyGuestDetails } from './checkout';
 export { ReservationCard, StayConfirmationScreen } from './confirmation';
 export { stayDatesLabel } from './format';
 import './stay-booking.css';

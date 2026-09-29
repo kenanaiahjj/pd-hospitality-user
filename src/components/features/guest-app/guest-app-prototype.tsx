@@ -157,6 +157,7 @@ import {
   ReservationCard,
   StayAssignGuestsScreen,
   StayCheckoutScreen,
+  StayPaymentScreen,
   StayConfirmationScreen,
   StayHotelScreen,
   StayResultsScreen,
@@ -171,7 +172,6 @@ import {
   peso,
   quoteStay,
   searchHotels,
-  stayDatesLabel,
   type ResultsView,
   type StayBookingDraft,
   type StayGuestDetails,
@@ -368,7 +368,7 @@ const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
 type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out' | 'scanned-early' | 'failed' | 'pms-down' | 'scan-failed';
 
 /* Booking a hotel starts from Home, so Home stays lit through it. */
-const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-confirmation'];
+const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation'];
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
   'my-stay',
@@ -609,7 +609,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [stayDraft, setStayDraft] = useState<StayBookingDraft>({ search: DEFAULT_STAY_SEARCH, cart: [], allocation: [] });
   const [resultsView, setResultsView] = useState<ResultsView>(DEFAULT_RESULTS_VIEW);
   const [stayDetails, setStayDetails] = useState<StayGuestDetails | null>(null);
-  const [stayGatewayOpen, setStayGatewayOpen] = useState(false);
   const [confirmedStayId, setConfirmedStayId] = useState<string | null>(null);
   /* "Booking cancelled · ₱X refunded", shown on Home until dismissed. */
   const [cancelNotice, setCancelNotice] = useState<string | null>(null);
@@ -1144,7 +1143,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -2473,7 +2472,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           allocation={stayDraft.allocation}
           details={stayDetails}
           onDetailsChange={setStayDetails}
-          onPay={() => setStayGatewayOpen(true)}
+          onContinue={() => go('book-stay-payment')}
+        />
+      );
+    }
+    if (activeScreen === 'book-stay-payment' && stayDraft.cart.length && stayDetails) {
+      return (
+        <StayPaymentScreen
+          hotel={current}
+          search={search}
+          cart={stayDraft.cart}
+          details={stayDetails}
+          onDetailsChange={setStayDetails}
+          onPaid={completeStayPayment}
           online={online}
         />
       );
@@ -2506,7 +2517,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       // A guest mid-stay keeps that stay in front; otherwise the new trip leads.
       activeBookingId: current.bookings.some((item) => item.status === 'active') ? current.activeBookingId : booking.id,
     }));
-    setStayGatewayOpen(false);
     setConfirmedStayId(booking.id);
     setStayDraft((draft) => ({ ...draft, hotelId: undefined, cart: [], allocation: [] }));
     setStayDetails(null);
@@ -2714,6 +2724,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'book-stay-hotel':
       case 'book-stay-rooms':
       case 'book-stay-checkout':
+      case 'book-stay-payment':
       case 'book-stay-confirmation':
         return renderStayBooking();
 
@@ -4781,21 +4792,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
             const summary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
             return <OrderTray title="Your order" establishment={venue.name} items={summary.items.map((item) => ({ id: item.id, name: item.name, unitPrice: item.unitPrice, quantity: item.quantity, image: getMenuItemImage(item.id) }))} total={summary.formattedTotal} roomNumber={contextBooking.roomNumber} onChangeQuantity={(id, delta) => changeCartQuantity(venue.id, id, delta)} onClose={() => setOrderTrayOpen(null)} onCheckout={() => setOrderTrayStep((step) => step === 'tray' ? 'review' : step)} />;
-          })() : null}
-
-          {stayGatewayOpen && stayDetails && findStayHotel(stayDraft.hotelId) ? (() => {
-            const hotel = findStayHotel(stayDraft.hotelId)!;
-            const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode);
-            const rooms = cartRooms(hotel, stayDraft.cart).length;
-            return (
-              <GatewayCheckout
-                merchant={hotel.name}
-                amount={peso(quote.total)}
-                item={`${rooms} ${rooms === 1 ? 'room' : 'rooms'} · ${stayDatesLabel(stayDraft.search.checkIn, stayDraft.search.checkOut)}`}
-                onPaid={completeStayPayment}
-                onClose={() => setStayGatewayOpen(false)}
-              />
-            );
           })() : null}
 
           {showPrimaryNav ? (

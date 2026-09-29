@@ -2114,10 +2114,12 @@ describe('booking another stay', () => {
     expect(screen.getByRole('article', { name: /Room 2, Garden Suite/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Continue/ }));
 
-    await user.click(screen.getByRole('button', { name: /^Pay ₱/ }));
+    // Details, then payment on a page of its own -- no sheet over the form.
+    await user.click(screen.getByRole('button', { name: /Continue to payment/ }));
+    expect(screen.getByRole('heading', { name: 'Payment', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
     await user.click(screen.getByRole('button', { name: /GCash/ }));
-    const dialog = screen.getByRole('dialog', { name: 'Secure checkout' });
-    await user.click(within(dialog).getByRole('button', { name: /^Pay ₱/ }));
+    await user.click(screen.getByRole('button', { name: /^Pay ₱/ }));
 
     expect(await screen.findByText('Booking confirmed', {}, { timeout: 2000 })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Go to your stay/ }));

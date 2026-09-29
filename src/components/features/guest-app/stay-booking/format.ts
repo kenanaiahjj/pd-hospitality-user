@@ -20,3 +20,7 @@ export const stayDatesLabel = (checkIn: string, checkOut: string) => `${shortDat
 export const childAgeLabel = (age: number) => (age === 0 ? 'Under 1' : `${age} ${age === 1 ? 'year' : 'years'}`);
 
 export const roomsLabel = (count: number) => `${count} ${count === 1 ? 'room' : 'rooms'}`;
+
+/** "Dec 11 – 14" within a month, "Dec 30 – Jan 2" across one. */
+export const compactRange = (checkIn: string, checkOut: string) =>
+  checkIn.slice(0, 7) === checkOut.slice(0, 7) ? `${shortDate(checkIn)} – ${utc(checkOut).getUTCDate()}` : `${shortDate(checkIn)} – ${shortDate(checkOut)}`;

@@ -2684,6 +2684,13 @@
     overflow: hidden;
     border-radius: 28px;
     box-shadow: var(--shadow-lg);
+    /*
+      This is only ever an app, so on a wide screen everything stays inside
+      the phone frame. A transform makes the frame the containing block for
+      `position: fixed`, so the full-screen search, sheets, backdrops and the
+      floating docks all resolve against the frame rather than the window.
+    */
+    transform: translateZ(0);
   }
 }
 
@@ -4972,7 +4979,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
    same slot.
 */
 .guest-app {
-  --guest-float-width: min(calc(100vw - 24px), 408px);
+  --guest-float-width: min(calc(100% - 24px), 408px);
   --guest-float-bottom: calc(var(--guest-nav-h) + 6px + env(safe-area-inset-bottom));
 }
 

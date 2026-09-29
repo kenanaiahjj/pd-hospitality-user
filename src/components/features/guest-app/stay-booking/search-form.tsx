@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { PROTOTYPE_TODAY, countNightsBetween } from '../prototype-model';
 import type { StayLocation, StaySearch } from './model';
 import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, partyLabel, validSearchDates } from './model';
-import { childAgeLabel, longDate, shortDate, stayDatesLabel } from './format';
+import { childAgeLabel, compactRange, longDate, shortDate, stayDatesLabel, weekdayDate } from './format';
 
 /*
   The search, in two parts. On a page it is one bar that says what is being
@@ -100,7 +100,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
 
       <div className="sb-sheet__body">
         {steps.includes('where') ? (
-          <SheetSection icon={<MapPin />} label="Where" question="Where to?" value={draft.location || 'Anywhere'} open={step === 'where'} onOpen={() => setStep('where')}>
+          <SheetSection icon={<MapPin />} label="Where" question="Where to?" value={!draft.location || draft.location === ANYWHERE ? 'Anywhere' : draft.location} open={step === 'where'} onOpen={() => setStep('where')}>
             <LocationPicker
               value={draft.location}
               onChange={(location) => setDraft((current) => ({ ...current, location }))}
@@ -138,7 +138,10 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
       </div>
 
       <footer className="sb-sheet__foot">
-        <button type="button" className="sb-sheet__clear" onClick={() => { setDraft(steps.includes('where') ? DEFAULT_STAY_SEARCH : { ...DEFAULT_STAY_SEARCH, location: draft.location }); setTried(false); setStep(steps[0]!); }}>Clear all</button>
+        <span className="sb-sheet__summary">
+          <b>{datesOk ? `${compactRange(draft.checkIn, draft.checkOut)} · ${countNightsBetween(draft.checkIn, draft.checkOut)} ${countNightsBetween(draft.checkIn, draft.checkOut) === 1 ? 'night' : 'nights'}` : 'Choose dates'}</b>
+          <button type="button" className="sb-sheet__clear" onClick={() => { setDraft(steps.includes('where') ? DEFAULT_STAY_SEARCH : { ...DEFAULT_STAY_SEARCH, location: draft.location }); setTried(false); setStep(steps[0]!); }}>Clear all</button>
+        </span>
         <button className="guest-button guest-button--primary sb-sheet__submit" type="button" onClick={submit}>
           <MagnifyingGlass aria-hidden="true" />{submitLabel}
         </button>
@@ -274,42 +277,59 @@ export function RangeCalendar({ checkIn, checkOut, onChange, onDone, isBlocked, 
     onChange(day, addDays(day, 1));
     setPicking('out');
   };
+  const nights = countNightsBetween(checkIn, checkOut);
   return (
     <div className="sb-calendar">
-      <p className="sb-calendar__hint" aria-live="polite">
-        {picking === 'out' ? `Check-in ${shortDate(checkIn)}. Now choose check-out.` : `${shortDate(checkIn)} – ${shortDate(checkOut)}. Tap a date to change.`}
-      </p>
-      {isBlocked ? <p className="sb-calendar__legend"><span aria-hidden="true" />Fully booked</p> : null}
+      {/* Which date the next tap sets, as the hotel apps show it: both ends, the live one lit. */}
+      <div className="sb-calendar__ends">
+        <button type="button" className={`sb-calendar__end${picking === 'in' ? ' is-active' : ''}`} aria-pressed={picking === 'in'} onClick={() => setPicking('in')}>
+          <small>Check-in</small><b>{weekdayDate(checkIn)}</b>
+        </button>
+        <span className="sb-calendar__nights" aria-hidden="true">{picking === 'out' ? '→' : `${nights} ${nights === 1 ? 'night' : 'nights'}`}</span>
+        <button type="button" className={`sb-calendar__end${picking === 'out' ? ' is-active' : ''}`} aria-pressed={picking === 'out'} onClick={() => setPicking('out')}>
+          <small>Check-out</small><b>{picking === 'out' ? 'Choose a date' : weekdayDate(checkOut)}</b>
+        </button>
+      </div>
+      <p className="sr-only" aria-live="polite">{picking === 'out' ? `Check-in ${shortDate(checkIn)}. Now choose check-out.` : `${shortDate(checkIn)} to ${shortDate(checkOut)}, ${nights} nights.`}</p>
+      <div className="sb-calendar__weekdays" aria-hidden="true">
+        {WEEKDAYS.map((day, i) => <span key={i}>{day}</span>)}
+      </div>
       <div ref={monthsRef} className="sb-calendar__months">
         {grid.map((month) => (
           <div key={month.label} className="sb-calendar__month">
             <p className="sb-calendar__label">{month.label}</p>
             <div className="sb-calendar__grid" role="group" aria-label={month.label}>
-              {WEEKDAYS.map((day, i) => <span key={`h${i}`} className="sb-calendar__weekday" aria-hidden="true">{day}</span>)}
               {month.cells.map((day, i) => {
                 if (!day) return <span key={`e${i}`} />;
                 const past = day <= PROTOTYPE_TODAY;
                 const blocked = !past && Boolean(isBlocked?.(day));
-                const edge = day === checkIn ? ' is-start' : day === checkOut ? ' is-end' : '';
-                const inside = day > checkIn && day < checkOut ? ' is-inside' : '';
+                const ranged = picking === 'in' && nights > 0;
+                const isStart = day === checkIn;
+                const isEnd = picking === 'in' && day === checkOut;
+                const inside = ranged && day > checkIn && day < checkOut;
+                // The band runs between the two circles and rounds off at the edges of each week.
+                const band = inside ? ' is-inside' : ranged && isStart ? ' is-band-start' : ranged && isEnd ? ' is-band-end' : '';
+                const column = i % 7;
                 return (
-                  <button
-                    key={day}
-                    type="button"
-                    className={`sb-calendar__day${edge}${inside}${blocked ? ' is-blocked' : ''}`}
-                    disabled={past || (blocked && picking === 'in')}
-                    aria-pressed={day === checkIn || day === checkOut}
-                    aria-label={`${longDate(day)}${day === checkIn ? ', check-in' : day === checkOut ? ', check-out' : ''}${blocked ? ', fully booked' : ''}`}
-                    onClick={() => pick(day)}
-                  >
-                    {utc(day).getUTCDate()}
-                  </button>
+                  <span key={day} className={`sb-calendar__cell${band}${column === 0 ? ' is-row-start' : ''}${column === 6 ? ' is-row-end' : ''}`}>
+                    <button
+                      type="button"
+                      className={`sb-calendar__day${isStart ? ' is-start' : ''}${isEnd ? ' is-end' : ''}${blocked ? ' is-blocked' : ''}${day === addDays(PROTOTYPE_TODAY, 1) ? ' is-soonest' : ''}`}
+                      disabled={past || (blocked && picking === 'in')}
+                      aria-pressed={isStart || isEnd}
+                      aria-label={`${longDate(day)}${isStart ? ', check-in' : isEnd ? ', check-out' : ''}${blocked ? ', fully booked' : ''}`}
+                      onClick={() => pick(day)}
+                    >
+                      {utc(day).getUTCDate()}
+                    </button>
+                  </span>
                 );
               })}
             </div>
           </div>
         ))}
       </div>
+      {isBlocked ? <p className="sb-calendar__legend"><span aria-hidden="true" />Fully booked nights are struck through</p> : null}
     </div>
   );
 }

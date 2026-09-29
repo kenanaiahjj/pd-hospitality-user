@@ -75,7 +75,7 @@ const STAY_STATE_SHORT: Record<PrototypeStayState, string> = {
 
 export const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-export type PrototypePage = { group: 'Empty states' | 'Error states'; label: string; detail: string; open: () => void };
+export type PrototypePage = { group: 'Hotel booking' | 'Empty states' | 'Error states'; label: string; detail: string; open: () => void };
 export type PrototypeConditions = { online: boolean; pmsDown: boolean; emptyCatalogue: boolean; booking: boolean; chat: boolean; scan: boolean };
 const CONDITION_ROWS: { group: string; rows: { key: keyof PrototypeConditions; label: string; detail: string; onText: string; icon: ReactNode; once?: boolean }[] }[] = [
   { group: 'Connection', rows: [
@@ -412,12 +412,12 @@ export function PrototypeControls({
 
         {tab === 'pages' ? (
           <>
-            {(['Empty states', 'Error states'] as const).map((group) => (
+            {(['Hotel booking', 'Empty states', 'Error states'] as const).map((group) => (
               <section key={group} className="guest-prototype-events" aria-label={group}>
                 <h3>{group}</h3>
                 {pages.filter((page) => page.group === group).map((page) => (
                   <button key={page.label} type="button" className="guest-prototype-event" onClick={() => { page.open(); setOpen(false); }}>
-                    <span className="guest-prototype-event__icon" aria-hidden="true">{group === 'Empty states' ? <Sparkle /> : <WarningCircle />}</span>
+                    <span className="guest-prototype-event__icon" aria-hidden="true">{group === 'Hotel booking' ? <Bed /> : group === 'Empty states' ? <Sparkle /> : <WarningCircle />}</span>
                     <span className="guest-prototype-event__copy"><b>{page.label}</b><small>{page.detail}</small></span>
                   </button>
                 ))}

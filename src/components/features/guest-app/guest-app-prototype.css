@@ -9022,3 +9022,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-essentials-sheet__list dt { display: inline-flex; align-items: center; gap: 8px; color: var(--guest-muted); font-size: 13px; }
 .guest-essentials-sheet__list dt svg { width: 16px; height: 16px; color: var(--guest-brand); }
 .guest-essentials-sheet__list dd { margin: 0; font-size: 15px; font-weight: 600; }
+
+/* A destructive row among the booking's options: said in red, not shouted with a filled button. */
+.guest-list-row--danger b { color: var(--guest-danger); }
+.guest-list-row--danger > span:first-child { color: var(--guest-danger); }

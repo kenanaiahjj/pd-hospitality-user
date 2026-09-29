@@ -154,7 +154,10 @@ import {
   DEFAULT_RESULTS_VIEW,
   DEFAULT_STAY_SEARCH,
   HotelResultCard,
-  ReservationCard,
+  CancelReservationSheet,
+  RATE_PLAN_LABELS,
+  canCancelReservation,
+  weekdayDate,
   StayAssignGuestsScreen,
   StayCheckoutScreen,
   StayPaymentScreen,
@@ -164,6 +167,9 @@ import {
   StaySearchLauncher,
   StaySearchSheet,
   bookingFromDraft,
+  isHotelFull,
+  addDays,
+  type CartLine as StayCartLine,
   cartRooms,
   defaultAllocation,
   emptyGuestDetails,
@@ -612,6 +618,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [confirmedStayId, setConfirmedStayId] = useState<string | null>(null);
   /* "Booking cancelled · ₱X refunded", shown on Home until dismissed. */
   const [cancelNotice, setCancelNotice] = useState<string | null>(null);
+  const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
   const [selectedStayEntryId, setSelectedStayEntryId] = useState<string | null>(null);
   /*
     The reference a returning guest matched, held between the lookup and the
@@ -2000,7 +2007,60 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     bookings: current.bookings.map((booking) => ({ ...booking, folioTotal: undefined, inAppCharges: undefined })),
   });
   const brandNewAccount = (current: GuestSession): GuestSession => ({ ...current, pastStays: [], serviceBookings: [], reviews: [], bookings: [], activeBookingId: undefined });
+  /*
+    Hotel booking, opened mid-flow: the draft a guest would have built by
+    this point, so each page opens ready to look at rather than empty.
+  */
+  const FAMILY_SEARCH: StaySearch = { ...DEFAULT_STAY_SEARCH, location: 'Manila', adults: 3, childAges: [8, 3] };
+  const MIXED_CART: StayCartLine[] = [{ roomTypeId: 'manila-king', ratePlanId: 'flex', quantity: 1 }, { roomTypeId: 'manila-suite', ratePlanId: 'flex-breakfast', quantity: 1 }];
+  const openBookingPage = (setup: { screen: ActiveScreen; search?: StaySearch; hotelId?: string; cart?: StayCartLine[]; withDetails?: boolean; online?: boolean; view?: ResultsView }) => {
+    openPrototypePage({ state: 'account-only', screen: setup.screen, online: setup.online });
+    const search = setup.search ?? DEFAULT_STAY_SEARCH;
+    const hotel = findStayHotel(setup.hotelId);
+    const cart = setup.cart ?? [];
+    setStayDraft({ search, hotelId: setup.hotelId, cart, allocation: hotel && cart.length ? defaultAllocation(hotel, search, cart) : [] });
+    setResultsView(setup.view ?? DEFAULT_RESULTS_VIEW);
+    setStayDetails(setup.withDetails && hotel ? emptyGuestDetails(MOCK_SESSION.guestName, GUEST_PROFILE.email, GUEST_PROFILE.mobile, cartRooms(hotel, cart).length) : null);
+    setCancelNotice(null);
+    setHistory(setup.screen === 'stay-overview' ? [] : ['stay-overview']);
+  };
+  /* A stay booked and paid in the app, with its policy bent to the case being shown. */
+  const withAppBooking = (policy: 'free' | 'ended' | 'saver') => (current: GuestSession): GuestSession => {
+    const hotel = findStayHotel('manila')!;
+    const cart: StayCartLine[] = policy === 'saver' ? [{ roomTypeId: 'manila-king', ratePlanId: 'saver', quantity: 1 }, { roomTypeId: 'manila-suite', ratePlanId: 'saver', quantity: 1 }] : MIXED_CART;
+    const details = emptyGuestDetails(current.guestName || MOCK_SESSION.guestName, current.email || GUEST_PROFILE.email, GUEST_PROFILE.mobile, 2);
+    const quote = quoteStay(hotel, FAMILY_SEARCH, cart);
+    const booking = bookingFromDraft({ hotel, search: FAMILY_SEARCH, cart, allocation: defaultAllocation(hotel, FAMILY_SEARCH, cart), details, quote, paidWith: 'GCash', paidAt: PROTOTYPE_TODAY });
+    // "Ended" moves the free-cancellation day behind the prototype clock.
+    const reservation = policy === 'ended' && booking.reservation ? { ...booking.reservation, freeCancellationUntil: addDays(PROTOTYPE_TODAY, -1) } : booking.reservation;
+    return { ...current, bookings: [{ ...booking, reservation }], activeBookingId: booking.id };
+  };
+  // The first night after the demo dates that the Henry Manila is full, for the sold-out page.
+  const fullNight = (() => {
+    for (let night = addDays(DEFAULT_STAY_SEARCH.checkOut, 1), i = 0; i < 120; i++, night = addDays(night, 1)) if (isHotelFull('manila', night)) return night;
+    return DEFAULT_STAY_SEARCH.checkIn;
+  })();
+  const bookingPages: PrototypePage[] = [
+    { group: 'Hotel booking', label: 'Search', detail: 'Full-screen Where, When, Who', open: () => openBookingPage({ screen: 'book-stay' }) },
+    { group: 'Hotel booking', label: 'Results · list', detail: 'Every partner hotel', open: () => openBookingPage({ screen: 'book-stay-results' }) },
+    { group: 'Hotel booking', label: 'Results · map', detail: 'Price pins across the country', open: () => openBookingPage({ screen: 'book-stay-results', view: { ...DEFAULT_RESULTS_VIEW, mode: 'map' } }) },
+    { group: 'Hotel booking', label: 'Results · nothing matches', detail: 'A place with no partner hotels', open: () => openBookingPage({ screen: 'book-stay-results', search: { ...DEFAULT_STAY_SEARCH, location: 'Batanes' } }) },
+    { group: 'Hotel booking', label: 'Hotel page', detail: 'Rooms, nearby, partners', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila' }) },
+    { group: 'Hotel booking', label: 'Hotel page · mixed cart', detail: 'A King and a Garden Suite, fits the party', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART }) },
+    { group: 'Hotel booking', label: 'Hotel page · rooms don’t fit', detail: 'One King for a family of five', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: FAMILY_SEARCH, cart: [MIXED_CART[0]!] }) },
+    { group: 'Hotel booking', label: 'Hotel page · fully booked night', detail: `Every room sold out`, open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: { ...DEFAULT_STAY_SEARCH, checkIn: fullNight, checkOut: addDays(fullNight, 1) } }) },
+    { group: 'Hotel booking', label: 'Who’s in each room', detail: 'Three adults and two children, two rooms', open: () => openBookingPage({ screen: 'book-stay-rooms', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART }) },
+    { group: 'Hotel booking', label: 'Guest details', detail: 'Prefilled from the profile', open: () => openBookingPage({ screen: 'book-stay-checkout', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
+    { group: 'Hotel booking', label: 'Payment', detail: 'Card, GCash or Maya on the page', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
+    { group: 'Hotel booking', label: 'Home · booked in the app', detail: 'The new stay as the upcoming home', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'stay-overview' }) },
+    { group: 'Hotel booking', label: 'View booking · free cancellation', detail: 'Change or cancel for a full refund', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'rate-detail' }) },
+    { group: 'Hotel booking', label: 'View booking · cancellation ended', detail: 'Past the free-cancellation day', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('ended'), screen: 'rate-detail' }) },
+    { group: 'Hotel booking', label: 'View booking · non-refundable', detail: 'Saver rates on every room', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('saver'), screen: 'rate-detail' }) },
+    { group: 'Hotel booking', label: 'Home · booking cancelled', detail: 'The refund notice', open: () => { openBookingPage({ screen: 'stay-overview' }); setCancelNotice('The Henry Hotel Manila is cancelled. ₱69,394 is on its way back to GCash.'); } },
+  ];
   const prototypePages: PrototypePage[] = [
+    ...bookingPages,
+    { group: 'Error states', label: 'Payment · offline', detail: 'Hotel booking can’t be paid', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, online: false }) },
     { group: 'Empty states', label: 'Home · no booking', detail: 'Signed in, nothing connected', open: () => openPrototypePage({ state: 'account-only', screen: 'stay-overview' }) },
     { group: 'Empty states', label: 'My Stay · nothing booked', detail: 'A live stay with no services', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'my-stay' }) },
     { group: 'Empty states', label: 'Room charges · empty bill', detail: 'Nothing posted or booked yet', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'folio' }) },
@@ -3000,12 +3060,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const bookingStatus = describeStayStatus(displayBooking);
         const canManageActiveStay = displayBooking.status === 'active' && bookingStatus.status !== 'checked-out';
         const canUpgradeRoom = canOfferRoomUpgrade(displayBooking);
+        /* Booked and paid in this app: the reservation is ours to show in full, and to cancel. */
+        const reservation = displayBooking.reservation;
+        const manageAppBooking = Boolean(reservation) && displayBooking.status === 'upcoming';
+        const cancellable = canCancelReservation(displayBooking);
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text={pmsDown ? `As the hotel’s system last reported them, at ${PMS_LAST_SYNC}.` : 'The latest details returned by the hotel system.'}>
             {pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}
             {/* The card says what the rows below say: "Checked in", not a stale "Confirmed". */}
             <StayCard booking={displayBooking} compact statusLabel={describeStayStatus(displayBooking).label} />
-            {canUpgradeRoom || canManageActiveStay ? (
+            {canUpgradeRoom || canManageActiveStay || manageAppBooking ? (
               <section className="guest-booking-management">
                 <SectionHeading title="Manage your stay" />
                 <div className="guest-list-group">
@@ -3015,6 +3079,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       <div><b>Upgrade room</b><small>Explore available rooms</small></div>
                       <CaretRight aria-hidden="true" />
                     </button>
+                  ) : null}
+                  {manageAppBooking && reservation ? (
+                    <>
+                      <button className="guest-list-row" type="button" onClick={() => { setChatDraft(`I'd like to change my booking ${reservation.reference}.`); go('chat'); }}>
+                        <span><CalendarPlus aria-hidden="true" /></span>
+                        <div><b>Change dates or rooms</b><small>The front desk can move or resize your booking.</small></div>
+                        <CaretRight aria-hidden="true" />
+                      </button>
+                      {cancellable ? (
+                        <button className="guest-list-row guest-list-row--danger" type="button" onClick={() => setCancelSheetOpen(true)}>
+                          <span><X aria-hidden="true" /></span>
+                          <div><b>Cancel booking</b><small>Free until {weekdayDate(reservation.freeCancellationUntil!)} · full refund to {reservation.paidWith}</small></div>
+                          <CaretRight aria-hidden="true" />
+                        </button>
+                      ) : null}
+                    </>
                   ) : null}
                   {canManageActiveStay ? (
                     <>
@@ -3045,7 +3125,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <div className="guest-summary">
                 <SummaryRow label="Status" value={describeStayStatus(displayBooking).label} />
                 <SummaryRow label="Dates" value={`${formatStayDateRange(displayBooking)} · ${countNights(displayBooking)} ${countNights(displayBooking) === 1 ? 'night' : 'nights'}`} />
-                <SummaryRow label="Room" value={displayBooking.roomNumber ? `${displayBooking.roomType} · ${displayBooking.roomNumber}` : `${displayBooking.roomType} · assigned at arrival`} />
+                {reservation ? reservation.rooms.map((room, index) => (
+                  <SummaryRow
+                    key={index}
+                    label={`Room ${index + 1}`}
+                    value={`${room.roomName} · ${room.adults} ${room.adults === 1 ? 'adult' : 'adults'}${room.children ? `, ${room.children} ${room.children === 1 ? 'child' : 'children'}` : ''} · ${RATE_PLAN_LABELS[room.ratePlanId].title}`}
+                  />
+                )) : <SummaryRow label="Room" value={displayBooking.roomNumber ? `${displayBooking.roomType} · ${displayBooking.roomNumber}` : `${displayBooking.roomType} · assigned at arrival`} />}
                 <SummaryRow label="Party" value={describeParty(displayBooking, session)} />
                 <SummaryRow label="Booked through" value={displayBooking.source} />
                 <SummaryRow label="Confirmation" value={displayBooking.id} />
@@ -3099,12 +3185,30 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <section>
               <SectionHeading title="Rate" />
               <div className="guest-summary">
-                <SummaryRow label="Room rate" value={displayBooking.roomRate ?? 'Not provided'} />
-                
-                <SummaryRow label="Payment details" value="Provided by your booking provider" />
+                {reservation ? (
+                  <>
+                    <SummaryRow label="Paid" value={`${peso(reservation.total)} · ${reservation.paidWith}`} />
+                    <SummaryRow
+                      label="Cancellation"
+                      value={!reservation.refundable || !reservation.freeCancellationUntil
+                        ? 'Non-refundable'
+                        : cancellable
+                          ? `Free until ${weekdayDate(reservation.freeCancellationUntil)}`
+                          : `Free cancellation ended ${weekdayDate(reservation.freeCancellationUntil)}`}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <SummaryRow label="Room rate" value={displayBooking.roomRate ?? 'Not provided'} />
+                    <SummaryRow label="Payment details" value="Provided by your booking provider" />
+                  </>
+                )}
               </div>
             </section>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live hotel data">Availability, rates, and payment details require a connection.</Notice> : null}
+            {cancelSheetOpen && reservation ? (
+              <CancelReservationSheet booking={displayBooking} onClose={() => setCancelSheetOpen(false)} onConfirm={() => { setCancelSheetOpen(false); cancelStayBooking(displayBooking.id); }} />
+            ) : null}
           </ScreenIntro>
         );
       }
@@ -3952,14 +4056,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               statusLabel={stayStatus.label}
               showCountdown
             />
-
-            {contextBooking.reservation ? (
-              <ReservationCard
-                booking={contextBooking}
-                onCancel={() => cancelStayBooking(contextBooking.id)}
-                onAskDesk={() => { setChatDraft(`I'd like to change my booking ${contextBooking.reservation!.reference}.`); go('chat'); }}
-              />
-            ) : null}
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 

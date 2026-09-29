@@ -4,7 +4,7 @@ export { DEFAULT_RESULTS_VIEW, HotelResultCard, StayResultsScreen, type ResultsV
 export { StayHotelScreen, clampCart } from './hotel-page';
 export { StayAssignGuestsScreen } from './assign-guests';
 export { StayCheckoutScreen, StayPaymentScreen, emptyGuestDetails } from './checkout';
-export { ReservationCard, StayConfirmationScreen } from './confirmation';
-export { stayDatesLabel } from './format';
+export { CancelReservationSheet, StayConfirmationScreen } from './confirmation';
+export { stayDatesLabel, weekdayDate } from './format';
 import './stay-booking.css';
 export { NEIGHBOURHOODS, findNeighbourhood, hotelHighlight } from './neighbourhood';

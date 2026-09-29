@@ -1,9 +1,8 @@
 'use client';
 
-import { ArrowRight, ChatCircleDots, CheckCircle, Copy, Receipt, X } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { ArrowRight, CheckCircle, Receipt, X } from '@phosphor-icons/react';
 import type { Booking } from '../prototype-model';
-import { RATE_PLAN_LABELS, canCancelReservation, peso } from './model';
+import { RATE_PLAN_LABELS, peso } from './model';
 import { longDate, stayDatesLabel } from './format';
 
 export function StayConfirmationScreen({ booking, onGoToStay }: { booking: Booking; onGoToStay: () => void }) {
@@ -47,46 +46,25 @@ function ReservationSummary({ booking }: { booking: Booking }) {
 }
 
 /**
- * The booking as My Stay shows it: what was paid, the policy, and the one
- * change the app makes itself -- cancelling a refundable booking in time.
- * Everything else goes through the desk, which can see the rooms.
+ * "Cancel this booking?" -- opened from View booking, for a refundable stay
+ * still inside its free-cancellation window. Every room goes together.
  */
-export function ReservationCard({ booking, onCancel, onAskDesk }: { booking: Booking; onCancel: () => void; onAskDesk: () => void }) {
-  const [confirming, setConfirming] = useState(false);
-  const [copied, setCopied] = useState(false);
+export function CancelReservationSheet({ booking, onClose, onConfirm }: { booking: Booking; onClose: () => void; onConfirm: () => void }) {
   const reservation = booking.reservation;
   if (!reservation) return null;
-  const cancellable = canCancelReservation(booking);
   return (
-    <section className="sb-section sb-reservation-card" aria-labelledby="sb-reservation-title">
-      <div className="sb-reservation-card__head">
-        <h2 id="sb-reservation-title">Your booking</h2>
-        <button type="button" className="sb-copy" onClick={() => { void navigator.clipboard?.writeText(reservation.reference).catch(() => undefined); setCopied(true); }}>
-          {reservation.reference}<Copy aria-hidden="true" /><span className="sr-only">{copied ? 'Copied' : 'Copy reference'}</span>
-        </button>
-      </div>
-      <ReservationSummary booking={booking} />
-      <div className="sb-reservation-card__actions">
-        {cancellable ? <button type="button" className="guest-button guest-button--secondary" onClick={() => setConfirming(true)}>Cancel booking</button> : null}
-        <button type="button" className="guest-button guest-button--secondary" onClick={onAskDesk}><ChatCircleDots aria-hidden="true" />Change dates or rooms</button>
-      </div>
-      {!cancellable && !reservation.refundable ? <p className="sb-small">This booking is non-refundable. The front desk can help if your plans change.</p> : null}
-
-      {confirming ? (
-        <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirming(false); }}>
-          <section className="guest-order-tray sb-cancel" role="dialog" aria-modal="true" aria-labelledby="sb-cancel-title">
-            <header className="guest-order-tray__header">
-              <div><h2 id="sb-cancel-title">Cancel this booking?</h2><p>{booking.property} · {stayDatesLabel(booking.checkIn, booking.checkOut)}</p></div>
-              <button className="guest-order-tray__close" type="button" onClick={() => setConfirming(false)} aria-label="Keep booking"><X /></button>
-            </header>
-            <p className="sb-cancel__refund">You’ll get <b>{peso(reservation.total)}</b> back to {reservation.paidWith}, usually within 5–7 banking days. Every room in this booking is cancelled.</p>
-            <footer className="guest-order-tray__footer sb-cancel__footer">
-              <button type="button" className="guest-button guest-button--secondary" onClick={() => setConfirming(false)}>Keep booking</button>
-              <button type="button" className="guest-button guest-button--danger" onClick={() => { setConfirming(false); onCancel(); }}>Cancel and refund</button>
-            </footer>
-          </section>
-        </div>
-      ) : null}
-    </section>
+    <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="guest-order-tray sb-cancel" role="dialog" aria-modal="true" aria-labelledby="sb-cancel-title">
+        <header className="guest-order-tray__header">
+          <div><h2 id="sb-cancel-title">Cancel this booking?</h2><p>{booking.property} · {stayDatesLabel(booking.checkIn, booking.checkOut)}</p></div>
+          <button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Keep booking"><X /></button>
+        </header>
+        <p className="sb-cancel__refund">You’ll get <b>{peso(reservation.total)}</b> back to {reservation.paidWith}, usually within 5–7 banking days. Every room in this booking is cancelled.</p>
+        <footer className="guest-order-tray__footer sb-cancel__footer">
+          <button type="button" className="guest-button guest-button--secondary" onClick={onClose}>Keep booking</button>
+          <button type="button" className="guest-button guest-button--danger" onClick={onConfirm}>Cancel and refund</button>
+        </footer>
+      </section>
+    </div>
   );
 }

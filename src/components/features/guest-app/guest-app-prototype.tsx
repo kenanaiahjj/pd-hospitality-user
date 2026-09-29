@@ -160,7 +160,8 @@ import {
   StayConfirmationScreen,
   StayHotelScreen,
   StayResultsScreen,
-  StaySearchCard,
+  StaySearchLauncher,
+  StaySearchSheet,
   bookingFromDraft,
   cartRooms,
   defaultAllocation,
@@ -2410,15 +2411,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const renderStayBooking = () => {
     const { search } = stayDraft;
     const hotel = findStayHotel(stayDraft.hotelId);
-    const searchPage = (
-      <div className="guest-stack">
-        <div className="guest-page-title">
-          <h1>Book a stay</h1>
-          <p>Partner hotels across the Philippines. Mix room types in one booking.</p>
-        </div>
-        <StaySearchCard value={search} onSearch={startStaySearch} />
-      </div>
-    );
+    /*
+      "Book another stay" opens the search itself, full screen, over wherever
+      the guest was: closing it goes back there.
+    */
+    const searchPage = <StaySearchSheet value={search} onClose={back} onSearch={startStaySearch} />;
     if (activeScreen === 'book-stay' || activeScreen === 'book-stay-dates') return searchPage;
     if (activeScreen === 'partner-hotels') {
       const everyHotel = { ...search, location: ANYWHERE };
@@ -2429,7 +2426,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <h1>Partner hotels</h1>
             <p>Search your dates, or open a hotel for its rooms, rates and contact details.</p>
           </div>
-          <StaySearchCard value={search} onSearch={startStaySearch} />
+          <StaySearchLauncher value={search} onSearch={startStaySearch} />
           <div className="sb-results__list">
             {searchHotels(everyHotel).map((result) => <HotelResultCard key={result.hotel.id} result={result} search={everyHotel} onOpen={() => openPartnerHotel(result.hotel.id)} />)}
           </div>

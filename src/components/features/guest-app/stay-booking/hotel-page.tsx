@@ -6,7 +6,7 @@ import { useState } from 'react';
 import type { CartLine, RatePlanId, StayHotel, StaySearch } from './model';
 import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, partyLabel, peso, quoteStay, roomOffers, validSearchDates } from './model';
 import { nightsLabel, roomsLabel, stayDatesLabel } from './format';
-import { GuestsPanel, RangeCalendar } from './search-form';
+import { StaySearchSheet, type SearchStep } from './search-form';
 
 /*
   The hotel, and the room picker that is the point of this flow: every room
@@ -50,7 +50,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
   onSearchChange: (search: StaySearch) => void;
   onContinue: () => void;
 }) {
-  const [editing, setEditing] = useState<'dates' | 'guests' | null>(null);
+  const [editing, setEditing] = useState<SearchStep | null>(null);
   const offers = roomOffers(hotel, search);
   const fit = cartFit(hotel, search, cart);
   const quote = quoteStay(hotel, search, cart);
@@ -79,32 +79,27 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
       </div>
 
       <section className="sb-stay-bar" aria-label="Your stay">
-        <button type="button" aria-expanded={editing === 'dates'} onClick={() => setEditing(editing === 'dates' ? null : 'dates')}>
+        <button type="button" aria-haspopup="dialog" onClick={() => setEditing('when')}>
           <small>Dates</small><b>{stayDatesLabel(search.checkIn, search.checkOut)}</b>
         </button>
-        <button type="button" aria-expanded={editing === 'guests'} onClick={() => setEditing(editing === 'guests' ? null : 'guests')}>
+        <button type="button" aria-haspopup="dialog" onClick={() => setEditing('who')}>
           <small>Guests</small><b>{partyLabel(search)}</b>
         </button>
-        {editing === 'dates' ? (
-          <div className="sb-stay-bar__panel">
-            <RangeCalendar
-              checkIn={search.checkIn}
-              checkOut={search.checkOut}
-              isBlocked={(night) => isHotelFull(hotel.id, night)}
-              onChange={(checkIn, checkOut) => {
-                const next = { ...search, checkIn, checkOut };
-                onSearchChange(next);
-                onCartChange(clampCart(hotel, next, cart));
-              }}
-            />
-            <button type="button" className="guest-button guest-button--secondary" onClick={() => setEditing(null)}>Done</button>
-          </div>
-        ) : null}
-        {editing === 'guests' ? (
-          <div className="sb-stay-bar__panel">
-            <GuestsPanel adults={search.adults} childAges={search.childAges} showErrors onChange={(adults, childAges) => onSearchChange({ ...search, adults, childAges })} />
-            <button type="button" className="guest-button guest-button--secondary" disabled={search.childAges.some((age) => age < 0)} onClick={() => setEditing(null)}>Done</button>
-          </div>
+        {editing ? (
+          <StaySearchSheet
+            value={search}
+            title={hotel.name}
+            submitLabel="Update"
+            steps={['when', 'who']}
+            startAt={editing}
+            isBlocked={(night) => isHotelFull(hotel.id, night)}
+            onClose={() => setEditing(null)}
+            onSearch={(next) => {
+              setEditing(null);
+              onSearchChange(next);
+              onCartChange(clampCart(hotel, next, cart));
+            }}
+          />
         ) : null}
       </section>
 

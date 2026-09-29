@@ -3,7 +3,7 @@
 import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { HotelResultCard, StaySearchCard, searchHotels, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, locationImage, searchHotels, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
@@ -748,7 +748,10 @@ export function EmptyStayHome({
 }) {
   const firstName = guestName.trim().split(' ')[0];
   // The estate's own hotels lead; prices are for the dates in the search card.
-  const featured = searchHotels({ ...staySearch, location: 'Anywhere in the Philippines' }).filter((result) => !result.soldOut).slice(0, 6);
+  const featured = searchHotels({ ...staySearch, location: ANYWHERE }).filter((result) => !result.soldOut).slice(0, 6);
+  // The search opens full screen; a destination tile opens it with the place filled in.
+  const [sheet, setSheet] = useState<{ value: StaySearch; startAt: SearchStep } | null>(null);
+  const destinations = STAY_LOCATIONS.filter((place) => place.label !== ANYWHERE);
 
   return (
     <div className="guest-stack" data-testid="guest-home-empty">
@@ -769,7 +772,24 @@ export function EmptyStayHome({
         </p>
       </div>
 
-      <StaySearchCard value={staySearch} onSearch={onSearchStay} />
+      <StaySearchBar value={staySearch} onOpen={() => setSheet({ value: staySearch, startAt: 'where' })} />
+      {sheet ? <StaySearchSheet value={sheet.value} startAt={sheet.startAt} onClose={() => setSheet(null)} onSearch={(search) => { setSheet(null); onSearchStay(search); }} /> : null}
+
+      <section className="sb-destinations">
+        <SectionHeading title="Popular destinations" />
+        <div className="sb-rail sb-rail--tiles">
+          {destinations.map((place) => {
+            const image = locationImage(place.label);
+            return (
+              <button key={place.label} type="button" className="sb-destination" onClick={() => setSheet({ value: { ...staySearch, location: place.label }, startAt: 'when' })}>
+                {image ? <Image src={image.src} alt="" fill sizes="140px" style={{ objectPosition: image.focalPoint }} /> : null}
+                <span className="sb-destination__scrim" aria-hidden="true" />
+                <span className="sb-destination__text"><b>{place.label}</b><small>{place.detail}</small></span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {/*
         The main action, as a card rather than a pill. It is the one thing a

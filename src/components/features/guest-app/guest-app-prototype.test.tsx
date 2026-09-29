@@ -2067,8 +2067,10 @@ describe('booking another stay', () => {
   it('opens the hotel search from the old booking routes', () => {
     render(<GuestAppPrototype initialScreen="book-stay" initialSession={finished} />);
 
-    expect(screen.getByRole('heading', { name: 'Book a stay' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Search hotels/ })).toBeInTheDocument();
+    // "Book another stay" opens the search itself, full screen, on its first question.
+    const sheet = screen.getByRole('dialog', { name: 'Find a stay' });
+    expect(within(sheet).getByRole('heading', { name: 'Where to?' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: /Search/ })).toBeInTheDocument();
   });
 
   it('books a partner hotel in the app rather than sending the guest to another site', async () => {
@@ -2092,11 +2094,14 @@ describe('booking another stay', () => {
     const noBooking = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={noBooking} />);
 
-    await user.click(screen.getByRole('button', { name: /Who/ }));
-    await user.click(screen.getByRole('button', { name: 'More adults' }));
-    await user.click(screen.getByRole('button', { name: 'More children' }));
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Child 1 age' }), '8');
-    await user.click(screen.getByRole('button', { name: /Search hotels/ }));
+    // The bar opens the search full screen; Where, When and Who each take the sheet in turn.
+    await user.click(screen.getByRole('button', { name: /^Search stays/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Find a stay' });
+    await user.click(within(sheet).getByRole('button', { name: /Who/ }));
+    await user.click(within(sheet).getByRole('button', { name: 'More adults' }));
+    await user.click(within(sheet).getByRole('button', { name: 'More children' }));
+    await user.selectOptions(within(sheet).getByRole('combobox', { name: 'Child 1 age' }), '8');
+    await user.click(within(sheet).getByRole('button', { name: /^Search$/ }));
 
     await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Manila/ })[0]!);
     await user.click(screen.getByRole('button', { name: 'Add a King Room, Room only' }));

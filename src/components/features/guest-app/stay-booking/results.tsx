@@ -7,7 +7,7 @@ import { useState } from 'react';
 import type { Amenity, HotelResult, PriceBand, StayFilters, StaySearch, StaySort } from './model';
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';
 import { nightsLabel, stayDatesLabel } from './format';
-import { StaySearchCard } from './search-form';
+import { StaySearchSheet } from './search-form';
 
 // Leaflet reads `window` at import; the list view must not pay for it.
 const StayResultsMap = dynamic(() => import('./results-map').then((module) => module.StayResultsMap), { ssr: false });
@@ -41,19 +41,11 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
 
   return (
     <div className="guest-stack sb-results">
-      {editing ? (
-        <StaySearchCard
-          value={search}
-          submitLabel="Update search"
-          title={<div className="sb-results__edit-head"><h1>Change search</h1><button type="button" aria-label="Close search" onClick={() => setEditing(false)}><X /></button></div>}
-          onSearch={(next) => { setEditing(false); onSearch(next); }}
-        />
-      ) : (
-        <button type="button" className="sb-summary" onClick={() => setEditing(true)} aria-label={`Change search: ${search.location}, ${stayDatesLabel(search.checkIn, search.checkOut)}, ${partyLabel(search)}`}>
-          <span><b>{search.location}</b><small>{stayDatesLabel(search.checkIn, search.checkOut)} · {partyLabel(search)}</small></span>
-          <PencilSimple aria-hidden="true" />
-        </button>
-      )}
+      <button type="button" className="sb-summary" onClick={() => setEditing(true)} aria-label={`Change search: ${search.location}, ${stayDatesLabel(search.checkIn, search.checkOut)}, ${partyLabel(search)}`}>
+        <span><b>{search.location}</b><small>{stayDatesLabel(search.checkIn, search.checkOut)} · {partyLabel(search)}</small></span>
+        <PencilSimple aria-hidden="true" />
+      </button>
+      {editing ? <StaySearchSheet value={search} title="Change search" submitLabel="Update search" onClose={() => setEditing(false)} onSearch={(next) => { setEditing(false); onSearch(next); }} /> : null}
 
       <div className="sb-results__head">
         <h1 className="sb-results__title">{results.length} {results.length === 1 ? 'stay' : 'stays'} in {place}</h1>

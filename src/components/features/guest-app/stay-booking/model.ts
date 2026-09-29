@@ -372,6 +372,17 @@ export const STAY_HOTELS: StayHotel[] = [
 
 export const findStayHotel = (id?: string) => STAY_HOTELS.find((hotel) => hotel.id === id);
 
+/**
+ * A place's picture: a partner outside the estate where there is one, so the
+ * destination tiles do not repeat the Henry photographs listed beneath them.
+ * None for "anywhere".
+ */
+export function locationImage(label: string): StayImage | undefined {
+  if (label === ANYWHERE) return undefined;
+  const inCity = STAY_HOTELS.filter((hotel) => hotel.city === label);
+  return (inCity.find((hotel) => !hotel.henry) ?? inCity[0])?.image;
+}
+
 export const RATE_PLAN_LABELS: Record<RatePlanId, { title: string; detail: string }> = {
   flex: { title: 'Room only', detail: 'Free cancellation' },
   'flex-breakfast': { title: 'With breakfast', detail: 'Free cancellation' },

@@ -1,95 +1,178 @@
 'use client';
 
-import { Buildings, CalendarBlank, MagnifyingGlass, MapPin, Minus, Plus, Users, X } from '@phosphor-icons/react';
+import Image from 'next/image';
+import { Buildings, CalendarBlank, Globe, MagnifyingGlass, MapPin, Minus, Plus, Users, X } from '@phosphor-icons/react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { PROTOTYPE_TODAY, countNightsBetween } from '../prototype-model';
-import type { StaySearch } from './model';
-import { ANYWHERE, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, partyLabel, validSearchDates } from './model';
+import type { StayLocation, StaySearch } from './model';
+import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, partyLabel, validSearchDates } from './model';
 import { childAgeLabel, longDate, shortDate, stayDatesLabel } from './format';
 
 /*
-  The search, as the booking apps have taught everyone to read it: where,
-  when, who, then one button. Each row opens in place, one at a time, so the
-  card stays a short stack of answers on a phone. Children need an age before
-  the search runs -- it decides whether they count toward a room's beds.
+  The search, in two parts. On a page it is one bar that says what is being
+  searched for; tapping it opens the search full screen, where Where, When
+  and Who each get the width of the phone -- one open at a time, as the
+  booking apps do it, with the button fixed at the bottom. Children need an
+  age before the search runs: it decides whether they count toward a room's
+  beds.
 */
 
-type Panel = 'where' | 'when' | 'who' | null;
+export type SearchStep = 'where' | 'when' | 'who';
 /** A child whose age has not been chosen yet. */
 const NO_AGE = -1;
 
-export function StaySearchCard({ value, onSearch, submitLabel = 'Search hotels', title }: {
+/** The bar and the sheet it opens, for any page that searches. */
+export function StaySearchLauncher({ value, onSearch, submitLabel }: { value: StaySearch; onSearch: (search: StaySearch) => void; submitLabel?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <StaySearchBar value={value} onOpen={() => setOpen(true)} />
+      {open ? <StaySearchSheet value={value} submitLabel={submitLabel} onClose={() => setOpen(false)} onSearch={(search) => { setOpen(false); onSearch(search); }} /> : null}
+    </>
+  );
+}
+
+export function StaySearchBar({ value, onOpen }: { value: StaySearch; onOpen: () => void }) {
+  const anywhere = value.location === ANYWHERE;
+  return (
+    <button type="button" className="sb-bar" onClick={onOpen} aria-label={`Search stays: ${value.location}, ${stayDatesLabel(value.checkIn, value.checkOut)}, ${partyLabel(value)}`}>
+      <span className="sb-bar__icon" aria-hidden="true"><MagnifyingGlass weight="bold" /></span>
+      <span className="sb-bar__text">
+        <b>{anywhere ? 'Where to?' : value.location}</b>
+        <small>{shortDate(value.checkIn)} – {shortDate(value.checkOut)} · {partyLabel(value)}</small>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * The search, full screen. `steps` leaves out what a page cannot change -- a
+ * hotel page searches that hotel, so it has no Where. `isBlocked` greys out
+ * nights the hotel is full.
+ */
+export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Search', startAt, steps = ['where', 'when', 'who'], isBlocked, title = 'Find a stay' }: {
   value: StaySearch;
   onSearch: (search: StaySearch) => void;
+  onClose: () => void;
   submitLabel?: string;
-  title?: ReactNode;
+  startAt?: SearchStep;
+  steps?: SearchStep[];
+  isBlocked?: (night: string) => boolean;
+  title?: string;
 }) {
   const [draft, setDraft] = useState<StaySearch>(value);
-  const [panel, setPanel] = useState<Panel>(null);
+  const [step, setStep] = useState<SearchStep>(startAt ?? steps[0]!);
   const [tried, setTried] = useState(false);
-  const toggle = (next: Panel) => setPanel((current) => (current === next ? null : next));
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+
+  // Read by the key handler, which is bound once for the life of the sheet.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onCloseRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const missingAge = draft.childAges.some((age) => age === NO_AGE);
   const datesOk = validSearchDates(draft);
   const canSearch = !missingAge && datesOk && draft.location.trim().length > 0;
+  const next = (after: SearchStep) => steps[steps.indexOf(after) + 1];
 
   const submit = () => {
     setTried(true);
     if (!canSearch) {
-      setPanel(missingAge ? 'who' : !datesOk ? 'when' : 'where');
+      setStep(missingAge ? 'who' : !datesOk ? 'when' : 'where');
       return;
     }
-    setPanel(null);
-    onSearch({ ...draft, location: draft.location.trim() });
+    onSearch({ ...draft, location: draft.location.trim() || ANYWHERE });
   };
 
   return (
-    <section className="sb-search" aria-label="Search for a stay">
-      {title ? <div className="sb-search__title">{title}</div> : null}
-      <SearchRow icon={<MapPin />} label="Where" value={draft.location || 'Choose a destination'} open={panel === 'where'} onToggle={() => toggle('where')}>
-        <LocationPicker
-          value={draft.location}
-          onChange={(location) => setDraft((current) => ({ ...current, location }))}
-          onPick={(location) => { setDraft((current) => ({ ...current, location })); setPanel('when'); }}
-        />
-      </SearchRow>
-      <SearchRow icon={<CalendarBlank />} label="When" value={datesOk ? stayDatesLabel(draft.checkIn, draft.checkOut) : 'Choose dates'} open={panel === 'when'} onToggle={() => toggle('when')}>
-        <RangeCalendar
-          checkIn={draft.checkIn}
-          checkOut={draft.checkOut}
-          onChange={(checkIn, checkOut) => setDraft((current) => ({ ...current, checkIn, checkOut }))}
-        />
-      </SearchRow>
-      <SearchRow icon={<Users />} label="Who" value={partyLabel(draft)} open={panel === 'who'} onToggle={() => toggle('who')}>
-        <GuestsPanel
-          adults={draft.adults}
-          childAges={draft.childAges}
-          showErrors={tried}
-          onChange={(adults, childAges) => setDraft((current) => ({ ...current, adults, childAges }))}
-        />
-      </SearchRow>
-      {tried && !canSearch ? (
-        <p className="sb-error" role="alert">
-          {missingAge ? 'Add each child’s age to see rooms that fit.' : !datesOk ? 'Choose a check-out date after check-in.' : 'Choose where you want to stay.'}
-        </p>
-      ) : null}
-      <button className="guest-button guest-button--primary sb-search__submit" type="button" onClick={submit}>
-        <MagnifyingGlass aria-hidden="true" />{submitLabel}
+    <div className="sb-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <header className="sb-sheet__head">
+        <button ref={closeRef} type="button" className="sb-sheet__close" aria-label="Close search" onClick={onClose}><X /></button>
+        <h2 id={titleId}>{title}</h2>
+        <span aria-hidden="true" />
+      </header>
+
+      <div className="sb-sheet__body">
+        {steps.includes('where') ? (
+          <SheetSection icon={<MapPin />} label="Where" question="Where to?" value={draft.location || 'Anywhere'} open={step === 'where'} onOpen={() => setStep('where')}>
+            <LocationPicker
+              value={draft.location}
+              onChange={(location) => setDraft((current) => ({ ...current, location }))}
+              onPick={(location) => { setDraft((current) => ({ ...current, location })); setStep(next('where') ?? 'where'); }}
+            />
+          </SheetSection>
+        ) : null}
+        {steps.includes('when') ? (
+          <SheetSection icon={<CalendarBlank />} label="When" question="When’s your trip?" value={datesOk ? stayDatesLabel(draft.checkIn, draft.checkOut) : 'Choose dates'} open={step === 'when'} onOpen={() => setStep('when')}>
+            <RangeCalendar
+              checkIn={draft.checkIn}
+              checkOut={draft.checkOut}
+              isBlocked={isBlocked}
+              months={6}
+              onChange={(checkIn, checkOut) => setDraft((current) => ({ ...current, checkIn, checkOut }))}
+              onDone={() => { const after = next('when'); if (after) setStep(after); }}
+            />
+          </SheetSection>
+        ) : null}
+        {steps.includes('who') ? (
+          <SheetSection icon={<Users />} label="Who" question="Who’s coming?" value={partyLabel(draft)} open={step === 'who'} onOpen={() => setStep('who')}>
+            <GuestsPanel
+              adults={draft.adults}
+              childAges={draft.childAges}
+              showErrors={tried}
+              onChange={(adults, childAges) => setDraft((current) => ({ ...current, adults, childAges }))}
+            />
+          </SheetSection>
+        ) : null}
+        {tried && !canSearch ? (
+          <p className="sb-error" role="alert">
+            {missingAge ? 'Add each child’s age to see rooms that fit.' : !datesOk ? 'Choose a check-out date after check-in.' : 'Choose where you want to stay.'}
+          </p>
+        ) : null}
+      </div>
+
+      <footer className="sb-sheet__foot">
+        <button type="button" className="sb-sheet__clear" onClick={() => { setDraft(steps.includes('where') ? DEFAULT_STAY_SEARCH : { ...DEFAULT_STAY_SEARCH, location: draft.location }); setTried(false); setStep(steps[0]!); }}>Clear all</button>
+        <button className="guest-button guest-button--primary sb-sheet__submit" type="button" onClick={submit}>
+          <MagnifyingGlass aria-hidden="true" />{submitLabel}
+        </button>
+      </footer>
+    </div>
+  );
+}
+
+/* Closed, a section is one tappable line; open, it is a card with its question. */
+function SheetSection({ icon, label, question, value, open, onOpen, children }: { icon: ReactNode; label: string; question: string; value: string; open: boolean; onOpen: () => void; children: ReactNode }) {
+  const id = useId();
+  if (!open) {
+    return (
+      <button type="button" className="sb-sheet__row" aria-expanded={false} aria-controls={id} onClick={onOpen}>
+        <span className="sb-sheet__row-icon" aria-hidden="true">{icon}</span>
+        <span className="sb-sheet__row-label">{label}</span>
+        <b>{value}</b>
       </button>
+    );
+  }
+  return (
+    <section className="sb-sheet__card" id={id} aria-label={label}>
+      <h3>{question}</h3>
+      {children}
     </section>
   );
 }
 
-function SearchRow({ icon, label, value, open, onToggle, children }: { icon: ReactNode; label: string; value: string; open: boolean; onToggle: () => void; children: ReactNode }) {
-  const id = useId();
+function PlaceThumb({ place }: { place: StayLocation }) {
+  const image = locationImage(place.label);
   return (
-    <div className={`sb-search__row${open ? ' is-open' : ''}`}>
-      <button type="button" className="sb-search__head" aria-expanded={open} aria-controls={id} onClick={onToggle}>
-        <span className="sb-search__icon" aria-hidden="true">{icon}</span>
-        <span className="sb-search__text"><small>{label}</small><b>{value}</b></span>
-      </button>
-      {open ? <div className="sb-search__body" id={id}>{children}</div> : null}
-    </div>
+    <span className="sb-place-thumb" aria-hidden="true">
+      {image ? <Image src={image.src} alt="" fill sizes="48px" style={{ objectPosition: image.focalPoint }} /> : <Globe />}
+    </span>
   );
 }
 
@@ -105,8 +188,9 @@ function LocationPicker({ value, onChange, onPick }: { value: string; onChange: 
         <MagnifyingGlass aria-hidden="true" />
         <input
           value={value === ANYWHERE ? '' : value}
-          placeholder="City, island or hotel"
+          placeholder="Search a city, island or hotel"
           autoComplete="off"
+          enterKeyHint="next"
           onChange={(event) => onChange(event.currentTarget.value)}
           onKeyDown={(event) => { if (event.key === 'Enter' && value.trim()) onPick(value.trim()); }}
         />
@@ -115,15 +199,15 @@ function LocationPicker({ value, onChange, onPick }: { value: string; onChange: 
       <ul className="sb-location__list" aria-label="Suggestions">
         {places.map((place) => (
           <li key={place.label}>
-            <button type="button" onClick={() => onPick(place.label)}>
-              <MapPin aria-hidden="true" /><span><b>{place.label}</b><small>{place.detail}</small></span>
+            <button type="button" aria-pressed={value === place.label} onClick={() => onPick(place.label)}>
+              <PlaceThumb place={place} /><span><b>{place.label}</b><small>{place.detail}</small></span>
             </button>
           </li>
         ))}
         {hotels.map((hotel) => (
           <li key={hotel.id}>
             <button type="button" onClick={() => onPick(hotel.name)}>
-              <Buildings aria-hidden="true" /><span><b>{hotel.name}</b><small>{hotel.area}</small></span>
+              <span className="sb-place-thumb" aria-hidden="true"><Buildings /></span><span><b>{hotel.name}</b><small>{hotel.area}</small></span>
             </button>
           </li>
         ))}
@@ -149,10 +233,12 @@ function monthCells(year: number, month: number) {
  * night, or across one starts over from that day. `isBlocked` marks nights
  * nobody can stay -- a hotel fully booked -- and is absent in the open search.
  */
-export function RangeCalendar({ checkIn, checkOut, onChange, isBlocked, months = 4 }: {
+export function RangeCalendar({ checkIn, checkOut, onChange, onDone, isBlocked, months = 4 }: {
   checkIn: string;
   checkOut: string;
   onChange: (checkIn: string, checkOut: string) => void;
+  /** Both dates chosen, by the second tap. */
+  onDone?: () => void;
   isBlocked?: (night: string) => boolean;
   months?: number;
 }) {
@@ -180,6 +266,7 @@ export function RangeCalendar({ checkIn, checkOut, onChange, isBlocked, months =
     if (picking === 'out' && day > checkIn && countNightsBetween(checkIn, day) <= MAX_NIGHTS && !crossesBlock(checkIn, day)) {
       onChange(checkIn, day);
       setPicking('in');
+      onDone?.();
       return;
     }
     if (isBlocked?.(day)) return;

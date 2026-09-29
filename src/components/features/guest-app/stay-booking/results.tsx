@@ -2,13 +2,14 @@
 
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { CheckCircle, FadersHorizontal, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
+import { CheckCircle, FadersHorizontal, MapPin, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Amenity, HotelResult, PriceBand, StayFilters, StaySearch, StaySort } from './model';
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';
 import { nightsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet } from './search-form';
 import { HotelHighlights } from './neighbourhood-section';
+import { bestSight, travelLabel } from './neighbourhood';
 
 // Leaflet reads `window` at import; the list view must not pay for it.
 const StayResultsMap = dynamic(() => import('./results-map').then((module) => module.StayResultsMap), { ssr: false });
@@ -98,6 +99,7 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
 
 export function HotelResultCard({ result, search, onOpen, compact }: { result: HotelResult; search: StaySearch; onOpen: () => void; compact?: boolean }) {
   const { hotel } = result;
+  if (compact) return <CompactHotelCard result={result} onOpen={onOpen} />;
   return (
     <button type="button" className={`sb-hotel-card${compact ? ' sb-hotel-card--compact' : ''}${result.soldOut ? ' is-sold-out' : ''}`} onClick={onOpen} aria-label={`${hotel.name}, ${hotel.area}${result.fromPrice !== undefined && !result.soldOut ? `, from ${peso(result.fromPrice)} a night` : ', sold out on your dates'}`}>
       <span className="sb-hotel-card__photo">
@@ -131,6 +133,34 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
             </span>
           ) : null}
         </span>
+      </span>
+    </button>
+  );
+}
+
+/*
+  The Home rail's card. The results card at two-thirds width ran every line
+  to the edge and clipped the price, so this one carries four facts only:
+  the photo with its rating on it, the name, one reason to go, the price.
+*/
+function CompactHotelCard({ result, onOpen }: { result: HotelResult; onOpen: () => void }) {
+  const { hotel } = result;
+  // Time first: a narrow card truncates the end, and the place name can lose letters where the minutes cannot.
+  const sight = bestSight(hotel.id);
+  const nearby = sight ? `${travelLabel(sight)} · ${sight.name}` : undefined;
+  const price = result.fromPrice !== undefined && !result.soldOut ? result.fromPrice : undefined;
+  return (
+    <button type="button" className="sb-mini-card" onClick={onOpen} aria-label={`${hotel.name}, ${hotel.area}${price !== undefined ? `, from ${peso(price)} a night` : ''}`}>
+      <span className="sb-mini-card__photo">
+        <Image src={hotel.image.src} alt="" fill sizes="240px" style={{ objectPosition: hotel.image.focalPoint }} />
+        {hotel.henry ? <span className="sb-mini-card__badge">The Henry</span> : null}
+        <span className="sb-mini-card__rating"><Star weight="fill" aria-hidden="true" />{hotel.rating.toFixed(1)}</span>
+      </span>
+      <span className="sb-mini-card__body">
+        <b className="sb-mini-card__name">{hotel.name}</b>
+        <small className="sb-mini-card__area">{hotel.area}</small>
+        {nearby ? <small className="sb-mini-card__near"><MapPin weight="fill" aria-hidden="true" />{nearby}</small> : null}
+        {price !== undefined ? <span className="sb-mini-card__price"><small>from</small> <b>{peso(price)}</b> <small>/ night</small></span> : null}
       </span>
     </button>
   );

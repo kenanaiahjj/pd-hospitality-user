@@ -828,3 +828,34 @@
 .guest-app .sb-sheet__summary b { overflow: hidden; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .guest-app .sb-sheet__summary .sb-sheet__clear { justify-self: start; padding: 2px 0; font-size: 13.5px; }
 .guest-app .sb-sheet__body::-webkit-scrollbar { display: none; }
+
+/* ---------- Home rail card ---------- */
+
+.guest-app .sb-rail:has(.sb-mini-card) { grid-auto-columns: 232px; }
+.guest-app .sb-mini-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--guest-ink);
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.guest-app .sb-mini-card:active { transform: scale(0.98); }
+.guest-app .sb-mini-card__photo { position: relative; display: block; overflow: hidden; aspect-ratio: 4 / 3; border-radius: var(--guest-radius-lg); background: var(--guest-placeholder); }
+.guest-app .sb-mini-card__photo img { object-fit: cover; }
+.guest-app .sb-mini-card__badge { position: absolute; top: 10px; left: 10px; padding: 3px 9px; border-radius: var(--guest-radius-pill); background: oklch(1 0 0 / 0.92); font-size: 11.5px; font-weight: 700; }
+.guest-app .sb-mini-card__rating { position: absolute; right: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--guest-radius-pill); background: oklch(0.18 0.02 330 / 0.72); color: oklch(1 0 0); font-size: 12.5px; font-variant-numeric: tabular-nums; font-weight: 700; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.guest-app .sb-mini-card__rating svg { width: 12px; height: 12px; color: oklch(0.82 0.15 80); }
+.guest-app .sb-mini-card__body { display: grid; gap: 2px; min-width: 0; padding: 0 2px; }
+.guest-app .sb-mini-card__name { overflow: hidden; font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
+.guest-app .sb-mini-card__area,
+.guest-app .sb-mini-card__near { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-app .sb-mini-card__near { display: flex; align-items: center; gap: 4px; }
+.guest-app .sb-mini-card__near svg { flex: 0 0 12px; width: 12px; height: 12px; color: var(--guest-accent-strong); }
+.guest-app .sb-mini-card__price { margin-top: 4px; font-size: 13px; }
+.guest-app .sb-mini-card__price small { color: var(--guest-muted); font-size: 12.5px; }
+.guest-app .sb-mini-card__price b { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 750; }

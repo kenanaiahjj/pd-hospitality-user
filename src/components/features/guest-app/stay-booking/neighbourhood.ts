@@ -230,10 +230,15 @@ export function hotelHighlights(hotelId: string): string[] {
   return hotelHighlight(hotelId)?.split(' · ') ?? [];
 }
 
+/** The sight worth leading with: walkable first, then nearest. */
+export function bestSight(hotelId: string): NearbySpot | undefined {
+  return [...findNeighbourhood(hotelId).spots].filter((item) => item.kind === 'attraction').sort((a, b) => Number(a.mode !== 'walk') - Number(b.mode !== 'walk') || a.minutes - b.minutes)[0];
+}
+
 /** The two facts a hotel card has room for: the best sight, and the 7-Eleven. */
 export function hotelHighlight(hotelId: string): string | undefined {
   const { spots } = findNeighbourhood(hotelId);
-  const sight = [...spots].filter((item) => item.kind === 'attraction').sort((a, b) => Number(a.mode !== 'walk') - Number(b.mode !== 'walk') || a.minutes - b.minutes)[0];
+  const sight = bestSight(hotelId);
   const store = spots.find((item) => item.kind === 'essential' && item.icon === 'store');
   const parts = [
     sight ? `${sight.name} ${travelLabel(sight)}` : undefined,

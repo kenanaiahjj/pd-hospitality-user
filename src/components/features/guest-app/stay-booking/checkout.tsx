@@ -4,7 +4,7 @@ import { CheckCircle, LockSimple, Tag as TagIcon, WifiSlash, X } from '@phosphor
 import { useState } from 'react';
 import type { CartLine, RoomAllocation, StayGuestDetails, StayHotel, StaySearch } from './model';
 import { FREE_CANCELLATION_DAYS, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, cartRooms, partyLabel, peso, quoteStay } from './model';
-import { longDate, nightsLabel, stayDatesLabel } from './format';
+import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
 export const ARRIVAL_TIMES = ['I don’t know yet', '12:00–3:00 PM', '3:00–6:00 PM', '6:00–9:00 PM', 'After 9:00 PM'] as const;
@@ -165,11 +165,21 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
       </section>
 
       {!online ? <p className="sb-note sb-note--warning"><WifiSlash aria-hidden="true" />You’re offline. Reconnect to pay.</p> : null}
-      {tried && !valid ? <p className="sb-error" role="alert">Check your details above.</p> : null}
-      <button type="button" className="guest-button guest-button--primary" disabled={!online} onClick={pay}>
-        <LockSimple aria-hidden="true" />Pay {peso(quote.total)}
-      </button>
       <p className="sb-small sb-center">Paid now through our payment partner. This isn’t added to a room bill.</p>
+
+      <div className="guest-dock-spacer" aria-hidden="true" />
+      <div className="guest-dock">
+        <div className="guest-dock__summary">
+          <span>Total · {nightsLabel(search.checkIn, search.checkOut)}</span>
+          <strong>{peso(quote.total)}</strong>
+          <small className={`sb-dock__fit${tried && !valid ? '' : ' is-positive'}`} role={tried && !valid ? 'alert' : undefined}>
+            {tried && !valid ? 'Check your details above' : quote.refundable ? `Free cancellation until ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
+          </small>
+        </div>
+        <button type="button" className="guest-button guest-button--primary" disabled={!online} onClick={pay} aria-label={`Pay ${peso(quote.total)}`}>
+          <LockSimple aria-hidden="true" />Pay
+        </button>
+      </div>
     </div>
   );
 }

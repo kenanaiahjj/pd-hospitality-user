@@ -225,6 +225,11 @@ export const findNeighbourhood = (hotelId: string): Neighbourhood => NEIGHBOURHO
 export const travelLabel = (item: Pick<NearbySpot, 'minutes' | 'mode'>) =>
   `${item.minutes} min ${item.mode === 'walk' ? 'walk' : item.mode === 'boat' ? 'by boat' : 'drive'}`;
 
+/** The two facts a hotel card has room for, as separate phrases so neither breaks mid-way. */
+export function hotelHighlights(hotelId: string): string[] {
+  return hotelHighlight(hotelId)?.split(' · ') ?? [];
+}
+
 /** The two facts a hotel card has room for: the best sight, and the 7-Eleven. */
 export function hotelHighlight(hotelId: string): string | undefined {
   const { spots } = findNeighbourhood(hotelId);

@@ -4138,9 +4138,10 @@
 .guest-mini-cart {
   position: fixed;
   z-index: var(--z-appbar);
-  right: max(16px, calc((100vw - var(--app-column)) / 2 + 16px));
-  bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom));
-  left: max(16px, calc((100vw - var(--app-column)) / 2 + 16px));
+  bottom: var(--guest-float-bottom);
+  left: 50%;
+  width: var(--guest-float-width);
+  translate: -50% 0;
   display: grid;
   min-height: 58px;
   grid-template-columns: 1fr auto 20px;
@@ -4148,7 +4149,7 @@
   gap: 12px;
   padding: 8px 14px 8px 18px;
   border: 0;
-  border-radius: var(--guest-radius-lg);
+  border-radius: var(--guest-radius-pill);
   background: var(--guest-ink);
   color: var(--guest-paper);
   box-shadow: 0 14px 32px rgb(70 33 51 / 24%);
@@ -4964,38 +4965,51 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
    -------------------------------------------------------------------------- */
 
 /*
-   Fixed, and clamped to the reading column the same way `.guest-mini-cart` is
-   -- `position: fixed` resolves against the viewport, so on a wide screen a
-   bar left at `left: 0` would span the whole window while the app it belongs
-   to sits in a 480px column. Sits above the tab bar rather than over it: the
-   nav is 72px plus the home-indicator inset.
+   A second capsule, floating just above the tab bar: the same frosted glass,
+   the same width, the same pill. A flat strip across the column read as a
+   different app sitting on top of the nav. `--guest-float-*` is shared with
+   the restaurant cart and order button, so every bottom action sits in the
+   same slot.
 */
+.guest-app {
+  --guest-float-width: min(calc(100vw - 24px), 408px);
+  --guest-float-bottom: calc(var(--guest-nav-h) + 6px + env(safe-area-inset-bottom));
+}
+
 .guest-dock {
   position: fixed;
   z-index: var(--z-appbar);
-  right: max(0px, calc((100vw - var(--app-column)) / 2));
-  bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom));
-  left: max(0px, calc((100vw - var(--app-column)) / 2));
+  bottom: var(--guest-float-bottom);
+  left: 50%;
   display: grid;
-  grid-template-columns: auto 1fr;
+  width: var(--guest-float-width);
+  min-height: 64px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
-  padding: 12px var(--app-gutter) 14px;
-  border-top: 1px solid var(--guest-line);
-  background: var(--guest-paper);
-  /* Upward only: the shadow exists to lift the bar off content scrolling
-     under it, and the tab bar sits directly beneath. */
-  box-shadow: 0 -8px 24px oklch(0 0 0 / 0.06);
+  gap: 12px;
+  padding: 8px 8px 8px 22px;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: var(--guest-radius-pill);
+  background: rgb(255 255 255 / 0.74);
+  -webkit-backdrop-filter: blur(24px) saturate(1.22);
+  backdrop-filter: blur(24px) saturate(1.22);
+  box-shadow: var(--shadow-md);
+  transform: translateX(-50%);
+  animation: guest-dock-in 220ms var(--ease-out) both;
+}
+@keyframes guest-dock-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
-.guest-dock__summary { display: grid; gap: 1px; min-width: 0; }
-.guest-dock__summary span { color: var(--guest-muted); font-size: 11px; font-weight: 600; }
+.guest-dock__summary { display: grid; gap: 0; min-width: 0; }
+.guest-dock__summary span { overflow: hidden; color: var(--guest-muted); font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .guest-dock__summary strong {
-  font-size: 19px;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 /* The dock leaves the flow, so the scroll content has nothing to push against
@@ -5004,10 +5018,12 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
    shares. */
 .guest-dock-spacer { height: 84px; }
 
-.guest-dock .guest-button { margin: 0; min-height: 48px; }
+.guest-dock .guest-button { width: auto; min-height: 48px; margin: 0; padding: 0 22px; border-radius: var(--guest-radius-pill); }
+/* Waiting, not broken: a disabled button on glass at 40% opacity read as mud. */
+.guest-app .guest-dock .guest-button--primary:disabled { opacity: 1; background: var(--guest-sunken); color: var(--guest-subtle); box-shadow: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .guest-dock { transition: none; }
+  .guest-dock { animation: none; }
 }
 
 /* --------------------------------------------------------------------------
@@ -6814,13 +6830,10 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-restaurant-browse__cta {
   position: fixed;
   z-index: 4;
-  right: 16px;
-  /* `--guest-nav-h`, not the `--guest-nav-height` the branch invented: that
-     token is defined nowhere and only worked off its fallback. */
-  bottom: calc(var(--guest-nav-h) + env(safe-area-inset-bottom) + 12px);
-  left: 16px;
-  max-width: 688px;
-  margin: 0 auto;
+  bottom: var(--guest-float-bottom);
+  left: 50%;
+  width: var(--guest-float-width);
+  translate: -50% 0;
 }
 
 .guest-restaurant-browse__cta .guest-button {
@@ -8983,3 +8996,22 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-cart__remove { display: grid; place-items: center; width: 32px; height: 32px; margin: -4px 0 0; border: 0; border-radius: var(--guest-radius-pill); background: transparent; color: var(--guest-muted); cursor: pointer; }
 .guest-cart__remove:hover { background: var(--guest-sunken); color: var(--guest-ink); }
 .guest-cart__lines--receipt .guest-cart__line { grid-template-columns: minmax(0, 1fr) auto; padding-right: 16px; }
+
+/* --------------------------------------------------------------------------
+   Hotel essentials sheet: the Wi-Fi password first, large, one tap to copy.
+   -------------------------------------------------------------------------- */
+.guest-my-stay-folio-link + .guest-my-stay-folio-link { border-top: 0; }
+.guest-essentials-sheet { gap: 16px; }
+.guest-essentials-sheet__wifi { display: grid; gap: 4px; margin-top: 16px; padding: 18px; border-radius: var(--guest-radius-lg); background: var(--guest-sunken); }
+.guest-essentials-sheet__wifi small { display: inline-flex; align-items: center; gap: 6px; color: var(--guest-muted); font-size: 12px; font-weight: 650; }
+.guest-essentials-sheet__wifi small svg { width: 15px; height: 15px; color: var(--guest-brand); }
+.guest-essentials-sheet__wifi > b { margin-bottom: 8px; font-size: 18px; font-weight: 700; }
+.guest-essentials-sheet__wifi > strong { margin-bottom: 14px; font-family: var(--font-mono), ui-monospace, monospace; font-size: 28px; font-weight: 650; letter-spacing: 0.02em; overflow-wrap: anywhere; user-select: all; }
+.guest-essentials-sheet__wifi .guest-button { width: 100%; gap: 8px; }
+.guest-essentials-sheet__status { min-height: 18px; margin: 2px 0 0; color: var(--guest-muted); font-size: 12.5px; text-align: center; }
+.guest-essentials-sheet__list { display: grid; margin: 0; }
+.guest-essentials-sheet__list > div { display: grid; gap: 2px; padding: 12px 0; }
+.guest-essentials-sheet__list > div + div { box-shadow: inset 0 1px 0 var(--guest-line); }
+.guest-essentials-sheet__list dt { display: inline-flex; align-items: center; gap: 8px; color: var(--guest-muted); font-size: 13px; }
+.guest-essentials-sheet__list dt svg { width: 16px; height: 16px; color: var(--guest-brand); }
+.guest-essentials-sheet__list dd { margin: 0; font-size: 15px; font-weight: 600; }

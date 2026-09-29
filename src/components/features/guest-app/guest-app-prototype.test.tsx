@@ -2112,7 +2112,7 @@ describe('booking another stay', () => {
     expect(screen.getByRole('heading', { name: 'Who’s in each room?' })).toBeInTheDocument();
     expect(screen.getByRole('article', { name: /Room 1, King Room/ })).toBeInTheDocument();
     expect(screen.getByRole('article', { name: /Room 2, Garden Suite/ })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Continue to details/ }));
+    await user.click(screen.getByRole('button', { name: /^Continue/ }));
 
     await user.click(screen.getByRole('button', { name: /^Pay ₱/ }));
     await user.click(screen.getByRole('button', { name: /GCash/ }));

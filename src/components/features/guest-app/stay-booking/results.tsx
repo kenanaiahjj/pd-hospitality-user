@@ -2,13 +2,13 @@
 
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { CheckCircle, FadersHorizontal, MapPin, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
+import { CheckCircle, FadersHorizontal, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Amenity, HotelResult, PriceBand, StayFilters, StaySearch, StaySort } from './model';
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';
 import { nightsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet } from './search-form';
-import { hotelHighlight } from './neighbourhood';
+import { HotelHighlights } from './neighbourhood-section';
 
 // Leaflet reads `window` at import; the list view must not pay for it.
 const StayResultsMap = dynamic(() => import('./results-map').then((module) => module.StayResultsMap), { ssr: false });
@@ -49,7 +49,7 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
       {editing ? <StaySearchSheet value={search} title="Change search" submitLabel="Update search" onClose={() => setEditing(false)} onSearch={(next) => { setEditing(false); onSearch(next); }} /> : null}
 
       <div className="sb-results__head">
-        <h1 className="sb-results__title">{results.length} {results.length === 1 ? 'stay' : 'stays'} in {place}</h1>
+        <h1 className="sb-results__title">{results.length} {results.length === 1 ? 'stay' : 'stays'}{search.location === ANYWHERE ? '' : ` in ${place}`}</h1>
         <div className="sb-segmented" role="group" aria-label="View">
           <button type="button" aria-pressed={view.mode === 'list'} onClick={() => onViewChange({ ...view, mode: 'list' })}><ListBullets aria-hidden="true" />List</button>
           <button type="button" aria-pressed={view.mode === 'map'} onClick={() => onViewChange({ ...view, mode: 'map' })}><MapTrifold aria-hidden="true" />Map</button>
@@ -111,7 +111,7 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
         </span>
         <b className="sb-hotel-card__name">{hotel.name}</b>
         <small className="sb-hotel-card__area">{hotel.area}{result.distanceKm !== undefined ? ` · ${result.distanceKm} km from centre` : ''}</small>
-        {hotelHighlight(hotel.id) ? <span className="sb-highlight"><MapPin weight="fill" aria-hidden="true" />{hotelHighlight(hotel.id)}</span> : null}
+        <HotelHighlights hotelId={hotel.id} />
         {!compact ? (
           <span className="sb-hotel-card__amenities">
             {hotel.amenities.slice(0, 3).map((amenity) => <span key={amenity}>{AMENITY_LABELS[amenity]}</span>)}

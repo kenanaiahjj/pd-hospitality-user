@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { ArrowRight, Minus, Plus, Warning } from '@phosphor-icons/react';
 import type { CartLine, RoomAllocation, StayHotel, StaySearch } from './model';
 import { RATE_PLAN_LABELS, cartRooms, partyLabel, validateAllocation } from './model';
@@ -23,6 +24,7 @@ export function StayAssignGuestsScreen({ hotel, search, cart, allocation, onChan
   const rooms = cartRooms(hotel, cart);
   const check = validateAllocation(hotel, search, cart, allocation);
   const placedAdults = allocation.reduce((sum, item) => sum + item.adults, 0);
+  const placedChildren = new Set(allocation.flatMap((item) => item.childIndexes)).size;
   const setAdults = (index: number, adults: number) => onChange(allocation.map((item, i) => (i === index ? { ...item, adults } : item)));
   const moveChild = (child: number, room: number) => onChange(allocation.map((item, i) => {
     const without = item.childIndexes.filter((value) => value !== child);
@@ -45,12 +47,15 @@ export function StayAssignGuestsScreen({ hotel, search, cart, allocation, onChan
           return (
             <article key={index} className={`sb-assign__room${error ? ' is-invalid' : ''}`} aria-label={`Room ${index + 1}, ${room.roomType.name}`}>
               <header>
-                <small>Room {index + 1}</small>
-                <b>{room.roomType.name}</b>
-                <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · Sleeps {room.roomType.sleeps}{room.roomType.maxAdults < room.roomType.sleeps ? `, up to ${room.roomType.maxAdults} adults` : ''}</span>
+                <span className="sb-assign__thumb"><Image src={room.roomType.image.src} alt="" fill sizes="52px" style={{ objectPosition: room.roomType.image.focalPoint }} /></span>
+                <span className="sb-assign__title">
+                  <small>Room {index + 1}</small>
+                  <b>{room.roomType.name}</b>
+                  <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · Sleeps {room.roomType.sleeps}</span>
+                </span>
               </header>
               <div className="sb-counter" role="group" aria-label={`Adults in room ${index + 1}`}>
-                <span><b>Adults</b><small>{placedAdults} of {search.adults} placed</small></span>
+                <span><b>Adults</b><small>Up to {room.roomType.maxAdults} in this room</small></span>
                 <span className="sb-stepper">
                   <button type="button" aria-label={`Fewer adults in room ${index + 1}`} disabled={current.adults <= 0} onClick={() => setAdults(index, current.adults - 1)}><Minus aria-hidden="true" /></button>
                   <output aria-live="polite">{current.adults}</output>
@@ -85,10 +90,17 @@ export function StayAssignGuestsScreen({ hotel, search, cart, allocation, onChan
         </section>
       ) : null}
 
-      {check.summary ? <p className="sb-error" role="alert">{check.summary}</p> : null}
-      <button type="button" className="guest-button guest-button--primary" disabled={!check.ok} onClick={onContinue}>
-        Continue to details<ArrowRight aria-hidden="true" />
-      </button>
+      <div className="guest-dock-spacer" aria-hidden="true" />
+      <div className="guest-dock">
+        <div className="guest-dock__summary">
+          <span>Guests placed</span>
+          <strong>{placedAdults + placedChildren} of {search.adults + search.childAges.length}</strong>
+          <small className={`sb-dock__fit${check.ok ? ' is-positive' : ''}`} role={check.ok ? undefined : 'alert'}>{check.summary ?? 'Everyone has a bed'}</small>
+        </div>
+        <button type="button" className="guest-button guest-button--primary" disabled={!check.ok} onClick={onContinue}>
+          Continue<ArrowRight aria-hidden="true" />
+        </button>
+      </div>
     </div>
   );
 }

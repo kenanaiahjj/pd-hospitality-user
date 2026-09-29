@@ -544,9 +544,9 @@ export function cartFit(hotel: StayHotel, search: StaySearch, cart: CartLine[]):
   const rooms = cartRooms(hotel, cart);
   const party = describeParty(search.adults, search.childAges);
   const guests = `${party.total} ${party.total === 1 ? 'guest' : 'guests'}`;
-  if (!rooms.length) return { rooms: 0, fits: false, message: `Add rooms for your ${guests}` };
+  if (!rooms.length) return { rooms: 0, fits: false, message: `Pick rooms for ${guests}` };
   if (rooms.length > party.leads) {
-    return { rooms: rooms.length, fits: false, message: 'Each room needs a guest aged 12 or over. Remove a room.' };
+    return { rooms: rooms.length, fits: false, message: `More rooms than guests aged 12+. Remove ${rooms.length - party.leads === 1 ? 'a room' : `${rooms.length - party.leads} rooms`}.` };
   }
   const sleeps = rooms.reduce((sum, item) => sum + item.roomType.sleeps, 0);
   const leadRoom = rooms.reduce((sum, item) => sum + item.roomType.maxAdults, 0);
@@ -554,7 +554,7 @@ export function cartFit(hotel: StayHotel, search: StaySearch, cart: CartLine[]):
   const fitsUnderSix = party.underSix <= rooms.length * 2;
   if (!fitsSixPlus || !fitsUnderSix) {
     const placed = Math.min(party.total, Math.min(sleeps, party.sixPlus) + Math.min(party.underSix, rooms.length * 2));
-    return { rooms: rooms.length, fits: false, message: `Room for ${placed} of ${guests}. Add another room.` };
+    return { rooms: rooms.length, fits: false, message: `Room for ${placed} of ${guests}. Add a room.` };
   }
   return { rooms: rooms.length, fits: true, message: `Fits your ${guests}` };
 }

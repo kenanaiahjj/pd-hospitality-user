@@ -2,11 +2,11 @@
 
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { AirplaneTilt, Anchor, Bank, Basket, Church, Coffee, FirstAidKit, ForkKnife, Martini, Money, ShoppingBag, Storefront, Tree, Umbrella, Buildings } from '@phosphor-icons/react';
+import { AirplaneTilt, Anchor, MapPin, Bank, Basket, Church, Coffee, FirstAidKit, ForkKnife, Martini, Money, ShoppingBag, Storefront, Tree, Umbrella, Buildings } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import type { StayHotel } from './model';
 import type { NearbyIcon, NearbyKind } from './neighbourhood';
-import { findNeighbourhood, travelLabel } from './neighbourhood';
+import { findNeighbourhood, hotelHighlights, travelLabel } from './neighbourhood';
 
 // Leaflet reads `window` at import.
 const NeighbourhoodMap = dynamic(() => import('./neighbourhood-map').then((module) => module.NeighbourhoodMap), { ssr: false });
@@ -89,5 +89,20 @@ export function PartnersSection({ hotel }: { hotel: StayHotel }) {
         ))}
       </div>
     </section>
+  );
+}
+
+/** "Manila Bay sunset strip 10 min walk · 7-Eleven 2 min", each phrase kept whole. */
+export function HotelHighlights({ hotelId }: { hotelId: string }) {
+  const parts = hotelHighlights(hotelId);
+  if (!parts.length) return null;
+  return (
+    <span className="sb-highlight">
+      {parts.map((part, i) => (
+        <span key={part} className="sb-highlight__part">
+          {i === 0 ? <MapPin weight="fill" aria-hidden="true" /> : <Storefront weight="fill" aria-hidden="true" />}{part}
+        </span>
+      ))}
+    </span>
   );
 }

@@ -7,8 +7,7 @@ import type { CartLine, RatePlanId, StayHotel, StaySearch } from './model';
 import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, partyLabel, peso, quoteStay, roomOffers, validSearchDates } from './model';
 import { nightsLabel, roomsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
-import { NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
-import { hotelHighlight } from './neighbourhood';
+import { HotelHighlights, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
 
 /*
   The hotel, and the room picker that is the point of this flow: every room
@@ -78,7 +77,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           <span className="sb-rating"><b>{hotel.rating.toFixed(1)}</b><small>{hotel.reviews.toLocaleString('en-US')} reviews</small></span>
         </p>
         <p>{hotel.summary}</p>
-        {hotelHighlight(hotel.id) ? <p className="sb-highlight"><MapPin weight="fill" aria-hidden="true" />{hotelHighlight(hotel.id)}</p> : null}
+        <HotelHighlights hotelId={hotel.id} />
       </div>
 
       <section className="sb-stay-bar" aria-label="Your stay">
@@ -187,9 +186,13 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
       <div className="guest-dock-spacer sb-dock-spacer" aria-hidden="true" />
       <div className="guest-dock sb-dock">
         <div className="guest-dock__summary">
-          <span>{fit.rooms ? `${roomsLabel(fit.rooms)} · ${nightsLabel(search.checkIn, search.checkOut)}` : 'No rooms yet'}</span>
-          <strong>{fit.rooms ? peso(quote.subtotal) : '₱0'}</strong>
-          <small className={`sb-dock__fit${fit.fits ? ' is-positive' : ''}`} aria-live="polite">{fit.message}</small>
+          {fit.rooms ? (
+            <>
+              <span>{roomsLabel(fit.rooms)} · {nightsLabel(search.checkIn, search.checkOut)}</span>
+              <strong>{peso(quote.subtotal)}</strong>
+            </>
+          ) : null}
+          <small className={`sb-dock__fit${fit.fits ? ' is-positive' : ''}${fit.rooms ? '' : ' is-empty'}`} aria-live="polite">{fit.message}</small>
         </div>
         <button type="button" className="guest-button guest-button--primary" disabled={!fit.fits || !datesOk} onClick={onContinue}>
           Continue<ArrowRight aria-hidden="true" />

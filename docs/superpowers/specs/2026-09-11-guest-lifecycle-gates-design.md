@@ -8,7 +8,7 @@
 |---|---|
 | **Status** | `Implemented` |
 | **Created** | 2026-09-11 |
-| **Updated** | 2026-09-24 |
+| **Updated** | 2026-09-29 |
 | **Owner** | Kenanaiah Jo |
 | **Plan** | `docs/superpowers/plans/2026-09-11-guest-lifecycle-gates.md` |
 | **Supersedes** | `n/a` |
@@ -33,7 +33,7 @@ exist today is the one that matters most: scanning the QR code in the room is
 how a guest proves to the property that they are in it, and only that proof
 unlocks the on-property catalogue. Before arrival the same
 tab slot offers a narrower surface — transfers, early check-in, luggage,
-celebration setup — charged to the room or paid by card, as the guest chooses. After checkout, the front desk stays
+celebration setup — charged to the room and settled at checkout. After checkout, the front desk stays
 reachable for 24 hours, then the stay closes into a settled summary with a
 review.
 
@@ -101,8 +101,9 @@ in, and the app currently cannot answer it.
 - **No per-line service reviews.** One rating for the stay as a whole. Per-item
   review of each massage and dinner is deferred; it becomes worth building when
   an operator asks which vendor is dragging their score down.
-- **No new payment rails.** Pre-arrival card payment reuses the existing payment
-  chip pattern from `book-stay-checkout`.
+- **No payment rails.** Every paid booking, arrival services included, is
+  charged to the room and settled at the front desk at checkout. No flow asks
+  for a card, GCash or Maya.
 - **No PMS capability flag for the scan.** Unlike `reportsRoomReadiness`, the
   gate is uniform across the estate: every property's guest scans, or the desk
   unlocks them.
@@ -110,11 +111,9 @@ in, and the app currently cannot answer it.
 ## Success criteria
 
 - [ ] A guest with a stay whose dates are live but who has not scanned cannot
-      reach a booking form for any on-property service, and cannot charge
-      anything to their room.
+      reach a booking form for any on-property service.
 - [ ] The same guest can book an airport transfer, private car, luggage
-      storage, celebration setup, or early check-in, charging it to the room
-      or paying by card.
+      storage, celebration setup, or early check-in, charged to the room.
 - [ ] Scanning the in-room QR unlocks the full Explore catalogue and
       charge-to-room, and the unlock survives a page reload.
 - [ ] Tapping "Can't scan?" unlocks nothing by itself: it files a request in
@@ -124,7 +123,7 @@ in, and the app currently cannot answer it.
       24 hours.
 - [ ] The second tab shows the arrival-only roster before the room scan and the
       full on-property catalogue after it. An arrived, unverified guest can
-      book arrival services, on the room or by card, and has a clear scan
+      book arrival services, charged to the room, and has a clear scan
       action; on-property services remain unavailable until verification.
 - [ ] Within 24 hours of checkout, My Stay shows the settled summary and an open
       front-desk thread with time remaining.
@@ -453,7 +452,7 @@ Component tests in `guest-app-prototype.test.tsx`:
 8. An arrived-unverified guest tapping a spa service lands on `booking-blocked`
    with the scan prompt, not the offline or the not-yet copy.
 9. A pre-arrival guest booking an arrival service (private car, celebration
-   setup) can charge it to the room or pay now; Airport transfer is a ride
+   setup) charges it to the room, with no pay-now option; Airport transfer is a ride
    request through the desk and takes no payment.
 10. Explore shows the arrival roster before a room scan and the full catalogue
     after it; an arrived-unverified guest can scan or arrange an arrival service.
@@ -501,7 +500,8 @@ Explore-slot update is recorded below.
 | 2026-09-11 | The QR is a presence ritual and room binding, not an authentication boundary | A printed code can be photographed. The protection on charge-to-room is the folio settling at checkout against a card on file, with desk visibility | If stakeholders need a real boundary, the lever is a per-stay PMS-issued token invalidated at checkout — middleware work, named in Non-goals |
 | 2026-09-11 | Second tab is one slot with three contents; lock it when arrived-unverified | A wall shown three days out teaches the app is closed; the same wall shown to a guest holding the code is the one place the prompt is actionable | Superseded 2026-09-23: the pre-scan destination now shows arrival services and a scan action |
 | 2026-09-23 | Keep arrival services visible in Explore until the room scan; unlock the full catalogue after it | Keeps the pre-scan destination useful while the QR still gates on-property services and room charging | If the arrival roster proves too narrow, widen `PRE_ARRIVAL_SERVICE_IDS` without opening the room folio. Room charging superseded 2026-09-24 |
-| 2026-09-24 | Any paid service lets the guest charge the room or pay now, arrival services before the scan included | Owner's call: how to pay is the guest's choice, and the folio settles at checkout either way. What can be booked is unchanged | If pre-arrival room charges cause disputes, restore card-only for the arrival roster before the scan: `describeServicePayment` and `PaymentChoice`'s `allowRoom` |
+| 2026-09-24 | Any paid service lets the guest charge the room or pay now, arrival services before the scan included | Owner's call: how to pay is the guest's choice, and the folio settles at checkout either way. What can be booked is unchanged | If pre-arrival room charges cause disputes, restore card-only for the arrival roster before the scan: `describeServicePayment` and `PaymentChoice`'s `allowRoom`. Superseded 2026-09-29 — see the row below |
+| 2026-09-29 | **Reversed: every paid booking charges to the room; no pay-now option** | Owner's call (2026-09-28): settlement happens at the front desk at checkout, so no booking flow offers card, GCash or Maya. Supersedes the 2026-09-24 row. Implemented in `0a64220` | If a service needs prepayment, it needs an explicit settlement exception in its own spec |
 | 2026-09-11 | Post-stay the slot becomes Book again, reaching `book-stay` | It is the only thing a checked-out guest can still buy, and it keeps the slot alive in the fourth gate rather than reintroducing the dead tab elsewhere | Extends the owner's choice by one gate; if unwanted, the slot hides post-stay and the bar carries three destinations there |
 | 2026-09-11 | The 24-hour window is computed but does not elapse in the prototype | Demoability: a stakeholder must be able to see both sides of the boundary without waiting a day | A real product needs the timer; the arithmetic is already there, only the switcher stands in for the clock |
 | 2026-09-11 | Front desk open 24h post-checkout, then summary + stay-level review | A guest disputing a charge needs the desk; past that, the stay is a receipt | Per-line vendor reviews would need a new shape on `StayReview` and a per-service surface |

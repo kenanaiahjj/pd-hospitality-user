@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Star } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import type { LayerGroup, Map as LeafletMap } from 'leaflet';
-import { addCredit, addTiles } from '../nearby-map';
+import { addCredit, addTiles, groupByCollision } from '../nearby-map';
 import type { HotelResult } from './model';
 import { peso } from './model';
 
@@ -25,21 +25,40 @@ export function StayResultsMap({ results, onOpenHotel }: { results: HotelResult[
   const layerRef = useRef<LayerGroup | null>(null);
   const leafletRef = useRef<typeof import('leaflet') | null>(null);
   const [activeId, setActiveId] = useState(results[0]?.hotel.id);
+  // Read by Leaflet's zoom handler, which outlives the render that made it.
+  const activeRef = useRef(activeId);
+  useEffect(() => { activeRef.current = activeId; }, [activeId]);
   const key = results.map((result) => `${result.hotel.id}:${result.fromPrice ?? 'x'}`).join(',');
   const chosen = results.find((result) => result.hotel.id === activeId) ?? results[0];
 
+  /* Pins that would sit on each other merge into a count until the map is zoomed in far enough to part them. */
   const drawPins = (active?: string) => {
     const L = leafletRef.current;
     const layer = layerRef.current;
-    if (!L || !layer) return;
+    const map = mapRef.current;
+    if (!L || !layer || !map) return;
     layer.clearLayers();
-    for (const result of results) {
-      const label = result.soldOut || result.fromPrice === undefined ? 'Sold out' : peso(result.fromPrice);
-      L.marker(result.hotel.position, {
-        icon: L.divIcon({ className: 'sb-map-marker', html: pinHtml(label, result.hotel.id === active), iconSize: undefined, iconAnchor: [36, 30] }),
-        title: result.hotel.name,
-        zIndexOffset: result.hotel.id === active ? 1000 : 0,
-      }).on('click', () => setActiveId(result.hotel.id)).addTo(layer);
+    const points = results.map((result) => {
+      const point = map.latLngToLayerPoint(result.hotel.position);
+      return { item: result, x: point.x, y: point.y };
+    });
+    for (const group of groupByCollision(points, 84, 30)) {
+      if (group.length === 1) {
+        const result = group[0]!;
+        const label = result.soldOut || result.fromPrice === undefined ? 'Sold out' : peso(result.fromPrice);
+        L.marker(result.hotel.position, {
+          icon: L.divIcon({ className: 'sb-map-marker', html: pinHtml(label, result.hotel.id === active), iconSize: undefined, iconAnchor: [36, 30] }),
+          title: result.hotel.name,
+          zIndexOffset: result.hotel.id === active ? 1000 : 0,
+        }).on('click', () => setActiveId(result.hotel.id)).addTo(layer);
+        continue;
+      }
+      const bounds = L.latLngBounds(group.map((result) => result.hotel.position));
+      const holdsActive = group.some((result) => result.hotel.id === active);
+      L.marker(bounds.getCenter(), {
+        icon: L.divIcon({ className: 'sb-map-marker', html: pinHtml(`${group.length} stays`, holdsActive), iconSize: undefined, iconAnchor: [36, 30] }),
+        title: group.map((result) => result.hotel.name).join(', '),
+      }).on('click', () => map.flyToBounds(bounds.pad(0.8), { maxZoom: 15, duration: 0.4 })).addTo(layer);
     }
   };
   const drawRef = useRef(drawPins);
@@ -58,6 +77,7 @@ export function StayResultsMap({ results, onOpenHotel }: { results: HotelResult[
       const bounds = L.latLngBounds(results.map((result) => result.hotel.position));
       map.fitBounds(bounds, { paddingTopLeft: [40, 40], paddingBottomRight: [40, 180], maxZoom: 14 });
       mapRef.current = map;
+      map.on('zoomend', () => drawRef.current(activeRef.current));
       drawRef.current(results[0]?.hotel.id);
     });
     return () => {

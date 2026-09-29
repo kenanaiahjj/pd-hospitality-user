@@ -2570,8 +2570,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (!hotel || !stayDetails) return;
     const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode);
     const booking = bookingFromDraft({ hotel, search: stayDraft.search, cart: stayDraft.cart, allocation: stayDraft.allocation, details: stayDetails, quote, paidWith: GATEWAY_METHOD_LABELS[method], paidAt: PROTOTYPE_TODAY });
+    // A bed chosen at checkout is the room preference the hotel sees; "No preference" leaves the profile's.
+    const bed = { 'One large bed': 'King bed', 'Two separate beds': 'Twin beds' }[stayDetails.bedPreferences[0] ?? ''];
+    const roomLeads = [...new Set(stayDetails.roomLeads.map((name) => name.trim()).filter((name) => name && name !== stayDetails.name.trim()))];
     setSession((current) => ({
       ...current,
+      roomPreferences: bed ? { ...current.roomPreferences, bed } : current.roomPreferences,
+      // Other rooms' lead guests are the people the hotel should expect, so they join the guest list.
+      additionalGuests: roomLeads.length ? roomLeads : current.additionalGuests,
       guestName: current.guestName || booking.guestName,
       bookings: [...current.bookings.filter((item) => item.id !== booking.id), booking],
       // A guest mid-stay keeps that stay in front; otherwise the new trip leads.
@@ -2588,11 +2594,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const cancelStayBooking = (bookingId: string) => {
     const booking = session.bookings.find((item) => item.id === bookingId);
     if (!booking?.reservation) return;
+    // Whatever was booked for the stay goes with it: arrival services in the cart or already paid for.
+    const hadServices = session.serviceBookings.some((item) => item.bookingId === bookingId) || (session.cart ?? []).some((line) => line.booking.bookingId === bookingId);
     setSession((current) => {
       const bookings = current.bookings.filter((item) => item.id !== bookingId);
-      return { ...current, bookings, activeBookingId: current.activeBookingId === bookingId ? undefined : current.activeBookingId };
+      return {
+        ...current,
+        bookings,
+        activeBookingId: current.activeBookingId === bookingId ? undefined : current.activeBookingId,
+        serviceBookings: current.serviceBookings.filter((item) => item.bookingId !== bookingId),
+        cart: current.cart?.filter((line) => line.booking.bookingId !== bookingId),
+      };
     });
-    setCancelNotice(`${booking.property} is cancelled. ${peso(booking.reservation.total)} is on its way back to ${booking.reservation.paidWith}.`);
+    setCancelNotice(`${booking.property} is cancelled. ${peso(booking.reservation.total)} is on its way back to ${booking.reservation.paidWith}.${hadServices ? ' Arrival services booked for this stay are cancelled too.' : ''}`);
     setHistory([]);
     replaceScreen('stay-overview');
   };

@@ -118,7 +118,7 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
           <span className="sb-hotel-card__notes">
             {result.soldOut ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Sold out on your dates</span>
               : !result.fitsParty ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Not enough rooms for {partyLabel(search)}</span>
-                : result.freeCancellation ? <span className="sb-note sb-note--positive"><CheckCircle weight="fill" aria-hidden="true" />Free cancellation</span> : null}
+                : result.freeCancellation ? <span className="sb-note sb-note--positive"><CheckCircle weight="fill" aria-hidden="true" />{result.cheapestRefundable ? 'Free cancellation' : 'Free cancellation available'}</span> : null}
           </span>
           {result.fromPrice !== undefined && !result.soldOut ? (
             <span className="sb-price">

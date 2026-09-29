@@ -52,6 +52,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
   onContinue: () => void;
 }) {
   const [editing, setEditing] = useState<SearchStep | null>(null);
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
   const offers = roomOffers(hotel, search);
   const fit = cartFit(hotel, search, cart);
   const quote = quoteStay(hotel, search, cart);
@@ -99,7 +100,11 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
             onSearch={(next) => {
               setEditing(null);
               onSearchChange(next);
-              onCartChange(clampCart(hotel, next, cart));
+              const kept = clampCart(hotel, next, cart);
+              const count = (lines: CartLine[]) => lines.reduce((sum, line) => sum + line.quantity, 0);
+              // Say so when the new dates cost the cart a room, rather than quietly dropping it.
+              setCartNotice(count(kept) < count(cart) ? `Fewer rooms are free on the new dates, so ${count(cart) - count(kept) === 1 ? 'a room was' : `${count(cart) - count(kept)} rooms were`} taken out of your selection.` : null);
+              onCartChange(kept);
             }}
           />
         ) : null}
@@ -110,6 +115,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           <h2 id="sb-rooms-title">Choose your rooms</h2>
           <p>Mix room types and rates in one booking.</p>
         </div>
+        {cartNotice ? <p className="sb-note sb-note--warning" role="status"><Warning aria-hidden="true" />{cartNotice}</p> : null}
         <div className="sb-rooms">
           {offers.map((offer) => {
             const { roomType } = offer;

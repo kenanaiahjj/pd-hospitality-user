@@ -68,12 +68,19 @@ export function RoomReadyNotification({
 }
 
 /* The airport a property's guests fly into, for a pick-up or a drop-off. */
+/* The airport a guest flies into for each destination; Manila's is the fallback. */
+const AIRPORTS: Record<string, string> = {
+  Cebu: 'Mactan–Cebu International Airport',
+  Dumaguete: 'Dumaguete–Sibulan Airport',
+  Boracay: 'Caticlan Airport',
+  'El Nido': 'El Nido Airport',
+  Siargao: 'Sayak Airport',
+  Bohol: 'Bohol–Panglao International Airport',
+  Baguio: 'Clark International Airport',
+};
+
 export function airportFor(booking: Booking) {
-  return booking.city === 'Cebu'
-    ? 'Mactan–Cebu International Airport'
-    : booking.city === 'Dumaguete'
-      ? 'Dumaguete–Sibulan Airport'
-      : 'NAIA Terminal 3';
+  return AIRPORTS[booking.city] ?? 'NAIA Terminal 3';
 }
 
 export function DepartureOptionsSection({

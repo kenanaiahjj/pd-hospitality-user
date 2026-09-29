@@ -733,6 +733,8 @@ export type HotelResult = {
   /** From the searched place's centre, when the search named one. */
   distanceKm?: number;
   freeCancellation: boolean;
+  /** The "from" price is itself a refundable rate -- else free cancellation costs more than it. */
+  cheapestRefundable: boolean;
   /** No room class is open for the whole stay. */
   soldOut: boolean;
   /** The largest party one booking could hold -- is this hotel even worth opening? */
@@ -751,6 +753,11 @@ export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTE
       fromTotal: offers.length ? Math.min(...offers.flatMap((offer) => offer.plans.map((plan) => plan.total))) : undefined,
       distanceKm: center ? Math.round(distanceKm(center, hotel.position) * 10) / 10 : undefined,
       freeCancellation: offers.some((offer) => offer.plans.some((plan) => plan.refundable)),
+      cheapestRefundable: (() => {
+        const plans = offers.flatMap((offer) => offer.plans);
+        const cheapest = plans.reduce<(typeof plans)[number] | undefined>((best, plan) => (!best || plan.perNight < best.perNight ? plan : best), undefined);
+        return Boolean(cheapest?.refundable);
+      })(),
       soldOut: offers.length === 0,
       fitsParty: capacity >= party.sixPlus,
     };

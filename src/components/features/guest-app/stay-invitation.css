@@ -399,14 +399,6 @@
   from { background-position: 150% 0; }
   to { background-position: -50% 0; }
 }
-.stay-pass__stamp-type {
-  font-family: var(--font-sans), Arial, sans-serif;
-  font-size: 6.6px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-anchor: middle;
-}
-.stay-pass__stamp-type--bottom { font-size: 5.4px; letter-spacing: 0.1em; }
 
 /*
   The card holds still under the stamp. It used to dip at contact, but

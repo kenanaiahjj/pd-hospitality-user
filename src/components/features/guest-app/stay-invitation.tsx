@@ -5,6 +5,7 @@ import { Button } from '@/components/ui';
 import { CabanaMark } from '@/components/ui/cabana-logo';
 import { usePrefersReducedMotion } from '@/lib/hooks';
 import { CHECK_IN_FROM, CHECK_OUT_BY, type Booking } from './prototype-model';
+import { STAMP_LETTERING_BOTTOM, STAMP_LETTERING_TOP } from './stamp-lettering';
 import './stay-invitation.css';
 
 /*
@@ -67,8 +68,6 @@ const STAMP_ROSETTE = Array.from({ length: 18 }, (_, index) => index * 10);
 */
 function DigitalStamp() {
   const id = useId();
-  const topArc = `${id}-top-arc`;
-  const bottomArc = `${id}-bottom-arc`;
   const backing = `${id}-backing`;
   const foil = `${id}-ink`;
   const bevel = `${id}-bevel`;
@@ -80,8 +79,6 @@ function DigitalStamp() {
     <span className="stay-pass__stamp-lockup">
       <svg className="stay-pass__stamp-art" viewBox="0 0 100 100" aria-hidden="true">
         <defs>
-          <path id={topArc} d="M 17 50 A 33 33 0 1 1 83 50" />
-          <path id={bottomArc} d="M 83 50 A 33 33 0 1 1 17 50" />
           {/* The disc: champagne foil, lit from the upper left. */}
           <linearGradient id={backing} x1="0.1" y1="0" x2="0.9" y2="1">
             <stop offset="0%" stopColor="#f9ecc4" />
@@ -125,12 +122,9 @@ function DigitalStamp() {
           <circle cx="50" cy="50" r="39.6" fill="none" stroke={ink} strokeWidth="0.7" />
           <circle cx="50" cy="50" r="25" fill="none" stroke={ink} strokeWidth="0.8" />
           <circle cx="50" cy="50" r="23.8" fill="none" stroke={ink} strokeWidth="0.25" />
-          <text className="stay-pass__stamp-type" style={{ fill: ink }}>
-            <textPath href={`#${topArc}`} startOffset="50%" textAnchor="middle" textLength="34" lengthAdjust="spacing">CABANA</textPath>
-          </text>
-          <text className="stay-pass__stamp-type stay-pass__stamp-type--bottom" style={{ fill: ink }}>
-            <textPath href={`#${bottomArc}`} startOffset="50%" textAnchor="middle" textLength="38" lengthAdjust="spacing">VERIFIED STAY</textPath>
-          </text>
+          {/* Outlines, not <text>: see stamp-lettering.ts. */}
+          <path d={STAMP_LETTERING_TOP} fill={ink} />
+          <path d={STAMP_LETTERING_BOTTOM} fill={ink} />
           <path d="M16.8 48.3l1.7 1.7-1.7 1.7-1.7-1.7zM83.2 48.3l1.7 1.7-1.7 1.7-1.7-1.7z" fill={ink} />
           <svg x="34" y="39" width="32" height="21" viewBox="12.32 4.11 277.98 181.58" overflow="visible">
             <CabanaMark style={{ fill: ink }} />
@@ -284,7 +278,7 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
                 <span className="stay-pass__stamp-spot" aria-hidden="true">
                   {/*
                     Mounted from the start and only revealed on the press, so
-                    its text paths are laid out before the slam begins.
+                    nothing has to lay out or decode as the slam begins.
                   */}
                   <span className="stay-pass__stamp">
                     <DigitalStamp />

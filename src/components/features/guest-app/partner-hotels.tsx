@@ -78,6 +78,32 @@ export function findPartnerHotel(id: string): PartnerHotel | undefined {
   return PARTNER_HOTELS.find((hotel) => hotel.id === id);
 }
 
+export function PartnerHotelCard({ hotel, onOpenHotel }: { hotel: PartnerHotel; onOpenHotel: (id: string) => void }) {
+  const image = getPropertyImage(hotel.id);
+  return (
+      <button
+                className="guest-estate-card guest-partner-card"
+        type="button"
+        onClick={() => onOpenHotel(hotel.id)}
+      >
+        <Image className="guest-estate-card__image" src={image.src} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 480px" style={{ objectPosition: image.focalPoint }} />
+        <span className="guest-estate-card__scrim" aria-hidden="true" />
+        <span className="guest-estate-card__body">
+          <small className="guest-estate-card__where">{hotel.location}</small>
+          <b className="guest-estate-card__name">{hotel.name}</b>
+          <span className="guest-estate-card__tagline">{hotel.summary}</span>
+          <span className="guest-estate-card__foot">
+            <span className="guest-estate-card__rate">
+              <b>Hotel details</b>
+              <small>Photos, information, and booking sites</small>
+            </span>
+            <span className="guest-estate-card__go" aria-hidden="true"><ArrowRight /></span>
+          </span>
+        </span>
+      </button>
+  );
+}
+
 export function PartnerHotelDirectory({ onOpenHotel }: { onOpenHotel: (id: string) => void }) {
   return (
     <div className="guest-stack guest-partner-directory">
@@ -88,32 +114,7 @@ export function PartnerHotelDirectory({ onOpenHotel }: { onOpenHotel: (id: strin
       </div>
 
       <div className="guest-partner-directory__list">
-        {PARTNER_HOTELS.map((hotel) => {
-          const image = getPropertyImage(hotel.id);
-          return (
-            <button
-              key={hotel.id}
-              className="guest-estate-card guest-partner-card"
-              type="button"
-              onClick={() => onOpenHotel(hotel.id)}
-            >
-              <Image className="guest-estate-card__image" src={image.src} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 480px" style={{ objectPosition: image.focalPoint }} />
-              <span className="guest-estate-card__scrim" aria-hidden="true" />
-              <span className="guest-estate-card__body">
-                <small className="guest-estate-card__where">{hotel.location}</small>
-                <b className="guest-estate-card__name">{hotel.name}</b>
-                <span className="guest-estate-card__tagline">{hotel.summary}</span>
-                <span className="guest-estate-card__foot">
-                  <span className="guest-estate-card__rate">
-                    <b>Hotel details</b>
-                    <small>Photos, information, and booking sites</small>
-                  </span>
-                  <span className="guest-estate-card__go" aria-hidden="true"><ArrowRight /></span>
-                </span>
-              </span>
-            </button>
-          );
-        })}
+        {PARTNER_HOTELS.map((hotel) => <PartnerHotelCard key={hotel.id} hotel={hotel} onOpenHotel={onOpenHotel} />)}
       </div>
     </div>
   );

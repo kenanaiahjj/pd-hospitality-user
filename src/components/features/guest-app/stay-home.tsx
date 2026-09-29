@@ -1,15 +1,16 @@
 'use client';
 
-import { HistoryItem, Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
+import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
+import { PARTNER_HOTELS, PartnerHotelCard } from './partner-hotels';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
 import { Button } from '@/components/ui';
 import { CalendarCheck01Icon as HugeCalendarCheckIcon, ChevronRightIcon as HugeChevronRightIcon } from '@hugeicons-pro/core-stroke-rounded';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight, Bed, BellRinging, CalendarBlank, Car, CaretRight, ChatCircleDots, Check, CheckCircle, Clock, Coffee, Compass, Copy, ForkKnife, Gift, Megaphone, PencilSimple, Phone, Plus, QrCode, Receipt, SignOut, Sparkle, Storefront, SwimmingPool, Ticket, Users, WifiHigh, Wrench, X } from '@phosphor-icons/react';
+import { ArrowRight, Bed, BellRinging, CalendarBlank, Car, CaretRight, ChatCircleDots, Check, CheckCircle, Clock, Coffee, Compass, Copy, ForkKnife, Gift, Megaphone, PencilSimple, Plus, QrCode, Receipt, SignOut, Sparkle, Storefront, SwimmingPool, Ticket, Users, WifiHigh, Wrench, X } from '@phosphor-icons/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -135,6 +136,7 @@ export type StayOverviewHomeProps = {
   picks: FeedEntry[];
   onOpenPick: (entry: FeedEntry) => void;
   onOpenStay: (id: string) => void;
+  onOpenHotel: (id: string) => void;
   /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
   /** Whether the front desk still answers after checkout: the 24-hour window. */
@@ -145,7 +147,7 @@ export type StayOverviewHomeProps = {
   clockHour?: number;
 };
 
-export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenStay, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
+export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenHotel, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -157,7 +159,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         guestName={session.guestName}
         pastStays={session.pastStays}
         onNavigate={onNavigate}
-        onOpenStay={onOpenStay}
+        onOpenHotel={onOpenHotel}
       />
     );
   }
@@ -711,17 +713,14 @@ export function EmptyStayHome({
   guestName,
   pastStays,
   onNavigate,
-  onOpenStay,
+  onOpenHotel,
 }: {
   guestName: string;
   pastStays: PastStay[];
   onNavigate: (screen: ActiveScreen) => void;
-  onOpenStay: (id: string) => void;
+  onOpenHotel: (id: string) => void;
 }) {
   const firstName = guestName.trim().split(' ')[0];
-  // Three is the most a home can show before it stops being a summary. The
-  // rest live on `stay-history`, which is still the one full list.
-  const recent = pastStays.slice(0, 3);
 
   return (
     <div className="guest-stack" data-testid="guest-home-empty">
@@ -737,7 +736,7 @@ export function EmptyStayHome({
         </h1>
         <p>
           {pastStays.length > 0
-            ? 'No stay is connected right now. Here is where you have been.'
+            ? 'No stay is connected right now. Add a booking, or explore where to stay next.'
             : 'Add your booking to open arrival details, hotel services and room charges in one place.'}
         </p>
       </div>
@@ -761,37 +760,13 @@ export function EmptyStayHome({
         <ArrowRight aria-hidden="true" />
       </button>
 
-      {/* No booking means no front-desk chat, so the way to reach a hotel has to be here. */}
-      <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('partner-hotels')}>
-        <span className="guest-add-booking-card__glyph" aria-hidden="true"><Phone /></span>
-        <span className="guest-add-booking-card__text">
-          <b>Contact a hotel</b>
-          <small>A number to call and an address to email for every partner hotel.</small>
-        </span>
-        <ArrowRight aria-hidden="true" />
-      </button>
-
-      {recent.length > 0 ? (
-        <section className="guest-empty-history">
-          <div className="guest-section-heading-row">
-            <SectionHeading title="Previous stays" />
-            {pastStays.length > recent.length ? (
-              <button className="guest-text-link" type="button" onClick={() => onNavigate('stay-history')}>
-                See all {pastStays.length}
-              </button>
-            ) : null}
-          </div>
-          {recent.map((stay) => (
-            <HistoryItem key={stay.id} stay={stay} onOpen={() => onOpenStay(stay.id)} />
-          ))}
-          {pastStays.length === recent.length ? (
-            <button className="guest-text-link" type="button" onClick={() => onNavigate('stay-history')}>
-              See all {pastStays.length} stays
-            </button>
-          ) : null}
-        </section>
-      ) : null}
-
+      {/* Previous stays live in Profile; the home offers where to stay next. */}
+      <section className="guest-empty-hotels">
+        <SectionHeading title="Partner hotels" />
+        <div className="guest-partner-directory__list">
+          {PARTNER_HOTELS.map((hotel) => <PartnerHotelCard key={hotel.id} hotel={hotel} onOpenHotel={onOpenHotel} />)}
+        </div>
+      </section>
     </div>
   );
 }

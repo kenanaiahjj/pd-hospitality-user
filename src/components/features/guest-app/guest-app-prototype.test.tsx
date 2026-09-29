@@ -2794,12 +2794,12 @@ describe('signed-in home with no booking', () => {
     2. A number that is text only, so a phone cannot dial it.
     3. Only one hotel, when the guest may be asking about another.
   */
-  it('lists every hotel with a number to call and an address to email', async () => {
+  it('lists the partner hotels on the home, each with a number to call and an address to email', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
     expect(screen.queryByRole('button', { name: 'Ask the front desk for help' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: /Contact a hotel/ }));
+    expect(screen.queryByRole('button', { name: /Contact a hotel/ })).toBeNull();
 
     // Every partner hotel is listed, and each one's page can be dialled and emailed.
     for (const name of [/The Henry Hotel Manila/, /The Henry Hotel Cebu/, /The Henry Resort Dumaguete/]) {
@@ -2831,15 +2831,12 @@ describe('signed-in home with no booking', () => {
     expect(screen.getByRole('heading', { name: 'Check-in before arrival' })).toBeInTheDocument();
   });
 
-  it('shows the guest their recent stays and links to the full list', async () => {
-    const user = userEvent.setup();
+  it('keeps previous stays off the home and shows partner hotels instead', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
-    expect(screen.getByRole('heading', { name: 'Previous stays' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Partner hotels' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /The Henry/ }).length).toBeGreaterThan(0);
-
-    await user.click(screen.getByRole('button', { name: /See all 3 stays/ }));
-    expect(screen.getByRole('heading', { name: 'Stay history', level: 1 })).toBeInTheDocument();
   });
 
   it('greets a returning guest by what they have actually done', () => {
@@ -3069,14 +3066,14 @@ describe('prototype controls', () => {
     const returning = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
-    expect(screen.getByRole('heading', { name: 'Previous stays' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
 
     await openControls(user);
     fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     await user.click(screen.getByRole('button', { name: /Clear stay history/ }));
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
-    expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Hello, Ana' })).toBeInTheDocument();
   });
 
   it('closes when the modal backdrop is selected', async () => {

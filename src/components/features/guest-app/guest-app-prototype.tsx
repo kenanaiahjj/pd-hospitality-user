@@ -2123,7 +2123,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           guestName={session.guestName}
           pastStays={pastStays}
           onNavigate={go}
-          onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }}
+          onOpenHotel={openPartnerHotel}
         />
       );
     }
@@ -2399,7 +2399,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'stay-overview':
-        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />;
+        return <StayOverviewHome session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />;
 
       case 'partner-hotels':
         return <PartnerHotelDirectory onOpenHotel={openPartnerHotel} />;
@@ -3527,7 +3527,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               guestName={session.guestName}
               pastStays={pastStays}
               onNavigate={go}
-              onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }}
+              onOpenHotel={openPartnerHotel}
             />
           );
         }
@@ -3552,15 +3552,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack guest-my-stay-page">
             {pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}
-            {/* The stay in full lives here; Home carries only the compact reminder. */}
-            <UpcomingBookingCard
-              booking={contextBooking}
-              primary
-              onNavigate={go}
-              statusLabel={stayStatus.label}
-              showCountdown
-            />
-
             {showVendorFolioQr ? (
               <button
                 className={`guest-my-stay-vendor-qr${vendorFolioIsAvailable ? '' : ' is-unverified'}`}
@@ -3581,6 +3572,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </span>
               </button>
             ) : null}
+
+            {/* The stay in full lives here; Home carries only the compact reminder. */}
+            <UpcomingBookingCard
+              booking={contextBooking}
+              primary
+              onNavigate={go}
+              statusLabel={stayStatus.label}
+              showCountdown
+            />
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}
 
@@ -3777,7 +3777,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               guestName={session.guestName}
               pastStays={pastStays}
               onNavigate={go}
-              onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }}
+              onOpenHotel={openPartnerHotel}
             />
           );
         }

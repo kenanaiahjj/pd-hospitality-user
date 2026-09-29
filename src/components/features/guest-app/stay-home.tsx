@@ -10,7 +10,7 @@ import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-imag
 import { Button } from '@/components/ui';
 import { CalendarCheck01Icon as HugeCalendarCheckIcon, ChevronRightIcon as HugeChevronRightIcon } from '@hugeicons-pro/core-stroke-rounded';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight, Bed, BellRinging, CalendarBlank, Car, CaretRight, ChatCircleDots, Check, CheckCircle, Clock, Coffee, Compass, Copy, ForkKnife, Gift, Megaphone, PencilSimple, Plus, QrCode, Receipt, SignOut, Sparkle, Storefront, SwimmingPool, Ticket, Users, WifiHigh, Wrench, X } from '@phosphor-icons/react';
+import { ArrowRight, Bed, BellRinging, CalendarBlank, Car, CaretRight, ChatCircleDots, Check, CheckCircle, Clock, Compass, ForkKnife, Gift, Megaphone, PencilSimple, Plus, QrCode, Receipt, SignOut, Sparkle, Storefront, Ticket, Users, Wrench, X } from '@phosphor-icons/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -211,7 +211,6 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         </section>
         {/* One line under the stay: what changed at the property today. */}
         <AnnouncementsSection booking={booking} hour={clockHour} />
-        <HotelEssentials booking={booking} hour={clockHour} />
         {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" aria-label={`View details for ${confirmedServices[0].title}`} onClick={() => onNavigate('my-stay')}>
           <span className="guest-next-service-card__marker" aria-hidden="true"><HugeiconsIcon icon={HugeCalendarCheckIcon} size={20} strokeWidth={1.75} focusable="false" /></span>
           <span className="guest-next-service-card__details">
@@ -401,8 +400,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
           {/* The ready-room card above carries the scan once there is a room; one button, not two. */}
           <UnlockTeaser onScan={roomAssignment.state === 'pending' ? () => onNavigate('scan-room-code') : undefined} />
           <AnnouncementsSection booking={booking} hour={clockHour} />
-          <HotelEssentials booking={booking} hour={clockHour} />
-        </>
+          </>
       ) : null}
       {/* Arrival offers: once the stay has begun the guest is already here. */}
       {!booking.roomVerification && booking.status === 'upcoming' && !hasStayStarted(booking) ? (
@@ -916,54 +914,6 @@ export const ESSENTIALS: Record<string, { wifi: string; password: string; breakf
   Manila: { wifi: 'HenryGuest', password: 'manila2026', breakfast: '6:00–10:30 AM · Kape Manila Café', pool: 'Rooftop · 7:00 AM–10:00 PM' },
   Cebu: { wifi: 'HenryGuest', password: 'cebu2026', breakfast: '6:30–10:30 AM · The Garden', pool: 'Garden pool · 7:00 AM–9:00 PM' },
 };
-
-/*
-  What a guest in the lobby actually needs, none of it tied to the room:
-  Wi-Fi with its password one tap from the clipboard, breakfast, the pool
-  (today's closure wins over the usual hours), and when the stay ends.
-*/
-export function HotelEssentials({ booking, hour = 19 }: { booking: Booking; hour?: number }) {
-  const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 1800);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-  const facts = ESSENTIALS[booking.city];
-  if (!facts) return null;
-  const poolNotice = PROPERTY_ANNOUNCEMENTS.find((item) => item.id === 'announcement-pool' && item.activeFrom <= booking.checkOut && item.activeUntil >= booking.checkIn && isAnnouncementLive(item, hour));
-  const checkout = new Date(`${booking.checkOut}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  const copy = () => {
-    try {
-      void navigator.clipboard?.writeText(facts.password);
-    } catch {
-      // No clipboard: the password is on screen to read anyway.
-    }
-    setCopied(true);
-  };
-  return (
-    <section className="guest-essentials" aria-labelledby="guest-essentials-title">
-      <h2 id="guest-essentials-title">Hotel essentials</h2>
-      <dl className="guest-essentials__list">
-        <div>
-          <dt><WifiHigh aria-hidden="true" />Wi-Fi</dt>
-          <dd>
-            <span>{facts.wifi} · <b>{facts.password}</b></span>
-            <button type="button" className="guest-essentials__copy" onClick={copy} aria-label={copied ? 'Password copied' : 'Copy Wi-Fi password'}>
-              {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}{copied ? 'Copied' : 'Copy'}
-            </button>
-          </dd>
-        </div>
-        <div><dt><Coffee aria-hidden="true" />Breakfast</dt><dd><span>{facts.breakfast}</span></dd></div>
-        <div>
-          <dt><SwimmingPool aria-hidden="true" />Pool</dt>
-          <dd><span>{poolNotice ? `${facts.pool.split(' · ')[0]} · reopens 11:00 AM` : facts.pool}</span></dd>
-        </div>
-        <div><dt><SignOut aria-hidden="true" />Check-out</dt><dd><span>{checkout} · {CHECK_OUT_BY}</span></dd></div>
-      </dl>
-    </section>
-  );
-}
 
 /** The pre-arrival steps, in order, and where each one is done. */
 export const PRE_ARRIVAL_STEPS: { label: string; screen: ActiveScreen }[] = [

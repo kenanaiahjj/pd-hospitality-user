@@ -2545,6 +2545,31 @@ describe('lifecycle gates', () => {
     expect(screen.getByTestId('arrival-cart-dock')).toBeInTheDocument();
   });
 
+  it('opens the hotel essentials from My Stay with the Wi-Fi password to copy', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={verified} />);
+
+    await user.click(screen.getByRole('button', { name: /Hotel essentials/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Hotel essentials' });
+    expect(within(sheet).getByTestId('wifi-password')).toHaveTextContent('manila2026');
+    expect(within(sheet).getByText(/Breakfast/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/Pool/)).toBeInTheDocument();
+    // The password is one tap away; the sheet says what happened either way.
+    await user.click(within(sheet).getByRole('button', { name: 'Copy password' }));
+    expect(await within(sheet).findByRole('status')).toHaveTextContent(/copied|could not copy/i);
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Hotel essentials' })).toBeNull();
+  });
+
+  it('keeps the essentials off Home and off a stay that has not begun', () => {
+    const { unmount } = render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
+    expect(screen.queryByRole('region', { name: 'Hotel essentials' })).toBeNull();
+    unmount();
+    render(<GuestAppPrototype initialScreen="my-stay" initialSession={beforeArrival} />);
+    expect(screen.queryByRole('button', { name: /Hotel essentials/ })).toBeNull();
+  });
+
   it('lists arrival services by name alone before a room is assigned', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);

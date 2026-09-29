@@ -240,6 +240,7 @@ import { EARLY_CHECK_IN, earlyCheckInBookingId } from './guest-shared';
 import type { ActiveScreen } from './guest-shared';
 import { NEARBY_ESTABLISHMENTS, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs } from './places';
 import { GATEWAY_METHOD_LABELS, GatewayCheckout, type GatewayMethod } from './gateway-checkout';
+import { HotelEssentialsRow } from './hotel-essentials';
 import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
 import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
 import type { CartLine } from './prototype-model';
@@ -3972,6 +3973,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <HugeiconsIcon icon={HugeChevronRightIcon} size={18} strokeWidth={1.75} aria-hidden="true" focusable="false" />
                 </button>
               ) : null}
+              {/* The house facts, Wi-Fi password first, while the guest is at the hotel. */}
+              {started && !checkedOut ? <HotelEssentialsRow booking={contextBooking} hour={clockHour} /> : null}
             </div>
             ) : null}
 

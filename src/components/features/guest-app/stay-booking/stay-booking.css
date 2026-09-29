@@ -795,7 +795,6 @@
 }
 .guest-app .sb-calendar__legend { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--guest-muted); font-size: 12.5px; }
 .guest-app .sb-calendar__legend span { width: 18px; height: 1.5px; background: var(--guest-subtle); }
-.guest-app .sb-sheet__card .sb-calendar__months { max-height: max(300px, calc(100dvh - 460px)); }
 
 .guest-app .sb-sheet__summary { display: grid; gap: 2px; min-width: 0; }
 .guest-app .sb-sheet__summary b { overflow: hidden; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
@@ -868,3 +867,30 @@
 .guest-app .guest-dock:has(.sb-dock__fit.is-empty) .sb-dock__fit { -webkit-line-clamp: 2; font-size: 14.5px; }
 .guest-app .sb-dock__fit.is-muted { color: var(--guest-muted); }
 .guest-app .guest-dock:has(.sb-dock__fit) .guest-button { min-height: 50px; padding: 0 24px; }
+
+/*
+  The sheet fits the screen: Where, When and Who stay in view, the open one
+  takes the space between them and the footer, and only its list or calendar
+  scrolls. A calendar sized to the viewport pushed Who under the Search bar.
+*/
+.guest-app .sb-sheet__body { display: flex; flex-direction: column; }
+.guest-app .sb-sheet__body > * { flex: 0 0 auto; }
+.guest-app .sb-sheet__body > .sb-sheet__card { display: flex; flex: 1 1 auto; min-height: 320px; flex-direction: column; overflow: hidden; }
+.guest-app .sb-sheet__card > h3 { flex: 0 0 auto; }
+.guest-app .sb-sheet__card > .sb-location,
+.guest-app .sb-sheet__card > .sb-calendar,
+.guest-app .sb-sheet__card > .sb-guests { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
+.guest-app .sb-sheet__card .sb-location__input,
+.guest-app .sb-sheet__card .sb-calendar__ends,
+.guest-app .sb-sheet__card .sb-calendar__weekdays,
+.guest-app .sb-sheet__card .sb-calendar__legend { flex: 0 0 auto; }
+.guest-app .sb-sheet__card .sb-location__list,
+.guest-app .sb-sheet__card .sb-calendar__months { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; scrollbar-width: none; }
+.guest-app .sb-sheet__card .sb-location__list::-webkit-scrollbar { display: none; }
+.guest-app .sb-sheet__card > .sb-guests { overflow-y: auto; scrollbar-width: none; }
+.guest-app .sb-sheet__card > .sb-guests::-webkit-scrollbar { display: none; }
+@media (max-width: 400px) {
+  .guest-app .sb-calendar__end { padding: 9px 11px; }
+  .guest-app .sb-calendar__end b { font-size: 14.5px; }
+  .guest-app .sb-calendar__ends { gap: 6px; }
+}

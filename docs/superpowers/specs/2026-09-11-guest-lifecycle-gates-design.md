@@ -101,9 +101,10 @@ in, and the app currently cannot answer it.
 - **No per-line service reviews.** One rating for the stay as a whole. Per-item
   review of each massage and dinner is deferred; it becomes worth building when
   an operator asks which vendor is dragging their score down.
-- **No payment rails.** Every paid booking, arrival services included, is
-  charged to the room and settled at the front desk at checkout. No flow asks
-  for a card, GCash or Maya.
+- **No payment rails for hotel services.** Every paid hotel-run booking,
+  arrival services included, is charged to the room and settled at the front
+  desk at checkout. The one exception is third-party vendors, whose guests may
+  pay now through a mock gateway checkout (decision log, 2026-09-29).
 - **No PMS capability flag for the scan.** Unlike `reportsRoomReadiness`, the
   gate is uniform across the estate: every property's guest scans, or the desk
   unlocks them.
@@ -502,6 +503,7 @@ Explore-slot update is recorded below.
 | 2026-09-23 | Keep arrival services visible in Explore until the room scan; unlock the full catalogue after it | Keeps the pre-scan destination useful while the QR still gates on-property services and room charging | If the arrival roster proves too narrow, widen `PRE_ARRIVAL_SERVICE_IDS` without opening the room folio. Room charging superseded 2026-09-24 |
 | 2026-09-24 | Any paid service lets the guest charge the room or pay now, arrival services before the scan included | Owner's call: how to pay is the guest's choice, and the folio settles at checkout either way. What can be booked is unchanged | If pre-arrival room charges cause disputes, restore card-only for the arrival roster before the scan: `describeServicePayment` and `PaymentChoice`'s `allowRoom`. Superseded 2026-09-29 — see the row below |
 | 2026-09-29 | **Reversed: every paid booking charges to the room; no pay-now option** | Owner's call (2026-09-28): settlement happens at the front desk at checkout, so no booking flow offers card, GCash or Maya. Supersedes the 2026-09-24 row. Implemented in `0a64220` | If a service needs prepayment, it needs an explicit settlement exception in its own spec |
+| 2026-09-29 | **Settlement exception: third-party vendors may be paid now** | Owner's call (2026-09-29): partners on property and curated guides (`operator` `Third-party on property` / `Curated guide`) offer charge-to-room or pay now through a gateway-style checkout (card, GCash, Maya), before or after the scan. A paid booking never touches the folio; cancelling refunds the original method. Hotel-operated and hotel-arranged services stay room-only. Partner stores ordered through desk chat are not in this pass. Rule lives in `acceptsPayNow`; the sheet is `gateway-checkout.tsx` | If vendors must be paid only one way, narrow `acceptsPayNow` or flag it per vendor |
 | 2026-09-11 | Post-stay the slot becomes Book again, reaching `book-stay` | It is the only thing a checked-out guest can still buy, and it keeps the slot alive in the fourth gate rather than reintroducing the dead tab elsewhere | Extends the owner's choice by one gate; if unwanted, the slot hides post-stay and the bar carries three destinations there |
 | 2026-09-11 | The 24-hour window is computed but does not elapse in the prototype | Demoability: a stakeholder must be able to see both sides of the boundary without waiting a day | A real product needs the timer; the arithmetic is already there, only the switcher stands in for the clock |
 | 2026-09-11 | Front desk open 24h post-checkout, then summary + stay-level review | A guest disputing a charge needs the desk; past that, the stay is a receipt | Per-line vendor reviews would need a new shape on `StayReview` and a per-service surface |

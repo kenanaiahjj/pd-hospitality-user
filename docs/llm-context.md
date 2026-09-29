@@ -28,7 +28,7 @@ is the one that carries state.
 | Gate | Opened by | What it gives |
 |---|---|---|
 | Entry | SSO, then a booking reference and last name | the app itself |
-| Pre-arrival | a connected booking | transfers, private car, luggage, celebration setup, early check-in — charged to the room — and the front desk |
+| Pre-arrival | a connected booking | transfers, private car, luggage, celebration setup, early check-in — charged to the room (third-party vendors can also be paid now through a gateway checkout) — and the front desk |
 | In-stay | the guest scans the in-room QR | the full on-property catalogue and charge-to-room |
 | Post-stay | checkout | the settled receipt; the desk for 24 hours, then a private stay rating |
 

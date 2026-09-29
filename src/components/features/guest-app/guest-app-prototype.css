@@ -9027,3 +9027,20 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 /* Condition switches in the prototype controls: a plain On/Off on the right. */
 .guest-prototype-event__state { margin-left: auto; color: var(--guest-muted); font-size: 12px; font-weight: 700; }
 .guest-prototype-event.is-on .guest-prototype-event__state { color: var(--guest-warning); }
+
+/* Pay now: the gateway checkout for third-party vendors. */
+.guest-gateway { gap: 16px; }
+.guest-gateway__amount { display: grid; gap: 2px; padding: 16px; border-radius: var(--guest-radius-md); background: var(--guest-soft); }
+.guest-gateway__amount small { color: var(--guest-muted); font-size: 13px; }
+.guest-gateway__amount strong { color: var(--guest-ink); font-size: 28px; font-variant-numeric: tabular-nums; }
+.guest-gateway__methods { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.guest-gateway__methods legend { margin-bottom: 8px; color: var(--guest-ink); font-size: 15px; font-weight: 700; }
+.guest-gateway__methods button { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 12px 14px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); text-align: left; }
+.guest-gateway__methods button > span:not(.guest-gateway__wallet) { display: grid; flex: 1; gap: 2px; }
+.guest-gateway__methods button small { color: var(--guest-muted); font-size: 12px; }
+.guest-gateway__methods button > svg { width: 22px; height: 22px; flex: 0 0 auto; }
+.guest-gateway__methods button > svg:last-child { width: 18px; color: var(--guest-accent-strong); }
+.guest-gateway__methods button.is-active { border-color: var(--guest-accent-strong); background: var(--guest-soft); box-shadow: 0 0 0 1px var(--guest-accent-strong); }
+.guest-gateway__wallet { display: grid; width: 22px; height: 22px; flex: 0 0 auto; place-items: center; border-radius: 6px; background: var(--guest-ink); color: var(--guest-paper); font-size: 12px; font-weight: 800; }
+.guest-gateway__note { display: flex; gap: 8px; margin: 0; color: var(--guest-muted); font-size: 12px; line-height: 1.4; }
+.guest-gateway__note svg { width: 16px; height: 16px; flex: 0 0 auto; }

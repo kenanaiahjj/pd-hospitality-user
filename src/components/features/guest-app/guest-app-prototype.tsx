@@ -116,6 +116,7 @@ import {
   cancellationCutoffHours,
   describeCancellationWindow,
   describeServicePaidBy,
+  acceptsPayNow,
   describeServicePayment,
   describeServiceProvider,
   formatServiceDay,
@@ -211,6 +212,7 @@ import { EmptyStayHome, RoomReadyNotification, StayCard, StayEntryCard, StayOver
 import { EARLY_CHECK_IN, earlyCheckInBookingId } from './guest-shared';
 import type { ActiveScreen } from './guest-shared';
 import { NEARBY_ESTABLISHMENTS, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs } from './places';
+import { GATEWAY_METHOD_LABELS, GatewayCheckout, type GatewayMethod } from './gateway-checkout';
 import { EstablishmentChatScreen, GIFT_PRODUCTS, LOBBY_SHOP_NAME, OrderTray, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getMenuItemImage, getRestaurantMenuImages, readChatOrder } from './dining';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
@@ -409,6 +411,8 @@ const providerFor = (service: { id: string; operator: string }) => {
   const venue = venueForService(service.id);
   return venue.kind === 'property' ? describeServiceProvider(service) : `Run by ${venue.name}`;
 };
+/** Who a pay-now charge goes to: the vendor's name where there is one. */
+const merchantFrom = (provider: string) => (provider.startsWith('Run by ') ? provider.slice('Run by '.length) : 'the provider');
 /** "Friday · November 20 · 11:00 AM" -> "Friday · November 20", for a line that sits above the time. */
 const withoutTime = (when: string) => when.replace(/\s*·\s*\d{1,2}:\d{2}\s*[AP]M.*$/i, '');
 /** Hours for today and tomorrow; days beyond, where "215 hours" means nothing. */
@@ -485,6 +489,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
   /* Points staged against the booking in progress, in ₱100 blocks. */
   const [appliedPoints, setAppliedPoints] = useState(0);
+  /* Only third-party vendors offer pay-now; everything else stays on the room. */
+  const [servicePayChoice, setServicePayChoice] = useState<'room' | 'pay-now'>('room');
+  const [gatewayOpen, setGatewayOpen] = useState(false);
   /*
     The service the booking form is for, and the slot being picked. Defaults to
     the Hilom massage, the one thing the form sold before every listing could
@@ -1466,6 +1473,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setServicePartySize(Math.max(1, contextBooking.guestCount));
     setRentalQuantity(1);
     setAppliedPoints(0);
+    setServicePayChoice('room');
+    setGatewayOpen(false);
     if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; }
     if (!canBookService(contextBooking, serviceId)) {
       setBookingBlockedReason(blockedReasonFor(contextBooking));
@@ -1549,7 +1558,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* "Open now" on a nearby place reads the same clock as the feed. */
   const mapClock: MapClock = { date: PROTOTYPE_TODAY, hour: clockHour };
 
-  const confirmService = () => {
+  const confirmService = (paidWith?: GatewayMethod) => {
+    setGatewayOpen(false);
     const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
     if (!online) {
       setBookingBlockedReason('offline');
@@ -1568,8 +1578,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
-    // Every booking goes on the room and is settled at the front desk; free ones cost nothing.
-    const payment: 'room' | 'complimentary' = describeServicePayment(selectedService.price) === 'complimentary' ? 'complimentary' : 'room';
+    // The room by default; a third-party vendor may be paid now through the gateway. Free ones cost nothing.
+    const payment: 'room' | 'paid' | 'complimentary' = describeServicePayment(selectedService.price) === 'complimentary'
+      ? 'complimentary'
+      : paidWith && acceptsPayNow(selectedService) ? 'paid' : 'room';
 
     const days = bookableServiceDays(booking, PROTOTYPE_TODAY, selectedService.id);
     if (!days.length) return;
@@ -1610,14 +1622,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       amount: formatPesoAmount(Math.max(0, servicePrice - pesosOff(appliedPoints))),
       status: 'confirmed',
       provider: providerFor(selectedService),
-      paymentStatus: payment === 'room' ? 'charged-to-room' : 'complimentary',
-      paymentMethod: payment === 'room' ? 'room' : undefined,
+      paymentStatus: payment === 'room' ? 'charged-to-room' : payment === 'paid' ? 'paid' : 'complimentary',
+      paymentMethod: payment === 'room' ? 'room' : payment === 'paid' ? paidWith : undefined,
     };
 
     const booked: GuestSession = {
       ...session,
       serviceBookings: [...session.serviceBookings, serviceBooking],
-      // Verified in-stay bookings go to the folio; pre-arrival card payments settle on the spot.
+      // Room charges go to the folio; a vendor paid through the gateway never touches it.
       folioTotal: payment === 'room'
         ? formatPesoAmount(parsePesoAmount(session.folioTotal) + parsePesoAmount(serviceBooking.amount))
         : session.folioTotal,
@@ -2204,7 +2216,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </section>
         ) : (
           <Notice title="Hotel confirmation">
-            Some arrival requests depend on hotel availability. Everything you book is charged to your room and settled at the front desk at checkout. We&rsquo;ll show whether it is complimentary or needs hotel confirmation before you book.</Notice>
+            Some arrival requests depend on hotel availability. Hotel services are charged to your room and settled at the front desk at checkout; partners on property can also be paid now. We&rsquo;ll show whether it is complimentary or needs hotel confirmation before you book.</Notice>
         )}
       </div>
     );
@@ -3281,13 +3293,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const rentalRate = selectedService.price.replace(/\s*\/\s*day$/i, '').trim();
         const rentalRateLabel = `${rentalRate} / ${rentalUnit.singular} / day`;
         const chargeToRoom = canUseOnPropertyServices(contextBooking);
-        // One way to pay: the room, settled at the front desk.
+        // The room, settled at the front desk -- or, for a third-party vendor, paid now through the gateway.
+        const payNowOffered = acceptsPayNow(selectedService);
+        const payingNow = payNowOffered && servicePayChoice === 'pay-now';
+        const merchant = merchantFrom(provider);
         const ready = Boolean(day);
         const submitLabel = !day
           ? 'Not on during your stay'
           : servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
+          : payingNow ? `Continue to pay ${serviceCharge}`
           : chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`;
+        const roomLine = contextBooking.roomNumber ? `Charge to Room ${contextBooking.roomNumber}` : 'Charge to your room';
         return (
           <FormScreen step={chargeToRoom ? 'Confirm booking' : 'Review and pay'} title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
             <div className="guest-field-stack">
@@ -3339,12 +3356,37 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {servicePayment === 'complimentary' ? null : (
               <>
                 <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={appliedPoints} onChange={setAppliedPoints} />
-                <Notice title={contextBooking.roomNumber ? `Charged to Room ${contextBooking.roomNumber}` : 'Charged to your room'}>
-                  {contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}
-                </Notice>
+                {payNowOffered ? (
+                  <fieldset className="guest-payment-choice">
+                    <legend>How would you like to pay?</legend>
+                    <div className="guest-payment-options">
+                      <button type="button" aria-pressed={servicePayChoice === 'room'} className={servicePayChoice === 'room' ? 'is-active' : ''} onClick={() => setServicePayChoice('room')}>
+                        <b>{roomLine}</b>
+                        <small>{contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}</small>
+                      </button>
+                      <button type="button" aria-pressed={servicePayChoice === 'pay-now'} className={servicePayChoice === 'pay-now' ? 'is-active' : ''} onClick={() => setServicePayChoice('pay-now')}>
+                        <b>Pay now</b>
+                        <small>Card, GCash or Maya, paid straight to {merchant}. Not added to your room bill.</small>
+                      </button>
+                    </div>
+                  </fieldset>
+                ) : (
+                  <Notice title={contextBooking.roomNumber ? `Charged to Room ${contextBooking.roomNumber}` : 'Charged to your room'}>
+                    {contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}
+                  </Notice>
+                )}
               </>
             )}
-            <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={confirmService}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
+            <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => (payingNow ? setGatewayOpen(true) : confirmService())}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
+            {gatewayOpen && payingNow ? (
+              <GatewayCheckout
+                merchant={merchant}
+                amount={serviceCharge}
+                item={`${selectedService.name}${day ? ` · ${formatServiceDay(day).short}` : ''}`}
+                onPaid={(method) => confirmService(method)}
+                onClose={() => setGatewayOpen(false)}
+              />
+            ) : null}
           </FormScreen>
         );
       }
@@ -3353,7 +3395,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const booked = session.serviceBookings.find((service) => service.id === lastServiceBookingId) ?? contextService;
         const bookedService = SERVICES.find((service) => service.id === booked?.serviceId) ?? selectedService;
         const paidBy = booked ? describeServicePaidBy(booked) : 'room';
-        const methodLabel = booked?.paymentMethod === 'gcash' ? 'GCash' : booked?.paymentMethod === 'maya' ? 'Maya' : 'card';
+        const methodLabel = booked?.paymentMethod === 'gcash' || booked?.paymentMethod === 'maya' ? GATEWAY_METHOD_LABELS[booked.paymentMethod] : 'card';
         const slot = booked?.scheduledFor ?? `${formatServiceDay(PROTOTYPE_TODAY).long} · ${serviceTime}`;
         const time = slot.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? serviceTime;
         const bookingCount = bookedService.categoryId === 'rentals'
@@ -3364,7 +3406,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             icon={<Check size={30} />}
             title={`${booked?.title ?? bookedService.name} is booked`}
             text={paidBy === 'card'
-              ? `Paid with ${methodLabel}, direct to the hotel. Your receipt is in My Stay.`
+              ? `Paid with ${methodLabel}, direct to ${merchantFrom(booked?.provider ?? '')}. It is not on your room bill; your receipt is in My Stay.`
               : paidBy === 'complimentary'
                 ? 'Complimentary, so there is nothing to pay. It is on your stay in My Stay.'
                 : `The charge has been added to ${contextRoom.toLowerCase()} and is paid with your room bill at checkout.`}

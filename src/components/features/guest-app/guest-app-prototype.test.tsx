@@ -504,13 +504,12 @@ describe('GuestAppPrototype', () => {
     );
 
     /*
-      Every booking goes on the room: there is no card to produce and no
-      payment choice to make, only the room it lands on.
+      The spa is a third-party vendor, so pay-now is on offer -- but the room
+      is the default, and the guest who leaves it there charges the room.
     */
-    expect(screen.getByText('Charged to Room 512')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Charge to Room 512/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/settled at the front desk at checkout/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Pay now/i })).toBeNull();
-    expect(screen.queryByText(/gcash|maya/i)).toBeNull();
+    expect(screen.getByRole('button', { name: /Pay now/i })).toHaveAttribute('aria-pressed', 'false');
 
     await user.click(screen.getByRole('button', { name: /Confirm and charge .* to room/i }));
 
@@ -2165,6 +2164,25 @@ describe('booking the service the guest picked', () => {
     expect(screen.getByRole('button', { name: /Hot stone therapy/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /hilom signature massage/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Upcoming \(2\)/ })).toBeInTheDocument();
+  });
+
+  it('lets a third-party vendor be paid now through the gateway, off the room bill', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={inStay} />);
+
+    await openCategory(user, 'Spa & Wellness');
+    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(screen.getByRole('button', { name: /Pay now/ }));
+    await user.click(screen.getByRole('button', { name: 'Continue to pay ₱3,200' }));
+
+    const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
+    expect(within(gateway).getByText(/Not added to your room bill/)).toBeInTheDocument();
+    await user.click(within(gateway).getByRole('button', { name: /GCash/ }));
+    await user.click(within(gateway).getByRole('button', { name: 'Pay ₱3,200' }));
+
+    expect(await screen.findByRole('heading', { name: 'Hot stone therapy is booked' }, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByText(/Paid with GCash/)).toBeInTheDocument();
+    expect(screen.getByText('Paid · GCash')).toBeInTheDocument();
   });
 
   it('books an arrival service to the room before there is a room number', async () => {

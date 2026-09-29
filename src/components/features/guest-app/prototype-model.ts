@@ -2995,6 +2995,16 @@ export function describeServicePayment(price: string): 'choice' | 'complimentary
   return parsePesoAmount(price) === 0 ? 'complimentary' : 'choice';
 }
 
+/**
+  Third parties -- partners on property, curated guides -- can take the money
+  themselves through the payment gateway, so their guests may pay now instead
+  of charging the room. What the hotel runs or arranges always goes on the room.
+*/
+export function acceptsPayNow(service: { operator: string; price: string }): boolean {
+  if (describeServicePayment(service.price) === 'complimentary') return false;
+  return service.operator === 'Third-party on property' || service.operator === 'Curated guide';
+}
+
 /** Who a guest is dealing with, said the same way on the form and the receipt. */
 export function describeServiceProvider(service: { id: string; operator: string }): string {
   if (service.operator === 'Hotel operated') return 'Operated by the hotel';

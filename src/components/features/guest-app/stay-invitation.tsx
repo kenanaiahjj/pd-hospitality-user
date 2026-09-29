@@ -47,7 +47,14 @@ const STAMP_EDGE = (() => {
   return `M${points.join('L')}Z`;
 })();
 
-/* An approval stamp: gold on a dark plum disc, so it holds on any photograph. */
+/** The same scalloped edge as a CSS mask, so the sticker sheen stops where the stamp does. */
+const STAMP_MASK = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='${STAMP_EDGE}'/></svg>`)}")`;
+
+/*
+  An approval stamp: gold on a dark plum disc, so it holds on any photograph,
+  finished like a holographic sticker -- a gloss band and a faint rainbow
+  that slide with the card's tilt, and one glint as it lands.
+*/
 function DigitalStamp() {
   const id = useId();
   const topArc = `${id}-top-arc`;
@@ -80,6 +87,7 @@ function DigitalStamp() {
           <CabanaMark style={{ fill: '#ead59e' }} />
         </svg>
       </svg>
+      <span className="stay-pass__stamp-shine" style={{ maskImage: STAMP_MASK, WebkitMaskImage: STAMP_MASK }} aria-hidden="true" />
     </span>
   );
 }

@@ -360,6 +360,38 @@
   height: 100%;
   overflow: visible;
 }
+/*
+  The sticker finish, masked to the stamp's edge. Both layers read the card's
+  tilt (--sp-x, --sp-y), so the light moves as the card does: a white gloss
+  band, and under it a thin rainbow that shifts the other way.
+*/
+.stay-pass__stamp-shine {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  background:
+    linear-gradient(calc(118deg + var(--sp-x) * 24deg), oklch(1 0 0 / 0) 38%, oklch(1 0 0 / 0.5) 47%, oklch(1 0 0 / 0.06) 52%, oklch(1 0 0 / 0) 58%)
+      calc(50% - var(--sp-x) * 70%) calc(50% - var(--sp-y) * 70%) / 260% 260%,
+    repeating-linear-gradient(128deg,
+      oklch(0.8 0.13 20 / 0.16), oklch(0.86 0.13 90 / 0.16) 9%, oklch(0.84 0.13 160 / 0.16) 18%,
+      oklch(0.8 0.13 250 / 0.16) 27%, oklch(0.82 0.13 320 / 0.16) 36%, oklch(0.8 0.13 20 / 0.16) 45%)
+      calc(50% + var(--sp-x) * 55%) calc(50% + var(--sp-y) * 55%) / 320% 320%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+/* One glint across the sticker just after it lands. */
+.stay-pass__stamp-shine::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(105deg, oklch(1 0 0 / 0) 40%, oklch(1 0 0 / 0.75) 50%, oklch(1 0 0 / 0) 60%) 150% 0 / 300% 100% no-repeat;
+  animation: stay-pass-stamp-glint 900ms 520ms var(--ease-out) both;
+}
+@keyframes stay-pass-stamp-glint {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
 .stay-pass__stamp-type {
   fill: #ead59e;
   font-family: var(--font-sans), Arial, sans-serif;
@@ -451,7 +483,8 @@
   .stay-pass__sweep,
   .stay-pass__stamp { animation: stay-pass-fade 300ms both; }
   .stay-pass[data-phase='stamping'] .stay-pass__press { animation: none; }
-  .stay-pass__stamp::after { display: none; }
+  .stay-pass__stamp::after,
+  .stay-pass__stamp-shine::after { display: none; }
   .stay-pass[data-phase='leaving'] { animation: stay-pass-fade 280ms reverse both; }
   .stay-pass:not([data-phase='idle']) .stay-pass__status { animation: stay-pass-fade 300ms both; }
   .stay-confirm__title { animation-name: stay-pass-fade; }

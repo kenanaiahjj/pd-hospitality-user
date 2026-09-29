@@ -7,3 +7,4 @@ export { StayCheckoutScreen, emptyGuestDetails } from './checkout';
 export { ReservationCard, StayConfirmationScreen } from './confirmation';
 export { stayDatesLabel } from './format';
 import './stay-booking.css';
+export { NEIGHBOURHOODS, findNeighbourhood, hotelHighlight } from './neighbourhood';

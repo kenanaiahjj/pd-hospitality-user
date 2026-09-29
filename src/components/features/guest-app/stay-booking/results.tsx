@@ -2,12 +2,13 @@
 
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { CheckCircle, FadersHorizontal, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
+import { CheckCircle, FadersHorizontal, MapPin, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Amenity, HotelResult, PriceBand, StayFilters, StaySearch, StaySort } from './model';
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';
 import { nightsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet } from './search-form';
+import { hotelHighlight } from './neighbourhood';
 
 // Leaflet reads `window` at import; the list view must not pay for it.
 const StayResultsMap = dynamic(() => import('./results-map').then((module) => module.StayResultsMap), { ssr: false });
@@ -110,6 +111,7 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
         </span>
         <b className="sb-hotel-card__name">{hotel.name}</b>
         <small className="sb-hotel-card__area">{hotel.area}{result.distanceKm !== undefined ? ` · ${result.distanceKm} km from centre` : ''}</small>
+        {hotelHighlight(hotel.id) ? <span className="sb-highlight"><MapPin weight="fill" aria-hidden="true" />{hotelHighlight(hotel.id)}</span> : null}
         {!compact ? (
           <span className="sb-hotel-card__amenities">
             {hotel.amenities.slice(0, 3).map((amenity) => <span key={amenity}>{AMENITY_LABELS[amenity]}</span>)}

@@ -7,6 +7,8 @@ import type { CartLine, RatePlanId, StayHotel, StaySearch } from './model';
 import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, partyLabel, peso, quoteStay, roomOffers, validSearchDates } from './model';
 import { nightsLabel, roomsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
+import { NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
+import { hotelHighlight } from './neighbourhood';
 
 /*
   The hotel, and the room picker that is the point of this flow: every room
@@ -76,6 +78,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           <span className="sb-rating"><b>{hotel.rating.toFixed(1)}</b><small>{hotel.reviews.toLocaleString('en-US')} reviews</small></span>
         </p>
         <p>{hotel.summary}</p>
+        {hotelHighlight(hotel.id) ? <p className="sb-highlight"><MapPin weight="fill" aria-hidden="true" />{hotelHighlight(hotel.id)}</p> : null}
       </div>
 
       <section className="sb-stay-bar" aria-label="Your stay">
@@ -170,6 +173,9 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
         </ul>
         <p className="sb-small">Check-in from 3:00 PM · check-out by 12:00 PM</p>
       </section>
+
+      <NeighbourhoodSection hotel={hotel} />
+      <PartnersSection hotel={hotel} />
 
       <section className="sb-section" aria-labelledby="sb-contact-title">
         <h2 id="sb-contact-title">Location and contact</h2>

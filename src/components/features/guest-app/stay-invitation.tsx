@@ -47,11 +47,12 @@ const STAMP_EDGE = (() => {
   return `M${points.join('L')}Z`;
 })();
 
-/* A transparent approval stamp: scalloped gold outline, Cabana mark, curved type. */
+/* An approval stamp: gold on a dark plum disc, so it holds on any photograph. */
 function DigitalStamp() {
   const id = useId();
   const topArc = `${id}-top-arc`;
   const bottomArc = `${id}-bottom-arc`;
+  const backing = `${id}-backing`;
 
   return (
     <span className="stay-pass__stamp-lockup">
@@ -59,18 +60,22 @@ function DigitalStamp() {
         <defs>
           <path id={topArc} d="M 17 50 A 33 33 0 1 1 83 50" />
           <path id={bottomArc} d="M 83 50 A 33 33 0 1 1 17 50" />
+          <radialGradient id={backing}>
+            <stop offset="0%" stopColor="oklch(0.26 0.06 350)" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="oklch(0.18 0.05 350)" stopOpacity="0.82" />
+          </radialGradient>
         </defs>
-        <path d={STAMP_EDGE} fill="none" stroke="#ead59e" strokeWidth="1.1" />
-        <circle cx="50" cy="50" r="40" fill="none" stroke="#ead59e" strokeWidth="0.55" opacity="0.82" />
-        <circle cx="50" cy="50" r="25" fill="none" stroke="#ead59e" strokeWidth="0.45" opacity="0.72" />
+        <path d={STAMP_EDGE} fill={`url(#${backing})`} stroke="#ead59e" strokeWidth="1.8" />
+        <circle cx="50" cy="50" r="40" fill="none" stroke="#ead59e" strokeWidth="0.9" />
+        <circle cx="50" cy="50" r="25" fill="none" stroke="#ead59e" strokeWidth="0.7" />
         <text className="stay-pass__stamp-type stay-pass__stamp-type--top">
           <textPath href={`#${topArc}`} startOffset="50%" textAnchor="middle" textLength="34" lengthAdjust="spacing">CABANA</textPath>
         </text>
         <text className="stay-pass__stamp-type stay-pass__stamp-type--bottom">
           <textPath href={`#${bottomArc}`} startOffset="50%" textAnchor="middle" textLength="38" lengthAdjust="spacing">VERIFIED STAY</textPath>
         </text>
-        <circle cx="16.8" cy="50" r="1.2" fill="#ead59e" />
-        <circle cx="83.2" cy="50" r="1.2" fill="#ead59e" />
+        <circle cx="16.8" cy="50" r="1.5" fill="#ead59e" />
+        <circle cx="83.2" cy="50" r="1.5" fill="#ead59e" />
         <svg x="34" y="39" width="32" height="21" viewBox="12.32 4.11 277.98 181.58" overflow="visible">
           <CabanaMark style={{ fill: '#ead59e' }} />
         </svg>

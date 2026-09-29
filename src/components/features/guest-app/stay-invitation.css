@@ -363,13 +363,13 @@
 .stay-pass__stamp-type {
   fill: #ead59e;
   font-family: var(--font-sans), Arial, sans-serif;
-  font-size: 6px;
-  font-weight: 700;
+  font-size: 6.6px;
+  font-weight: 800;
   letter-spacing: 0.12em;
   text-anchor: middle;
 }
 .stay-pass__stamp-type--bottom {
-  font-size: 4.8px;
+  font-size: 5.4px;
   letter-spacing: 0.1em;
 }
 

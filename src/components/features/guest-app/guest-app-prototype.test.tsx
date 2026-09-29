@@ -2551,6 +2551,8 @@ describe('lifecycle gates', () => {
 
     await user.click(screen.getByRole('button', { name: /Hotel essentials/ }));
     const sheet = screen.getByRole('dialog', { name: 'Hotel essentials' });
+    // An overlay on the app, not a child of the frosted card the row sits in: that card traps `position: fixed`.
+    expect(sheet.closest('.guest-checkout-card')).toBeNull();
     expect(within(sheet).getByTestId('wifi-password')).toHaveTextContent('manila2026');
     expect(within(sheet).getByText(/Breakfast/)).toBeInTheDocument();
     expect(within(sheet).getByText(/Pool/)).toBeInTheDocument();

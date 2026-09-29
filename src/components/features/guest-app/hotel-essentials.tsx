@@ -6,6 +6,7 @@ import type { Booking } from './prototype-model';
 import { Button } from '@/components/ui';
 import { CaretRight, Check, Coffee, Copy, SignOut, SwimmingPool, WifiHigh, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /*
   The house facts a guest asks the desk for first, on My Stay: a row that says
@@ -15,16 +16,22 @@ import { useEffect, useRef, useState } from 'react';
 */
 
 export function HotelEssentialsRow({ booking, hour = 19 }: { booking: Booking; hour?: number }) {
-  const [open, setOpen] = useState(false);
+  /*
+    The sheet mounts on the app root, not where the row is. The row lives in a
+    frosted card, and a backdrop filter makes any ancestor the containing block
+    for `position: fixed` -- the sheet then opens inside the card instead of
+    over the screen.
+  */
+  const [host, setHost] = useState<HTMLElement | null>(null);
   if (!ESSENTIALS[booking.city]) return null;
   return (
     <>
-      <button className="guest-my-stay-folio-link" type="button" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <button className="guest-my-stay-folio-link" type="button" aria-haspopup="dialog" onClick={(event) => setHost(event.currentTarget.closest<HTMLElement>('.guest-app') ?? document.body)}>
         <span className="guest-my-stay-folio-link__icon" aria-hidden="true"><WifiHigh /></span>
         <span className="guest-my-stay-folio-link__copy"><b>Hotel essentials</b><small>Wi-Fi password, breakfast, pool, check-out</small></span>
         <CaretRight size={18} aria-hidden="true" />
       </button>
-      {open ? <HotelEssentialsSheet booking={booking} hour={hour} onClose={() => setOpen(false)} /> : null}
+      {host ? createPortal(<HotelEssentialsSheet booking={booking} hour={hour} onClose={() => setHost(null)} />, host) : null}
     </>
   );
 }

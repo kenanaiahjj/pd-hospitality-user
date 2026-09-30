@@ -8543,8 +8543,6 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   font-weight: 600;
 }
 .guest-arrival-card__copy { display: grid; gap: 3px; padding: 16px 44px 16px 16px; }
-.guest-arrival-card__glyph { display: inline-flex; margin-bottom: 4px; opacity: 0.9; }
-.guest-arrival-card__glyph svg { width: 18px; height: 18px; }
 .guest-arrival-card__copy b {
   font-family: var(--font-serif), Georgia, serif;
   font-size: 26px;

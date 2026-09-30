@@ -32,7 +32,6 @@ import {
   Lock,
   Car,
   Users,
-  Wrench,
   WifiHigh,
   WifiSlash,
   X,
@@ -351,14 +350,6 @@ const ARRIVAL_BLURBS: Record<string, string> = {
   luggage: 'Bags held, or sent ahead to your room.',
   celebration: 'Flowers, cake or a room set for the occasion.',
   'early-check-in': 'Your room from the morning, if it is ready.',
-};
-
-/** One glyph per arrival service, so the column reads as four things. */
-const ARRIVAL_GLYPHS: Record<string, ReactNode> = {
-  transfer: <Car />,
-  'private-car': <Person />,
-  luggage: <SuitcaseRolling />,
-  celebration: <Sparkle />,
 };
 
 /*
@@ -2412,7 +2403,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <Image className="guest-arrival-card__image" src={image.src} alt="" fill sizes="(max-width: 720px) 100vw, 560px" style={{ objectPosition: image.focalPoint }} />
                   {'note' in service ? <span className="guest-arrival-card__chip">{service.note}</span> : inCartIds.has(service.id) ? <span className="guest-arrival-card__chip">In your cart</span> : null}
                   <span className="guest-arrival-card__copy">
-                    <span className="guest-arrival-card__glyph" aria-hidden="true">{ARRIVAL_GLYPHS[service.id] ?? <Wrench />}</span>
                     <b>{service.name}</b>
                     <small>{inStay && service.id === 'transfer' ? 'A hotel car from the door to departures.' : ARRIVAL_BLURBS[service.id] ?? 'Arranged by the hotel before you arrive.'}</small>
                   </span>

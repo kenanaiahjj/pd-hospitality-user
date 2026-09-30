@@ -5,8 +5,10 @@ light interface language into reusable, interactive React components for
 stakeholder approval.
 
 The system is a neutral canvas, white surfaces, hairline separators, and a single
-pink accent that only ever marks a primary action, the current selection, or a
-live state. Asbir Sans is the project typeface.
+accent, Cabana plum, that only ever marks a primary action, the current
+selection, or a live state. Asbir Sans is the project typeface. `DESIGN.md` is
+the source of truth for the visual language.
+
 
 ## Component coverage
 
@@ -39,12 +41,18 @@ and the gallery move with it.
 
 ### The accent contract
 
-`--ds-pink: oklch(0.79 0.18 345)` is a **light** surface colour. Two rules follow:
+`--ds-accent` is `--ds-plum: oklch(0.305 0.062 351)`, the logo colour
+(`#462133`). Plum is a **dark** fill. Two rules follow:
 
-- Anything filled with the accent takes `--ds-on-pink` (ink) on top. White on
-  this pink fails WCAG AA; ink clears it at 8.9:1.
-- Pink used as text or an icon on a light surface uses `--ds-pink-strong`
-  (`oklch(0.5 0.19 351)`, 6.7:1 on white), never the raw brand pink.
+- Anything filled with the accent takes `--ds-on-accent` (white) on top, which
+  clears 11.9:1. Ink on plum fails.
+- Plum is dark enough to be text or an icon on a light surface as it is, so
+  `--ds-accent-strong` is plum too. On a photo or camera feed, where plum would
+  sit on a dark surface, the accent's job goes to white.
+
+There is no pink. `--ds-accent-soft` is a neutral wash for selected and quiet
+surfaces. A few gallery class names still say `pink` (for example
+`.foundation-swatch--pink`); they are legacy names that now resolve to plum.
 
 Body text is `--ds-ink-muted` (7.1:1 on white). `--ds-ink-subtle` (5.3:1) is the
 floor and is still safe for placeholders. Status colours are their own hues and

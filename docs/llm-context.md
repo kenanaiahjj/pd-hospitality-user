@@ -4,11 +4,14 @@
 > Use the current source code as the authority when this document and the
 > implementation disagree.
 
-Last verified: 2026-09-11
+Last verified: 2026-09-29 (the sections below were reconciled with the code on
+this date; sections about journeys not touched since 2026-09-11 are still worth
+a spot check)
 Last Mobbin reference review: 2026-09-11
-Base implementation commit: `0eac181` on `main`; later uncommitted guest-app
-refinements are present in the working tree
-Local preview: `http://localhost:3001/`
+Branch: `main`. Work is committed directly to `main`; the working tree was clean
+at this verification.
+Local preview: `http://localhost:3000/` (Next picks the next free port if 3000
+is taken, so read the port from the `npm run dev` output).
 
 ## Product definition
 
@@ -16,8 +19,19 @@ Hospitality is a stay companion for guests with a confirmed hotel booking. The
 first step is an account gate with one `Get started` action. That action opens
 an Apple or Google SSO bottom sheet. After SSO, both providers take the guest
 straight to the booking lookup form for a reference number and last name. A
-room QR action appears on the active-stay Home only after arrival. It is not a
-hotel-discovery, flight, package, transport, or rewards product.
+room QR action appears on the active-stay Home only after arrival.
+
+Two things have changed since this section was first written:
+
+- **Hotel search and booking is in scope (2026-09-29).** A signed-in guest with
+  no booking gets search, results, hotel page, mixed-room-class selection,
+  guest split, checkout and confirmation, and the same flow is offered as
+  "Book another stay" from the other Home states. See
+  `docs/superpowers/specs/2026-09-29-hotel-booking-design.md`. Flights,
+  packages and public acquisition surfaces (SEO, ads) are still out of scope.
+- **Rewards exist.** Points, badges and a redemption menu live under Profile ›
+  Achievements (`rewards/`). See
+  `docs/superpowers/specs/2026-09-17-loyalty-rewards-design.md`.
 
 ### The four lifecycle gates
 
@@ -53,12 +67,22 @@ Cebu.
 
 The core commerce rule is non-negotiable:
 
-- Approved on-property services are added to the active room folio.
-- The guest pays the hotel at the end of the stay.
-- The service flow must not ask for a card, GCash, Maya, insurance, coupon,
-  rewards, or another payment method.
+- Approved hotel-operated and hotel-arranged services are added to the active
+  room folio, and the guest pays the hotel at the end of the stay. Those flows
+  never ask for a card, GCash or Maya.
 - Confirmation must identify the property, guest, room, service, amount, and
   `Charge at checkout` settlement timing.
+
+Exceptions, decided 2026-09-29:
+
+- **Third-party vendors** (operator `Third-party on property` or `Curated
+  guide`) may offer **pay now** through the gateway checkout instead of the
+  room. The money goes to the vendor and never touches the folio; cancelling a
+  paid booking refunds the original method. The rule is `acceptsPayNow` in
+  `prototype-model.ts`.
+- **Hotel room reservations made in the app** are always paid now through the
+  gateway, because there is no folio before the stay.
+- **Points** may be applied to an in-stay service booking at the booking step.
 
 The prototype is intentionally self-contained. It uses typed in-memory data,
 local screen state, realistic mock content, and deterministic SSO fixtures. It
@@ -83,8 +107,10 @@ Use the references for patterns, not for adding unrelated product scope:
   onboarding, Home, Trips, Account, and login are separated into named flows.
   The reviewed Mobbin page contains 204 screens and 53 flows, including a
   13-screen onboarding flow and a 7-screen Home flow.
-- The Hospitality adaptation keeps the guest inside an existing stay. It does
-  not add a public booking engine or Expedia-style hotel marketplace.
+- The original adaptation kept the guest inside an existing stay. Since
+  2026-09-29 Cabana also has an in-app hotel search and booking flow (see the
+  Product definition), but it is still not a public acquisition surface: no
+  SEO pages, ads, or app-store marketing.
 
 ### Marriott Bonvoy patterns to carry forward
 
@@ -104,9 +130,8 @@ scope and current visual system:
   Canceling a trip. This supports keeping the active Stay home separate from
   service bookings and folio details.
 - Account groups member benefits, activity, rewards, profile, member card,
-  preferences, feedback, and logout. Hospitality should keep identity,
-  preferences, and stay history in Profile; loyalty and rewards remain out of
-  scope for the current phase.
+  preferences, feedback, and logout. Cabana keeps identity, stay history and
+  Achievements (points, badges, redemptions) in Profile.
 - Marriott's search flows include list/map switching, hotel detail, road-trip
   search, guest count, special rates, and filtering/sorting. These are useful
   patterns to remember for a future booking product, but they must not leak
@@ -224,8 +249,7 @@ evidence that the requested app is covered.
   chat and pre-arrival edits can queue; live service capacity and booking
   confirmation are blocked.
 - Preserve the current Asbir Sans, light source-aligned visual language and
-  existing `.guest-*` component contracts. The current shell displays
-  `Cabana`; inspect the uncommitted refinements before changing the brand.
+  existing `.guest-*` component contracts. The shell is branded `Cabana`.
 
 ## Current user journeys
 
@@ -509,8 +533,12 @@ route per prototype screen.
 The current guest app uses:
 
 - Asbir Sans and the existing light source-aligned visual system.
-- A lilac and pink canvas with white layered surfaces and black action color.
-- Existing Phosphor icon primitives and `.guest-*` class contracts.
+- A light neutral canvas with white layered surfaces, ink text, and one accent,
+  Cabana plum (`#462133`), used only for the primary action, the current
+  selection and live state. There is no pink. See `DESIGN.md`.
+- `.guest-*` class contracts. Icons are mid-migration from Phosphor
+  (`@phosphor-icons/react`, still imported in most files) to Hugeicons (see
+  `docs/superpowers/plans/2026-09-22-hugeicons-migration.md`).
 - A 4px spacing base, restrained borders, soft depth, and a calm arrival
   companion rather than a discovery feed.
 - State-specific booking cards: the same card pattern changes meaning for
@@ -520,7 +548,7 @@ The current guest app uses:
   containment, and reduced-motion handling.
 
 Do not replace the existing visual system with a generic discovery landing page,
-new icon set, new route structure, or card-payment checkout.
+a new icon set, or a new route structure.
 
 ## Offline behavior
 
@@ -544,8 +572,8 @@ Start the local preview with:
 npm run dev
 ```
 
-The last verified preview used port `3001` because another local process held
-port `3000`. Check the actual port before handing it off.
+Check the port in the `npm run dev` output before handing off; Next moves to the
+next free port when 3000 is taken.
 
 Run the normal checks with:
 
@@ -556,42 +584,31 @@ API_BASE_URL=https://jsonplaceholder.typicode.com npm run build
 npm test
 ```
 
-The full scoped gate passed on 2026-09-09. The latest test result was 19 test
-files and 94 tests passed. A bare `npm run build` currently fails before the
-unrelated dashboard prerender because `src/config/env.ts` requires
-`API_BASE_URL`. Use the documented `.env.example` value in the command
-environment; do not modify unrelated dashboard configuration to bypass this.
+`src/config/env.ts` requires `API_BASE_URL`, so copy `.env.example` to
+`.env.local` (or set the variable inline as above) before building; do not
+modify unrelated dashboard configuration to bypass this. Run the gate fresh
+before any completion claim rather than trusting a count recorded here.
 
-The local Chrome preview was checked through onboarding, room QR linking,
-active Home, Services, room-charge confirmation, My bookings, and Room
-charges. Keep the preview local unless the user explicitly asks to deploy or
-share it.
+The prototype controls (wrench button, bottom right) reach every stay state
+directly, which is the fastest way to check a change in the browser.
 
 ## Git and worktree safety
 
-The user explicitly requested committing on `main`. The feature is committed
-through `0eac181`; do not create a branch or push unless the user asks.
+This is a prototype. The user wants verified work committed **directly to
+`main`** (no PRs) and pushes confirmed one at a time. Auto-deploy to Vercel
+production is intended.
 
-The working tree contains changes that must be preserved. Some are unrelated
-to this feature, and later guest-app refinements are also uncommitted:
-
-- `.openai/hosting.json` is deleted.
-- `DESIGN.md`, `README.md`, `docs/design-system.md`, `next.config.ts`, the
-  marketing and app layouts, global CSS, design-system gallery, source-image
-  components, constants, and design-system tokens are modified.
-- `.codex/`, `src/app/components/`, and `src/app/globals 2.css` are untracked.
-- `src/components/features/guest-app/guest-app-prototype.tsx`,
-  `guest-app-prototype.css`, `guest-app-prototype.test.tsx`, and
-  `src/app/(marketing)/page.test.tsx` also have uncommitted changes relative
-  to `0eac181`. Inspect and preserve them before making further edits.
-
-Do not run a broad reset, checkout, stash, or `git add .`. Stage explicit files
-and inspect `git status --short` before and after any commit.
+- Use one session per checkout. Two sessions in the same folder have collided
+  before; use a worktree or hand off instead.
+- Inspect `git status --short` before and after a commit, and stage explicit
+  files rather than `git add .`. Do not run a broad reset, checkout or stash.
+- iCloud can create `"name 2.ts"` duplicates in `.next` and `src/`, which
+  break the typecheck. Delete them.
 
 ## Known follow-up notes
 
 - The session now survives a reload: `session-storage.ts` keeps a versioned
-  `localStorage` record (`cabana.guest-session.v3`) behind `GuestSession`.
+  `localStorage` record (`cabana.guest-session.v5`) behind `GuestSession`.
   Everything else is still in-memory, and production work will need a data
   boundary for bookings, services, folio entries, identity, and connectivity.
   Hydration runs from a deferred effect, never during render — reading storage
@@ -620,15 +637,20 @@ are the same object. It is deliberately not `getRoomCharges`, which answers
 room's own price understates the room and counts every extra twice.
 
 After checkout, the second navigation tab stays named `Explore` and opens
-`partner-hotels`. The directory has the three Henry properties in the current
-prototype. Each opens `partner-hotel-detail`, which shows hotel information and
-links to Agoda, Booking.com, and the hotel's website. Rates, availability,
-reservations, and payment stay on those external sites; Cabana does not create a
-hotel booking.
+`partner-hotels`. That screen is the in-app hotel directory: all 11 hotels in
+`stay-booking/model.ts` (three Henry properties plus eight invented ones), with
+a search launcher. Each hotel opens the same hotel page and booking flow as the
+rest of the app, and the guest pays now through the gateway. Agoda and
+Booking.com no longer appear as links; they survive only as `source` values on
+bookings that arrived from elsewhere.
 
-`ESTATE_PROPERTIES` remains the source for room-rate fallback and front-desk
-contact fixtures. It is not booking inventory. `no-booking` still has no hotel
-directory, so guests without a finished stay cannot use post-stay discovery.
+`STAY_HOTELS` (`stay-booking/model.ts`) is the hotel search and booking
+inventory. `ESTATE_PROPERTIES` (`prototype-model.ts`) is older: it now serves
+only the room-rate fallback, rewards and tests, and holds front-desk contact
+fixtures. The two disagree on some names, phone numbers and room ids, and
+`STAY_HOTELS` is the newer source. A signed-in guest with no booking now has
+search on Home, so post-stay discovery is no longer the only way to reach
+hotels.
 
 - The floating `PrototypeControls` panel (collapsed behind a wrench, bottom
   right) switches the stay between `signed-out`, `pre-arrival`, `live` and
@@ -647,11 +669,14 @@ directory, so guests without a finished stay cannot use post-stay discovery.
 ## Instructions for the next LLM
 
 1. Read this file and the relevant source before changing behavior.
-2. Preserve the room-folio settlement rule and the five home-state contracts.
+2. Preserve the room-folio settlement rule for hotel-run services (with its
+   third-party pay-now exception) and the five home-state contracts.
 3. Keep the current route and client-component architecture unless the user
    explicitly changes scope.
-4. Use test-first changes for new behavior and run the focused test before the
-   full verification gate.
-5. Preserve unrelated dirty-worktree changes and stage only intended files.
+4. Follow the testing policy in `AGENTS.md`: no unit tests written after the
+   code, prefer end-to-end verification, and write down how an isolated system
+   could fail before writing it. Run the full verification gate before claiming
+   completion.
+5. Preserve unrelated uncommitted changes and stage only intended files.
 6. Verify the real browser journey after UI changes; a passing build is not
    enough evidence for navigation or stateful flow correctness.

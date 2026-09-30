@@ -1,7 +1,7 @@
 # Cabana — hospitality guest app
 
 Cabana is a mobile-first guest-stay app prototype: a light, neutral canvas with
-white surfaces, hairline separators, and a single pink accent reserved for the
+white surfaces, hairline separators, and a single plum accent reserved for the
 primary action. It covers arrival, stay access, hotel services, bookings, folio,
 and front-desk support, and it is built with Asbir Sans.
 

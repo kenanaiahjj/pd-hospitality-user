@@ -2,11 +2,11 @@
 
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { AirplaneTilt, Anchor, MapPin, Bank, Basket, Church, Coffee, FirstAidKit, ForkKnife, Martini, Money, ShoppingBag, Storefront, Tree, Umbrella, Buildings } from '@phosphor-icons/react';
+import { AirplaneTilt, Anchor, MapPin, Sparkle, Bank, Basket, Church, Coffee, FirstAidKit, ForkKnife, Martini, Money, ShoppingBag, Storefront, Tree, Umbrella, Buildings } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import type { StayHotel } from './model';
 import type { NearbyIcon, NearbyKind } from './neighbourhood';
-import { findNeighbourhood, hotelHighlights, travelLabel } from './neighbourhood';
+import { bestSight, findNeighbourhood, hotelHighlights, travelLabel } from './neighbourhood';
 
 // Leaflet reads `window` at import.
 const NeighbourhoodMap = dynamic(() => import('./neighbourhood-map').then((module) => module.NeighbourhoodMap), { ssr: false });
@@ -104,5 +104,26 @@ export function HotelHighlights({ hotelId }: { hotelId: string }) {
         </span>
       ))}
     </span>
+  );
+}
+
+/**
+ * The hotel page's selling points up top: the sight worth going for, the
+ * 7-Eleven, and the best partner, each jumping to its section below. They
+ * sat under every rate before, where nobody scrolling for a room saw them.
+ */
+export function HighlightStrip({ hotelId }: { hotelId: string }) {
+  const { spots, partners } = findNeighbourhood(hotelId);
+  const sight = bestSight(hotelId);
+  const store = spots.find((item) => item.kind === 'essential' && item.icon === 'store');
+  const partner = partners.find((item) => item.operator === 'partner') ?? partners[0];
+  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!sight && !store && !partner) return null;
+  return (
+    <div className="sb-highlights" role="list" aria-label="Highlights">
+      {sight ? <button type="button" role="listitem" className="sb-highlight-chip" onClick={() => jump('sb-hood-title')}><MapPin weight="fill" aria-hidden="true" /><span><b>{sight.name}</b><small>{travelLabel(sight)}</small></span></button> : null}
+      {store ? <button type="button" role="listitem" className="sb-highlight-chip" onClick={() => jump('sb-hood-title')}><Storefront weight="fill" aria-hidden="true" /><span><b>{store.name.startsWith('7-Eleven') ? '7-Eleven' : store.name}</b><small>{travelLabel(store)}</small></span></button> : null}
+      {partner ? <button type="button" role="listitem" className="sb-highlight-chip" onClick={() => jump('sb-partners-title')}><Sparkle weight="fill" aria-hidden="true" /><span><b>{partner.name}</b><small>Book during your stay</small></span></button> : null}
+    </div>
   );
 }

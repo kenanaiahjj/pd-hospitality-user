@@ -220,7 +220,31 @@ export const NEIGHBOURHOODS: Record<string, Neighbourhood> = {
   },
 };
 
-export const findNeighbourhood = (hotelId: string): Neighbourhood => NEIGHBOURHOODS[hotelId] ?? { spots: [], partners: [] };
+/*
+  Which way each place lies from its hotel, as a compass bearing in degrees,
+  from where the landmark actually is. Manila's live on the spots themselves;
+  the convenience stores, pharmacies and ATMs are everywhere, so they keep a
+  derived direction.
+*/
+const BEARINGS: Record<string, Record<string, number>> = {
+  cebu: { 'Ayala Center Cebu': 210, 'Temple of Leah': 320, 'Basilica del Santo Niño': 215, 'Mactan beaches': 100, 'Paseo Saturnino restaurants': 30, 'House of Lechon': 200 },
+  dumaguete: { 'Rizal Boulevard': 150, 'Apo Island': 190, 'Casaroro Falls': 280, 'Silliman University': 175, 'Sans Rival Cakes': 180, 'Boulevard grills': 150 },
+  'poblacion-loft': { 'Greenbelt and Glorietta': 230, 'Ayala Triangle Gardens': 215, 'Ayala Museum': 225, 'Poblacion food hall': 60, 'Corner specialty coffee': 330 },
+  'mactan-tidewater': { 'Island hopping': 140, 'Lapu-Lapu Shrine': 250, 'Mactan Newtown': 220, 'Tide Grill': 80, 'Lantaw Seafood': 230 },
+  'alon-boracay': { 'White Beach, Station 1': 270, 'Puka Shell Beach': 10, 'Willy’s Rock': 200, 'D’Mall': 180, 'Station 1 beach grills': 250, 'Mango shake stalls': 190 },
+  'bato-cove': { 'Lagoon tour': 300, 'Nacpan Beach': 20, 'Taraw Cliff': 0, 'Las Cabañas Beach': 200, 'El Nido town restaurants': 15 },
+  'dagat-surf-lodge': { 'Cloud 9 boardwalk': 20, 'Naked, Daku and Guyam islands': 150, 'Magpupungko rock pools': 15, 'Maasin River': 280, 'Tourism Road restaurants': 350 },
+  'pinetop-baguio': { 'Camp John Hay trails': 90, 'Burnham Park': 300, 'Mines View Park': 45, 'Baguio Public Market': 310, 'Session Road restaurants': 305 },
+  'panglao-palm': { 'Alona Beach': 190, 'Chocolate Hills': 60, 'Tarsier sanctuary': 60, 'Loboc River cruise': 55, 'Alona beachfront restaurants': 200 },
+  'ridgeline-tagaytay': { 'Sky Ranch': 80, 'People’s Park in the Sky': 90, 'Picnic Grove': 85, 'Bulalo restaurants': 70, 'Ridge cafés': 260 },
+};
+
+export const findNeighbourhood = (hotelId: string): Neighbourhood => {
+  const found = NEIGHBOURHOODS[hotelId];
+  if (!found) return { spots: [], partners: [] };
+  const bearings = BEARINGS[hotelId] ?? {};
+  return { ...found, spots: found.spots.map((item) => (item.bearing === undefined && bearings[item.name] !== undefined ? { ...item, bearing: bearings[item.name] } : item)) };
+};
 
 export const travelLabel = (item: Pick<NearbySpot, 'minutes' | 'mode'>) =>
   `${item.minutes} min ${item.mode === 'walk' ? 'walk' : item.mode === 'boat' ? 'by boat' : 'drive'}`;

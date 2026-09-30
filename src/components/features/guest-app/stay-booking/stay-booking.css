@@ -933,3 +933,19 @@
 .guest-app .sb-cancel__room b { font-size: 14.5px; }
 .guest-app .sb-cancel__room small { color: var(--guest-muted); font-size: 12.5px; }
 .guest-app .sb-cancel__room strong { font-size: 14.5px; font-variant-numeric: tabular-nums; }
+
+/* Hotel page highlights: three facts that jump to their sections. */
+.guest-app .sb-highlights { display: flex; gap: 8px; margin: 6px calc(-1 * var(--app-gutter)) 0; padding: 2px var(--app-gutter); overflow-x: auto; scroll-padding-inline: var(--app-gutter); scrollbar-width: none; }
+.guest-app .sb-highlights::-webkit-scrollbar { display: none; }
+.guest-app .sb-highlight-chip { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 8px; min-height: 48px; padding: 6px 14px 6px 10px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); text-align: left; }
+.guest-app .sb-highlight-chip > svg { flex: 0 0 18px; width: 18px; height: 18px; color: var(--guest-accent-strong); }
+.guest-app .sb-highlight-chip span { display: grid; gap: 0; }
+.guest-app .sb-highlight-chip b { font-size: 13.5px; font-weight: 650; white-space: nowrap; }
+.guest-app .sb-highlight-chip small { color: var(--guest-muted); font-size: 12px; white-space: nowrap; }
+.guest-app #sb-hood-title, .guest-app #sb-partners-title { scroll-margin-top: 72px; }
+
+/* Confirmation: what to do with the trip next. */
+.guest-app .sb-trip-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.guest-app .sb-trip-actions > button,
+.guest-app .sb-trip-actions > a { display: grid; justify-items: center; gap: 6px; min-height: 76px; padding: 12px 6px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); font-size: 12.5px; font-weight: 650; text-align: center; text-decoration: none; }
+.guest-app .sb-trip-actions svg { width: 22px; height: 22px; color: var(--guest-accent-strong); }

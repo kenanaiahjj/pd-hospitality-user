@@ -7,7 +7,7 @@ import type { CartLine, HeldRooms, RatePlanId, StayHotel, StaySearch } from './m
 import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, peso, quoteStay, roomOffers, validSearchDates } from './model';
 import { compactRange, nightsLabel, roomsLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
-import { HotelHighlights, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
+import { HighlightStrip, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
 
 /*
   The hotel, and the room picker that is the point of this flow: every room
@@ -81,7 +81,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           <span className="sb-rating"><b>{hotel.rating.toFixed(1)}</b><small>{hotel.reviews.toLocaleString('en-US')} reviews</small></span>
         </p>
         <p>{hotel.summary}</p>
-        <HotelHighlights hotelId={hotel.id} />
+        <HighlightStrip hotelId={hotel.id} />
       </div>
 
       <section className="sb-stay-bar" aria-label="Your stay">

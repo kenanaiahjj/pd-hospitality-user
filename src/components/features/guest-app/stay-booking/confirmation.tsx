@@ -1,9 +1,9 @@
 'use client';
 
-import { ArrowRight, CheckCircle, Receipt, X } from '@phosphor-icons/react';
+import { ArrowRight, CalendarPlus, CheckCircle, NavigationArrow, Receipt, ShareNetwork, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Booking } from '../prototype-model';
-import { RATE_PLAN_LABELS, peso, roomRefunds } from './model';
+import { RATE_PLAN_LABELS, findStayHotel, peso, roomRefunds } from './model';
 import { longDate, stayDatesLabel } from './format';
 
 export function StayConfirmationScreen({ booking, onGoToStay }: { booking: Booking; onGoToStay: () => void }) {
@@ -19,7 +19,63 @@ export function StayConfirmationScreen({ booking, onGoToStay }: { booking: Booki
       </div>
       <p className="sb-reference"><small>Booking reference</small><b>{reservation.reference}</b></p>
       <ReservationSummary booking={booking} />
+      <TripActions booking={booking} />
       <button type="button" className="guest-button guest-button--primary" onClick={onGoToStay}>Go to your stay<ArrowRight aria-hidden="true" /></button>
+    </div>
+  );
+}
+
+const icsDate = (iso: string) => iso.replace(/-/g, '');
+
+/** The stay as a calendar event: all-day, check-in to check-out, with the reference and address. */
+function calendarFile(booking: Booking, address: string): string {
+  const reference = booking.reservation?.reference ?? booking.id;
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cabana//Stay//EN',
+    'BEGIN:VEVENT',
+    `UID:${reference}@cabana`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+    `DTSTART;VALUE=DATE:${icsDate(booking.checkIn)}`,
+    `DTEND;VALUE=DATE:${icsDate(booking.checkOut)}`,
+    `SUMMARY:Stay at ${booking.property}`,
+    `LOCATION:${address.replace(/,/g, '\\,')}`,
+    `DESCRIPTION:Booking ${reference} · ${booking.roomType}. Check-in from 3:00 PM\\, check-out by 12:00 PM.`,
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+}
+
+/*
+  What a guest does next with a confirmed trip: put it in the calendar, send
+  it to whoever is coming, and see how to get there.
+*/
+function TripActions({ booking }: { booking: Booking }) {
+  const [shared, setShared] = useState(false);
+  const hotel = findStayHotel(booking.reservation?.hotelId);
+  const address = hotel?.address ?? booking.property;
+  const reference = booking.reservation?.reference ?? booking.id;
+  const summary = `${booking.property} · ${stayDatesLabel(booking.checkIn, booking.checkOut)} · ${booking.roomType}. Booking ${reference}.`;
+  const addToCalendar = () => {
+    const url = URL.createObjectURL(new Blob([calendarFile(booking, address)], { type: 'text/calendar' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cabana-${reference}.ics`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const share = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: `Stay at ${booking.property}`, text: summary });
+      else await navigator.clipboard?.writeText(summary);
+      setShared(true);
+    } catch {
+      // The guest closed the share sheet: nothing to report.
+    }
+  };
+  return (
+    <div className="sb-trip-actions">
+      <button type="button" onClick={addToCalendar}><CalendarPlus aria-hidden="true" /><span>Add to calendar</span></button>
+      <button type="button" onClick={() => { void share(); }}><ShareNetwork aria-hidden="true" /><span>{shared ? 'Shared' : 'Share trip'}</span></button>
+      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noopener noreferrer"><NavigationArrow aria-hidden="true" /><span>Directions</span></a>
     </div>
   );
 }

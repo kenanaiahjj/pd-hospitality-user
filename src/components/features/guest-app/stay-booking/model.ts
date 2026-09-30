@@ -30,7 +30,8 @@ export type StayBookingDraft = { search: StaySearch; hotelId?: string; cart: Car
 export type Reservation = {
   reference: string;
   hotelId: string;
-  rooms: { roomTypeId: string; roomName: string; ratePlanId: RatePlanId; leadGuest: string; adults: number; children: number }[];
+  /** `amount` is the room's share of what was paid, taxes and promo included -- what cancelling it refunds. */
+  rooms: { roomTypeId: string; roomName: string; ratePlanId: RatePlanId; leadGuest: string; adults: number; children: number; amount?: number }[];
   total: number;
   paidWith: string;
   paidAt: string;
@@ -455,7 +456,34 @@ export function isHotelFull(hotelId: string, night: string): boolean {
 }
 
 /** Rooms of one class left on one night: 0–6. */
-export function roomsLeftOnNight(hotelId: string, roomTypeId: string, night: string): number {
+/**
+ * Rooms this app has already sold, per hotel, room class and night. The mock
+ * inventory is fixed, so without this the last King Room stayed "Only 1 left"
+ * after the guest bought it. Keyed `hotel|room class|night`.
+ */
+export type HeldRooms = Record<string, number>;
+export const NO_HELD_ROOMS: HeldRooms = {};
+
+export function heldRooms(bookings: { checkIn: string; checkOut: string; reservation?: Reservation }[]): HeldRooms {
+  const held: HeldRooms = {};
+  for (const booking of bookings) {
+    const reservation = booking.reservation;
+    if (!reservation) continue;
+    for (const room of reservation.rooms) {
+      for (const night of stayNights(booking.checkIn, booking.checkOut)) {
+        const key = `${reservation.hotelId}|${room.roomTypeId}|${night}`;
+        held[key] = (held[key] ?? 0) + 1;
+      }
+    }
+  }
+  return held;
+}
+
+export function roomsLeftOnNight(hotelId: string, roomTypeId: string, night: string, held: HeldRooms = NO_HELD_ROOMS): number {
+  return Math.max(0, inventoryOnNight(hotelId, roomTypeId, night) - (held[`${hotelId}|${roomTypeId}|${night}`] ?? 0));
+}
+
+function inventoryOnNight(hotelId: string, roomTypeId: string, night: string): number {
   if (isHotelFull(hotelId, night)) return 0;
   const roll = hash(`${hotelId}|${roomTypeId}|${night}`) % 20;
   const left = roll === 0 ? 0 : roll <= 2 ? 1 : roll <= 4 ? 2 : roll <= 6 ? 3 : 4 + (roll % 3);
@@ -463,10 +491,10 @@ export function roomsLeftOnNight(hotelId: string, roomTypeId: string, night: str
 }
 
 /** Rooms of one class bookable for a whole stay: the tightest night decides. */
-export function roomsLeft(hotelId: string, roomTypeId: string, checkIn: string, checkOut: string): number {
+export function roomsLeft(hotelId: string, roomTypeId: string, checkIn: string, checkOut: string, held: HeldRooms = NO_HELD_ROOMS): number {
   const nights = stayNights(checkIn, checkOut);
   if (!nights.length) return 0;
-  return Math.min(...nights.map((night) => roomsLeftOnNight(hotelId, roomTypeId, night)));
+  return Math.min(...nights.map((night) => roomsLeftOnNight(hotelId, roomTypeId, night, held)));
 }
 
 /* ---------- prices ---------- */
@@ -494,11 +522,11 @@ export type RoomOffer = {
   plans: { id: RatePlanId; total: number; perNight: number; refundable: boolean }[];
 };
 
-export function roomOffers(hotel: StayHotel, search: StaySearch): RoomOffer[] {
+export function roomOffers(hotel: StayHotel, search: StaySearch, held: HeldRooms = NO_HELD_ROOMS): RoomOffer[] {
   const nights = Math.max(1, countNightsBetween(search.checkIn, search.checkOut));
   return hotel.roomTypes.map((roomType) => ({
     roomType,
-    left: roomsLeft(hotel.id, roomType.id, search.checkIn, search.checkOut),
+    left: roomsLeft(hotel.id, roomType.id, search.checkIn, search.checkOut, held),
     plans: roomType.plans.map((id) => {
       const total = stayRate(roomType, id, search.checkIn, search.checkOut);
       return { id, total, perNight: round10(total / nights), refundable: id !== 'saver' };
@@ -507,8 +535,8 @@ export function roomOffers(hotel: StayHotel, search: StaySearch): RoomOffer[] {
 }
 
 /** The cheapest open rate per night on these dates, or undefined when the hotel is full. */
-export function fromPrice(hotel: StayHotel, search: StaySearch): number | undefined {
-  const open = roomOffers(hotel, search).filter((offer) => offer.left > 0);
+export function fromPrice(hotel: StayHotel, search: StaySearch, held: HeldRooms = NO_HELD_ROOMS): number | undefined {
+  const open = roomOffers(hotel, search, held).filter((offer) => offer.left > 0);
   if (!open.length) return undefined;
   return Math.min(...open.flatMap((offer) => offer.plans.map((plan) => plan.perNight)));
 }
@@ -768,16 +796,16 @@ const refundableFrom = (offers: RoomOffer[]) => {
   return prices.length ? Math.min(...prices) : undefined;
 };
 
-export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTERS, sort: StaySort = 'recommended'): HotelResult[] {
+export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTERS, sort: StaySort = 'recommended', held: HeldRooms = NO_HELD_ROOMS): HotelResult[] {
   const center = findLocation(search.location)?.center;
   const party = describeParty(search.adults, search.childAges);
   const results = hotelsForLocation(search.location).map((hotel): HotelResult => {
-    const offers = roomOffers(hotel, search).filter((offer) => offer.left > 0);
+    const offers = roomOffers(hotel, search, held).filter((offer) => offer.left > 0);
     const capacity = offers.reduce((sum, offer) => sum + offer.left * offer.roomType.sleeps, 0);
     return {
       hotel,
       // With the free-cancellation filter on, the price shown is the refundable one: what that guest would pay.
-      fromPrice: filters.freeCancellation ? refundableFrom(offers) : fromPrice(hotel, search),
+      fromPrice: filters.freeCancellation ? refundableFrom(offers) : fromPrice(hotel, search, held),
       fromRefundable: refundableFrom(offers),
       fromTotal: offers.length ? Math.min(...offers.flatMap((offer) => offer.plans.map((plan) => plan.total))) : undefined,
       distanceKm: center ? Math.round(distanceKm(center, hotel.position) * 10) / 10 : undefined,
@@ -833,7 +861,10 @@ export function bookingFromDraft({ hotel, search, cart, allocation, details, quo
   paidAt: string;
 }): Booking {
   const reference = reservationReference(hotel.id, search, cart, paidAt);
+  const stayRates = cartRooms(hotel, cart).map((item) => stayRate(item.roomType, item.ratePlanId, search.checkIn, search.checkOut));
+  const rateTotal = stayRates.reduce((sum, rate) => sum + rate, 0) || 1;
   const rooms = cartRooms(hotel, cart).map((item, i) => ({
+    amount: Math.round((quote.total * stayRates[i]!) / rateTotal),
     roomTypeId: item.roomType.id,
     roomName: item.roomType.name,
     ratePlanId: item.ratePlanId,
@@ -874,4 +905,36 @@ export function bookingFromDraft({ hotel, search, cart, allocation, details, quo
 export function canCancelReservation(booking: Booking, today = PROTOTYPE_TODAY): boolean {
   const reservation = booking.reservation;
   return Boolean(reservation?.refundable && reservation.freeCancellationUntil && today <= reservation.freeCancellationUntil && booking.status === 'upcoming');
+}
+
+/** What each room refunds: its recorded share, or an even split for a reservation made before rooms had one. */
+export function roomRefunds(reservation: Reservation): number[] {
+  const even = Math.round(reservation.total / Math.max(1, reservation.rooms.length));
+  return reservation.rooms.map((room) => room.amount ?? even);
+}
+
+/**
+ * The booking after cancelling some of its rooms: the rest stay booked, the
+ * total and the party shrink by what left. Cancelling every room is a full
+ * cancellation, which the caller handles by removing the booking instead.
+ */
+export function cancelRooms(booking: Booking, indexes: number[]): { booking: Booking; refund: number } {
+  const reservation = booking.reservation;
+  if (!reservation) return { booking, refund: 0 };
+  const refunds = roomRefunds(reservation);
+  const drop = new Set(indexes);
+  const refund = indexes.reduce((sum, index) => sum + (refunds[index] ?? 0), 0);
+  const rooms = reservation.rooms.filter((_, index) => !drop.has(index));
+  const leaving = reservation.rooms.filter((_, index) => drop.has(index)).reduce((sum, room) => sum + room.adults + room.children, 0);
+  const total = reservation.total - refund;
+  return {
+    refund,
+    booking: {
+      ...booking,
+      roomType: describeRooms(rooms),
+      guestCount: Math.max(1, booking.guestCount - leaving),
+      roomRate: peso(total),
+      reservation: { ...reservation, rooms, total },
+    },
+  };
 }

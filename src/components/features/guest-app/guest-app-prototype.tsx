@@ -156,6 +156,7 @@ import {
   CancelReservationSheet,
   RATE_PLAN_LABELS,
   canCancelReservation,
+  cancelRooms,
   weekdayDate,
   StayAssignGuestsScreen,
   StayCheckoutScreen,
@@ -173,6 +174,7 @@ import {
   defaultAllocation,
   emptyGuestDetails,
   findStayHotel,
+  heldRooms,
   hotelsForLocation,
   peso,
   quoteStay,
@@ -611,6 +613,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* "Booking cancelled · ₱X refunded", shown on Home until dismissed. */
   const [cancelNotice, setCancelNotice] = useState<string | null>(null);
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
+  /* "Garden Suite cancelled. ₱36,420 back to GCash", on View booking after a partial cancel. */
+  const [roomCancelNotice, setRoomCancelNotice] = useState<string | null>(null);
   const [selectedStayEntryId, setSelectedStayEntryId] = useState<string | null>(null);
   /*
     The reference a returning guest matched, held between the lookup and the
@@ -808,6 +812,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const go = (next: ActiveScreen) => {
     setPassEntranceScreen(null);
+    setRoomCancelNotice(null);
     if (['restaurant-cart', 'service-booking', 'transfer-booking'].includes(next)) {
       setCheckoutPayment(null);
       setPaymentMethod(null);
@@ -2481,6 +2486,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const draftHotel = findStayHotel(stayDraft.hotelId);
+  const held = heldRooms(session.bookings);
   const draftRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
   const resumeBooking = draftHotel && stayDraft.cart.length
     ? {
@@ -2510,13 +2516,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </div>
           <StaySearchLauncher value={search} onSearch={startStaySearch} />
           <div className="sb-results__list">
-            {searchHotels(everyHotel).map((result) => <HotelResultCard key={result.hotel.id} result={result} search={everyHotel} onOpen={() => openPartnerHotel(result.hotel.id)} />)}
+            {searchHotels(everyHotel, undefined, undefined, held).map((result) => <HotelResultCard key={result.hotel.id} result={result} search={everyHotel} onOpen={() => openPartnerHotel(result.hotel.id)} />)}
           </div>
         </div>
       );
     }
     if (activeScreen === 'book-stay-results') {
-      return <StayResultsScreen search={search} view={resultsView} onViewChange={setResultsView} onSearch={(next) => setStayDraft((draft) => ({ ...draft, search: next }))} onOpenHotel={openPartnerHotel} />;
+      return <StayResultsScreen search={search} view={resultsView} onViewChange={setResultsView} onSearch={(next) => setStayDraft((draft) => ({ ...draft, search: next }))} onOpenHotel={openPartnerHotel} held={held} />;
     }
     if (activeScreen === 'book-stay-confirmation') {
       const booking = session.bookings.find((item) => item.id === confirmedStayId);
@@ -2578,6 +2584,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         cart={stayDraft.hotelId === current.id ? stayDraft.cart : []}
         onCartChange={(cart) => setStayDraft((draft) => ({ ...draft, hotelId: current.id, cart }))}
         onSearchChange={(next) => setStayDraft((draft) => ({ ...draft, search: next }))}
+        held={held}
         onContinue={() => {
           setStayDraft((draft) => ({ ...draft, allocation: defaultAllocation(current, draft.search, draft.cart) }));
           go('book-stay-rooms');
@@ -2595,13 +2602,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     // A bed chosen at checkout is the room preference the hotel sees; "No preference" leaves the profile's.
     const bed = { 'One large bed': 'King bed', 'Two separate beds': 'Twin beds' }[stayDetails.bedPreferences[0] ?? ''];
     const roomLeads = [...new Set(stayDetails.roomLeads.map((name) => name.trim()).filter((name) => name && name !== stayDetails.name.trim()))];
+    // The booker plus each other room's named lead: when that is the whole party, nobody is left to name.
+    const namedBooking = { ...booking, companionsNamed: roomLeads.length + 1 >= booking.guestCount };
     setSession((current) => ({
       ...current,
       roomPreferences: bed ? { ...current.roomPreferences, bed } : current.roomPreferences,
       // Other rooms' lead guests are the people the hotel should expect, so they join the guest list.
       additionalGuests: roomLeads.length ? roomLeads : current.additionalGuests,
       guestName: current.guestName || booking.guestName,
-      bookings: [...current.bookings.filter((item) => item.id !== booking.id), booking],
+      bookings: [...current.bookings.filter((item) => item.id !== booking.id), namedBooking],
       // A guest mid-stay keeps that stay in front; otherwise the new trip leads.
       activeBookingId: current.bookings.some((item) => item.status === 'active') ? current.activeBookingId : booking.id,
     }));
@@ -2613,9 +2622,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     replaceScreen('book-stay-confirmation');
   };
 
-  const cancelStayBooking = (bookingId: string) => {
+  const cancelStayBooking = (bookingId: string, roomIndexes?: number[]) => {
     const booking = session.bookings.find((item) => item.id === bookingId);
     if (!booking?.reservation) return;
+    /* Some rooms, not all: the booking stays, smaller, and the guest stays on it. */
+    if (roomIndexes && roomIndexes.length < booking.reservation.rooms.length) {
+      const { booking: kept, refund } = cancelRooms(booking, roomIndexes);
+      const names = roomIndexes.map((index) => booking.reservation!.rooms[index]?.roomName).filter(Boolean).join(' and ');
+      setSession((current) => ({ ...current, bookings: current.bookings.map((item) => (item.id === bookingId ? kept : item)) }));
+      setRoomCancelNotice(`${names} cancelled. ${peso(refund)} is on its way back to ${booking.reservation.paidWith}.`);
+      return;
+    }
     // Whatever was booked for the stay goes with it: arrival services in the cart or already paid for.
     const hadServices = session.serviceBookings.some((item) => item.bookingId === bookingId) || (session.cart ?? []).some((line) => line.booking.bookingId === bookingId);
     setSession((current) => {
@@ -3103,6 +3120,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text={pmsDown ? `As the hotel’s system last reported them, at ${PMS_LAST_SYNC}.` : 'The latest details returned by the hotel system.'}>
             {pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}
+            {roomCancelNotice && reservation ? <Notice tone="positive" icon={<CheckCircle />} title="Room cancelled">{roomCancelNotice}</Notice> : null}
             {/* The card says what the rows below say: "Checked in", not a stale "Confirmed". */}
             <StayCard booking={displayBooking} compact statusLabel={describeStayStatus(displayBooking).label} />
             {canUpgradeRoom || canManageActiveStay || manageAppBooking ? (
@@ -3126,7 +3144,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       {cancellable ? (
                         <button className="guest-list-row guest-list-row--danger" type="button" onClick={() => setCancelSheetOpen(true)}>
                           <span><X aria-hidden="true" /></span>
-                          <div><b>Cancel booking</b><small>Free until {weekdayDate(reservation.freeCancellationUntil!)} · full refund to {reservation.paidWith}</small></div>
+                          <div><b>{reservation.rooms.length > 1 ? 'Cancel rooms or booking' : 'Cancel booking'}</b><small>Free until {weekdayDate(reservation.freeCancellationUntil!)} · full refund to {reservation.paidWith}</small></div>
                           <CaretRight aria-hidden="true" />
                         </button>
                       ) : null}
@@ -3243,7 +3261,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </section>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live hotel data">Availability, rates, and payment details require a connection.</Notice> : null}
             {cancelSheetOpen && reservation ? (
-              <CancelReservationSheet booking={displayBooking} onClose={() => setCancelSheetOpen(false)} onConfirm={() => { setCancelSheetOpen(false); cancelStayBooking(displayBooking.id); }} />
+              <CancelReservationSheet booking={displayBooking} onClose={() => setCancelSheetOpen(false)} onConfirm={(rooms) => { setCancelSheetOpen(false); cancelStayBooking(displayBooking.id, rooms); }} />
             ) : null}
           </ScreenIntro>
         );

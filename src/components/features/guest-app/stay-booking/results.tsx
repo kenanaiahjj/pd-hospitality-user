@@ -4,7 +4,7 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { CheckCircle, FadersHorizontal, MapPin, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
-import type { Amenity, HotelResult, PriceBand, StayFilters, StaySearch, StaySort } from './model';
+import type { Amenity, HeldRooms, HotelResult, PriceBand, StayFilters, StaySearch, StaySort } from './model';
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';
 import { nightsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet } from './search-form';
@@ -26,18 +26,20 @@ const SORTS: { id: StaySort; label: string }[] = [
 
 const FILTER_AMENITIES: Amenity[] = ['pool', 'beach', 'breakfast', 'spa', 'airport-transfer', 'family', 'gym', 'parking'];
 
-export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpenHotel }: {
+export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpenHotel, held }: {
   search: StaySearch;
   view: ResultsView;
   onViewChange: (view: ResultsView) => void;
   onSearch: (search: StaySearch) => void;
   onOpenHotel: (id: string) => void;
+  /** Rooms already sold in the app, so availability reflects them. */
+  held?: HeldRooms;
 }) {
   const [editing, setEditing] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const hasPlace = Boolean(findLocation(search.location)?.center);
   const sort = view.sort === 'distance' && !hasPlace ? 'recommended' : view.sort;
-  const results = searchHotels(search, view.filters, sort);
+  const results = searchHotels(search, view.filters, sort, held);
   const filterCount = countFilters(view.filters);
   // Typed places are shown as places: "batanes" reads as Batanes.
   const place = search.location === ANYWHERE ? 'the Philippines' : search.location.replace(/\b\p{Ll}/gu, (letter) => letter.toUpperCase());
@@ -93,7 +95,7 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
           filters={view.filters}
           onClose={() => setFiltersOpen(false)}
           onApply={(filters) => { onViewChange({ ...view, filters }); setFiltersOpen(false); }}
-          preview={(filters) => searchHotels(search, filters, sort).length}
+          preview={(filters) => searchHotels(search, filters, sort, held).length}
         />
       ) : null}
     </div>

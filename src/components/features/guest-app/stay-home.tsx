@@ -947,9 +947,15 @@ export const PRE_ARRIVAL_STEPS: { label: string; screen: ActiveScreen }[] = [
 */
 export function PreArrivalChecklist({ booking, onNavigate }: { booking: Booking; onNavigate: (screen: ActiveScreen) => void }) {
   const total = Math.max(booking.preArrivalTotal, 1);
-  const done = Math.min(booking.preArrivalCompleted, total);
   const steps = PRE_ARRIVAL_STEPS.slice(0, total);
-  const nextStep = steps[done];
+  /*
+    Steps are done in order, except that a booking whose checkout already
+    named everyone has "Who else is staying" done before "You and your ID".
+  */
+  const isComplete = (index: number) => index < booking.preArrivalCompleted || (index === 1 && Boolean(booking.companionsNamed));
+  const done = steps.filter((_, index) => isComplete(index)).length;
+  const nextIndex = steps.findIndex((_, index) => !isComplete(index));
+  const nextStep = nextIndex >= 0 ? steps[nextIndex] : undefined;
   const ring = 2 * Math.PI * 9;
   return (
     <section className="guest-checklist" aria-labelledby="guest-checklist-title">
@@ -973,8 +979,8 @@ export function PreArrivalChecklist({ booking, onNavigate }: { booking: Booking;
       </div>
       <ol className="guest-checklist__steps">
         {steps.map((step, index) => {
-          const complete = index < done;
-          const next = index === done;
+          const complete = isComplete(index);
+          const next = index === nextIndex;
           return (
             <li key={step.label}>
               <button

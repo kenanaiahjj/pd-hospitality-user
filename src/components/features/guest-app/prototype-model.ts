@@ -260,6 +260,8 @@ export type Booking = {
   };
   /** Set when the stay was booked and paid for in the app. */
   reservation?: Reservation;
+  /** Every guest was named at checkout, so "Who else is staying" needs nothing more. */
+  companionsNamed?: boolean;
 };
 
 /**

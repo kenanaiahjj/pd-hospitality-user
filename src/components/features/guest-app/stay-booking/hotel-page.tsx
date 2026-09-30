@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { ArrowRight, Bed, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Phone, Plus, Ruler, Star, Users, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
-import type { CartLine, RatePlanId, StayHotel, StaySearch } from './model';
+import type { CartLine, HeldRooms, RatePlanId, StayHotel, StaySearch } from './model';
 import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, peso, quoteStay, roomOffers, validSearchDates } from './model';
 import { compactRange, nightsLabel, roomsLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
@@ -19,8 +19,8 @@ import { HotelHighlights, NeighbourhoodSection, PartnersSection } from './neighb
 */
 
 /** Keep the cart inside what the new dates allow. */
-export function clampCart(hotel: StayHotel, search: StaySearch, cart: CartLine[]): CartLine[] {
-  const left = new Map(roomOffers(hotel, search).map((offer) => [offer.roomType.id, offer.left]));
+export function clampCart(hotel: StayHotel, search: StaySearch, cart: CartLine[], held?: HeldRooms): CartLine[] {
+  const left = new Map(roomOffers(hotel, search, held).map((offer) => [offer.roomType.id, offer.left]));
   const used = new Map<string, number>();
   return cart.flatMap((line) => {
     const room = left.get(line.roomTypeId) ?? 0;
@@ -43,17 +43,19 @@ function setQuantity(cart: CartLine[], roomTypeId: string, ratePlanId: RatePlanI
   return copy;
 }
 
-export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchChange, onContinue }: {
+export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchChange, onContinue, held }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
   onCartChange: (cart: CartLine[]) => void;
   onSearchChange: (search: StaySearch) => void;
   onContinue: () => void;
+  /** Rooms already sold in the app, so availability reflects them. */
+  held?: HeldRooms;
 }) {
   const [editing, setEditing] = useState<SearchStep | null>(null);
   const [cartNotice, setCartNotice] = useState<string | null>(null);
-  const offers = roomOffers(hotel, search);
+  const offers = roomOffers(hotel, search, held);
   const fit = cartFit(hotel, search, cart);
   const quote = quoteStay(hotel, search, cart);
   const datesOk = validSearchDates(search);
@@ -101,7 +103,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
             onSearch={(next) => {
               setEditing(null);
               onSearchChange(next);
-              const kept = clampCart(hotel, next, cart);
+              const kept = clampCart(hotel, next, cart, held);
               const count = (lines: CartLine[]) => lines.reduce((sum, line) => sum + line.quantity, 0);
               // Say so when the new dates cost the cart a room, rather than quietly dropping it.
               setCartNotice(count(kept) < count(cart) ? `Fewer rooms are free on the new dates, so ${count(cart) - count(kept) === 1 ? 'a room was' : `${count(cart) - count(kept)} rooms were`} taken out of your selection.` : null);

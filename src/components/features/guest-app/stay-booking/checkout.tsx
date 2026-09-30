@@ -5,7 +5,7 @@ import { ArrowRight, Check, CheckCircle, CreditCard, LockSimple, Tag as TagIcon,
 import { useEffect, useRef, useState } from 'react';
 import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
 import type { CartLine, RoomAllocation, StayGuestDetails, StayHotel, StaySearch } from './model';
-import { FREE_CANCELLATION_DAYS, PROMO_CODES, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay, seniorShares } from './model';
+import { FREE_CANCELLATION_DAYS, PROMO_CODES, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay } from './model';
 import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
@@ -61,7 +61,7 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
 }) {
   const [tried, setTried] = useState(false);
   const rooms = cartRooms(hotel, cart);
-  const quote = quoteStay(hotel, search, cart, details.promoCode, seniorShares(details, allocation));
+  const quote = quoteStay(hotel, search, cart, details.promoCode);
   const errors = detailsErrors(details);
   const valid = !Object.values(errors).some(Boolean);
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
@@ -115,10 +115,6 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
                 <select value={details.bedPreferences[index] ?? BED_PREFERENCES[0]} onChange={(event) => setAt('bedPreferences', index, event.currentTarget.value)}>
                   {BED_PREFERENCES.map((option) => <option key={option}>{option}</option>)}
                 </select>
-              </label>
-              <label className="sb-check">
-                <input type="checkbox" checked={Boolean(details.seniorRooms?.[index])} onChange={(event) => set({ seniorRooms: rooms.map((_, i) => (i === index ? event.currentTarget.checked : Boolean(details.seniorRooms?.[i]))) })} />
-                <span><b>A senior citizen or PWD is staying here</b><small>20% off their share of this room. Show the ID at check-in.</small></span>
               </label>
             </article>
           ))}
@@ -184,11 +180,10 @@ const METHOD_HINTS: Record<GatewayMethod, string> = {
  * to pay -- chosen right here rather than in a sheet over the form. A
  * prototype stand-in for the gateway: nothing is charged.
  */
-export function StayPaymentScreen({ hotel, search, cart, allocation, details, onDetailsChange, onPaid, online }: {
+export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChange, onPaid, online }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
-  allocation: RoomAllocation[];
   details: StayGuestDetails;
   onDetailsChange: (details: StayGuestDetails) => void;
   onPaid: (method: GatewayMethod) => void;
@@ -203,7 +198,7 @@ export function StayPaymentScreen({ hotel, search, cart, allocation, details, on
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
   const rooms = cartRooms(hotel, cart);
-  const quote = quoteStay(hotel, search, cart, details.promoCode, seniorShares(details, allocation));
+  const quote = quoteStay(hotel, search, cart, details.promoCode);
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
 
   const pay = () => {
@@ -282,7 +277,6 @@ export function StayPaymentScreen({ hotel, search, cart, allocation, details, on
             </div>
           ))}
           {quote.discount ? <div className="is-discount"><dt>Promo {quote.promo?.code}</dt><dd>−{peso(quote.discount)}</dd></div> : null}
-          {quote.seniorDiscount ? <div className="is-discount"><dt>Senior citizen / PWD discount<small>20% of their share · ID checked at check-in</small></dt><dd>−{peso(quote.seniorDiscount)}</dd></div> : null}
           <div><dt>Taxes and fees<small>{Math.round(VAT_RATE * 100)}% VAT {peso(quote.vat)} · {Math.round(SERVICE_RATE * 100)}% service charge {peso(quote.service)}</small></dt><dd>{peso(quote.vat + quote.service)}</dd></div>
           <div className="is-total"><dt>Total</dt><dd>{peso(quote.total)}</dd></div>
         </dl>

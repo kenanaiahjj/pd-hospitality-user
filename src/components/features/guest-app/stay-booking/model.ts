@@ -24,8 +24,6 @@ export type StayGuestDetails = {
   arrivalTime: string;
   requests: string;
   promoCode: string;
-  /** Per cart room: a senior citizen or PWD is staying in it (20% off their share, ID shown at check-in). */
-  seniorRooms?: boolean[];
   /** An official receipt made out to a company, not the guest. */
   receipt?: CompanyReceipt;
 };
@@ -44,8 +42,6 @@ export type Reservation = {
   refundable: boolean;
   /** ISO date; free cancellation runs to the end of this day. */
   freeCancellationUntil?: string;
-  /** Rooms with a senior citizen or PWD guest, by index: their ID is checked at the desk. */
-  seniorRooms?: number[];
   /** The company the official receipt is made out to. */
   receipt?: CompanyReceipt;
 };
@@ -688,8 +684,6 @@ export type StayQuote = {
   lines: { roomTypeId: string; roomName: string; ratePlanId: RatePlanId; quantity: number; total: number }[];
   subtotal: number;
   discount: number;
-  /** Senior citizen / PWD discount, already taken off before tax. */
-  seniorDiscount: number;
   promo?: { code: string; label: string };
   promoError?: string;
   vat: number;
@@ -699,16 +693,7 @@ export type StayQuote = {
   freeCancellationUntil?: string;
 };
 
-/** Philippine law: 20% off a senior citizen's or PWD's share of the room, their share being the room's rate over its occupants. */
-export const SENIOR_DISCOUNT = 0.2;
-export type SeniorShare = { roomIndex: number; occupants: number };
-
-/** Which rooms carry a senior or PWD share, and how many people that room's rate is split between. */
-export function seniorShares(details: Pick<StayGuestDetails, 'seniorRooms'> | null | undefined, allocation: RoomAllocation[]): SeniorShare[] {
-  return (details?.seniorRooms ?? []).flatMap((on, roomIndex) => (on ? [{ roomIndex, occupants: Math.max(1, (allocation[roomIndex]?.adults ?? 1) + (allocation[roomIndex]?.childIndexes.length ?? 0)) }] : []));
-}
-
-export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[], promoCode = '', seniors: SeniorShare[] = []): StayQuote {
+export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[], promoCode = ''): StayQuote {
   const nights = countNightsBetween(search.checkIn, search.checkOut);
   const lines = cart.flatMap((line) => {
     const roomType = hotel.roomTypes.find((item) => item.id === line.roomTypeId);
@@ -719,9 +704,7 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
   const code = normalizePromo(promoCode);
   const promo = code ? PROMO_CODES[code] : undefined;
   const discount = promo ? promo.apply(subtotal) : 0;
-  const perRoom = cartRooms(hotel, cart).map((item) => stayRate(item.roomType, item.ratePlanId, search.checkIn, search.checkOut));
-  const seniorDiscount = seniors.reduce((sum, share) => sum + Math.round(((perRoom[share.roomIndex] ?? 0) / Math.max(1, share.occupants)) * SENIOR_DISCOUNT), 0);
-  const taxable = Math.max(0, subtotal - discount - seniorDiscount);
+  const taxable = subtotal - discount;
   const vat = Math.round(taxable * VAT_RATE);
   const service = Math.round(taxable * SERVICE_RATE);
   const refundable = lines.length > 0 && lines.every((line) => line.ratePlanId !== 'saver');
@@ -730,7 +713,6 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
     lines,
     subtotal,
     discount,
-    seniorDiscount,
     promo: promo ? { code, label: promo.label } : undefined,
     promoError: code && !promo ? 'That code isn’t valid.' : undefined,
     vat,
@@ -921,7 +903,6 @@ export function bookingFromDraft({ hotel, search, cart, allocation, details, quo
       paidAt,
       refundable: quote.refundable,
       freeCancellationUntil: quote.freeCancellationUntil,
-      seniorRooms: (details.seniorRooms ?? []).flatMap((on, index) => (on ? [index] : [])),
       receipt: details.receipt?.company.trim() ? details.receipt : undefined,
     },
   };

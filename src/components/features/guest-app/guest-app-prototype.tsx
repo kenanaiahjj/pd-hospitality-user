@@ -181,7 +181,6 @@ import {
   peso,
   quoteStay,
   searchHotels,
-  seniorShares,
   stayDatesLabel,
   type ResultsView,
   type StayBookingDraft,
@@ -2576,7 +2575,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           hotel={current}
           search={search}
           cart={stayDraft.cart}
-          allocation={stayDraft.allocation}
           details={stayDetails}
           onDetailsChange={setStayDetails}
           onPaid={completeStayPayment}
@@ -2604,7 +2602,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const completeStayPayment = (method: GatewayMethod) => {
     const hotel = findStayHotel(stayDraft.hotelId);
     if (!hotel || !stayDetails) return;
-    const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode, seniorShares(stayDetails, stayDraft.allocation));
+    const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode);
     const booking = bookingFromDraft({ hotel, search: stayDraft.search, cart: stayDraft.cart, allocation: stayDraft.allocation, details: stayDetails, quote, paidWith: GATEWAY_METHOD_LABELS[method], paidAt: PROTOTYPE_TODAY });
     // A bed chosen at checkout is the room preference the hotel sees; "No preference" leaves the profile's.
     const bed = { 'One large bed': 'King bed', 'Two separate beds': 'Twin beds' }[stayDetails.bedPreferences[0] ?? ''];
@@ -3201,7 +3199,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 )) : <SummaryRow label="Room" value={displayBooking.roomNumber ? `${displayBooking.roomType} · ${displayBooking.roomNumber}` : `${displayBooking.roomType} · assigned at arrival`} />}
                 <SummaryRow label="Party" value={describeParty(displayBooking, session)} />
                 <SummaryRow label="Booked through" value={displayBooking.source} />
-                {reservation?.seniorRooms?.length ? <SummaryRow label="Senior / PWD" value={`${reservation.seniorRooms.map((index) => `Room ${index + 1}`).join(', ')} · ID at check-in`} /> : null}
                 {reservation?.receipt ? <SummaryRow label="Official receipt" value={`${reservation.receipt.company} · TIN ${reservation.receipt.tin}`} /> : null}
                 <SummaryRow label="Confirmation" value={displayBooking.id} />
               </div>

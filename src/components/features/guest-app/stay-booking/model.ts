@@ -582,7 +582,7 @@ export function cartFit(hotel: StayHotel, search: StaySearch, cart: CartLine[]):
   const fitsUnderSix = party.underSix <= rooms.length * 2;
   if (!fitsSixPlus || !fitsUnderSix) {
     const placed = Math.min(party.total, Math.min(sleeps, party.sixPlus) + Math.min(party.underSix, rooms.length * 2));
-    return { rooms: rooms.length, fits: false, message: `Room for ${placed} of ${guests}. Add a room.` };
+    return { rooms: rooms.length, fits: false, message: `${placed} of ${party.total} fit · add a room` };
   }
   return { rooms: rooms.length, fits: true, message: `Fits your ${guests}` };
 }
@@ -937,4 +937,60 @@ export function cancelRooms(booking: Booking, indexes: number[]): { booking: Boo
       reservation: { ...reservation, rooms, total },
     },
   };
+}
+
+/* ---------- choosing rooms at a hotel with many ---------- */
+
+export type RoomSuggestion = { cart: CartLine[]; total: number; rooms: number };
+
+/**
+ * The fewest rooms that fit the whole party, on free-cancellation rates,
+ * cheapest first -- the combination most groups would build by hand. Tries
+ * every mix of the open room classes up to one room per lead guest, which
+ * stays small: a hotel lists a handful of classes and a party a handful of
+ * rooms. Undefined when nothing open can hold them.
+ */
+export function suggestRooms(hotel: StayHotel, search: StaySearch, held: HeldRooms = NO_HELD_ROOMS): RoomSuggestion | undefined {
+  const party = describeParty(search.adults, search.childAges);
+  const open = roomOffers(hotel, search, held).filter((offer) => offer.left > 0 && offer.plans.some((plan) => plan.id === 'flex'));
+  if (!open.length) return undefined;
+  const cap = Math.max(1, party.leads);
+  let best: RoomSuggestion | undefined;
+  const counts = open.map(() => 0);
+  const visit = (index: number, rooms: number) => {
+    if (rooms > cap) return;
+    if (index === open.length) {
+      if (!rooms) return;
+      const cart: CartLine[] = open.flatMap((offer, i) => (counts[i] ? [{ roomTypeId: offer.roomType.id, ratePlanId: 'flex' as const, quantity: counts[i]! }] : []));
+      if (!cartFit(hotel, search, cart).fits) return;
+      const total = cart.reduce((sum, line) => sum + (open.find((offer) => offer.roomType.id === line.roomTypeId)!.plans.find((plan) => plan.id === 'flex')!.total * line.quantity), 0);
+      if (!best || rooms < best.rooms || (rooms === best.rooms && total < best.total)) best = { cart, total, rooms };
+      return;
+    }
+    for (let n = 0; n <= Math.min(open[index]!.left, cap - rooms); n++) {
+      counts[index] = n;
+      visit(index + 1, rooms + n);
+    }
+    counts[index] = 0;
+  };
+  visit(0, 0);
+  return best;
+}
+
+export type RoomFilter = 'breakfast' | 'free-cancellation' | 'family' | 'king';
+export const ROOM_FILTER_LABELS: Record<RoomFilter, string> = {
+  breakfast: 'Breakfast',
+  'free-cancellation': 'Free cancellation',
+  family: 'Sleeps 4+',
+  king: 'King bed',
+};
+
+/** Room classes a filter keeps. Breakfast and free cancellation are about rates, so they keep a class with one such rate. */
+export function roomMatches(offer: RoomOffer, filters: RoomFilter[]): boolean {
+  return filters.every((filter) => {
+    if (filter === 'breakfast') return offer.plans.some((plan) => plan.id === 'flex-breakfast');
+    if (filter === 'free-cancellation') return offer.plans.some((plan) => plan.refundable);
+    if (filter === 'family') return offer.roomType.sleeps >= 4;
+    return /king/i.test(offer.roomType.beds);
+  });
 }

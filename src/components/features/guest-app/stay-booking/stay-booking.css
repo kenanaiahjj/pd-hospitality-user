@@ -949,3 +949,59 @@
 .guest-app .sb-trip-actions > button,
 .guest-app .sb-trip-actions > a { display: grid; justify-items: center; gap: 6px; min-height: 76px; padding: 12px 6px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); font-size: 12.5px; font-weight: 650; text-align: center; text-decoration: none; }
 .guest-app .sb-trip-actions svg { width: 22px; height: 22px; color: var(--guest-accent-strong); }
+
+/* ---------- rooms as a list, each in a sheet ---------- */
+
+.guest-app .sb-suggest { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; border: 1px solid color-mix(in oklch, var(--guest-accent) 30%, var(--guest-line)); border-radius: var(--guest-radius-lg); background: color-mix(in oklch, var(--guest-accent) 5%, var(--guest-paper)); }
+.guest-app .sb-suggest.is-taken { border-color: color-mix(in oklch, var(--guest-positive) 35%, var(--guest-line)); background: color-mix(in oklch, var(--guest-positive) 5%, var(--guest-paper)); }
+.guest-app .sb-suggest__text { display: grid; gap: 2px; min-width: 0; }
+.guest-app .sb-suggest__text small { color: var(--guest-accent-strong); font-size: 11.5px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.guest-app .sb-suggest__text b { font-size: 15.5px; line-height: 1.3; }
+.guest-app .sb-suggest__text span { color: var(--guest-muted); font-size: 12.5px; }
+.guest-app .sb-suggest .guest-button { width: auto; min-height: 44px; padding: 0 16px; font-size: 14px; white-space: nowrap; }
+.guest-app .sb-suggest.is-taken .guest-button:disabled { opacity: 1; color: var(--guest-positive); }
+
+.guest-app .sb-room-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.guest-app .sb-room-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 88px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px 8px 8px;
+  border: 1px solid var(--guest-line);
+  border-radius: var(--guest-radius-lg);
+  background: var(--guest-paper);
+  color: var(--guest-ink);
+  box-shadow: var(--shadow-xs);
+  text-align: left;
+  transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease;
+}
+.guest-app .sb-room-row:active { transform: scale(0.99); }
+.guest-app .sb-room-row.is-in-cart { border-color: color-mix(in oklch, var(--guest-accent) 45%, var(--guest-line)); }
+.guest-app .sb-room-row.is-sold-out { opacity: 0.6; }
+.guest-app .sb-room-row__photo { position: relative; overflow: hidden; width: 88px; height: 72px; border-radius: 12px; background: var(--guest-placeholder); }
+.guest-app .sb-room-row__photo img { object-fit: cover; }
+.guest-app .sb-room-row__text { display: grid; gap: 2px; min-width: 0; }
+.guest-app .sb-room-row__text > b { overflow: hidden; font-size: 15.5px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-app .sb-room-row__text > small { overflow: hidden; color: var(--guest-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-app .sb-room-row__price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin-top: 2px; }
+.guest-app .sb-room-row__price b { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 750; }
+.guest-app .sb-room-row__price small { color: var(--guest-muted); font-size: 12px; }
+.guest-app .sb-room-row__price .sb-note { font-size: 11.5px; }
+.guest-app .sb-room-row__go { width: 18px; height: 18px; color: var(--guest-subtle); justify-self: end; }
+.guest-app .sb-room-row__count { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: var(--guest-accent); color: var(--guest-on-accent); font-size: 13px; font-weight: 750; }
+.guest-app .sb-link { padding: 0; border: 0; background: none; color: var(--guest-accent-strong); font: inherit; font-weight: 650; text-decoration: underline; }
+
+.guest-app .sb-room-sheet { padding-top: 0; }
+.guest-app .sb-room-sheet .guest-order-tray__scroll { margin: 0 -20px; }
+.guest-app .sb-room-sheet__photo { position: relative; display: block; aspect-ratio: 16 / 9; background: var(--guest-placeholder); }
+.guest-app .sb-room-sheet__photo img { object-fit: cover; }
+.guest-app .sb-room-sheet__close { position: absolute; top: 12px; right: 12px; box-shadow: var(--shadow-sm); }
+.guest-app .sb-room-sheet .sb-room__info { padding: 16px 20px 8px; }
+.guest-app .sb-room-sheet .sb-plans { padding: 0 4px; }
+
+/* Stacked on a phone: the rooms read in full, the button under them. */
+.guest-app .sb-suggest { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.guest-app .sb-suggest .guest-button { justify-self: start; }
+.guest-app .guest-dock:has(.sb-dock__fit) .sb-dock__fit:not(.is-positive):not(.is-muted) { -webkit-line-clamp: 2; }

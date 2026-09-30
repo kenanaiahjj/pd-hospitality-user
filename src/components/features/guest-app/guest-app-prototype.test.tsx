@@ -2104,8 +2104,13 @@ describe('booking another stay', () => {
     await user.click(within(sheet).getByRole('button', { name: /^Search$/ }));
 
     await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Manila/ })[0]!);
+    // Rooms are a list; each opens a sheet with its rates.
+    await user.click(screen.getByRole('button', { name: /^King Room, sleeps 2/ }));
     await user.click(screen.getByRole('button', { name: 'Add a King Room, Room only' }));
+    await user.click(screen.getByRole('button', { name: /^Done/ }));
+    await user.click(screen.getByRole('button', { name: /^Garden Suite, sleeps 3/ }));
     await user.click(screen.getByRole('button', { name: 'Add a Garden Suite, With breakfast' }));
+    await user.click(screen.getByRole('button', { name: /^Done/ }));
     expect(screen.getByText('2 rooms · fits 4 guests')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Continue/ }));
 

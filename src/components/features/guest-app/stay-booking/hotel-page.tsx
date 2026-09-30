@@ -1,10 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowRight, Bed, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Phone, Plus, Ruler, Star, Users, Warning } from '@phosphor-icons/react';
+import { ArrowRight, Bed, CaretRight, Check, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Phone, Plus, Ruler, Star, Users, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
-import type { CartLine, HeldRooms, RatePlanId, StayHotel, StaySearch } from './model';
-import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, peso, quoteStay, roomOffers, validSearchDates } from './model';
+import type { CartLine, HeldRooms, RatePlanId, RoomFilter, RoomOffer, StayHotel, StaySearch } from './model';
+import { AMENITY_LABELS, RATE_PLAN_LABELS, ROOM_FILTER_LABELS, cartFit, cartRooms, describeRooms, isHotelFull, peso, quoteStay, roomMatches, roomOffers, suggestRooms, validSearchDates } from './model';
 import { compactRange, nightsLabel, roomsLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
 import { HighlightStrip, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
@@ -55,12 +55,22 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
 }) {
   const [editing, setEditing] = useState<SearchStep | null>(null);
   const [cartNotice, setCartNotice] = useState<string | null>(null);
+  const [roomFilters, setRoomFilters] = useState<RoomFilter[]>([]);
+  const [cheapestFirst, setCheapestFirst] = useState(false);
+  const [openRoom, setOpenRoom] = useState<string | null>(null);
   const offers = roomOffers(hotel, search, held);
   const fit = cartFit(hotel, search, cart);
   const quote = quoteStay(hotel, search, cart);
   const datesOk = validSearchDates(search);
   const photos = [hotel.image, ...hotel.gallery];
   const soldOutEverywhere = datesOk && offers.every((offer) => offer.left === 0);
+  const suggestion = datesOk ? suggestRooms(hotel, search, held) : undefined;
+  const suggestionTaken = Boolean(suggestion) && JSON.stringify(suggestion!.cart) === JSON.stringify(cart);
+  // Rooms nobody in the party fits sink to the bottom; open ones before sold out.
+  const shownOffers = offers
+    .filter((offer) => roomMatches(offer, roomFilters))
+    .sort((a, b) => Number(a.left === 0) - Number(b.left === 0) || (cheapestFirst ? Math.min(...a.plans.map((plan) => plan.perNight)) - Math.min(...b.plans.map((plan) => plan.perNight)) : 0));
+  const openOffer = offers.find((offer) => offer.roomType.id === openRoom);
   const inCart = (roomTypeId: string) => cart.filter((line) => line.roomTypeId === roomTypeId).reduce((sum, line) => sum + line.quantity, 0);
 
   return (
@@ -119,61 +129,64 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           <p>Mix room types and rates in one booking.</p>
         </div>
         {cartNotice ? <p className="sb-note sb-note--warning" role="status"><Warning aria-hidden="true" />{cartNotice}</p> : null}
-        <div className="sb-rooms">
-          {offers.map((offer) => {
+
+        {/* The common case first: the fewest rooms that fit everyone, one tap to take. */}
+        {suggestion && !soldOutEverywhere ? (
+          <div className={`sb-suggest${suggestionTaken ? ' is-taken' : ''}`}>
+            <span className="sb-suggest__text">
+              <small>Best fit for your {search.adults + search.childAges.length} {search.adults + search.childAges.length === 1 ? 'guest' : 'guests'}</small>
+              <b>{describeRooms(cartRooms(hotel, suggestion.cart).map((item) => ({ roomName: item.roomType.name })))}</b>
+              <span>{peso(suggestion.total)} for {nightsLabel(search.checkIn, search.checkOut)} · free cancellation</span>
+            </span>
+            <button type="button" className="guest-button guest-button--secondary" disabled={suggestionTaken} onClick={() => onCartChange(suggestion.cart)}>
+              {suggestionTaken ? <><Check aria-hidden="true" />Added</> : cart.length ? 'Use this instead' : 'Add rooms'}
+            </button>
+          </div>
+        ) : null}
+
+        <div className="sb-chips" role="group" aria-label="Filter rooms">
+          {(Object.keys(ROOM_FILTER_LABELS) as RoomFilter[]).map((filter) => (
+            <button key={filter} type="button" className={`sb-chip${roomFilters.includes(filter) ? ' is-active' : ''}`} aria-pressed={roomFilters.includes(filter)} onClick={() => setRoomFilters((current) => (current.includes(filter) ? current.filter((value) => value !== filter) : [...current, filter]))}>
+              {ROOM_FILTER_LABELS[filter]}
+            </button>
+          ))}
+          <button type="button" className={`sb-chip${cheapestFirst ? ' is-active' : ''}`} aria-pressed={cheapestFirst} onClick={() => setCheapestFirst((value) => !value)}>Lowest price</button>
+        </div>
+
+        <ul className="sb-room-list">
+          {shownOffers.map((offer) => {
             const { roomType } = offer;
             const taken = inCart(roomType.id);
             const soldOut = offer.left === 0 || !datesOk;
+            const from = Math.min(...offer.plans.map((plan) => plan.perNight));
             return (
-              <article key={roomType.id} className={`sb-room${soldOut ? ' is-sold-out' : ''}`} aria-label={roomType.name}>
-                <div className="sb-room__head">
-                  <span className="sb-room__photo">
-                    <Image src={roomType.image.src} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 440px" style={{ objectPosition: roomType.image.focalPoint }} />
-                    {soldOut ? <span className="sb-note sb-note--urgent"><Warning aria-hidden="true" />Sold out for these dates</span>
-                      : offer.left <= 3 ? <span className="sb-note sb-note--urgent">Only {offer.left} left</span> : null}
+              <li key={roomType.id}>
+                <button type="button" className={`sb-room-row${soldOut ? ' is-sold-out' : ''}${taken ? ' is-in-cart' : ''}`} onClick={() => setOpenRoom(roomType.id)} aria-label={`${roomType.name}, sleeps ${roomType.sleeps}, from ${peso(from)} a night${taken ? `, ${taken} in your selection` : ''}${soldOut ? ', sold out' : ''}`}>
+                  <span className="sb-room-row__photo"><Image src={roomType.image.src} alt="" fill sizes="88px" style={{ objectPosition: roomType.image.focalPoint }} /></span>
+                  <span className="sb-room-row__text">
+                    <b>{roomType.name}</b>
+                    <small>Sleeps {roomType.sleeps} · {roomType.beds}</small>
+                    {soldOut ? <span className="sb-note sb-note--warning">Sold out for these dates</span>
+                      : <span className="sb-room-row__price"><b>{peso(from)}</b> <small>/ night</small>{offer.left <= 3 ? <span className="sb-note sb-note--urgent">Only {offer.left} left</span> : null}</span>}
                   </span>
-                  <div className="sb-room__info">
-                    <h3>{roomType.name}</h3>
-                    <p className="sb-room__facts">
-                      <span><Users aria-hidden="true" />Sleeps {roomType.sleeps}{roomType.maxAdults < roomType.sleeps ? ` · ${roomType.maxAdults} adults max` : ''}</span>
-                      <span><Bed aria-hidden="true" />{roomType.beds}</span>
-                      <span><Ruler aria-hidden="true" />{roomType.sizeSqm} m²</span>
-                    </p>
-                    <p className="sb-room__features">{[roomType.view, ...roomType.features].join(' · ')}</p>
-                  </div>
-                </div>
-                {!soldOut ? (
-                  <ul className="sb-plans">
-                    {offer.plans.map((plan) => {
-                      const quantity = cart.find((line) => line.roomTypeId === roomType.id && line.ratePlanId === plan.id)?.quantity ?? 0;
-                      const label = RATE_PLAN_LABELS[plan.id];
-                      const name = `${roomType.name}, ${label.title}`;
-                      return (
-                        <li key={plan.id} className={`sb-plan${quantity ? ' is-selected' : ''}`}>
-                          <span className="sb-plan__text">
-                            <b>{plan.id === 'flex-breakfast' ? <Coffee aria-hidden="true" /> : null}{label.title}</b>
-                            <small className={plan.refundable ? 'is-positive' : undefined}>{plan.refundable ? <CheckCircle weight="fill" aria-hidden="true" /> : null}{label.detail}</small>
-                            {plan.id === 'flex-breakfast' ? <small>Breakfast for {roomType.sleeps}</small> : null}
-                          </span>
-                          <span className="sb-plan__price">
-                            <b>{peso(plan.perNight)}</b>
-                            <small>per night · {peso(plan.total)} total</small>
-                          </span>
-                          <span className="sb-stepper" role="group" aria-label={name}>
-                            <button type="button" aria-label={`Remove a ${name}`} disabled={quantity === 0} onClick={() => onCartChange(setQuantity(cart, roomType.id, plan.id, quantity - 1))}><Minus aria-hidden="true" /></button>
-                            <output aria-live="polite">{quantity}</output>
-                            <button type="button" aria-label={`Add a ${name}`} disabled={taken >= offer.left} onClick={() => onCartChange(setQuantity(cart, roomType.id, plan.id, quantity + 1))}><Plus aria-hidden="true" /></button>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
-              </article>
+                  {taken ? <span className="sb-room-row__count" aria-hidden="true">{taken}</span> : <CaretRight className="sb-room-row__go" aria-hidden="true" />}
+                </button>
+              </li>
             );
           })}
-        </div>
+          {!shownOffers.length ? <li className="sb-small">No rooms match these filters. <button type="button" className="sb-link" onClick={() => setRoomFilters([])}>Clear filters</button></li> : null}
+        </ul>
       </section>
+
+      {openOffer ? (
+        <RoomSheet
+          offer={openOffer}
+          cart={cart}
+          datesOk={datesOk}
+          onCartChange={onCartChange}
+          onClose={() => setOpenRoom(null)}
+        />
+      ) : null}
 
       <section className="sb-section" aria-labelledby="sb-about-title">
         <h2 id="sb-about-title">About the hotel</h2>
@@ -214,6 +227,70 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/*
+  One room class in full: its photo, what it has, and every rate with a count.
+  The list above stays one line per class, so a hotel with eight of them is
+  still one screen to compare.
+*/
+function RoomSheet({ offer, cart, datesOk, onCartChange, onClose }: { offer: RoomOffer; cart: CartLine[]; datesOk: boolean; onCartChange: (cart: CartLine[]) => void; onClose: () => void }) {
+  const { roomType } = offer;
+  const taken = cart.filter((line) => line.roomTypeId === roomType.id).reduce((sum, line) => sum + line.quantity, 0);
+  const soldOut = offer.left === 0 || !datesOk;
+  return (
+    <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="guest-order-tray sb-room-sheet" role="dialog" aria-modal="true" aria-labelledby="sb-room-sheet-title">
+        <div className="guest-order-tray__scroll">
+          <span className="sb-room-sheet__photo">
+            <Image src={roomType.image.src} alt={roomType.image.alt} fill sizes="(max-width: 720px) 100vw, 480px" style={{ objectPosition: roomType.image.focalPoint }} preload />
+            <button className="guest-order-tray__close sb-room-sheet__close" type="button" onClick={onClose} aria-label="Close"><X /></button>
+          </span>
+          <div className="sb-room__info">
+            <h3 id="sb-room-sheet-title">{roomType.name}</h3>
+            <p className="sb-room__facts">
+              <span><Users aria-hidden="true" />Sleeps {roomType.sleeps}{roomType.maxAdults < roomType.sleeps ? ` · ${roomType.maxAdults} adults max` : ''}</span>
+              <span><Bed aria-hidden="true" />{roomType.beds}</span>
+              <span><Ruler aria-hidden="true" />{roomType.sizeSqm} m²</span>
+            </p>
+            <p className="sb-room__features">{[roomType.view, ...roomType.features].join(' · ')}</p>
+            {soldOut ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Sold out for these dates</span>
+              : offer.left <= 3 ? <span className="sb-note sb-note--urgent">Only {offer.left} left</span> : null}
+          </div>
+          {!soldOut ? (
+            <ul className="sb-plans">
+              {offer.plans.map((plan) => {
+                const quantity = cart.find((line) => line.roomTypeId === roomType.id && line.ratePlanId === plan.id)?.quantity ?? 0;
+                const label = RATE_PLAN_LABELS[plan.id];
+                const name = `${roomType.name}, ${label.title}`;
+                return (
+                  <li key={plan.id} className={`sb-plan${quantity ? ' is-selected' : ''}`}>
+                    <span className="sb-plan__text">
+                      <b>{plan.id === 'flex-breakfast' ? <Coffee aria-hidden="true" /> : null}{label.title}</b>
+                      <small className={plan.refundable ? 'is-positive' : undefined}>{plan.refundable ? <CheckCircle weight="fill" aria-hidden="true" /> : null}{label.detail}</small>
+                      {plan.id === 'flex-breakfast' ? <small>Breakfast for {roomType.sleeps}</small> : null}
+                    </span>
+                    <span className="sb-plan__price">
+                      <b>{peso(plan.perNight)}</b>
+                      <small>per night · {peso(plan.total)} total</small>
+                    </span>
+                    <span className="sb-stepper" role="group" aria-label={name}>
+                      <button type="button" aria-label={`Remove a ${name}`} disabled={quantity === 0} onClick={() => onCartChange(setQuantity(cart, roomType.id, plan.id, quantity - 1))}><Minus aria-hidden="true" /></button>
+                      <output aria-live="polite">{quantity}</output>
+                      <button type="button" aria-label={`Add a ${name}`} disabled={taken >= offer.left} onClick={() => onCartChange(setQuantity(cart, roomType.id, plan.id, quantity + 1))}><Plus aria-hidden="true" /></button>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+        </div>
+        <footer className="guest-order-tray__footer">
+          <button type="button" className="guest-button guest-button--primary" onClick={onClose}>{taken ? `Done · ${taken} ${taken === 1 ? 'room' : 'rooms'} selected` : 'Done'}</button>
+        </footer>
+      </section>
     </div>
   );
 }

@@ -62,6 +62,8 @@ export type ScreenId =
   | 'room-qr-midstay'
   | 'profile'
   | 'stay-history'
+  | 'payments'
+  | 'payment-detail'
   | 'stay-detail'
   | 'stay-entry'
   | 'pre-arrival-services'
@@ -135,6 +137,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(37, 'Stay', 'room-qr-midstay', 'You are checked in'),
   screen(38, 'Account', 'profile', 'Guest profile'),
   screen(39, 'Account', 'stay-history', 'Stay history'),
+  screen(78, 'Account', 'payments', 'Payments'),
+  screen(79, 'Account', 'payment-detail', 'Payment receipt'),
   screen(40, 'Stay', 'restaurant-cart', 'Review dining order'),
   screen(41, 'Stay', 'dining-order-confirmation', 'Dining order confirmed'),
   screen(42, 'Stay', 'notifications', 'Notifications'),
@@ -475,6 +479,25 @@ export type SavedCompanion = {
   expiry?: string;
 };
 
+/** One gateway payment: what was paid, how, for what, and how much of it has come back. */
+export type PaymentRecord = {
+  id: string;
+  /** ISO date. */
+  paidAt: string;
+  kind: 'stay' | 'arrival' | 'service';
+  title: string;
+  detail: string;
+  /** Pesos taken by the gateway. */
+  amount: number;
+  method: 'card' | 'gcash' | 'maya';
+  /** The stay it belongs to, so cancelling that stay can refund it. May outlive the booking. */
+  bookingId?: string;
+  /** What the payment covered, when it covered several things; `id` is the service booking's. */
+  items: { id?: string; title: string; amount: number; refunded?: boolean }[];
+  /** Pesos returned so far. */
+  refunded: number;
+};
+
 export type GuestSession = {
   guestName: string;
   email: string;
@@ -520,6 +543,8 @@ export type GuestSession = {
   record?: GuestRecord;
   /** Everyone this guest has registered before, so they can be offered again. */
   companionRecords?: SavedCompanion[];
+  /** Everything paid through the gateway, newest first. Absent on a guest who has paid for nothing in the app. */
+  payments?: PaymentRecord[];
 };
 
 /** Whether there is a whole ID on file: enough for one tap to confirm it. */
@@ -711,6 +736,11 @@ export const MOCK_SESSION: GuestSession = {
   companionRecords: [
     { name: 'Marco Santos', nationality: 'Filipino', documentNumber: 'P5520931C', expiry: '2029-08-09' },
     { name: 'Elena Santos', nationality: 'Filipino', documentNumber: 'P7734120B', expiry: '2031-02-14' },
+  ],
+  /* What Ana paid through the app on her Cebu stay, so Payments opens with a history. */
+  payments: [
+    { id: 'pay-seed-tour', paidAt: '2026-03-15', kind: 'service', title: 'Island day tour', detail: 'The Henry Cebu', amount: 3800, method: 'maya', bookingId: 'HEN-CEBU-260314', items: [{ id: 'service-tour-HEN-CEBU-260314', title: 'Island day tour', amount: 3800 }], refunded: 0 },
+    { id: 'pay-seed-spa', paidAt: '2026-03-16', kind: 'service', title: 'Hilom signature massage', detail: 'The Henry Cebu', amount: 2400, method: 'gcash', bookingId: 'HEN-CEBU-260314', items: [{ id: 'service-hilom-HEN-CEBU-260314', title: 'Hilom signature massage', amount: 2400 }], refunded: 2400 },
   ],
   pastStays: PAST_STAYS,
   reviews: [],

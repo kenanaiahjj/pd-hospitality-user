@@ -2376,6 +2376,54 @@ describe('booking the service the guest picked', () => {
     expect(screen.queryByTestId('arrival-cart-dock')).toBeNull();
   });
 
+  it('lists one cart checkout as one payment, and shows the refund when a paid item is cancelled', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);
+
+    await user.click(screen.getByRole('button', { name: /Private car & driver/ }));
+    await user.click(screen.getByRole('button', { name: /Add to cart/ }));
+    await user.click(screen.getByRole('button', { name: /Flowers & celebration setup/ }));
+    await user.click(screen.getByRole('button', { name: /Add to cart/ }));
+    await user.click(screen.getByRole('button', { name: 'Review cart' }));
+    await user.click(screen.getByRole('button', { name: 'Pay ₱6,400' }));
+    const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
+    await user.click(within(gateway).getByRole('button', { name: /GCash/ }));
+    await user.click(within(gateway).getByRole('button', { name: 'Pay ₱6,400' }));
+    await screen.findByRole('heading', { name: 'Your arrival is arranged' }, { timeout: 3000 });
+
+    // Two services, one gateway payment: one line.
+    await user.click(screen.getByRole('button', { name: 'Profile' }));
+    await user.click(screen.getByRole('button', { name: /Payments/ }));
+    const list = screen.getByRole('list', { name: 'Payments' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(list).getByText('Arrival services')).toBeInTheDocument();
+    expect(within(list).getByText('₱6,400')).toBeInTheDocument();
+    expect(within(list).getByText('Paid')).toBeInTheDocument();
+
+    // Cancelling one of them sends its share back, and the payment says so.
+    await user.click(screen.getByRole('button', { name: 'My Stay' }));
+    await user.click(screen.getByRole('button', { name: /Private car & driver/ }));
+    await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
+    await user.click(screen.getByRole('button', { name: /cancel service/i }));
+    await user.click(screen.getByRole('button', { name: 'Profile' }));
+    await user.click(screen.getByRole('button', { name: /Payments/ }));
+    expect(within(screen.getByRole('list', { name: 'Payments' })).getByText('Partly refunded')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Arrival services/ }));
+    expect(screen.getByText('Refunded to GCash')).toBeInTheDocument();
+    expect(screen.getByText('You paid, after refunds').nextSibling).toHaveTextContent('₱1,600');
+  });
+
+  it('opens Payments from the profile with what Ana paid before, refunds included', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="profile" initialSession={MOCK_SESSION} />);
+
+    await user.click(screen.getByRole('button', { name: /Payments/ }));
+    const list = screen.getByRole('list', { name: 'Payments' });
+    expect(within(list).getByText('Island day tour')).toBeInTheDocument();
+    expect(within(list).getByText('Refunded')).toBeInTheDocument();
+    expect(screen.getByText(/Room charges are not listed here/)).toBeInTheDocument();
+  });
+
   it('holds one line per slot when the same service is added twice', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="pre-arrival-services" initialSession={beforeArrival} />);

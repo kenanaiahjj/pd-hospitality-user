@@ -87,6 +87,7 @@ function isStoredSession(value: unknown): value is GuestSession {
     // The saved ID and people are additive too; present but malformed would break the confirm screen.
     && (value.record === undefined || isObject(value.record))
     && (value.companionRecords === undefined || Array.isArray(value.companionRecords))
+    && (value.payments === undefined || Array.isArray(value.payments))
   );
 }
 

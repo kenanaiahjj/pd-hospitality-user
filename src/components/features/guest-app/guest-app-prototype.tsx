@@ -252,6 +252,8 @@ import type { ActiveScreen } from './guest-shared';
 import { NEARBY_ESTABLISHMENTS, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs } from './places';
 import { GATEWAY_METHOD_LABELS, GatewayCheckout, type GatewayMethod } from './gateway-checkout';
 import { HotelEssentialsRow } from './hotel-essentials';
+import { PaymentDetailScreen, PaymentsScreen } from './payments';
+import { paymentsSummary, recordPayment, refundBooking, refundServiceLine, refundStayAmount } from './payments-model';
 import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
 import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
 import type { CartLine } from './prototype-model';
@@ -605,6 +607,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [stayTabChoice, setStayTab] = useState<'upcoming' | 'past' | null>(null);
   const [expandedChargeId, setExpandedChargeId] = useState<string | null>(null);
   const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   /*
     The hotel booking in progress: the search, the hotel, the rooms in the
     cart and who sleeps in each. Held here rather than in the screens so Back
@@ -1172,7 +1175,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1746,7 +1749,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       .filter((row) => !held.has(row.definition.id))
       .map((row) => row.definition.id));
 
-    setSession(next);
+    setSession(payment === 'paid' && paidWith
+      ? recordPayment(next, {
+          id: `pay-${serviceBooking.id}`,
+          paidAt: PROTOTYPE_TODAY,
+          kind: 'service',
+          title: serviceBooking.title,
+          detail: booking.property,
+          amount: parsePesoAmount(serviceBooking.amount),
+          method: paidWith,
+          bookingId: booking.id,
+          items: [{ id: serviceBooking.id, title: serviceBooking.title, amount: parsePesoAmount(serviceBooking.amount) }],
+          refunded: 0,
+        })
+      : next);
     setLastServiceBookingId(id);
     setAppliedPoints(0);
     goReplacing('booking-confirmation');
@@ -1914,7 +1930,24 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ]),
       ]);
     }
-    setSession(next);
+    const paid = bookingIds
+      .map((id) => next.serviceBookings.find((service) => service.id === id))
+      .filter((service): service is ServiceBooking => service?.paymentStatus === 'paid');
+    const paidTotal = paid.reduce((sum, service) => sum + parsePesoAmount(service.amount), 0);
+    setSession(paidTotal > 0 && method
+      ? recordPayment(next, {
+          id: `pay-cart-${paid[0]!.id}`,
+          paidAt: PROTOTYPE_TODAY,
+          kind: 'arrival',
+          title: 'Arrival services',
+          detail: `${contextBooking.property} · ${paid.length} ${paid.length === 1 ? 'item' : 'items'}`,
+          amount: paidTotal,
+          method,
+          bookingId: contextBooking.id,
+          items: paid.map((service) => ({ id: service.id, title: service.title, amount: parsePesoAmount(service.amount) })),
+          refunded: 0,
+        })
+      : next);
     setCartReceipt({ ids: bookingIds, method });
     goReplacing('arrival-cart-confirmation');
   };
@@ -2611,7 +2644,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const roomLeads = [...new Set(stayDetails.roomLeads.map((name) => name.trim()).filter((name) => name && name !== stayDetails.name.trim()))];
     // The booker plus each other room's named lead: when that is the whole party, nobody is left to name.
     const namedBooking = { ...booking, companionsNamed: roomLeads.length + 1 >= booking.guestCount };
-    setSession((current) => ({
+    const stayRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
+    setSession((current) => recordPayment({
       ...current,
       roomPreferences: bed ? { ...current.roomPreferences, bed } : current.roomPreferences,
       // Other rooms' lead guests are the people the hotel should expect, so they join the guest list.
@@ -2620,6 +2654,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       bookings: [...current.bookings.filter((item) => item.id !== booking.id), namedBooking],
       // A guest mid-stay keeps that stay in front; otherwise the new trip leads.
       activeBookingId: current.bookings.some((item) => item.status === 'active') ? current.activeBookingId : booking.id,
+    }, {
+      id: `pay-stay-${booking.id}`,
+      paidAt: PROTOTYPE_TODAY,
+      kind: 'stay',
+      title: hotel.name,
+      detail: `${stayRooms} ${stayRooms === 1 ? 'room' : 'rooms'} · ${stayDatesLabel(stayDraft.search.checkIn, stayDraft.search.checkOut)}`,
+      amount: quote.total,
+      method,
+      bookingId: booking.id,
+      items: [],
+      refunded: 0,
     }));
     setConfirmedStayId(booking.id);
     setStayDraft((draft) => ({ ...draft, hotelId: undefined, cart: [], allocation: [] }));
@@ -2636,7 +2681,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (roomIndexes && roomIndexes.length < booking.reservation.rooms.length) {
       const { booking: kept, refund } = cancelRooms(booking, roomIndexes);
       const names = roomIndexes.map((index) => booking.reservation!.rooms[index]?.roomName).filter(Boolean).join(' and ');
-      setSession((current) => ({ ...current, bookings: current.bookings.map((item) => (item.id === bookingId ? kept : item)) }));
+      setSession((current) => refundStayAmount({ ...current, bookings: current.bookings.map((item) => (item.id === bookingId ? kept : item)) }, bookingId, refund));
       setRoomCancelNotice(`${names} cancelled. ${peso(refund)} is on its way back to ${booking.reservation.paidWith}.`);
       return;
     }
@@ -2645,7 +2690,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setSession((current) => {
       const bookings = current.bookings.filter((item) => item.id !== bookingId);
       return {
-        ...current,
+        ...refundBooking(current, bookingId),
         bookings,
         activeBookingId: current.activeBookingId === bookingId ? undefined : current.activeBookingId,
         serviceBookings: current.serviceBookings.filter((item) => item.bookingId !== bookingId),
@@ -4527,7 +4572,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         const cancelService = () => {
           setSession((current) => ({
-            ...current,
+            ...(paidBy === 'card' ? refundServiceLine(current, cancellable.id) : current),
             serviceBookings: current.serviceBookings.map((service) => (
               service.id === cancellable.id
                 ? { ...service, status: 'cancelled', paymentStatus: paidBy === 'card' ? 'refunded' : service.paymentStatus }
@@ -4638,6 +4683,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('stay-history')}>
                   <span><SuitcaseRolling /></span>
                   <div><b>Stay history</b><small>{pastStays.length} {pastStays.length === 1 ? 'stay' : 'stays'} across {new Set(pastStays.map((stay) => stay.property)).size} {new Set(pastStays.map((stay) => stay.property)).size === 1 ? 'property' : 'properties'}</small></div>
+                  <CaretRight />
+                </button>
+                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('payments')}>
+                  <span><Receipt /></span>
+                  <div><b>Payments</b><small>{paymentsSummary(session).count ? `${paymentsSummary(session).count} ${paymentsSummary(session).count === 1 ? 'payment' : 'payments'} · ${formatPesoAmount(paymentsSummary(session).net)} paid` : 'Nothing paid in the app yet'}</small></div>
                   <CaretRight />
                 </button>
               </div>
@@ -4768,6 +4818,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           />
         );
       }
+
+      case 'payments':
+        return <PaymentsScreen session={session} onOpen={(id) => { setSelectedPaymentId(id); go('payment-detail'); }} onExplore={() => go('partner-hotels')} />;
+
+      case 'payment-detail':
+        return <PaymentDetailScreen payment={(session.payments ?? []).find((payment) => payment.id === selectedPaymentId)} />;
 
       case 'stay-history': {
         const lifetime = formatPesoAmount(pastStays.reduce((sum, stay) => sum + parsePesoAmount(summarisePastStay(stay).total), 0));
@@ -5051,7 +5107,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 label="Profile"
                 icon={HugeProfileIcon}
                 activeIcon={HugeProfileSolidIcon}
-                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
+                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'payments' || activeScreen === 'payment-detail' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
                 onClick={() => go('profile')}
               />
             </nav>

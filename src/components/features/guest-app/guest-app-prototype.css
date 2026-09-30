@@ -9041,3 +9041,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-payment-row__amount { display: grid; justify-items: end; gap: 4px; }
 .guest-payment-row__amount strong { font-size: 15px; font-variant-numeric: tabular-nums; font-weight: 650; }
 .guest-payment-row > svg { color: var(--guest-subtle); }
+
+/* A service's own page: what to expect, in a short list. */
+.guest-service-highlights { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.guest-service-highlights li { position: relative; padding-left: 18px; font-size: 15px; line-height: 1.45; }
+.guest-service-highlights li::before { content: ''; position: absolute; top: 0.62em; left: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--guest-accent-strong); }

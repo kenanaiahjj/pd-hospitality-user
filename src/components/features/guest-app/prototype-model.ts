@@ -47,6 +47,7 @@ export type ScreenId =
   | 'room-transfer-details'
   | 'hotel-service'
   | 'vendor-service'
+  | 'service-detail'
   | 'restaurant-menu'
   | 'restaurant-cart'
   | 'dining-order-confirmation'
@@ -124,6 +125,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(58, 'Stay', 'gifts-souvenirs', 'Gifts & Souvenirs'),
   screen(25, 'Stay', 'hotel-service', 'In-room dining'),
   screen(26, 'Stay', 'vendor-service', 'Hilom signature massage'),
+  screen(80, 'Stay', 'service-detail', 'Service page'),
   screen(27, 'Stay', 'restaurant-menu', 'Menu & Dining'),
   screen(28, 'Stay', 'service-booking', 'Choose a time'),
   screen(29, 'Stay', 'booking-confirmation', 'Service confirmed'),

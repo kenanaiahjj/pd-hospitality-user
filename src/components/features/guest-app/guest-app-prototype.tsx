@@ -208,7 +208,7 @@ import {
   stayContext,
 } from './promoted';
 import { venueForService } from './promoted/service-venues';
-import type { BrowseCategory, FeedAction, FeedClock} from './promoted';
+import type { BrowseCategory, FeedAction, FeedClock, FeedEntry } from './promoted';
 import { storyImage } from './promoted/story-imagery';
 import { ChatComposer, type ChatAttachment } from './chat-composer';
 import { StayConfirm } from './stay-invitation';
@@ -253,6 +253,7 @@ import { NEARBY_ESTABLISHMENTS, NearbyEstablishmentScreen, NearbyRecommendations
 import { GATEWAY_METHOD_LABELS, GatewayCheckout, type GatewayMethod } from './gateway-checkout';
 import { HotelEssentialsRow } from './hotel-essentials';
 import { PaymentDetailScreen, PaymentsScreen } from './payments';
+import { ServicePage } from './service-page';
 import { paymentsSummary, recordPayment, refundBooking, refundServiceLine, refundStayAmount } from './payments-model';
 import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
 import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
@@ -337,6 +338,7 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
   'restaurant-menu',
   'restaurant-cart',
   'dining-order-confirmation',
+  'service-detail',
   'service-booking',
   'booking-confirmation',
   'booking-blocked',
@@ -608,6 +610,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [expandedChargeId, setExpandedChargeId] = useState<string | null>(null);
   const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  /* What the venue says about the service the service page is showing, when the guest came from a recommendation. */
+  const [serviceHighlights, setServiceHighlights] = useState<{ serviceId: string; lines: string[] } | null>(null);
   /*
     The hotel booking in progress: the search, the hotel, the rooms in the
     cart and who sleeps in each. Held here rather than in the screens so Back
@@ -1175,7 +1179,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'service-detail', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1614,6 +1618,24 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     else if (action.kind === 'screen') go(action.screen);
     else if (action.kind === 'departure-ride') openDepartureRide();
     else openLateCheckoutChat();
+  };
+
+  /*
+    A recommendation opens the thing's own page. Venues, nearby places and the
+    gift shop already have one; every other catalogue item used to skip to its
+    booking form, so it gets the shared service page first.
+  */
+  const openPick = (entry: FeedEntry) => {
+    const { action } = entry;
+    const service = action.kind === 'item' && !RESTAURANTS.some((venue) => venue.id === action.id) && action.id !== 'spa'
+      ? SERVICES.find((item) => item.id === action.id)
+      : undefined;
+    if (!service) { runFeedAction(action); return; }
+    setFeedSheet(null);
+    setSelectedCategory(service.categoryId);
+    setSelectedServiceId(service.id);
+    setServiceHighlights({ serviceId: service.id, lines: entry.story.slides.map((slide) => slide.detail).filter((line): line is string => Boolean(line)) });
+    go('service-detail');
   };
 
   const openBrowseCategory = (id: string) => {
@@ -2879,7 +2901,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'stay-overview':
-        return <>{cancelNotice ? <div className="sb-cancel-notice" role="status"><Notice tone="positive" icon={<CheckCircle />} title="Booking cancelled">{cancelNotice}</Notice><button type="button" aria-label="Dismiss" onClick={() => setCancelNotice(null)}><X /></button></div> : null}<StayOverviewHome staySearch={stayDraft.search} resumeBooking={resumeBooking} onSearchStay={startStaySearch} session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />{primaryBooking && preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}</>;
+        return <>{cancelNotice ? <div className="sb-cancel-notice" role="status"><Notice tone="positive" icon={<CheckCircle />} title="Booking cancelled">{cancelNotice}</Notice><button type="button" aria-label="Dismiss" onClick={() => setCancelNotice(null)}><X /></button></div> : null}<StayOverviewHome staySearch={stayDraft.search} resumeBooking={resumeBooking} onSearchStay={startStaySearch} session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={openPick} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />{primaryBooking && preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}</>;
 
       case 'partner-hotels':
       case 'partner-hotel-detail':
@@ -3898,6 +3920,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'hotel-service':
         return <ServiceDetail kind="hotel" booking={contextBooking} online={online} onBook={() => openServiceBooking('dining')} onChat={() => go('chat')} />;
+
+      case 'service-detail':
+        return (
+          <ServicePage
+            service={selectedService}
+            booking={contextBooking}
+            provider={providerFor(selectedService)}
+            highlights={serviceHighlights?.serviceId === selectedService.id ? serviceHighlights.lines : []}
+            online={online}
+            onBook={() => openServiceBooking(selectedService.id)}
+            onChat={() => go('chat')}
+          />
+        );
 
       case 'vendor-service':
         return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => openServiceBooking('spa')} onChat={() => go('chat')} />;

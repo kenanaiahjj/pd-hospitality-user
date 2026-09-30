@@ -1705,11 +1705,20 @@ describe('home mini-apps and browsable restaurant menu', () => {
     expect(within(rail).queryByRole('button', { name: /Hilom signature massage/ })).toBeNull();
     expect(within(rail).queryByRole('button', { name: /Stay a little longer|A car to the airport/ })).toBeNull();
 
-    // A service opens its own booking, not its category's listing.
+    // A service opens its own page first -- not its category's listing, and not the booking form.
     const service = picks.map((pick) => SERVICES.find((entry) => entry.id !== 'spa' && entry.categoryId !== 'dining' && pick.textContent?.includes(entry.name))).find(Boolean)!;
     expect(service).toBeDefined();
-    await user.click(within(rail).getByRole('button', { name: new RegExp(service.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }));
-    expect(screen.getByText(new RegExp(`Live availability is shown for ${service.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))).toBeInTheDocument();
+    const escaped = service.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await user.click(within(rail).getByRole('button', { name: new RegExp(escaped) }));
+    const page = screen.getByTestId('service-page');
+    expect(within(page).getByRole('heading', { name: service.name, level: 1 })).toBeInTheDocument();
+    expect(within(page).getByText('Price')).toBeInTheDocument();
+    expect(within(page).getByText('Cancellation')).toBeInTheDocument();
+    expect(screen.queryByText(/Live availability is shown for/)).toBeNull();
+
+    // Book is the way on, into the same form as everywhere else.
+    await user.click(within(page).getByRole('button', { name: /Choose a time|^Book$/ }));
+    expect(screen.getByText(new RegExp(`Live availability is shown for ${escaped}`))).toBeInTheDocument();
   });
 
   it('does not repeat the bookings hub inside a service category listing', async () => {

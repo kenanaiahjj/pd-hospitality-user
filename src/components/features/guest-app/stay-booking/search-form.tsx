@@ -375,12 +375,12 @@ export function GuestsPanel({ adults, childAges, onChange, showErrors }: { adult
                 aria-invalid={showErrors && age === NO_AGE ? true : undefined}
                 onChange={(event) => onChange(adults, childAges.map((current, i) => (i === index ? Number(event.currentTarget.value) : current)))}
               >
-                <option value={NO_AGE} disabled>Choose age</option>
+                <option value={NO_AGE} disabled>Select</option>
                 {Array.from({ length: 18 }, (_, value) => <option key={value} value={value}>{childAgeLabel(value)}</option>)}
               </select>
             </label>
           ))}
-          <p className="sb-guests__note">Children under 6 stay free in existing beds. From 12, a child counts as an adult for room limits.</p>
+          <p className="sb-guests__note">Age at check-in. Under 6 stay free.</p>
         </div>
       ) : null}
     </div>

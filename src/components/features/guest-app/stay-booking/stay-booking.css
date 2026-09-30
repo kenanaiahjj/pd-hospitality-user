@@ -894,3 +894,11 @@
   .guest-app .sb-calendar__end b { font-size: 14.5px; }
   .guest-app .sb-calendar__ends { gap: 6px; }
 }
+
+/* Two ages side by side on a phone: room for "Select" and "10 years" without clipping. */
+.guest-app .sb-guests__age select { min-height: 46px; padding: 0 32px 0 12px; background-position: right 12px center; font-size: 15px; text-overflow: ellipsis; }
+@media (max-height: 720px) {
+  .guest-app .sb-sheet__card { gap: 12px; padding: 18px 16px 16px; }
+  .guest-app .sb-sheet__card h3 { font-size: 25px; }
+  .guest-app .sb-sheet__card .sb-counter { padding: 10px 2px; }
+}

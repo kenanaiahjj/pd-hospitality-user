@@ -122,7 +122,6 @@ import {
   getCancellationState,
   hoursUntilService,
   parseClockTime,
-  SERVICE_TIMES,
   SERVICE_SCHEDULES,
   countNightsBetween,
   GUEST_PROFILE,
@@ -254,6 +253,7 @@ import { GATEWAY_METHOD_LABELS, GatewayCheckout, type GatewayMethod } from './ga
 import { HotelEssentialsRow } from './hotel-essentials';
 import { PaymentDetailScreen, PaymentsScreen } from './payments';
 import { ServicePage } from './service-page';
+import { TABLE_VENUE_SERVICE_IDS, isReservation, listingFor } from './vendor-listings';
 import { paymentsSummary, recordPayment, refundBooking, refundServiceLine, refundStayAmount } from './payments-model';
 import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
 import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
@@ -1224,11 +1224,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const serviceIsRental = selectedService.categoryId === 'rentals';
   const rentalUnit = rentalUnitFor(selectedService.id);
   const serviceUnitPrice = parsePesoAmount(selectedService.price);
-  const servicePrice = serviceUnitPrice * (serviceIsRental ? rentalQuantity : 1);
+  /* A table is free to hold: the meal is ordered and paid for at the venue. */
+  const reservation = isReservation(selectedService.id);
+  const servicePrice = reservation ? 0 : serviceUnitPrice * (serviceIsRental ? rentalQuantity : 1);
   /* What the booking costs once staged points come off it. */
   const serviceCharge = formatPesoAmount(Math.max(0, servicePrice - pesosOff(appliedPoints)));
   /* Room, card or nothing -- decided by the gate, never by the form. */
-  const servicePayment = describeServicePayment(selectedService.price);
+  const servicePayment = reservation ? 'complimentary' : describeServicePayment(selectedService.price);
   /* Before arrival everything is arranged into one cart and paid once; in the stay each booking stands alone. */
   const preArrival = !hasStayStarted(contextBooking);
   const cartLines = cartFor(session, contextBooking.id);
@@ -1564,7 +1566,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const openServiceBooking = (serviceId: string = selectedServiceId) => {
     setSelectedServiceId(serviceId);
     setServiceDate(null);
-    setServiceTime('1:30 PM');
+    // A slot the vendor actually offers: a rooftop has no 1:30 PM.
+    const offered = listingFor(serviceId).times;
+    setServiceTime(offered.includes('1:30 PM') ? '1:30 PM' : offered[0] ?? '1:30 PM');
     // The party the booking is for, not one: a couples massage for 1 was the default.
     setServicePartySize(Math.max(1, contextBooking.guestCount));
     setRentalQuantity(1);
@@ -1597,7 +1601,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setSelectedServiceId('spa');
       go('vendor-service');
     } else {
-      openServiceBooking(service.id);
+      // Every vendor has a page before its booking form, whichever list the guest came from.
+      setSelectedServiceId(service.id);
+      setServiceHighlights(null);
+      go('service-detail');
     }
   };
 
@@ -1693,7 +1700,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       return;
     }
     // The room by default; a third-party vendor may be paid now through the gateway. Free ones cost nothing.
-    const payment: 'room' | 'paid' | 'complimentary' = describeServicePayment(selectedService.price) === 'complimentary'
+    const payment: 'room' | 'paid' | 'complimentary' = servicePayment === 'complimentary'
       ? 'complimentary'
       : paidWith && acceptsPayNow(selectedService) ? 'paid' : 'room';
 
@@ -1728,7 +1735,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       // A day rental is a window with a return, not a moment.
       ...(selectedService.categoryId === 'rentals'
         ? { summary: `${slotTime} · return by 8:00 PM · ${rentalQuantity} ${rentalQuantity === 1 ? rentalUnitFor(selectedService.id).singular : rentalUnitFor(selectedService.id).plural}` }
-        : {}),
+        : reservation
+          ? { summary: `${slotTime} · Table for ${servicePartySize} · order at the venue` }
+          : {}),
       ...(selectedService.categoryId === 'rentals'
         ? { rentalQuantity }
         : { partySize: servicePartySize }),
@@ -3620,19 +3629,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     key={service.id}
                     className="guest-catalog-option-card"
                     type="button"
-                    onClick={() => {
-                      /*
-                        The Hilom massage is the one service with a detail
-                        page of its own; everything else books itself. The
-                        body scrub used to open the massage's page too.
-                      */
-                      if (service.id === 'spa') {
-                        setSelectedServiceId('spa');
-                        go('vendor-service');
-                      } else {
-                        openServiceBooking(service.id);
-                      }
-                    }}
+                    onClick={() => openExploreItem(service.id)}
                   >
                     <div className="guest-catalog-option-card__media">
                       <ServiceImage imageKey={getServiceImageKey(service)} itemId={service.id} categoryId={service.categoryId} variant="card" tone={service.tone} icon={service.categoryId === 'spa' ? <Sparkle /> : service.categoryId === 'entertainment' ? <Compass /> : service.categoryId === 'rentals' ? <Moped /> : <Storefront />} decorative />
@@ -3702,7 +3699,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} onBack={() => go('category-listing')} onNotifications={() => go('notifications')} />;
+        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} onReserve={TABLE_VENUE_SERVICE_IDS[venue.id] ? () => openServiceBooking(TABLE_VENUE_SERVICE_IDS[venue.id]!) : undefined} onBack={() => go('category-listing')} onNotifications={() => go('notifications')} />;
       }
 
       case 'restaurant-cart': {
@@ -3956,13 +3953,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ? 'Not on during your stay'
           : preArrival
           ? servicePayment === 'complimentary' ? 'Add to cart' : `Add to cart · ${formatPesoAmount(servicePrice)}`
+          : reservation
+          ? 'Reserve a table'
           : servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
           : payingNow ? `Continue to pay ${serviceCharge}`
           : chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`;
         const roomLine = contextBooking.roomNumber ? `Charge to Room ${contextBooking.roomNumber}` : 'Charge to your room';
         return (
-          <FormScreen step={preArrival ? 'Add to your cart' : chargeToRoom ? 'Confirm booking' : 'Review and pay'} title="Choose a time" text={`Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
+          <FormScreen step={preArrival ? 'Add to your cart' : chargeToRoom ? 'Confirm booking' : 'Review and pay'} title={reservation ? 'Reserve a table' : 'Choose a time'} text={reservation ? `Tables at ${selectedService.name}, ${contextBooking.property}. The times shown are the ones the venue has open.` : `Live availability is shown for ${selectedService.name} at ${contextBooking.property}.`}>
             <div className="guest-field-stack">
               <ExpandableField
                 label="Date"
@@ -3987,14 +3986,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   open={openServiceField === 'time'}
                   onToggle={() => setOpenServiceField((field) => field === 'time' ? null : 'time')}
                 >
-                  <TimeWheel times={SERVICE_TIMES} value={serviceTime} onChange={setServiceTime} />
+                  <TimeWheel times={listingFor(selectedService.id).times} value={serviceTime} onChange={setServiceTime} />
                 </ExpandableField>
               )}
               {serviceIsRental ? <SummaryRow label="Return" value="By 8:00 PM the same day" /> : null}
               {serviceIsRental ? (
                 <StepperField label={`${rentalUnit.plural.replace(/^./, (letter) => letter.toUpperCase())} to rent`} unit={rentalUnit.singular} value={rentalQuantity} min={1} max={8} onChange={setRentalQuantity} />
               ) : asksPartySize ? (
-                <StepperField label="Guests" unit="guest" value={servicePartySize} min={1} max={Math.max(2, contextBooking.guestCount)} onChange={setServicePartySize} />
+                <StepperField label="Guests" unit="guest" value={servicePartySize} min={1} max={listingFor(selectedService.id).maxParty ?? Math.max(2, contextBooking.guestCount)} onChange={setServicePartySize} />
               ) : null}
             </div>
             <div className="guest-summary">
@@ -4002,8 +4001,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SummaryRow label="Service" value={selectedService.name} />
               {serviceIsRental ? <SummaryRow label="Rate" value={rentalRateLabel} /> : null}
               <SummaryRow label="Provider" value={provider} />
-              <SummaryRow label="Total" value={servicePayment === 'complimentary' ? 'Complimentary' : serviceCharge} strong />
+              <SummaryRow label={reservation ? 'Cost' : 'Total'} value={reservation ? 'Free to reserve' : servicePayment === 'complimentary' ? 'Complimentary' : serviceCharge} strong />
             </div>
+            {reservation ? (
+              <Notice title="Nothing to pay now">
+                Order at the table, then charge the meal to your room or pay the venue when you are there.
+              </Notice>
+            ) : null}
             {'requires' in selectedService && selectedService.requires ? (
               <Notice icon={<IdentificationCard />} title={selectedService.requires}>
                 Bring it with you. The desk checks it when you collect the keys; nothing is uploaded here.
@@ -4064,8 +4068,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <ScreenIntro
             icon={<Check size={30} />}
-            title={`${booked?.title ?? bookedService.name} is booked`}
-            text={paidBy === 'card'
+            title={isReservation(bookedService.id) ? `Table reserved at ${booked?.title ?? bookedService.name}` : `${booked?.title ?? bookedService.name} is booked`}
+            text={isReservation(bookedService.id)
+              ? 'Nothing to pay to reserve. Order and pay at the venue; the reservation is on your stay in My Stay.'
+              : paidBy === 'card'
               ? `Paid with ${methodLabel}, direct to ${merchantFrom(booked?.provider ?? '')}. It is not on your room bill; your receipt is in My Stay.`
               : paidBy === 'complimentary'
                 ? 'Complimentary, so there is nothing to pay. It is on your stay in My Stay.'
@@ -4074,7 +4080,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-ticket"><div><small>{withoutTime(slot)}</small><h2>{time}</h2><p>{booked?.title ?? bookedService.name} · {bookingCount}</p></div><Tag>Confirmed</Tag></div>
             <div className="guest-summary">
               <SummaryRow label="Provider" value={booked?.provider ?? providerFor(bookedService)} />
-              <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? 'Complimentary' : 'Charged to room'} />
+              <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? (isReservation(bookedService.id) ? 'No charge to reserve' : 'Complimentary') : 'Charged to room'} />
             </div>
             <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />
             <Notice title="Cancellation cutoff">{booked ? describeCancellationWindow(cutoffFor(booked), booked, PROTOTYPE_TODAY, clockHour) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>

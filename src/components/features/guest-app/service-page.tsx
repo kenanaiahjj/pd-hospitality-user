@@ -2,7 +2,8 @@
 
 import { Notice, ServiceImage, SummaryRow, TextButton } from './guest-ui';
 import type { Booking } from './prototype-model';
-import { SERVICES, SERVICE_SCHEDULES, SERVICE_TIMES, acceptsPayNow, canUseOnPropertyServices } from './prototype-model';
+import { SERVICES, SERVICE_SCHEDULES, acceptsPayNow, canUseOnPropertyServices } from './prototype-model';
+import { listingFor } from './vendor-listings';
 import { ArrowRight, Sparkle, WifiSlash } from '@phosphor-icons/react';
 
 /*
@@ -47,7 +48,7 @@ export function ServicePage({ service, booking, provider, highlights, online, on
       <div className="guest-summary">
         <SummaryRow label="Price" value={service.price} strong />
         <SummaryRow label="Provider" value={provider} />
-        <SummaryRow label="When" value={schedule ? schedule.label : `Daily · ${SERVICE_TIMES.join(', ')}`} />
+        <SummaryRow label="When" value={schedule ? schedule.label : `Daily · ${listingFor(service.id).times.join(', ')}`} />
         <SummaryRow label="Cancellation" value={service.cutoff} />
         {requires ? <SummaryRow label="Bring" value={requires} /> : null}
       </div>

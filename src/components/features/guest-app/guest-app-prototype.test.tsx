@@ -2262,6 +2262,8 @@ describe('booking the service the guest picked', () => {
 
     await openCategory(user, 'Spa & Wellness');
     await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    // The vendor's page first, then its booking form.
+    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
 
     expect(screen.getByText(/Live availability is shown for Hot stone therapy/)).toBeInTheDocument();
     expect(screen.queryByText(/Hilom signature massage/)).toBeNull();
@@ -2282,6 +2284,7 @@ describe('booking the service the guest picked', () => {
 
     await openCategory(user, 'Spa & Wellness');
     await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
     await user.click(screen.getByRole('button', { name: /Pay now/ }));
     await user.click(screen.getByRole('button', { name: 'Continue to pay ₱3,200' }));
 
@@ -3575,7 +3578,7 @@ describe('orders and requests that go through the front desk', () => {
 
     await openCategory(user, 'Food & Drinks');
     await user.click(screen.getAllByRole('button', { name: /Apartment 1B/ })[0]!);
-    await user.click(screen.getByRole('button', { name: /Order from Apartment 1B/ }));
+    await user.click(screen.getByRole('button', { name: /Ask the front desk about the menu/ }));
     await act(async () => { vi.advanceTimersByTime(1000); });
     // Entered from a menu, it is still the ordinary chat: quick actions and all.
     expect(screen.getByRole('button', { name: /Towels/ })).toBeInTheDocument();

@@ -7,6 +7,8 @@ import type { CartLine, HeldRooms, RatePlanId, RoomFilter, RoomOffer, StayHotel,
 import { AMENITY_LABELS, RATE_PLAN_LABELS, ROOM_FILTER_LABELS, cartFit, cartRooms, describeRooms, isHotelFull, peso, quoteStay, roomMatches, roomOffers, suggestRooms, validSearchDates } from './model';
 import { compactRange, nightsLabel, roomsLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
+import { OffersStrip } from './offers';
+import { countNightsBetween } from '../prototype-model';
 import { HighlightStrip, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
 
 /*
@@ -122,6 +124,8 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           />
         ) : null}
       </section>
+
+      <OffersStrip hotel={hotel} nights={countNightsBetween(search.checkIn, search.checkOut)} title="Offers for this stay" />
 
       <section className="sb-section" aria-labelledby="sb-rooms-title">
         <div className="sb-section__head">

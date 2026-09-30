@@ -4,8 +4,10 @@ import Image from 'next/image';
 import { ArrowRight, Check, CheckCircle, CreditCard, LockSimple, Tag as TagIcon, WifiSlash, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
+import { countNightsBetween } from '../prototype-model';
+import { readPendingVoucher, savePendingVoucher } from './offers';
 import type { CartLine, RoomAllocation, StayGuestDetails, StayHotel, StaySearch } from './model';
-import { FREE_CANCELLATION_DAYS, PROMO_CODES, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay } from './model';
+import { FREE_CANCELLATION_DAYS, RATE_PLAN_LABELS, offersFor, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay } from './model';
 import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
@@ -194,7 +196,25 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   const [tried, setTried] = useState(false);
   const [promoDraft, setPromoDraft] = useState(details.promoCode);
   const [promoTried, setPromoTried] = useState(Boolean(details.promoCode));
-  const [promoOpen, setPromoOpen] = useState(false);
+  const offers = offersFor(hotel, countNightsBetween(search.checkIn, search.checkOut));
+  /*
+    An offer saved on results or the hotel page arrives applied. From a
+    timer, as the rest of the app sets state from effects, and only when the
+    guest has no code of their own yet.
+  */
+  useEffect(() => {
+    const pending = readPendingVoucher();
+    if (details.promoCode || !pending || !offers.some((offer) => offer.code === pending)) return;
+    const timer = window.setTimeout(() => {
+      onDetailsChange({ ...details, promoCode: pending });
+      setPromoDraft(pending);
+      setPromoTried(true);
+      savePendingVoucher(null);
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // On arrival only: after that the field belongs to the guest.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
   const rooms = cartRooms(hotel, cart);
@@ -237,35 +257,35 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
         {tried && !method ? <p className="sb-error" role="alert">Choose how you’d like to pay.</p> : null}
       </fieldset>
 
-      <section className="sb-section sb-promo-section" aria-label="Promo code">
+      <section className="sb-section sb-promo-section" aria-labelledby="sb-voucher-title">
+        <h2 id="sb-voucher-title">Voucher</h2>
         {quote.promo ? (
           <p className="sb-promo-applied"><TagIcon aria-hidden="true" /><span><b>{quote.promo.code}</b><small>{quote.promo.label} · −{peso(quote.discount)}</small></span>
-            <button type="button" aria-label="Remove promo code" onClick={() => { set({ promoCode: '' }); setPromoDraft(''); setPromoTried(false); }}><X /></button>
+            <button type="button" aria-label="Remove voucher" onClick={() => { set({ promoCode: '' }); setPromoDraft(''); setPromoTried(false); }}><X /></button>
           </p>
-        ) : !promoOpen ? (
-          <>
-            {/* The codes on offer, said where they are used: nobody should need to know one to get it. */}
-            <div className="sb-offers" role="group" aria-label="Offers">
-              {Object.entries(PROMO_CODES).map(([code, promo]) => (
-                <button key={code} type="button" className="sb-offer" onClick={() => { set({ promoCode: code }); setPromoDraft(code); setPromoTried(true); }}>
-                  <TagIcon aria-hidden="true" /><span><b>{promo.label}</b><small>Use {code}</small></span>
-                </button>
-              ))}
-            </div>
-            <button type="button" className="sb-promo-toggle" onClick={() => setPromoOpen(true)}>Have another code?</button>
-          </>
         ) : (
-          <div className="sb-promo">
-            <label className={`sb-field${promoTried && quote.promoError ? ' is-invalid' : ''}`}>
-              <span className="sr-only">Promo code</span>
-              <input value={promoDraft} placeholder="Enter a code" autoCapitalize="characters" onChange={(event) => { setPromoDraft(event.currentTarget.value); setPromoTried(false); }} />
-            </label>
-            <button type="button" className="guest-button guest-button--secondary" disabled={!promoDraft.trim()} onClick={() => { set({ promoCode: promoDraft }); setPromoTried(true); }}>Apply</button>
-            {promoTried && quote.promoError ? <small className="sb-field-error" role="alert">{quote.promoError}</small> : null}
-          </div>
+          <>
+            {/* Always open: a guest holding a code should never hunt for where it goes. */}
+            <div className="sb-promo">
+              <label className={`sb-field${promoTried && quote.promoError ? ' is-invalid' : ''}`}>
+                <span className="sr-only">Voucher code</span>
+                <input value={promoDraft} placeholder="Voucher code" autoCapitalize="characters" autoComplete="off" onChange={(event) => { setPromoDraft(event.currentTarget.value); setPromoTried(false); }} onKeyDown={(event) => { if (event.key === 'Enter' && promoDraft.trim()) { set({ promoCode: promoDraft }); setPromoTried(true); } }} />
+              </label>
+              <button type="button" className="guest-button guest-button--secondary" disabled={!promoDraft.trim()} onClick={() => { set({ promoCode: promoDraft }); setPromoTried(true); }}>Apply</button>
+              {promoTried && quote.promoError ? <small className="sb-field-error" role="alert">{quote.promoError}</small> : null}
+            </div>
+            {offers.length ? (
+              <div className="sb-offers" role="group" aria-label="Offers for this stay">
+                {offers.map(({ code, promo }) => (
+                  <button key={code} type="button" className="sb-offer" onClick={() => { set({ promoCode: code }); setPromoDraft(code); setPromoTried(true); }}>
+                    <TagIcon aria-hidden="true" /><span><b>{promo.label}</b><small>Use {code}</small></span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </>
         )}
       </section>
-
 
       <section className="sb-section sb-price-card" aria-labelledby="sb-price">
         <h2 id="sb-price">Price</h2>

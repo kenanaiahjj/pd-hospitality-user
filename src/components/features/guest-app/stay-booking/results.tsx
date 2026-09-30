@@ -8,6 +8,8 @@ import type { Amenity, HeldRooms, HotelResult, PriceBand, StayFilters, StaySearc
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';
 import { nightsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet } from './search-form';
+import { OffersStrip } from './offers';
+import { countNightsBetween } from '../prototype-model';
 import { HotelHighlights } from './neighbourhood-section';
 import { bestSight, travelLabel } from './neighbourhood';
 
@@ -70,6 +72,8 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
           </button>
         ))}
       </div>
+
+      <OffersStrip nights={countNightsBetween(search.checkIn, search.checkOut)} />
 
       {sort === 'recommended' ? <p className="sb-small sb-results__disclosure">Recommended shows The Henry’s own hotels first, then partners by guest rating.</p> : null}
 

@@ -672,10 +672,34 @@ export function validateAllocation(hotel: StayHotel, search: StaySearch, cart: C
 
 /* ---------- quote ---------- */
 
-export const PROMO_CODES: Record<string, { label: string; apply: (subtotal: number) => number }> = {
-  CABANA10: { label: '10% off rooms', apply: (subtotal) => Math.round(subtotal * 0.1) },
-  WELCOME500: { label: '₱500 off', apply: (subtotal) => Math.min(500, subtotal) },
+export type Promo = {
+  label: string;
+  /** The offer as a guest reads it on a card. */
+  title: string;
+  terms: string;
+  apply: (subtotal: number) => number;
+  /** Why this stay does not qualify, or undefined when it does. */
+  rejects?: (hotel: StayHotel, nights: number) => string | undefined;
 };
+
+export const PROMO_CODES: Record<string, Promo> = {
+  CABANA10: { label: '10% off rooms', title: '10% off any partner hotel', terms: 'Room rates only. Any dates.', apply: (subtotal) => Math.round(subtotal * 0.1) },
+  WELCOME500: { label: '₱500 off', title: '₱500 off your first booking', terms: 'One use per account.', apply: (subtotal) => Math.min(500, subtotal) },
+  HENRY15: {
+    label: '15% off rooms',
+    title: '15% off 3+ nights at The Henry',
+    terms: 'The Henry Manila, Cebu and Dumaguete. Stays of 3 nights or more.',
+    apply: (subtotal) => Math.round(subtotal * 0.15),
+    rejects: (hotel, nights) => (!hotel.henry ? 'HENRY15 is for The Henry’s own hotels.' : nights < 3 ? 'HENRY15 needs a stay of 3 nights or more.' : undefined),
+  },
+};
+
+/** The offers a stay qualifies for, best first -- what checkout suggests without the guest knowing a code. */
+export function offersFor(hotel: StayHotel, nights: number): { code: string; promo: Promo }[] {
+  return Object.entries(PROMO_CODES)
+    .filter(([, promo]) => !promo.rejects?.(hotel, nights))
+    .map(([code, promo]) => ({ code, promo }));
+}
 
 export const normalizePromo = (code: string) => code.trim().toUpperCase();
 
@@ -702,7 +726,9 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
   });
   const subtotal = lines.reduce((sum, line) => sum + line.total, 0);
   const code = normalizePromo(promoCode);
-  const promo = code ? PROMO_CODES[code] : undefined;
+  const known = code ? PROMO_CODES[code] : undefined;
+  const rejection = known?.rejects?.(hotel, nights);
+  const promo = rejection ? undefined : known;
   const discount = promo ? promo.apply(subtotal) : 0;
   const taxable = subtotal - discount;
   const vat = Math.round(taxable * VAT_RATE);
@@ -714,7 +740,7 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
     subtotal,
     discount,
     promo: promo ? { code, label: promo.label } : undefined,
-    promoError: code && !promo ? 'That code isn’t valid.' : undefined,
+    promoError: code && !promo ? (rejection ?? 'That code isn’t valid.') : undefined,
     vat,
     service,
     total: taxable + vat + service,

@@ -81,6 +81,9 @@ const activeSession = sessionFor(
 );
 
 /* Registration needs the document itself, not only a name. */
+/* A guest who has never registered: nothing on record, so nothing to prefill. */
+const firstRegistration: GuestSession = { ...MOCK_SESSION, record: undefined, companionRecords: undefined };
+
 const fillIdentityDocument = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.type(screen.getByLabelText(/Nationality/), 'Filipino');
   await user.type(screen.getByLabelText(/Passport or ID number/), 'P1234567A');
@@ -891,7 +894,7 @@ describe('pre-arrival progress card', () => {
 describe('room assignment through the flow', () => {
   it('learns a room number once pre-registration reaches the property', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="guest-details" initialSession={MOCK_SESSION} />);
+    render(<GuestAppPrototype initialScreen="guest-details" initialSession={firstRegistration} />);
 
     // Before: the stay is pre-registered but unallocated.
     await fillIdentityDocument(user);
@@ -1510,7 +1513,7 @@ describe('my stay', () => {
 describe('pre-arrival onboarding flow', () => {
   it('collects identity and additional guests across 2 steps, then opens home', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="guest-details" initialSession={MOCK_SESSION} />);
+    render(<GuestAppPrototype initialScreen="guest-details" initialSession={firstRegistration} />);
 
     // Step 1 of 2: details and ID on one screen, contact pre-filled from the account.
     expect(screen.getByText('1 of 2')).toBeInTheDocument();
@@ -1592,10 +1595,45 @@ describe('pre-arrival onboarding flow', () => {
 
     expect(screen.getByRole('heading', { name: 'Review, then confirm' })).toBeInTheDocument();
     expect(screen.getByText(/Higher floor · King bed/)).toBeInTheDocument();
-    expect(screen.getByText('Marco Santos')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Confirm everything' }));
+    // The ID on file is shown, partly masked, so the guest can see what is sent.
+    expect(screen.getByText(/Filipino · ID P•+67A · expires 20 MAY 2030/)).toBeInTheDocument();
+    expect(screen.getByText('Marco Santos · ID on file')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Confirm and send to hotel' }));
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
+  });
+
+  it('opens the ID step already filled in for a guest on record, so they only confirm', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="guest-details" initialSession={MOCK_SESSION} />);
+
+    expect(screen.getByRole('heading', { name: 'Confirm your ID' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nationality/)).toHaveValue('Filipino');
+    expect(screen.getByLabelText(/Passport or ID number/)).toHaveValue('P1234567A');
+    expect(screen.getByLabelText(/Expiry date/)).toHaveValue('2030-05-20');
+    // No scanning to do unless the document changed.
+    expect(screen.queryByRole('group', { name: 'Passport photo options' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Confirm and continue' }));
+
+    // The party from before is already on the list; the rest of them are one tap.
+    expect(screen.getByRole('heading', { name: 'Who else is staying?' })).toBeInTheDocument();
+    const party = screen.getByRole('region', { name: 'Guests on this booking' });
+    expect(within(party).getByText('Marco Santos')).toBeInTheDocument();
+    expect(within(party).getByText(/Additional guest · ID on file/)).toBeInTheDocument();
+    expect(within(party).queryByText('Elena Santos')).toBeNull();
+    const before = screen.getByRole('region', { name: 'Travelled with you before' });
+    await user.click(within(before).getByRole('button', { name: 'Add Elena Santos' }));
+    expect(within(party).getByText('Elena Santos')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Travelled with you before' })).toBeNull();
+  });
+
+  it('offers one-tap confirmation from the home to a guest on record, and the form to a first-timer', () => {
+    const { unmount } = render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('pre-arrival')} />);
+    expect(screen.getByRole('button', { name: /Review and confirm/ })).toBeInTheDocument();
+    unmount();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={{ ...applyPrototypeStayState('pre-arrival'), record: undefined }} />);
+    expect(screen.getByRole('button', { name: /Complete pre-arrival/ })).toBeInTheDocument();
   });
 });
 

@@ -2,10 +2,10 @@
 
 import { ExpandableField } from './field-controls';
 import { Field, FormScreen, Notice, TextButton } from './guest-ui';
-import type { RoomPreferences } from './prototype-model';
-import { ROOM_PREFERENCE_OPTIONS } from './prototype-model';
+import type { GuestRecord, RoomPreferences, SavedCompanion } from './prototype-model';
+import { ROOM_PREFERENCE_OPTIONS, isCompleteCompanion } from './prototype-model';
 import { Button } from '@/components/ui';
-import { ArrowRight, Camera, Check, CheckCircle, Plus, UploadSimple, X } from '@phosphor-icons/react';
+import { ArrowRight, Camera, Check, CheckCircle, PencilSimple, Plus, UploadSimple, X } from '@phosphor-icons/react';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -243,8 +243,11 @@ export type AdditionalGuestsScreenProps = {
   bookedGuests?: number;
   primaryGuestName: string;
   primaryGuestEmail?: string;
-  initialGuests: string[];
-  onSave: (validGuests: string[]) => void;
+  /** Who is already on the list: people named for this stay, and anyone on record who fits the booking. */
+  initialCompanions: SavedCompanion[];
+  /** People on record who did not fit, offered with one tap each. */
+  suggestions?: SavedCompanion[];
+  onSave: (companions: Companion[]) => void;
 };
 
 /** "Ana Santos" -> "AS"; one name gives one letter. */
@@ -252,24 +255,41 @@ export function initialsOf(name: string) {
   return name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]!.toUpperCase()).join('') || '?';
 }
 
-/** Step 1 of 2: who the guest is, led by the passport scan that fills most of it. */
-export function IdentityStep({ guestName, email, passportFields, onPassportFieldsChange, onContinue }: {
+/**
+ * Step 1 of 2: who the guest is, led by the passport scan that fills most of it.
+ * With an ID on file the same screen opens filled in and asks only for a
+ * check: the scan moves behind "Scan a new passport", for when it changed.
+ */
+export function IdentityStep({ guestName, email, record, passportFields, onPassportFieldsChange, onContinue }: {
   guestName: string;
   email: string;
+  /** What the hotel already has from a previous registration. */
+  record?: GuestRecord;
   passportFields: PassportFields;
   onPassportFieldsChange: (fields: PassportFields) => void;
-  onContinue: (identity: { name: string; email: string }) => void;
+  onContinue: (identity: { name: string; email: string; mobile: string; nationality: string; passport: PassportFields }) => void;
 }) {
-  const [contact, setContact] = useState({ email, mobile: '' });
+  const [contact, setContact] = useState({ email, mobile: record?.mobile ?? '' });
   const [contactOpen, setContactOpen] = useState(false);
-  const [person, setPerson] = useState({ name: guestName, nationality: '' });
+  const [person, setPerson] = useState({ name: guestName, nationality: record?.nationality ?? '' });
+  const [rescan, setRescan] = useState(false);
   const readDocument = useCallback((fields: PassportFields) => {
     setPerson((current) => ({ name: fields.fullName ?? current.name, nationality: fields.nationality ?? current.nationality }));
     onPassportFieldsChange(fields);
   }, [onPassportFieldsChange]);
+  const onFile = Boolean(record);
+  const ready = Boolean(person.name.trim() && person.nationality.trim() && passportFields.documentNumber?.trim() && passportFields.expiry);
   return (
-    <FormScreen step="1 of 2" title="You and your ID" text="Scan your passport or ID and we fill in the rest. Sent securely to the property for registration.">
-      <PassportCapturePanel subjectName={person.name} onAutofill={readDocument} />
+    <FormScreen
+      step="1 of 2"
+      title={onFile ? 'Confirm your ID' : 'You and your ID'}
+      text={onFile ? 'We filled in what the hotel has from your last stay. Check it, and change anything that is different. Sent securely to the property for registration.' : 'Scan your passport or ID and we fill in the rest. Sent securely to the property for registration.'}
+    >
+      {onFile && !rescan ? (
+        <TextButton onClick={() => setRescan(true)}>Scan a new passport or ID</TextButton>
+      ) : (
+        <PassportCapturePanel subjectName={person.name} onAutofill={readDocument} />
+      )}
       <Field label="Full name" name="guest-name" value={person.name} onValueChange={(name) => setPerson((current) => ({ ...current, name }))} required />
       <Field label="Nationality" name="nationality" placeholder="e.g. Filipino" value={person.nationality} onValueChange={(nationality) => setPerson((current) => ({ ...current, nationality }))} required />
       <Field label="Passport or ID number" name="document-number" placeholder="As printed on the document" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} required />
@@ -278,7 +298,7 @@ export function IdentityStep({ guestName, email, passportFields, onPassportField
         <Field label="Email" name="guest-email" type="email" value={contact.email} onValueChange={(value) => setContact((current) => ({ ...current, email: value }))} />
         <Field label="Mobile" name="guest-mobile" type="tel" value={contact.mobile} onValueChange={(mobile) => setContact((current) => ({ ...current, mobile }))} />
       </ExpandableField>
-      <Button className="guest-button guest-button--primary" type="button" disabled={!person.name.trim() || !person.nationality.trim() || !passportFields.documentNumber?.trim() || !passportFields.expiry} onClick={() => onContinue({ name: person.name.trim(), email: contact.email.trim() })}>{person.name.trim() && person.nationality.trim() && passportFields.documentNumber?.trim() && passportFields.expiry ? 'Continue' : 'Scan or fill in your ID to continue'}<ArrowRight aria-hidden="true" /></Button>
+      <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => onContinue({ name: person.name.trim(), email: contact.email.trim(), mobile: contact.mobile.trim(), nationality: person.nationality.trim(), passport: passportFields })}>{ready ? (onFile ? 'Confirm and continue' : 'Continue') : 'Scan or fill in your ID to continue'}<ArrowRight aria-hidden="true" /></Button>
     </FormScreen>
   );
 }
@@ -287,16 +307,15 @@ export function AdditionalGuestsScreen({
   bookedGuests,
   primaryGuestName,
   primaryGuestEmail = '',
-  initialGuests,
+  initialCompanions,
+  suggestions = [],
   onSave,
 }: AdditionalGuestsScreenProps) {
   const [mode, setMode] = useState<'list' | 'details'>('list');
-  const [companions, setCompanions] = useState<Companion[]>(() =>
-    initialGuests.map((name) => ({
-      name,
-      nationality: '',
-    })),
-  );
+  const [companions, setCompanions] = useState<Companion[]>(() => initialCompanions.map((person) => ({ ...person, nationality: person.nationality ?? '' })));
+  /** Which row the details form is changing; null means it is adding one. */
+  const [editing, setEditing] = useState<number | null>(null);
+  const offered = suggestions.filter((person) => !companions.some((added) => added.name.trim().toLowerCase() === person.name.trim().toLowerCase()));
   const [draft, setDraft] = useState<Companion>({
     name: '',
     nationality: '',
@@ -337,17 +356,16 @@ export function AdditionalGuestsScreen({
             e.preventDefault();
             const name = draft.name.trim();
             if (!name) return;
-            setCompanions((prev) => [
-              ...prev,
-              {
-                name,
-                nationality: draft.nationality?.trim() || '',
-                email: draft.email?.trim(),
-                mobile: draft.mobile?.trim(),
-                documentNumber: draft.documentNumber?.trim(),
-                expiry: draft.expiry,
-              },
-            ]);
+            const saved: Companion = {
+              name,
+              nationality: draft.nationality?.trim() || '',
+              email: draft.email?.trim(),
+              mobile: draft.mobile?.trim(),
+              documentNumber: draft.documentNumber?.trim(),
+              expiry: draft.expiry,
+            };
+            setCompanions((prev) => (editing === null ? [...prev, saved] : prev.map((person, i) => (i === editing ? saved : person))));
+            setEditing(null);
             setMode('list');
           }}
         >
@@ -402,9 +420,9 @@ export function AdditionalGuestsScreen({
             onValueChange={(mobile) => setDraft((current) => ({ ...current, mobile }))}
           />
           <Button className="guest-button guest-button--primary" type="submit" disabled={!draft.name.trim() || !draft.nationality?.trim() || !draft.documentNumber?.trim() || !draft.expiry}>
-            {draft.name.trim() && draft.nationality?.trim() && draft.documentNumber?.trim() && draft.expiry ? 'Save guest' : 'Scan or fill in their ID to save'}<ArrowRight aria-hidden="true" />
+            {draft.name.trim() && draft.nationality?.trim() && draft.documentNumber?.trim() && draft.expiry ? (editing === null ? 'Save guest' : 'Save changes') : 'Scan or fill in their ID to save'}<ArrowRight aria-hidden="true" />
           </Button>
-          <TextButton onClick={() => setMode('list')}>Cancel</TextButton>
+          <TextButton onClick={() => { setEditing(null); setMode('list'); }}>Cancel</TextButton>
         </form>
       </FormScreen>
     );
@@ -441,8 +459,16 @@ export function AdditionalGuestsScreen({
               <span className="guest-manifest__monogram" aria-hidden="true">{initialsOf(companion.name)}</span>
               <span className="guest-manifest__who">
                 <b>{companion.name}</b>
-                <small>Additional guest</small>
+                <small>{isCompleteCompanion(companion) ? 'Additional guest · ID on file' : 'Additional guest · ID needed'}</small>
               </span>
+              <button
+                type="button"
+                className="guest-companion-remove guest-manifest__remove"
+                aria-label={`Edit ${companion.name}`}
+                onClick={() => { setDraft({ email: '', mobile: '', documentNumber: '', expiry: '', ...companion }); setEditing(idx); setMode('details'); }}
+              >
+                <PencilSimple aria-hidden="true" />
+              </button>
               <button
                 type="button"
                 className="guest-companion-remove guest-manifest__remove"
@@ -458,6 +484,7 @@ export function AdditionalGuestsScreen({
               type="button"
               className="guest-manifest__add"
               onClick={() => {
+                setEditing(null);
                 setDraft({
                   name: '',
                   nationality: '',
@@ -476,13 +503,23 @@ export function AdditionalGuestsScreen({
         </ul>
       </section>
 
+      {offered.length ? (
+        <section className="guest-companion-suggestions" aria-label="Travelled with you before">
+          <h2>Travelled with you before</h2>
+          <div className="guest-preference-chips">
+            {offered.map((person) => (
+              <button key={person.name} type="button" className="guest-preference-chip" aria-label={`Add ${person.name}`} onClick={() => setCompanions((prev) => [...prev, { ...person, nationality: person.nationality ?? '' }])}>
+                <Plus aria-hidden="true" />{person.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <Button
         className="guest-button guest-button--primary"
         type="button"
-        onClick={() => {
-          const validGuests = companions.map((c) => c.name.trim()).filter(Boolean);
-          onSave(validGuests);
-        }}
+        onClick={() => onSave(companions.filter((person) => person.name.trim()))}
       >
         {companions.length === 0 ? 'Just me — finish' : 'Finish'}<ArrowRight aria-hidden="true" />
       </Button>

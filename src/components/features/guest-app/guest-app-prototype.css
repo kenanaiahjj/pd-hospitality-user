@@ -9024,3 +9024,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 /* A destructive row among the booking's options: said in red, not shouted with a filled button. */
 .guest-list-row--danger b { color: var(--guest-danger); }
 .guest-list-row--danger > span:first-child { color: var(--guest-danger); }
+
+/* Pre-arrival: people already on record, offered again with one tap. */
+.guest-companion-suggestions { display: grid; gap: 10px; }
+.guest-companion-suggestions h2 { margin: 0; color: var(--guest-muted); font-size: 12px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; }
+.guest-manifest__row:not(.is-lead):not(.guest-manifest__row--add) { grid-template-columns: 40px minmax(0, 1fr) auto auto; gap: 14px 8px; }

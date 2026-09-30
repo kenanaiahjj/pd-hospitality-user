@@ -197,8 +197,8 @@ export function StayMiniCard({ booking, status }: { booking: Booking; status: st
   return <div className="guest-mini-stay"><span><House /></span><div><b>{booking.property}</b><small>{status}</small></div><CheckCircle /></div>;
 }
 
-export function ReviewBlock({ icon, title, lines }: { icon: ReactNode; title: string; lines: string[] }) {
-  return <div className="guest-review-block"><span>{icon}</span><div><b>{title}</b>{lines.map((line) => <small key={line}>{line}</small>)}</div><button aria-label={`Edit ${title}`}><CaretRight /></button></div>;
+export function ReviewBlock({ icon, title, lines, onEdit }: { icon: ReactNode; title: string; lines: string[]; onEdit?: () => void }) {
+  return <div className="guest-review-block"><span>{icon}</span><div><b>{title}</b>{lines.map((line) => <small key={line}>{line}</small>)}</div><button type="button" aria-label={`Edit ${title}`} onClick={onEdit}><CaretRight /></button></div>;
 }
 
 export function SectionHeading({ title, action, onAction, count }: { title: string; action?: string; onAction?: () => void; count?: string }) {

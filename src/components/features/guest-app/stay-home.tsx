@@ -5,7 +5,7 @@ import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
 import { ANYWHERE, HotelResultCard, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, cancellationReminder, locationImage, searchHotels, weekdayDate, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
-import { CHECK_IN_FROM, CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
+import { CHECK_IN_FROM, CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
 import { Button } from '@/components/ui';
 import { CalendarCheck01Icon as HugeCalendarCheckIcon, ChevronRightIcon as HugeChevronRightIcon } from '@hugeicons-pro/core-stroke-rounded';
@@ -313,7 +313,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         onOpen={() => onNavigate('rate-detail')}
       />
       {booking.preArrivalCompleted < booking.preArrivalTotal ? (
-        <PreArrivalChecklist booking={booking} onNavigate={onNavigate} />
+        <PreArrivalChecklist booking={booking} onNavigate={onNavigate} confirmScreen={hasSavedDetails(session) ? 'repeat-review' : undefined} />
       ) : roomAssignment.state !== 'pending' ? (
         booking.roomVerification ? null : (
           <section className="guest-home-booking guest-home-booking--primary guest-room-ready-card" data-testid="guest-room-ready-card">
@@ -957,7 +957,12 @@ export const PRE_ARRIVAL_STEPS: { label: string; screen: ActiveScreen }[] = [
   heading, a percentage, a bar and a sentence that all said "1 of 2", with
   the actual next step in the smallest grey type on the card.
 */
-export function PreArrivalChecklist({ booking, onNavigate }: { booking: Booking; onNavigate: (screen: ActiveScreen) => void }) {
+export function PreArrivalChecklist({ booking, onNavigate, confirmScreen }: {
+  booking: Booking;
+  onNavigate: (screen: ActiveScreen) => void;
+  /** Where one tap confirms everything, for a guest whose ID and party are already on record. */
+  confirmScreen?: ActiveScreen;
+}) {
   const total = Math.max(booking.preArrivalTotal, 1);
   const steps = PRE_ARRIVAL_STEPS.slice(0, total);
   /*
@@ -1012,9 +1017,9 @@ export function PreArrivalChecklist({ booking, onNavigate }: { booking: Booking;
         <Button
           className="guest-button guest-button--primary"
           type="button"
-          onClick={() => onNavigate(nextStep.screen)}
+          onClick={() => onNavigate(confirmScreen ?? nextStep.screen)}
         >
-          Complete pre-arrival <ArrowRight aria-hidden="true" />
+          {confirmScreen ? 'Review and confirm' : 'Complete pre-arrival'} <ArrowRight aria-hidden="true" />
         </Button>
       ) : null}
     </section>

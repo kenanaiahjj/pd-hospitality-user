@@ -148,6 +148,7 @@ import {
   CHECK_OUT_BY,
   summarizeRoomPreferences,
 } from './prototype-model';
+import { hasSavedDetails, isCompleteCompanion, maskDocument, mergeCompanionRecords, planCompanions } from './prototype-model';
 import {
   ANYWHERE,
   DEFAULT_RESULTS_VIEW,
@@ -243,7 +244,7 @@ import { clearStoredSession, readStoredSession, readStoredStayDraft, writeStored
 import { Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
 import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
-import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen } from './pre-arrival';
+import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen, passportDate } from './pre-arrival';
 import type { PassportFields } from './pre-arrival';
 import { EmptyStayHome, RoomReadyNotification, StayCard, StayEntryCard, StayOverviewHome, UpcomingBookingCard, VendorFolioQrDialog, airportFor, countNights, defaultFeedClock, describeParty, formatCheckoutDate, formatStayDateRange, getVendorFolioQrValue, listBookingGuests } from './stay-home';
 import { EARLY_CHECK_IN, earlyCheckInBookingId } from './guest-shared';
@@ -562,7 +563,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [pendingEmail, setPendingEmail] = useState('');
   const [code, setCode] = useState('');
   const [codeNotice, setCodeNotice] = useState<string | null>(null);
-  const [primaryPassportFields, setPrimaryPassportFields] = useState<PassportFields>({ documentNumber: '', expiry: '' });
+  /* Null until the guest touches the ID: until then the form shows what is on record. */
+  const [primaryPassportFields, setPrimaryPassportFields] = useState<PassportFields | null>(null);
   const codeInputRef = useRef<HTMLInputElement | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [allChatMessages, setAllChatMessages] = useState<ChatMessage[]>([]);
@@ -3011,10 +3013,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <IdentityStep
             guestName={session.guestName || lookupBooking?.guestName || 'Guest'}
             email={session.email}
-            passportFields={primaryPassportFields}
+            record={session.record}
+            passportFields={primaryPassportFields ?? { documentNumber: session.record?.documentNumber ?? '', expiry: session.record?.expiry ?? '', dateOfBirth: session.record?.dateOfBirth, sex: session.record?.sex }}
             onPassportFieldsChange={setPrimaryPassportFields}
-            onContinue={({ name, email }) => {
-              setSession((current) => ({ ...current, guestName: name, email }));
+            onContinue={({ name, email, mobile, nationality, passport }) => {
+              // Kept on the profile now, not on this screen: the next booking opens with it filled in.
+              setSession((current) => ({
+                ...current,
+                guestName: name,
+                email,
+                record: { nationality, documentNumber: passport.documentNumber.trim(), expiry: passport.expiry, mobile: mobile || undefined, dateOfBirth: passport.dateOfBirth ?? current.record?.dateOfBirth, sex: passport.sex ?? current.record?.sex },
+              }));
+              setPrimaryPassportFields(null);
               go('additional-guests');
             }}
           />
@@ -3036,32 +3046,50 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
       }
 
-      case 'additional-guests':
+      case 'additional-guests': {
+        // The people on record who fit this booking are already on the list; the rest are one tap away.
+        const plan = planCompanions(session, contextBooking);
         return (
           <AdditionalGuestsScreen
             bookedGuests={contextBooking.guestCount}
             primaryGuestName={session.guestName || 'Guest'}
             primaryGuestEmail={session.email}
-            initialGuests={session.additionalGuests}
-            onSave={(validGuests) => {
-              completePreArrival({ additionalGuests: validGuests });
+            initialCompanions={plan.selected}
+            suggestions={plan.suggestions}
+            onSave={(companions) => {
+              completePreArrival({
+                additionalGuests: companions.map((person) => person.name.trim()),
+                companionRecords: mergeCompanionRecords(session.companionRecords, companions),
+              });
             }}
           />
         );
+      }
 
-      case 'repeat-review':
-        const identityLines = [session.email].filter(Boolean);
+      case 'repeat-review': {
+        /*
+          One tap when the hotel can already have everything: the ID on file,
+          the people who fit this booking, the room preferences. Each block
+          edits in place; nothing here is asked again.
+        */
+        const plan = planCompanions(session, contextBooking);
+        const record = session.record;
+        const ready = hasSavedDetails(session);
         return (
           <ScreenIntro
             eyebrow={contextBooking.property}
             title="Review, then confirm"
-            text="Review the details you entered before sending them to the hotel."
+            text="This is what the hotel will receive. Check it, change anything that is different, then send."
           >
             <div className="guest-review-card">
               <ReviewBlock
                 icon={<Person />}
                 title={session.guestName || 'Your details'}
-                lines={identityLines.length ? identityLines : ['No email added']}
+                lines={[
+                  ...[session.email, record?.mobile].filter((line): line is string => Boolean(line)),
+                  ready && record ? `${record.nationality} · ID ${maskDocument(record.documentNumber)} · expires ${passportDate(record.expiry)}` : 'No ID on file yet',
+                ]}
+                onEdit={() => go('guest-details')}
               />
               <ReviewBlock
                 icon={<Bed />}
@@ -3072,23 +3100,35 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     ? `Accessibility: ${session.roomPreferences.accessibility.join(', ')}`
                     : 'Standard room access',
                 ]}
+                onEdit={() => go('room-preferences')}
               />
               <ReviewBlock
                 icon={<Users />}
-                title={session.additionalGuests.length === 1 ? 'Additional guest' : 'Additional guests'}
-                lines={session.additionalGuests.length ? session.additionalGuests : ['None added']}
+                title={plan.selected.length === 1 ? 'Additional guest' : 'Additional guests'}
+                lines={plan.selected.length ? plan.selected.map((person) => `${person.name} · ${isCompleteCompanion(person) ? 'ID on file' : 'ID needed'}`) : ['None added']}
+                onEdit={() => go('additional-guests')}
               />
             </div>
-            <Button
-              className="guest-button guest-button--primary"
-              type="button"
-              onClick={() => completePreArrival()}
-            >
-              Confirm everything<ArrowRight aria-hidden="true" />
-            </Button>
+            {ready ? (
+              <Button
+                className="guest-button guest-button--primary"
+                type="button"
+                onClick={() => completePreArrival({
+                  additionalGuests: plan.selected.map((person) => person.name.trim()),
+                  companionRecords: mergeCompanionRecords(session.companionRecords, plan.selected),
+                })}
+              >
+                Confirm and send to hotel<ArrowRight aria-hidden="true" />
+              </Button>
+            ) : (
+              <Button className="guest-button guest-button--primary" type="button" onClick={() => go('guest-details')}>
+                Add your ID details<ArrowRight aria-hidden="true" />
+              </Button>
+            )}
             <TextButton onClick={() => go('guest-details')}>Edit details</TextButton>
           </ScreenIntro>
         );
+      }
 
       case 'room-upgrades':
         return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">Current stay · Room {contextBooking.roomNumber}</p><h1>Available upgrades</h1><p>Explore rooms available for the rest of your stay.</p></div>{ROOM_UPGRADES.map((upgrade) => <article className="guest-upgrade-card" key={upgrade.id}><Image src={upgrade.image} alt="" width={900} height={360} /><div className="guest-upgrade-card__body"><div><h2>{upgrade.name}</h2><p>{upgrade.type}</p></div><p>{upgrade.features}</p><small>Up to {upgrade.guests} · {upgrade.transfer}</small><strong>{upgrade.price} additional for the remaining stay</strong><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSelectedUpgradeId(upgrade.id); go('room-upgrade-confirmation'); }}>Select room<ArrowRight /></Button></div></article>)}</div>;

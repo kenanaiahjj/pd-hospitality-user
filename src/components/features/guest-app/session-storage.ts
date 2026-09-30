@@ -84,6 +84,9 @@ function isStoredSession(value: unknown): value is GuestSession {
       shelf and takes the screen down.
     */
     && (value.rewards === undefined || isObject(value.rewards))
+    // The saved ID and people are additive too; present but malformed would break the confirm screen.
+    && (value.record === undefined || isObject(value.record))
+    && (value.companionRecords === undefined || Array.isArray(value.companionRecords))
   );
 }
 

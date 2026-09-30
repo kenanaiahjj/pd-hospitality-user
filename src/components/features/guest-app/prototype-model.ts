@@ -451,6 +451,30 @@ export type CartLine = {
   earlyCheckIn?: { time: string; fee: string };
 };
 
+/**
+ * What the guest has already told a property about themselves, kept on their
+ * profile so the next booking starts from it. Name and email live on the
+ * session itself; this is the rest of what the hotel registers.
+ */
+export type GuestRecord = {
+  nationality: string;
+  documentNumber: string;
+  expiry: string;
+  mobile?: string;
+  dateOfBirth?: string;
+  sex?: 'F' | 'M';
+};
+
+/** A person the guest has travelled with, with the ID details a hotel registers. */
+export type SavedCompanion = {
+  name: string;
+  nationality?: string;
+  email?: string;
+  mobile?: string;
+  documentNumber?: string;
+  expiry?: string;
+};
+
 export type GuestSession = {
   guestName: string;
   email: string;
@@ -488,7 +512,50 @@ export type GuestSession = {
    * cart existed simply has nothing in it.
    */
   cart?: CartLine[];
+  /**
+   * The lead guest's ID and contact, from the last pre-arrival they finished.
+   * Optional and additive: absent means a guest who has never registered, and
+   * the forms start empty, as they always did.
+   */
+  record?: GuestRecord;
+  /** Everyone this guest has registered before, so they can be offered again. */
+  companionRecords?: SavedCompanion[];
 };
+
+/** Whether there is a whole ID on file: enough for one tap to confirm it. */
+export function hasSavedDetails(session: GuestSession): boolean {
+  const { record } = session;
+  return Boolean(record?.nationality && record.documentNumber && record.expiry);
+}
+
+/** The hotel registers every guest, so a companion is only ready with an ID. */
+export const isCompleteCompanion = (companion: SavedCompanion) =>
+  Boolean(companion.name.trim() && companion.nationality?.trim() && companion.documentNumber?.trim() && companion.expiry);
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** Folds `incoming` into the saved people by name; the newer details win, and people not on this trip are kept. */
+export function mergeCompanionRecords(saved: SavedCompanion[] | undefined, incoming: SavedCompanion[]): SavedCompanion[] {
+  const kept = (saved ?? []).filter((person) => !incoming.some((next) => sameName(next.name, person.name)));
+  return [...kept, ...incoming];
+}
+
+/**
+ * Who to put on this booking's guest list without asking, and who to merely
+ * offer. The people already named for this stay come first, then everyone on
+ * record; the booking is for `guestCount`, lead included, so only that many
+ * are added -- the rest are one tap away rather than silently past the party.
+ */
+export function planCompanions(session: GuestSession, booking: Pick<Booking, 'guestCount'>): { selected: SavedCompanion[]; suggestions: SavedCompanion[] } {
+  const named = session.additionalGuests.map((name) => (session.companionRecords ?? []).find((person) => sameName(person.name, name)) ?? { name });
+  const pool = [...named, ...(session.companionRecords ?? [])].filter((person, index, all) => all.findIndex((other) => sameName(other.name, person.name)) === index);
+  const seats = Math.max(0, booking.guestCount - 1);
+  return { selected: pool.slice(0, seats), suggestions: pool.slice(seats) };
+}
+
+/** "P1234567A" -> "P•••••67A": enough to recognise, not enough to copy. */
+export const maskDocument = (documentNumber: string) =>
+  documentNumber.length <= 3 ? documentNumber : `${documentNumber[0]}${'•'.repeat(Math.max(0, documentNumber.length - 4))}${documentNumber.slice(-3)}`;
 
 /**
  * The rewards slice, defaulted.
@@ -629,6 +696,22 @@ export const MOCK_SESSION: GuestSession = {
     accessibility: [],
   },
   additionalGuests: ['Marco Santos'],
+  /*
+    Ana has registered before, so a new booking opens with her ID and her
+    travelling party already filled in -- she confirms rather than retypes.
+  */
+  record: {
+    nationality: 'Filipino',
+    documentNumber: 'P1234567A',
+    expiry: '2030-05-20',
+    mobile: '+63 917 555 0142',
+    dateOfBirth: '1994-03-18',
+    sex: 'F',
+  },
+  companionRecords: [
+    { name: 'Marco Santos', nationality: 'Filipino', documentNumber: 'P5520931C', expiry: '2029-08-09' },
+    { name: 'Elena Santos', nationality: 'Filipino', documentNumber: 'P7734120B', expiry: '2031-02-14' },
+  ],
   pastStays: PAST_STAYS,
   reviews: [],
   bookings: [

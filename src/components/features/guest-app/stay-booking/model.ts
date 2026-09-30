@@ -103,11 +103,11 @@ export const ANYWHERE = 'Anywhere in the Philippines';
 export const STAY_LOCATIONS: StayLocation[] = [
   { label: ANYWHERE, detail: 'Every partner hotel' },
   { label: 'Manila', detail: 'Metro Manila', center: [14.5547, 121.0244] },
-  { label: 'Cebu', detail: 'Cebu City and Mactan', center: [10.3157, 123.8854] },
+  { label: 'Cebu', detail: 'City and Mactan', center: [10.3157, 123.8854] },
   { label: 'Boracay', detail: 'Aklan', center: [11.9674, 121.9248] },
   { label: 'El Nido', detail: 'Palawan', center: [11.1784, 119.393] },
   { label: 'Siargao', detail: 'Surigao del Norte', center: [9.789, 126.156] },
-  { label: 'Bohol', detail: 'Panglao and Tagbilaran', center: [9.576, 123.763] },
+  { label: 'Bohol', detail: 'Panglao Island', center: [9.576, 123.763] },
   { label: 'Dumaguete', detail: 'Negros Oriental', center: [9.3068, 123.3054] },
   { label: 'Baguio', detail: 'Benguet', center: [16.4023, 120.596] },
   { label: 'Tagaytay', detail: 'Cavite', center: [14.1153, 120.9621] },
@@ -722,7 +722,27 @@ export function hotelsForLocation(location: string): StayHotel[] {
   if (!query || query === ANYWHERE.toLowerCase()) return STAY_HOTELS;
   const place = findLocation(location);
   if (place) return STAY_HOTELS.filter((hotel) => hotel.city === place.label);
-  return STAY_HOTELS.filter((hotel) => [hotel.name, hotel.city, hotel.area, hotel.address].some((field) => field.toLowerCase().includes(query)));
+  return STAY_HOTELS.filter((hotel) => matchesWords([hotel.name, hotel.city, hotel.area, hotel.address].join(' '), query));
+}
+
+/**
+ * Typed text as a place the search knows: an exact place or hotel stays
+ * itself; otherwise the first place, then the first hotel, whose words match.
+ * Unmatched text is kept, so the empty state can name it.
+ */
+export function resolveLocation(text: string): string {
+  const typed = text.trim();
+  if (!typed || typed.toLowerCase() === ANYWHERE.toLowerCase()) return ANYWHERE;
+  if (findLocation(typed) || STAY_HOTELS.some((hotel) => hotel.name.toLowerCase() === typed.toLowerCase())) return typed;
+  return STAY_LOCATIONS.find((place) => place.label !== ANYWHERE && matchesWords(`${place.label} ${place.detail}`, typed))?.label
+    ?? STAY_HOTELS.find((hotel) => matchesWords(`${hotel.name} ${hotel.area}`, typed))?.name
+    ?? typed;
+}
+
+/** Every typed word appears somewhere, in any order: "henry cebu" finds The Henry Hotel Cebu. */
+export function matchesWords(haystack: string, query: string): boolean {
+  const text = haystack.toLowerCase();
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((word) => text.includes(word));
 }
 
 export type HotelResult = {

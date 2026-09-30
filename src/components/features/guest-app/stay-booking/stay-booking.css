@@ -902,3 +902,9 @@
   .guest-app .sb-sheet__card h3 { font-size: 25px; }
   .guest-app .sb-sheet__card .sb-counter { padding: 10px 2px; }
 }
+
+/* ---------- tap targets and fit ---------- */
+.guest-app .sb-stepper button { width: 40px; height: 40px; }
+.guest-app .sb-segmented button { min-height: 38px; }
+.guest-app .sb-promo-toggle { min-height: 44px; }
+.guest-app .sb-stay-bar { grid-template-columns: 1fr 1fr; }

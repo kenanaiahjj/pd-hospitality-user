@@ -66,7 +66,16 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
 
   const next = () => {
     setTried(true);
-    if (valid) onContinue();
+    if (valid) {
+      onContinue();
+      return;
+    }
+    // Take the guest to what needs fixing; the errors render on this tap, so look after paint.
+    window.requestAnimationFrame(() => {
+      const field = document.querySelector<HTMLInputElement>('.sb-checkout [aria-invalid="true"]');
+      field?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      field?.focus({ preventScroll: true });
+    });
   };
 
   return (

@@ -5,7 +5,7 @@ import { Buildings, CalendarBlank, Globe, MagnifyingGlass, MapPin, Minus, Plus, 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { PROTOTYPE_TODAY, countNightsBetween } from '../prototype-model';
 import type { StayLocation, StaySearch } from './model';
-import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, partyLabel, validSearchDates } from './model';
+import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, matchesWords, partyLabel, resolveLocation, validSearchDates } from './model';
 import { childAgeLabel, compactRange, longDate, shortDate, stayDatesLabel, weekdayDate } from './format';
 
 /*
@@ -88,7 +88,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
       setStep(missingAge ? 'who' : !datesOk ? 'when' : 'where');
       return;
     }
-    onSearch({ ...draft, location: draft.location.trim() || ANYWHERE });
+    onSearch({ ...draft, location: resolveLocation(draft.location) });
   };
 
   return (
@@ -184,8 +184,10 @@ function PlaceThumb({ place }: { place: StayLocation }) {
 function LocationPicker({ value, onChange, onPick }: { value: string; onChange: (value: string) => void; onPick: (value: string) => void }) {
   const query = value.trim().toLowerCase();
   const typed = query && query !== ANYWHERE.toLowerCase();
-  const places = STAY_LOCATIONS.filter((place) => !typed || place.label.toLowerCase().includes(query) || place.detail.toLowerCase().includes(query));
-  const hotels = typed ? STAY_HOTELS.filter((hotel) => hotel.name.toLowerCase().includes(query) || hotel.area.toLowerCase().includes(query)) : [];
+  const places = STAY_LOCATIONS.filter((place) => !typed || matchesWords(`${place.label} ${place.detail}`, query));
+  const hotels = typed ? STAY_HOTELS.filter((hotel) => matchesWords(`${hotel.name} ${hotel.area}`, query)) : [];
+  // Enter takes the best suggestion, so "palawan" searches El Nido rather than the raw word.
+  const best = places[0]?.label ?? hotels[0]?.name;
   return (
     <div className="sb-location">
       <label className="sb-location__input">
@@ -197,7 +199,7 @@ function LocationPicker({ value, onChange, onPick }: { value: string; onChange: 
           autoComplete="off"
           enterKeyHint="next"
           onChange={(event) => onChange(event.currentTarget.value)}
-          onKeyDown={(event) => { if (event.key === 'Enter' && value.trim()) onPick(value.trim()); }}
+          onKeyDown={(event) => { if (event.key === 'Enter' && value.trim()) onPick(typed && best ? best : value.trim()); }}
         />
         {value && value !== ANYWHERE ? <button type="button" aria-label="Clear destination" onClick={() => onChange(ANYWHERE)}><X /></button> : null}
       </label>

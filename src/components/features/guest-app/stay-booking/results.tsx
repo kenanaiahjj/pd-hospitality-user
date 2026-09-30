@@ -39,7 +39,8 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
   const sort = view.sort === 'distance' && !hasPlace ? 'recommended' : view.sort;
   const results = searchHotels(search, view.filters, sort);
   const filterCount = countFilters(view.filters);
-  const place = search.location === ANYWHERE ? 'the Philippines' : search.location;
+  // Typed places are shown as places: "batanes" reads as Batanes.
+  const place = search.location === ANYWHERE ? 'the Philippines' : search.location.replace(/\b\p{Ll}/gu, (letter) => letter.toUpperCase());
 
   return (
     <div className="guest-stack sb-results">

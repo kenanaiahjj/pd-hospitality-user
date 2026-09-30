@@ -92,7 +92,7 @@ export function PartnersSection({ hotel }: { hotel: StayHotel }) {
   );
 }
 
-/** "Manila Bay sunset strip 10 min walk · 7-Eleven 2 min", each phrase kept whole. */
+/** "Manila Bay 10 min walk · 7-Eleven 2 min", each phrase kept whole. */
 export function HotelHighlights({ hotelId }: { hotelId: string }) {
   const parts = hotelHighlights(hotelId);
   if (!parts.length) return null;

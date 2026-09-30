@@ -61,7 +61,7 @@ const HENRY_PARTNERS = [
 export const NEIGHBOURHOODS: Record<string, Neighbourhood> = {
   manila: {
     spots: [
-      spot('attraction', 'nature', 'Manila Bay sunset strip', 'Baywalk and sunset views', 10, 'walk', 275),
+      spot('attraction', 'nature', 'Manila Bay', 'Baywalk and sunset views', 10, 'walk', 275),
       spot('attraction', 'museum', 'Cultural Center of the Philippines', 'Theatre and museums', 8, 'drive', 300),
       spot('attraction', 'mall', 'SM Mall of Asia', 'Shopping, IMAX and the bay wheel', 12, 'drive', 215),
       spot('attraction', 'landmark', 'Intramuros', 'The walled old city', 20, 'drive', 350),
@@ -150,7 +150,7 @@ export const NEIGHBOURHOODS: Record<string, Neighbourhood> = {
   },
   'bato-cove': {
     spots: [
-      spot('attraction', 'beach', 'Island hopping, Tour A', 'Big Lagoon, Small Lagoon, Secret Lagoon', 5, 'boat'),
+      spot('attraction', 'beach', 'Lagoon tour', 'Big, Small and Secret Lagoon by bangka', 5, 'boat'),
       spot('attraction', 'beach', 'Nacpan Beach', 'Four kilometres of empty sand', 40, 'drive'),
       spot('attraction', 'nature', 'Taraw Cliff', 'Via ferrata over town', 10, 'drive'),
       spot('attraction', 'beach', 'Las Cabañas Beach', 'Sunset and the zipline', 10, 'drive'),

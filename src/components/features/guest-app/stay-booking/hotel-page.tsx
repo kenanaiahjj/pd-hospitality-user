@@ -4,8 +4,8 @@ import Image from 'next/image';
 import { ArrowRight, Bed, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Phone, Plus, Ruler, Star, Users, Warning } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { CartLine, RatePlanId, StayHotel, StaySearch } from './model';
-import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, partyLabel, peso, quoteStay, roomOffers, validSearchDates } from './model';
-import { roomsLabel, stayDatesLabel } from './format';
+import { AMENITY_LABELS, RATE_PLAN_LABELS, cartFit, isHotelFull, peso, quoteStay, roomOffers, validSearchDates } from './model';
+import { compactRange, nightsLabel, roomsLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
 import { HotelHighlights, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
 
@@ -58,6 +58,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
   const quote = quoteStay(hotel, search, cart);
   const datesOk = validSearchDates(search);
   const photos = [hotel.image, ...hotel.gallery];
+  const soldOutEverywhere = datesOk && offers.every((offer) => offer.left === 0);
   const inCart = (roomTypeId: string) => cart.filter((line) => line.roomTypeId === roomTypeId).reduce((sum, line) => sum + line.quantity, 0);
 
   return (
@@ -83,10 +84,10 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
 
       <section className="sb-stay-bar" aria-label="Your stay">
         <button type="button" aria-haspopup="dialog" onClick={() => setEditing('when')}>
-          <small>Dates</small><b>{stayDatesLabel(search.checkIn, search.checkOut)}</b>
+          <small>Dates</small><b>{compactRange(search.checkIn, search.checkOut)} · {nightsLabel(search.checkIn, search.checkOut)}</b>
         </button>
         <button type="button" aria-haspopup="dialog" onClick={() => setEditing('who')}>
-          <small>Guests</small><b>{partyLabel(search)}</b>
+          <small>Guests</small><b>{search.adults} {search.adults === 1 ? 'adult' : 'adults'}{search.childAges.length ? ` · ${search.childAges.length} ${search.childAges.length === 1 ? 'kid' : 'kids'}` : ''}</b>
         </button>
         {editing ? (
           <StaySearchSheet
@@ -197,12 +198,19 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           {/* Two lines at most: the price, then one note -- the room count while it fits, else what to fix. */}
           {fit.rooms ? <strong>{peso(quote.subtotal)}</strong> : null}
           <small className={`sb-dock__fit${fit.fits ? ' is-positive' : ''}${fit.rooms ? '' : ' is-empty'}`} aria-live="polite">
-            {fit.fits ? `${roomsLabel(fit.rooms)} · ${fit.message.replace('Fits your', 'fits')}` : fit.message}
+            {soldOutEverywhere ? 'Sold out on these dates' : fit.fits ? `${roomsLabel(fit.rooms)} · ${fit.message.replace('Fits your', 'fits')}` : fit.message}
           </small>
         </div>
-        <button type="button" className="guest-button guest-button--primary" disabled={!fit.fits || !datesOk} onClick={onContinue}>
-          Continue<ArrowRight aria-hidden="true" />
-        </button>
+        {/* Nothing to pick on a full night: the way forward is other dates, not a disabled Continue. */}
+        {soldOutEverywhere ? (
+          <button type="button" className="guest-button guest-button--primary" onClick={() => setEditing('when')}>
+            Change dates
+          </button>
+        ) : (
+          <button type="button" className="guest-button guest-button--primary" disabled={!fit.fits || !datesOk} onClick={onContinue}>
+            Continue<ArrowRight aria-hidden="true" />
+          </button>
+        )}
       </div>
     </div>
   );

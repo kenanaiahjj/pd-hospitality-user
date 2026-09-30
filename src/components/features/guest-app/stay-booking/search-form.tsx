@@ -65,6 +65,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
   const [tried, setTried] = useState(false);
   const [awaitingCheckOut, setAwaitingCheckOut] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
   // Read by the key handler, which is bound once for the life of the sheet.
@@ -72,7 +73,18 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
   useEffect(() => { onCloseRef.current = onClose; });
   useEffect(() => {
     closeRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onCloseRef.current(); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseRef.current();
+      // Tab stays inside the sheet: it covers the page, so nothing behind it should take focus.
+      if (event.key !== 'Tab' || !sheetRef.current) return;
+      const focusable = [...sheetRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [href], [tabindex]:not([tabindex="-1"])')];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      else if (!sheetRef.current.contains(document.activeElement)) { event.preventDefault(); first.focus(); }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -92,7 +104,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
   };
 
   return (
-    <div className="sb-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div ref={sheetRef} className="sb-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <header className="sb-sheet__head">
         <button ref={closeRef} type="button" className="sb-sheet__close" aria-label="Close search" onClick={onClose}><X /></button>
         <h2 id={titleId}>{title}</h2>

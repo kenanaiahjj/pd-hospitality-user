@@ -1,4 +1,5 @@
 import type { GuestSession } from './prototype-model';
+import type { StayBookingDraft, StayGuestDetails } from './stay-booking/model';
 
 /*
   Browser-only sibling to `prototype-model.ts`, which is pure by contract --
@@ -123,5 +124,38 @@ export function clearStoredSession(): void {
     store.removeItem(SESSION_STORAGE_KEY);
   } catch {
     // Nothing to do -- there is no way to clear a store that will not be written.
+  }
+}
+
+/*
+  The hotel booking in progress, kept beside the session so a reload or a
+  closed tab does not throw away the search, the rooms and who sleeps where.
+  Its own key: a draft is disposable, and a bad one must never cost the guest
+  their signed-in session.
+*/
+export const STAY_DRAFT_STORAGE_KEY = 'cabana.stay-draft.v1';
+
+export type StoredStayDraft = { draft: StayBookingDraft; details: StayGuestDetails | null; savedAt: string };
+
+export function readStoredStayDraft(): StoredStayDraft | undefined {
+  try {
+    const raw = getStore()?.getItem(STAY_DRAFT_STORAGE_KEY);
+    if (!raw) return undefined;
+    const value: unknown = JSON.parse(raw);
+    if (!isObject(value) || !isObject(value.draft) || !isObject(value.draft.search) || !Array.isArray(value.draft.cart) || !Array.isArray(value.draft.allocation)) return undefined;
+    return value as StoredStayDraft;
+  } catch {
+    return undefined;
+  }
+}
+
+export function writeStoredStayDraft(value: StoredStayDraft | null): void {
+  try {
+    const store = getStore();
+    if (!store) return;
+    if (value) store.setItem(STAY_DRAFT_STORAGE_KEY, JSON.stringify(value));
+    else store.removeItem(STAY_DRAFT_STORAGE_KEY);
+  } catch {
+    // Storage full or blocked: the draft simply is not kept.
   }
 }

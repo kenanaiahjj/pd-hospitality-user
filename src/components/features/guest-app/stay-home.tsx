@@ -134,6 +134,8 @@ export function DepartureOptionsSection({
   );
 }
 
+export type ResumeBooking = { title: string; detail: string; onResume: () => void };
+
 export type StayOverviewHomeProps = {
   session: GuestSession;
   booking?: Booking;
@@ -147,6 +149,8 @@ export type StayOverviewHomeProps = {
   /** The hotel search the no-booking home opens with. */
   staySearch: StaySearch;
   onSearchStay: (search: StaySearch) => void;
+  /** A hotel booking the guest left part-way, to pick back up from Home. */
+  resumeBooking?: ResumeBooking;
   /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
   /** Whether the front desk still answers after checkout: the 24-hour window. */
@@ -157,7 +161,7 @@ export type StayOverviewHomeProps = {
   clockHour?: number;
 };
 
-export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenHotel, staySearch, onSearchStay, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
+export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenHotel, staySearch, onSearchStay, resumeBooking, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -172,6 +176,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         onOpenHotel={onOpenHotel}
         staySearch={staySearch}
         onSearchStay={onSearchStay}
+        resumeBooking={resumeBooking}
       />
     );
   }
@@ -740,6 +745,7 @@ export function EmptyStayHome({
   onOpenHotel,
   staySearch,
   onSearchStay,
+  resumeBooking,
 }: {
   guestName: string;
   pastStays: PastStay[];
@@ -747,6 +753,7 @@ export function EmptyStayHome({
   onOpenHotel: (id: string) => void;
   staySearch: StaySearch;
   onSearchStay: (search: StaySearch) => void;
+  resumeBooking?: ResumeBooking;
 }) {
   const firstName = guestName.trim().split(' ')[0];
   // The estate's own hotels lead; prices are for the dates in the search card.
@@ -776,6 +783,13 @@ export function EmptyStayHome({
 
       <StaySearchBar value={staySearch} onOpen={() => setSheet({ value: staySearch, startAt: 'where' })} />
       {sheet ? <StaySearchSheet value={sheet.value} startAt={sheet.startAt} onClose={() => setSheet(null)} onSearch={(search) => { setSheet(null); onSearchStay(search); }} /> : null}
+
+      {resumeBooking ? (
+        <button type="button" className="sb-resume" onClick={resumeBooking.onResume}>
+          <span className="sb-resume__text"><small>Continue your booking</small><b>{resumeBooking.title}</b><span>{resumeBooking.detail}</span></span>
+          <ArrowRight aria-hidden="true" />
+        </button>
+      ) : null}
 
       <section className="sb-destinations">
         <SectionHeading title="Popular destinations" />

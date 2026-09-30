@@ -5,7 +5,7 @@ import { ArrowRight, Check, CheckCircle, CreditCard, LockSimple, Tag as TagIcon,
 import { useEffect, useRef, useState } from 'react';
 import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
 import type { CartLine, RoomAllocation, StayGuestDetails, StayHotel, StaySearch } from './model';
-import { FREE_CANCELLATION_DAYS, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay } from './model';
+import { FREE_CANCELLATION_DAYS, PROMO_CODES, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay } from './model';
 import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
@@ -225,7 +225,17 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
             <button type="button" aria-label="Remove promo code" onClick={() => { set({ promoCode: '' }); setPromoDraft(''); setPromoTried(false); }}><X /></button>
           </p>
         ) : !promoOpen ? (
-          <button type="button" className="sb-promo-toggle" onClick={() => setPromoOpen(true)}><TagIcon aria-hidden="true" />Add a promo code</button>
+          <>
+            {/* The codes on offer, said where they are used: nobody should need to know one to get it. */}
+            <div className="sb-offers" role="group" aria-label="Offers">
+              {Object.entries(PROMO_CODES).map(([code, promo]) => (
+                <button key={code} type="button" className="sb-offer" onClick={() => { set({ promoCode: code }); setPromoDraft(code); setPromoTried(true); }}>
+                  <TagIcon aria-hidden="true" /><span><b>{promo.label}</b><small>Use {code}</small></span>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="sb-promo-toggle" onClick={() => setPromoOpen(true)}>Have another code?</button>
+          </>
         ) : (
           <div className="sb-promo">
             <label className={`sb-field${promoTried && quote.promoError ? ' is-invalid' : ''}`}>

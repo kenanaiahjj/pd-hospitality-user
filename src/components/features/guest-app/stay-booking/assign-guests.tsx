@@ -54,7 +54,7 @@ export function StayAssignGuestsScreen({ hotel, search, cart, allocation, onChan
                 </span>
               </header>
               <div className="sb-counter" role="group" aria-label={`Adults in room ${index + 1}`}>
-                <span><b>Adults</b><small>Up to {room.roomType.maxAdults} in this room</small></span>
+                <span><b>Adults</b><small>Up to {room.roomType.maxAdults} aged 12+ in this room</small></span>
                 <span className="sb-stepper">
                   <button type="button" aria-label={`Fewer adults in room ${index + 1}`} disabled={current.adults <= 0} onClick={() => setAdults(index, current.adults - 1)}><Minus aria-hidden="true" /></button>
                   <output aria-live="polite">{current.adults}</output>
@@ -63,7 +63,7 @@ export function StayAssignGuestsScreen({ hotel, search, cart, allocation, onChan
               </div>
               {current.childIndexes.map((child) => (
                 <div key={child} className="sb-assign__child">
-                  <span><b>Child {child + 1}</b><small>{childAgeLabel(search.childAges[child] ?? 0)}</small></span>
+                  <span><b>Child {child + 1}</b><small>{childAgeLabel(search.childAges[child] ?? 0)}{(search.childAges[child] ?? 0) >= 12 ? ' · counts as an adult' : (search.childAges[child] ?? 0) < 6 ? ' · stays free' : ''}</small></span>
                   {rooms.length > 1 ? (
                     <label className="sb-assign__move">
                       <span className="sr-only">Room for child {child + 1}</span>

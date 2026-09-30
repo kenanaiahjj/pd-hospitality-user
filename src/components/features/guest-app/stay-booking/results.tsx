@@ -69,6 +69,8 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
         ))}
       </div>
 
+      {sort === 'recommended' ? <p className="sb-small sb-results__disclosure">Recommended shows The Henry’s own hotels first, then partners by guest rating.</p> : null}
+
       {!results.length ? (
         <div className="sb-empty">
           <b>No stays match</b>
@@ -119,7 +121,7 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
           <span className="sb-hotel-card__notes">
             {result.soldOut ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Sold out on your dates</span>
               : !result.fitsParty ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Not enough rooms for {partyLabel(search)}</span>
-                : result.freeCancellation ? <span className="sb-note sb-note--positive"><CheckCircle weight="fill" aria-hidden="true" />{result.cheapestRefundable ? 'Free cancellation' : 'Free cancellation available'}</span> : null}
+                : result.freeCancellation ? <span className="sb-note sb-note--positive"><CheckCircle weight="fill" aria-hidden="true" />{result.cheapestRefundable || result.fromRefundable === undefined ? 'Free cancellation' : `Free cancellation from ${peso(result.fromRefundable)}`}</span> : null}
           </span>
           {result.fromPrice !== undefined && !result.soldOut ? (
             <span className="sb-price">

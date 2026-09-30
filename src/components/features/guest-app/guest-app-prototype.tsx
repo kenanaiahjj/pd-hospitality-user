@@ -177,6 +177,7 @@ import {
   peso,
   quoteStay,
   searchHotels,
+  stayDatesLabel,
   type ResultsView,
   type StayBookingDraft,
   type StayGuestDetails,
@@ -234,7 +235,7 @@ import {
   redeemReward,
   spendPoints,
 } from './rewards';
-import { clearStoredSession, readStoredSession, writeStoredSession } from './session-storage';
+import { clearStoredSession, readStoredSession, readStoredStayDraft, writeStoredSession, writeStoredStayDraft } from './session-storage';
 import { Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
 import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
@@ -706,6 +707,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
     const stored = readStoredSession();
     if (!stored) return;
+    /*
+      The booking the guest was part-way through, read now rather than in the
+      timer: the draft's own save effect runs in between and would find the
+      default draft and clear the record before this could restore it.
+    */
+    const draft = readStoredStayDraft();
 
     /*
       Applied from a timer rather than straight from the effect body, which is
@@ -722,6 +729,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const timer = window.setTimeout(() => {
       hydratedRef.current = true;
       setSession(stored);
+      if (draft) {
+        setStayDraft(draft.draft);
+        setStayDetails(draft.details);
+      }
       /*
         Home, and never a stored screen id. A persisted screen goes stale the
         moment the session it belonged to changes and strands the guest on
@@ -768,6 +779,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
     writeStoredSession(session);
   }, [persistent, session]);
+
+  /* The draft is kept only while there is something to come back to: a hotel with rooms in the cart. */
+  const draftPristineRef = useRef(true);
+  useEffect(() => {
+    if (!persistent) return;
+    if (draftPristineRef.current) {
+      draftPristineRef.current = false;
+      return;
+    }
+    writeStoredStayDraft(stayDraft.hotelId && stayDraft.cart.length ? { draft: stayDraft, details: stayDetails, savedAt: new Date().toISOString() } : null);
+  }, [persistent, stayDraft, stayDetails]);
 
   useEffect(() => {
     if (!roomReadyNotificationBookingId || roomReadyNotificationFocused) return;
@@ -2353,7 +2375,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           pastStays={pastStays}
           onNavigate={go}
           onOpenHotel={openPartnerHotel}
-          staySearch={stayDraft.search}
+          staySearch={stayDraft.search} resumeBooking={resumeBooking}
           onSearchStay={startStaySearch}
         />
       );
@@ -2457,6 +2479,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       </div>
     );
   };
+
+  const draftHotel = findStayHotel(stayDraft.hotelId);
+  const draftRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
+  const resumeBooking = draftHotel && stayDraft.cart.length
+    ? {
+      title: draftHotel.name,
+      detail: `${draftRooms} ${draftRooms === 1 ? 'room' : 'rooms'} · ${stayDatesLabel(stayDraft.search.checkIn, stayDraft.search.checkOut)}`,
+      onResume: () => go('book-stay-hotel'),
+    }
+    : undefined;
 
   const renderStayBooking = () => {
     const { search } = stayDraft;
@@ -2778,7 +2810,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'stay-overview':
-        return <>{cancelNotice ? <div className="sb-cancel-notice" role="status"><Notice tone="positive" icon={<CheckCircle />} title="Booking cancelled">{cancelNotice}</Notice><button type="button" aria-label="Dismiss" onClick={() => setCancelNotice(null)}><X /></button></div> : null}<StayOverviewHome staySearch={stayDraft.search} onSearchStay={startStaySearch} session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />{primaryBooking && preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}</>;
+        return <>{cancelNotice ? <div className="sb-cancel-notice" role="status"><Notice tone="positive" icon={<CheckCircle />} title="Booking cancelled">{cancelNotice}</Notice><button type="button" aria-label="Dismiss" onClick={() => setCancelNotice(null)}><X /></button></div> : null}<StayOverviewHome staySearch={stayDraft.search} resumeBooking={resumeBooking} onSearchStay={startStaySearch} session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={(entry) => runFeedAction(entry.action)} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />{primaryBooking && preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}</>;
 
       case 'partner-hotels':
       case 'partner-hotel-detail':
@@ -4005,7 +4037,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               pastStays={pastStays}
               onNavigate={go}
               onOpenHotel={openPartnerHotel}
-              staySearch={stayDraft.search}
+              staySearch={stayDraft.search} resumeBooking={resumeBooking}
               onSearchStay={startStaySearch}
             />
           );
@@ -4259,7 +4291,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               pastStays={pastStays}
               onNavigate={go}
               onOpenHotel={openPartnerHotel}
-              staySearch={stayDraft.search}
+              staySearch={stayDraft.search} resumeBooking={resumeBooking}
               onSearchStay={startStaySearch}
             />
           );

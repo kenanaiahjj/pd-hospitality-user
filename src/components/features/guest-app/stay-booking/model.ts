@@ -755,10 +755,17 @@ export type HotelResult = {
   freeCancellation: boolean;
   /** The "from" price is itself a refundable rate -- else free cancellation costs more than it. */
   cheapestRefundable: boolean;
+  /** The cheapest refundable rate per night, when there is one. */
+  fromRefundable?: number;
   /** No room class is open for the whole stay. */
   soldOut: boolean;
   /** The largest party one booking could hold -- is this hotel even worth opening? */
   fitsParty: boolean;
+};
+
+const refundableFrom = (offers: RoomOffer[]) => {
+  const prices = offers.flatMap((offer) => offer.plans.filter((plan) => plan.refundable).map((plan) => plan.perNight));
+  return prices.length ? Math.min(...prices) : undefined;
 };
 
 export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTERS, sort: StaySort = 'recommended'): HotelResult[] {
@@ -769,14 +776,16 @@ export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTE
     const capacity = offers.reduce((sum, offer) => sum + offer.left * offer.roomType.sleeps, 0);
     return {
       hotel,
-      fromPrice: fromPrice(hotel, search),
+      // With the free-cancellation filter on, the price shown is the refundable one: what that guest would pay.
+      fromPrice: filters.freeCancellation ? refundableFrom(offers) : fromPrice(hotel, search),
+      fromRefundable: refundableFrom(offers),
       fromTotal: offers.length ? Math.min(...offers.flatMap((offer) => offer.plans.map((plan) => plan.total))) : undefined,
       distanceKm: center ? Math.round(distanceKm(center, hotel.position) * 10) / 10 : undefined,
       freeCancellation: offers.some((offer) => offer.plans.some((plan) => plan.refundable)),
       cheapestRefundable: (() => {
         const plans = offers.flatMap((offer) => offer.plans);
         const cheapest = plans.reduce<(typeof plans)[number] | undefined>((best, plan) => (!best || plan.perNight < best.perNight ? plan : best), undefined);
-        return Boolean(cheapest?.refundable);
+        return filters.freeCancellation || Boolean(cheapest?.refundable);
       })(),
       soldOut: offers.length === 0,
       fitsParty: capacity >= party.sixPlus,

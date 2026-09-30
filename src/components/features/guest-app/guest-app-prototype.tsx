@@ -156,6 +156,8 @@ import {
   CancelReservationSheet,
   RATE_PLAN_LABELS,
   canCancelReservation,
+  cancellationReminder,
+  GettingThere,
   cancelRooms,
   weekdayDate,
   StayAssignGuestsScreen,
@@ -179,6 +181,7 @@ import {
   peso,
   quoteStay,
   searchHotels,
+  seniorShares,
   stayDatesLabel,
   type ResultsView,
   type StayBookingDraft,
@@ -2043,14 +2046,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setHistory(setup.screen === 'stay-overview' ? [] : ['stay-overview']);
   };
   /* A stay booked and paid in the app, with its policy bent to the case being shown. */
-  const withAppBooking = (policy: 'free' | 'ended' | 'saver') => (current: GuestSession): GuestSession => {
+  const withAppBooking = (policy: 'free' | 'soon' | 'ended' | 'saver') => (current: GuestSession): GuestSession => {
     const hotel = findStayHotel('manila')!;
     const cart: StayCartLine[] = policy === 'saver' ? [{ roomTypeId: 'manila-king', ratePlanId: 'saver', quantity: 1 }, { roomTypeId: 'manila-suite', ratePlanId: 'saver', quantity: 1 }] : MIXED_CART;
     const details = emptyGuestDetails(current.guestName || MOCK_SESSION.guestName, current.email || GUEST_PROFILE.email, GUEST_PROFILE.mobile, 2);
     const quote = quoteStay(hotel, FAMILY_SEARCH, cart);
     const booking = bookingFromDraft({ hotel, search: FAMILY_SEARCH, cart, allocation: defaultAllocation(hotel, FAMILY_SEARCH, cart), details, quote, paidWith: 'GCash', paidAt: PROTOTYPE_TODAY });
-    // "Ended" moves the free-cancellation day behind the prototype clock.
-    const reservation = policy === 'ended' && booking.reservation ? { ...booking.reservation, freeCancellationUntil: addDays(PROTOTYPE_TODAY, -1) } : booking.reservation;
+    // "Ended" moves the deadline behind the prototype clock; "soon" puts it tomorrow.
+    const until = policy === 'ended' ? addDays(PROTOTYPE_TODAY, -1) : policy === 'soon' ? addDays(PROTOTYPE_TODAY, 1) : undefined;
+    const reservation = until && booking.reservation ? { ...booking.reservation, freeCancellationUntil: until } : booking.reservation;
     return { ...current, bookings: [{ ...booking, reservation }], activeBookingId: booking.id };
   };
   // The first night after the demo dates that the Henry Manila is full, for the sold-out page.
@@ -2072,6 +2076,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     { group: 'Hotel booking', label: 'Payment', detail: 'Card, GCash or Maya on the page', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
     { group: 'Hotel booking', label: 'Home · booked in the app', detail: 'The new stay as the upcoming home', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'stay-overview' }) },
     { group: 'Hotel booking', label: 'View booking · free cancellation', detail: 'Change or cancel for a full refund', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'rate-detail' }) },
+    { group: 'Hotel booking', label: 'Home · cancellation ends tomorrow', detail: 'The reminder banner and notification', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('soon'), screen: 'stay-overview' }) },
+    { group: 'Hotel booking', label: 'View booking · cancellation ends tomorrow', detail: 'The reminder, and Getting there', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('soon'), screen: 'rate-detail' }) },
     { group: 'Hotel booking', label: 'View booking · cancellation ended', detail: 'Past the free-cancellation day', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('ended'), screen: 'rate-detail' }) },
     { group: 'Hotel booking', label: 'View booking · non-refundable', detail: 'Saver rates on every room', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('saver'), screen: 'rate-detail' }) },
     { group: 'Hotel booking', label: 'Home · booking cancelled', detail: 'The refund notice', open: () => { openBookingPage({ screen: 'stay-overview' }); setCancelNotice('The Henry Hotel Manila is cancelled. ₱69,394 is on its way back to GCash.'); } },
@@ -2527,7 +2533,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (activeScreen === 'book-stay-confirmation') {
       const booking = session.bookings.find((item) => item.id === confirmedStayId);
       return booking
-        ? <StayConfirmationScreen booking={booking} onGoToStay={() => { setHistory([]); replaceScreen('stay-overview'); }} />
+        ? <StayConfirmationScreen booking={booking} onGoToStay={() => { setHistory([]); replaceScreen('stay-overview'); }} onArrangeTransfer={() => { setHistory(['stay-overview']); replaceScreen('pre-arrival-services'); }} />
         : searchPage;
     }
     // The old partner routes had no hotel of their own; they open the first.
@@ -2570,6 +2576,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           hotel={current}
           search={search}
           cart={stayDraft.cart}
+          allocation={stayDraft.allocation}
           details={stayDetails}
           onDetailsChange={setStayDetails}
           onPaid={completeStayPayment}
@@ -2597,7 +2604,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const completeStayPayment = (method: GatewayMethod) => {
     const hotel = findStayHotel(stayDraft.hotelId);
     if (!hotel || !stayDetails) return;
-    const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode);
+    const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode, seniorShares(stayDetails, stayDraft.allocation));
     const booking = bookingFromDraft({ hotel, search: stayDraft.search, cart: stayDraft.cart, allocation: stayDraft.allocation, details: stayDetails, quote, paidWith: GATEWAY_METHOD_LABELS[method], paidAt: PROTOTYPE_TODAY });
     // A bed chosen at checkout is the room preference the hotel sees; "No preference" leaves the profile's.
     const bed = { 'One large bed': 'King bed', 'Two separate beds': 'Twin beds' }[stayDetails.bedPreferences[0] ?? ''];
@@ -3117,10 +3124,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const reservation = displayBooking.reservation;
         const manageAppBooking = Boolean(reservation) && displayBooking.status === 'upcoming';
         const cancellable = canCancelReservation(displayBooking);
+        const reminder = cancellationReminder(displayBooking);
         return (
           <ScreenIntro eyebrow={`Booking ${displayBooking.id}`} title="Room and rate" text={pmsDown ? `As the hotel’s system last reported them, at ${PMS_LAST_SYNC}.` : 'The latest details returned by the hotel system.'}>
             {pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}
             {roomCancelNotice && reservation ? <Notice tone="positive" icon={<CheckCircle />} title="Room cancelled">{roomCancelNotice}</Notice> : null}
+            {reminder && !roomCancelNotice ? (
+              <Notice tone="warning" icon={<Clock />} title={reminder.daysLeft === 0 ? 'Free cancellation ends today' : reminder.daysLeft === 1 ? 'Free cancellation ends tomorrow' : `Free cancellation ends in ${reminder.daysLeft} days`}>
+                Until {weekdayDate(reminder.until)}, 11:59 PM. After that, this booking can’t be refunded.
+              </Notice>
+            ) : null}
             {/* The card says what the rows below say: "Checked in", not a stale "Confirmed". */}
             <StayCard booking={displayBooking} compact statusLabel={describeStayStatus(displayBooking).label} />
             {canUpgradeRoom || canManageActiveStay || manageAppBooking ? (
@@ -3188,6 +3201,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 )) : <SummaryRow label="Room" value={displayBooking.roomNumber ? `${displayBooking.roomType} · ${displayBooking.roomNumber}` : `${displayBooking.roomType} · assigned at arrival`} />}
                 <SummaryRow label="Party" value={describeParty(displayBooking, session)} />
                 <SummaryRow label="Booked through" value={displayBooking.source} />
+                {reservation?.seniorRooms?.length ? <SummaryRow label="Senior / PWD" value={`${reservation.seniorRooms.map((index) => `Room ${index + 1}`).join(', ')} · ID at check-in`} /> : null}
+                {reservation?.receipt ? <SummaryRow label="Official receipt" value={`${reservation.receipt.company} · TIN ${reservation.receipt.tin}`} /> : null}
                 <SummaryRow label="Confirmation" value={displayBooking.id} />
               </div>
             </section>
@@ -3260,6 +3275,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
             </section>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live hotel data">Availability, rates, and payment details require a connection.</Notice> : null}
+            {reservation && displayBooking.status === 'upcoming' ? <GettingThere city={displayBooking.city} onArrangeTransfer={() => go('pre-arrival-services')} /> : null}
             {cancelSheetOpen && reservation ? (
               <CancelReservationSheet booking={displayBooking} onClose={() => setCancelSheetOpen(false)} onConfirm={(rooms) => { setCancelSheetOpen(false); cancelStayBooking(displayBooking.id, rooms); }} />
             ) : null}

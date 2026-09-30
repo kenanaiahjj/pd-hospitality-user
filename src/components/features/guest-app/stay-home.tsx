@@ -3,7 +3,7 @@
 import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { ANYWHERE, HotelResultCard, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, locationImage, searchHotels, type SearchStep, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, cancellationReminder, locationImage, searchHotels, weekdayDate, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
@@ -284,9 +284,21 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
   }
 
   const roomAssignment = describeRoomAssignment(booking);
+  // The one date people forget: said on Home in the last three days, not only in View booking.
+  const reminder = cancellationReminder(booking);
 
   return (
     <div className="guest-stack guest-home-booking guest-home-booking--upcoming" data-testid="guest-home-upcoming">
+      {reminder ? (
+        <button type="button" className="sb-reminder" onClick={() => onNavigate('rate-detail')}>
+          <Clock aria-hidden="true" />
+          <span>
+            <b>{reminder.daysLeft === 0 ? 'Free cancellation ends today' : reminder.daysLeft === 1 ? 'Free cancellation ends tomorrow' : `Free cancellation ends in ${reminder.daysLeft} days`}</b>
+            <small>Until {weekdayDate(reminder.until)}, 11:59 PM · review or change your booking</small>
+          </span>
+          <CaretRight aria-hidden="true" />
+        </button>
+      ) : null}
       {/*
         The label carries the truth the variant cannot. `getHomeVariant` keys
         off `status`, so the reference stay stays on the upcoming home with a

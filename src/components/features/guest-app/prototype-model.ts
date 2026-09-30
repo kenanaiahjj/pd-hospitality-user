@@ -2809,6 +2809,26 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
     });
   }
 
+  /*
+    An in-app booking's free-cancellation deadline, in its last three days.
+    Mirrors `cancellationReminder` in stay-booking/model.ts, which this file
+    cannot import without a cycle.
+  */
+  const reservation = booking.reservation;
+  if (reservation?.refundable && reservation.freeCancellationUntil && booking.status === 'upcoming') {
+    const daysLeft = dayIndex(reservation.freeCancellationUntil) - dayIndex(PROTOTYPE_TODAY);
+    if (daysLeft >= 0 && daysLeft <= 3) {
+      notifications.push({
+        id: `notification-cancel-${booking.id}`,
+        tone: 'booking',
+        title: daysLeft === 0 ? 'Free cancellation ends today' : daysLeft === 1 ? 'Free cancellation ends tomorrow' : `Free cancellation ends in ${daysLeft} days`,
+        body: `${booking.property} · until 11:59 PM, then non-refundable`,
+        time: 'Today',
+        screen: 'rate-detail',
+      });
+    }
+  }
+
   for (const service of session.serviceBookings) {
     if (service.bookingId !== booking.id || service.status !== 'confirmed') continue;
 

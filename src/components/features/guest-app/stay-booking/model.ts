@@ -24,7 +24,13 @@ export type StayGuestDetails = {
   arrivalTime: string;
   requests: string;
   promoCode: string;
+  /** Per cart room: a senior citizen or PWD is staying in it (20% off their share, ID shown at check-in). */
+  seniorRooms?: boolean[];
+  /** An official receipt made out to a company, not the guest. */
+  receipt?: CompanyReceipt;
 };
+
+export type CompanyReceipt = { company: string; tin: string; address: string };
 export type StayBookingDraft = { search: StaySearch; hotelId?: string; cart: CartLine[]; allocation: RoomAllocation[] };
 
 export type Reservation = {
@@ -38,6 +44,10 @@ export type Reservation = {
   refundable: boolean;
   /** ISO date; free cancellation runs to the end of this day. */
   freeCancellationUntil?: string;
+  /** Rooms with a senior citizen or PWD guest, by index: their ID is checked at the desk. */
+  seniorRooms?: number[];
+  /** The company the official receipt is made out to. */
+  receipt?: CompanyReceipt;
 };
 
 export type Amenity = 'pool' | 'beach' | 'breakfast' | 'wifi' | 'airport-transfer' | 'spa' | 'gym' | 'restaurant' | 'parking' | 'family';
@@ -678,6 +688,8 @@ export type StayQuote = {
   lines: { roomTypeId: string; roomName: string; ratePlanId: RatePlanId; quantity: number; total: number }[];
   subtotal: number;
   discount: number;
+  /** Senior citizen / PWD discount, already taken off before tax. */
+  seniorDiscount: number;
   promo?: { code: string; label: string };
   promoError?: string;
   vat: number;
@@ -687,7 +699,16 @@ export type StayQuote = {
   freeCancellationUntil?: string;
 };
 
-export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[], promoCode = ''): StayQuote {
+/** Philippine law: 20% off a senior citizen's or PWD's share of the room, their share being the room's rate over its occupants. */
+export const SENIOR_DISCOUNT = 0.2;
+export type SeniorShare = { roomIndex: number; occupants: number };
+
+/** Which rooms carry a senior or PWD share, and how many people that room's rate is split between. */
+export function seniorShares(details: Pick<StayGuestDetails, 'seniorRooms'> | null | undefined, allocation: RoomAllocation[]): SeniorShare[] {
+  return (details?.seniorRooms ?? []).flatMap((on, roomIndex) => (on ? [{ roomIndex, occupants: Math.max(1, (allocation[roomIndex]?.adults ?? 1) + (allocation[roomIndex]?.childIndexes.length ?? 0)) }] : []));
+}
+
+export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[], promoCode = '', seniors: SeniorShare[] = []): StayQuote {
   const nights = countNightsBetween(search.checkIn, search.checkOut);
   const lines = cart.flatMap((line) => {
     const roomType = hotel.roomTypes.find((item) => item.id === line.roomTypeId);
@@ -698,7 +719,9 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
   const code = normalizePromo(promoCode);
   const promo = code ? PROMO_CODES[code] : undefined;
   const discount = promo ? promo.apply(subtotal) : 0;
-  const taxable = subtotal - discount;
+  const perRoom = cartRooms(hotel, cart).map((item) => stayRate(item.roomType, item.ratePlanId, search.checkIn, search.checkOut));
+  const seniorDiscount = seniors.reduce((sum, share) => sum + Math.round(((perRoom[share.roomIndex] ?? 0) / Math.max(1, share.occupants)) * SENIOR_DISCOUNT), 0);
+  const taxable = Math.max(0, subtotal - discount - seniorDiscount);
   const vat = Math.round(taxable * VAT_RATE);
   const service = Math.round(taxable * SERVICE_RATE);
   const refundable = lines.length > 0 && lines.every((line) => line.ratePlanId !== 'saver');
@@ -707,6 +730,7 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
     lines,
     subtotal,
     discount,
+    seniorDiscount,
     promo: promo ? { code, label: promo.label } : undefined,
     promoError: code && !promo ? 'That code isn’t valid.' : undefined,
     vat,
@@ -897,6 +921,8 @@ export function bookingFromDraft({ hotel, search, cart, allocation, details, quo
       paidAt,
       refundable: quote.refundable,
       freeCancellationUntil: quote.freeCancellationUntil,
+      seniorRooms: (details.seniorRooms ?? []).flatMap((on, index) => (on ? [index] : [])),
+      receipt: details.receipt?.company.trim() ? details.receipt : undefined,
     },
   };
 }
@@ -994,3 +1020,46 @@ export function roomMatches(offer: RoomOffer, filters: RoomFilter[]): boolean {
     return /king/i.test(offer.roomType.beds);
   });
 }
+
+/* ---------- reminders, quick dates, getting there ---------- */
+
+/** Days until the free-cancellation deadline, when it is close: 0 means it ends today. */
+export function cancellationReminder(booking: Booking, today = PROTOTYPE_TODAY): { daysLeft: number; until: string } | undefined {
+  const reservation = booking.reservation;
+  if (!reservation?.refundable || !reservation.freeCancellationUntil || booking.status !== 'upcoming') return undefined;
+  const daysLeft = countNightsBetween(today, reservation.freeCancellationUntil);
+  if (today > reservation.freeCancellationUntil || daysLeft > 3) return undefined;
+  return { daysLeft, until: reservation.freeCancellationUntil };
+}
+
+/** One-tap dates for the When step: the weekends people actually plan, and Christmas. */
+export function quickDates(today = PROTOTYPE_TODAY): { label: string; checkIn: string; checkOut: string }[] {
+  const weekday = new Date(`${today}T00:00:00Z`).getUTCDay();
+  const friday = addDays(today, ((5 - weekday + 7) % 7) || 7);
+  const year = Number(today.slice(0, 4));
+  const christmas = `${today.slice(5) > '12-24' ? year + 1 : year}-12-24`;
+  return [
+    { label: 'This weekend', checkIn: friday, checkOut: addDays(friday, 2) },
+    { label: 'Next weekend', checkIn: addDays(friday, 7), checkOut: addDays(friday, 9) },
+    { label: 'Christmas', checkIn: christmas, checkOut: addDays(christmas, 3) },
+  ];
+}
+
+export type TravelNote = { summary: string; steps: string[]; fees?: string; transfer: boolean };
+
+/**
+ * How guests actually reach each destination: the ferries, vans and fees the
+ * booking apps leave to a blog post. `transfer` is whether the hotel can
+ * arrange the last leg as an arrival service.
+ */
+export const TRAVEL_NOTES: Record<string, TravelNote> = {
+  Manila: { summary: 'About 25 minutes from NAIA', steps: ['Fly into NAIA Terminal 1, 2 or 3', 'Taxi or hotel car to Pasay or Makati: 20–40 minutes'], transfer: true },
+  Cebu: { summary: 'About 35 minutes from Mactan–Cebu Airport', steps: ['Fly into Mactan–Cebu International Airport', 'Car over the bridge to Cebu City, or 15 minutes to the Mactan resorts'], transfer: true },
+  Dumaguete: { summary: 'About 15 minutes from Sibulan Airport', steps: ['Fly into Dumaguete–Sibulan Airport', 'Tricycle or hotel car into the city'], transfer: true },
+  Boracay: { summary: 'Flight, a short boat ride, then a tricycle', steps: ['Fly into Caticlan (or Kalibo, 1.5 hours away by van)', 'Caticlan Jetty Port: 15-minute boat to Cagban', 'Tricycle or e-trike to Station 1: 20 minutes'], fees: 'Environmental fee ₱150, terminal fee ₱100 and boat fare about ₱50, paid at the jetty. Bring the hotel booking: the island checks it.', transfer: true },
+  'El Nido': { summary: 'A short flight, or 5–6 hours by van from Puerto Princesa', steps: ['Fly direct into El Nido (Lio) Airport, or into Puerto Princesa', 'From Puerto Princesa: shared or private van, 5–6 hours', 'Tricycle to the resort from town'], fees: 'Eco-development fee ₱400 per guest, paid once in El Nido.', transfer: true },
+  Siargao: { summary: 'About 40 minutes from Sayak Airport', steps: ['Fly into Siargao (Sayak) Airport', 'Van or tricycle to General Luna: 40 minutes'], transfer: true },
+  Bohol: { summary: 'About 15 minutes from Panglao Airport', steps: ['Fly into Bohol–Panglao International Airport, or take the fast ferry from Cebu to Tagbilaran (2 hours)', 'Car to Alona: 15 minutes from the airport, 30 from the port'], transfer: true },
+  Baguio: { summary: 'About 4 hours by road from Manila or Clark', steps: ['Bus from Manila (Cubao or Pasay) or Clark, or drive via TPLEX', 'Taxi from the Baguio bus terminal to Camp John Hay: 15 minutes'], transfer: false },
+  Tagaytay: { summary: 'About 1.5–2 hours by road from Manila', steps: ['Drive via CAVITEX or SLEX and Santa Rosa–Tagaytay Road', 'Or a bus from Pasay to Tagaytay Rotonda, then a short tricycle ride'], transfer: false },
+};

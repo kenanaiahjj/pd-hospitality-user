@@ -5,7 +5,7 @@ import { ArrowRight, Check, CheckCircle, CreditCard, LockSimple, Tag as TagIcon,
 import { useEffect, useRef, useState } from 'react';
 import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
 import type { CartLine, RoomAllocation, StayGuestDetails, StayHotel, StaySearch } from './model';
-import { FREE_CANCELLATION_DAYS, PROMO_CODES, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay } from './model';
+import { FREE_CANCELLATION_DAYS, PROMO_CODES, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay, seniorShares } from './model';
 import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
@@ -32,6 +32,9 @@ export function detailsErrors(details: StayGuestDetails) {
     name: details.name.trim() ? undefined : 'Enter the name on the booking',
     email: validEmail(details.email) ? undefined : 'Enter an email we can send the confirmation to',
     phone: validPhone(details.phone) ? undefined : 'Enter a mobile number the hotel can reach',
+    company: details.receipt && !details.receipt.company.trim() ? 'Enter the company name for the receipt' : undefined,
+    // A Philippine TIN is 9 digits, often with a 3- or 5-digit branch code.
+    tin: details.receipt && details.receipt.tin.replace(/\D/g, '').length < 9 ? 'Enter the company’s TIN, e.g. 123-456-789-000' : undefined,
   };
 }
 
@@ -58,9 +61,9 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
 }) {
   const [tried, setTried] = useState(false);
   const rooms = cartRooms(hotel, cart);
-  const quote = quoteStay(hotel, search, cart, details.promoCode);
+  const quote = quoteStay(hotel, search, cart, details.promoCode, seniorShares(details, allocation));
   const errors = detailsErrors(details);
-  const valid = !errors.name && !errors.email && !errors.phone;
+  const valid = !Object.values(errors).some(Boolean);
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
   const setAt = (key: 'roomLeads' | 'bedPreferences', index: number, value: string) => set({ [key]: details[key].map((item, i) => (i === index ? value : item)) });
 
@@ -113,9 +116,28 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
                   {BED_PREFERENCES.map((option) => <option key={option}>{option}</option>)}
                 </select>
               </label>
+              <label className="sb-check">
+                <input type="checkbox" checked={Boolean(details.seniorRooms?.[index])} onChange={(event) => set({ seniorRooms: rooms.map((_, i) => (i === index ? event.currentTarget.checked : Boolean(details.seniorRooms?.[i]))) })} />
+                <span><b>A senior citizen or PWD is staying here</b><small>20% off their share of this room. Show the ID at check-in.</small></span>
+              </label>
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="sb-section" aria-labelledby="sb-receipt">
+        <h2 id="sb-receipt">Receipt</h2>
+        <label className="sb-check">
+          <input type="checkbox" checked={Boolean(details.receipt)} onChange={(event) => set({ receipt: event.currentTarget.checked ? { company: '', tin: '', address: '' } : undefined })} />
+          <span><b>I need an official receipt for a company</b><small>Made out to the company, with its TIN, for business travel.</small></span>
+        </label>
+        {details.receipt ? (
+          <div className="sb-form">
+            <TextField label="Company name" value={details.receipt.company} autoComplete="organization" onChange={(company) => set({ receipt: { ...details.receipt!, company } })} error={errors.company} show={tried} />
+            <TextField label="TIN" value={details.receipt.tin} placeholder="123-456-789-000" onChange={(tin) => set({ receipt: { ...details.receipt!, tin } })} error={errors.tin} show={tried} />
+            <TextField label="Registered address" value={details.receipt.address} autoComplete="street-address" placeholder="Optional" onChange={(address) => set({ receipt: { ...details.receipt!, address } })} show={false} />
+          </div>
+        ) : null}
       </section>
 
       <section className="sb-section" aria-labelledby="sb-requests">
@@ -162,10 +184,11 @@ const METHOD_HINTS: Record<GatewayMethod, string> = {
  * to pay -- chosen right here rather than in a sheet over the form. A
  * prototype stand-in for the gateway: nothing is charged.
  */
-export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChange, onPaid, online }: {
+export function StayPaymentScreen({ hotel, search, cart, allocation, details, onDetailsChange, onPaid, online }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
+  allocation: RoomAllocation[];
   details: StayGuestDetails;
   onDetailsChange: (details: StayGuestDetails) => void;
   onPaid: (method: GatewayMethod) => void;
@@ -180,7 +203,7 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
   const rooms = cartRooms(hotel, cart);
-  const quote = quoteStay(hotel, search, cart, details.promoCode);
+  const quote = quoteStay(hotel, search, cart, details.promoCode, seniorShares(details, allocation));
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
 
   const pay = () => {
@@ -259,6 +282,7 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
             </div>
           ))}
           {quote.discount ? <div className="is-discount"><dt>Promo {quote.promo?.code}</dt><dd>−{peso(quote.discount)}</dd></div> : null}
+          {quote.seniorDiscount ? <div className="is-discount"><dt>Senior citizen / PWD discount<small>20% of their share · ID checked at check-in</small></dt><dd>−{peso(quote.seniorDiscount)}</dd></div> : null}
           <div><dt>Taxes and fees<small>{Math.round(VAT_RATE * 100)}% VAT {peso(quote.vat)} · {Math.round(SERVICE_RATE * 100)}% service charge {peso(quote.service)}</small></dt><dd>{peso(quote.vat + quote.service)}</dd></div>
           <div className="is-total"><dt>Total</dt><dd>{peso(quote.total)}</dd></div>
         </dl>

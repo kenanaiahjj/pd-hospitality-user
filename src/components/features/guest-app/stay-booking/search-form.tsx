@@ -1,11 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import { Buildings, CalendarBlank, Globe, MagnifyingGlass, MapPin, Minus, Plus, Users, X } from '@phosphor-icons/react';
+import { Buildings, CalendarBlank, ClockCounterClockwise, Globe, MagnifyingGlass, MapPin, Minus, Plus, Users, X } from '@phosphor-icons/react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { PROTOTYPE_TODAY, countNightsBetween } from '../prototype-model';
 import type { StayLocation, StaySearch } from './model';
-import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, matchesWords, partyLabel, resolveLocation, validSearchDates } from './model';
+import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, matchesWords, partyLabel, quickDates, resolveLocation, validSearchDates } from './model';
 import { childAgeLabel, compactRange, longDate, shortDate, stayDatesLabel, weekdayDate } from './format';
 
 /*
@@ -100,7 +100,16 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
       setStep(missingAge ? 'who' : !datesOk ? 'when' : 'where');
       return;
     }
-    onSearch({ ...draft, location: resolveLocation(draft.location) });
+    const search = { ...draft, location: resolveLocation(draft.location) };
+    rememberSearch(search);
+    onSearch(search);
+  };
+  const [recent] = useState(readRecentSearches);
+  // A recent search whose dates have passed keeps its place and party, with the default dates.
+  const runRecent = (search: StaySearch) => {
+    const fresh = validSearchDates(search) ? search : { ...search, checkIn: DEFAULT_STAY_SEARCH.checkIn, checkOut: DEFAULT_STAY_SEARCH.checkOut };
+    rememberSearch(fresh);
+    onSearch(fresh);
   };
 
   return (
@@ -114,6 +123,17 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
       <div className="sb-sheet__body">
         {steps.includes('where') ? (
           <SheetSection icon={<MapPin />} label="Where" question="Where to?" value={!draft.location || draft.location === ANYWHERE ? 'Anywhere' : draft.location} open={step === 'where'} onOpen={() => setStep('where')}>
+            {recent.length && steps.includes('when') && (!draft.location || draft.location === ANYWHERE) ? (
+              <div className="sb-recent">
+                <small>Recent searches</small>
+                {recent.map((search) => (
+                  <button key={`${search.location}-${search.checkIn}-${search.adults}-${search.childAges.length}`} type="button" onClick={() => runRecent(search)}>
+                    <ClockCounterClockwise aria-hidden="true" />
+                    <span><b>{search.location === ANYWHERE ? 'Anywhere' : search.location}</b><small>{compactRange(search.checkIn, search.checkOut)} · {partyLabel(search)}</small></span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <LocationPicker
               value={draft.location}
               onChange={(location) => setDraft((current) => ({ ...current, location }))}
@@ -123,6 +143,15 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
         ) : null}
         {steps.includes('when') ? (
           <SheetSection icon={<CalendarBlank />} label="When" question="When’s your trip?" value={datesOk ? stayDatesLabel(draft.checkIn, draft.checkOut) : 'Choose dates'} open={step === 'when'} onOpen={() => setStep('when')}>
+            {!isBlocked ? (
+              <div className="sb-chips sb-quick-dates" role="group" aria-label="Quick dates">
+                {quickDates().map((option) => (
+                  <button key={option.label} type="button" className={`sb-chip${draft.checkIn === option.checkIn && draft.checkOut === option.checkOut ? ' is-active' : ''}`} aria-pressed={draft.checkIn === option.checkIn && draft.checkOut === option.checkOut} onClick={() => { setDraft((current) => ({ ...current, checkIn: option.checkIn, checkOut: option.checkOut })); const after = next('when'); if (after) setStep(after); }}>
+                    {option.label}<small>{compactRange(option.checkIn, option.checkOut)}</small>
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <RangeCalendar
               checkIn={draft.checkIn}
               checkOut={draft.checkOut}
@@ -399,4 +428,30 @@ export function GuestsPanel({ adults, childAges, onChange, showErrors }: { adult
       ) : null}
     </div>
   );
+}
+
+/*
+  The last three searches, on this device only -- a convenience, not
+  something the account needs to know. Every access is wrapped: storage can
+  be blocked or full, and a search must never fail because of it.
+*/
+const RECENT_KEY = 'cabana.recent-searches.v1';
+
+function readRecentSearches(): StaySearch[] {
+  try {
+    const raw = window.localStorage.getItem(RECENT_KEY);
+    const value: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(value) ? (value as StaySearch[]).filter((item) => item && typeof item.location === 'string' && Array.isArray(item.childAges)).slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberSearch(search: StaySearch) {
+  try {
+    const same = (a: StaySearch) => a.location === search.location && a.checkIn === search.checkIn && a.checkOut === search.checkOut && a.adults === search.adults && a.childAges.length === search.childAges.length;
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify([search, ...readRecentSearches().filter((item) => !same(item))].slice(0, 3)));
+  } catch {
+    // Not remembered; nothing else depends on it.
+  }
 }

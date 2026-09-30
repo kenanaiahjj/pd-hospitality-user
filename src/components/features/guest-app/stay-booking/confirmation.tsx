@@ -1,12 +1,12 @@
 'use client';
 
-import { ArrowRight, CalendarPlus, CheckCircle, NavigationArrow, Receipt, ShareNetwork, X } from '@phosphor-icons/react';
+import { ArrowRight, CalendarPlus, Car, CheckCircle, NavigationArrow, Receipt, ShareNetwork, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Booking } from '../prototype-model';
-import { RATE_PLAN_LABELS, findStayHotel, peso, roomRefunds } from './model';
+import { RATE_PLAN_LABELS, TRAVEL_NOTES, findStayHotel, peso, roomRefunds } from './model';
 import { longDate, stayDatesLabel } from './format';
 
-export function StayConfirmationScreen({ booking, onGoToStay }: { booking: Booking; onGoToStay: () => void }) {
+export function StayConfirmationScreen({ booking, onGoToStay, onArrangeTransfer }: { booking: Booking; onGoToStay: () => void; onArrangeTransfer?: () => void }) {
   const reservation = booking.reservation;
   if (!reservation) return null;
   return (
@@ -20,6 +20,7 @@ export function StayConfirmationScreen({ booking, onGoToStay }: { booking: Booki
       <p className="sb-reference"><small>Booking reference</small><b>{reservation.reference}</b></p>
       <ReservationSummary booking={booking} />
       <TripActions booking={booking} />
+      <GettingThere city={booking.city} onArrangeTransfer={onArrangeTransfer} />
       <button type="button" className="guest-button guest-button--primary" onClick={onGoToStay}>Go to your stay<ArrowRight aria-hidden="true" /></button>
     </div>
   );
@@ -147,5 +148,30 @@ export function CancelReservationSheet({ booking, onClose, onConfirm }: { bookin
         </footer>
       </section>
     </div>
+  );
+}
+
+/*
+  The ferries, vans and fees between the airport and the room, which the
+  booking apps leave to a blog post -- Boracay alone is a flight, a jetty, a
+  boat and a tricycle, with fees paid in cash at the port.
+*/
+export function GettingThere({ city, onArrangeTransfer }: { city: string; onArrangeTransfer?: () => void }) {
+  const note = TRAVEL_NOTES[city];
+  if (!note) return null;
+  return (
+    <section className="sb-section sb-getting-there" aria-labelledby="sb-getting-there-title">
+      <div className="sb-section__head">
+        <h2 id="sb-getting-there-title">Getting there</h2>
+        <p>{note.summary}</p>
+      </div>
+      <ol className="sb-getting-there__steps">
+        {note.steps.map((step) => <li key={step}>{step}</li>)}
+      </ol>
+      {note.fees ? <p className="sb-getting-there__fees"><Receipt aria-hidden="true" />{note.fees}</p> : null}
+      {note.transfer && onArrangeTransfer ? (
+        <button type="button" className="guest-button guest-button--secondary" onClick={onArrangeTransfer}><Car aria-hidden="true" />Arrange a transfer with the hotel</button>
+      ) : null}
+    </section>
   );
 }

@@ -20,6 +20,10 @@ describe('Explore → ordering', { timeout: 15_000 }, () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Apartment 1B' })).toBeInTheDocument();
     const imgs = [...document.querySelectorAll('img')].map((i) => i.getAttribute('src') || '');
     expect(imgs.some((s) => s.includes('restaurant-menu-page'))).toBe(true);
+    // named as the menu, above the practical details rather than buried under them
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+    expect(headings.indexOf('Menu')).toBeGreaterThan(-1);
+    expect(headings.indexOf('Menu')).toBeLessThan(headings.indexOf('Good to know'));
 
     // a table is reserved; ordering is a question for the desk, already about this venue
     expect(screen.getByRole('button', { name: 'Reserve a table' })).toBeInTheDocument();

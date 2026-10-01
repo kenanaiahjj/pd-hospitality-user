@@ -38,8 +38,8 @@ export function StaySearchBar({ value, onOpen }: { value: StaySearch; onOpen: ()
     <button type="button" className="sb-bar" onClick={onOpen} aria-label={`Search stays: ${value.location}, ${stayDatesLabel(value.checkIn, value.checkOut)}, ${partyLabel(value)}`}>
       <span className="sb-bar__icon" aria-hidden="true"><MagnifyingGlass weight="bold" /></span>
       <span className="sb-bar__text">
-        <b>{anywhere ? 'Where to?' : value.location}</b>
-        <small>{shortDate(value.checkIn)} – {shortDate(value.checkOut)} · {partyLabel(value)}</small>
+        <b>Search stays</b>
+        <small>{anywhere ? 'Any destination' : value.location} · {shortDate(value.checkIn)} – {shortDate(value.checkOut)} · {partyLabel(value)}</small>
       </span>
     </button>
   );

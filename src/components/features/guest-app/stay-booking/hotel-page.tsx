@@ -179,11 +179,11 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
             const from = Math.min(...offer.plans.map((plan) => plan.perNight));
             return (
               <li key={roomType.id}>
-                <button type="button" className={`sb-room-row${soldOut ? ' is-sold-out' : ''}${taken ? ' is-in-cart' : ''}`} onClick={() => setOpenRoom(roomType.id)} aria-label={`${roomType.name}, sleeps ${roomType.sleeps}, from ${peso(from)} a night${taken ? `, ${taken} in your selection` : ''}${soldOut ? ', sold out' : ''}`}>
+                <button type="button" className={`sb-room-row${soldOut ? ' is-sold-out' : ''}${taken ? ' is-in-cart' : ''}`} onClick={() => setOpenRoom(roomType.id)} aria-label={`${roomType.name}, up to ${roomType.sleeps} guests, from ${peso(from)} a night${taken ? `, ${taken} in your selection` : ''}${soldOut ? ', sold out' : ''}`}>
                   <span className="sb-room-row__photo"><Image src={roomType.image.src} alt="" fill sizes="88px" style={{ objectPosition: roomType.image.focalPoint }} /></span>
                   <span className="sb-room-row__text">
                     <b>{roomType.name}</b>
-                    <small>Sleeps {roomType.sleeps} · {roomType.beds}</small>
+                    <small>Up to {roomType.sleeps} guests · {roomType.beds}</small>
                     {soldOut ? <span className="sb-note sb-note--warning">Sold out for these dates</span>
                       : <span className="sb-room-row__price">{offer.plans.length > 1 ? <small>from</small> : null} <b>{peso(from)}</b> <small>/ night</small>{offer.left <= 3 ? <span className="sb-note sb-note--urgent">Only {offer.left} left</span> : null}</span>}
                   </span>
@@ -273,7 +273,7 @@ function RoomSheet({ offer, cart, datesOk, onCartChange, onClose }: { offer: Roo
           <div className="sb-room__info">
             <h3 id="sb-room-sheet-title">{roomType.name}</h3>
             <p className="sb-room__facts">
-              <span><Users aria-hidden="true" />Sleeps {roomType.sleeps}{roomType.maxAdults < roomType.sleeps ? ` · ${roomType.maxAdults} adults max` : ''}</span>
+              <span><Users aria-hidden="true" />Up to {roomType.sleeps} guests{roomType.maxAdults < roomType.sleeps ? ` · ${roomType.maxAdults} adults max` : ''}</span>
               <span><Bed aria-hidden="true" />{roomType.beds}</span>
               <span><Ruler aria-hidden="true" />{roomType.sizeSqm} m²</span>
             </p>

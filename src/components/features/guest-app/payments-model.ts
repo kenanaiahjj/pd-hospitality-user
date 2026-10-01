@@ -6,8 +6,9 @@ import type { GuestSession, PaymentRecord } from './prototype-model';
   It is a record of its own, not something read off the bookings, because the
   bookings do not outlive the money -- cancelling a stay removes it and the
   arrival services booked for it, and a guest still wants to see that they were
-  charged and refunded. Room charges are not here: they settle at the front
-  desk and live on My Stay.
+  charged and refunded. Direct-booking room charges are itemized here because
+  they are paid through the gateway. Folio room charges still settle at the
+  front desk.
 */
 
 export const PAYMENT_METHOD_NAMES: Record<PaymentRecord['method'], string> = { card: 'Card', gcash: 'GCash', maya: 'Maya' };
@@ -30,15 +31,67 @@ const mapPayments = (session: GuestSession, change: (payment: PaymentRecord) => 
 /** A whole booking cancelled: everything paid for it, stay and services alike, goes back. */
 export function refundBooking(session: GuestSession, bookingId: string): GuestSession {
   return mapPayments(session, (payment) => (payment.bookingId === bookingId
-    ? { ...payment, refunded: payment.amount, items: payment.items.map((item) => ({ ...item, refunded: true })) }
+    ? { ...payment, refunded: payment.amount, items: payment.items.map((item) => ({ ...item, refunded: true, refundedAmount: item.amount })) }
     : payment));
 }
 
-/** Some of the rooms cancelled: the stay's payment is partly refunded, never past what was paid. */
-export function refundStayAmount(session: GuestSession, bookingId: string, amount: number): GuestSession {
-  return mapPayments(session, (payment) => (payment.bookingId === bookingId && payment.kind === 'stay'
-    ? { ...payment, refunded: Math.min(payment.amount, payment.refunded + amount) }
-    : payment));
+export type StayPaymentItemUpdate = { id: string; refundAmount: number; cancelled?: boolean };
+
+/** Some rooms or services changed: refund the matching payment lines without losing their source. */
+export function refundBookingItems(session: GuestSession, bookingId: string, updates: StayPaymentItemUpdate[]): GuestSession {
+  const unmatched = new Map(updates.map((update) => [update.id, update]));
+  const payments = (session.payments ?? []).map((payment) => {
+    if (payment.bookingId !== bookingId) return payment;
+    let itemRefund = 0;
+    const items = payment.items.map((item) => {
+      const update = item.id ? unmatched.get(item.id) : undefined;
+      if (!update) return item;
+      unmatched.delete(update.id);
+      const previous = item.refundedAmount ?? (item.refunded ? item.amount : 0);
+      const refundedAmount = Math.min(item.amount, previous + Math.max(0, update.refundAmount));
+      const accepted = refundedAmount - previous;
+      itemRefund += accepted;
+      return {
+        ...item,
+        refundedAmount,
+        refunded: refundedAmount >= item.amount && refundedAmount > 0,
+        cancelled: item.cancelled || update.cancelled,
+      };
+    });
+    return itemRefund
+      ? { ...payment, refunded: Math.min(payment.amount, payment.refunded + itemRefund), items }
+      : items.some((item, index) => item !== payment.items[index]) ? { ...payment, items } : payment;
+  });
+
+  // Older receipts have one aggregate room line with no ID. Keep their payment total accurate.
+  const unmatchedRefund = [...unmatched.values()].reduce((sum, update) => sum + Math.max(0, update.refundAmount), 0);
+  if (unmatchedRefund > 0) {
+    const stayIndex = payments.findIndex((payment) => payment.bookingId === bookingId && payment.kind === 'stay');
+    if (stayIndex >= 0) {
+      const payment = payments[stayIndex]!;
+      payments[stayIndex] = { ...payment, refunded: Math.min(payment.amount, payment.refunded + unmatchedRefund) };
+    }
+  }
+  return session.payments ? { ...session, payments } : session;
+}
+
+/** A full stay cancellation refunds eligible room value plus every linked payment that is still outstanding. */
+export function refundRemainingLinkedPayments(session: GuestSession, bookingId: string, serviceBookingIds: string[]): GuestSession {
+  const ids = new Set(serviceBookingIds);
+  return mapPayments(session, (payment) => {
+    if (payment.bookingId !== bookingId || payment.kind === 'stay') return payment;
+    let increment = 0;
+    const items = payment.items.map((item) => {
+      if (!item.id || !ids.has(item.id)) return item;
+      const previous = item.refundedAmount ?? (item.refunded ? item.amount : 0);
+      const refundedAmount = item.amount;
+      increment += Math.max(0, refundedAmount - previous);
+      return { ...item, refunded: true, refundedAmount, cancelled: true };
+    });
+    return increment
+      ? { ...payment, refunded: Math.min(payment.amount, payment.refunded + increment), items }
+      : items.some((item, index) => item !== payment.items[index]) ? { ...payment, items } : payment;
+  });
 }
 
 /** One paid service cancelled, whether it was paid alone or as a line of a cart. */
@@ -46,10 +99,12 @@ export function refundServiceLine(session: GuestSession, serviceBookingId: strin
   return mapPayments(session, (payment) => {
     const line = payment.items.find((item) => item.id === serviceBookingId && !item.refunded);
     if (!line) return payment;
+    const alreadyRefunded = line.refundedAmount ?? 0;
+    const refund = Math.max(0, line.amount - alreadyRefunded);
     return {
       ...payment,
-      refunded: Math.min(payment.amount, payment.refunded + line.amount),
-      items: payment.items.map((item) => (item.id === serviceBookingId ? { ...item, refunded: true } : item)),
+      refunded: Math.min(payment.amount, payment.refunded + refund),
+      items: payment.items.map((item) => (item.id === serviceBookingId ? { ...item, refunded: true, refundedAmount: item.amount, cancelled: true } : item)),
     };
   });
 }

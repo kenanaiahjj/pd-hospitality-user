@@ -29,7 +29,7 @@ const SORTS: { id: StaySort; label: string }[] = [
 
 const FILTER_AMENITIES: Amenity[] = ['pool', 'beach', 'breakfast', 'spa', 'airport-transfer', 'family', 'gym', 'parking'];
 
-export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpenHotel, held, account }: {
+export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpenHotel, held, account, showOffers = true }: {
   search: StaySearch;
   view: ResultsView;
   onViewChange: (view: ResultsView) => void;
@@ -39,6 +39,7 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
   held?: HeldRooms;
   /** Who is booking, so offers they can't use are not shown. */
   account?: PromoAccount;
+  showOffers?: boolean;
 }) {
   const [editing, setEditing] = useState<SearchStep | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -106,7 +107,7 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
           {/* Offers after the first two hotels, not above them: the stays are what was searched for. */}
           {results.flatMap((result, index) => [
             <HotelResultCard key={result.hotel.id} result={result} search={search} onOpen={() => onOpenHotel(result.hotel.id)} />,
-            ...(index === Math.min(1, results.length - 1) ? [<OffersStrip key="offers" nights={countNightsBetween(search.checkIn, search.checkOut)} account={account} />] : []),
+            ...(showOffers && index === Math.min(1, results.length - 1) ? [<OffersStrip key="offers" nights={countNightsBetween(search.checkIn, search.checkOut)} account={account} />] : []),
           ])}
         </div>
       )}

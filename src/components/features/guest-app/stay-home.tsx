@@ -3,10 +3,11 @@
 import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { ANYWHERE, HotelResultCard, OffersStrip, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, promoAccountFor, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, OffersStrip, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, ITEM_THUMBNAIL_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
+import { ENTRY_ILLUSTRATIONS } from './illustrations';
 import { Button } from '@/components/ui';
 import { CabanaMark } from '@/components/ui/cabana-logo';
 import { CalendarCheck01Icon as HugeCalendarCheckIcon, ChevronRightIcon as HugeChevronRightIcon } from '@hugeicons-pro/core-stroke-rounded';
@@ -138,6 +139,9 @@ export type ResumeBooking = { title: string; detail: string; onResume: () => voi
 export type StayOverviewHomeProps = {
   session: GuestSession;
   booking?: Booking;
+  staySearch: StaySearch;
+  onSearchStay: (search: StaySearch) => void;
+  promoAccount?: PromoAccount;
   online?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
   /** Recommended for you: the stay feed's best, specific things. */
@@ -145,9 +149,6 @@ export type StayOverviewHomeProps = {
   onOpenPick: (entry: FeedEntry) => void;
   onOpenStay: (id: string) => void;
   onOpenHotel: (id: string) => void;
-  /** The hotel search the no-booking home opens with. */
-  staySearch: StaySearch;
-  onSearchStay: (search: StaySearch) => void;
   /** A hotel booking the guest left part-way, to pick back up from Home. */
   resumeBooking?: ResumeBooking;
   /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
@@ -160,11 +161,12 @@ export type StayOverviewHomeProps = {
   clockHour?: number;
 };
 
-export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPick, onOpenHotel, staySearch, onSearchStay, resumeBooking, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
+export function StayOverviewHome({ session, booking, staySearch, onSearchStay, promoAccount, onNavigate, picks, onOpenPick, onOpenHotel, resumeBooking, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
     .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  const showNoBookingDiscovery = session.auth === 'authenticated' && session.bookings.length === 0;
 
   if (variant === 'empty' || !booking) {
     return (
@@ -173,11 +175,12 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         pastStays={session.pastStays}
         returning={session.pastStays.length > 0 || session.bookings.some((item) => item.status === 'completed')}
         onNavigate={onNavigate}
-        onOpenHotel={onOpenHotel}
-        staySearch={staySearch}
-        onSearchStay={onSearchStay}
         resumeBooking={resumeBooking}
-        promoAccount={promoAccountFor(session)}
+        discovery={showNoBookingDiscovery ? { staySearch, onSearchStay, onOpenHotel } : undefined}
+        offers={showNoBookingDiscovery ? {
+          nights: countNightsBetween(staySearch.checkIn, staySearch.checkOut),
+          account: promoAccount,
+        } : undefined}
       />
     );
   }
@@ -297,7 +300,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
           <Clock aria-hidden="true" />
           <span>
             <b>{reminder.daysLeft === 0 ? 'Free cancellation ends today' : reminder.daysLeft === 1 ? 'Free cancellation ends tomorrow' : `Free cancellation ends in ${reminder.daysLeft} days`}</b>
-            <small>Until {weekdayDate(reminder.until)}, 11:59 PM · review or change your booking</small>
+            <small>For {reminder.rooms} {reminder.rooms === 1 ? 'room' : 'rooms'} · until {weekdayDate(reminder.until)}, 11:59 PM</small>
           </span>
           <CaretRight aria-hidden="true" />
         </button>
@@ -789,11 +792,9 @@ export function EmptyStayHome({
   guestName,
   pastStays,
   onNavigate,
-  onOpenHotel,
-  staySearch,
-  onSearchStay,
   resumeBooking,
-  promoAccount,
+  discovery,
+  offers,
   returning = pastStays.length > 0,
 }: {
   guestName: string;
@@ -801,11 +802,9 @@ export function EmptyStayHome({
   /** Has stayed before -- a finished stay not yet moved into `pastStays` counts. */
   returning?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
-  onOpenHotel: (id: string) => void;
-  staySearch: StaySearch;
-  onSearchStay: (search: StaySearch) => void;
   resumeBooking?: ResumeBooking;
-  promoAccount?: PromoAccount;
+  discovery?: { staySearch: StaySearch; onSearchStay: (search: StaySearch) => void; onOpenHotel: (id: string) => void };
+  offers?: { nights: number; account?: PromoAccount };
 }) {
   const firstName = guestName.trim().split(' ')[0];
   return (
@@ -820,107 +819,132 @@ export function EmptyStayHome({
               ? `Welcome back, ${firstName}`
               : `Hello, ${firstName}`}
         </h1>
-        <p>
-          {returning
-            ? 'Where to next? Book partner hotels here, mixing room types in one booking.'
-            : 'Book a partner hotel, or add a booking you already have.'}
-        </p>
       </div>
-      <HotelBrowse staySearch={staySearch} onSearchStay={onSearchStay} onOpenHotel={onOpenHotel} resumeBooking={resumeBooking} promoAccount={promoAccount} onAlreadyBooked={() => onNavigate('identify')} />
+      {discovery ? <StaySearchAndDestinations value={discovery.staySearch} onSearch={discovery.onSearchStay} /> : null}
+      {/*
+        Keep external booking lookup available on Home for reservations made
+        outside Cabana. No scan here: without a stay, the guest has no room and
+        no code to point a camera at.
+      */}
+      <button className="guest-entry-card" type="button" onClick={() => onNavigate('identify')}>
+        <span className="guest-entry-card__art" aria-hidden="true">
+          <Image
+            src={ENTRY_ILLUSTRATIONS.bookingEmail.src}
+            alt=""
+            width={ENTRY_ILLUSTRATIONS.bookingEmail.width}
+            height={ENTRY_ILLUSTRATIONS.bookingEmail.height}
+            sizes="(max-width: 359px) 76px, 116px"
+          />
+        </span>
+        <div>
+          <b>Already booked?</b>
+          <small>Add a booking made elsewhere with its reference and last name.</small>
+        </div>
+        <ArrowRight aria-hidden="true" />
+      </button>
+      {resumeBooking ? <ResumeBookingCard resumeBooking={resumeBooking} /> : null}
+      {discovery ? <SavedHotelsRail search={discovery.staySearch} onOpenHotel={discovery.onOpenHotel} /> : null}
+      {offers ? (
+        <section className="guest-empty-hotels">
+          <SectionHeading title="Offers" />
+          <OffersStrip nights={offers.nights} account={offers.account} untitled />
+        </section>
+      ) : null}
     </div>
   );
 }
 
+function ResumeBookingCard({ resumeBooking }: { resumeBooking: ResumeBooking }) {
+  return (
+    <button type="button" className="sb-resume" onClick={resumeBooking.onResume}>
+      <span className="sb-resume__text"><small>Continue your booking</small><b>{resumeBooking.title}</b><span>{resumeBooking.detail}</span></span>
+      <ArrowRight aria-hidden="true" />
+    </button>
+  );
+}
+
+function StaySearchAndDestinations({ value, onSearch, showDestinations = true }: { value: StaySearch; onSearch: (search: StaySearch) => void; showDestinations?: boolean }) {
+  const [sheet, setSheet] = useState<{ value: StaySearch; startAt: SearchStep } | null>(null);
+  const destinations = STAY_LOCATIONS.filter((place) => place.label !== ANYWHERE);
+
+  return (
+    <>
+      <section className="sb-stay-search">
+        <StaySearchBar value={value} onOpen={() => setSheet({ value, startAt: 'where' })} />
+      </section>
+      {sheet ? <StaySearchSheet value={sheet.value} startAt={sheet.startAt} onClose={() => setSheet(null)} onSearch={(search) => { setSheet(null); onSearch(search); }} /> : null}
+      {showDestinations ? (
+        <section className="sb-destinations">
+          <SectionHeading title="Popular destinations" />
+          <div className="sb-rail sb-rail--tiles">
+            {destinations.map((place) => {
+              const image = locationImage(place.label);
+              return (
+                <button key={place.label} type="button" className="sb-destination" onClick={() => setSheet({ value: { ...value, location: place.label }, startAt: 'when' })}>
+                  {image ? <Image src={image.src} alt="" fill sizes="140px" style={{ objectPosition: image.focalPoint }} /> : null}
+                  <span className="sb-destination__scrim" aria-hidden="true" />
+                  <span className="sb-destination__text"><b>{place.label}</b><small>{place.detail}</small></span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+function SavedHotelsRail({ search, onOpenHotel }: { search: StaySearch; onOpenHotel: (id: string) => void }) {
+  const savedIds = useSavedHotels();
+  const everyHotel = searchHotels({ ...search, location: ANYWHERE });
+  const saved = savedIds.flatMap((id) => everyHotel.filter((result) => result.hotel.id === id));
+  if (!saved.length) return null;
+
+  return (
+    <section className="guest-empty-hotels sb-saved">
+      <SectionHeading title="Saved hotels" />
+      <div className="sb-rail">
+        {saved.map((result) => <HotelResultCard key={result.hotel.id} result={result} search={search} compact onOpen={() => onOpenHotel(result.hotel.id)} />)}
+      </div>
+    </section>
+  );
+}
+
 /**
- * Partner hotels to browse, save and share: the search, saved hotels,
- * destinations, offers and the estate's hotels. The no-booking Home is this;
- * with a stay it lives in Explore, so looking at hotels never reads as
- * "book another stay".
+ * Hotel discovery shared between Explore and booking flows: search, saved
+ * hotels, destinations, offers, and partner hotels.
  */
-export function HotelBrowse({ staySearch, onSearchStay, onOpenHotel, resumeBooking, promoAccount, onAlreadyBooked }: {
+export function HotelBrowse({ staySearch, onSearchStay, onOpenHotel, resumeBooking, promoAccount, showOffers = true, showSaved = true, showDestinations = true }: {
   staySearch: StaySearch;
   onSearchStay: (search: StaySearch) => void;
   onOpenHotel: (id: string) => void;
   resumeBooking?: ResumeBooking;
   promoAccount?: PromoAccount;
-  /** Only where adding a booking made elsewhere is the point: the no-booking Home. */
-  onAlreadyBooked?: () => void;
+  showOffers?: boolean;
+  showSaved?: boolean;
+  showDestinations?: boolean;
 }) {
   // The estate's own hotels lead; prices are for the dates in the search card.
   const everyHotel = searchHotels({ ...staySearch, location: ANYWHERE });
   const featured = everyHotel.filter((result) => !result.soldOut).slice(0, 6);
-  // The search opens full screen; a destination tile opens it with the place filled in.
-  const [sheet, setSheet] = useState<{ value: StaySearch; startAt: SearchStep } | null>(null);
-  const destinations = STAY_LOCATIONS.filter((place) => place.label !== ANYWHERE);
-  // Saved from any hotel card, newest first; priced for the search card's dates like the rail below.
-  const saved = useSavedHotels().flatMap((id) => everyHotel.filter((result) => result.hotel.id === id));
-
   return (
     <>
-      <StaySearchBar value={staySearch} onOpen={() => setSheet({ value: staySearch, startAt: 'where' })} />
-      {sheet ? <StaySearchSheet value={sheet.value} startAt={sheet.startAt} onClose={() => setSheet(null)} onSearch={(search) => { setSheet(null); onSearchStay(search); }} /> : null}
+      <StaySearchAndDestinations value={staySearch} onSearch={onSearchStay} showDestinations={showDestinations} />
 
       {resumeBooking ? (
-        <button type="button" className="sb-resume" onClick={resumeBooking.onResume}>
-          <span className="sb-resume__text"><small>Continue your booking</small><b>{resumeBooking.title}</b><span>{resumeBooking.detail}</span></span>
-          <ArrowRight aria-hidden="true" />
-        </button>
+        <ResumeBookingCard resumeBooking={resumeBooking} />
       ) : null}
 
-      {saved.length ? (
-        <section className="guest-empty-hotels sb-saved">
-          <SectionHeading title="Saved hotels" />
-          <div className="sb-rail">
-            {saved.map((result) => <HotelResultCard key={result.hotel.id} result={result} search={staySearch} compact onOpen={() => onOpenHotel(result.hotel.id)} />)}
-          </div>
+      {showSaved ? <SavedHotelsRail search={staySearch} onOpenHotel={onOpenHotel} /> : null}
+
+      {showOffers ? (
+        <section className="guest-empty-hotels">
+          <SectionHeading title="Offers" />
+          <OffersStrip nights={countNightsBetween(staySearch.checkIn, staySearch.checkOut)} account={promoAccount} untitled />
         </section>
       ) : null}
 
-      <section className="sb-destinations">
-        <SectionHeading title="Popular destinations" />
-        <div className="sb-rail sb-rail--tiles">
-          {destinations.map((place) => {
-            const image = locationImage(place.label);
-            return (
-              <button key={place.label} type="button" className="sb-destination" onClick={() => setSheet({ value: { ...staySearch, location: place.label }, startAt: 'when' })}>
-                {image ? <Image src={image.src} alt="" fill sizes="140px" style={{ objectPosition: image.focalPoint }} /> : null}
-                <span className="sb-destination__scrim" aria-hidden="true" />
-                <span className="sb-destination__text"><b>{place.label}</b><small>{place.detail}</small></span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="guest-empty-hotels">
-        <SectionHeading title="Offers" />
-        <OffersStrip nights={countNightsBetween(staySearch.checkIn, staySearch.checkOut)} account={promoAccount} untitled />
-      </section>
-
-      {onAlreadyBooked ? (
-        <>
-      {/*
-        The main action, as a card rather than a pill. It is the one thing a
-        signed-in guest with no reservation is here to do, and it sits above
-        their history so it reads as the next step rather than a footnote to
-        it.
-
-        No scan here, deliberately. A guest with no booking has no room and
-        therefore no code to point a camera at -- offering it was an action
-        that could not succeed.
-      */}
-      <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={onAlreadyBooked}>
-        <span className="guest-add-booking-card__glyph" aria-hidden="true"><Ticket /></span>
-        <span className="guest-add-booking-card__text">
-          <b>Already booked?</b>
-          <small>Add a booking made elsewhere with its reference and last name.</small>
-        </span>
-        <ArrowRight aria-hidden="true" />
-      </button>
-        </>
-      ) : null}
-
-      {/* Previous stays live in Profile; the home offers where to stay next. */}
+      {/* Past stays live in Profile; the directory ends with partner hotels. */}
       <section className="guest-empty-hotels">
         <SectionHeading title="Partner hotels" />
         <div className="sb-rail">

@@ -638,8 +638,8 @@
 .guest-app .sb-highlight__part { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .guest-app .sb-highlight__part svg { margin-top: 0; }
 
-/* A chosen rate: tinted in the brand and marked on its edge, not a grey fill. */
-.guest-app .sb-plan.is-selected { background: color-mix(in oklch, var(--guest-accent) 6%, var(--guest-paper)); box-shadow: inset 3px 0 0 var(--guest-accent); }
+/* A chosen rate gets a subtle brand tint without a decorative edge marker. */
+.guest-app .sb-plan.is-selected { background: color-mix(in oklch, var(--guest-accent) 6%, var(--guest-paper)); }
 .guest-app .sb-plan.is-selected .sb-stepper output { color: var(--guest-accent-strong); }
 
 .guest-app .sb-results__title { margin: 0; font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; line-height: 1.15; font-size: 26px; }
@@ -691,7 +691,9 @@
 .guest-app .sb-method__radio { display: grid; width: 22px; height: 22px; place-items: center; border: 1.5px solid var(--guest-line-strong); border-radius: 50%; color: var(--guest-on-accent); }
 .guest-app .sb-method.is-active .sb-method__radio { border-color: var(--guest-accent); background: var(--guest-accent); }
 .guest-app .sb-method__radio svg { width: 12px; height: 12px; }
-.guest-app .sb-secure { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.guest-app .sb-secure { display: flex; align-items: center; justify-content: center; }
+.guest-app .sb-secure__inner { display: inline-flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; text-align: left; }
+.guest-app .sb-secure__inner > span { min-width: 0; }
 .guest-app .sb-secure svg { flex: 0 0 14px; width: 14px; height: 14px; }
 
 .guest-app .sb-payment { gap: 22px; }
@@ -928,6 +930,9 @@
 .guest-app .sb-cancel__room b { font-size: 14.5px; }
 .guest-app .sb-cancel__room small { color: var(--guest-muted); font-size: 12.5px; }
 .guest-app .sb-cancel__room strong { font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.guest-app .sb-cancel__single-room { display: grid; gap: 3px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); }
+.guest-app .sb-cancel__single-room span { color: var(--guest-muted); font-size: 12.5px; }
+.guest-app .sb-cancel__single-room strong { font-size: 14.5px; font-variant-numeric: tabular-nums; }
 
 /* Hotel page highlights: three facts that jump to their sections. */
 .guest-app .sb-highlights { display: flex; gap: 8px; margin: 6px calc(-1 * var(--app-gutter)) 0; padding: 2px var(--app-gutter); overflow-x: auto; scroll-padding-inline: var(--app-gutter); scrollbar-width: none; }
@@ -1055,8 +1060,38 @@
 .guest-app .sb-offers-strip__title { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; font-weight: 700; }
 .guest-app .sb-offers-strip__title svg { width: 16px; height: 16px; color: var(--guest-accent-strong); }
 .guest-app .sb-offers-strip__rail { grid-auto-columns: minmax(232px, 70%); }
-.guest-app .sb-offer-card { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 14px; border: 1px dashed color-mix(in oklch, var(--guest-accent) 45%, var(--guest-line)); border-radius: var(--guest-radius-lg); background: color-mix(in oklch, var(--guest-accent) 4%, var(--guest-paper)); }
-.guest-app .sb-offer-card.is-saved { border-style: solid; border-color: color-mix(in oklch, var(--guest-positive) 45%, var(--guest-line)); background: color-mix(in oklch, var(--guest-positive) 5%, var(--guest-paper)); }
+.guest-app .sb-offer-card {
+  --offer-edge: #ca745d;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px dashed color-mix(in srgb, var(--offer-edge) 34%, var(--guest-line));
+  border-radius: var(--guest-radius-lg);
+  background:
+    radial-gradient(96% 112% at 4% 100%, rgb(255 178 115 / 55%) 0%, transparent 74%),
+    radial-gradient(84% 102% at 100% 2%, rgb(255 191 203 / 54%) 0%, transparent 68%),
+    radial-gradient(72% 82% at 62% 64%, rgb(255 230 161 / 48%) 0%, transparent 70%),
+    linear-gradient(128deg, #fff8ef 4%, #fffafa 56%, #fff4f5 100%);
+}
+.guest-app .sb-offer-card[data-offer-code='WELCOME500'] {
+  --offer-edge: #8d7bd6;
+  background:
+    radial-gradient(96% 110% at 100% 0%, rgb(174 167 255 / 58%) 0%, transparent 72%),
+    radial-gradient(92% 106% at 0% 100%, rgb(131 210 255 / 50%) 0%, transparent 69%),
+    radial-gradient(77% 90% at 44% 47%, rgb(255 179 220 / 46%) 0%, transparent 70%),
+    linear-gradient(135deg, #f4f5ff, #faf7ff 48%, #f1faff);
+}
+.guest-app .sb-offer-card[data-offer-code='HENRY15'] {
+  --offer-edge: #4b9a83;
+  background:
+    radial-gradient(100% 105% at 0% 0%, rgb(118 220 189 / 52%) 0%, transparent 71%),
+    radial-gradient(96% 110% at 100% 96%, rgb(130 191 237 / 54%) 0%, transparent 70%),
+    radial-gradient(78% 84% at 60% 58%, rgb(250 219 132 / 46%) 0%, transparent 70%),
+    linear-gradient(135deg, #effaf5, #f8fcf5 54%, #f1f8ff);
+}
+.guest-app .sb-offer-card.is-saved { border-style: solid; border-color: color-mix(in oklch, var(--guest-positive) 45%, var(--guest-line)); }
 .guest-app .sb-offer-card b { font-size: 15px; line-height: 1.3; }
 .guest-app .sb-offer-card small { color: var(--guest-muted); font-size: 12.5px; line-height: 1.4; }
 /* Title and terms together; the code and its button at the foot, wrapping rather than spilling out of the card. */

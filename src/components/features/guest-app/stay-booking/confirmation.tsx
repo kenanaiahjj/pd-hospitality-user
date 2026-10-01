@@ -4,8 +4,16 @@ import { ArrowRight, CalendarPlus, Car, Check, CheckCircle, NavigationArrow, Rec
 import { useState } from 'react';
 import type { Booking } from '../prototype-model';
 import { BookingMedallion } from './medallion';
-import { RATE_PLAN_LABELS, TRAVEL_NOTES, findStayHotel, peso, roomRefunds } from './model';
+import { RATE_PLAN_LABELS, TRAVEL_NOTES, bookedRoomNumber, bookingCancellationSummary, findStayHotel, peso, roomCancellationTerms, roomRefunds } from './model';
 import { longDate, stayDatesLabel } from './format';
+
+function cancellationLabel(terms: NonNullable<ReturnType<typeof roomCancellationTerms>> | undefined) {
+  if (!terms) return 'Cancellation details unavailable';
+  if (terms.reason === 'free' && terms.until) return `Free cancellation until ${longDate(terms.until)}`;
+  if (terms.reason === 'saver') return 'Non-refundable · Saver rate';
+  if (terms.reason === 'ended' && terms.until) return `Free cancellation ended ${longDate(terms.until)}`;
+  return 'No refund after check-in';
+}
 
 export function StayConfirmationScreen({ booking, onGoToStay, onArrangeTransfer }: { booking: Booking; onGoToStay: () => void; onArrangeTransfer?: () => void }) {
   const reservation = booking.reservation;
@@ -90,13 +98,14 @@ function TripActions({ booking }: { booking: Booking }) {
 
 function ReservationSummary({ booking }: { booking: Booking }) {
   const reservation = booking.reservation!;
+  const cancellation = bookingCancellationSummary(booking);
   return (
     <div className="sb-reservation">
       <p className="sb-reservation__head"><b>{booking.property}</b><small>{stayDatesLabel(booking.checkIn, booking.checkOut)}</small></p>
       <ul>
         {reservation.rooms.map((room, index) => (
           <li key={index}>
-            <span><b>Room {index + 1} · {room.roomName}</b><small>{room.leadGuest} · {room.adults} {room.adults === 1 ? 'adult' : 'adults'}{room.children ? `, ${room.children} ${room.children === 1 ? 'child' : 'children'}` : ''} · {RATE_PLAN_LABELS[room.ratePlanId].title}</small></span>
+            <span><b>Room {bookedRoomNumber(room, index)} · {room.roomName}</b><small>{room.leadGuest} · {room.adults} {room.adults === 1 ? 'adult' : 'adults'}{room.children ? `, ${room.children} ${room.children === 1 ? 'child' : 'children'}` : ''} · {RATE_PLAN_LABELS[room.ratePlanId].title} · {cancellationLabel(roomCancellationTerms(booking, index))}</small></span>
           </li>
         ))}
       </ul>
@@ -109,21 +118,22 @@ function ReservationSummary({ booking }: { booking: Booking }) {
       ) : null}
       {reservation.promo ? <p className="sb-reservation__saved"><TagIcon weight="fill" aria-hidden="true" />{reservation.promo.code} saved you {peso(reservation.promo.discount)}</p> : null}
       <p className="sb-reservation__paid"><Receipt aria-hidden="true" /><span>Paid {peso(reservation.total + (reservation.addOnsTotal ?? 0))} with {reservation.paidWith}</span></p>
-      <p className={`sb-policy${reservation.refundable ? ' is-positive' : ''}`}>
-        {reservation.refundable && reservation.freeCancellationUntil
-          ? <><CheckCircle weight="fill" aria-hidden="true" />Free cancellation until {longDate(reservation.freeCancellationUntil)}</>
-          : 'Non-refundable'}
+      <p className={`sb-policy${cancellation.refundableRooms ? ' is-positive' : ''}`}>
+        {cancellation.refundableRooms === cancellation.totalRooms && cancellation.until
+          ? <><CheckCircle weight="fill" aria-hidden="true" />Free cancellation until {longDate(cancellation.until)}</>
+          : cancellation.refundableRooms && cancellation.until
+            ? <><CheckCircle weight="fill" aria-hidden="true" />Free cancellation until {longDate(cancellation.until)} for {cancellation.refundableRooms} of {cancellation.totalRooms} rooms</>
+            : 'No rooms have free cancellation'}
       </p>
     </div>
   );
 }
 
 /**
- * Cancel all of a booking or some of its rooms -- opened from View booking,
- * for a refundable stay inside its free-cancellation window. Every room starts
- * ticked; untick the ones to keep.
+ * Cancel all of an upcoming booking or a selected set of its rooms. Each room
+ * shows its own refund terms before the guest confirms.
  */
-export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefund = 0, pickupRefund }: {
+export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefund = 0, pickupRefund, hasLinkedExtras = false, hasAirportPickup = false }: {
   booking: Booking;
   onClose: () => void;
   onConfirm: (roomIndexes: number[]) => void;
@@ -131,15 +141,26 @@ export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefu
   extrasRefund?: number;
   /** What a smaller pickup gives back when only some rooms go. */
   pickupRefund?: (roomIndexes: number[]) => number;
+  /** Arrival services and unpaid extras that will be removed with a full cancellation. */
+  hasLinkedExtras?: boolean;
+  /** A booked pickup whose passenger count follows the rooms that stay. */
+  hasAirportPickup?: boolean;
 }) {
   const reservation = booking.reservation;
   const [chosen, setChosen] = useState<number[]>(() => reservation?.rooms.map((_, index) => index) ?? []);
   if (!reservation) return null;
   const refunds = roomRefunds(reservation);
+  const terms = reservation.rooms.map((_, index) => roomCancellationTerms(booking, index));
   const everything = chosen.length === reservation.rooms.length;
-  const roomsBack = chosen.reduce((sum, index) => sum + (refunds[index] ?? 0), 0);
+  const roomsBack = chosen.reduce((sum, index) => sum + (terms[index]?.refund ?? 0), 0);
+  const retainedRoomCharges = chosen.reduce((sum, index) => sum + (terms[index]?.refundable ? 0 : refunds[index] ?? 0), 0);
+  const previouslyRetained = reservation.cancellationRetainedTotal ?? 0;
+  const noRefundCount = chosen.filter((index) => !terms[index]?.refundable).length;
   const extrasBack = everything ? extrasRefund : chosen.length ? pickupRefund?.(chosen) ?? 0 : 0;
   const refund = roomsBack + extrasBack;
+  const completionCopy = everything
+    ? ` Every room in this booking will be cancelled.${hasLinkedExtras ? ` Linked arrival services will also be cancelled${extrasRefund ? ' and eligible payments refunded' : ''}.` : ''}`
+    : ` ${reservation.rooms.length - chosen.length === 1 ? 'The other room stays' : 'The other rooms stay'} booked.${hasLinkedExtras ? ' Linked arrival services stay booked.' : ''}${hasAirportPickup ? ' The airport pickup is adjusted to fit the remaining party.' : ''}`;
   const toggle = (index: number) => setChosen((current) => (current.includes(index) ? current.filter((value) => value !== index) : [...current, index].sort()));
   return (
     <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -154,29 +175,37 @@ export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefu
             {reservation.rooms.map((room, index) => (
               <label key={index} className={`sb-cancel__room${chosen.includes(index) ? ' is-chosen' : ''}`}>
                 <input type="checkbox" checked={chosen.includes(index)} onChange={() => toggle(index)} />
-                <span><b>Room {index + 1} · {room.roomName}</b><small>{room.leadGuest} · {RATE_PLAN_LABELS[room.ratePlanId].title}</small></span>
-                <strong>{peso(refunds[index] ?? 0)}</strong>
+                <span><b>Room {bookedRoomNumber(room, index)} · {room.roomName}</b><small>{room.leadGuest} · {RATE_PLAN_LABELS[room.ratePlanId].title} · {cancellationLabel(terms[index])}</small></span>
+                <strong>{peso(terms[index]?.refund ?? 0)} refund</strong>
               </label>
             ))}
           </fieldset>
-        ) : null}
-        {/* Each part of the refund before the guest confirms, not only after. */}
-        {chosen.length && extrasBack ? (
+        ) : (
+          <div className="sb-cancel__single-room">
+            <b>Room {bookedRoomNumber(reservation.rooms[0]!, 0)} · {reservation.rooms[0]!.roomName} · {RATE_PLAN_LABELS[reservation.rooms[0]!.ratePlanId].title}</b>
+            <span>{cancellationLabel(terms[0])}</span>
+            <strong>{peso(terms[0]?.refund ?? 0)} refund</strong>
+          </div>
+        )}
+        {/* Show both what comes back and any room charge the rate keeps. */}
+        {chosen.length ? (
           <dl className="sb-cancel__breakdown">
-            <div><dt>{chosen.length === 1 ? 'Room' : `${chosen.length} rooms`}</dt><dd>{peso(roomsBack)}</dd></div>
-            <div><dt>{everything ? 'Arrival extras' : 'Airport pickup, smaller party'}<small>{everything ? 'Cancelled with the booking' : 'Fewer passengers, a lower fare'}</small></dt><dd>{peso(extrasBack)}</dd></div>
+            <div><dt>{chosen.length === 1 ? 'Room refund' : `${chosen.length} room refunds`}</dt><dd>{peso(roomsBack)}</dd></div>
+            {retainedRoomCharges ? <div><dt>Room charges kept<small>No refund under these room terms</small></dt><dd>{peso(retainedRoomCharges)}</dd></div> : null}
+            {previouslyRetained ? <div><dt>From earlier cancellations<small>Already kept · no refund</small></dt><dd>{peso(previouslyRetained)}</dd></div> : null}
+            {extrasBack ? <div><dt>{everything ? 'Paid arrival extras' : 'Airport pickup, smaller party'}<small>{everything ? 'Refunded with the booking' : 'Fewer passengers, a lower fare'}</small></dt><dd>{peso(extrasBack)}</dd></div> : null}
             <div className="is-total"><dt>Refund</dt><dd>{peso(refund)}</dd></div>
           </dl>
         ) : null}
         <p className="sb-cancel__refund">
           {chosen.length
-            ? <>You’ll get <b>{peso(refund)}</b> back to {reservation.paidWith}, usually within 5–7 banking days.{everything ? ` Every room in this booking is cancelled${extrasRefund ? ', with its arrival extras' : ''}.` : ` ${reservation.rooms.length - chosen.length === 1 ? 'The other room stays' : 'The other rooms stay'} booked${reservation.addOns?.length ? (pickupRefund?.(chosen) ? ', with your extras; the airport pickup shrinks to fit' : ', and so do your arrival extras') : ''}.`}</>
+            ? <>{refund ? <>You’ll get <b>{peso(refund)}</b> back the way you paid, usually within 5–7 banking days.</> : <>No refund is due for the selected rooms.</>}{noRefundCount ? ` ${noRefundCount === 1 ? 'One selected room has' : `${noRefundCount} selected rooms have`} no refund under ${noRefundCount === 1 ? 'its' : 'their'} rate terms.` : ''}{completionCopy}</>
             : 'Choose at least one room to cancel.'}
         </p>
         <footer className="guest-order-tray__footer sb-cancel__footer">
           <button type="button" className="guest-button guest-button--secondary" onClick={onClose}>Keep booking</button>
           <button type="button" className="guest-button guest-button--danger" disabled={!chosen.length} onClick={() => onConfirm(chosen)}>
-            {everything ? 'Cancel and refund' : `Cancel ${chosen.length} ${chosen.length === 1 ? 'room' : 'rooms'}`}
+            {everything ? 'Cancel booking' : `Cancel ${chosen.length} ${chosen.length === 1 ? 'room' : 'rooms'}`}
           </button>
         </footer>
       </section>

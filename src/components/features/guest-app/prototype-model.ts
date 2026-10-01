@@ -516,7 +516,7 @@ export type PaymentRecord = {
   /** The stay it belongs to, so cancelling that stay can refund it. May outlive the booking. */
   bookingId?: string;
   /** What the payment covered, when it covered several things; `id` is the service booking's. */
-  items: { id?: string; title: string; amount: number; refunded?: boolean }[];
+  items: { id?: string; title: string; amount: number; refunded?: boolean; refundedAmount?: number; cancelled?: boolean }[];
   /** Pesos returned so far. */
   refunded: number;
 };
@@ -2001,9 +2001,9 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
     openedOn: '2019-03-01',
     desk: { phone: '+63 2 8807 8888', email: 'frontdesk.manila@thehenry.ph', hours: 'Front desk · 6:00 AM–10:00 PM' },
     roomTypes: [
-      { id: 'manila-king', name: 'King room', detail: '32 sqm · Courtyard view · Sleeps 2', nightlyRate: '₱6,200', maxGuests: 2 },
-      { id: 'manila-suite', name: 'Garden suite', detail: '48 sqm · Private terrace · Sleeps 3', nightlyRate: '₱9,400', maxGuests: 3 },
-      { id: 'manila-family', name: 'Two-bedroom villa', detail: '76 sqm · Separate living room · Sleeps 5', nightlyRate: '₱14,800', maxGuests: 5 },
+      { id: 'manila-king', name: 'King room', detail: '32 sqm · Courtyard view · Up to 2 guests', nightlyRate: '₱6,200', maxGuests: 2 },
+      { id: 'manila-suite', name: 'Garden suite', detail: '48 sqm · Private terrace · Up to 3 guests', nightlyRate: '₱9,400', maxGuests: 3 },
+      { id: 'manila-family', name: 'Two-bedroom villa', detail: '76 sqm · Separate living room · Up to 5 guests', nightlyRate: '₱14,800', maxGuests: 5 },
     ],
   },
   {
@@ -2016,8 +2016,8 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
     openedOn: '2022-06-15',
     desk: { phone: '+63 32 888 0100', email: 'frontdesk.cebu@thehenry.ph', hours: 'Front desk · 24 hours' },
     roomTypes: [
-      { id: 'cebu-deluxe', name: 'Deluxe room', detail: '28 sqm · Pool view · Sleeps 2', nightlyRate: '₱5,600', maxGuests: 2 },
-      { id: 'cebu-suite', name: 'Garden suite', detail: '44 sqm · Ground floor garden · Sleeps 3', nightlyRate: '₱8,800', maxGuests: 3 },
+      { id: 'cebu-deluxe', name: 'Deluxe room', detail: '28 sqm · Pool view · Up to 2 guests', nightlyRate: '₱5,600', maxGuests: 2 },
+      { id: 'cebu-suite', name: 'Garden suite', detail: '44 sqm · Ground floor garden · Up to 3 guests', nightlyRate: '₱8,800', maxGuests: 3 },
     ],
   },
   {
@@ -2030,8 +2030,8 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
     openedOn: '2026-09-01',
     desk: { phone: '+63 35 422 0100', email: 'frontdesk.dumaguete@thehenry.ph', hours: 'Front desk · 7:00 AM–11:00 PM' },
     roomTypes: [
-      { id: 'dumaguete-deluxe', name: 'Deluxe room', detail: '26 sqm · Sea view · Sleeps 2', nightlyRate: '₱4,900', maxGuests: 2 },
-      { id: 'dumaguete-suite', name: 'Corner suite', detail: '40 sqm · Balcony · Sleeps 4', nightlyRate: '₱7,600', maxGuests: 4 },
+      { id: 'dumaguete-deluxe', name: 'Deluxe room', detail: '26 sqm · Sea view · Up to 2 guests', nightlyRate: '₱4,900', maxGuests: 2 },
+      { id: 'dumaguete-suite', name: 'Corner suite', detail: '40 sqm · Balcony · Up to 4 guests', nightlyRate: '₱7,600', maxGuests: 4 },
     ],
   },
 ];
@@ -3033,14 +3033,17 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
     cannot import without a cycle.
   */
   const reservation = booking.reservation;
-  if (reservation?.refundable && reservation.freeCancellationUntil && booking.status === 'upcoming') {
-    const daysLeft = dayIndex(reservation.freeCancellationUntil) - dayIndex(PROTOTYPE_TODAY);
+  const refundableRooms = reservation?.rooms.filter((room) => room.ratePlanId !== 'saver').length ?? 0;
+  if (reservation && refundableRooms > 0 && booking.status === 'upcoming') {
+    const daysLeft = reservation.freeCancellationUntil
+      ? dayIndex(reservation.freeCancellationUntil) - dayIndex(PROTOTYPE_TODAY)
+      : dayIndex(booking.checkIn) - dayIndex(PROTOTYPE_TODAY) - 3;
     if (daysLeft >= 0 && daysLeft <= 3) {
       notifications.push({
         id: `notification-cancel-${booking.id}`,
         tone: 'booking',
         title: daysLeft === 0 ? 'Free cancellation ends today' : daysLeft === 1 ? 'Free cancellation ends tomorrow' : `Free cancellation ends in ${daysLeft} days`,
-        body: `${booking.property} · until 11:59 PM, then non-refundable`,
+        body: `${booking.property} · for ${refundableRooms} ${refundableRooms === 1 ? 'room' : 'rooms'} until 11:59 PM`,
         time: 'Today',
         screen: 'rate-detail',
       });

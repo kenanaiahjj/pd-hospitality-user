@@ -7,7 +7,7 @@ import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
 import { countNightsBetween } from '../prototype-model';
 import { readPendingVoucher, savePendingVoucher } from './offers';
 import type { CartLine, PromoAccount, RoomAllocation, StayAddOn, StayGuestDetails, StayHotel, StaySearch } from './model';
-import { FREE_CANCELLATION_DAYS, NEW_ACCOUNT, cancellationOpen, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, addOnLines, addOnsTotal, cartRooms, describeRooms, offersFor, partyLabel, peso, quoteStay } from './model';
+import { NEW_ACCOUNT, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, addOnLines, addOnsTotal, cartRooms, describeRooms, offersFor, partyLabel, peso, quoteStay, roomCancellationPolicy } from './model';
 import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
@@ -112,7 +112,7 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
               <header>
                 <small>Room {index + 1} · {allocation[index]?.adults ?? 0} {allocation[index]?.adults === 1 ? 'adult' : 'adults'}{allocation[index]?.childIndexes.length ? `, ${allocation[index]!.childIndexes.length} ${allocation[index]!.childIndexes.length === 1 ? 'child' : 'children'}` : ''}</small>
                 <b>{room.roomType.name}</b>
-                <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · {room.ratePlanId === 'saver' || cancellationOpen(search.checkIn) ? RATE_PLAN_LABELS[room.ratePlanId].detail : 'Non-refundable'}</span>
+                <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · {roomCancellationPolicy(room.ratePlanId, search.checkIn).reason === 'free' ? `Free cancellation until ${longDate(quote.freeCancellationUntil!)}` : room.ratePlanId === 'saver' ? RATE_PLAN_LABELS[room.ratePlanId].detail : 'No refund · free cancellation has ended'}</span>
               </header>
               <TextField label="Guest name for this room" value={details.roomLeads[index] ?? ''} onChange={(value) => setAt('roomLeads', index, value)} placeholder={index === 0 ? 'Lead guest' : `Optional · else ${details.name || 'you'}`} show={false} />
               {/* No bed preference: each room class has one bed setup, so choosing the room chose the beds. */}
@@ -225,6 +225,7 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
   const rooms = cartRooms(hotel, cart);
   const quote = quoteStay(hotel, search, cart, details.promoCode, account);
+  const freeRooms = rooms.filter((room) => roomCancellationPolicy(room.ratePlanId, search.checkIn).refundable).length;
   const extraLines = addOnLines(addOns, hotel);
   const total = quote.total + addOnsTotal(extraLines);
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
@@ -317,25 +318,30 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
           ) : null}
           <div className="is-total"><dt>Total</dt><dd>{peso(total)}</dd></div>
         </dl>
-        <p className={`sb-policy${quote.refundable ? ' is-positive' : ''}`}>
-          {quote.refundable
-            ? <><CheckCircle weight="fill" aria-hidden="true" />Free cancellation until {longDate(quote.freeCancellationUntil!)}, 11:59 PM. Cancel in the app for a full refund.</>
-            : quote.lines.some((line) => line.ratePlanId === 'saver')
-              ? <>Non-refundable: one or more rooms are on a Saver rate. For a refund, every room must be on a free cancellation rate, cancelled at least {FREE_CANCELLATION_DAYS} days before check-in.</>
-              : <>Non-refundable: check-in is less than {FREE_CANCELLATION_DAYS} days away, after free cancellation ends.</>}
+        <p className={`sb-policy${freeRooms ? ' is-positive' : ''}`}>
+          {freeRooms === rooms.length && freeRooms > 0
+            ? <><CheckCircle weight="fill" aria-hidden="true" />All rooms have free cancellation until {longDate(quote.freeCancellationUntil!)}, 11:59 PM.</>
+            : freeRooms > 0
+              ? <><CheckCircle weight="fill" aria-hidden="true" />{freeRooms} of {rooms.length} rooms have free cancellation until {longDate(quote.freeCancellationUntil!)}, 11:59 PM. Other rooms have no refund when cancelled.</>
+              : <>No rooms have free cancellation. Cancelling these rates won’t return the room charges.</>}
         </p>
       </section>
 
 
       {!online ? <p className="sb-note sb-note--warning"><WifiSlash aria-hidden="true" />You’re offline. Reconnect to pay.</p> : null}
-      <p className="sb-small sb-center sb-secure"><LockSimple aria-hidden="true" />Paid directly to {hotel.name} through our payment partner. Not added to a room bill.</p>
+      <p className="sb-small sb-center sb-secure">
+        <span className="sb-secure__inner">
+          <LockSimple aria-hidden="true" />
+          <span>Paid directly to {hotel.name} through our payment partner. Not added to a room bill.</span>
+        </span>
+      </p>
 
       <div className="guest-dock-spacer" aria-hidden="true" />
       <div className="guest-dock">
         <div className="guest-dock__summary">
           <strong>{peso(total)}</strong>
-          <small className={`sb-dock__fit${accountGate || !method ? ' is-muted' : quote.refundable ? ' is-positive' : ' is-muted'}`}>
-            {accountGate ? 'Sign in above to pay' : !method ? 'Choose how to pay' : quote.refundable ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
+          <small className={`sb-dock__fit${accountGate || !method ? ' is-muted' : freeRooms ? ' is-positive' : ' is-muted'}`}>
+            {accountGate ? 'Sign in above to pay' : !method ? 'Choose how to pay' : freeRooms === rooms.length && freeRooms ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : freeRooms ? `${freeRooms} of ${rooms.length} rooms refundable` : 'No room refunds'}
           </small>
         </div>
         <button type="button" className="guest-button guest-button--primary" disabled={Boolean(accountGate) || !method || !online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(total)}`}>
@@ -345,4 +351,3 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
     </div>
   );
 }
-

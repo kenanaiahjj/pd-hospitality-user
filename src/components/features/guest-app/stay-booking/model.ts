@@ -36,9 +36,12 @@ export type StayBookingDraft = { search: StaySearch; hotelId?: string; cart: Car
 export type Reservation = {
   reference: string;
   hotelId: string;
-  /** `amount` is the room's share of what was paid, taxes and promo included -- what cancelling it refunds. */
-  rooms: { roomTypeId: string; roomName: string; ratePlanId: RatePlanId; leadGuest: string; adults: number; children: number; amount?: number }[];
+  /** Stable across partial cancellations, and shared with the payment receipt line. */
+  rooms: { id?: string; roomTypeId: string; roomName: string; ratePlanId: RatePlanId; leadGuest: string; adults: number; children: number; amount?: number }[];
+  /** Current value of the rooms still booked, including taxes and the room share of any voucher. */
   total: number;
+  /** Paid room value kept after cancelling a room with no refund due. */
+  cancellationRetainedTotal?: number;
   paidWith: string;
   paidAt: string;
   refundable: boolean;
@@ -545,6 +548,22 @@ export type RoomOffer = {
  */
 export const cancellationOpen = (checkIn: string, today = PROTOTYPE_TODAY) => addDays(checkIn, -FREE_CANCELLATION_DAYS) >= today;
 
+export type RoomCancellationReason = 'free' | 'saver' | 'ended' | 'stay-started';
+export type RoomCancellationPolicy = { refundable: boolean; until?: string; reason: RoomCancellationReason };
+
+export const cancellationDeadline = (checkIn: string) => checkIn ? addDays(checkIn, -FREE_CANCELLATION_DAYS) : undefined;
+
+function cancellationPolicyUntil(ratePlanId: RatePlanId, until: string | undefined, today: string): RoomCancellationPolicy {
+  if (ratePlanId === 'saver') return { refundable: false, until, reason: 'saver' };
+  if (!until || today > until) return { refundable: false, until, reason: 'ended' };
+  return { refundable: true, until, reason: 'free' };
+}
+
+/** The cancellation terms for a rate selected on these dates. */
+export function roomCancellationPolicy(ratePlanId: RatePlanId, checkIn: string, today = PROTOTYPE_TODAY): RoomCancellationPolicy {
+  return cancellationPolicyUntil(ratePlanId, cancellationDeadline(checkIn), today);
+}
+
 export function roomOffers(hotel: StayHotel, search: StaySearch, held: HeldRooms = NO_HELD_ROOMS): RoomOffer[] {
   const nights = Math.max(1, countNightsBetween(search.checkIn, search.checkOut));
   const open = cancellationOpen(search.checkIn);
@@ -558,7 +577,7 @@ export function roomOffers(hotel: StayHotel, search: StaySearch, held: HeldRooms
     */
     plans: roomType.plans.filter((id) => open || id !== 'flex' || !roomType.plans.includes('saver')).map((id) => {
       const total = stayRate(roomType, id, search.checkIn, search.checkOut);
-      return { id, total, perNight: round10(total / nights), refundable: id !== 'saver' && open };
+      return { id, total, perNight: round10(total / nights), refundable: roomCancellationPolicy(id, search.checkIn).refundable };
     }),
   }));
 }
@@ -674,7 +693,7 @@ export function validateAllocation(hotel: StayHotel, search: StaySearch, cart: C
     const { roomType } = item;
     if (current.leads === 0) return 'Needs a guest aged 12 or over';
     if (current.leads > roomType.maxAdults) return `Takes up to ${roomType.maxAdults} guests aged 12 or over`;
-    if (current.sixPlus > roomType.sleeps) return `Sleeps ${roomType.sleeps}, not counting children under 6`;
+    if (current.sixPlus > roomType.sleeps) return `Up to ${roomType.sleeps} guests aged 6 or older; children under 6 don't count toward this limit`;
     if (current.underSix > 2) return 'Takes at most 2 children under 6';
     return null;
   });
@@ -778,7 +797,8 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
   const taxable = subtotal - discount;
   const vat = Math.round(taxable * VAT_RATE);
   const service = Math.round(taxable * SERVICE_RATE);
-  const refundable = lines.length > 0 && lines.every((line) => line.ratePlanId !== 'saver') && cancellationOpen(search.checkIn);
+  const freeCancellationUntil = lines.length > 0 && search.checkIn ? addDays(search.checkIn, -FREE_CANCELLATION_DAYS) : undefined;
+  const refundable = lines.length > 0 && lines.every((line) => roomCancellationPolicy(line.ratePlanId, search.checkIn).refundable);
   return {
     nights,
     lines,
@@ -790,7 +810,7 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
     service,
     total: taxable + vat + service,
     refundable,
-    freeCancellationUntil: refundable ? addDays(search.checkIn, -FREE_CANCELLATION_DAYS) : undefined,
+    freeCancellationUntil,
   };
 }
 
@@ -957,6 +977,7 @@ export function bookingFromDraft({ hotel, search, cart, allocation, details, quo
   const shares = stayRates.map((rate) => Math.round((quote.total * rate) / rateTotal));
   if (shares.length) shares[shares.length - 1]! += quote.total - shares.reduce((sum, share) => sum + share, 0);
   const rooms = cartRooms(hotel, cart).map((item, i) => ({
+    id: `${reference}-room-${i + 1}`,
     amount: shares[i]!,
     roomTypeId: item.roomType.id,
     roomName: item.roomType.name,
@@ -996,16 +1017,58 @@ export function bookingFromDraft({ hotel, search, cart, allocation, details, quo
   };
 }
 
-/** Refundable, and today is on or before the last free day. */
+/** A direct Cabana booking can be cancelled while it is still upcoming. Each room's refund follows its own rate terms. */
 export function canCancelReservation(booking: Booking, today = PROTOTYPE_TODAY): boolean {
   const reservation = booking.reservation;
-  return Boolean(reservation?.refundable && reservation.freeCancellationUntil && today <= reservation.freeCancellationUntil && booking.status === 'upcoming');
+  return Boolean(reservation?.rooms.length && booking.status === 'upcoming' && today <= booking.checkIn);
 }
 
-/** What each room refunds: its recorded share, or an even split for a reservation made before rooms had one. */
+/** The paid share for each active room, including taxes and vouchers. */
 export function roomRefunds(reservation: Reservation): number[] {
-  const even = Math.round(reservation.total / Math.max(1, reservation.rooms.length));
-  return reservation.rooms.map((room) => room.amount ?? even);
+  const missing = reservation.rooms.reduce((count, room) => count + (room.amount === undefined ? 1 : 0), 0);
+  const known = reservation.rooms.reduce((sum, room) => sum + (room.amount === undefined ? 0 : Math.max(0, Math.round(room.amount))), 0);
+  const remainder = Math.max(0, Math.round(reservation.total) - known);
+  const base = missing ? Math.floor(remainder / missing) : 0;
+  let left = remainder - base * missing;
+  return reservation.rooms.map((room) => {
+    if (room.amount !== undefined) return Math.max(0, Math.round(room.amount));
+    const share = base + (left > 0 ? 1 : 0);
+    if (left > 0) left -= 1;
+    return share;
+  });
+}
+
+/** Room labels stay tied to the original booking after another room is cancelled. */
+export function bookedRoomNumber(room: Reservation['rooms'][number], index: number): number {
+  const fromId = room.id?.match(/-room-(\d+)$/)?.[1];
+  return fromId ? Number(fromId) : index + 1;
+}
+
+export type RoomCancellationTerms = RoomCancellationPolicy & { amount: number; refund: number };
+
+/** The rate-specific refund for one room in an upcoming Cabana booking. */
+export function roomCancellationTerms(booking: Booking, roomIndex: number, today = PROTOTYPE_TODAY): RoomCancellationTerms | undefined {
+  const reservation = booking.reservation;
+  const room = reservation?.rooms[roomIndex];
+  if (!reservation || !room) return undefined;
+  const until = reservation.freeCancellationUntil ?? cancellationDeadline(booking.checkIn);
+  const policy = cancellationPolicyUntil(room.ratePlanId, until, today);
+  const upcoming = booking.status === 'upcoming' && today <= booking.checkIn;
+  const refundable = policy.refundable && upcoming;
+  const reason = upcoming ? policy.reason : 'stay-started';
+  const amount = roomRefunds(reservation)[roomIndex] ?? 0;
+  return { refundable, until, reason, amount, refund: refundable ? amount : 0 };
+}
+
+/** Aggregate cancellation status without hiding mixed rate terms. */
+export function bookingCancellationSummary(booking: Booking, today = PROTOTYPE_TODAY): { totalRooms: number; refundableRooms: number; until?: string } {
+  const reservation = booking.reservation;
+  const terms = reservation?.rooms.map((_, index) => roomCancellationTerms(booking, index, today)) ?? [];
+  return {
+    totalRooms: terms.length,
+    refundableRooms: terms.filter((term) => term?.refundable).length,
+    until: reservation?.freeCancellationUntil ?? cancellationDeadline(booking.checkIn),
+  };
 }
 
 /**
@@ -1013,23 +1076,49 @@ export function roomRefunds(reservation: Reservation): number[] {
  * total and the party shrink by what left. Cancelling every room is a full
  * cancellation, which the caller handles by removing the booking instead.
  */
-export function cancelRooms(booking: Booking, indexes: number[]): { booking: Booking; refund: number } {
+export function cancelRooms(booking: Booking, indexes: number[], today = PROTOTYPE_TODAY): { booking: Booking; refund: number; cancelledAmount: number; retainedAmount: number; roomIds: string[] } {
   const reservation = booking.reservation;
-  if (!reservation) return { booking, refund: 0 };
+  if (!reservation) return { booking, refund: 0, cancelledAmount: 0, retainedAmount: 0, roomIds: [] };
+  const chosen = [...new Set(indexes.filter((index) => Number.isInteger(index) && index >= 0 && index < reservation.rooms.length))];
+  if (!chosen.length) return { booking, refund: 0, cancelledAmount: 0, retainedAmount: 0, roomIds: [] };
   const refunds = roomRefunds(reservation);
-  const drop = new Set(indexes);
-  const refund = indexes.reduce((sum, index) => sum + (refunds[index] ?? 0), 0);
-  const rooms = reservation.rooms.filter((_, index) => !drop.has(index));
-  const leaving = reservation.rooms.filter((_, index) => drop.has(index)).reduce((sum, room) => sum + room.adults + room.children, 0);
-  const total = reservation.total - refund;
+  const drop = new Set(chosen);
+  const refund = chosen.reduce((sum, index) => sum + (roomCancellationTerms(booking, index, today)?.refund ?? 0), 0);
+  const cancelledAmount = chosen.reduce((sum, index) => sum + (refunds[index] ?? 0), 0);
+  const retainedAmount = Math.max(0, cancelledAmount - refund);
+  const roomsWithAmounts = reservation.rooms.map((room, index) => ({
+    ...room,
+    id: room.id ?? `${reservation.reference}-room-${index + 1}`,
+    amount: refunds[index] ?? 0,
+  }));
+  const rooms = roomsWithAmounts.filter((_, index) => !drop.has(index));
+  const cancelledRooms = roomsWithAmounts.filter((_, index) => drop.has(index));
+  const leaving = cancelledRooms.reduce((sum, room) => sum + room.adults + room.children, 0);
+  const guestCount = Math.max(1, booking.guestCount - leaving);
+  const companions = booking.companions?.filter((name) => (
+    !cancelledRooms.some((room) => room.leadGuest.trim().toLowerCase() === name.trim().toLowerCase())
+    || rooms.some((room) => room.leadGuest.trim().toLowerCase() === name.trim().toLowerCase())
+  )).slice(0, guestCount - 1);
+  const total = rooms.reduce((sum, room) => sum + (room.amount ?? 0), 0);
+  const nextReservation: Reservation = {
+    ...reservation,
+    rooms,
+    total,
+    refundable: rooms.length > 0 && booking.status === 'upcoming' && today <= booking.checkIn && rooms.every((room) => cancellationPolicyUntil(room.ratePlanId, reservation.freeCancellationUntil ?? cancellationDeadline(booking.checkIn), today).refundable),
+    cancellationRetainedTotal: (reservation.cancellationRetainedTotal ?? 0) + retainedAmount,
+  };
   return {
     refund,
+    cancelledAmount,
+    retainedAmount,
+    roomIds: chosen.map((index) => roomsWithAmounts[index]!.id!),
     booking: {
       ...booking,
       roomType: describeRooms(rooms),
-      guestCount: Math.max(1, booking.guestCount - leaving),
-      roomRate: peso(total),
-      reservation: { ...reservation, rooms, total },
+      guestCount,
+      companions,
+      roomRate: peso(total + (nextReservation.cancellationRetainedTotal ?? 0)),
+      reservation: nextReservation,
     },
   };
 }
@@ -1078,7 +1167,7 @@ export type RoomFilter = 'breakfast' | 'free-cancellation' | 'family' | 'king';
 export const ROOM_FILTER_LABELS: Record<RoomFilter, string> = {
   breakfast: 'Breakfast',
   'free-cancellation': 'Free cancellation',
-  family: 'Sleeps 4+',
+  family: 'Fits 4+ guests',
   king: 'King bed',
 };
 
@@ -1094,13 +1183,14 @@ export function roomMatches(offer: RoomOffer, filters: RoomFilter[]): boolean {
 
 /* ---------- reminders, quick dates, getting there ---------- */
 
-/** Days until the free-cancellation deadline, when it is close: 0 means it ends today. */
-export function cancellationReminder(booking: Booking, today = PROTOTYPE_TODAY): { daysLeft: number; until: string } | undefined {
-  const reservation = booking.reservation;
-  if (!reservation?.refundable || !reservation.freeCancellationUntil || booking.status !== 'upcoming') return undefined;
-  const daysLeft = countNightsBetween(today, reservation.freeCancellationUntil);
-  if (today > reservation.freeCancellationUntil || daysLeft > 3) return undefined;
-  return { daysLeft, until: reservation.freeCancellationUntil };
+/** Days until the free-cancellation deadline for eligible rooms, when it is close: 0 means it ends today. */
+export function cancellationReminder(booking: Booking, today = PROTOTYPE_TODAY): { daysLeft: number; until: string; rooms: number } | undefined {
+  if (booking.status !== 'upcoming') return undefined;
+  const summary = bookingCancellationSummary(booking, today);
+  if (!summary.refundableRooms || !summary.until) return undefined;
+  const daysLeft = countNightsBetween(today, summary.until);
+  if (daysLeft < 0 || daysLeft > 3) return undefined;
+  return { daysLeft, until: summary.until, rooms: summary.refundableRooms };
 }
 
 /** One-tap dates for the When step: the weekends people actually plan, and Christmas. */

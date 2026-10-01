@@ -5819,8 +5819,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
    Signed-in home with no booking
    -------------------------------------------------------------------------- */
 
-/* The main action on a signed-in home with no booking. A card, not a pill:
-   it is the subject of the screen, and it sits above the guest's history. */
+/* Compact add-booking shortcuts used across stay homes. */
 .guest-add-booking-card {
   display: grid;
   width: 100%;

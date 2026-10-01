@@ -2162,10 +2162,10 @@ describe('booking another stay', () => {
 
     await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Manila/ })[0]!);
     // Rooms are a list; each opens a sheet with its rates.
-    await user.click(screen.getByRole('button', { name: /^King Room, sleeps 2/ }));
+    await user.click(screen.getByRole('button', { name: /^King Room, up to 2 guests/ }));
     await user.click(screen.getByRole('button', { name: 'Add a King Room, Room only' }));
     await user.click(screen.getByRole('button', { name: /^Done/ }));
-    await user.click(screen.getByRole('button', { name: /^Garden Suite, sleeps 3/ }));
+    await user.click(screen.getByRole('button', { name: /^Garden Suite, up to 3 guests/ }));
     await user.click(screen.getByRole('button', { name: 'Add a Garden Suite, With breakfast' }));
     await user.click(screen.getByRole('button', { name: /^Done/ }));
     expect(screen.getByText('2 rooms · fits 4 guests')).toBeInTheDocument();
@@ -3051,9 +3051,11 @@ describe('signed-in home with no booking', () => {
     2. A number that is text only, so a phone cannot dial it.
     3. Only one hotel, when the guest may be asking about another.
   */
-  it('lists the partner hotels on the home, each with a number to call and an address to email', async () => {
+  it('lists the partner hotels in Explore, each with a number to call and an address to email', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
+    // Without a booking, partner hotels live in Explore; Home leads with destinations and offers.
+    await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: 'Explore' }));
 
     expect(screen.queryByRole('button', { name: 'Ask the front desk for help' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Contact a hotel/ })).toBeNull();
@@ -3088,10 +3090,11 @@ describe('signed-in home with no booking', () => {
     expect(screen.getByRole('heading', { name: 'Check-in before arrival' })).toBeInTheDocument();
   });
 
-  it('keeps previous stays off the home and shows partner hotels instead', () => {
+  it('keeps previous stays off the home and shows partner hotels in Explore', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={returning} />);
 
     expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: 'Explore' }));
     expect(screen.getByRole('heading', { name: 'Partner hotels' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /The Henry/ }).length).toBeGreaterThan(0);
   });
@@ -3698,10 +3701,11 @@ describe('navigation without a booking', () => {
       guest their room was "still being assigned" -- of a booking they had
       never made.
     */
-    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Profile']);
+    // Explore is there without a booking too: partner hotels to browse. My Stay and Chat wait for a stay.
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Explore', 'Profile']);
   });
 
-  it('starts the signed-in no-booking control state on its home, with only Home and Profile', async () => {
+  it('starts the signed-in no-booking control state on its home, with Home, Explore and Profile', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
 
@@ -3710,7 +3714,8 @@ describe('navigation without a booking', () => {
 
     // No stay means no Explore, My Stay or Chat -- and not the lookup form either.
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Profile']);
+    // Explore is there without a booking too: partner hotels to browse. My Stay and Chat wait for a stay.
+    expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Explore', 'Profile']);
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
     expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
   });

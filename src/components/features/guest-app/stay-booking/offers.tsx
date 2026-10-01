@@ -46,7 +46,7 @@ export function OffersStrip({ hotel, nights, title = 'Offers', account = NEW_ACC
         {offers.map(({ code, promo }) => {
           const isSaved = saved === code;
           return (
-            <article key={code} className={`sb-offer-card${isSaved ? ' is-saved' : ''}`} aria-label={promo.title}>
+            <article key={code} className={`sb-offer-card${isSaved ? ' is-saved' : ''}`} aria-label={promo.title} data-offer-code={code}>
               <b>{promo.title}</b>
               <small>{promo.terms}</small>
               <span className="sb-offer-card__foot">

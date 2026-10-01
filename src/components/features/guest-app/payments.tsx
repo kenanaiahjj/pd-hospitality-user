@@ -88,7 +88,14 @@ export function PaymentDetailScreen({ payment }: { payment?: PaymentRecord }) {
         <ul className="guest-cart__lines guest-cart__lines--receipt" aria-label="What this covered">
           {payment.items.map((item, index) => (
             <li key={item.id ?? index} className="guest-cart__line">
-              <div className="guest-cart__what"><b>{item.title}</b>{item.refunded ? <small>Refunded</small> : null}</div>
+              <div className="guest-cart__what">
+                <b>{item.title}</b>
+                {item.cancelled
+                  ? <small>{(item.refundedAmount ?? (item.refunded ? item.amount : 0)) ? `Cancelled · ${formatPesoAmount(item.refundedAmount ?? item.amount)} refunded` : 'Cancelled · no refund'}</small>
+                  : item.refundedAmount
+                    ? <small>{item.refundedAmount >= item.amount ? 'Refunded' : `${formatPesoAmount(item.refundedAmount)} refunded`}</small>
+                    : item.refunded ? <small>Refunded</small> : null}
+              </div>
               <div className="guest-cart__price"><strong>{formatPesoAmount(item.amount)}</strong></div>
             </li>
           ))}

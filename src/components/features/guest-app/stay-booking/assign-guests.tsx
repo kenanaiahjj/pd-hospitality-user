@@ -50,7 +50,7 @@ export function StayAssignGuestsScreen({ hotel, search, cart, allocation, onChan
                 <span className="sb-assign__title">
                   <small>Room {index + 1}</small>
                   <b>{room.roomType.name}</b>
-                  <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · Sleeps {room.roomType.sleeps}</span>
+                  <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · Up to {room.roomType.sleeps} guests</span>
                 </span>
               </header>
               <div className="sb-counter" role="group" aria-label={`Adults in room ${index + 1}`}>

@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'react';
   The confirmation's centrepiece: a medallion struck for the booking, all
   green -- a deep emerald enamel face with a fine engraved sunburst, a
   polished green-metal rim and a raised jade check -- spinning in once and
-  then floating, a light sweeping across it and gold dust around it.
+  then floating, with gold dust around it.
 
   One fragment shader, no 3D library: the coin is a signed-distance field,
   raymarched per pixel, lit by a procedural studio environment. Gold is a
@@ -115,8 +115,6 @@ void main() {
     vec3 nWorld = turn * n;
     vec3 v = -rd;
 
-    // The sweep: a band of light crossing the face every few seconds.
-    float sweep = smoothstep(0.07, 0.0, abs(p.x * 0.8 + p.y * 0.6 - (mod(uTime * 0.5, 5.0) - 1.6))) * 0.55;
 
     if (hit.y < 1.5) {
       // Gold: all reflection, tinted by the metal; brushed rings on the rim.
@@ -125,7 +123,7 @@ void main() {
       vec3 refl = environment(reflect(rd, nb));
       float f = pow(1.0 - max(dot(nb, v), 0.0), 5.0);
       vec3 F = GOLD + (1.0 - GOLD) * f;
-      col = refl * F * 0.95 + GOLD * 0.09 + sweep * vec3(1.2, 1.6, 1.1) * F;
+      col = refl * F * 0.95 + GOLD * 0.09;
     } else if (hit.y > 2.5) {
       // The check: green enamel, glassy, deeper at its edges, catching the light on top.
       vec3 key = normalize(vec3(-0.5, 0.7, 0.6));
@@ -136,7 +134,7 @@ void main() {
       float f = 0.08 + 0.92 * pow(1.0 - max(dot(nWorld, v), 0.0), 4.0);
       vec3 coat = environment(reflect(rd, nWorld)) * f;
       float spec = pow(max(dot(reflect(-key, nWorld), v), 0.0), 140.0);
-      col = body + coat * 1.3 + vec3(1.0, 1.0, 0.95) * spec * 2.2 + sweep * vec3(0.5, 0.7, 0.55);
+      col = body + coat * 1.3 + vec3(1.0, 1.0, 0.95) * spec * 2.2;
     } else {
       // Enamel: a sunburst engraved under clear coat, plum body glowing at the edges.
       float a = atan(p.y, p.x);

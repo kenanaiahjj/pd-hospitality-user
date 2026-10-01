@@ -51,8 +51,9 @@ export function OffersStrip({ hotel, nights, title = 'Offers', account = NEW_ACC
               <small>{promo.terms}</small>
               <span className="sb-offer-card__foot">
                 <code>{code}</code>
-                <button type="button" onClick={() => { const next = isSaved ? null : code; savePendingVoucher(next); setSaved(next ?? ''); }} aria-pressed={isSaved}>
-                  {isSaved ? <><Check aria-hidden="true" />Saved for checkout</> : 'Use at checkout'}
+                {/* Short enough to sit beside the code; the label says the rest. */}
+                <button type="button" onClick={() => { const next = isSaved ? null : code; savePendingVoucher(next); setSaved(next ?? ''); }} aria-pressed={isSaved} aria-label={isSaved ? `${code} saved for checkout. Tap to remove` : `Use ${code} at checkout`}>
+                  {isSaved ? <><Check aria-hidden="true" />Saved</> : 'Use code'}
                 </button>
               </span>
             </article>

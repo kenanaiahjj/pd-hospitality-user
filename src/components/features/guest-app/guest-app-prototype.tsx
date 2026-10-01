@@ -614,6 +614,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** The prototype's feed clock; null follows the booking and the prototype's today. */
   const [feedClock, setFeedClock] = useState<FeedClock | null>(null);
   const [feedSheet, setFeedSheet] = useState<'browse' | null>(null);
+  /* View booking for a trip from Profile > Stays; absent means the stay the app is following. */
+  const [viewedBookingId, setViewedBookingId] = useState<string | null>(null);
+  const [staysTab, setStaysTab] = useState<'upcoming' | 'past' | null>(null);
   /* Explore before the scan: this stay's arrival services, or partner hotels to browse and share. */
   const [exploreView, setExploreView] = useState<'stay' | 'hotels'>('stay');
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
@@ -845,7 +848,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     activeScreenRef.current = activeScreen;
   }, [activeScreen]);
 
-  const go = (next: ActiveScreen) => {
+  /** `viewBooking`: open View booking for that trip, not the one the app is following. */
+  const go = (next: ActiveScreen, viewBooking?: string) => {
+    if (next === 'rate-detail') setViewedBookingId(viewBooking ?? null);
     setPassEntranceScreen(null);
     setRoomCancelNotice(null);
     if (['restaurant-cart', 'service-booking', 'transfer-booking'].includes(next)) {
@@ -1229,6 +1234,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const displayBooking = primaryBooking ?? lookupBooking ?? MOCK_SESSION.bookings[0]!;
 
   const contextBooking = primaryBooking ?? displayBooking;
+  const followedBooking = displayBooking;
   /** The prototype clock's hour: the one chosen, else the stay's own default. */
   const clockHour = (feedClock ?? defaultFeedClock(contextBooking)).hour;
   /*
@@ -2345,6 +2351,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const profilePages: PrototypePage[] = [
     { group: 'Profile', label: 'Profile · guest', detail: 'A booking reference, no account', open: () => openPrototypePage({ state: 'pre-arrival', patch: asGuest, screen: 'profile' }) },
     { group: 'Profile', label: 'Profile · signed in', detail: 'Account, history, payments, saved', open: () => openPrototypePage({ state: 'pre-arrival', screen: 'profile' }) },
+    // Two trips: the reference stay in November, and one booked in the app for December.
+    { group: 'Profile', label: 'Stays · two trips ahead', detail: 'Upcoming and Past; the app follows the nearer one', open: () => openPrototypePage({ state: 'pre-arrival', patch: (current) => { const withApp = withAppBooking('free')(current); return { ...withApp, bookings: [...current.bookings, ...withApp.bookings], activeBookingId: current.activeBookingId }; }, screen: 'stay-history' }) },
     { group: 'Profile', label: 'Saved hotels', detail: 'Three hearts, priced for the search dates', open: () => { seedSavedHotels(['alon-boracay', 'manila', 'pinetop-baguio']); openPrototypePage({ state: 'pre-arrival', screen: 'saved-hotels' }); } },
     { group: 'Profile', label: 'Saved hotels · none yet', detail: 'The empty state', open: () => { seedSavedHotels([]); openPrototypePage({ state: 'pre-arrival', screen: 'saved-hotels' }); } },
     { group: 'Book', label: 'Payment · guest must sign in', detail: 'Booking another hotel needs an account', open: () => { openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }); setSession((current) => asGuest(withAppBooking('free')(current))); } },
@@ -2931,8 +2939,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       guestName: current.guestName || booking.guestName,
       bookings: [...current.bookings.filter((item) => item.id !== booking.id), namedBooking],
       serviceBookings: [...extras, ...current.serviceBookings.filter((item) => !extras.some((extra) => extra.id === item.id))],
-      // A guest mid-stay keeps that stay in front; otherwise the new trip leads.
-      activeBookingId: current.bookings.some((item) => item.status === 'active') ? current.activeBookingId : booking.id,
+      // The app follows the stay in progress, else the trip that starts soonest -- the new one only if it is that trip.
+      activeBookingId: ([...current.bookings.filter((item) => item.status === 'active' || item.status === 'upcoming'), booking]
+        .sort((x, y) => Number(y.status === 'active') - Number(x.status === 'active') || x.checkIn.localeCompare(y.checkIn))[0] ?? booking).id,
     }, {
       id: `pay-stay-${booking.id}`,
       paidAt: PROTOTYPE_TODAY,
@@ -3490,6 +3499,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'rate-detail': {
+        // Opened from Profile > Stays, it is that trip; otherwise the stay the app follows.
+        const displayBooking = (viewedBookingId ? session.bookings.find((item) => item.id === viewedBookingId) : undefined) ?? followedBooking;
         /*
           Booking detail owns the reservation and prepaid rate. Stay-change
           requests live here too; My Stay keeps the live folio and checkout.
@@ -5045,7 +5056,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 {isGuest ? null : (
                   <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('stay-history')}>
                     <span><SuitcaseRolling /></span>
-                    <div><b>Stay history</b><small>{pastStays.length} {pastStays.length === 1 ? 'stay' : 'stays'} across {new Set(pastStays.map((stay) => stay.property)).size} {new Set(pastStays.map((stay) => stay.property)).size === 1 ? 'property' : 'properties'}</small></div>
+                    <div><b>Stays</b><small>{(() => { const ahead = session.bookings.filter((item) => item.status === 'active' || item.status === 'upcoming').length; return `${ahead ? `${ahead} upcoming · ` : ''}${pastStays.length} past`; })()}</small></div>
                     <CaretRight />
                   </button>
                 )}
@@ -5200,24 +5211,54 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'stay-history': {
         const lifetime = formatPesoAmount(pastStays.reduce((sum, stay) => sum + parsePesoAmount(summarisePastStay(stay).total), 0));
         const nights = pastStays.reduce((sum, stay) => sum + stay.nights, 0);
+        /*
+          Every trip in one place: the ones ahead, soonest first, and the ones
+          finished. The app follows the first of the upcoming (the stay in
+          progress, else the soonest); the rest open their own View booking.
+        */
+        const upcomingStays = session.bookings
+          .filter((item) => item.status === 'active' || item.status === 'upcoming')
+          .sort((x, y) => Number(y.status === 'active') - Number(x.status === 'active') || x.checkIn.localeCompare(y.checkIn));
+        const tab = staysTab ?? (upcomingStays.length ? 'upcoming' : 'past');
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
-              <h1>Stay history</h1>
-              {pastStays.length ? <p>{pastStays.length} completed stays · {nights} nights · {lifetime} spent</p> : null}
+              <h1>Stays</h1>
+              {tab === 'past' && pastStays.length ? <p>{pastStays.length} completed stays · {nights} nights · {lifetime} spent</p> : null}
+              {tab === 'upcoming' && upcomingStays.length ? <p>{upcomingStays.length} {upcomingStays.length === 1 ? 'trip' : 'trips'} booked. The app follows the first one.</p> : null}
             </div>
-            {pastStays.length === 0 ? (
+            <div className="sb-segmented sb-explore-tabs" role="tablist" aria-label="Stays">
+              <button type="button" role="tab" aria-selected={tab === 'upcoming'} onClick={() => setStaysTab('upcoming')}>Upcoming{upcomingStays.length ? ` (${upcomingStays.length})` : ''}</button>
+              <button type="button" role="tab" aria-selected={tab === 'past'} onClick={() => setStaysTab('past')}>Past{pastStays.length ? ` (${pastStays.length})` : ''}</button>
+            </div>
+            {tab === 'upcoming' ? (
+              upcomingStays.length ? (
+                <div className="guest-stays-list">
+                  {upcomingStays.map((item) => (
+                    <div key={item.id} className="guest-stays-list__item">
+                      <small>{item.id === primaryBooking?.id ? (item.status === 'active' ? 'Now' : 'Next trip') : `In ${countNightsBetween(PROTOTYPE_TODAY, item.checkIn)} days`}</small>
+                      <StayCard booking={item} compact statusLabel={describeStayStatus(item).label === 'Checked in' ? 'Checked in' : 'Confirmed'} onOpen={() => go('rate-detail', item.id)} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <StatePanel icon={<SuitcaseRolling />} title="No trips booked" actions={<Button className="guest-button guest-button--secondary" type="button" onClick={() => go('partner-hotels')}>Browse hotels<ArrowRight aria-hidden="true" /></Button>}>
+                  Trips you book, here or elsewhere, wait here until you go.
+                </StatePanel>
+              )
+            ) : null}
+            {tab === 'past' && pastStays.length === 0 ? (
               <StatePanel icon={<SuitcaseRolling />} title="No stays yet" actions={<Button className="guest-button guest-button--secondary" type="button" onClick={() => go('partner-hotels')}>Explore partner hotels<ArrowRight aria-hidden="true" /></Button>}>
                 Every stay you finish lands here, with its receipt and what you booked, for as long as you want it.
               </StatePanel>
             ) : null}
-            {pastStays.map((stay) => (
+            {tab === 'past' ? pastStays.map((stay) => (
               <HistoryItem
                 key={stay.id}
                 stay={stay}
                 onOpen={() => { setSelectedPastStayId(stay.id); go('stay-detail'); }}
               />
-            ))}
+            )) : null}
           </div>
         );
       }

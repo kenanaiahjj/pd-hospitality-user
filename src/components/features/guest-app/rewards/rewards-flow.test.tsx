@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -563,6 +563,8 @@ describe('points where money is already being discussed', () => {
   */
   it('says what an OTA stay would have earned booked direct', async () => {
     render(<GuestAppPrototype initialSession={live} initialScreen="stay-history" />);
+    // Stays opens on Upcoming when a trip is booked; finished stays are under Past.
+    fireEvent.click(screen.getByRole('tab', { name: /^Past/ }));
 
     const agoda = PAST_STAYS.find((stay) => stay.source === 'Agoda')!;
     await userEvent.click(screen.getAllByRole('button', { name: new RegExp(agoda.property, 'i') })[0]!);
@@ -576,6 +578,8 @@ describe('points where money is already being discussed', () => {
 
   it('says nothing of the kind on a stay already booked direct', async () => {
     render(<GuestAppPrototype initialSession={live} initialScreen="stay-history" />);
+    // Stays opens on Upcoming when a trip is booked; finished stays are under Past.
+    fireEvent.click(screen.getByRole('tab', { name: /^Past/ }));
 
     const direct = PAST_STAYS.find((stay) => stay.source === 'Direct booking')!;
     await userEvent.click(screen.getAllByRole('button', { name: new RegExp(direct.property, 'i') })[0]!);

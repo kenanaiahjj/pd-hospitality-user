@@ -1272,6 +1272,8 @@ describe('stay history', () => {
   it('opens a finished stay and shows what it cost and what was booked', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-history" initialSession={MOCK_SESSION} />);
+    // Stays opens on Upcoming when a trip is booked; finished stays are under Past.
+    fireEvent.click(screen.getByRole('tab', { name: /^Past/ }));
 
     // The card was inert before, which made the spend it represents
     // unreachable -- a guest could see they stayed somewhere and nothing else.
@@ -1288,6 +1290,8 @@ describe('stay history', () => {
   it('names the venue that sold each charge, not just the hotel', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-history" initialSession={MOCK_SESSION} />);
+    // Stays opens on Upcoming when a trip is booked; finished stays are under Past.
+    fireEvent.click(screen.getByRole('tab', { name: /^Past/ }));
 
     await user.click(screen.getByRole('button', { name: /March 14–17, 2026/ }));
 
@@ -1651,7 +1655,7 @@ describe('guest profile', () => {
     expect(screen.queryByText('Saved preferences')).toBeNull();
     expect(screen.queryByText('Higher floor')).toBeNull();
     expect(screen.queryByText('King bed')).toBeNull();
-    expect(screen.getByText('Stay history')).toBeInTheDocument();
+    expect(screen.getByText('Stays')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
   });
 
@@ -1908,8 +1912,9 @@ describe('booking-reference re-entry', () => {
     expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Profile' }));
-    await user.click(screen.getByRole('button', { name: /Stay history/ }));
-    expect(screen.getByRole('heading', { name: 'Stay history' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Stays/ }));
+    expect(screen.getByRole('heading', { name: 'Stays' })).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /^Past/ }));
     expect(screen.getByText(/3 completed stays/)).toBeInTheDocument();
   });
 

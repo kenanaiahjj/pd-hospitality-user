@@ -9155,4 +9155,9 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-ride-card--mosaic { min-height: 224px; }
 .guest-ride-card__mosaic { position: absolute; inset: 0; z-index: -2; display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 2px; background: oklch(0.2 0.01 60); }
 .guest-ride-card__mosaic > span { position: relative; overflow: hidden; }
+
+/* Profile > Stays, Upcoming: each trip with what the app is doing about it. */
+.guest-app .guest-stays-list { display: grid; gap: 16px; }
+.guest-app .guest-stays-list__item { display: grid; gap: 6px; }
+.guest-app .guest-stays-list__item > small { color: var(--guest-muted); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .guest-ride-card__mosaic img { object-fit: cover; }

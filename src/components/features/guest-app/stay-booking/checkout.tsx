@@ -200,7 +200,6 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
 }) {
   const [method, setMethod] = useState<GatewayMethod | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [tried, setTried] = useState(false);
   const [promoDraft, setPromoDraft] = useState(details.promoCode);
   const [promoTried, setPromoTried] = useState(Boolean(details.promoCode));
   const offers = offersFor(hotel, countNightsBetween(search.checkIn, search.checkOut), account);
@@ -231,7 +230,6 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
 
   const pay = () => {
-    setTried(true);
     if (accountGate || !method || !online || processing) return;
     setProcessing(true);
     timer.current = window.setTimeout(() => onPaid(method), 900);
@@ -266,7 +264,6 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
             <span className="sb-method__radio" aria-hidden="true">{method === option ? <Check weight="bold" /> : null}</span>
           </button>
         ))}
-        {tried && !method ? <p className="sb-error" role="alert">Choose how you’d like to pay.</p> : null}
       </fieldset>
 
       <section className="sb-section sb-promo-section" aria-labelledby="sb-voucher-title">
@@ -337,11 +334,11 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
       <div className="guest-dock">
         <div className="guest-dock__summary">
           <strong>{peso(total)}</strong>
-          <small className={`sb-dock__fit${accountGate ? ' is-muted' : quote.refundable ? ' is-positive' : ' is-muted'}`}>
-            {accountGate ? 'Sign in above to pay' : quote.refundable ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
+          <small className={`sb-dock__fit${accountGate || !method ? ' is-muted' : quote.refundable ? ' is-positive' : ' is-muted'}`}>
+            {accountGate ? 'Sign in above to pay' : !method ? 'Choose how to pay' : quote.refundable ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
           </small>
         </div>
-        <button type="button" className="guest-button guest-button--primary" disabled={Boolean(accountGate) || !online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(total)}`}>
+        <button type="button" className="guest-button guest-button--primary" disabled={Boolean(accountGate) || !method || !online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(total)}`}>
           {processing ? 'Processing…' : <><LockSimple aria-hidden="true" />Pay</>}
         </button>
       </div>

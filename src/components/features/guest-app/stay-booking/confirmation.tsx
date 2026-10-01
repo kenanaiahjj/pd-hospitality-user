@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, CalendarPlus, Car, CheckCircle, NavigationArrow, Receipt, ShareNetwork, Tag as TagIcon, X } from '@phosphor-icons/react';
+import { ArrowRight, CalendarPlus, Car, Check, CheckCircle, NavigationArrow, Receipt, ShareNetwork, Tag as TagIcon, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Booking } from '../prototype-model';
 import { BookingMedallion } from './medallion';
@@ -20,11 +20,15 @@ export function StayConfirmationScreen({ booking, onGoToStay, onArrangeTransfer 
         <p className="sb-confirmation__lede">We’ve emailed the confirmation. {booking.property} has your booking and will message you here before you arrive.</p>
         <p className="sb-reference"><small>Booking reference</small><b>{reservation.reference}</b></p>
       </section>
-      <ReservationSummary booking={booking} />
       <TripActions booking={booking} />
+      <ReservationSummary booking={booking} />
       {/* An airport pickup paid with the rooms is already arranged; no second offer of one. */}
       <GettingThere city={booking.city} onArrangeTransfer={reservation.addOns?.some((extra) => extra.id === 'transfer') ? undefined : onArrangeTransfer} />
-      <button type="button" className="guest-button guest-button--primary" onClick={onGoToStay}>Go to your stay<ArrowRight aria-hidden="true" /></button>
+      {/* Always in reach: the hero is tall, and the way on should not sit below the fold. */}
+      <div className="guest-dock-spacer" aria-hidden="true" />
+      <div className="guest-dock sb-confirmation__dock">
+        <button type="button" className="guest-button guest-button--primary" onClick={onGoToStay}>Go to your stay<ArrowRight aria-hidden="true" /></button>
+      </div>
     </div>
   );
 }
@@ -77,9 +81,9 @@ function TripActions({ booking }: { booking: Booking }) {
   };
   return (
     <div className="sb-trip-actions">
-      <button type="button" onClick={addToCalendar}><CalendarPlus aria-hidden="true" /><span>Add to calendar</span></button>
-      <button type="button" onClick={() => { void share(); }}><ShareNetwork aria-hidden="true" /><span>{shared ? 'Shared' : 'Share trip'}</span></button>
-      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noopener noreferrer"><NavigationArrow aria-hidden="true" /><span>Directions</span></a>
+      <button type="button" onClick={addToCalendar} aria-label="Add to calendar"><span className="sb-trip-actions__icon"><CalendarPlus aria-hidden="true" /></span><span>Calendar</span></button>
+      <button type="button" onClick={() => { void share(); }} aria-label={shared ? 'Trip shared' : 'Share trip'}><span className="sb-trip-actions__icon">{shared ? <Check aria-hidden="true" /> : <ShareNetwork aria-hidden="true" />}</span><span>{shared ? 'Shared' : 'Share'}</span></button>
+      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noopener noreferrer" aria-label="Directions to the hotel"><span className="sb-trip-actions__icon"><NavigationArrow aria-hidden="true" /></span><span>Directions</span></a>
     </div>
   );
 }
@@ -133,13 +137,15 @@ export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefu
   if (!reservation) return null;
   const refunds = roomRefunds(reservation);
   const everything = chosen.length === reservation.rooms.length;
-  const refund = chosen.reduce((sum, index) => sum + (refunds[index] ?? 0), 0) + (everything ? extrasRefund : chosen.length ? pickupRefund?.(chosen) ?? 0 : 0);
+  const roomsBack = chosen.reduce((sum, index) => sum + (refunds[index] ?? 0), 0);
+  const extrasBack = everything ? extrasRefund : chosen.length ? pickupRefund?.(chosen) ?? 0 : 0;
+  const refund = roomsBack + extrasBack;
   const toggle = (index: number) => setChosen((current) => (current.includes(index) ? current.filter((value) => value !== index) : [...current, index].sort()));
   return (
     <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="guest-order-tray sb-cancel" role="dialog" aria-modal="true" aria-labelledby="sb-cancel-title">
         <header className="guest-order-tray__header">
-          <div><h2 id="sb-cancel-title">{reservation.rooms.length > 1 ? 'What would you like to cancel?' : 'Cancel this booking?'}</h2><p>{booking.property} · {stayDatesLabel(booking.checkIn, booking.checkOut)}</p></div>
+          <div><h2 id="sb-cancel-title">{reservation.rooms.length > 1 ? 'What would you like to cancel?' : 'Cancel this booking?'}</h2><p><span>{booking.property}</span><span>{stayDatesLabel(booking.checkIn, booking.checkOut)}</span></p></div>
           <button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Keep booking"><X /></button>
         </header>
         {reservation.rooms.length > 1 ? (
@@ -153,6 +159,14 @@ export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefu
               </label>
             ))}
           </fieldset>
+        ) : null}
+        {/* Each part of the refund before the guest confirms, not only after. */}
+        {chosen.length && extrasBack ? (
+          <dl className="sb-cancel__breakdown">
+            <div><dt>{chosen.length === 1 ? 'Room' : `${chosen.length} rooms`}</dt><dd>{peso(roomsBack)}</dd></div>
+            <div><dt>{everything ? 'Arrival extras' : 'Airport pickup, smaller party'}<small>{everything ? 'Cancelled with the booking' : 'Fewer passengers, a lower fare'}</small></dt><dd>{peso(extrasBack)}</dd></div>
+            <div className="is-total"><dt>Refund</dt><dd>{peso(refund)}</dd></div>
+          </dl>
         ) : null}
         <p className="sb-cancel__refund">
           {chosen.length

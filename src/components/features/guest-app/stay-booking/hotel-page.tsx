@@ -232,7 +232,8 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
       <div className="guest-dock sb-dock">
         <div className="guest-dock__summary">
           {/* Two lines at most: the price, then one note -- the room count while it fits, else what to fix. */}
-          {fit.rooms ? <strong>{peso(quote.subtotal)}</strong> : null}
+          {/* The total with taxes, said as such: the pre-tax figure here grew by a fifth at payment. */}
+          {fit.rooms ? <strong>{peso(quote.total)} <span className="sb-dock__est">incl. taxes</span></strong> : null}
           <small className={`sb-dock__fit${fit.fits ? ' is-positive' : ''}${fit.rooms ? '' : ' is-empty'}`} aria-live="polite">
             {soldOutEverywhere ? 'Sold out on these dates' : fit.fits ? `${roomsLabel(fit.rooms)} · ${fit.message.replace('Fits your', 'fits')}` : fit.message}
           </small>

@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { ArrowRight, Check, Minus, Plus } from '@phosphor-icons/react';
-import { useRef, useState } from 'react';
 import { ITEM_THUMBNAIL_IMAGES, ROOM_IMAGES } from '../service-images';
 import type { AddOnId, CelebrationSetup, StayAddOn, StayHotel, StaySearch } from './model';
 import { ADD_ON_INFO, CELEBRATION_SETUPS, OCCASIONS, PRIVATE_CAR_PER_DAY, TRANSFER_FARES, VAN_SEATS, addOnAmount, addOnError, addOnLines, addOnsFor, addOnsTotal, airportForCity, newAddOn, peso, pickupBlurb } from './model';
@@ -41,8 +40,6 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
   onChange: (addOns: StayAddOn[]) => void;
   onContinue: () => void;
 }) {
-  const [tried, setTried] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
   const offered = addOnsFor(hotel);
   const chosen = addOns.filter((addOn) => offered.includes(addOn.id));
   const lines = addOnLines(chosen, hotel);
@@ -53,23 +50,11 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
   const toggle = (id: AddOnId) => onChange(find(id) ? addOns.filter((addOn) => addOn.id !== id) : [...addOns, newAddOn(id, search)]);
   const patch = (id: AddOnId, change: Partial<StayAddOn>) => onChange(addOns.map((addOn) => (addOn.id === id ? { ...addOn, ...change } : addOn)));
 
-  const proceed = () => {
-    const invalid = chosen.find((addOn) => addOnError(addOn));
-    if (invalid) {
-      setTried(true);
-      // After the render that marks it invalid, or there is nothing to find yet.
-      window.requestAnimationFrame(() => {
-        const field = root.current?.querySelector<HTMLElement>(`[data-addon="${invalid.id}"] [aria-invalid="true"]`);
-        field?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        field?.focus({ preventScroll: true });
-      });
-      return;
-    }
-    onContinue();
-  };
+  // What is still needed is said up front, and Continue waits for it, rather than erroring after the tap.
+  const missing = chosen.find((addOn) => addOnError(addOn));
 
   return (
-    <div className="guest-stack sb-addons" ref={root}>
+    <div className="guest-stack sb-addons">
       <div className="guest-page-title">
         <p className="guest-eyebrow">Optional · {hotel.name}</p>
         <h1>Add to your arrival</h1>
@@ -99,10 +84,10 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
               {addOn?.id === 'transfer' ? (
                 <div className="sb-addon__fields">
                   <p className="sb-addon__fact"><small>Pick up</small><b>{airportForCity(hotel.city)}</b><span>{weekdayDate(search.checkIn)}</span></p>
-                  <label className={`sb-field${tried && error ? ' is-invalid' : ''}`}>
-                    <span>Flight lands at</span>
-                    <input type="time" value={addOn.time ?? ''} aria-invalid={(tried && Boolean(error)) || undefined} onChange={(event) => patch(id, { time: event.currentTarget.value })} />
-                    {tried && error ? <small className="sb-field-error">{error}</small> : null}
+                  <label className="sb-field">
+                    <span>Flight lands at <small className="sb-required">Required</small></span>
+                    <input type="time" value={addOn.time ?? ''} required aria-required="true" onChange={(event) => patch(id, { time: event.currentTarget.value })} />
+                    {error ? <small>The driver meets your flight, so they need its landing time.</small> : null}
                   </label>
                   <label className="sb-field">
                     <span>Flight number <small>Optional · the driver tracks delays</small></span>
@@ -165,9 +150,9 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
       <div className="guest-dock">
         <div className="guest-dock__summary">
           <strong>{lines.length ? `+${peso(total)}` : 'No extras'}</strong>
-          <small className="sb-dock__fit is-muted">{lines.length ? `${lines.length} ${lines.length === 1 ? 'extra' : 'extras'} added` : 'All optional'}</small>
+          <small className={`sb-dock__fit${missing ? '' : ' is-muted'}`} aria-live="polite">{missing ? addOnError(missing) : lines.length ? `${lines.length} ${lines.length === 1 ? 'extra' : 'extras'} added` : 'All optional'}</small>
         </div>
-        <button type="button" className="guest-button guest-button--primary" onClick={proceed}>
+        <button type="button" className="guest-button guest-button--primary" disabled={Boolean(missing)} onClick={onContinue}>
           {lines.length ? 'Continue' : 'Skip'}<ArrowRight aria-hidden="true" />
         </button>
       </div>

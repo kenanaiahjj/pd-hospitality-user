@@ -338,7 +338,7 @@
   justify-items: center;
   gap: 6px;
   overflow: hidden;
-  padding: 6px 18px 22px;
+  padding: 4px 18px 18px;
   border-radius: 28px;
   box-shadow: 0 18px 44px oklch(0.2 0.05 351 / 0.28);
   background:
@@ -356,11 +356,11 @@
   background: linear-gradient(90deg, transparent, var(--sb-gold), transparent);
   opacity: 0.7;
 }
-.guest-app .sb-confirmation__eyebrow { margin: -14px 0 0; color: var(--sb-gold); font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.guest-app .sb-confirmation__eyebrow { margin: -10px 0 0; color: var(--sb-gold); font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
 .guest-app .sb-confirmation__hero h1 { margin: 0; color: oklch(0.98 0.008 80); font-size: clamp(28px, 8vw, 34px); line-height: 1.08; }
 .guest-app .sb-confirmation__lede { max-width: 34ch; margin: 2px 0 0; color: oklch(0.9 0.02 351 / 0.82); font-size: 14.5px; line-height: 1.45; }
 .guest-app .sb-confirmation .sb-reference {
-  display: grid; justify-items: center; gap: 2px; margin: 14px 0 0; padding: 12px 22px;
+  display: grid; justify-items: center; gap: 2px; margin: 10px 0 0; padding: 10px 22px;
   border: 1px solid color-mix(in oklch, var(--sb-gold) 55%, transparent);
   border-radius: 14px;
   background: oklch(1 0 0 / 0.06);
@@ -369,7 +369,7 @@
 .guest-app .sb-confirmation .sb-reference small { color: var(--sb-gold); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
 .guest-app .sb-confirmation .sb-reference b { color: oklch(0.98 0.008 80); font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.08em; }
 
-.guest-app .sb-medallion { position: relative; display: grid; width: min(62vw, 230px); aspect-ratio: 1; place-items: center; }
+.guest-app .sb-medallion { position: relative; display: grid; width: min(44vw, 168px); aspect-ratio: 1; place-items: center; }
 .guest-app .sb-medallion__canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 400ms ease; }
 .guest-app .sb-medallion[data-gl='on'] .sb-medallion__canvas { opacity: 1; }
 /* The flat seal, for no WebGL: gold on plum, the same promise without the shine. */
@@ -392,7 +392,8 @@
 .guest-app .sb-reservation__paid svg { width: 17px; height: 17px; color: var(--guest-muted); }
 
 .guest-app .sb-cancel__refund { margin: 16px 0 20px; color: var(--guest-ink); font-size: 15px; line-height: 1.5; }
-.guest-app .sb-cancel__footer { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.guest-app .sb-cancel__footer { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; }
+.guest-app .sb-cancel__footer .guest-button { white-space: nowrap; }
 .guest-app .sb-cancel-notice { position: relative; margin-bottom: 16px; }
 .guest-app .sb-cancel-notice > button { position: absolute; top: 10px; right: 10px; display: grid; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; place-items: center; background: transparent; color: var(--guest-muted); }
 
@@ -939,10 +940,23 @@
 .guest-app #sb-hood-title, .guest-app #sb-partners-title { scroll-margin-top: 72px; }
 
 /* Confirmation: what to do with the trip next. */
-.guest-app .sb-trip-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.guest-app .sb-trip-actions {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-xs);
+}
+/* One card, three equal parts: a hairline between each, the label always one line. */
 .guest-app .sb-trip-actions > button,
-.guest-app .sb-trip-actions > a { display: grid; justify-items: center; gap: 6px; min-height: 76px; padding: 12px 6px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); font-size: 12.5px; font-weight: 650; text-align: center; text-decoration: none; }
-.guest-app .sb-trip-actions svg { width: 22px; height: 22px; color: var(--guest-accent-strong); }
+.guest-app .sb-trip-actions > a {
+  display: grid; justify-items: center; gap: 6px; padding: 12px 4px;
+  border: 0; background: none; color: var(--guest-ink); font: inherit; font-size: 13px; font-weight: 650;
+  text-align: center; text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.guest-app .sb-trip-actions > * + * { border-left: 1px solid var(--guest-line); }
+.guest-app .sb-trip-actions > *:active { background: var(--guest-sunken); }
+.guest-app .sb-trip-actions > *:first-child { border-radius: var(--guest-radius-lg) 0 0 var(--guest-radius-lg); }
+.guest-app .sb-trip-actions > *:last-child { border-radius: 0 var(--guest-radius-lg) var(--guest-radius-lg) 0; }
+.guest-app .sb-trip-actions__icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 50%; background: var(--guest-soft); color: var(--guest-accent-strong); }
+.guest-app .sb-trip-actions svg { width: 20px; height: 20px; }
 
 /* ---------- rooms as a list, each in a sheet ---------- */
 
@@ -1127,3 +1141,14 @@
 .guest-app .sb-saved-empty b { font-size: 16px; }
 .guest-app .sb-saved-empty small { max-width: 32ch; color: var(--guest-muted); font-size: 13.5px; line-height: 1.4; }
 .guest-app .sb-saved-empty .guest-button { margin-top: 10px; }
+.guest-app .sb-required { margin-left: 4px; padding: 1px 6px; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); color: var(--guest-ink); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
+.guest-app .sb-dock__est { color: var(--guest-muted); font-size: 12px; font-weight: 600; }
+.guest-app .sb-cancel__breakdown { display: grid; gap: 10px; margin: 16px 0 0; padding: 14px 16px; border-radius: var(--guest-radius-md); background: var(--guest-sunken); }
+.guest-app .sb-cancel__breakdown div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; }
+.guest-app .sb-cancel__breakdown dt { display: grid; gap: 1px; }
+.guest-app .sb-cancel__breakdown dt small { color: var(--guest-muted); font-size: 12.5px; }
+.guest-app .sb-cancel__breakdown dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 650; }
+.guest-app .sb-cancel__breakdown .is-total { padding-top: 10px; border-top: 1px solid var(--guest-line); font-weight: 700; }
+.guest-app .sb-cancel .guest-order-tray__header p { display: grid; gap: 1px; }
+/* Just the way on, full width: the stay itself is the page above it. */
+.guest-app .sb-confirmation__dock .guest-button { flex: 1 1 auto; width: 100%; justify-content: center; }

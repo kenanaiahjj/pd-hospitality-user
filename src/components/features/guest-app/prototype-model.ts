@@ -271,6 +271,12 @@ export type Booking = {
   reservation?: Reservation;
   /** Every guest was named at checkout, so "Who else is staying" needs nothing more. */
   companionsNamed?: boolean;
+  /**
+   * Who else is on this booking, by name. Per booking, so a second trip has
+   * its own people. Absent on stays from before it existed, which read the
+   * session's `additionalGuests` instead -- see `bookingCompanions`.
+   */
+  companions?: string[];
 };
 
 /**
@@ -576,8 +582,13 @@ export function mergeCompanionRecords(saved: SavedCompanion[] | undefined, incom
  * record; the booking is for `guestCount`, lead included, so only that many
  * are added -- the rest are one tap away rather than silently past the party.
  */
-export function planCompanions(session: GuestSession, booking: Pick<Booking, 'guestCount'>): { selected: SavedCompanion[]; suggestions: SavedCompanion[] } {
-  const named = session.additionalGuests.map((name) => (session.companionRecords ?? []).find((person) => sameName(person.name, name)) ?? { name });
+/** This booking's other guests: its own list, or the session's for a stay from before bookings had one. */
+export function bookingCompanions(session: Pick<GuestSession, 'additionalGuests'>, booking: Pick<Booking, 'companions'>): string[] {
+  return booking.companions ?? session.additionalGuests;
+}
+
+export function planCompanions(session: GuestSession, booking: Pick<Booking, 'guestCount' | 'companions'>): { selected: SavedCompanion[]; suggestions: SavedCompanion[] } {
+  const named = bookingCompanions(session, booking).map((name) => (session.companionRecords ?? []).find((person) => sameName(person.name, name)) ?? { name });
   const pool = [...named, ...(session.companionRecords ?? [])].filter((person, index, all) => all.findIndex((other) => sameName(other.name, person.name)) === index);
   const seats = Math.max(0, booking.guestCount - 1);
   return { selected: pool.slice(0, seats), suggestions: pool.slice(seats) };

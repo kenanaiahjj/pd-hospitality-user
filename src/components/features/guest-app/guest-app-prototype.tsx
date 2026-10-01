@@ -67,6 +67,7 @@ import {
   ANONYMOUS_SESSION,
   canUseOnPropertyServices,
   bookingFromLookup,
+  bookingCompanions,
   connectBooking,
   convertGuestToAccount,
   describeBookingSlot,
@@ -187,6 +188,7 @@ import {
   StayAddOnsScreen,
   withAddOns,
   fitAddOns,
+  fitPickupToParty,
   promoAccountFor,
   SavedHotelsScreen,
   useSavedHotels,
@@ -1748,7 +1750,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       stayContext({
         nights,
         guestCount: booking.guestCount,
-        companions: session.additionalGuests.length,
+        companions: bookingCompanions(session, booking).length,
         booked: session.serviceBookings
           .filter((service) => service.bookingId === booking.id && service.status !== 'cancelled')
           .map((service) => service.serviceId)
@@ -2087,6 +2089,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               roomAssignment: booking.roomAssignment === 'ready' ? 'ready' : 'assigned',
               roomNumber: booking.roomNumber ?? '512',
               honouredPreferences: summarizeRoomPreferences(session.roomPreferences),
+              // The names confirmed here belong to this stay, not to every trip on the account.
+              ...(patch.additionalGuests ? { companions: patch.additionalGuests } : {}),
             }
           : booking,
       ),
@@ -2835,13 +2839,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const { booking, services: extras, total: extrasTotal, lines: extraLines } = withAddOns({ booking: drafted, hotel, addOns: stayDraft.addOns, method, paidAt: PROTOTYPE_TODAY });
     const roomLeads = [...new Set(stayDetails.roomLeads.map((name) => name.trim()).filter((name) => name && name !== stayDetails.name.trim()))];
     // The booker plus each other room's named lead: when that is the whole party, nobody is left to name.
-    const namedBooking = { ...booking, companionsNamed: roomLeads.length + 1 >= booking.guestCount };
+    // Other rooms' lead guests are the people the hotel should expect: this booking's own guest list.
+    const namedBooking = { ...booking, companions: roomLeads, companionsNamed: roomLeads.length + 1 >= booking.guestCount };
     const stayRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
     setSession((current) => recordPayment({
       ...current,
-      // Other rooms' lead guests are the people the hotel should expect, so they join the guest list --
-      // unless another stay is current: the list is the session's, and that stay's companions stay put.
-      additionalGuests: roomLeads.length && !current.bookings.some((item) => item.status === 'active' || item.status === 'upcoming') ? roomLeads : current.additionalGuests,
       guestName: current.guestName || booking.guestName,
       bookings: [...current.bookings.filter((item) => item.id !== booking.id), namedBooking],
       serviceBookings: [...extras, ...current.serviceBookings.filter((item) => !extras.some((extra) => extra.id === item.id))],
@@ -2875,10 +2877,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (!booking?.reservation) return;
     /* Some rooms, not all: the booking stays, smaller, and the guest stays on it. */
     if (roomIndexes && roomIndexes.length < booking.reservation.rooms.length) {
-      const { booking: kept, refund } = cancelRooms(booking, roomIndexes);
+      const { booking: smaller, refund: roomRefund } = cancelRooms(booking, roomIndexes);
       const names = roomIndexes.map((index) => booking.reservation!.rooms[index]?.roomName).filter(Boolean).join(' and ');
-      setSession((current) => refundStayAmount({ ...current, bookings: current.bookings.map((item) => (item.id === bookingId ? kept : item)) }, bookingId, refund));
-      setRoomCancelNotice(`${names} cancelled. ${peso(refund)} is on its way back to ${booking.reservation.paidWith}.`);
+      // The pickup booked with the rooms now carries only who is still coming.
+      const pickup = session.serviceBookings.find((item) => item.bookingId === bookingId && item.serviceId === 'transfer' && item.status === 'confirmed');
+      const fitted = pickup ? fitPickupToParty(smaller, pickup) : undefined;
+      const kept = fitted?.booking ?? smaller;
+      const refund = roomRefund + (fitted?.refund ?? 0);
+      setSession((current) => refundStayAmount({
+        ...current,
+        bookings: current.bookings.map((item) => (item.id === bookingId ? kept : item)),
+        serviceBookings: fitted ? current.serviceBookings.map((item) => (item.id === fitted.service.id ? fitted.service : item)) : current.serviceBookings,
+      }, bookingId, refund));
+      setRoomCancelNotice(`${names} cancelled. ${peso(refund)} is on its way back to ${booking.reservation.paidWith}.${fitted ? ` Your airport pickup is now for ${fitted.passengers}${fitted.refund ? ` in the ${fitted.service.facts?.find((fact) => fact.label === 'Vehicle')?.value.toLowerCase()}, and ${peso(fitted.refund)} of the refund is the lower fare` : ''}.` : ''}`);
       return;
     }
     // Whatever was booked for the stay goes with it: arrival services in the cart or already paid for.
@@ -3581,7 +3592,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live hotel data">Availability, rates, and payment details require a connection.</Notice> : null}
             {reservation && displayBooking.status === 'upcoming' ? <GettingThere city={displayBooking.city} onArrangeTransfer={session.serviceBookings.some((service) => service.bookingId === displayBooking.id && service.serviceId === 'transfer' && service.status === 'confirmed') ? undefined : () => go('pre-arrival-services')} /> : null}
             {cancelSheetOpen && reservation ? (
-              <CancelReservationSheet booking={displayBooking} extrasRefund={session.serviceBookings.filter((service) => service.bookingId === displayBooking.id && service.status === 'confirmed' && service.paymentStatus === 'paid').reduce((sum, service) => sum + parsePesoAmount(service.amount), 0)} onClose={() => setCancelSheetOpen(false)} onConfirm={(rooms) => { setCancelSheetOpen(false); cancelStayBooking(displayBooking.id, rooms); }} />
+              <CancelReservationSheet booking={displayBooking} pickupRefund={(rooms) => {
+                const pickup = session.serviceBookings.find((item) => item.bookingId === displayBooking.id && item.serviceId === 'transfer' && item.status === 'confirmed');
+                return pickup ? fitPickupToParty(cancelRooms(displayBooking, rooms).booking, pickup)?.refund ?? 0 : 0;
+              }} extrasRefund={session.serviceBookings.filter((service) => service.bookingId === displayBooking.id && service.status === 'confirmed' && service.paymentStatus === 'paid').reduce((sum, service) => sum + parsePesoAmount(service.amount), 0)} onClose={() => setCancelSheetOpen(false)} onConfirm={(rooms) => { setCancelSheetOpen(false); cancelStayBooking(displayBooking.id, rooms); }} />
             ) : null}
           </ScreenIntro>
         );

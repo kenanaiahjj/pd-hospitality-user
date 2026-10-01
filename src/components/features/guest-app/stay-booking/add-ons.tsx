@@ -5,7 +5,7 @@ import { ArrowRight, Check, Minus, Plus } from '@phosphor-icons/react';
 import { useRef, useState } from 'react';
 import { ITEM_THUMBNAIL_IMAGES, ROOM_IMAGES } from '../service-images';
 import type { AddOnId, CelebrationSetup, StayAddOn, StayHotel, StaySearch } from './model';
-import { ADD_ON_INFO, CELEBRATION_SETUPS, OCCASIONS, PRIVATE_CAR_PER_DAY, TRANSFER_FARES, VAN_SEATS, addOnAmount, addOnError, addOnLines, addOnsFor, addOnsTotal, airportForCity, newAddOn, peso } from './model';
+import { ADD_ON_INFO, CELEBRATION_SETUPS, OCCASIONS, PRIVATE_CAR_PER_DAY, TRANSFER_FARES, VAN_SEATS, addOnAmount, addOnError, addOnLines, addOnsFor, addOnsTotal, airportForCity, newAddOn, peso, pickupBlurb } from './model';
 import { countNightsBetween } from '../prototype-model';
 import { weekdayDate } from './format';
 
@@ -86,7 +86,7 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
                 <span className="sb-addon__photo"><Image src={PHOTOS[id].src} alt="" fill sizes="64px" style={{ objectPosition: PHOTOS[id].focalPoint }} /></span>
                 <span className="sb-addon__text">
                   <b>{ADD_ON_INFO[id].title}</b>
-                  <small>{ADD_ON_INFO[id].blurb}</small>
+                  <small>{id === 'transfer' ? pickupBlurb(hotel.city) : ADD_ON_INFO[id].blurb}</small>
                   <span className="sb-addon__foot">
                     <span className="sb-addon__price">{addOn ? (addOnAmount(addOn) ? peso(addOnAmount(addOn)) : 'Free') : priceLabel(id)}</span>
                     <button type="button" className={`sb-addon__toggle${addOn ? ' is-added' : ''}`} aria-pressed={Boolean(addOn)} aria-label={addOn ? `Remove ${ADD_ON_INFO[id].title}` : `Add ${ADD_ON_INFO[id].title}`} onClick={() => toggle(id)}>

@@ -300,6 +300,8 @@ None.
 | 2026-09-29 | Breakfast is a flat ₱600 × `sleeps` per room per night, not per person | A per-person price can't be shown before guests are split across rooms | Price it after the split instead |
 | 2026-09-29 | `partner-hotels.tsx` and its off-site booking links are removed; `partner-hotels` is now the in-app directory | Superseded by in-app booking | Restore from git history |
 | 2026-10-01 | WELCOME500 is checked against the app's own bookings and payments | The prototype has no account history from other channels | The backend says whether it is a first booking |
+| 2026-10-01 | Inside the 3-day window nothing is refundable, so only Saver (and breakfast) is offered; a flexible room in the cart moves to Saver with a notice | Paying the flexible price there bought nothing | Offer flexible with "pay at hotel" instead |
+| 2026-10-01 | Each booking keeps its own guest list (`Booking.companions`); stays from before fall back to the session's | A second trip showed the first trip's companions | — |
 | 2026-10-01 | Booking a hotel in the app requires an account | Its receipt, refunds, vouchers and history need someone to belong to | Allow guest checkout with an email, and a lookup to find it again |
 | 2026-10-01 | Saved hotels are in Profile, not the tab bar | The bar fills to five tabs once a stay exists, and a tab must not vanish when a guest books | A heart in the Home header as a shortcut |
 | 2026-10-01 | Saved hotels and a saved offer live on the device | Same as recent searches; no account store in the prototype | Move them to the account so they follow the guest |

@@ -23,15 +23,25 @@ import { HighlightStrip, NeighbourhoodSection, PartnersSection } from './neighbo
 
 /** Keep the cart inside what the new dates allow. */
 export function clampCart(hotel: StayHotel, search: StaySearch, cart: CartLine[], held?: HeldRooms): CartLine[] {
-  const left = new Map(roomOffers(hotel, search, held).map((offer) => [offer.roomType.id, offer.left]));
+  const offers = new Map(roomOffers(hotel, search, held).map((offer) => [offer.roomType.id, offer]));
   const used = new Map<string, number>();
-  return cart.flatMap((line) => {
-    const room = left.get(line.roomTypeId) ?? 0;
+  const kept = cart.flatMap((line): CartLine[] => {
+    const offer = offers.get(line.roomTypeId);
+    const room = offer?.left ?? 0;
     const taken = used.get(line.roomTypeId) ?? 0;
     const quantity = Math.min(line.quantity, Math.max(0, room - taken));
     used.set(line.roomTypeId, taken + quantity);
-    return quantity > 0 ? [{ ...line, quantity }] : [];
+    // A rate the new dates no longer offer moves to the one they do: flexible room-only becomes Saver.
+    const plans = offer?.plans.map((plan) => plan.id) ?? [];
+    const ratePlanId = plans.includes(line.ratePlanId) ? line.ratePlanId : line.ratePlanId === 'flex' && plans.includes('saver') ? 'saver' : undefined;
+    return quantity > 0 && ratePlanId ? [{ ...line, ratePlanId, quantity }] : [];
   });
+  // Two lines that became the same rate are one line.
+  return kept.reduce<CartLine[]>((lines, line) => {
+    const same = lines.find((item) => item.roomTypeId === line.roomTypeId && item.ratePlanId === line.ratePlanId);
+    if (same) { same.quantity += line.quantity; return lines; }
+    return [...lines, { ...line }];
+  }, []);
 }
 
 function setQuantity(cart: CartLine[], roomTypeId: string, ratePlanId: RatePlanId, quantity: number): CartLine[] {
@@ -120,7 +130,11 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
               const kept = clampCart(hotel, next, cart, held);
               const count = (lines: CartLine[]) => lines.reduce((sum, line) => sum + line.quantity, 0);
               // Say so when the new dates cost the cart a room, rather than quietly dropping it.
-              setCartNotice(count(kept) < count(cart) ? `Fewer rooms are free on the new dates, so ${count(cart) - count(kept) === 1 ? 'a room was' : `${count(cart) - count(kept)} rooms were`} taken out of your selection.` : null);
+              const moved = cart.some((line) => line.ratePlanId === 'flex') && !kept.some((line) => line.ratePlanId === 'flex') && kept.some((line) => line.ratePlanId === 'saver');
+              setCartNotice([
+                count(kept) < count(cart) ? `Fewer rooms are free on the new dates, so ${count(cart) - count(kept) === 1 ? 'a room was' : `${count(cart) - count(kept)} rooms were`} taken out of your selection.` : '',
+                moved ? 'Free cancellation has ended for these dates, so room-only rooms are on the cheaper Saver rate.' : '',
+              ].filter(Boolean).join(' ') || null);
               onCartChange(kept);
             }}
           />

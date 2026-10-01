@@ -117,13 +117,21 @@ function ReservationSummary({ booking }: { booking: Booking }) {
  * for a refundable stay inside its free-cancellation window. Every room starts
  * ticked; untick the ones to keep.
  */
-export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefund = 0 }: { booking: Booking; onClose: () => void; onConfirm: (roomIndexes: number[]) => void; /** Extras still booked, refunded with the last room. */ extrasRefund?: number }) {
+export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefund = 0, pickupRefund }: {
+  booking: Booking;
+  onClose: () => void;
+  onConfirm: (roomIndexes: number[]) => void;
+  /** Extras still booked, refunded with the last room. */
+  extrasRefund?: number;
+  /** What a smaller pickup gives back when only some rooms go. */
+  pickupRefund?: (roomIndexes: number[]) => number;
+}) {
   const reservation = booking.reservation;
   const [chosen, setChosen] = useState<number[]>(() => reservation?.rooms.map((_, index) => index) ?? []);
   if (!reservation) return null;
   const refunds = roomRefunds(reservation);
   const everything = chosen.length === reservation.rooms.length;
-  const refund = chosen.reduce((sum, index) => sum + (refunds[index] ?? 0), 0) + (everything ? extrasRefund : 0);
+  const refund = chosen.reduce((sum, index) => sum + (refunds[index] ?? 0), 0) + (everything ? extrasRefund : chosen.length ? pickupRefund?.(chosen) ?? 0 : 0);
   const toggle = (index: number) => setChosen((current) => (current.includes(index) ? current.filter((value) => value !== index) : [...current, index].sort()));
   return (
     <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -146,7 +154,7 @@ export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefu
         ) : null}
         <p className="sb-cancel__refund">
           {chosen.length
-            ? <>You’ll get <b>{peso(refund)}</b> back to {reservation.paidWith}, usually within 5–7 banking days.{everything ? ` Every room in this booking is cancelled${extrasRefund ? ', with its arrival extras' : ''}.` : ` ${reservation.rooms.length - chosen.length === 1 ? 'The other room stays' : 'The other rooms stay'} booked${reservation.addOns?.length ? ', and so do your arrival extras' : ''}.`}</>
+            ? <>You’ll get <b>{peso(refund)}</b> back to {reservation.paidWith}, usually within 5–7 banking days.{everything ? ` Every room in this booking is cancelled${extrasRefund ? ', with its arrival extras' : ''}.` : ` ${reservation.rooms.length - chosen.length === 1 ? 'The other room stays' : 'The other rooms stay'} booked${reservation.addOns?.length ? (pickupRefund?.(chosen) ? ', with your extras; the airport pickup shrinks to fit' : ', and so do your arrival extras') : ''}.`}</>
             : 'Choose at least one room to cancel.'}
         </p>
         <footer className="guest-order-tray__footer sb-cancel__footer">

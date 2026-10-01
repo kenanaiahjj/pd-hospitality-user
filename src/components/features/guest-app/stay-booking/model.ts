@@ -551,7 +551,12 @@ export function roomOffers(hotel: StayHotel, search: StaySearch, held: HeldRooms
   return hotel.roomTypes.map((roomType) => ({
     roomType,
     left: roomsLeft(hotel.id, roomType.id, search.checkIn, search.checkOut, held),
-    plans: roomType.plans.map((id) => {
+    /*
+      Inside three days nothing is refundable, so room-only at the flexible
+      price would cost more for nothing: only the Saver is offered then.
+      Breakfast stays, since it still buys breakfast.
+    */
+    plans: roomType.plans.filter((id) => open || id !== 'flex' || !roomType.plans.includes('saver')).map((id) => {
       const total = stayRate(roomType, id, search.checkIn, search.checkOut);
       return { id, total, perNight: round10(total / nights), refundable: id !== 'saver' && open };
     }),
@@ -1042,7 +1047,9 @@ export type RoomSuggestion = { cart: CartLine[]; total: number; rooms: number };
  */
 export function suggestRooms(hotel: StayHotel, search: StaySearch, held: HeldRooms = NO_HELD_ROOMS): RoomSuggestion | undefined {
   const party = describeParty(search.adults, search.childAges);
-  const open = roomOffers(hotel, search, held).filter((offer) => offer.left > 0 && offer.plans.some((plan) => plan.id === 'flex'));
+  // Free-cancellation rates while they exist; inside the window, the cheapest room-only rate there is.
+  const planOf = (offer: RoomOffer) => (offer.plans.find((plan) => plan.id === 'flex') ?? offer.plans.find((plan) => plan.id === 'saver'))!;
+  const open = roomOffers(hotel, search, held).filter((offer) => offer.left > 0 && offer.plans.some((plan) => plan.id === 'flex' || plan.id === 'saver'));
   if (!open.length) return undefined;
   const cap = Math.max(1, party.leads);
   let best: RoomSuggestion | undefined;
@@ -1051,9 +1058,9 @@ export function suggestRooms(hotel: StayHotel, search: StaySearch, held: HeldRoo
     if (rooms > cap) return;
     if (index === open.length) {
       if (!rooms) return;
-      const cart: CartLine[] = open.flatMap((offer, i) => (counts[i] ? [{ roomTypeId: offer.roomType.id, ratePlanId: 'flex' as const, quantity: counts[i]! }] : []));
+      const cart: CartLine[] = open.flatMap((offer, i) => (counts[i] ? [{ roomTypeId: offer.roomType.id, ratePlanId: planOf(offer).id, quantity: counts[i]! }] : []));
       if (!cartFit(hotel, search, cart).fits) return;
-      const total = cart.reduce((sum, line) => sum + (open.find((offer) => offer.roomType.id === line.roomTypeId)!.plans.find((plan) => plan.id === 'flex')!.total * line.quantity), 0);
+      const total = cart.reduce((sum, line) => sum + (planOf(open.find((offer) => offer.roomType.id === line.roomTypeId)!).total * line.quantity), 0);
       if (!best || rooms < best.rooms || (rooms === best.rooms && total < best.total)) best = { cart, total, rooms };
       return;
     }
@@ -1379,4 +1386,46 @@ export function fitAddOns(addOns: StayAddOn[] | undefined, search: StaySearch): 
     if (addOn.id === 'transfer') return { ...addOn, passengers: Math.min(Math.max(1, addOn.passengers ?? party), Math.max(party, 1)) };
     return addOn;
   });
+}
+
+/**
+ * After rooms are cancelled, the airport pickup booked with them carries only
+ * the guests still coming: fewer passengers, the smaller van if they now fit
+ * it, and the difference back. The other extras do not depend on the party.
+ */
+export function fitPickupToParty(booking: Booking, service: ServiceBooking): { booking: Booking; service: ServiceBooking; refund: number; passengers: number } | undefined {
+  const reservation = booking.reservation;
+  const extra = reservation?.addOns?.find((item) => item.serviceBookingId === service.id && item.id === 'transfer');
+  const before = Number(service.facts?.find((fact) => fact.label === 'Passengers')?.value ?? 0);
+  const passengers = Math.max(1, booking.guestCount);
+  if (!reservation || !extra || service.status !== 'confirmed' || !before || before <= passengers) return undefined;
+  const amount = addOnAmount({ id: 'transfer', passengers });
+  const refund = Math.max(0, extra.amount - amount);
+  return {
+    refund,
+    passengers,
+    service: {
+      ...service,
+      amount: formatPesoAmount(amount),
+      facts: service.facts?.map((fact) => (fact.label === 'Passengers' ? { ...fact, value: `${passengers}` } : fact.label === 'Vehicle' ? { ...fact, value: transferVehicle(passengers) } : fact)),
+    },
+    booking: {
+      ...booking,
+      reservation: {
+        ...reservation,
+        addOns: reservation.addOns!.map((item) => (item === extra ? { ...item, amount, detail: item.detail?.replace(/\d+ guests? · [A-Za-z ]+van$/, `${passengers} ${passengers === 1 ? 'guest' : 'guests'} · ${transferVehicle(passengers)}`) } : item)),
+        addOnsTotal: (reservation.addOnsTotal ?? 0) - refund,
+      },
+    },
+  };
+}
+
+/**
+ * What an airport pickup actually involves from this city's airport. Most are
+ * a drive; Boracay is a drive, a boat and a tricycle, and saying "driven to
+ * the door" promised a road that does not exist.
+ */
+export function pickupBlurb(city: string, property?: string): string {
+  if (city === 'Boracay') return `Met at ${airportForCity(city)} arrivals, then the jetty, the boat across and the last leg${property ? ` to ${property}` : ''}, all arranged. Jetty fees are paid there in cash.`;
+  return `Met at ${airportForCity(city)} arrivals and driven${property ? ` to ${property}` : ' to the door'}.`;
 }

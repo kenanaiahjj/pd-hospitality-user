@@ -3,9 +3,9 @@
 import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { ANYWHERE, HotelResultCard, OffersStrip, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, promoAccountFor, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, OffersStrip, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, promoAccountFor, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
-import { CHECK_IN_FROM, CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
+import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
 import { Button } from '@/components/ui';
 import { CalendarCheck01Icon as HugeCalendarCheckIcon, ChevronRightIcon as HugeChevronRightIcon } from '@hugeicons-pro/core-stroke-rounded';
@@ -432,7 +432,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
             <span className="guest-ride-card__body">
               <small>{arrivalPickup ? 'Pick-up booked' : 'Private pick-up'}</small>
               <b>{arrivalPickup ? `${arrivalPickup.summary?.split(' · ')[0] ?? 'Your driver'} at ${airportFor(booking)}` : 'Need a ride to the hotel?'}</b>
-              <span>{arrivalPickup ? (arrivalPickup.facts?.find((fact) => fact.label === 'Status')?.value ?? 'The hotel confirms the driver here.') : `A hotel driver meets you at ${airportFor(booking)} and brings you to ${booking.property}.`}</span>
+              <span>{arrivalPickup ? (arrivalPickup.facts?.find((fact) => fact.label === 'Status')?.value ?? 'The hotel confirms the driver here.') : pickupBlurb(booking.city, booking.property)}</span>
               <span className="guest-ride-card__pills">
                 <span><CalendarBlank aria-hidden="true" />{`Arriving ${formatStayDateRange(booking).split('–')[0]}`}</span>
                 <span><Users aria-hidden="true" />{`${booking.guestCount} ${booking.guestCount === 1 ? 'guest' : 'guests'}`}</span>
@@ -483,7 +483,7 @@ export type BookingGuest = { key: string; name: string | null; role: 'lead' | 'a
 
 export function listBookingGuests(booking: Booking, session: GuestSession) {
   const lead = session.guestName.trim();
-  const additional = session.additionalGuests.map((name) => name.trim()).filter(Boolean);
+  const additional = bookingCompanions(session, booking).map((name) => name.trim()).filter(Boolean);
 
   const rows: BookingGuest[] = [
     { key: 'lead', name: lead || null, role: 'lead' },

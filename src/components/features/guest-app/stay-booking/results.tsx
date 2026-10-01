@@ -2,12 +2,12 @@
 
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { CheckCircle, FadersHorizontal, MapPin, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
+import { CalendarBlank, CheckCircle, FadersHorizontal, MagnifyingGlass, MapPin, ListBullets, MapTrifold, Star, Users, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Amenity, HeldRooms, HotelResult, PriceBand, PromoAccount, StayFilters, StaySearch, StaySort } from './model';
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';
-import { nightsLabel, stayDatesLabel } from './format';
-import { StaySearchSheet } from './search-form';
+import { compactRange, nightsLabel, stayDatesLabel } from './format';
+import { StaySearchSheet, type SearchStep } from './search-form';
 import { OffersStrip } from './offers';
 import { SaveHotelButton } from './saved';
 import { countNightsBetween } from '../prototype-model';
@@ -40,7 +40,7 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
   /** Who is booking, so offers they can't use are not shown. */
   account?: PromoAccount;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<SearchStep | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const hasPlace = Boolean(findLocation(search.location)?.center);
   const sort = view.sort === 'distance' && !hasPlace ? 'recommended' : view.sort;
@@ -51,11 +51,22 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
 
   return (
     <div className="guest-stack sb-results">
-      <button type="button" className="sb-summary" onClick={() => setEditing(true)} aria-label={`Change search: ${search.location}, ${stayDatesLabel(search.checkIn, search.checkOut)}, ${partyLabel(search)}`}>
-        <span><b>{search.location}</b><small>{stayDatesLabel(search.checkIn, search.checkOut)} · {partyLabel(search)}</small></span>
-        <PencilSimple aria-hidden="true" />
-      </button>
-      {editing ? <StaySearchSheet value={search} title="Change search" submitLabel="Update search" onClose={() => setEditing(false)} onSearch={(next) => { setEditing(false); onSearch(next); }} /> : null}
+      {/*
+        The search as three answers, each its own tap: the place, the dates,
+        the party -- and each opens the sheet on that question, rather than
+        one pencil that sent every change back through Where.
+      */}
+      <div className="sb-summary" role="group" aria-label="Your search">
+        <button type="button" className="sb-summary__icon" onClick={() => setEditing('where')} aria-label="Change search"><MagnifyingGlass weight="bold" aria-hidden="true" /></button>
+        <span className="sb-summary__text">
+          <button type="button" className="sb-summary__where" onClick={() => setEditing('where')} aria-label={`Destination: ${search.location}. Change`}>{search.location === ANYWHERE ? 'Anywhere' : place}</button>
+          <span className="sb-summary__facts">
+            <button type="button" onClick={() => setEditing('when')} aria-label={`Dates: ${stayDatesLabel(search.checkIn, search.checkOut)}. Change`}><CalendarBlank aria-hidden="true" />{compactRange(search.checkIn, search.checkOut)} · {nightsLabel(search.checkIn, search.checkOut)}</button>
+            <button type="button" onClick={() => setEditing('who')} aria-label={`Guests: ${partyLabel(search)}. Change`}><Users aria-hidden="true" />{search.adults + search.childAges.length} {search.adults + search.childAges.length === 1 ? 'guest' : 'guests'}</button>
+          </span>
+        </span>
+      </div>
+      {editing ? <StaySearchSheet value={search} title="Change search" submitLabel="Update search" startAt={editing} onClose={() => setEditing(null)} onSearch={(next) => { setEditing(null); onSearch(next); }} /> : null}
 
       <div className="sb-results__head">
         <h1 className="sb-results__title">{results.length} {results.length === 1 ? 'stay' : 'stays'}{search.location === ANYWHERE ? '' : ` in ${place}`}</h1>

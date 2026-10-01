@@ -178,6 +178,9 @@ implementation.
 | 2026-10-01 | No airport pickup at hotels whose travel notes say the hotel can't arrange the last leg (Baguio, Tagaytay) | Nothing to meet there. |
 | 2026-10-01 | Early check-in bought here is paid up front and refunded if not approved; there is no hotel-side rejection control in the prototype yet | The desk's decision is the PMS's, not the app's. |
 
+| 2026-10-01 | Cancelling rooms shrinks the airport pickup to the guests still coming, refunding any fare difference; other extras stay | Only the pickup is priced by headcount |
+| 2026-10-01 | Boracay's pickup copy names the jetty, boat and last leg, and that jetty fees are paid there | "Driven to the door" promised a road that does not exist |
+
 ## Implementation notes
 
 - Model: `StayAddOn`, `addOnsFor`, `addOnLines`, `addOnServiceBookings`, `withAddOns` in `stay-booking/model.ts`; `Reservation.addOns` and `addOnsTotal`.

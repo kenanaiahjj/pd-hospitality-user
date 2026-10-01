@@ -348,6 +348,12 @@ export type ServiceBooking = {
   status: 'confirmed' | 'cancelled' | 'completed';
   provider?: string;
   paymentStatus?: 'charged-to-room' | 'paid' | 'payment-pending' | 'pending-confirmation' | 'complimentary' | 'refunded';
+  /**
+   * The hotel's answer to something only it can promise -- early check-in,
+   * late checkout, an extra night, a driver. Absent while it is still asked.
+   * Set when the answer arrives, so Notifications and the push say so.
+   */
+  hotelDecision?: 'confirmed' | 'declined';
   paymentMethod?: 'room' | 'card' | 'gcash' | 'maya';
   diningOrder?: DiningOrderDetails;
   /**
@@ -2928,11 +2934,41 @@ function shortWhen(when: string): string {
     .replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/g, '$1');
 }
 
+/** Asked of the hotel and not yet answered: a room-charge request, or a paid one whose status says it waits. */
+export function awaitsHotel(service: ServiceBooking): boolean {
+  if (service.status !== 'confirmed' || service.hotelDecision) return false;
+  return service.paymentStatus === 'pending-confirmation'
+    || Boolean(service.facts?.some((fact) => fact.label === 'Status' && /requested|waiting|confirms the driver/i.test(fact.value)));
+}
+
 export function getNotifications(session: GuestSession, booking?: Booking): GuestNotification[] {
   if (!booking) return [];
 
   const notifications: GuestNotification[] = [];
   const room = booking.roomNumber ? `Room ${booking.roomNumber}` : 'your room';
+
+  // The hotel's answers first: the news a guest was waiting for.
+  for (const service of session.serviceBookings) {
+    if (service.bookingId !== booking.id || !service.hotelDecision) continue;
+    const confirmed = service.hotelDecision === 'confirmed';
+    notifications.push({
+      id: `notification-decision-${service.id}`,
+      tone: 'booking',
+      title: confirmed ? `${service.title} confirmed` : `${service.title} not available`,
+      body: confirmed
+        ? (() => {
+            const status = service.facts?.find((fact) => fact.label === 'Status')?.value;
+            // "Confirmed by the hotel" says nothing the title does not: say when, and what it costs.
+            return !status || status === 'Confirmed by the hotel'
+              ? `${shortWhen(service.scheduledFor)}${service.paymentStatus === 'charged-to-room' ? ` · ${service.amount} on ${room.toLowerCase()}` : ''}`
+              : status.replace(/^Confirmed · /, '');
+          })()
+        : service.paymentStatus === 'refunded' ? `The hotel couldn’t confirm it · ${service.amount} refunded` : 'The hotel couldn’t confirm it · nothing charged',
+      time: 'Just now',
+      screen: 'stay-entry',
+      entryId: service.id,
+    });
+  }
 
   // News only until the guest is in: once the room is scanned, "collect your
   // key" on checkout day was telling them to go and get a key they had.
@@ -2968,7 +3004,8 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
   }
 
   for (const service of session.serviceBookings) {
-    if (service.bookingId !== booking.id || service.status !== 'confirmed') continue;
+    if (service.bookingId !== booking.id || service.status !== 'confirmed' || service.hotelDecision) continue;
+    const waiting = awaitsHotel(service);
 
     notifications.push(service.diningOrder ? {
       id: `notification-order-${service.id}`,
@@ -2981,10 +3018,11 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
     } : {
       id: `notification-service-${service.id}`,
       tone: 'booking',
-      title: service.paymentStatus === 'pending-confirmation' ? `${service.title} requested` : `${service.title} confirmed`,
+      title: waiting ? `${service.title} requested` : `${service.title} confirmed`,
       // Where the money went, not "added to your room" for every line.
-      body: `${shortWhen(service.scheduledFor)} · ${
-        service.paymentStatus === 'pending-confirmation' ? 'awaiting hotel confirmation'
+      // A reservation has no money story: say who it is for, not where a charge went.
+      body: !service.paymentStatus && !parsePesoAmount(service.amount) ? `${shortWhen(service.scheduledFor)}${service.partySize ? ` · ${service.partySize} ${service.partySize === 1 ? 'guest' : 'guests'}` : ''}${waiting ? ' · awaiting confirmation' : ''}` : `${shortWhen(service.scheduledFor)} · ${
+        waiting ? 'awaiting hotel confirmation'
           : service.paymentStatus === 'complimentary' ? 'complimentary'
             : service.paymentStatus === 'paid' ? `paid with ${PAYMENT_METHOD_LABELS[service.paymentMethod ?? 'card']}`
               : `added to ${room.toLowerCase()}`}`,

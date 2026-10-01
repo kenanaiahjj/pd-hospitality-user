@@ -67,6 +67,7 @@ import {
   ANONYMOUS_SESSION,
   canUseOnPropertyServices,
   bookingFromLookup,
+  awaitsHotel,
   bookingCompanions,
   connectBooking,
   convertGuestToAccount,
@@ -606,6 +607,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [bookingBlockedReason, setBookingBlockedReason] = useState<BlockedReason>('offline');
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
+  /* A push banner for anything else the guest is told: the hotel answering a request. */
+  const [pushNotice, setPushNotice] = useState<{ id: string; headline: string; detail: string; screen?: ActiveScreen } | null>(null);
+  const [pushFocused, setPushFocused] = useState(false);
   /** The prototype's feed clock; null follows the booking and the prototype's today. */
   const [feedClock, setFeedClock] = useState<FeedClock | null>(null);
   const [feedSheet, setFeedSheet] = useState<'browse' | null>(null);
@@ -818,6 +822,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     writeStoredStayDraft(stayDraft.hotelId && stayDraft.cart.length ? { draft: stayDraft, details: stayDetails, savedAt: new Date().toISOString() } : null);
   }, [persistent, stayDraft, stayDetails]);
+
+  useEffect(() => {
+    if (!pushNotice || pushFocused) return;
+    const timeout = window.setTimeout(() => setPushNotice(null), 8_000);
+    return () => window.clearTimeout(timeout);
+  }, [pushNotice, pushFocused]);
 
   useEffect(() => {
     if (!roomReadyNotificationBookingId || roomReadyNotificationFocused) return;
@@ -1333,57 +1343,71 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* The desk's side of an upgrade: approve it, then the room is prepared and made ready. */
   const upgradeAwaitingDesk = primaryBooking?.roomUpgrade?.status === 'requested' ? primaryBooking : undefined;
   /*
-    The hotel's side of what only it can promise: a driver for the pickup, a
-    room ready early. Booked with the rooms or from the arrival cart, each sits
-    waiting until the desk answers; a "no" refunds what was paid for it.
+    The hotel's side of what only it can promise: a driver, a room early, a
+    later checkout, another night. Each request waits until the desk answers;
+    the answer is recorded on the booking, posted to Notifications and pushed
+    as a banner, and a "no" refunds what was paid for it.
   */
-  const awaitingHotel = (serviceId: 'transfer' | 'early-check-in') => session.serviceBookings.find((service) => (
-    service.bookingId === contextBooking.id
-    && service.serviceId === serviceId
-    && service.status === 'confirmed'
-    && (service.paymentStatus === 'paid' || service.paymentStatus === 'pending-confirmation')
-    && Boolean(service.facts?.some((fact) => fact.label === 'Status' && /waiting|confirms the driver/i.test(fact.value)))
-  ));
-  const answerArrivalRequest = (serviceId: 'transfer' | 'early-check-in', approve: boolean) => {
-    const service = awaitingHotel(serviceId);
-    if (!service || !online) return;
+  // Upgrades have their own approval (it moves the guest to a new room), under PMS events.
+  const waitingOnHotel = session.serviceBookings.filter((service) => service.bookingId === contextBooking.id && service.serviceId !== 'room-upgrade' && awaitsHotel(service));
+  const answerHotelRequest = (service: ServiceBooking, approve: boolean) => {
+    if (!online) return;
     const paid = service.paymentStatus === 'paid';
     const method = service.paymentMethod === 'card' || service.paymentMethod === 'gcash' || service.paymentMethod === 'maya' ? GATEWAY_METHOD_LABELS[service.paymentMethod] : 'how you paid';
     // "Friday, December 11": the card's "Friday · December 11" reads oddly in a sentence.
     const day = formatServiceDay(service.scheduledDate).long.replace(' · ', ', ');
     const flight = service.facts?.find((fact) => fact.label === 'Flight')?.value;
     const refund = paid ? `The ${service.amount} is on its way back to ${method}.` : 'Nothing was charged.';
+    const kind = service.serviceId;
+    // "your table at Kape Lab Manila", "your late checkout": lower only the first letter, never a venue's name.
+    const what = `${service.title.charAt(0).toLowerCase()}${service.title.slice(1)}`;
     const status = approve
-      ? (serviceId === 'transfer' ? 'Driver confirmed · Ramon D., white Toyota Hiace (NBC 4127)' : `Confirmed · room ready from ${EARLY_CHECK_IN.time}`)
+      ? kind === 'transfer' ? 'Driver confirmed · Ramon D., white Toyota Hiace (NBC 4127)'
+        : kind === 'early-check-in' ? `Confirmed · room ready from ${EARLY_CHECK_IN.time}`
+          : 'Confirmed by the hotel'
       : `Not available · ${paid ? `refunded to ${method}` : 'no charge'}`;
-    const body = serviceId === 'transfer'
-      ? (approve
-        ? `Your driver is confirmed for ${day}: Ramon D. will meet you at arrivals with a Cabana sign, in a white Toyota Hiace (NBC 4127).${flight ? ` We’re tracking ${flight}, so a delay is no problem.` : ''}`
-        : `Sorry, we can’t arrange the airport pickup on ${day}. ${refund} Metered taxis wait outside arrivals.`)
-      : (approve
-        ? `Good news: your room will be ready from ${EARLY_CHECK_IN.time} on ${day}.`
-        : `We’re full the night before, so we can’t have your room ready early on ${day}. ${refund} Check-in is from ${CHECK_IN_FROM}, and we’re happy to hold your bags until then.`);
+    const body = approve
+      ? kind === 'transfer' ? `Your driver is confirmed for ${day}: Ramon D. will meet you at arrivals with a Cabana sign, in a white Toyota Hiace (NBC 4127).${flight ? ` We’re tracking ${flight}, so a delay is no problem.` : ''}`
+        : kind === 'early-check-in' ? `Good news: your room will be ready from ${EARLY_CHECK_IN.time} on ${day}.`
+          : `Good news: your ${what} is confirmed for ${day}.${service.paymentStatus === 'pending-confirmation' && parsePesoAmount(service.amount) ? ` The ${service.amount} goes on your room bill.` : ''}`
+      : kind === 'transfer' ? `Sorry, we can’t arrange the airport pickup on ${day}. ${refund} Metered taxis wait outside arrivals.`
+        : kind === 'early-check-in' ? `We’re full the night before, so we can’t have your room ready early on ${day}. ${refund} Check-in is from ${CHECK_IN_FROM}, and we’re happy to hold your bags until then.`
+          : `Sorry, we couldn’t get your ${what} on ${day}. ${refund}`;
     setSession((current) => {
       const base = !approve && paid ? refundServiceLine(current, service.id) : current;
       return {
         ...base,
         serviceBookings: base.serviceBookings.map((item) => (item.id === service.id
-          ? { ...item, ...(approve ? {} : { status: 'cancelled' as const, paymentStatus: paid ? 'refunded' as const : item.paymentStatus }), facts: item.facts?.map((fact) => (fact.label === 'Status' ? { ...fact, value: status } : fact)) }
+          ? {
+              ...item,
+              hotelDecision: approve ? 'confirmed' as const : 'declined' as const,
+              // A room-charge request, approved, becomes a charge on the room.
+              ...(approve
+                ? item.paymentStatus === 'pending-confirmation' ? { paymentStatus: parsePesoAmount(item.amount) ? 'charged-to-room' as const : 'complimentary' as const } : {}
+                : { status: 'cancelled' as const, paymentStatus: paid ? 'refunded' as const : item.paymentStatus }),
+              facts: item.facts?.map((fact) => (fact.label === 'Status' ? { ...fact, value: status } : fact)),
+            }
           : item)),
-        bookings: !approve && serviceId === 'early-check-in'
+        bookings: !approve && kind === 'early-check-in'
           ? base.bookings.map((booking) => (booking.id === service.bookingId ? { ...booking, earlyCheckIn: undefined } : booking))
           : base.bookings,
       };
     });
     setChatMessages((messages) => [...messages, { from: 'desk', body, state: 'Seen' }]);
+    // The answer reaches the guest wherever they are: a push, and the entry in Notifications.
+    // The detail says what is now true -- when, and any charge -- not "confirmed" twice.
+    const confirmedDetail = status === 'Confirmed by the hotel'
+      ? `${service.scheduledFor.replace(' · ', ', ')}${service.paymentStatus === 'pending-confirmation' && parsePesoAmount(service.amount) ? ` · ${service.amount} on your room` : ''}`
+      : status.replace(/^Confirmed · /, '');
+    setPushNotice({ id: service.id, headline: approve ? `${service.title} confirmed` : `${service.title} not available`, detail: approve ? confirmedDetail : paid ? `Refunded to ${method}` : 'The hotel couldn’t confirm it' });
   };
-  const hotelAnswerEvents = (['transfer', 'early-check-in'] as const).flatMap((serviceId) => {
-    const waiting = awaitingHotel(serviceId) ? undefined : serviceId === 'transfer' ? 'No airport pickup waiting on the hotel' : 'No early check-in waiting on the hotel';
-    const unavailable = online ? waiting : 'Needs a connection';
-    const name = serviceId === 'transfer' ? 'airport pickup' : 'early check-in';
+  const hotelAnswerEvents = waitingOnHotel.flatMap((service) => {
+    const icon = service.serviceId === 'transfer' ? <Car /> : <Clock />;
+    const name = `${service.title.charAt(0).toLowerCase()}${service.title.slice(1)}`;
+    const unavailable = online ? undefined : 'Needs a connection';
     return [
-      { icon: serviceId === 'transfer' ? <Car /> : <Clock />, label: `Confirm ${name}`, detail: serviceId === 'transfer' ? 'The desk names the driver and car.' : 'The room will be ready from 11:00 AM.', onClick: () => answerArrivalRequest(serviceId, true), unavailable },
-      { icon: <X />, label: `Decline ${name}`, detail: 'Cancelled, refunded if paid, and the desk says why.', onClick: () => answerArrivalRequest(serviceId, false), unavailable },
+      { icon, label: `Confirm ${name}`, detail: 'The hotel says yes; the guest is notified.', onClick: () => answerHotelRequest(service, true), unavailable },
+      { icon: <X />, label: `Decline ${name}`, detail: 'Cancelled, refunded if paid, and the guest is notified.', onClick: () => answerHotelRequest(service, false), unavailable },
     ];
   });
 
@@ -1442,7 +1466,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const simulateUpgradeApproved = () => {
     if (!upgradeAwaitingDesk || !online) return;
     const id = upgradeAwaitingDesk.id;
+    const upgrade = upgradeAwaitingDesk.roomUpgrade;
     setSession((current) => approveRoomUpgrade(current, id));
+    if (upgrade) setPushNotice({ id: `upgrade-${id}`, headline: 'Room upgrade approved', detail: `${upgrade.newRoomType}${upgrade.offeredRoomNumber ? ` · Room ${upgrade.offeredRoomNumber}` : ''}`, screen: 'my-stay' });
     window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === id && booking.roomUpgrade?.status === 'preparing' ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500);
   };
 
@@ -5331,7 +5357,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onClearDeviceData={clearDeviceData}
       />
 
-      {roomReadyNotification ? (
+      {pushNotice ? (
+        <RoomReadyNotification
+          label="Notification"
+          actionLabel="View"
+          headline={pushNotice.headline}
+          detail={pushNotice.detail}
+          onViewStay={() => { const { id, screen } = pushNotice; setPushNotice(null); setPushFocused(false); if (screen) { go(screen); return; } setSelectedStayEntryId(id); go('stay-entry'); }}
+          onDismiss={() => { setPushNotice(null); setPushFocused(false); }}
+          onFocusChange={setPushFocused}
+        />
+      ) : roomReadyNotification ? (
         <RoomReadyNotification
           headline={roomReadyNotification.headline}
           detail={roomReadyNotification.detail}

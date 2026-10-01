@@ -29,18 +29,23 @@ export function RoomReadyNotification({
   onViewStay,
   onDismiss,
   onFocusChange,
+  label = 'Room-ready notification',
+  actionLabel = 'View stay',
 }: {
   headline: string;
   detail: string;
   onViewStay: () => void;
   onDismiss: () => void;
   onFocusChange: (focused: boolean) => void;
+  /** The same banner carries any push: the hotel's answer to a request, too. */
+  label?: string;
+  actionLabel?: string;
 }) {
   return (
     <aside
       className="guest-room-ready-notification"
       role="region"
-      aria-label="Room-ready notification"
+      aria-label={label}
       onFocus={() => onFocusChange(true)}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onFocusChange(false);
@@ -53,7 +58,7 @@ export function RoomReadyNotification({
         <small>Cabana · now</small>
         <strong>{headline}</strong>
         <p>{detail}</p>
-        <button type="button" onClick={onViewStay}>View stay</button>
+        <button type="button" onClick={onViewStay}>{actionLabel}</button>
       </div>
       <button
         className="guest-room-ready-notification__dismiss"

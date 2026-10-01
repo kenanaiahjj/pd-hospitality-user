@@ -567,7 +567,8 @@ describe('points where money is already being discussed', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^Past/ }));
 
     const agoda = PAST_STAYS.find((stay) => stay.source === 'Agoda')!;
-    await userEvent.click(screen.getAllByRole('button', { name: new RegExp(agoda.property, 'i') })[0]!);
+    // The past stay, not the current one above the tabs at the same hotel.
+    await userEvent.click(screen.getAllByRole('button', { name: new RegExp(agoda.property, 'i') }).filter((button) => !button.closest('.guest-stays-current'))[0]!);
 
     // Split across <b> tags, so read the sentence rather than a text node.
     const line = document.querySelector('.stay-earned') as HTMLElement;
@@ -582,7 +583,8 @@ describe('points where money is already being discussed', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^Past/ }));
 
     const direct = PAST_STAYS.find((stay) => stay.source === 'Direct booking')!;
-    await userEvent.click(screen.getAllByRole('button', { name: new RegExp(direct.property, 'i') })[0]!);
+    // The past stay, not the current one above the tabs at the same hotel.
+    await userEvent.click(screen.getAllByRole('button', { name: new RegExp(direct.property, 'i') }).filter((button) => !button.closest('.guest-stays-current'))[0]!);
 
     const line = document.querySelector('.stay-earned') as HTMLElement;
     expect(line.textContent).toContain('22,370 points');

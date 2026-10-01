@@ -851,6 +851,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** `viewBooking`: open View booking for that trip, not the one the app is following. */
   const go = (next: ActiveScreen, viewBooking?: string) => {
     if (next === 'rate-detail') setViewedBookingId(viewBooking ?? null);
+    // Stays opens on what is ahead, not on whichever tab was last looked at.
+    if (next === 'stay-history') setStaysTab(null);
     setPassEntranceScreen(null);
     setRoomCancelNotice(null);
     if (['restaurant-cart', 'service-booking', 'transfer-booking'].includes(next)) {
@@ -5219,34 +5221,43 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const upcomingStays = session.bookings
           .filter((item) => item.status === 'active' || item.status === 'upcoming')
           .sort((x, y) => Number(y.status === 'active') - Number(x.status === 'active') || x.checkIn.localeCompare(y.checkIn));
-        const tab = staysTab ?? (upcomingStays.length ? 'upcoming' : 'past');
+        // The stay under way, if there is one, sits above the tabs; Upcoming is what comes after it.
+        const current = upcomingStays.find((item) => isStayUnderWay(item) && describeStayStatus(item).status !== 'checked-out');
+        const aheadStays = upcomingStays.filter((item) => item.id !== current?.id);
+        const tab = staysTab ?? (aheadStays.length || !pastStays.length ? 'upcoming' : 'past');
         return (
           <div className="guest-stack">
             <div className="guest-page-title">
               <h1>Stays</h1>
-              {tab === 'past' && pastStays.length ? <p>{pastStays.length} completed stays · {nights} nights · {lifetime} spent</p> : null}
-              {tab === 'upcoming' && upcomingStays.length ? <p>{upcomingStays.length} {upcomingStays.length === 1 ? 'trip' : 'trips'} booked. The app follows the first one.</p> : null}
             </div>
+            {current ? (
+              <section className="guest-stays-current" aria-labelledby="guest-stays-current-title">
+                <h2 id="guest-stays-current-title">Current stay</h2>
+                <StayCard booking={current} compact statusLabel="Checked in" onOpen={() => go('rate-detail', current.id)} />
+              </section>
+            ) : null}
             <div className="sb-segmented sb-explore-tabs" role="tablist" aria-label="Stays">
-              <button type="button" role="tab" aria-selected={tab === 'upcoming'} onClick={() => setStaysTab('upcoming')}>Upcoming{upcomingStays.length ? ` (${upcomingStays.length})` : ''}</button>
+              <button type="button" role="tab" aria-selected={tab === 'upcoming'} onClick={() => setStaysTab('upcoming')}>Upcoming{aheadStays.length ? ` (${aheadStays.length})` : ''}</button>
               <button type="button" role="tab" aria-selected={tab === 'past'} onClick={() => setStaysTab('past')}>Past{pastStays.length ? ` (${pastStays.length})` : ''}</button>
             </div>
             {tab === 'upcoming' ? (
-              upcomingStays.length ? (
+              aheadStays.length ? (
                 <div className="guest-stays-list">
-                  {upcomingStays.map((item) => (
+                  {!current ? <p className="guest-stays-list__note">The app follows the first of these.</p> : null}
+                  {aheadStays.map((item) => (
                     <div key={item.id} className="guest-stays-list__item">
-                      <small>{item.id === primaryBooking?.id ? (item.status === 'active' ? 'Now' : 'Next trip') : `In ${countNightsBetween(PROTOTYPE_TODAY, item.checkIn)} days`}</small>
+                      <small>{item.id === primaryBooking?.id ? 'Next trip' : `In ${countNightsBetween(PROTOTYPE_TODAY, item.checkIn)} ${countNightsBetween(PROTOTYPE_TODAY, item.checkIn) === 1 ? 'day' : 'days'}`}</small>
                       <StayCard booking={item} compact statusLabel={describeStayStatus(item).label === 'Checked in' ? 'Checked in' : 'Confirmed'} onOpen={() => go('rate-detail', item.id)} />
                     </div>
                   ))}
                 </div>
               ) : (
-                <StatePanel icon={<SuitcaseRolling />} title="No trips booked" actions={<Button className="guest-button guest-button--secondary" type="button" onClick={() => go('partner-hotels')}>Browse hotels<ArrowRight aria-hidden="true" /></Button>}>
+                <StatePanel icon={<SuitcaseRolling />} title={current ? 'Nothing booked after this stay' : 'No trips booked'} actions={<Button className="guest-button guest-button--secondary" type="button" onClick={() => go('partner-hotels')}>Browse hotels<ArrowRight aria-hidden="true" /></Button>}>
                   Trips you book, here or elsewhere, wait here until you go.
                 </StatePanel>
               )
             ) : null}
+            {tab === 'past' && pastStays.length ? <p className="guest-stays-list__note">{pastStays.length} completed stays · {nights} nights · {lifetime} spent</p> : null}
             {tab === 'past' && pastStays.length === 0 ? (
               <StatePanel icon={<SuitcaseRolling />} title="No stays yet" actions={<Button className="guest-button guest-button--secondary" type="button" onClick={() => go('partner-hotels')}>Explore partner hotels<ArrowRight aria-hidden="true" /></Button>}>
                 Every stay you finish lands here, with its receipt and what you booked, for as long as you want it.

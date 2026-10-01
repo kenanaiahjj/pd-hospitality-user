@@ -8,7 +8,7 @@ import { AMENITY_LABELS, RATE_PLAN_LABELS, cancellationOpen, ROOM_FILTER_LABELS,
 import { compactRange, nightsLabel, roomsLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
 import { OffersStrip } from './offers';
-import { SaveHotelButton } from './saved';
+import { SaveHotelButton, ShareHotelButton } from './saved';
 import { countNightsBetween } from '../prototype-model';
 import { HighlightStrip, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
 
@@ -98,7 +98,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
       </div>
 
       <div className="guest-page-title sb-hotel__title">
-        <div className="sb-hotel__eyebrow"><p className="guest-eyebrow">{hotel.area}</p><SaveHotelButton hotel={hotel} labelled /></div>
+        <div className="sb-hotel__eyebrow"><p className="guest-eyebrow">{hotel.area}</p><span className="sb-hotel__actions"><ShareHotelButton hotel={hotel} search={search} /><SaveHotelButton hotel={hotel} labelled /></span></div>
         <h1>{hotel.name}</h1>
         <p className="sb-hotel__meta">
           <span className="sb-stars" aria-label={`${hotel.stars}-star hotel`}>{Array.from({ length: hotel.stars }, (_, i) => <Star key={i} weight="fill" aria-hidden="true" />)}</span>

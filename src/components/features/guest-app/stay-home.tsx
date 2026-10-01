@@ -767,15 +767,6 @@ export function EmptyStayHome({
   promoAccount?: PromoAccount;
 }) {
   const firstName = guestName.trim().split(' ')[0];
-  // The estate's own hotels lead; prices are for the dates in the search card.
-  const everyHotel = searchHotels({ ...staySearch, location: ANYWHERE });
-  const featured = everyHotel.filter((result) => !result.soldOut).slice(0, 6);
-  // The search opens full screen; a destination tile opens it with the place filled in.
-  const [sheet, setSheet] = useState<{ value: StaySearch; startAt: SearchStep } | null>(null);
-  const destinations = STAY_LOCATIONS.filter((place) => place.label !== ANYWHERE);
-  // Saved from any hotel card, newest first; priced for the search card's dates like the rail below.
-  const saved = useSavedHotels().flatMap((id) => everyHotel.filter((result) => result.hotel.id === id));
-
   return (
     <div className="guest-stack" data-testid="guest-home-empty">
       <div className="guest-page-title">
@@ -794,7 +785,37 @@ export function EmptyStayHome({
             : 'Book a partner hotel, or add a booking you already have.'}
         </p>
       </div>
+      <HotelBrowse staySearch={staySearch} onSearchStay={onSearchStay} onOpenHotel={onOpenHotel} resumeBooking={resumeBooking} promoAccount={promoAccount} onAlreadyBooked={() => onNavigate('identify')} />
+    </div>
+  );
+}
 
+/**
+ * Partner hotels to browse, save and share: the search, saved hotels,
+ * destinations, offers and the estate's hotels. The no-booking Home is this;
+ * with a stay it lives in Explore, so looking at hotels never reads as
+ * "book another stay".
+ */
+export function HotelBrowse({ staySearch, onSearchStay, onOpenHotel, resumeBooking, promoAccount, onAlreadyBooked }: {
+  staySearch: StaySearch;
+  onSearchStay: (search: StaySearch) => void;
+  onOpenHotel: (id: string) => void;
+  resumeBooking?: ResumeBooking;
+  promoAccount?: PromoAccount;
+  /** Only where adding a booking made elsewhere is the point: the no-booking Home. */
+  onAlreadyBooked?: () => void;
+}) {
+  // The estate's own hotels lead; prices are for the dates in the search card.
+  const everyHotel = searchHotels({ ...staySearch, location: ANYWHERE });
+  const featured = everyHotel.filter((result) => !result.soldOut).slice(0, 6);
+  // The search opens full screen; a destination tile opens it with the place filled in.
+  const [sheet, setSheet] = useState<{ value: StaySearch; startAt: SearchStep } | null>(null);
+  const destinations = STAY_LOCATIONS.filter((place) => place.label !== ANYWHERE);
+  // Saved from any hotel card, newest first; priced for the search card's dates like the rail below.
+  const saved = useSavedHotels().flatMap((id) => everyHotel.filter((result) => result.hotel.id === id));
+
+  return (
+    <>
       <StaySearchBar value={staySearch} onOpen={() => setSheet({ value: staySearch, startAt: 'where' })} />
       {sheet ? <StaySearchSheet value={sheet.value} startAt={sheet.startAt} onClose={() => setSheet(null)} onSearch={(search) => { setSheet(null); onSearchStay(search); }} /> : null}
 
@@ -835,6 +856,8 @@ export function EmptyStayHome({
         <OffersStrip nights={countNightsBetween(staySearch.checkIn, staySearch.checkOut)} account={promoAccount} untitled />
       </section>
 
+      {onAlreadyBooked ? (
+        <>
       {/*
         The main action, as a card rather than a pill. It is the one thing a
         signed-in guest with no reservation is here to do, and it sits above
@@ -845,7 +868,7 @@ export function EmptyStayHome({
         therefore no code to point a camera at -- offering it was an action
         that could not succeed.
       */}
-      <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('identify')}>
+      <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={onAlreadyBooked}>
         <span className="guest-add-booking-card__glyph" aria-hidden="true"><Ticket /></span>
         <span className="guest-add-booking-card__text">
           <b>Already booked?</b>
@@ -853,6 +876,8 @@ export function EmptyStayHome({
         </span>
         <ArrowRight aria-hidden="true" />
       </button>
+        </>
+      ) : null}
 
       {/* Previous stays live in Profile; the home offers where to stay next. */}
       <section className="guest-empty-hotels">
@@ -861,7 +886,7 @@ export function EmptyStayHome({
           {featured.map((result) => <HotelResultCard key={result.hotel.id} result={result} search={staySearch} compact onOpen={() => onOpenHotel(result.hotel.id)} />)}
         </div>
       </section>
-    </div>
+    </>
   );
 }
 

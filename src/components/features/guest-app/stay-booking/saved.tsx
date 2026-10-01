@@ -1,9 +1,9 @@
 'use client';
 
-import { Heart } from '@phosphor-icons/react';
-import { useMemo, useSyncExternalStore } from 'react';
+import { Check, Heart, ShareNetwork } from '@phosphor-icons/react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import type { StayHotel, StaySearch } from './model';
-import { ANYWHERE, searchHotels } from './model';
+import { ANYWHERE, fromPrice, peso, searchHotels } from './model';
 import { stayDatesLabel } from './format';
 import { HotelResultCard } from './results';
 
@@ -68,6 +68,33 @@ export function seedSavedHotels(ids: string[]) {
 export function useSavedHotels(): string[] {
   const raw = useSyncExternalStore(subscribe, snapshot, () => '[]');
   return useMemo(() => parse(raw), [raw]);
+}
+
+/**
+ * Sends the hotel and its dates through the phone's share sheet -- to a
+ * partner, a parent, the group chat -- or copies it where there is none.
+ */
+export function ShareHotelButton({ hotel, search }: { hotel: StayHotel; search: StaySearch }) {
+  const [done, setDone] = useState(false);
+  const from = fromPrice(hotel, search);
+  const text = `${hotel.name}, ${hotel.area} · ${stayDatesLabel(search.checkIn, search.checkOut)}${from !== undefined ? ` · from ${peso(from)} a night` : ''}`;
+  const share = async () => {
+    // The prototype has no page per hotel yet; the real app links to the hotel itself.
+    const url = typeof window !== 'undefined' ? window.location.origin : '';
+    try {
+      if (navigator.share) await navigator.share({ title: hotel.name, text, url });
+      else await navigator.clipboard?.writeText(`${text}\n${url}`);
+      setDone(true);
+    } catch {
+      // Share sheet closed: nothing to report.
+    }
+  };
+  return (
+    <button type="button" className="sb-save sb-save--labelled" onClick={() => { void share(); }} aria-label={done ? `${hotel.name} shared` : `Share ${hotel.name}`}>
+      {done ? <Check weight="bold" aria-hidden="true" /> : <ShareNetwork weight="bold" aria-hidden="true" />}
+      <span>{done ? 'Shared' : 'Share'}</span>
+    </button>
+  );
 }
 
 export function SaveHotelButton({ hotel, labelled }: { hotel: StayHotel; labelled?: boolean }) {

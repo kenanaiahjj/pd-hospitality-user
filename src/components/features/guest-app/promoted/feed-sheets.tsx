@@ -4,6 +4,7 @@ import { CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useState } from 'react';
 import type { ServiceImageDefinition } from '../service-images';
+import { PROPERTY_IMAGES } from '../service-images';
 import { AskAnswer } from './ask-panel';
 import type { FeedEntry } from './feed-model';
 import { INTENTS, matchIntent, resolveIntent } from './intent-model';
@@ -26,11 +27,16 @@ export type BrowseSheetProps = {
   onOpenItem?: (itemId: string) => void;
   onOpenRecommendation?: (entry: FeedEntry) => void;
   onOpen: (categoryId: string) => void;
+  /** Partner hotels, outside this stay's catalogue. Mid-stay this is how a guest reaches them. */
+  onOpenHotels?: () => void;
   onClose: () => void;
 };
 
+/* Another property than the one the guest is at -- Hotel Services already shows that one. */
+const HOTELS_ART = PROPERTY_IMAGES.cebu;
+
 /** The categories, as they always were: each one lands on its existing page. */
-export function BrowseSheet({ categories, index = [], recommendations = [], onOpenItem, onOpenRecommendation, onOpen, onClose }: BrowseSheetProps) {
+export function BrowseSheet({ categories, index = [], recommendations = [], onOpenItem, onOpenRecommendation, onOpen, onOpenHotels, onClose }: BrowseSheetProps) {
   const [query, setQuery] = useState('');
   const [askedId, setAskedId] = useState<string | null>(null);
   const intent = askedId ? INTENTS.find((entry) => entry.id === askedId) : matchIntent(query);
@@ -88,6 +94,23 @@ export function BrowseSheet({ categories, index = [], recommendations = [], onOp
                   ))}
                 </ul>
               </section>
+              {/* Past this stay: partner hotels to browse, save and share -- not a nudge to book again. */}
+              {onOpenHotels ? (
+                <section className="feed-sheet__category-section" aria-labelledby="feed-browse-hotels">
+                  <h3 className="feed-sheet__section-title" id="feed-browse-hotels">Beyond this stay</h3>
+                  <ul className="feed-sheet__list">
+                    <li>
+                      <button type="button" onClick={onOpenHotels}>
+                        <span className="feed-sheet__art" aria-hidden="true">
+                          <Image src={HOTELS_ART.src} alt="" fill sizes="56px" style={{ objectPosition: HOTELS_ART.focalPoint }} />
+                        </span>
+                        <span className="feed-sheet__copy"><b>Hotels</b><small>Partner hotels across the Philippines, to save or share</small></span>
+                        <CaretRight aria-hidden="true" />
+                      </button>
+                    </li>
+                  </ul>
+                </section>
+              ) : null}
             </>
           ) : answer ? (
             <AskAnswer result={answer} onOpenItem={openItem} />

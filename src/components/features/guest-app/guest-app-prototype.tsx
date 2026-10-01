@@ -152,10 +152,8 @@ import {
 } from './prototype-model';
 import { hasSavedDetails, isCompleteCompanion, maskDocument, mergeCompanionRecords, planCompanions } from './prototype-model';
 import {
-  ANYWHERE,
   DEFAULT_RESULTS_VIEW,
   DEFAULT_STAY_SEARCH,
-  HotelResultCard,
   CancelReservationSheet,
   RATE_PLAN_LABELS,
   canCancelReservation,
@@ -169,7 +167,6 @@ import {
   StayConfirmationScreen,
   StayHotelScreen,
   StayResultsScreen,
-  StaySearchLauncher,
   StaySearchSheet,
   bookingFromDraft,
   isHotelFull,
@@ -183,7 +180,6 @@ import {
   hotelsForLocation,
   peso,
   quoteStay,
-  searchHotels,
   stayDatesLabel,
   StayAddOnsScreen,
   withAddOns,
@@ -260,7 +256,7 @@ import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
 import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen, passportDate } from './pre-arrival';
 import type { PassportFields } from './pre-arrival';
-import { EmptyStayHome, RoomReadyNotification, StayCard, StayEntryCard, StayOverviewHome, UpcomingBookingCard, VendorFolioQrDialog, airportFor, countNights, defaultFeedClock, describeParty, formatCheckoutDate, formatStayDateRange, getVendorFolioQrValue, listBookingGuests } from './stay-home';
+import { EmptyStayHome, HotelBrowse, RoomReadyNotification, StayCard, StayEntryCard, StayOverviewHome, UpcomingBookingCard, VendorFolioQrDialog, airportFor, countNights, defaultFeedClock, describeParty, formatCheckoutDate, formatStayDateRange, getVendorFolioQrValue, listBookingGuests } from './stay-home';
 import { EARLY_CHECK_IN, earlyCheckInBookingId } from './guest-shared';
 import type { ActiveScreen } from './guest-shared';
 import { NEARBY_ESTABLISHMENTS, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs } from './places';
@@ -613,6 +609,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** The prototype's feed clock; null follows the booking and the prototype's today. */
   const [feedClock, setFeedClock] = useState<FeedClock | null>(null);
   const [feedSheet, setFeedSheet] = useState<'browse' | null>(null);
+  /* Explore before the scan: this stay's arrival services, or partner hotels to browse and share. */
+  const [exploreView, setExploreView] = useState<'stay' | 'hotels'>('stay');
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
   /*
     Two sets, because "the bell has stopped nagging me" and "I have read this
@@ -2582,6 +2580,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         />
       );
     }
+    const exploreTabs = (
+      <div className="sb-segmented sb-explore-tabs" role="tablist" aria-label="Explore">
+        <button type="button" role="tab" aria-selected={exploreView === 'stay'} onClick={() => setExploreView('stay')}>Your stay</button>
+        <button type="button" role="tab" aria-selected={exploreView === 'hotels'} onClick={() => setExploreView('hotels')}>Hotels</button>
+      </div>
+    );
+    if (exploreView === 'hotels') {
+      return <div className="guest-stack">{exploreTabs}{renderHotelBrowse()}</div>;
+    }
     /*
       Once the stay has begun the guest is past arriving: no pick-up "met at
       arrivals", no early check-in. What is left is what they can still use
@@ -2604,6 +2611,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     return (
       <div className="guest-stack">
         <div className="guest-page-title">
+          {exploreTabs}
           <h1>{inStay ? 'Before you scan in' : 'Arrival services'}</h1>
           <p>{arrivalDescription}</p>
         </div>
@@ -2699,6 +2707,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     : undefined;
 
+  /* Partner hotels to look at, save and send to someone: one browse, wherever it opens. */
+  const renderHotelBrowse = () => (
+    <>
+      <div className="guest-page-title">
+        <h1>Hotels</h1>
+        <p>Partner hotels across the Philippines: browse, save, or share one with whoever you’re travelling with.</p>
+      </div>
+      <HotelBrowse staySearch={stayDraft.search} onSearchStay={startStaySearch} onOpenHotel={openPartnerHotel} resumeBooking={resumeBooking} promoAccount={promoAccount} />
+    </>
+  );
+
   const renderStayBooking = () => {
     const { search } = stayDraft;
     const hotel = findStayHotel(stayDraft.hotelId);
@@ -2708,22 +2727,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     */
     const searchPage = <StaySearchSheet value={search} onClose={back} onSearch={startStaySearch} />;
     if (activeScreen === 'book-stay' || activeScreen === 'book-stay-dates') return searchPage;
-    if (activeScreen === 'partner-hotels') {
-      const everyHotel = { ...search, location: ANYWHERE };
-      return (
-        <div className="guest-stack">
-          <div className="guest-page-title">
-            <p className="guest-eyebrow">The Henry Hotels &amp; Resorts and partners</p>
-            <h1>Partner hotels</h1>
-            <p>Search your dates, or open a hotel for its rooms, rates and contact details.</p>
-          </div>
-          <StaySearchLauncher value={search} onSearch={startStaySearch} />
-          <div className="sb-results__list">
-            {searchHotels(everyHotel, undefined, undefined, held).map((result) => <HotelResultCard key={result.hotel.id} result={result} search={everyHotel} onOpen={() => openPartnerHotel(result.hotel.id)} />)}
-          </div>
-        </div>
-      );
-    }
+    // Hotels from Browse mid-stay, and from Explore after checkout: the same browse as the no-booking Home.
+    if (activeScreen === 'partner-hotels') return <div className="guest-stack">{renderHotelBrowse()}</div>;
     if (activeScreen === 'book-stay-results') {
       return <StayResultsScreen search={search} view={resultsView} onViewChange={setResultsView} onSearch={(next) => setStayDraft((draft) => ({ ...draft, search: next }))} onOpenHotel={openPartnerHotel} held={held} account={promoAccount} />;
     }
@@ -3749,6 +3754,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 onOpenItem={(id) => { setFeedSheet(null); openExploreItem(id); }}
                 onOpenRecommendation={(entry) => runFeedAction(entry.action)}
                 onOpen={openBrowseCategory}
+                onOpenHotels={() => { setFeedSheet(null); go('partner-hotels'); }}
                 onClose={() => setFeedSheet(null)}
               />
             ) : null}
@@ -5331,7 +5337,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 label="Home"
                 icon={HugeHomeIcon}
                 activeIcon={HugeHomeSolidIcon}
-                active={activeScreen === 'stay-overview' || STAY_BOOKING_SCREENS.includes(activeScreen)}
+                // Hotels are Home's only without a stay; with one they live in Explore, which stays lit.
+                active={activeScreen === 'stay-overview' || (!hasCurrentStay && STAY_BOOKING_SCREENS.includes(activeScreen))}
                 onClick={() => go('stay-overview')}
               />
               {/*
@@ -5352,7 +5359,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     label={bookingNavLabel}
                     icon={HugeCompassIcon}
                     activeIcon={HugeCompassSolidIcon}
-                    active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen}
+                    active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen || STAY_BOOKING_SCREENS.includes(activeScreen)}
                     onClick={() => go(bookingSlot.screen)}
                   />
               ) : null}

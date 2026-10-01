@@ -326,12 +326,61 @@
 /* ---------- confirmation + reservation ---------- */
 
 .guest-app .sb-confirmation { gap: 20px; justify-items: stretch; }
-.guest-app .sb-confirmation__seal { display: grid; justify-self: center; width: 72px; height: 72px; place-items: center; border-radius: 50%; background: var(--guest-positive-soft); color: var(--guest-positive); }
-.guest-app .sb-confirmation__seal svg { width: 44px; height: 44px; }
-.guest-app .sb-confirmation .guest-page-title { justify-items: center; }
-.guest-app .sb-reference { display: grid; justify-items: center; gap: 2px; margin: 0; padding: 14px; border: 1px dashed var(--guest-line-strong); border-radius: var(--guest-radius-md); }
-.guest-app .sb-reference small { color: var(--guest-muted); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-.guest-app .sb-reference b { font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.06em; }
+/* The confirmation hero: deep plum, gold type, the medallion. Plum in both themes -- it is the brand's, not the page's. */
+.guest-app .sb-confirmation {
+  --sb-gold: oklch(0.82 0.11 82);
+  --sb-gold-deep: oklch(0.68 0.12 74);
+  --sb-plum-night: oklch(0.2 0.05 351);
+}
+.guest-app .sb-confirmation__hero {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  overflow: hidden;
+  padding: 6px 18px 22px;
+  border-radius: 28px;
+  box-shadow: 0 18px 44px oklch(0.2 0.05 351 / 0.28);
+  background:
+    radial-gradient(120% 70% at 50% 18%, oklch(0.42 0.085 351) 0%, var(--ds-plum) 42%, var(--sb-plum-night) 100%);
+  color: oklch(0.97 0.01 80);
+  text-align: center;
+  isolation: isolate;
+}
+/* A fine gold line round the bottom edge, like a foil-stamped card. */
+.guest-app .sb-confirmation__hero::after {
+  content: '';
+  position: absolute;
+  inset: auto 18% 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--sb-gold), transparent);
+  opacity: 0.7;
+}
+.guest-app .sb-confirmation__eyebrow { margin: -14px 0 0; color: var(--sb-gold); font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.guest-app .sb-confirmation__hero h1 { margin: 0; color: oklch(0.98 0.008 80); font-size: clamp(28px, 8vw, 34px); line-height: 1.08; }
+.guest-app .sb-confirmation__lede { max-width: 34ch; margin: 2px 0 0; color: oklch(0.9 0.02 351 / 0.82); font-size: 14.5px; line-height: 1.45; }
+.guest-app .sb-confirmation .sb-reference {
+  display: grid; justify-items: center; gap: 2px; margin: 14px 0 0; padding: 12px 22px;
+  border: 1px solid color-mix(in oklch, var(--sb-gold) 55%, transparent);
+  border-radius: 14px;
+  background: oklch(1 0 0 / 0.06);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.08);
+}
+.guest-app .sb-confirmation .sb-reference small { color: var(--sb-gold); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.guest-app .sb-confirmation .sb-reference b { color: oklch(0.98 0.008 80); font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.08em; }
+
+.guest-app .sb-medallion { position: relative; display: grid; width: min(62vw, 230px); aspect-ratio: 1; place-items: center; }
+.guest-app .sb-medallion__canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 400ms ease; }
+.guest-app .sb-medallion[data-gl='on'] .sb-medallion__canvas { opacity: 1; }
+/* The flat seal, for no WebGL: gold on plum, the same promise without the shine. */
+.guest-app .sb-medallion__fallback {
+  display: grid; width: 46%; aspect-ratio: 1; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, oklch(0.42 0.1 158), oklch(0.26 0.07 160));
+  box-shadow: 0 0 0 6px oklch(0.6 0.12 155), 0 0 0 7px oklch(0.85 0.1 150), 0 18px 40px oklch(0.1 0.04 351 / 0.6);
+  color: oklch(0.82 0.15 152);
+}
+.guest-app .sb-medallion__fallback svg { width: 46%; height: 46%; }
+.guest-app .sb-medallion[data-gl='on'] .sb-medallion__fallback { visibility: hidden; }
 .guest-app .sb-reservation { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-paper); }
 .guest-app .sb-reservation__head { display: grid; gap: 1px; margin: 0; }
 .guest-app .sb-reservation__head small { color: var(--guest-muted); font-size: 13px; }

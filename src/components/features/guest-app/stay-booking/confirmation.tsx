@@ -3,6 +3,7 @@
 import { ArrowRight, CalendarPlus, Car, CheckCircle, NavigationArrow, Receipt, ShareNetwork, Tag as TagIcon, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Booking } from '../prototype-model';
+import { BookingMedallion } from './medallion';
 import { RATE_PLAN_LABELS, TRAVEL_NOTES, findStayHotel, peso, roomRefunds } from './model';
 import { longDate, stayDatesLabel } from './format';
 
@@ -11,13 +12,14 @@ export function StayConfirmationScreen({ booking, onGoToStay, onArrangeTransfer 
   if (!reservation) return null;
   return (
     <div className="guest-stack sb-confirmation">
-      <div className="sb-confirmation__seal" aria-hidden="true"><CheckCircle weight="fill" /></div>
-      <div className="guest-page-title sb-center">
-        <p className="guest-eyebrow">Booking confirmed</p>
-        <h1>You’re going to {booking.city}</h1>
-        <p>We’ve emailed the confirmation. {booking.property} has your booking and will message you here before you arrive.</p>
-      </div>
-      <p className="sb-reference"><small>Booking reference</small><b>{reservation.reference}</b></p>
+      {/* The moment the trip becomes real: plum and gold, with a medallion struck for it. */}
+      <section className="sb-confirmation__hero" aria-labelledby="sb-confirmed-title">
+        <BookingMedallion label="Booking confirmed" />
+        <p className="sb-confirmation__eyebrow">Booking confirmed</p>
+        <h1 id="sb-confirmed-title">You’re going to {booking.city}</h1>
+        <p className="sb-confirmation__lede">We’ve emailed the confirmation. {booking.property} has your booking and will message you here before you arrive.</p>
+        <p className="sb-reference"><small>Booking reference</small><b>{reservation.reference}</b></p>
+      </section>
       <ReservationSummary booking={booking} />
       <TripActions booking={booking} />
       {/* An airport pickup paid with the rooms is already arranged; no second offer of one. */}

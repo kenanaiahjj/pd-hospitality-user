@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Status** | `Approved for planning` |
+| **Status** | `Implemented` |
 | **Created** | 2026-09-30 |
-| **Updated** | 2026-09-30 |
+| **Updated** | 2026-10-01 |
 | **Supersedes** | `n/a` |
 
 ## Summary
@@ -173,3 +173,14 @@ implementation.
 | 2026-09-30 | Offer extras in a dedicated optional step before payment | It preserves a focused guest-details screen and supports service-specific configuration. |
 | 2026-09-30 | Charge selected add-ons in the hotel payment | The guest requested one hotel total and one payment. The new rule is limited to add-ons selected during direct hotel booking. |
 | 2026-09-30 | Keep add-on totals separate from room totals | Partial room cancellation must refund the canceled room share without refunding extras that remain on the stay. |
+| 2026-10-01 | Airport pickup is priced by party: ₱1,200 executive van up to 4, ₱1,800 private van above | Matches the fares the existing transfer form uses. |
+| 2026-10-01 | Celebration resolves to Flowers ₱1,600 or Full setup ₱3,200 | "From ₱1,600" has to become one amount before payment. |
+| 2026-10-01 | No airport pickup at hotels whose travel notes say the hotel can't arrange the last leg (Baguio, Tagaytay) | Nothing to meet there. |
+| 2026-10-01 | Early check-in bought here is paid up front and refunded if not approved; there is no hotel-side rejection control in the prototype yet | The desk's decision is the PMS's, not the app's. |
+
+## Implementation notes
+
+- Model: `StayAddOn`, `addOnsFor`, `addOnLines`, `addOnServiceBookings`, `withAddOns` in `stay-booking/model.ts`; `Reservation.addOns` and `addOnsTotal`.
+- Screen: `stay-booking/add-ons.tsx` (`book-stay-addons`), between "Who's in each room" and guest details. Skip leaves the booking rooms-only.
+- Payment record: itemised (rooms line plus one line per extra, keyed by its service booking id) only when there are extras, so `refundServiceLine` refunds one extra on its own.
+- Prototype controls, Hotel booking: "Arrival extras", "Arrival extras · pickup and flowers", "Payment · with extras", "View booking · with extras".

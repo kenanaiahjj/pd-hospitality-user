@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | `Implemented` |
 | **Created** | 2026-09-29 |
-| **Updated** | 2026-09-29 |
+| **Updated** | 2026-10-01 |
 | **Owner** | Kenanaiah Jo |
 | **Plan** | `docs/superpowers/plans/2026-09-29-hotel-booking.md` |
 | **Supersedes** | The "Cabana does not take hotel bookings" rule in `partner-hotels.tsx` |
@@ -115,7 +115,9 @@ Screen IDs, reusing the old aliases and adding what's missing:
 | `book-stay-results` | Results list or map, sort and filters |
 | `book-stay-hotel` | Hotel page: gallery, about, contact, room classes, rate steppers, sticky cart |
 | `book-stay-rooms` | Split guests across the rooms in the cart |
-| `book-stay-checkout` | Guest details, requests, promo, price summary, pay |
+| `book-stay-addons` | Optional arrival extras, paid with the rooms (see the add-ons spec) |
+| `book-stay-checkout` | Guest details, requests, arrival time, company receipt |
+| `book-stay-payment` | Payment method, voucher, itemised price, pay |
 | `book-stay-confirmation` | Reference and summary, "Go to your stay" |
 
 `book-stay-dates` stays as an alias of `book-stay`. `partner-hotels` and
@@ -186,7 +188,20 @@ tokens.
 - **Taxes and fees:** 12% VAT and 10% service charge on the room subtotal after
   the promo discount, shown as one "Taxes and fees" line with a breakdown.
 - **Promo codes:** `CABANA10` = 10% off the room subtotal. `WELCOME500` = ₱500
-  off. Anything else shows "That code isn't valid."
+  off, only on the account's first in-app booking: any stay already paid for in
+  the app, cancelled or not, has used it ("WELCOME500 is for your first booking
+  in the app."). `HENRY15` = 15% off at The Henry's own hotels for stays of 3+
+  nights; elsewhere it says which rule it fails. Anything else shows "That code
+  isn't valid." Codes apply to rooms only, never to arrival extras.
+- **Offers:** results, the hotel page and the no-booking Home list the codes the
+  guest can use (a hotel page only those its stay qualifies for). "Use at
+  checkout" saves one on the device and payment applies it on arrival. The
+  voucher field on payment is always open, with the qualifying offers as chips.
+  The paid booking records the code and its saving; the confirmation and View
+  booking show them.
+- **Saved hotels:** a heart on every hotel card and the hotel page; saved hotels
+  appear as a rail on the no-booking Home. Kept on the device for the prototype;
+  a real account would sync them.
 - **Cancellation:** a booking is refundable only if every room is on a flexible
   rate. Free cancellation runs until 23:59 three days before check-in.
   Otherwise it's non-refundable.
@@ -226,7 +241,9 @@ export type Reservation = {
 
 searchHotels(search, filters: StayFilters, sort: StaySort): HotelResult[]
 roomOffers(hotel, search): RoomOffer[]
-quoteStay(hotel, search, cart, promoCode?): StayQuote
+quoteStay(hotel, search, cart, promoCode?, account?: PromoAccount): StayQuote
+offersFor(hotel | undefined, nights, account?): { code, promo }[]
+promoAccountFor(session): PromoAccount   // { firstBooking }
 cartFit(hotel, search, cart): { rooms: number; fits: boolean; message: string }
 defaultAllocation(hotel, search, cart): RoomAllocation[]
 validateAllocation(hotel, search, cart, allocation): { ok: boolean; roomErrors: (string | null)[]; summary?: string }
@@ -279,3 +296,5 @@ None.
 | 2026-09-29 | Cancel only, no in-app modify | Scope | Add a modify flow later |
 | 2026-09-29 | Breakfast is a flat ₱600 × `sleeps` per room per night, not per person | A per-person price can't be shown before guests are split across rooms | Price it after the split instead |
 | 2026-09-29 | `partner-hotels.tsx` and its off-site booking links are removed; `partner-hotels` is now the in-app directory | Superseded by in-app booking | Restore from git history |
+| 2026-10-01 | WELCOME500 is checked against the app's own bookings and payments | The prototype has no account history from other channels | The backend says whether it is a first booking |
+| 2026-10-01 | Saved hotels and a saved offer live on the device | Same as recent searches; no account store in the prototype | Move them to the account so they follow the guest |

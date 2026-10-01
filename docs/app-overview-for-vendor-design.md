@@ -142,7 +142,7 @@ Each category has subcategory chips (for example Spa → Massage, Body Treatment
 
 Built 2026-09-29. Modelled on Agoda, with one differentiator: **one booking can mix room classes**, guests are split per room, and each room can have its own rate plan.
 
-**Steps:** search (place, dates, adults, each child's age) → results (sort, filter, list/map) → hotel page (pick room classes and rate plans) → assign guests to rooms → guest details → pay → confirmation.
+**Steps:** search (place, dates, adults, each child's age) → results (sort, filter, list/map) → hotel page (pick room classes and rate plans) → assign guests to rooms → arrival extras (optional: airport pickup, private car, early check-in, celebration setup, luggage) → guest details → pay → confirmation.
 
 **Hotel record (mock):** name, city, area, address, stars, rating (0–10) and review count, map position, hero photo plus 2–3 gallery photos, summary and about text, amenities from a closed list of 10 (pool, beach, breakfast, wifi, airport transfer, spa, gym, restaurant, parking, family), optional phone and email, a "Henry" flag, a neighbourhood list, and the partners/venues around it.
 
@@ -158,14 +158,15 @@ Built 2026-09-29. Modelled on Agoda, with one differentiator: **one booking can 
 
 **Pricing and inventory rules (mock but consistent):**
 
-- Fri/Sat nights are 15% above the weekday base. VAT 12% and service charge 10% apply after promo. Promo codes are hard-coded (`CABANA10`, `WELCOME500`).
+- Fri/Sat nights are 15% above the weekday base. VAT 12% and service charge 10% apply after promo. Promo codes are hard-coded: `CABANA10` (10% off rooms), `WELCOME500` (₱500 off, first in-app booking only), `HENRY15` (15% off The Henry's own hotels, 3+ nights). Codes discount rooms only.
+- Arrival extras are paid in the same payment as the rooms, with fixed prices: pickup ₱1,200 (up to 4) or ₱1,800, private car ₱4,800/day, early check-in ₱1,500 (refunded if the hotel declines), flowers ₱1,600 or full setup ₱3,200, luggage free. The vendor app will need to publish these per hotel.
 - Availability is 0–6 rooms per class per night, shown as "Only N left" at 3 or fewer and "Sold out" at 0. Inventory is per room class, not per rate plan.
 - Global limits: 30 nights, 12 adults, 8 children per booking. Every room needs an adult 12+; at most two under-6s per room.
 - Check-in 3:00 PM and check-out 12:00 PM are hard-coded for the whole estate.
 
-**A confirmed reservation stores:** reference (`CAB-XXXXXX`), hotel, rooms (class, rate plan, lead guest, adults, children), total, payment method label, paid date, refundable flag, free-cancellation deadline (23:59 three days before check-in).
+**A confirmed reservation stores:** reference (`CAB-XXXXXX`), hotel, rooms (class, rate plan, lead guest, adults, children, each room's share of the total), room total, the voucher used and its saving, the arrival extras and their total (kept apart from the rooms), payment method label, paid date, refundable flag, free-cancellation deadline (23:59 three days before check-in).
 
-**Cancellation:** refundable only if no room is on Saver. Full refund of the total to the original method in 5–7 banking days. All rooms cancel together; no partial fees, no no-show rule, no per-hotel policy. After the window, changes go through front-desk chat.
+**Cancellation:** refundable only if no room is on Saver. Full refund of the total to the original method in 5–7 banking days. Some rooms can be cancelled on their own (each refunds its share; extras stay); cancelling every room also refunds the extras. No partial fees, no no-show rule, no per-hotel policy. After the window, changes go through front-desk chat.
 
 **Important gaps in the current data:**
 

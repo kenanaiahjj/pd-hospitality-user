@@ -3,11 +3,12 @@
 import Image from 'next/image';
 import { ArrowRight, Bed, CaretRight, Check, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Phone, Plus, Ruler, Star, Users, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
-import type { CartLine, HeldRooms, RatePlanId, RoomFilter, RoomOffer, StayHotel, StaySearch } from './model';
+import type { CartLine, HeldRooms, PromoAccount, RatePlanId, RoomFilter, RoomOffer, StayHotel, StaySearch } from './model';
 import { AMENITY_LABELS, RATE_PLAN_LABELS, ROOM_FILTER_LABELS, cartFit, cartRooms, describeRooms, isHotelFull, peso, quoteStay, roomMatches, roomOffers, suggestRooms, validSearchDates } from './model';
 import { compactRange, nightsLabel, roomsLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
 import { OffersStrip } from './offers';
+import { SaveHotelButton } from './saved';
 import { countNightsBetween } from '../prototype-model';
 import { HighlightStrip, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
 
@@ -45,7 +46,7 @@ function setQuantity(cart: CartLine[], roomTypeId: string, ratePlanId: RatePlanI
   return copy;
 }
 
-export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchChange, onContinue, held }: {
+export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchChange, onContinue, held, account }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
@@ -54,6 +55,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
   onContinue: () => void;
   /** Rooms already sold in the app, so availability reflects them. */
   held?: HeldRooms;
+  account?: PromoAccount;
 }) {
   const [editing, setEditing] = useState<SearchStep | null>(null);
   const [cartNotice, setCartNotice] = useState<string | null>(null);
@@ -86,7 +88,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
       </div>
 
       <div className="guest-page-title sb-hotel__title">
-        <p className="guest-eyebrow">{hotel.area}</p>
+        <div className="sb-hotel__eyebrow"><p className="guest-eyebrow">{hotel.area}</p><SaveHotelButton hotel={hotel} labelled /></div>
         <h1>{hotel.name}</h1>
         <p className="sb-hotel__meta">
           <span className="sb-stars" aria-label={`${hotel.stars}-star hotel`}>{Array.from({ length: hotel.stars }, (_, i) => <Star key={i} weight="fill" aria-hidden="true" />)}</span>
@@ -125,7 +127,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
         ) : null}
       </section>
 
-      <OffersStrip hotel={hotel} nights={countNightsBetween(search.checkIn, search.checkOut)} title="Offers for this stay" />
+      <OffersStrip hotel={hotel} nights={countNightsBetween(search.checkIn, search.checkOut)} title="Offers for this stay" account={account} />
 
       <section className="sb-section" aria-labelledby="sb-rooms-title">
         <div className="sb-section__head">

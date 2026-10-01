@@ -2166,6 +2166,10 @@ describe('booking another stay', () => {
     expect(screen.getByRole('article', { name: /Room 2, Garden Suite/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Continue/ }));
 
+    // Arrival extras are optional: skipping keeps the rooms-only booking.
+    expect(screen.getByRole('heading', { name: 'Add to your arrival' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Skip/ }));
+
     // Details, then payment on a page of its own -- no sheet over the form.
     await user.click(screen.getByRole('button', { name: /Continue to payment/ }));
     expect(screen.getByRole('heading', { name: 'Payment', level: 1 })).toBeInTheDocument();

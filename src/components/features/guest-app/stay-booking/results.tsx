@@ -4,11 +4,12 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { CheckCircle, FadersHorizontal, MapPin, ListBullets, MapTrifold, PencilSimple, Star, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
-import type { Amenity, HeldRooms, HotelResult, PriceBand, StayFilters, StaySearch, StaySort } from './model';
+import type { Amenity, HeldRooms, HotelResult, PriceBand, PromoAccount, StayFilters, StaySearch, StaySort } from './model';
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';
 import { nightsLabel, stayDatesLabel } from './format';
 import { StaySearchSheet } from './search-form';
 import { OffersStrip } from './offers';
+import { SaveHotelButton } from './saved';
 import { countNightsBetween } from '../prototype-model';
 import { HotelHighlights } from './neighbourhood-section';
 import { bestSight, travelLabel } from './neighbourhood';
@@ -28,7 +29,7 @@ const SORTS: { id: StaySort; label: string }[] = [
 
 const FILTER_AMENITIES: Amenity[] = ['pool', 'beach', 'breakfast', 'spa', 'airport-transfer', 'family', 'gym', 'parking'];
 
-export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpenHotel, held }: {
+export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpenHotel, held, account }: {
   search: StaySearch;
   view: ResultsView;
   onViewChange: (view: ResultsView) => void;
@@ -36,6 +37,8 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
   onOpenHotel: (id: string) => void;
   /** Rooms already sold in the app, so availability reflects them. */
   held?: HeldRooms;
+  /** Who is booking, so offers they can't use are not shown. */
+  account?: PromoAccount;
 }) {
   const [editing, setEditing] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -73,7 +76,7 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
         ))}
       </div>
 
-      <OffersStrip nights={countNightsBetween(search.checkIn, search.checkOut)} />
+      <OffersStrip nights={countNightsBetween(search.checkIn, search.checkOut)} account={account} />
 
       {sort === 'recommended' ? <p className="sb-small sb-results__disclosure">Recommended shows The Henry’s own hotels first, then partners by guest rating.</p> : null}
 
@@ -110,6 +113,7 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
   const { hotel } = result;
   if (compact) return <CompactHotelCard result={result} onOpen={onOpen} />;
   return (
+    <div className="sb-card-wrap">
     <button type="button" className={`sb-hotel-card${compact ? ' sb-hotel-card--compact' : ''}${result.soldOut ? ' is-sold-out' : ''}`} onClick={onOpen} aria-label={`${hotel.name}, ${hotel.area}${result.fromPrice !== undefined && !result.soldOut ? `, from ${peso(result.fromPrice)} a night` : ', sold out on your dates'}`}>
       <span className="sb-hotel-card__photo">
         <Image src={hotel.image.src} alt="" fill sizes={compact ? '260px' : '(max-width: 720px) calc(100vw - 32px), 440px'} style={{ objectPosition: hotel.image.focalPoint }} />
@@ -138,6 +142,9 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
         </span>
       </span>
     </button>
+    {/* Beside the card, not in it: a button cannot hold another. */}
+    <SaveHotelButton hotel={hotel} />
+    </div>
   );
 }
 
@@ -153,6 +160,7 @@ function CompactHotelCard({ result, onOpen }: { result: HotelResult; onOpen: () 
   const nearby = sight ? `${travelLabel(sight)} · ${sight.name}` : undefined;
   const price = result.fromPrice !== undefined && !result.soldOut ? result.fromPrice : undefined;
   return (
+    <div className="sb-card-wrap">
     <button type="button" className="sb-mini-card" onClick={onOpen} aria-label={`${hotel.name}, ${hotel.area}${price !== undefined ? `, from ${peso(price)} a night` : ''}`}>
       <span className="sb-mini-card__photo">
         <Image src={hotel.image.src} alt="" fill sizes="240px" style={{ objectPosition: hotel.image.focalPoint }} />
@@ -166,6 +174,8 @@ function CompactHotelCard({ result, onOpen }: { result: HotelResult; onOpen: () 
         {price !== undefined ? <span className="sb-mini-card__price"><small>from</small> <b>{peso(price)}</b> <small>/ night</small></span> : null}
       </span>
     </button>
+    <SaveHotelButton hotel={hotel} />
+    </div>
   );
 }
 

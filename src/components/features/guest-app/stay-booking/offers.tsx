@@ -2,8 +2,8 @@
 
 import { Check, Tag as TagIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import type { StayHotel } from './model';
-import { PROMO_CODES, offersFor } from './model';
+import type { PromoAccount, StayHotel } from './model';
+import { NEW_ACCOUNT, offersFor } from './model';
 
 /*
   Offers, said where guests are choosing: on results and on a hotel page,
@@ -34,14 +34,14 @@ export function savePendingVoucher(code: string | null) {
   }
 }
 
-/** A row of offer cards. With a hotel, only the offers that stay qualifies for. */
-export function OffersStrip({ hotel, nights, title = 'Offers' }: { hotel?: StayHotel; nights: number; title?: string }) {
+/** A row of offer cards: the ones this guest can use, and with a hotel, only those that stay qualifies for. */
+export function OffersStrip({ hotel, nights, title = 'Offers', account = NEW_ACCOUNT, untitled }: { hotel?: StayHotel; nights: number; title?: string; account?: PromoAccount; /** The page gives it a heading of its own. */ untitled?: boolean }) {
   const [saved, setSaved] = useState(readPendingVoucher);
-  const offers = hotel ? offersFor(hotel, nights) : Object.entries(PROMO_CODES).map(([code, promo]) => ({ code, promo }));
+  const offers = offersFor(hotel, nights, account);
   if (!offers.length) return null;
   return (
     <section className="sb-offers-strip" aria-label={title}>
-      <p className="sb-offers-strip__title"><TagIcon weight="fill" aria-hidden="true" />{title}</p>
+      {untitled ? null : <p className="sb-offers-strip__title"><TagIcon weight="fill" aria-hidden="true" />{title}</p>}
       <div className="sb-rail sb-offers-strip__rail">
         {offers.map(({ code, promo }) => {
           const isSaved = saved === code;

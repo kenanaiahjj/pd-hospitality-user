@@ -182,7 +182,11 @@ import {
   quoteStay,
   searchHotels,
   stayDatesLabel,
+  StayAddOnsScreen,
+  withAddOns,
+  promoAccountFor,
   type ResultsView,
+  type StayAddOn,
   type StayBookingDraft,
   type StayGuestDetails,
   type StaySearch,
@@ -375,7 +379,7 @@ const ARRIVAL_BLURBS: Record<string, string> = {
 type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out' | 'scanned-early' | 'failed' | 'pms-down' | 'scan-failed';
 
 /* Booking a hotel starts from Home, so Home stays lit through it. */
-const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation'];
+const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation'];
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
   'my-stay',
@@ -849,7 +853,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   /* A different hotel starts a fresh cart; coming back to the same one keeps it. */
   const openPartnerHotel = (hotelId: string) => {
-    setStayDraft((draft) => (draft.hotelId === hotelId ? draft : { ...draft, hotelId, cart: [], allocation: [] }));
+    setStayDraft((draft) => (draft.hotelId === hotelId ? draft : { ...draft, hotelId, cart: [], allocation: [], addOns: [] }));
     go('book-stay-hotel');
   };
 
@@ -1179,7 +1183,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'service-detail', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'service-detail', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -2099,19 +2103,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const FAMILY_SEARCH: StaySearch = { ...DEFAULT_STAY_SEARCH, location: 'Manila', adults: 3, childAges: [8, 3] };
   const MIXED_CART: StayCartLine[] = [{ roomTypeId: 'manila-king', ratePlanId: 'flex', quantity: 1 }, { roomTypeId: 'manila-suite', ratePlanId: 'flex-breakfast', quantity: 1 }];
-  const openBookingPage = (setup: { screen: ActiveScreen; search?: StaySearch; hotelId?: string; cart?: StayCartLine[]; withDetails?: boolean; online?: boolean; view?: ResultsView }) => {
+  // An airport pickup for the whole family and an anniversary setup: two extras with fields of their own.
+  const DEMO_EXTRAS: StayAddOn[] = [{ id: 'transfer', time: '14:30', flight: 'PR 2041', passengers: 5 }, { id: 'celebration', setup: 'full', occasion: 'Anniversary' }];
+  const openBookingPage = (setup: { screen: ActiveScreen; search?: StaySearch; hotelId?: string; cart?: StayCartLine[]; withDetails?: boolean; online?: boolean; view?: ResultsView; addOns?: StayAddOn[] }) => {
     openPrototypePage({ state: 'account-only', screen: setup.screen, online: setup.online });
     const search = setup.search ?? DEFAULT_STAY_SEARCH;
     const hotel = findStayHotel(setup.hotelId);
     const cart = setup.cart ?? [];
-    setStayDraft({ search, hotelId: setup.hotelId, cart, allocation: hotel && cart.length ? defaultAllocation(hotel, search, cart) : [] });
+    setStayDraft({ search, hotelId: setup.hotelId, cart, allocation: hotel && cart.length ? defaultAllocation(hotel, search, cart) : [], addOns: setup.addOns ?? [] });
     setResultsView(setup.view ?? DEFAULT_RESULTS_VIEW);
     setStayDetails(setup.withDetails && hotel ? emptyGuestDetails(MOCK_SESSION.guestName, GUEST_PROFILE.email, GUEST_PROFILE.mobile, cartRooms(hotel, cart).length) : null);
     setCancelNotice(null);
     setHistory(setup.screen === 'stay-overview' ? [] : ['stay-overview']);
   };
   /* A stay booked and paid in the app, with its policy bent to the case being shown. */
-  const withAppBooking = (policy: 'free' | 'soon' | 'ended' | 'saver') => (current: GuestSession): GuestSession => {
+  const withAppBooking = (policy: 'free' | 'soon' | 'ended' | 'saver', addOns?: StayAddOn[]) => (current: GuestSession): GuestSession => {
     const hotel = findStayHotel('manila')!;
     const cart: StayCartLine[] = policy === 'saver' ? [{ roomTypeId: 'manila-king', ratePlanId: 'saver', quantity: 1 }, { roomTypeId: 'manila-suite', ratePlanId: 'saver', quantity: 1 }] : MIXED_CART;
     const details = emptyGuestDetails(current.guestName || MOCK_SESSION.guestName, current.email || GUEST_PROFILE.email, GUEST_PROFILE.mobile, 2);
@@ -2120,7 +2126,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     // "Ended" moves the deadline behind the prototype clock; "soon" puts it tomorrow.
     const until = policy === 'ended' ? addDays(PROTOTYPE_TODAY, -1) : policy === 'soon' ? addDays(PROTOTYPE_TODAY, 1) : undefined;
     const reservation = until && booking.reservation ? { ...booking.reservation, freeCancellationUntil: until } : booking.reservation;
-    return { ...current, bookings: [{ ...booking, reservation }], activeBookingId: booking.id };
+    const extras = withAddOns({ booking: { ...booking, reservation }, hotel, addOns, method: 'gcash', paidAt: PROTOTYPE_TODAY });
+    return { ...current, bookings: [extras.booking], serviceBookings: [...extras.services, ...current.serviceBookings], activeBookingId: booking.id };
   };
   // The first night after the demo dates that the Henry Manila is full, for the sold-out page.
   const fullNight = (() => {
@@ -2137,9 +2144,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     { group: 'Hotel booking', label: 'Hotel page · rooms don’t fit', detail: 'One King for a family of five', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: FAMILY_SEARCH, cart: [MIXED_CART[0]!] }) },
     { group: 'Hotel booking', label: 'Hotel page · fully booked night', detail: `Every room sold out`, open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: { ...DEFAULT_STAY_SEARCH, checkIn: fullNight, checkOut: addDays(fullNight, 1) } }) },
     { group: 'Hotel booking', label: 'Who’s in each room', detail: 'Three adults and two children, two rooms', open: () => openBookingPage({ screen: 'book-stay-rooms', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART }) },
+    { group: 'Hotel booking', label: 'Arrival extras', detail: 'Optional; skip or add pickup and more', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
+    { group: 'Hotel booking', label: 'Arrival extras · pickup and flowers', detail: 'Two extras, filled in', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, addOns: DEMO_EXTRAS }) },
     { group: 'Hotel booking', label: 'Guest details', detail: 'Prefilled from the profile', open: () => openBookingPage({ screen: 'book-stay-checkout', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
     { group: 'Hotel booking', label: 'Payment', detail: 'Card, GCash or Maya on the page', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
+    { group: 'Hotel booking', label: 'Payment · with extras', detail: 'Rooms and extras, one payment', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, addOns: DEMO_EXTRAS }) },
+    { group: 'Hotel booking', label: 'Payment · not a first booking', detail: 'WELCOME500 is refused', open: () => { openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }); setSession((current) => withAppBooking('free')(current)); setStayDetails((details) => (details ? { ...details, promoCode: 'WELCOME500' } : details)); } },
     { group: 'Hotel booking', label: 'Home · booked in the app', detail: 'The new stay as the upcoming home', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'stay-overview' }) },
+    { group: 'Hotel booking', label: 'View booking · with extras', detail: 'Pickup and setup paid with the rooms', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free', DEMO_EXTRAS), screen: 'rate-detail' }) },
     { group: 'Hotel booking', label: 'View booking · free cancellation', detail: 'Change or cancel for a full refund', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'rate-detail' }) },
     { group: 'Hotel booking', label: 'Home · cancellation ends tomorrow', detail: 'The reminder banner and notification', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('soon'), screen: 'stay-overview' }) },
     { group: 'Hotel booking', label: 'View booking · cancellation ends tomorrow', detail: 'The reminder, and Getting there', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('soon'), screen: 'rate-detail' }) },
@@ -2453,6 +2465,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           onOpenHotel={openPartnerHotel}
           staySearch={stayDraft.search} resumeBooking={resumeBooking}
           onSearchStay={startStaySearch}
+          promoAccount={promoAccount}
         />
       );
     }
@@ -2558,6 +2571,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const draftHotel = findStayHotel(stayDraft.hotelId);
   const held = heldRooms(session.bookings);
+  const promoAccount = promoAccountFor(session);
   const draftRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
   const resumeBooking = draftHotel && stayDraft.cart.length
     ? {
@@ -2593,7 +2607,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       );
     }
     if (activeScreen === 'book-stay-results') {
-      return <StayResultsScreen search={search} view={resultsView} onViewChange={setResultsView} onSearch={(next) => setStayDraft((draft) => ({ ...draft, search: next }))} onOpenHotel={openPartnerHotel} held={held} />;
+      return <StayResultsScreen search={search} view={resultsView} onViewChange={setResultsView} onSearch={(next) => setStayDraft((draft) => ({ ...draft, search: next }))} onOpenHotel={openPartnerHotel} held={held} account={promoAccount} />;
     }
     if (activeScreen === 'book-stay-confirmation') {
       const booking = session.bookings.find((item) => item.id === confirmedStayId);
@@ -2617,8 +2631,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             setStayDetails((details) => (details && details.roomLeads.length === rooms
               ? details
               : emptyGuestDetails(session.guestName, session.email || GUEST_PROFILE.email, GUEST_PROFILE.mobile, rooms)));
-            go('book-stay-checkout');
+            go('book-stay-addons');
           }}
+        />
+      );
+    }
+    if (activeScreen === 'book-stay-addons' && stayDraft.cart.length && stayDetails) {
+      return (
+        <StayAddOnsScreen
+          hotel={current}
+          search={search}
+          addOns={stayDraft.addOns ?? []}
+          onChange={(addOns) => setStayDraft((draft) => ({ ...draft, addOns }))}
+          onContinue={() => go('book-stay-checkout')}
         />
       );
     }
@@ -2632,6 +2657,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           details={stayDetails}
           onDetailsChange={setStayDetails}
           onContinue={() => go('book-stay-payment')}
+          addOns={stayDraft.addOns}
+          account={promoAccount}
         />
       );
     }
@@ -2645,6 +2672,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           onDetailsChange={setStayDetails}
           onPaid={completeStayPayment}
           online={online}
+          addOns={stayDraft.addOns}
+          account={promoAccount}
         />
       );
     }
@@ -2656,6 +2685,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onCartChange={(cart) => setStayDraft((draft) => ({ ...draft, hotelId: current.id, cart }))}
         onSearchChange={(next) => setStayDraft((draft) => ({ ...draft, search: next }))}
         held={held}
+        account={promoAccount}
         onContinue={() => {
           setStayDraft((draft) => ({ ...draft, allocation: defaultAllocation(current, draft.search, draft.cart) }));
           go('book-stay-rooms');
@@ -2668,8 +2698,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const completeStayPayment = (method: GatewayMethod) => {
     const hotel = findStayHotel(stayDraft.hotelId);
     if (!hotel || !stayDetails) return;
-    const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode);
-    const booking = bookingFromDraft({ hotel, search: stayDraft.search, cart: stayDraft.cart, allocation: stayDraft.allocation, details: stayDetails, quote, paidWith: GATEWAY_METHOD_LABELS[method], paidAt: PROTOTYPE_TODAY });
+    const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode, promoAccount);
+    const drafted = bookingFromDraft({ hotel, search: stayDraft.search, cart: stayDraft.cart, allocation: stayDraft.allocation, details: stayDetails, quote, paidWith: GATEWAY_METHOD_LABELS[method], paidAt: PROTOTYPE_TODAY });
+    /*
+      Arrival extras become the stay's service bookings now, and only now: the
+      same payment covered them. The reservation keeps their total apart from
+      the rooms', so cancelling a room never refunds an extra.
+    */
+    const { booking, services: extras, total: extrasTotal, lines: extraLines } = withAddOns({ booking: drafted, hotel, addOns: stayDraft.addOns, method, paidAt: PROTOTYPE_TODAY });
     // A bed chosen at checkout is the room preference the hotel sees; "No preference" leaves the profile's.
     const bed = { 'One large bed': 'King bed', 'Two separate beds': 'Twin beds' }[stayDetails.bedPreferences[0] ?? ''];
     const roomLeads = [...new Set(stayDetails.roomLeads.map((name) => name.trim()).filter((name) => name && name !== stayDetails.name.trim()))];
@@ -2683,6 +2719,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       additionalGuests: roomLeads.length ? roomLeads : current.additionalGuests,
       guestName: current.guestName || booking.guestName,
       bookings: [...current.bookings.filter((item) => item.id !== booking.id), namedBooking],
+      serviceBookings: [...extras, ...current.serviceBookings.filter((item) => !extras.some((extra) => extra.id === item.id))],
       // A guest mid-stay keeps that stay in front; otherwise the new trip leads.
       activeBookingId: current.bookings.some((item) => item.status === 'active') ? current.activeBookingId : booking.id,
     }, {
@@ -2690,15 +2727,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       paidAt: PROTOTYPE_TODAY,
       kind: 'stay',
       title: hotel.name,
-      detail: `${stayRooms} ${stayRooms === 1 ? 'room' : 'rooms'} · ${stayDatesLabel(stayDraft.search.checkIn, stayDraft.search.checkOut)}`,
-      amount: quote.total,
+      detail: `${stayRooms} ${stayRooms === 1 ? 'room' : 'rooms'}${extras.length ? ` + ${extras.length} ${extras.length === 1 ? 'extra' : 'extras'}` : ''} · ${stayDatesLabel(stayDraft.search.checkIn, stayDraft.search.checkOut)}`,
+      amount: quote.total + extrasTotal,
       method,
       bookingId: booking.id,
-      items: [],
+      // Itemised only when there are extras: each line carries its service booking, so cancelling one refunds just it.
+      items: extras.length
+        ? [{ title: `${stayRooms} ${stayRooms === 1 ? 'room' : 'rooms'}`, amount: quote.total }, ...extras.map((item, index) => ({ id: item.id, title: item.title, amount: extraLines[index]!.amount }))]
+        : [],
       refunded: 0,
     }));
     setConfirmedStayId(booking.id);
-    setStayDraft((draft) => ({ ...draft, hotelId: undefined, cart: [], allocation: [] }));
+    setStayDraft((draft) => ({ ...draft, hotelId: undefined, cart: [], allocation: [], addOns: [] }));
     setStayDetails(null);
     setCancelNotice(null);
     setHistory([]);
@@ -2919,6 +2959,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'book-stay-results':
       case 'book-stay-hotel':
       case 'book-stay-rooms':
+      case 'book-stay-addons':
       case 'book-stay-checkout':
       case 'book-stay-payment':
       case 'book-stay-confirmation':
@@ -3369,7 +3410,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <div className="guest-summary">
                 {reservation ? (
                   <>
-                    <SummaryRow label="Paid" value={`${peso(reservation.total)} · ${reservation.paidWith}`} />
+                    {reservation.addOns?.length ? (
+                      <>
+                        <SummaryRow label="Rooms" value={peso(reservation.total)} />
+                        {/* Each extra as it stands now: one cancelled on its own reads as refunded. */}
+                        {reservation.addOns.map((extra) => {
+                          const live = session.serviceBookings.find((service) => service.id === extra.serviceBookingId);
+                          return <SummaryRow key={extra.serviceBookingId} label={extra.title} value={!live || live.status === 'cancelled' ? 'Cancelled · refunded' : extra.amount ? peso(extra.amount) : 'Free'} />;
+                        })}
+                      </>
+                    ) : null}
+                    {reservation.promo ? <SummaryRow label="Voucher" value={`${reservation.promo.code} · −${peso(reservation.promo.discount)}`} /> : null}
+                    <SummaryRow label="Paid" value={`${peso(reservation.total + (reservation.addOns ?? []).filter((extra) => session.serviceBookings.some((service) => service.id === extra.serviceBookingId && service.status !== 'cancelled')).reduce((sum, extra) => sum + extra.amount, 0))} · ${reservation.paidWith}`} strong />
                     <SummaryRow
                       label="Cancellation"
                       value={!reservation.refundable || !reservation.freeCancellationUntil
@@ -3388,9 +3440,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
             </section>
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live hotel data">Availability, rates, and payment details require a connection.</Notice> : null}
-            {reservation && displayBooking.status === 'upcoming' ? <GettingThere city={displayBooking.city} onArrangeTransfer={() => go('pre-arrival-services')} /> : null}
+            {reservation && displayBooking.status === 'upcoming' ? <GettingThere city={displayBooking.city} onArrangeTransfer={session.serviceBookings.some((service) => service.bookingId === displayBooking.id && service.serviceId === 'transfer' && service.status === 'confirmed') ? undefined : () => go('pre-arrival-services')} /> : null}
             {cancelSheetOpen && reservation ? (
-              <CancelReservationSheet booking={displayBooking} onClose={() => setCancelSheetOpen(false)} onConfirm={(rooms) => { setCancelSheetOpen(false); cancelStayBooking(displayBooking.id, rooms); }} />
+              <CancelReservationSheet booking={displayBooking} extrasRefund={session.serviceBookings.filter((service) => service.bookingId === displayBooking.id && service.status === 'confirmed' && service.paymentStatus === 'paid').reduce((sum, service) => sum + parsePesoAmount(service.amount), 0)} onClose={() => setCancelSheetOpen(false)} onConfirm={(rooms) => { setCancelSheetOpen(false); cancelStayBooking(displayBooking.id, rooms); }} />
             ) : null}
           </ScreenIntro>
         );
@@ -4196,6 +4248,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               onOpenHotel={openPartnerHotel}
               staySearch={stayDraft.search} resumeBooking={resumeBooking}
               onSearchStay={startStaySearch}
+              promoAccount={promoAccount}
             />
           );
         }
@@ -4450,6 +4503,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               onOpenHotel={openPartnerHotel}
               staySearch={stayDraft.search} resumeBooking={resumeBooking}
               onSearchStay={startStaySearch}
+              promoAccount={promoAccount}
             />
           );
         }

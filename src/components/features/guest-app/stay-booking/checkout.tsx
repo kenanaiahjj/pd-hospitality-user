@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
 import { countNightsBetween } from '../prototype-model';
 import { readPendingVoucher, savePendingVoucher } from './offers';
-import type { CartLine, RoomAllocation, StayGuestDetails, StayHotel, StaySearch } from './model';
-import { FREE_CANCELLATION_DAYS, RATE_PLAN_LABELS, offersFor, SERVICE_RATE, VAT_RATE, cartRooms, describeRooms, partyLabel, peso, quoteStay } from './model';
+import type { CartLine, PromoAccount, RoomAllocation, StayAddOn, StayGuestDetails, StayHotel, StaySearch } from './model';
+import { FREE_CANCELLATION_DAYS, NEW_ACCOUNT, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, addOnLines, addOnsTotal, cartRooms, describeRooms, offersFor, partyLabel, peso, quoteStay } from './model';
 import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
@@ -52,7 +52,7 @@ function TextField({ label, value, onChange, error, type = 'text', autoComplete,
 }
 
 /** Step one of checkout: who is coming, and anything the hotel should know. */
-export function StayCheckoutScreen({ hotel, search, cart, allocation, details, onDetailsChange, onContinue }: {
+export function StayCheckoutScreen({ hotel, search, cart, allocation, details, onDetailsChange, onContinue, addOns, account = NEW_ACCOUNT }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
@@ -60,10 +60,13 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
   details: StayGuestDetails;
   onDetailsChange: (details: StayGuestDetails) => void;
   onContinue: () => void;
+  addOns?: StayAddOn[];
+  account?: PromoAccount;
 }) {
   const [tried, setTried] = useState(false);
   const rooms = cartRooms(hotel, cart);
-  const quote = quoteStay(hotel, search, cart, details.promoCode);
+  const quote = quoteStay(hotel, search, cart, details.promoCode, account);
+  const extras = addOnsTotal(addOnLines(addOns, hotel));
   const errors = detailsErrors(details);
   const valid = !Object.values(errors).some(Boolean);
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
@@ -158,9 +161,9 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
       <div className="guest-dock-spacer" aria-hidden="true" />
       <div className="guest-dock">
         <div className="guest-dock__summary">
-          <strong>{peso(quote.total)}</strong>
+          <strong>{peso(quote.total + extras)}</strong>
           <small className={`sb-dock__fit${tried && !valid ? '' : ' is-muted'}`} role={tried && !valid ? 'alert' : undefined}>
-            {tried && !valid ? 'Check your details above' : `${nightsLabel(search.checkIn, search.checkOut)} · incl. taxes`}
+            {tried && !valid ? 'Check your details above' : `${nightsLabel(search.checkIn, search.checkOut)} · incl. taxes${extras ? ' and extras' : ''}`}
           </small>
         </div>
         <button type="button" className="guest-button guest-button--primary" onClick={next} aria-label="Continue to payment">
@@ -182,7 +185,7 @@ const METHOD_HINTS: Record<GatewayMethod, string> = {
  * to pay -- chosen right here rather than in a sheet over the form. A
  * prototype stand-in for the gateway: nothing is charged.
  */
-export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChange, onPaid, online }: {
+export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChange, onPaid, online, addOns, account = NEW_ACCOUNT }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
@@ -190,13 +193,17 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   onDetailsChange: (details: StayGuestDetails) => void;
   onPaid: (method: GatewayMethod) => void;
   online: boolean;
+  /** Arrival extras chosen on the step before; paid in this same payment, outside the room taxes and voucher. */
+  addOns?: StayAddOn[];
+  /** Who is paying, so a first-booking code is refused once they have booked. */
+  account?: PromoAccount;
 }) {
   const [method, setMethod] = useState<GatewayMethod | null>(null);
   const [processing, setProcessing] = useState(false);
   const [tried, setTried] = useState(false);
   const [promoDraft, setPromoDraft] = useState(details.promoCode);
   const [promoTried, setPromoTried] = useState(Boolean(details.promoCode));
-  const offers = offersFor(hotel, countNightsBetween(search.checkIn, search.checkOut));
+  const offers = offersFor(hotel, countNightsBetween(search.checkIn, search.checkOut), account);
   /*
     An offer saved on results or the hotel page arrives applied. From a
     timer, as the rest of the app sets state from effects, and only when the
@@ -218,7 +225,9 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
   const rooms = cartRooms(hotel, cart);
-  const quote = quoteStay(hotel, search, cart, details.promoCode);
+  const quote = quoteStay(hotel, search, cart, details.promoCode, account);
+  const extraLines = addOnLines(addOns, hotel);
+  const total = quote.total + addOnsTotal(extraLines);
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
 
   const pay = () => {
@@ -298,7 +307,15 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
           ))}
           {quote.discount ? <div className="is-discount"><dt>Promo {quote.promo?.code}</dt><dd>−{peso(quote.discount)}</dd></div> : null}
           <div><dt>Taxes and fees<small>{Math.round(VAT_RATE * 100)}% VAT {peso(quote.vat)} · {Math.round(SERVICE_RATE * 100)}% service charge {peso(quote.service)}</small></dt><dd>{peso(quote.vat + quote.service)}</dd></div>
-          <div className="is-total"><dt>Total</dt><dd>{peso(quote.total)}</dd></div>
+          {extraLines.length ? (
+            <>
+              <div className="sb-price-group"><dt>Arrival extras</dt></div>
+              {extraLines.map((line) => (
+                <div key={line.id}><dt>{line.title}<small>{line.detail}</small></dt><dd>{line.amount ? peso(line.amount) : 'Free'}</dd></div>
+              ))}
+            </>
+          ) : null}
+          <div className="is-total"><dt>Total</dt><dd>{peso(total)}</dd></div>
         </dl>
         <p className={`sb-policy${quote.refundable ? ' is-positive' : ''}`}>
           {quote.refundable
@@ -314,12 +331,12 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
       <div className="guest-dock-spacer" aria-hidden="true" />
       <div className="guest-dock">
         <div className="guest-dock__summary">
-          <strong>{peso(quote.total)}</strong>
+          <strong>{peso(total)}</strong>
           <small className={`sb-dock__fit${quote.refundable ? ' is-positive' : ' is-muted'}`}>
             {quote.refundable ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
           </small>
         </div>
-        <button type="button" className="guest-button guest-button--primary" disabled={!online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(quote.total)}`}>
+        <button type="button" className="guest-button guest-button--primary" disabled={!online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(total)}`}>
           {processing ? 'Processing…' : <><LockSimple aria-hidden="true" />Pay</>}
         </button>
       </div>

@@ -3,6 +3,9 @@ export { StaySearchBar, StaySearchLauncher, StaySearchSheet, type SearchStep } f
 export { DEFAULT_RESULTS_VIEW, HotelResultCard, StayResultsScreen, type ResultsView } from './results';
 export { StayHotelScreen, clampCart } from './hotel-page';
 export { StayAssignGuestsScreen } from './assign-guests';
+export { StayAddOnsScreen } from './add-ons';
+export { OffersStrip } from './offers';
+export { SaveHotelButton, useSavedHotels } from './saved';
 export { StayCheckoutScreen, StayPaymentScreen, emptyGuestDetails } from './checkout';
 export { CancelReservationSheet, GettingThere, StayConfirmationScreen } from './confirmation';
 export { stayDatesLabel, weekdayDate } from './format';

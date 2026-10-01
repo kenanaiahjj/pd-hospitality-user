@@ -15,6 +15,7 @@ export type ScreenId =
   | 'book-stay-results'
   | 'book-stay-hotel'
   | 'book-stay-rooms'
+  | 'book-stay-addons'
   | 'book-stay-checkout'
   | 'book-stay-payment'
   | 'book-stay-confirmation'

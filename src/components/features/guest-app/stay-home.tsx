@@ -3,7 +3,7 @@
 import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { ANYWHERE, HotelResultCard, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, cancellationReminder, locationImage, searchHotels, weekdayDate, type SearchStep, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, OffersStrip, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, promoAccountFor, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
@@ -68,19 +68,8 @@ export function RoomReadyNotification({
 }
 
 /* The airport a property's guests fly into, for a pick-up or a drop-off. */
-/* The airport a guest flies into for each destination; Manila's is the fallback. */
-const AIRPORTS: Record<string, string> = {
-  Cebu: 'Mactan–Cebu International Airport',
-  Dumaguete: 'Dumaguete–Sibulan Airport',
-  Boracay: 'Caticlan Airport',
-  'El Nido': 'El Nido Airport',
-  Siargao: 'Sayak Airport',
-  Bohol: 'Bohol–Panglao International Airport',
-  Baguio: 'Clark International Airport',
-};
-
 export function airportFor(booking: Booking) {
-  return AIRPORTS[booking.city] ?? 'NAIA Terminal 3';
+  return airportForCity(booking.city);
 }
 
 export function DepartureOptionsSection({
@@ -177,6 +166,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
         staySearch={staySearch}
         onSearchStay={onSearchStay}
         resumeBooking={resumeBooking}
+        promoAccount={promoAccountFor(session)}
       />
     );
   }
@@ -758,6 +748,7 @@ export function EmptyStayHome({
   staySearch,
   onSearchStay,
   resumeBooking,
+  promoAccount,
 }: {
   guestName: string;
   pastStays: PastStay[];
@@ -766,13 +757,17 @@ export function EmptyStayHome({
   staySearch: StaySearch;
   onSearchStay: (search: StaySearch) => void;
   resumeBooking?: ResumeBooking;
+  promoAccount?: PromoAccount;
 }) {
   const firstName = guestName.trim().split(' ')[0];
   // The estate's own hotels lead; prices are for the dates in the search card.
-  const featured = searchHotels({ ...staySearch, location: ANYWHERE }).filter((result) => !result.soldOut).slice(0, 6);
+  const everyHotel = searchHotels({ ...staySearch, location: ANYWHERE });
+  const featured = everyHotel.filter((result) => !result.soldOut).slice(0, 6);
   // The search opens full screen; a destination tile opens it with the place filled in.
   const [sheet, setSheet] = useState<{ value: StaySearch; startAt: SearchStep } | null>(null);
   const destinations = STAY_LOCATIONS.filter((place) => place.label !== ANYWHERE);
+  // Saved from any hotel card, newest first; priced for the search card's dates like the rail below.
+  const saved = useSavedHotels().flatMap((id) => everyHotel.filter((result) => result.hotel.id === id));
 
   return (
     <div className="guest-stack" data-testid="guest-home-empty">
@@ -803,6 +798,15 @@ export function EmptyStayHome({
         </button>
       ) : null}
 
+      {saved.length ? (
+        <section className="guest-empty-hotels sb-saved">
+          <SectionHeading title="Saved hotels" />
+          <div className="sb-rail">
+            {saved.map((result) => <HotelResultCard key={result.hotel.id} result={result} search={staySearch} compact onOpen={() => onOpenHotel(result.hotel.id)} />)}
+          </div>
+        </section>
+      ) : null}
+
       <section className="sb-destinations">
         <SectionHeading title="Popular destinations" />
         <div className="sb-rail sb-rail--tiles">
@@ -817,6 +821,11 @@ export function EmptyStayHome({
             );
           })}
         </div>
+      </section>
+
+      <section className="guest-empty-hotels">
+        <SectionHeading title="Offers" />
+        <OffersStrip nights={countNightsBetween(staySearch.checkIn, staySearch.checkOut)} account={promoAccount} untitled />
       </section>
 
       {/*

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, CalendarPlus, Car, CheckCircle, NavigationArrow, Receipt, ShareNetwork, X } from '@phosphor-icons/react';
+import { ArrowRight, CalendarPlus, Car, CheckCircle, NavigationArrow, Receipt, ShareNetwork, Tag as TagIcon, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { Booking } from '../prototype-model';
 import { RATE_PLAN_LABELS, TRAVEL_NOTES, findStayHotel, peso, roomRefunds } from './model';
@@ -20,7 +20,8 @@ export function StayConfirmationScreen({ booking, onGoToStay, onArrangeTransfer 
       <p className="sb-reference"><small>Booking reference</small><b>{reservation.reference}</b></p>
       <ReservationSummary booking={booking} />
       <TripActions booking={booking} />
-      <GettingThere city={booking.city} onArrangeTransfer={onArrangeTransfer} />
+      {/* An airport pickup paid with the rooms is already arranged; no second offer of one. */}
+      <GettingThere city={booking.city} onArrangeTransfer={reservation.addOns?.some((extra) => extra.id === 'transfer') ? undefined : onArrangeTransfer} />
       <button type="button" className="guest-button guest-button--primary" onClick={onGoToStay}>Go to your stay<ArrowRight aria-hidden="true" /></button>
     </div>
   );
@@ -93,7 +94,15 @@ function ReservationSummary({ booking }: { booking: Booking }) {
           </li>
         ))}
       </ul>
-      <p className="sb-reservation__paid"><Receipt aria-hidden="true" /><span>Paid {peso(reservation.total)} with {reservation.paidWith}</span></p>
+      {reservation.addOns?.length ? (
+        <ul className="sb-reservation__extras" aria-label="Arrival extras">
+          {reservation.addOns.map((extra) => (
+            <li key={extra.serviceBookingId}><span><b>{extra.title}</b><small>Arrival extra</small></span><span>{extra.amount ? peso(extra.amount) : 'Free'}</span></li>
+          ))}
+        </ul>
+      ) : null}
+      {reservation.promo ? <p className="sb-reservation__saved"><TagIcon weight="fill" aria-hidden="true" />{reservation.promo.code} saved you {peso(reservation.promo.discount)}</p> : null}
+      <p className="sb-reservation__paid"><Receipt aria-hidden="true" /><span>Paid {peso(reservation.total + (reservation.addOnsTotal ?? 0))} with {reservation.paidWith}</span></p>
       <p className={`sb-policy${reservation.refundable ? ' is-positive' : ''}`}>
         {reservation.refundable && reservation.freeCancellationUntil
           ? <><CheckCircle weight="fill" aria-hidden="true" />Free cancellation until {longDate(reservation.freeCancellationUntil)}</>
@@ -108,13 +117,13 @@ function ReservationSummary({ booking }: { booking: Booking }) {
  * for a refundable stay inside its free-cancellation window. Every room starts
  * ticked; untick the ones to keep.
  */
-export function CancelReservationSheet({ booking, onClose, onConfirm }: { booking: Booking; onClose: () => void; onConfirm: (roomIndexes: number[]) => void }) {
+export function CancelReservationSheet({ booking, onClose, onConfirm, extrasRefund = 0 }: { booking: Booking; onClose: () => void; onConfirm: (roomIndexes: number[]) => void; /** Extras still booked, refunded with the last room. */ extrasRefund?: number }) {
   const reservation = booking.reservation;
   const [chosen, setChosen] = useState<number[]>(() => reservation?.rooms.map((_, index) => index) ?? []);
   if (!reservation) return null;
   const refunds = roomRefunds(reservation);
-  const refund = chosen.reduce((sum, index) => sum + (refunds[index] ?? 0), 0);
   const everything = chosen.length === reservation.rooms.length;
+  const refund = chosen.reduce((sum, index) => sum + (refunds[index] ?? 0), 0) + (everything ? extrasRefund : 0);
   const toggle = (index: number) => setChosen((current) => (current.includes(index) ? current.filter((value) => value !== index) : [...current, index].sort()));
   return (
     <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -137,7 +146,7 @@ export function CancelReservationSheet({ booking, onClose, onConfirm }: { bookin
         ) : null}
         <p className="sb-cancel__refund">
           {chosen.length
-            ? <>You’ll get <b>{peso(refund)}</b> back to {reservation.paidWith}, usually within 5–7 banking days.{everything ? ' Every room in this booking is cancelled.' : ` ${reservation.rooms.length - chosen.length === 1 ? 'The other room stays' : 'The other rooms stay'} booked.`}</>
+            ? <>You’ll get <b>{peso(refund)}</b> back to {reservation.paidWith}, usually within 5–7 banking days.{everything ? ` Every room in this booking is cancelled${extrasRefund ? ', with its arrival extras' : ''}.` : ` ${reservation.rooms.length - chosen.length === 1 ? 'The other room stays' : 'The other rooms stay'} booked${reservation.addOns?.length ? ', and so do your arrival extras' : ''}.`}</>
             : 'Choose at least one room to cancel.'}
         </p>
         <footer className="guest-order-tray__footer sb-cancel__footer">

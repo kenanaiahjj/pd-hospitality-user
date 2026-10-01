@@ -47,7 +47,12 @@ function subscribe(onChange: () => void) {
 /** Newest first. */
 export function toggleSavedHotel(id: string) {
   const ids = parse(snapshot());
-  const next = JSON.stringify(ids.includes(id) ? ids.filter((value) => value !== id) : [id, ...ids]);
+  seedSavedHotels(ids.includes(id) ? ids.filter((value) => value !== id) : [id, ...ids]);
+}
+
+/** Replaces the list outright: prototype controls seed it, and an empty list clears it. */
+export function seedSavedHotels(ids: string[]) {
+  const next = JSON.stringify(ids);
   try {
     window.localStorage.setItem(KEY, next);
     memory = null;

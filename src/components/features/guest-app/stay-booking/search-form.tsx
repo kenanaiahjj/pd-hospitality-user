@@ -447,6 +447,15 @@ function readRecentSearches(): StaySearch[] {
   }
 }
 
+/** For prototype controls: the sheet opens as it would on a new device. */
+export function clearRecentSearches() {
+  try {
+    window.localStorage.removeItem(RECENT_KEY);
+  } catch {
+    // Nothing was kept.
+  }
+}
+
 function rememberSearch(search: StaySearch) {
   try {
     const same = (a: StaySearch) => a.location === search.location && a.checkIn === search.checkIn && a.checkOut === search.checkOut && a.adults === search.adults && a.childAges.length === search.childAges.length;

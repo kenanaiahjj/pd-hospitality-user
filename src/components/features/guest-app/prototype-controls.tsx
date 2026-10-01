@@ -75,7 +75,11 @@ const STAY_STATE_SHORT: Record<PrototypeStayState, string> = {
 
 export const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-export type PrototypePage = { group: 'Hotel booking' | 'Empty states' | 'Error states'; label: string; detail: string; open: () => void };
+export type PrototypePage = { group: PrototypePageGroup; label: string; detail: string; open: () => void };
+const PAGE_GROUPS = ['Find a hotel', 'Book', 'After booking', 'Empty states', 'Error states'] as const;
+export type PrototypePageGroup = (typeof PAGE_GROUPS)[number];
+/** An event the host app computes, such as the hotel answering a request. */
+export type PrototypeEvent = { icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string };
 export type PrototypeConditions = { online: boolean; pmsDown: boolean; emptyCatalogue: boolean; booking: boolean; chat: boolean; scan: boolean };
 const CONDITION_ROWS: { group: string; rows: { key: keyof PrototypeConditions; label: string; detail: string; onText: string; icon: ReactNode; once?: boolean }[] }[] = [
   { group: 'Connection', rows: [
@@ -130,6 +134,8 @@ export function PrototypeControls({
   onToggleCondition,
   onEmptyAccount,
   pages,
+  hotelEvents = [],
+  onClearDeviceData,
 }: {
   online: boolean;
   stayState: PrototypeStayState;
@@ -162,6 +168,10 @@ export function PrototypeControls({
   onToggleCondition: (key: keyof PrototypeConditions) => void;
   onEmptyAccount: () => void;
   pages: PrototypePage[];
+  /** The hotel answering what a guest asked for before arrival. */
+  hotelEvents?: PrototypeEvent[];
+  /** Forgets what this device kept: saved hotels, recent searches, a saved offer, a booking draft. */
+  onClearDeviceData?: () => void;
 }) {
   /*
     Collapsed by default. This is scaffolding, not part of the product, and as
@@ -244,6 +254,7 @@ export function PrototypeControls({
     { group: 'PMS events', icon: <Ticket />, label: 'Simulate room assignment', detail: 'The PMS assigns a room to the upcoming stay.', onClick: onSimulateRoomAssignment, unavailable: offline ?? (canSimulateRoomAssignment ? undefined : 'Needs a stay still waiting for a room') },
     { group: 'PMS events', icon: <BellRinging />, label: 'Simulate room ready', detail: 'Housekeeping marks the assigned room ready.', onClick: onSimulateRoomReady, unavailable: offline ?? (canSimulateRoomReady ? undefined : 'Needs a room that is being prepared') },
     { group: 'PMS events', icon: <Bed />, label: 'Approve upgrade request', detail: 'The front desk confirms the upgrade and assigns the room.', onClick: onSimulateUpgradeApproved, unavailable: offline ?? (canSimulateUpgradeApproved ? undefined : 'No upgrade requested') },
+    ...hotelEvents.map((event) => ({ ...event, group: 'Hotel answers' })),
     { group: 'Gates', icon: <QrCode />, label: roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)', detail: roomVerified ? 'Locks the stay again, so the scan can be run.' : 'Opens on-property services without scanning.', onClick: onToggleRoomVerified, unavailable: canToggleRoomVerified ? undefined : 'Needs a stay with a room' },
     { group: 'Gates', icon: <ClockCountdown />, label: simulatePostStayExpired ? 'Reset 24-hour chat window' : 'Simulate 24 hours after checkout', detail: simulatePostStayExpired ? 'Reopens the front desk after checkout.' : 'Closes the front desk, as a day after checkout.', onClick: onTogglePostStayExpired },
     { group: 'Data', icon: <Receipt />, label: hasHistory ? 'Clear stay history' : 'Seed stay history', detail: hasHistory ? 'As a first-time guest, with no past stays.' : 'Adds past stays to the profile.', onClick: onToggleHistory },
@@ -406,18 +417,24 @@ export function PrototypeControls({
                 <span className="guest-prototype-event__icon" aria-hidden="true"><Sparkle /></span>
                 <span className="guest-prototype-event__copy"><b>Empty account</b><small>Signed in, with no bookings, charges, badges or stays.</small></span>
               </button>
+              {onClearDeviceData ? (
+                <button type="button" className="guest-prototype-event" onClick={() => { onClearDeviceData(); setOpen(false); }}>
+                  <span className="guest-prototype-event__icon" aria-hidden="true"><Receipt /></span>
+                  <span className="guest-prototype-event__copy"><b>Clear device data</b><small>Saved hotels, recent searches, a saved offer and any half-made booking.</small></span>
+                </button>
+              ) : null}
             </section>
           </>
         ) : null}
 
         {tab === 'pages' ? (
           <>
-            {(['Hotel booking', 'Empty states', 'Error states'] as const).map((group) => (
+            {PAGE_GROUPS.map((group) => (
               <section key={group} className="guest-prototype-events" aria-label={group}>
                 <h3>{group}</h3>
                 {pages.filter((page) => page.group === group).map((page) => (
                   <button key={page.label} type="button" className="guest-prototype-event" onClick={() => { page.open(); setOpen(false); }}>
-                    <span className="guest-prototype-event__icon" aria-hidden="true">{group === 'Hotel booking' ? <Bed /> : group === 'Empty states' ? <Sparkle /> : <WarningCircle />}</span>
+                    <span className="guest-prototype-event__icon" aria-hidden="true">{group === 'Empty states' ? <Sparkle /> : group === 'Error states' ? <WarningCircle /> : <Bed />}</span>
                     <span className="guest-prototype-event__copy"><b>{page.label}</b><small>{page.detail}</small></span>
                   </button>
                 ))}

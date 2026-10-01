@@ -185,6 +185,9 @@ import {
   StayAddOnsScreen,
   withAddOns,
   promoAccountFor,
+  clearRecentSearches,
+  savePendingVoucher,
+  seedSavedHotels,
   type ResultsView,
   type StayAddOn,
   type StayBookingDraft,
@@ -1323,6 +1326,70 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   /* The desk's side of an upgrade: approve it, then the room is prepared and made ready. */
   const upgradeAwaitingDesk = primaryBooking?.roomUpgrade?.status === 'requested' ? primaryBooking : undefined;
+  /*
+    The hotel's side of what only it can promise: a driver for the pickup, a
+    room ready early. Booked with the rooms or from the arrival cart, each sits
+    waiting until the desk answers; a "no" refunds what was paid for it.
+  */
+  const awaitingHotel = (serviceId: 'transfer' | 'early-check-in') => session.serviceBookings.find((service) => (
+    service.bookingId === contextBooking.id
+    && service.serviceId === serviceId
+    && service.status === 'confirmed'
+    && (service.paymentStatus === 'paid' || service.paymentStatus === 'pending-confirmation')
+    && Boolean(service.facts?.some((fact) => fact.label === 'Status' && /waiting|confirms the driver/i.test(fact.value)))
+  ));
+  const answerArrivalRequest = (serviceId: 'transfer' | 'early-check-in', approve: boolean) => {
+    const service = awaitingHotel(serviceId);
+    if (!service || !online) return;
+    const paid = service.paymentStatus === 'paid';
+    const method = service.paymentMethod === 'card' || service.paymentMethod === 'gcash' || service.paymentMethod === 'maya' ? GATEWAY_METHOD_LABELS[service.paymentMethod] : 'how you paid';
+    // "Friday, December 11": the card's "Friday · December 11" reads oddly in a sentence.
+    const day = formatServiceDay(service.scheduledDate).long.replace(' · ', ', ');
+    const flight = service.facts?.find((fact) => fact.label === 'Flight')?.value;
+    const refund = paid ? `The ${service.amount} is on its way back to ${method}.` : 'Nothing was charged.';
+    const status = approve
+      ? (serviceId === 'transfer' ? 'Driver confirmed · Ramon D., white Toyota Hiace (NBC 4127)' : `Confirmed · room ready from ${EARLY_CHECK_IN.time}`)
+      : `Not available · ${paid ? `refunded to ${method}` : 'no charge'}`;
+    const body = serviceId === 'transfer'
+      ? (approve
+        ? `Your driver is confirmed for ${day}: Ramon D. will meet you at arrivals with a Cabana sign, in a white Toyota Hiace (NBC 4127).${flight ? ` We’re tracking ${flight}, so a delay is no problem.` : ''}`
+        : `Sorry, we can’t arrange the airport pickup on ${day}. ${refund} Metered taxis wait outside arrivals.`)
+      : (approve
+        ? `Good news: your room will be ready from ${EARLY_CHECK_IN.time} on ${day}.`
+        : `We’re full the night before, so we can’t have your room ready early on ${day}. ${refund} Check-in is from ${CHECK_IN_FROM}, and we’re happy to hold your bags until then.`);
+    setSession((current) => {
+      const base = !approve && paid ? refundServiceLine(current, service.id) : current;
+      return {
+        ...base,
+        serviceBookings: base.serviceBookings.map((item) => (item.id === service.id
+          ? { ...item, ...(approve ? {} : { status: 'cancelled' as const, paymentStatus: paid ? 'refunded' as const : item.paymentStatus }), facts: item.facts?.map((fact) => (fact.label === 'Status' ? { ...fact, value: status } : fact)) }
+          : item)),
+        bookings: !approve && serviceId === 'early-check-in'
+          ? base.bookings.map((booking) => (booking.id === service.bookingId ? { ...booking, earlyCheckIn: undefined } : booking))
+          : base.bookings,
+      };
+    });
+    setChatMessages((messages) => [...messages, { from: 'desk', body, state: 'Seen' }]);
+  };
+  const hotelAnswerEvents = (['transfer', 'early-check-in'] as const).flatMap((serviceId) => {
+    const waiting = awaitingHotel(serviceId) ? undefined : serviceId === 'transfer' ? 'No airport pickup waiting on the hotel' : 'No early check-in waiting on the hotel';
+    const unavailable = online ? waiting : 'Needs a connection';
+    const name = serviceId === 'transfer' ? 'airport pickup' : 'early check-in';
+    return [
+      { icon: serviceId === 'transfer' ? <Car /> : <Clock />, label: `Confirm ${name}`, detail: serviceId === 'transfer' ? 'The desk names the driver and car.' : 'The room will be ready from 11:00 AM.', onClick: () => answerArrivalRequest(serviceId, true), unavailable },
+      { icon: <X />, label: `Decline ${name}`, detail: 'Cancelled, refunded if paid, and the desk says why.', onClick: () => answerArrivalRequest(serviceId, false), unavailable },
+    ];
+  });
+
+  /* A fresh device: no saved hotels, recent searches, saved offer or half-made booking. */
+  const clearDeviceData = () => {
+    seedSavedHotels([]);
+    clearRecentSearches();
+    savePendingVoucher(null);
+    setStayDraft({ search: DEFAULT_STAY_SEARCH, cart: [], allocation: [], addOns: [] });
+    setStayDetails(null);
+  };
+
   const simulateUpgradeApproved = () => {
     if (!upgradeAwaitingDesk || !online) return;
     const id = upgradeAwaitingDesk.id;
@@ -2127,7 +2194,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const until = policy === 'ended' ? addDays(PROTOTYPE_TODAY, -1) : policy === 'soon' ? addDays(PROTOTYPE_TODAY, 1) : undefined;
     const reservation = until && booking.reservation ? { ...booking.reservation, freeCancellationUntil: until } : booking.reservation;
     const extras = withAddOns({ booking: { ...booking, reservation }, hotel, addOns, method: 'gcash', paidAt: PROTOTYPE_TODAY });
-    return { ...current, bookings: [extras.booking], serviceBookings: [...extras.services, ...current.serviceBookings], activeBookingId: booking.id };
+    // Paid as checkout pays: on the Payments ledger, itemised when there are extras, so refunds have somewhere to show.
+    return recordPayment({ ...current, bookings: [extras.booking], serviceBookings: [...extras.services, ...current.serviceBookings], activeBookingId: booking.id }, {
+      id: `pay-stay-${booking.id}`,
+      paidAt: PROTOTYPE_TODAY,
+      kind: 'stay',
+      title: hotel.name,
+      detail: `2 rooms${extras.services.length ? ` + ${extras.services.length} extras` : ''} · ${stayDatesLabel(FAMILY_SEARCH.checkIn, FAMILY_SEARCH.checkOut)}`,
+      amount: quote.total + extras.total,
+      method: 'gcash',
+      bookingId: booking.id,
+      items: extras.services.length
+        ? [{ title: '2 rooms', amount: quote.total }, ...extras.services.map((item, index) => ({ id: item.id, title: item.title, amount: extras.lines[index]!.amount }))]
+        : [],
+      refunded: 0,
+    });
   };
   // The first night after the demo dates that the Henry Manila is full, for the sold-out page.
   const fullNight = (() => {
@@ -2135,29 +2216,35 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     return DEFAULT_STAY_SEARCH.checkIn;
   })();
   const bookingPages: PrototypePage[] = [
-    { group: 'Hotel booking', label: 'Search', detail: 'Full-screen Where, When, Who', open: () => openBookingPage({ screen: 'book-stay' }) },
-    { group: 'Hotel booking', label: 'Results · list', detail: 'Every partner hotel', open: () => openBookingPage({ screen: 'book-stay-results' }) },
-    { group: 'Hotel booking', label: 'Results · map', detail: 'Price pins across the country', open: () => openBookingPage({ screen: 'book-stay-results', view: { ...DEFAULT_RESULTS_VIEW, mode: 'map' } }) },
-    { group: 'Hotel booking', label: 'Results · nothing matches', detail: 'A place with no partner hotels', open: () => openBookingPage({ screen: 'book-stay-results', search: { ...DEFAULT_STAY_SEARCH, location: 'Batanes' } }) },
-    { group: 'Hotel booking', label: 'Hotel page', detail: 'Rooms, nearby, partners', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila' }) },
-    { group: 'Hotel booking', label: 'Hotel page · mixed cart', detail: 'A King and a Garden Suite, fits the party', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART }) },
-    { group: 'Hotel booking', label: 'Hotel page · rooms don’t fit', detail: 'One King for a family of five', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: FAMILY_SEARCH, cart: [MIXED_CART[0]!] }) },
-    { group: 'Hotel booking', label: 'Hotel page · fully booked night', detail: `Every room sold out`, open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: { ...DEFAULT_STAY_SEARCH, checkIn: fullNight, checkOut: addDays(fullNight, 1) } }) },
-    { group: 'Hotel booking', label: 'Who’s in each room', detail: 'Three adults and two children, two rooms', open: () => openBookingPage({ screen: 'book-stay-rooms', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART }) },
-    { group: 'Hotel booking', label: 'Arrival extras', detail: 'Optional; skip or add pickup and more', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
-    { group: 'Hotel booking', label: 'Arrival extras · pickup and flowers', detail: 'Two extras, filled in', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, addOns: DEMO_EXTRAS }) },
-    { group: 'Hotel booking', label: 'Guest details', detail: 'Prefilled from the profile', open: () => openBookingPage({ screen: 'book-stay-checkout', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
-    { group: 'Hotel booking', label: 'Payment', detail: 'Card, GCash or Maya on the page', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
-    { group: 'Hotel booking', label: 'Payment · with extras', detail: 'Rooms and extras, one payment', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, addOns: DEMO_EXTRAS }) },
-    { group: 'Hotel booking', label: 'Payment · not a first booking', detail: 'WELCOME500 is refused', open: () => { openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }); setSession((current) => withAppBooking('free')(current)); setStayDetails((details) => (details ? { ...details, promoCode: 'WELCOME500' } : details)); } },
-    { group: 'Hotel booking', label: 'Home · booked in the app', detail: 'The new stay as the upcoming home', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'stay-overview' }) },
-    { group: 'Hotel booking', label: 'View booking · with extras', detail: 'Pickup and setup paid with the rooms', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free', DEMO_EXTRAS), screen: 'rate-detail' }) },
-    { group: 'Hotel booking', label: 'View booking · free cancellation', detail: 'Change or cancel for a full refund', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'rate-detail' }) },
-    { group: 'Hotel booking', label: 'Home · cancellation ends tomorrow', detail: 'The reminder banner and notification', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('soon'), screen: 'stay-overview' }) },
-    { group: 'Hotel booking', label: 'View booking · cancellation ends tomorrow', detail: 'The reminder, and Getting there', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('soon'), screen: 'rate-detail' }) },
-    { group: 'Hotel booking', label: 'View booking · cancellation ended', detail: 'Past the free-cancellation day', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('ended'), screen: 'rate-detail' }) },
-    { group: 'Hotel booking', label: 'View booking · non-refundable', detail: 'Saver rates on every room', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('saver'), screen: 'rate-detail' }) },
-    { group: 'Hotel booking', label: 'Home · booking cancelled', detail: 'The refund notice', open: () => { openBookingPage({ screen: 'stay-overview' }); setCancelNotice('The Henry Hotel Manila is cancelled. ₱69,394 is on its way back to GCash.'); } },
+    { group: 'Find a hotel', label: 'Search', detail: 'Full-screen Where, When, Who', open: () => openBookingPage({ screen: 'book-stay' }) },
+    { group: 'Find a hotel', label: 'Results · list', detail: 'Every partner hotel', open: () => openBookingPage({ screen: 'book-stay-results' }) },
+    { group: 'Find a hotel', label: 'Results · map', detail: 'Price pins across the country', open: () => openBookingPage({ screen: 'book-stay-results', view: { ...DEFAULT_RESULTS_VIEW, mode: 'map' } }) },
+    { group: 'Find a hotel', label: 'Results · nothing matches', detail: 'A place with no partner hotels', open: () => openBookingPage({ screen: 'book-stay-results', search: { ...DEFAULT_STAY_SEARCH, location: 'Batanes' } }) },
+    { group: 'Find a hotel', label: 'Hotel page', detail: 'Rooms, nearby, partners', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila' }) },
+    { group: 'Find a hotel', label: 'Hotel page · mixed cart', detail: 'A King and a Garden Suite, fits the party', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART }) },
+    { group: 'Find a hotel', label: 'Hotel page · rooms don’t fit', detail: 'One King for a family of five', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: FAMILY_SEARCH, cart: [MIXED_CART[0]!] }) },
+    { group: 'Find a hotel', label: 'Hotel page · fully booked night', detail: `Every room sold out`, open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: { ...DEFAULT_STAY_SEARCH, checkIn: fullNight, checkOut: addDays(fullNight, 1) } }) },
+    { group: 'Find a hotel', label: 'Home · saved hotels', detail: 'Two hearts, and the saved rail', open: () => { seedSavedHotels(['alon-boracay', 'manila']); openBookingPage({ screen: 'stay-overview' }); } },
+    { group: 'Book', label: 'Who’s in each room', detail: 'Three adults and two children, two rooms', open: () => openBookingPage({ screen: 'book-stay-rooms', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART }) },
+    { group: 'Book', label: 'Arrival extras', detail: 'Optional; skip or add pickup and more', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
+    { group: 'Book', label: 'Arrival extras · pickup and flowers', detail: 'Two extras, filled in', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, addOns: DEMO_EXTRAS }) },
+    { group: 'Book', label: 'Arrival extras · no airport pickup', detail: 'Baguio: nothing to meet at the airport', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'pinetop-baguio', search: { ...DEFAULT_STAY_SEARCH, location: 'Baguio' }, cart: [{ roomTypeId: findStayHotel('pinetop-baguio')!.roomTypes[0]!.id, ratePlanId: 'flex', quantity: 1 }], withDetails: true }) },
+    { group: 'Book', label: 'Guest details', detail: 'Prefilled from the profile', open: () => openBookingPage({ screen: 'book-stay-checkout', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
+    { group: 'Book', label: 'Payment', detail: 'Card, GCash or Maya on the page', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
+    { group: 'Book', label: 'Payment · with extras', detail: 'Rooms and extras, one payment', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, addOns: DEMO_EXTRAS }) },
+    { group: 'Book', label: 'Payment · saved offer arrives applied', detail: 'HENRY15 saved on the hotel page', open: () => { savePendingVoucher('HENRY15'); openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }); } },
+    { group: 'Book', label: 'Payment · code not for this hotel', detail: 'HENRY15 at a partner hotel', open: () => { openBookingPage({ screen: 'book-stay-payment', hotelId: 'alon-boracay', search: { ...DEFAULT_STAY_SEARCH, location: 'Boracay' }, cart: [{ roomTypeId: findStayHotel('alon-boracay')!.roomTypes[0]!.id, ratePlanId: 'flex', quantity: 1 }], withDetails: true }); setStayDetails((details) => (details ? { ...details, promoCode: 'HENRY15' } : details)); } },
+    { group: 'Book', label: 'Payment · not a first booking', detail: 'WELCOME500 is refused', open: () => { openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }); setSession((current) => withAppBooking('free')(current)); setStayDetails((details) => (details ? { ...details, promoCode: 'WELCOME500' } : details)); } },
+    { group: 'Book', label: 'Confirmation · with extras', detail: 'What the guest sees after paying', open: () => { const patch = withAppBooking('free', DEMO_EXTRAS); openPrototypePage({ state: 'account-only', patch, screen: 'book-stay-confirmation' }); setConfirmedStayId(patch(session).bookings[0]!.id); setHistory([]); } },
+    { group: 'After booking', label: 'Home · booked in the app', detail: 'The new stay as the upcoming home', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'stay-overview' }) },
+    { group: 'After booking', label: 'View booking · with extras', detail: 'Pickup and setup paid with the rooms', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free', DEMO_EXTRAS), screen: 'rate-detail' }) },
+    { group: 'After booking', label: 'My Stay · extras waiting on the hotel', detail: 'Then answer them from Events', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free', [...DEMO_EXTRAS, { id: 'early-check-in' }]), screen: 'my-stay' }) },
+    { group: 'After booking', label: 'View booking · free cancellation', detail: 'Change or cancel for a full refund', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('free'), screen: 'rate-detail' }) },
+    { group: 'After booking', label: 'Home · cancellation ends tomorrow', detail: 'The reminder banner and notification', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('soon'), screen: 'stay-overview' }) },
+    { group: 'After booking', label: 'View booking · cancellation ends tomorrow', detail: 'The reminder, and Getting there', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('soon'), screen: 'rate-detail' }) },
+    { group: 'After booking', label: 'View booking · cancellation ended', detail: 'Past the free-cancellation day', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('ended'), screen: 'rate-detail' }) },
+    { group: 'After booking', label: 'View booking · non-refundable', detail: 'Saver rates on every room', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('saver'), screen: 'rate-detail' }) },
+    { group: 'After booking', label: 'Home · booking cancelled', detail: 'The refund notice', open: () => { openBookingPage({ screen: 'stay-overview' }); setCancelNotice('The Henry Hotel Manila is cancelled. ₱69,394 is on its way back to GCash.'); } },
   ];
   const prototypePages: PrototypePage[] = [
     ...bookingPages,
@@ -2665,6 +2752,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (activeScreen === 'book-stay-payment' && stayDraft.cart.length && stayDetails) {
       return (
         <StayPaymentScreen
+          // A different booking is a different payment page: its voucher field and saved offer start fresh.
+          key={`${current.id}:${JSON.stringify(stayDraft.cart)}`}
           hotel={current}
           search={search}
           cart={stayDraft.cart}
@@ -5087,6 +5176,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         }}
         onEmptyAccount={() => openPrototypePage({ state: 'account-only', patch: brandNewAccount, screen: 'stay-overview' })}
         pages={prototypePages}
+        hotelEvents={hotelAnswerEvents}
+        onClearDeviceData={clearDeviceData}
       />
 
       {roomReadyNotification ? (

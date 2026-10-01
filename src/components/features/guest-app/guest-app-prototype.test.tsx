@@ -1020,7 +1020,8 @@ describe('room-ready notification', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+    // A push has no close button: it is put away with a swipe up, or Escape.
+    fireEvent.keyDown(screen.getByRole('region', { name: 'Room-ready notification' }), { key: 'Escape' });
 
     expect(screen.queryByRole('region', { name: 'Room-ready notification' })).toBeNull();
     expect(screen.getByTestId('guest-home-upcoming')).toHaveTextContent('Room 512 is ready');
@@ -1031,7 +1032,8 @@ describe('room-ready notification', () => {
     openPrototypeControls();
     fireEvent.click(screen.getByRole('tab', { name: 'Events' }));
     fireEvent.click(screen.getByRole('button', { name: 'Simulate room ready' }));
-    fireEvent.click(screen.getByRole('button', { name: 'View stay' }));
+    // The whole banner is the tap.
+    fireEvent.click(screen.getByRole('button', { name: /is ready.*Open$/ }));
 
     expect(screen.getByRole('button', { name: 'Scan room code' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'I understand' })).toBeNull();

@@ -272,6 +272,12 @@ export type Booking = {
   /** Every guest was named at checkout, so "Who else is staying" needs nothing more. */
   companionsNamed?: boolean;
   /**
+   * The booked room type was full when the hotel assigned rooms, so it gave
+   * the next one up at no cost. `roomType` already says the new room; this
+   * keeps what was booked, so the guest is told it was an upgrade, and free.
+   */
+  complimentaryUpgrade?: { from: string; to: string };
+  /**
    * Who else is on this booking, by name. Per booking, so a second trip has
    * its own people. Absent on stays from before it existed, which read the
    * session's `additionalGuests` instead -- see `bookingCompanions`.
@@ -2033,6 +2039,33 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
 export const findEstateProperty = (id: string) =>
   ESTATE_PROPERTIES.find((property) => property.id === id);
 
+/**
+ * The hotel assigns a room, but the booked type is full: it gives the next
+ * type up, free. The booking now reads the new type and room, carries the
+ * upgrade, and Room charges list it at no cost -- so the guest sees they were
+ * upgraded and that nothing was added for it.
+ */
+export function assignWithComplimentaryUpgrade(session: GuestSession, bookingId: string, roomNumber = '614', today: string = PROTOTYPE_TODAY): GuestSession {
+  const booking = session.bookings.find((item) => item.id === bookingId);
+  if (!booking) return session;
+  const types = ESTATE_PROPERTIES.find((property) => property.city === booking.city)?.roomTypes ?? [];
+  const at = types.findIndex((type) => type.name.toLowerCase() === booking.roomType.toLowerCase());
+  const to = (at >= 0 ? types[at + 1]?.name : undefined) ?? 'Junior suite';
+  const charge: InAppBookingCharge = {
+    id: `room-upgrade-free-${bookingId}`,
+    title: 'Room upgrade · complimentary',
+    detail: `${booking.roomType} to ${to} · Room ${roomNumber}`,
+    amount: 'Free',
+    date: today,
+  };
+  return {
+    ...session,
+    bookings: session.bookings.map((item) => (item.id === bookingId
+      ? addInAppBookingCharge({ ...item, roomType: to, roomNumber, roomAssignment: 'assigned', complimentaryUpgrade: { from: booking.roomType, to } }, charge)
+      : item)),
+  };
+}
+
 /** The lowest nightly rate on offer, so a property card can say "from". */
 export function propertyFromRate(property: EstateProperty): string {
   return formatPesoAmount(
@@ -2946,6 +2979,17 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
 
   const notifications: GuestNotification[] = [];
   const room = booking.roomNumber ? `Room ${booking.roomNumber}` : 'your room';
+
+  if (booking.complimentaryUpgrade && booking.status !== 'completed') {
+    notifications.push({
+      id: `notification-free-upgrade-${booking.id}`,
+      tone: 'room',
+      title: 'You’ve been upgraded',
+      body: `${booking.complimentaryUpgrade.to} instead of ${booking.complimentaryUpgrade.from} · no extra charge`,
+      time: 'Just now',
+      screen: 'rate-detail',
+    });
+  }
 
   // The hotel's answers first: the news a guest was waiting for.
   for (const service of session.serviceBookings) {

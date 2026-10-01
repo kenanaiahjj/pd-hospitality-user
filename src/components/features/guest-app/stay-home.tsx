@@ -8,9 +8,10 @@ import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPrefere
 import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
 import { Button } from '@/components/ui';
+import { CabanaMark } from '@/components/ui/cabana-logo';
 import { CalendarCheck01Icon as HugeCalendarCheckIcon, ChevronRightIcon as HugeChevronRightIcon } from '@hugeicons-pro/core-stroke-rounded';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight, Bed, BellRinging, CalendarBlank, Car, CaretRight, ChatCircleDots, Check, CheckCircle, Clock, Compass, ForkKnife, Gift, Megaphone, PencilSimple, Plus, QrCode, Receipt, SignOut, Sparkle, Storefront, Ticket, Users, Wrench, X } from '@phosphor-icons/react';
+import { ArrowRight, Bed, CalendarBlank, Car, CaretRight, ChatCircleDots, Check, CheckCircle, Clock, Compass, ForkKnife, Gift, Megaphone, PencilSimple, Plus, QrCode, Receipt, SignOut, Sparkle, Storefront, Ticket, Users, Wrench, X } from '@phosphor-icons/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
@@ -30,7 +31,6 @@ export function RoomReadyNotification({
   onDismiss,
   onFocusChange,
   label = 'Room-ready notification',
-  actionLabel = 'View stay',
 }: {
   headline: string;
   detail: string;
@@ -39,34 +39,39 @@ export function RoomReadyNotification({
   onFocusChange: (focused: boolean) => void;
   /** The same banner carries any push: the hotel's answer to a request, too. */
   label?: string;
+  /** Kept for callers; a push has no button of its own -- the whole banner opens it. */
   actionLabel?: string;
 }) {
+  /*
+    A push, as the phone shows one: frosted, the app's icon and name, the news.
+    No buttons -- tapping it opens what it is about, swiping it up (or Escape)
+    puts it away, and it goes by itself after a few seconds.
+  */
+  const swipe = useRef<number | null>(null);
   return (
     <aside
-      className="guest-room-ready-notification"
+      className="guest-push"
       role="region"
       aria-label={label}
       onFocus={() => onFocusChange(true)}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onFocusChange(false);
       }}
+      onKeyDown={(event) => { if (event.key === 'Escape') onDismiss(); }}
+      onPointerDown={(event) => { swipe.current = event.clientY; }}
+      onPointerUp={(event) => {
+        const from = swipe.current;
+        swipe.current = null;
+        if (from !== null && event.clientY - from < -24) onDismiss();
+      }}
     >
-      <div className="guest-room-ready-notification__icon" aria-hidden="true">
-        <BellRinging />
-      </div>
-      <div className="guest-room-ready-notification__content">
-        <small>Cabana · now</small>
-        <strong>{headline}</strong>
-        <p>{detail}</p>
-        <button type="button" onClick={onViewStay}>{actionLabel}</button>
-      </div>
-      <button
-        className="guest-room-ready-notification__dismiss"
-        type="button"
-        onClick={onDismiss}
-        aria-label="Dismiss notification"
-      >
-        <X aria-hidden="true" />
+      <button type="button" className="guest-push__body" onClick={onViewStay} aria-label={`${headline}. ${detail}. Open`}>
+        <span className="guest-push__icon" aria-hidden="true"><CabanaMark /></span>
+        <span className="guest-push__text">
+          <span className="guest-push__meta"><b>Cabana</b><small>now</small></span>
+          <strong>{headline}</strong>
+          <span>{detail}</span>
+        </span>
       </button>
     </aside>
   );

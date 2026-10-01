@@ -67,6 +67,7 @@ import {
   ANONYMOUS_SESSION,
   canUseOnPropertyServices,
   bookingFromLookup,
+  assignWithComplimentaryUpgrade,
   awaitsHotel,
   bookingCompanions,
   connectBooking,
@@ -1485,6 +1486,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }));
     setRoomReadyNotificationFocused(false);
     setRoomReadyNotificationBookingId(eligibleRoomReadyBooking.id);
+  };
+
+  /* The booked type is full when the hotel assigns rooms: the next one up, free, and the guest is told. */
+  const simulateFreeUpgrade = () => {
+    if (!eligibleRoomAssignBooking || !online) return;
+    const before = eligibleRoomAssignBooking.roomType;
+    setSession((current) => assignWithComplimentaryUpgrade(current, eligibleRoomAssignBooking.id));
+    const after = assignWithComplimentaryUpgrade(session, eligibleRoomAssignBooking.id).bookings.find((item) => item.id === eligibleRoomAssignBooking.id);
+    setPushNotice({ id: `free-upgrade-${eligibleRoomAssignBooking.id}`, headline: 'You’ve been upgraded', detail: `${after?.roomType ?? 'A better room'} instead of ${before} · no extra charge`, screen: 'rate-detail' });
   };
 
   const simulateRoomAssignment = () => {
@@ -3567,6 +3577,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     value={`${room.roomName} · ${room.adults} ${room.adults === 1 ? 'adult' : 'adults'}${room.children ? `, ${room.children} ${room.children === 1 ? 'child' : 'children'}` : ''} · ${RATE_PLAN_LABELS[room.ratePlanId].title}`}
                   />
                 )) : <SummaryRow label="Room" value={displayBooking.roomNumber ? `${displayBooking.roomType} · ${displayBooking.roomNumber}` : `${displayBooking.roomType} · assigned at arrival`} />}
+                {/* Booked one type, given a better one when it was full: said, and said to be free. */}
+                {displayBooking.complimentaryUpgrade ? <SummaryRow label="Upgrade" value={`From ${displayBooking.complimentaryUpgrade.from} · complimentary`} /> : null}
                 <SummaryRow label="Party" value={describeParty(displayBooking, session)} />
                 <SummaryRow label="Booked through" value={displayBooking.source} />
                 {reservation?.receipt ? <SummaryRow label="Official receipt" value={`${reservation.receipt.company} · TIN ${reservation.receipt.tin}`} /> : null}
@@ -5322,6 +5334,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         stayState={primaryBooking && !hasCurrentStay ? 'account-only' : getPrototypeStayState(session)}
         onStayStateChange={applyStayState}
         onSimulateRoomAssignment={simulateRoomAssignment}
+        onSimulateFreeUpgrade={simulateFreeUpgrade}
         canSimulateRoomAssignment={Boolean(eligibleRoomAssignBooking)}
         onSimulateRoomReady={simulateRoomReady}
         onSimulateUpgradeApproved={simulateUpgradeApproved}

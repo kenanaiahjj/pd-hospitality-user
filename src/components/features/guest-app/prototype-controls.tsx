@@ -108,6 +108,7 @@ export function PrototypeControls({
   stayState,
   onStayStateChange,
   onSimulateRoomAssignment,
+  onSimulateFreeUpgrade,
   canSimulateRoomAssignment,
   onSimulateRoomReady,
   onSimulateUpgradeApproved,
@@ -141,6 +142,8 @@ export function PrototypeControls({
   stayState: PrototypeStayState;
   onStayStateChange: (state: PrototypeStayState) => void;
   onSimulateRoomAssignment: () => void;
+  /** Assign a room one type up, free, because the booked type is full. */
+  onSimulateFreeUpgrade?: () => void;
   canSimulateRoomAssignment: boolean;
   onSimulateRoomReady: () => void;
   onSimulateUpgradeApproved: () => void;
@@ -252,6 +255,7 @@ export function PrototypeControls({
   const offline = online ? undefined : 'Needs a connection';
   const events: { group: string; icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string }[] = [
     { group: 'PMS events', icon: <Ticket />, label: 'Simulate room assignment', detail: 'The PMS assigns a room to the upcoming stay.', onClick: onSimulateRoomAssignment, unavailable: offline ?? (canSimulateRoomAssignment ? undefined : 'Needs a stay still waiting for a room') },
+    ...(onSimulateFreeUpgrade ? [{ group: 'PMS events', icon: <Bed />, label: 'Assign with a free upgrade', detail: 'The booked type is full; the hotel gives the next one up at no cost.', onClick: onSimulateFreeUpgrade, unavailable: offline ?? (canSimulateRoomAssignment ? undefined : 'Needs a stay still waiting for a room') }] : []),
     { group: 'PMS events', icon: <BellRinging />, label: 'Simulate room ready', detail: 'Housekeeping marks the assigned room ready.', onClick: onSimulateRoomReady, unavailable: offline ?? (canSimulateRoomReady ? undefined : 'Needs a room that is being prepared') },
     { group: 'PMS events', icon: <Bed />, label: 'Approve upgrade request', detail: 'The front desk confirms the upgrade and assigns the room.', onClick: onSimulateUpgradeApproved, unavailable: offline ?? (canSimulateUpgradeApproved ? undefined : 'No upgrade requested') },
     ...hotelEvents.map((event) => ({ ...event, group: 'Hotel answers' })),

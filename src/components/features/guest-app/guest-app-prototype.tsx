@@ -4432,34 +4432,36 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack guest-my-stay-page">
             {pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}
-            {showVendorFolioQr ? (
-              <button
-                className={`guest-my-stay-vendor-qr${vendorFolioIsAvailable ? '' : ' is-unverified'}`}
-                type="button"
-                aria-label={vendorFolioIsAvailable ? `Show room charge QR for ${contextBooking.property}, Room ${contextBooking.roomNumber}` : 'Verify your room to use the room charge QR'}
-                onClick={() => {
-                  if (vendorFolioIsAvailable) setVendorFolioQrOpen(true);
-                  else go('scan-room-code');
-                }}
-              >
-                <span className="guest-my-stay-vendor-qr__copy">
-                  <b>Room charge QR</b>
-                  <small>{vendorFolioIsAvailable ? 'Show at partner vendors; charges go to your room' : 'Verify your room before using the room charge QR'}</small>
-                  {vendorFolioIsAvailable ? <small className="guest-my-stay-vendor-qr__hint">Tap to enlarge</small> : null}
-                </span>
-                <span className="guest-my-stay-vendor-qr__code" aria-hidden="true">
-                  {vendorFolioIsAvailable ? <QRCodeSVG value={getVendorFolioQrValue(contextBooking)} size={112} level="M" includeMargin /> : <QrCode />}
-                </span>
-              </button>
-            ) : null}
-
-            {/* The stay in full lives here; Home carries only the compact reminder. */}
+            {/*
+              The stay in full lives here; Home carries only the compact reminder.
+              The room-charge QR is part of it, not a card above: the code is
+              the room, always on show, ready for a vendor to scan.
+            */}
             <UpcomingBookingCard
               booking={contextBooking}
               primary
               onNavigate={go}
               statusLabel={stayStatus.label}
               showCountdown
+              pass={showVendorFolioQr ? (
+                <div className={`guest-stay-pass${vendorFolioIsAvailable ? '' : ' is-unverified'}`}>
+                  <span className="guest-stay-pass__copy">
+                    <small>Room charge</small>
+                    <b>{vendorFolioIsAvailable ? 'Charge to your room' : 'Scan your room code'}</b>
+                    <span>{vendorFolioIsAvailable ? 'Show at partner vendors' : 'It unlocks charging to your room'}</span>
+                    {vendorFolioIsAvailable ? null : <button type="button" className="guest-stay-pass__scan" onClick={() => go('scan-room-code')}>Scan room code</button>}
+                  </span>
+                  <button
+                    type="button"
+                    className="guest-stay-pass__code"
+                    aria-label={vendorFolioIsAvailable ? `Show room charge QR for ${contextBooking.property}, Room ${contextBooking.roomNumber}` : 'Verify your room to use the room charge QR'}
+                    onClick={() => (vendorFolioIsAvailable ? setVendorFolioQrOpen(true) : go('scan-room-code'))}
+                  >
+                    {vendorFolioIsAvailable ? <QRCodeSVG value={getVendorFolioQrValue(contextBooking)} size={104} level="M" /> : <QrCode aria-hidden="true" />}
+                    {vendorFolioIsAvailable ? <small>Tap to enlarge</small> : null}
+                  </button>
+                </div>
+              ) : undefined}
             />
 
             {!online ? <Notice tone="offline" icon={<WifiSlash />} title="Last-known stay details">Reconnect for the latest charges and availability.</Notice> : null}

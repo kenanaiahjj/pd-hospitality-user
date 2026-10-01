@@ -1003,12 +1003,16 @@ describe('profile lookup and re-entry', () => {
 
 
 describe('prototype stay-state switch', () => {
-  const states = ['signed-out', 'account-only', 'pre-arrival', 'live', 'just-checked-out', 'closed'] as const;
+  const states = ['signed-out', 'account-only', 'pre-arrival', 'live', 'just-checked-out'] as const;
 
   it('round-trips every state it can build', () => {
     for (const state of states) {
       expect(getPrototypeStayState(applyPrototypeStayState(state))).toBe(state);
     }
+  });
+
+  it('reads a stay past the front desk window as no booking, which is what Home shows', () => {
+    expect(getPrototypeStayState(applyPrototypeStayState('closed'))).toBe('account-only');
   });
 
   it('puts a pre-arrival stay clear of the prototype clock', () => {

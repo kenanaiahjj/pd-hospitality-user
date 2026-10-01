@@ -1898,9 +1898,9 @@ export function getPrototypeStayState(session: GuestSession): PrototypeStayState
 
   const { status } = describeStayStatus(booking);
   if (status === 'checked-out') {
-    // Which side of the front-desk window, since the two post-stay screens
-    // are different surfaces rather than one screen with a banner.
-    return describePostStayWindow(booking).deskOpen ? 'just-checked-out' : 'closed';
+    // Past the front-desk window the stay is history and the guest is on the
+    // no-booking home, so the switch says what is on screen.
+    return describePostStayWindow(booking).deskOpen ? 'just-checked-out' : 'account-only';
   }
   if (status === 'checked-in') {
     if (booking.checkOut === PROTOTYPE_TODAY) return 'checkout-day';
@@ -2375,7 +2375,7 @@ export const PROTOTYPE_STAY_STATES: Array<{
   { id: 'live', label: 'Live stay', detail: 'Scanned, charging to the room' },
   { id: 'checkout-day', label: 'Checkout day', detail: 'Request a ride or gifts before checking out' },
   { id: 'just-checked-out', label: 'Just checked out', detail: 'Settled, front desk open 24 hours' },
-  { id: 'closed', label: 'Stay closed', detail: 'Desk window over, summary and review' },
+  // No "Stay closed" row: once the desk window ends the guest is on the no-booking home, which is "Signed in, no booking".
 ];
 
 /** The upcoming stay the demo opens before arrival: clear of the prototype clock. */

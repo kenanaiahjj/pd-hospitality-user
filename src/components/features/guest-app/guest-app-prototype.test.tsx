@@ -443,8 +443,11 @@ describe('GuestAppPrototype', () => {
         makeBooking({ id: 'far', checkIn: '2026-12-01' }),
       ],
     ],
-    ['completed', [makeBooking({ status: 'completed', checkIn: '2026-05-01' })]],
+    // Checked out this morning: the front desk is still open, so the stay keeps Home.
+    ['completed', [makeBooking({ status: 'completed', checkIn: '2026-05-01', checkedOutAt: '2026-11-11T03:00:00Z' })]],
     ['empty', []],
+    // A day on, the stay is history (in Profile) and Home is the no-booking home.
+    ['empty', [makeBooking({ status: 'completed', checkIn: '2026-05-01' })]],
   ])('renders the %s home state', (variant, bookings) => {
     render(
       <GuestAppPrototype
@@ -1962,7 +1965,7 @@ describe('finished-stay prototype switch', () => {
   it('switches a live stay into its finished state', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    switchTo('Stay closed');
+    switchTo('Just checked out');
 
     expect(screen.getByTestId('guest-home-completed')).toBeInTheDocument();
     expect(screen.getByText(/settled at checkout/i)).toBeInTheDocument();
@@ -2000,7 +2003,7 @@ describe('finished-stay prototype switch', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    switchTo('Stay closed');
+    switchTo('Just checked out');
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     await user.click(within(nav).getAllByRole('button')[1]);
 
@@ -2478,13 +2481,15 @@ describe('lifecycle gates', () => {
     { activeBookingId: 'soon' },
   );
 
+  // Checked out this morning, inside the front desk's 24 hours.
   const settled = sessionFor(
     [makeBooking({
       id: 'done',
       status: 'completed',
-      checkIn: '2026-11-02',
-      checkOut: '2026-11-05',
+      checkIn: '2026-11-08',
+      checkOut: '2026-11-11',
       roomNumber: '304',
+      checkedOutAt: '2026-11-11T03:00:00Z',
     })],
     { activeBookingId: 'done' },
   );
@@ -2555,6 +2560,13 @@ describe('lifecycle gates', () => {
       expect(within(nav).getByRole('button', { name: 'Chat' })).toBeInTheDocument();
       cleanup();
     }
+  });
+
+  it('drops to Home and Profile once the front desk window has closed', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('closed')} />);
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual(['Home', 'Profile']);
+    expect(screen.getByTestId('guest-home-empty')).toBeInTheDocument();
   });
 
   it('opens the existing chat flow from the main navigation', async () => {

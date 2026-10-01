@@ -1529,6 +1529,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     an entry in `pastStays`, so it is read in as finished -- otherwise history
     skipped the stay they had just left.
   */
+  /*
+    A day after checkout the front desk closes and the stay is history: it
+    lives in Profile, and Home and the tab bar go back to a guest with no
+    current booking. Only "Just checked out" keeps the stay in front.
+  */
+  const hasCurrentStay = Boolean(primaryBooking) && !(checkedOutNav && !postStayWindow.deskOpen);
   const pastStays = [
     ...(primaryBooking && primaryBooking.status === 'completed' && !session.pastStays.some((stay) => stay.id === primaryBooking.id)
       ? [toFinishedStay(session, primaryBooking)]
@@ -2269,7 +2275,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     { group: 'Error states', label: 'Chat message not sent', detail: 'Retry in the thread', open: () => openPrototypePage({ state: 'live', chat: [{ from: 'guest', body: 'Could we get two fresh towels, please?', state: 'Not sent' }], screen: 'chat' }) },
     { group: 'Error states', label: 'Room scan failed', detail: 'Retry, or the desk opens it', open: () => openPrototypePage({ state: 'arrived', reason: 'scan-failed', screen: 'booking-blocked' }) },
     { group: 'Error states', label: 'Booking not found', detail: 'The lookup found nothing', open: () => openPrototypePage({ state: 'signed-out', screen: 'no-booking' }) },
-    { group: 'Error states', label: 'Chat closed after checkout', detail: 'Past the 24-hour window', open: () => openPrototypePage({ state: 'closed', postStayExpired: true, screen: 'chat' }) },
     { group: 'Error states', label: 'Too early to book', detail: 'On-property services before check-in', open: () => openPrototypePage({ state: 'pre-arrival', reason: 'not-arrived', screen: 'booking-blocked' }) },
   ];
 
@@ -3039,7 +3044,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'stay-overview':
-        return <>{cancelNotice ? <div className="sb-cancel-notice" role="status"><Notice tone="positive" icon={<CheckCircle />} title="Booking cancelled">{cancelNotice}</Notice><button type="button" aria-label="Dismiss" onClick={() => setCancelNotice(null)}><X /></button></div> : null}<StayOverviewHome staySearch={stayDraft.search} resumeBooking={resumeBooking} onSearchStay={startStaySearch} session={session} booking={primaryBooking} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={openPick} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />{primaryBooking && preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}</>;
+        return <>{cancelNotice ? <div className="sb-cancel-notice" role="status"><Notice tone="positive" icon={<CheckCircle />} title="Booking cancelled">{cancelNotice}</Notice><button type="button" aria-label="Dismiss" onClick={() => setCancelNotice(null)}><X /></button></div> : null}<StayOverviewHome staySearch={stayDraft.search} resumeBooking={resumeBooking} onSearchStay={startStaySearch} session={session} booking={hasCurrentStay ? primaryBooking : undefined} online={online} deskOpen={postStayWindow.deskOpen} onNavigate={go} picks={primaryBooking ? recommendedPicks(stayFeed(primaryBooking)) : []} onOpenPick={openPick} onOpenStay={(id) => { setSelectedPastStayId(id); go('stay-detail'); }} onOpenHotel={openPartnerHotel} onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())} onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }} clockHour={clockHour} />{primaryBooking && preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}</>;
 
       case 'partner-hotels':
       case 'partner-hotel-detail':
@@ -5142,7 +5147,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       <PrototypeControls
         online={online}
-        stayState={getPrototypeStayState(session)}
+        // "Simulate 24 hours after checkout" closes the window without changing the stay, so it is read here too.
+        stayState={primaryBooking && !hasCurrentStay ? 'account-only' : getPrototypeStayState(session)}
         onStayStateChange={applyStayState}
         onSimulateRoomAssignment={simulateRoomAssignment}
         canSimulateRoomAssignment={Boolean(eligibleRoomAssignBooking)}
@@ -5261,7 +5267,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 genuinely do not exist yet. They appear, permanently, the
                 moment a booking is added.
               */}
-            {primaryBooking ? (
+            {hasCurrentStay ? (
                   <NavButton
                     label={bookingNavLabel}
                     icon={HugeCompassIcon}
@@ -5270,7 +5276,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     onClick={() => go(bookingSlot.screen)}
                   />
               ) : null}
-              {primaryBooking ? (
+              {hasCurrentStay ? (
                 <NavButton
                     label="My Stay"
                     icon={HugeBedSingleIcon}
@@ -5279,7 +5285,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     onClick={() => go('my-stay')}
                   />
               ) : null}
-              {primaryBooking ? (
+              {hasCurrentStay ? (
                 <NavButton
                   label="Chat"
                   icon={HugeChatIcon}

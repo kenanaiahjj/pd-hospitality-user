@@ -161,6 +161,7 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
       <EmptyStayHome
         guestName={session.guestName}
         pastStays={session.pastStays}
+        returning={session.pastStays.length > 0 || session.bookings.some((item) => item.status === 'completed')}
         onNavigate={onNavigate}
         onOpenHotel={onOpenHotel}
         staySearch={staySearch}
@@ -749,9 +750,12 @@ export function EmptyStayHome({
   onSearchStay,
   resumeBooking,
   promoAccount,
+  returning = pastStays.length > 0,
 }: {
   guestName: string;
   pastStays: PastStay[];
+  /** Has stayed before -- a finished stay not yet moved into `pastStays` counts. */
+  returning?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
   onOpenHotel: (id: string) => void;
   staySearch: StaySearch;
@@ -777,12 +781,12 @@ export function EmptyStayHome({
         <h1>
           {!firstName
             ? 'Welcome to Cabana'
-            : pastStays.length > 0
+            : returning
               ? `Welcome back, ${firstName}`
               : `Hello, ${firstName}`}
         </h1>
         <p>
-          {pastStays.length > 0
+          {returning
             ? 'Where to next? Book partner hotels here, mixing room types in one booking.'
             : 'Book a partner hotel, or add a booking you already have.'}
         </p>

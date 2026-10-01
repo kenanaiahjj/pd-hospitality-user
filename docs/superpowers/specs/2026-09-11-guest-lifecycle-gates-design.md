@@ -463,7 +463,9 @@ Component tests in `guest-app-prototype.test.tsx`:
     catalogue locked; the scripted desk grant then opens the same surface.
 13. Chat is reachable pre-arrival.
 14. A stay closed more than 24 hours shows the summary and the review form, and
-    no message composer.
+    no message composer. *Superseded 2026-10-01:* past the 24 hours the stay
+    moves to Profile → Stay history and the guest is on the no-booking home
+    (Home and Profile only); see the decision log.
 
 ---
 
@@ -507,6 +509,7 @@ Explore-slot update is recorded below.
 | 2026-09-11 | Post-stay the slot becomes Book again, reaching `book-stay` | It is the only thing a checked-out guest can still buy, and it keeps the slot alive in the fourth gate rather than reintroducing the dead tab elsewhere | Extends the owner's choice by one gate; if unwanted, the slot hides post-stay and the bar carries three destinations there |
 | 2026-09-11 | The 24-hour window is computed but does not elapse in the prototype | Demoability: a stakeholder must be able to see both sides of the boundary without waiting a day | A real product needs the timer; the arithmetic is already there, only the switcher stands in for the clock |
 | 2026-09-11 | Front desk open 24h post-checkout, then summary + stay-level review | A guest disputing a charge needs the desk; past that, the stay is a receipt | Per-line vendor reviews would need a new shape on `StayReview` and a per-service surface |
+| 2026-10-01 | Past the 24-hour desk window, the guest drops to the no-booking home; the "Stay closed" prototype state is removed | The closed home was a thinner copy of the booking home, and its Explore, My Stay and Chat tabs led nowhere. The stay itself is in Stay history, and the review is part of checkout | Bring back a "Your last stay" card on the no-booking home |
 | 2026-09-11 | Review is private to the property, never published | Zero-CAC: the app has no discovery surface for a public rating to influence | A public rating would need a property-card surface that does not exist |
 | 2026-09-11 | Verification is a fact on `Booking`, not a flag on `GuestSession` | A session holds multiple bookings across properties; a scan in Manila says nothing about Cebu | A session flag would unlock room charging against a room the guest has never seen |
 

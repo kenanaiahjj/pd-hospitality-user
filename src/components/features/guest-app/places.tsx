@@ -6,7 +6,7 @@ import { directionsUrl, openStatus, walkLabel } from './nearby-place';
 import type { MiniAppCategoryId } from './prototype-model';
 import { getPropertyImage } from './service-images';
 import { Button } from '@/components/ui';
-import { ArrowLeft, ArrowRight, Bell, Check, Clock, Copy, Gift, House, MapPin, NavigationArrow, PersonSimpleWalk, Storefront } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Bell, Check, Clock, Copy, Gift, House, MapPin, Minus, NavigationArrow, PersonSimpleWalk, Plus, Storefront, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 
 import Image from 'next/image';
@@ -157,7 +157,90 @@ export function PlaceLocationCard({ establishment, city, property, now }: { esta
   );
 }
 
-export function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide }: { establishment: NearbyEstablishment; city: string; property: string; now: MapClock; onBack: () => void; onNotifications: () => void; onBookRide: () => void }) {
+export type TableRequest = { day: string; time: string; party: number; requests?: string };
+
+/** Times a table can be asked for, within the place's opening hours when they can be read. */
+const TABLE_TIMES = ['8:00 AM', '10:00 AM', '12:00 PM', '1:30 PM', '3:00 PM', '6:00 PM', '7:30 PM', '9:00 PM'];
+const hourOf = (time: string) => {
+  const match = time.match(/(\d{1,2}):(\d{2})\s*([AP]M)/i);
+  return match ? (Number(match[1]) % 12) + (match[3]!.toUpperCase() === 'PM' ? 12 : 0) + Number(match[2]) / 60 : undefined;
+};
+function tableTimes(hours: string): string[] {
+  const [open, close] = (hours.match(/\d{1,2}:\d{2}\s*[AP]M/gi) ?? []).map(hourOf);
+  if (open === undefined || close === undefined) return TABLE_TIMES;
+  // The last table an hour before closing.
+  return TABLE_TIMES.filter((time) => { const at = hourOf(time)!; return at >= open && at <= close - 1; });
+}
+
+/*
+  A table at an independent place is asked for through the front desk: the
+  venue is not on Cabana, so the desk calls and confirms in chat. Free to ask;
+  the meal is paid at the place.
+*/
+function TableRequestSheet({ establishment, days, defaultParty, dayLabel, onClose, onSubmit }: {
+  establishment: NearbyEstablishment;
+  days: string[];
+  defaultParty: number;
+  dayLabel: (day: string) => string;
+  onClose: () => void;
+  onSubmit: (request: TableRequest) => void;
+}) {
+  const times = tableTimes(establishment.hours);
+  const [day, setDay] = useState(days[0] ?? '');
+  const [time, setTime] = useState(times.find((option) => (hourOf(option) ?? 0) >= 18) ?? times[0] ?? '');
+  const [party, setParty] = useState(Math.max(1, defaultParty));
+  const [requests, setRequests] = useState('');
+  return (
+    <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="guest-order-tray guest-table-request" role="dialog" aria-modal="true" aria-labelledby="guest-table-request-title">
+        <header className="guest-order-tray__header">
+          <div><h2 id="guest-table-request-title">Reserve a table</h2><p>{establishment.name} · {establishment.type}</p></div>
+          <button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button>
+        </header>
+        <div className="guest-table-request__body">
+          <fieldset><legend>Day</legend>
+            <div className="guest-table-request__chips">{days.map((option) => <button key={option} type="button" aria-pressed={day === option} onClick={() => setDay(option)}>{dayLabel(option)}</button>)}</div>
+          </fieldset>
+          <fieldset><legend>Time</legend>
+            <div className="guest-table-request__chips">{times.map((option) => <button key={option} type="button" aria-pressed={time === option} onClick={() => setTime(option)}>{option}</button>)}</div>
+          </fieldset>
+          <div className="guest-table-request__party">
+            <span><b>Guests</b><small>Up to 10</small></span>
+            <span className="guest-table-request__stepper">
+              <button type="button" aria-label="Fewer guests" disabled={party <= 1} onClick={() => setParty(party - 1)}><Minus aria-hidden="true" /></button>
+              <output aria-live="polite">{party}</output>
+              <button type="button" aria-label="More guests" disabled={party >= 10} onClick={() => setParty(party + 1)}><Plus aria-hidden="true" /></button>
+            </span>
+          </div>
+          <label className="guest-table-request__requests">
+            <span>Special requests <small>Optional</small></span>
+            <textarea rows={2} maxLength={240} value={requests} placeholder="A high chair if possible, a table by the window, a birthday…" onChange={(event) => setRequests(event.currentTarget.value)} />
+            <small>The desk passes these on; the venue does its best.</small>
+          </label>
+          <p className="guest-table-request__note">{establishment.name} isn’t on Cabana, so the front desk calls to book it and confirms here in chat. Nothing to pay now.</p>
+        </div>
+        <Button className="guest-button guest-button--primary" type="button" disabled={!day || !time} onClick={() => onSubmit({ day, time, party, requests: requests.trim() || undefined })}>Ask the front desk to reserve<ArrowRight aria-hidden="true" /></Button>
+      </section>
+    </div>
+  );
+}
+
+export function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide, onReserveTable, reserveDays = [], dayLabel = (day) => day, defaultParty = 2 }: {
+  establishment: NearbyEstablishment;
+  city: string;
+  property: string;
+  now: MapClock;
+  onBack: () => void;
+  onNotifications: () => void;
+  onBookRide: () => void;
+  /** Restaurants and cafes: a table, asked for through the desk, instead of a ride. */
+  onReserveTable?: (request: TableRequest) => void;
+  reserveDays?: string[];
+  dayLabel?: (day: string) => string;
+  defaultParty?: number;
+}) {
+  const [reserving, setReserving] = useState(false);
+  const reservable = establishment.categoryId === 'dining' && Boolean(onReserveTable) && reserveDays.length > 0;
   return <div className="guest-stack guest-nearby-detail">
     <section className="guest-nearby-detail__hero" aria-label={`${establishment.name} overview`}>
       <Image src={establishment.image} alt="" fill sizes="100vw" priority />
@@ -188,6 +271,13 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
       </div>
     </section>
 
-    <div className="guest-nearby-detail__cta"><Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button></div>
+    <div className="guest-nearby-detail__cta">
+      {reservable
+        ? <Button className="guest-button guest-button--primary" type="button" onClick={() => setReserving(true)}>Reserve a table<ArrowRight /></Button>
+        : <Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button>}
+    </div>
+    {reserving && onReserveTable ? (
+      <TableRequestSheet establishment={establishment} days={reserveDays} defaultParty={defaultParty} dayLabel={dayLabel} onClose={() => setReserving(false)} onSubmit={(request) => { setReserving(false); onReserveTable(request); }} />
+    ) : null}
   </div>;
 }

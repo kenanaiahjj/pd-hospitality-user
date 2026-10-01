@@ -640,13 +640,6 @@ export function countdownCell(booking: Booking): { label: string; value: string 
   return { label: which === 'in' ? 'Check-in' : 'Check-out', value: `${when.charAt(0).toUpperCase()}${when.slice(1)} · ${at}` };
 }
 
-/** "Nov 9 – 12", or "Nov 30 – Dec 2" across a month: the year is not news mid-stay. */
-function compactStayDates(booking: Booking): string {
-  const format = (iso: string, options: Intl.DateTimeFormatOptions) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', options);
-  const sameMonth = booking.checkIn.slice(0, 7) === booking.checkOut.slice(0, 7);
-  return `${format(booking.checkIn, { month: 'short', day: 'numeric' })} – ${format(booking.checkOut, sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' })}`;
-}
-
 export function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showCountdown = false, pass }: {
   booking: Booking;
   primary?: boolean;
@@ -659,13 +652,18 @@ export function UpcomingBookingCard({ booking, primary = false, onNavigate, stat
   pass?: ReactNode;
 }) {
   const countdown = showCountdown ? countdownCell(booking) : undefined;
+  // With the pass, check-in or check-out is only said when it is close: today or tomorrow, above the card.
+  const soon = pass && countdown && /^(Today|Tomorrow)\b/.test(countdown.value) ? countdown : undefined;
   return (
+    <>
+    {soon ? <p className="guest-stay-soon"><Clock aria-hidden="true" /><span>{soon.label}</span><b>{soon.value}</b></p> : null}
     <section className={`guest-stay-hero-card guest-stay-hero-card--photo${pass ? ' guest-stay-hero-card--pass' : ''}`}>
       <div className="guest-stay-hero-card__media">
         <PropertyImage property={booking.property} aspectRatio={pass ? '2.2' : '1.6'} decorative />
         <div className="guest-stay-hero-card__badges">
           <span className={`guest-stay-hero-card__status${statusLabel === 'Checked in' ? ' guest-stay-hero-card__status--positive' : ''}`}>{statusLabel ?? (primary ? 'Next arrival' : 'Upcoming')}</span>
           {showRoomBadge && booking.roomNumber ? <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">Room {booking.roomNumber}</span> : null}
+          {pass ? <span className="guest-stay-hero-card__status guest-stay-hero-card__status--dark">{countNights(booking)} {countNights(booking) === 1 ? 'night' : 'nights'}</span> : null}
         </div>
         <div className="guest-stay-hero-card__overlay">
           {!hideEyebrow ? <p className="guest-eyebrow">{isStayUnderWay(booking) ? 'Your current stay' : booking.status === 'completed' ? 'Your last stay' : primary ? 'Your next stay' : 'Upcoming stay'}</p> : null}
@@ -674,17 +672,8 @@ export function UpcomingBookingCard({ booking, primary = false, onNavigate, stat
       </div>
       {pass}
       <div className="guest-stay-hero-card__body">
-        {pass ? (
-          <>
-            {/* With the pass, the stay is three facts and the next moment, not a grid. */}
-            <ul className="guest-stay-hero-card__facts">
-              <li><CalendarBlank aria-hidden="true" />{compactStayDates(booking)} · {countNights(booking)} {countNights(booking) === 1 ? 'night' : 'nights'}</li>
-              {booking.roomNumber ? <li><Bed aria-hidden="true" />{booking.roomType} · {booking.roomNumber}</li> : null}
-              <li><Users aria-hidden="true" />{booking.guestCount} {booking.guestCount === 1 ? 'guest' : 'guests'}</li>
-            </ul>
-            {countdown ? <p className="guest-stay-hero-card__next"><Clock aria-hidden="true" /><span>{countdown.label}</span><b>{countdown.value}</b></p> : null}
-          </>
-        ) : (
+        {/* With the pass, the card is the stay and its code: dates, room and party are in View booking. */}
+        {pass ? null : (
         <div className="guest-stay-hero-card__stats">
           <div><small>Dates</small><b>{formatStayDateRange(booking)}</b></div>
           {booking.roomNumber ? <div><small>Room</small><b>{booking.roomType} · {booking.roomNumber}</b></div> : null}
@@ -700,6 +689,7 @@ export function UpcomingBookingCard({ booking, primary = false, onNavigate, stat
       </button>
       </div>
     </section>
+    </>
   );
 }
 

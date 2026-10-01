@@ -1396,6 +1396,47 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setStayDetails(null);
   };
 
+  /*
+    A table at an independent place nearby: not on Cabana, so the front desk
+    books it by phone. It sits on My Stay as a request and the desk confirms
+    in chat. Free to ask; the meal is paid at the venue.
+  */
+  const reserveNearbyTable = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: { day: string; time: string; party: number; requests?: string }) => {
+    const asks = request.requests?.trim();
+    const [hours = 19, minutes = 0] = (() => { const m = request.time.match(/(\d{1,2}):(\d{2})\s*([AP]M)/i); return m ? [(Number(m[1]) % 12) + (m[3]!.toUpperCase() === 'PM' ? 12 : 0), Number(m[2])] : [19, 0]; })();
+    const table: ServiceBooking = {
+      id: `service-table-${place.id}-${request.day}-${hours}${minutes}`,
+      bookingId: contextBooking.id,
+      title: `Table at ${place.name}`,
+      scheduledFor: `${formatServiceDay(request.day).long} · ${request.time}`,
+      scheduledDate: request.day,
+      scheduledHour: hours,
+      bookedAt: PROTOTYPE_TODAY,
+      // A reservation, not a purchase: no amount and no payment status.
+      amount: '',
+      status: 'confirmed',
+      categoryId: 'dining',
+      provider: place.name,
+      // The title names the venue; above it, only where it is.
+      place: place.address,
+      partySize: request.party,
+      summary: `${request.time} · ${request.party} ${request.party === 1 ? 'guest' : 'guests'} · ${place.type}`,
+      facts: [
+        { label: 'Guests', value: `${request.party}` },
+        ...(asks ? [{ label: 'Requests', value: asks }] : []),
+        { label: 'Status', value: 'Requested · the front desk is calling to book it' },
+      ],
+    };
+    setSession((current) => ({ ...current, serviceBookings: [table, ...current.serviceBookings.filter((item) => item.id !== table.id)] }));
+    setChatMessages((messages) => [
+      ...messages,
+      { from: 'guest', body: `Could you book a table for ${request.party} at ${place.name} on ${formatServiceDay(request.day).long.replace(' · ', ', ')} at ${request.time}?${asks ? ` ${asks.replace(/[.\s]*$/, '')}.` : ''}`, state: 'Sent' },
+      { from: 'desk', body: `Of course. We’ll call ${place.name} now${asks ? ', pass on your request,' : ''} and confirm your table here.`, state: 'Seen' },
+    ]);
+    setSelectedStayEntryId(table.id);
+    go('stay-entry');
+  };
+
   const simulateUpgradeApproved = () => {
     if (!upgradeAwaitingDesk || !online) return;
     const id = upgradeAwaitingDesk.id;
@@ -3894,6 +3935,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <NearbyRecommendationsPage categoryId={selectedCategory} city={contextBooking.city} property={contextBooking.property} now={mapClock} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
 
       case 'nearby-establishment': {
+        // From today, or check-in if later, to the last night: the days the guest is here to eat.
+        const tableDays = Array.from({ length: 14 }, (_, i) => addDays(PROTOTYPE_TODAY > contextBooking.checkIn ? PROTOTYPE_TODAY : contextBooking.checkIn, i)).filter((day) => day < contextBooking.checkOut);
         const establishment = NEARBY_ESTABLISHMENTS.find((item) => item.id === selectedNearbyEstablishmentId) ?? NEARBY_ESTABLISHMENTS[0];
         return establishment ? (
           <NearbyEstablishmentScreen
@@ -3904,6 +3947,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             onBack={back}
             onNotifications={() => go('notifications')}
             onBookRide={() => openRideRequest({ from: contextBooking.property, to: establishment.name, toDetail: establishment.address })}
+            reserveDays={tableDays}
+            dayLabel={(day) => (day === PROTOTYPE_TODAY ? 'Today' : formatServiceDay(day).short)}
+            defaultParty={contextBooking.guestCount}
+            onReserveTable={(request) => reserveNearbyTable(establishment, request)}
           />
         ) : null;
       }
@@ -4655,6 +4702,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'stay-entry': {
         const allEntries = [...stayEntries.upcoming, ...stayEntries.past];
         const entry = allEntries.find((item) => item.id === selectedStayEntryId) ?? allEntries[0];
+        // A table is a reservation, not a purchase: no total, no payment, nothing about the room bill.
+        // A restaurant's order and its table share the venue's id, so a hotel table is the one that costs nothing.
+        const isTable = Boolean(entry && (entry.id.startsWith('service-table-') || (entry.serviceId && isReservation(entry.serviceId) && !parsePesoAmount(entry.amount))));
         if (!entry) {
           return (
             <EmptyStayHome
@@ -4698,6 +4748,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               checking what a charge on their room was for needs the order read
               back to them.
             */}
+            {isTable ? null : (
+            <>
             <section>
               {entry.lines.length > 1 ? <SectionHeading title="Items" /> : null}
               <div className={`guest-summary${entryCancelled ? ' guest-summary--void' : ''}`}>
@@ -4722,6 +4774,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             >
               {entryCancelled ? `Nothing was charged to ${contextRoom.toLowerCase()}.` : entry.settlement === 'Awaiting hotel confirmation' ? 'Nothing is charged until the hotel confirms. You can withdraw the request until then.' : entry.paidBy === 'complimentary' ? `On the house. Nothing is added to ${contextRoom.toLowerCase()}.` : entryAhead ? `Added to ${contextRoom.toLowerCase()} once it has happened, and settled at the front desk at checkout.` : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
             </Notice>
+            </>
+            )}
 
             {/*
               Cancelling is an action on the booking, reached from the booking

@@ -76,7 +76,7 @@ const STAY_STATE_SHORT: Record<PrototypeStayState, string> = {
 export const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 export type PrototypePage = { group: PrototypePageGroup; label: string; detail: string; open: () => void };
-const PAGE_GROUPS = ['Find a hotel', 'Book', 'After booking', 'Empty states', 'Error states'] as const;
+const PAGE_GROUPS = ['Find a hotel', 'Book', 'After booking', 'Profile', 'Empty states', 'Error states'] as const;
 export type PrototypePageGroup = (typeof PAGE_GROUPS)[number];
 /** An event the host app computes, such as the hotel answering a request. */
 export type PrototypeEvent = { icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string };

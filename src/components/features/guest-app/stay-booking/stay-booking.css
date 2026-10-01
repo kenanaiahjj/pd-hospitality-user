@@ -1066,3 +1066,8 @@
 .guest-app .sb-hotel__eyebrow .guest-eyebrow { margin: 0; }
 .guest-app .sb-saved .sb-section__head p { margin: 0; color: var(--guest-muted); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .guest-app .sb-save { transition: none; } }
+.guest-app .sb-saved-empty { display: grid; justify-items: center; gap: 6px; padding: 32px 16px; border: 1px dashed var(--guest-line-strong); border-radius: var(--guest-radius-lg); text-align: center; }
+.guest-app .sb-saved-empty svg { width: 36px; height: 36px; color: oklch(0.6 0.2 20); }
+.guest-app .sb-saved-empty b { font-size: 16px; }
+.guest-app .sb-saved-empty small { max-width: 32ch; color: var(--guest-muted); font-size: 13.5px; line-height: 1.4; }
+.guest-app .sb-saved-empty .guest-button { margin-top: 10px; }

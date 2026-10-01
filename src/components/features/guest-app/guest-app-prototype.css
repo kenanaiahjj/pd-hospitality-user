@@ -9046,3 +9046,12 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-service-highlights { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .guest-service-highlights li { position: relative; padding-left: 18px; font-size: 15px; line-height: 1.45; }
 .guest-service-highlights li::before { content: ''; position: absolute; top: 0.62em; left: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--guest-accent-strong); }
+
+/* --- A guest's ask to keep the stay in an account ---------------------------------- */
+.guest-app .guest-account-card { display: grid; gap: 10px; padding: 18px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
+.guest-app .guest-account-card h2 { margin: 0; font-size: 18px; }
+.guest-app .guest-account-card p { margin: 0; color: var(--guest-muted); font-size: 14px; line-height: 1.45; }
+.guest-app .guest-account-card ul { display: grid; gap: 4px; margin: 0; padding-left: 20px; list-style: disc; color: var(--guest-ink); font-size: 14px; line-height: 1.4; }
+.guest-app .guest-account-card__sso { display: grid; gap: 8px; margin-top: 4px; }
+.guest-app .guest-account-card .guest-welcome__login-button { min-height: 48px; }
+.guest-app .guest-profile-action.is-locked b { color: var(--guest-muted); }

@@ -200,8 +200,11 @@ tokens.
   The paid booking records the code and its saving; the confirmation and View
   booking show them.
 - **Saved hotels:** a heart on every hotel card and the hotel page; saved hotels
-  appear as a rail on the no-booking Home. Kept on the device for the prototype;
-  a real account would sync them.
+  appear as a rail on the no-booking Home, and always in Profile → Saved hotels.
+  Kept on the device for the prototype; a real account would sync them.
+- **Accounts:** booking a hotel in the app needs an account. A guest (booking
+  reference, no account) can search, browse and save, but payment asks them to
+  continue with Apple or Google first; the stay they hold carries over.
 - **Cancellation:** a booking is refundable only if every room is on a flexible
   rate. Free cancellation runs until 23:59 three days before check-in.
   Otherwise it's non-refundable.
@@ -297,4 +300,6 @@ None.
 | 2026-09-29 | Breakfast is a flat ₱600 × `sleeps` per room per night, not per person | A per-person price can't be shown before guests are split across rooms | Price it after the split instead |
 | 2026-09-29 | `partner-hotels.tsx` and its off-site booking links are removed; `partner-hotels` is now the in-app directory | Superseded by in-app booking | Restore from git history |
 | 2026-10-01 | WELCOME500 is checked against the app's own bookings and payments | The prototype has no account history from other channels | The backend says whether it is a first booking |
+| 2026-10-01 | Booking a hotel in the app requires an account | Its receipt, refunds, vouchers and history need someone to belong to | Allow guest checkout with an email, and a lookup to find it again |
+| 2026-10-01 | Saved hotels are in Profile, not the tab bar | The bar fills to five tabs once a stay exists, and a tab must not vanish when a guest books | A heart in the Home header as a shortcut |
 | 2026-10-01 | Saved hotels and a saved offer live on the device | Same as recent searches; no account store in the prototype | Move them to the account so they follow the guest |

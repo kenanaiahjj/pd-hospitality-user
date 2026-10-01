@@ -36,6 +36,7 @@ import {
   WifiSlash,
   X,
   WarningCircle,
+  Heart,
 } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
@@ -67,6 +68,7 @@ import {
   canUseOnPropertyServices,
   bookingFromLookup,
   connectBooking,
+  convertGuestToAccount,
   describeBookingSlot,
   describeGuestGate,
   describePostStayWindow,
@@ -185,6 +187,8 @@ import {
   StayAddOnsScreen,
   withAddOns,
   promoAccountFor,
+  SavedHotelsScreen,
+  useSavedHotels,
   clearRecentSearches,
   savePendingVoucher,
   seedSavedHotels,
@@ -247,6 +251,7 @@ import {
   spendPoints,
 } from './rewards';
 import { clearStoredSession, readStoredSession, readStoredStayDraft, writeStoredSession, writeStoredStayDraft } from './session-storage';
+import { AccountSignInCard } from './guest-account';
 import { Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
 import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
@@ -264,7 +269,7 @@ import { TABLE_VENUE_SERVICE_IDS, isReservation, listingFor } from './vendor-lis
 import { paymentsSummary, recordPayment, refundBooking, refundServiceLine, refundStayAmount } from './payments-model';
 import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
 import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
-import type { CartLine } from './prototype-model';
+import type { AuthMethod, CartLine } from './prototype-model';
 import { EstablishmentChatScreen, GIFT_PRODUCTS, LOBBY_SHOP_NAME, OrderTray, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getMenuItemImage, getRestaurantMenuImages, readChatOrder } from './dining';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
@@ -1186,7 +1191,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'service-detail', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'service-detail', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -2252,8 +2257,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     { group: 'After booking', label: 'View booking · non-refundable', detail: 'Saver rates on every room', open: () => openPrototypePage({ state: 'account-only', patch: withAppBooking('saver'), screen: 'rate-detail' }) },
     { group: 'After booking', label: 'Home · booking cancelled', detail: 'The refund notice', open: () => { openBookingPage({ screen: 'stay-overview' }); setCancelNotice('The Henry Hotel Manila is cancelled. ₱69,394 is on its way back to GCash.'); } },
   ];
+  /* Came in with "Continue as guest" and a booking reference: the stay, no account. */
+  // Nothing from before this booking: no past stays, reviews or other payments.
+  const asGuest = (current: GuestSession): GuestSession => ({ ...current, auth: 'anonymous', authMethod: undefined, accountStatus: 'none', pastStays: [], reviews: [], payments: (current.payments ?? []).filter((payment) => current.bookings.some((booking) => booking.id === payment.bookingId)) });
+  const profilePages: PrototypePage[] = [
+    { group: 'Profile', label: 'Profile · guest', detail: 'A booking reference, no account', open: () => openPrototypePage({ state: 'pre-arrival', patch: asGuest, screen: 'profile' }) },
+    { group: 'Profile', label: 'Profile · signed in', detail: 'Account, history, payments, saved', open: () => openPrototypePage({ state: 'pre-arrival', screen: 'profile' }) },
+    { group: 'Profile', label: 'Saved hotels', detail: 'Three hearts, priced for the search dates', open: () => { seedSavedHotels(['alon-boracay', 'manila', 'pinetop-baguio']); openPrototypePage({ state: 'pre-arrival', screen: 'saved-hotels' }); } },
+    { group: 'Profile', label: 'Saved hotels · none yet', detail: 'The empty state', open: () => { seedSavedHotels([]); openPrototypePage({ state: 'pre-arrival', screen: 'saved-hotels' }); } },
+    { group: 'Book', label: 'Payment · guest must sign in', detail: 'Booking another hotel needs an account', open: () => { openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }); setSession((current) => asGuest(withAppBooking('free')(current))); } },
+  ];
   const prototypePages: PrototypePage[] = [
     ...bookingPages,
+    ...profilePages,
     { group: 'Error states', label: 'Payment · offline', detail: 'Hotel booking can’t be paid', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, online: false }) },
     { group: 'Empty states', label: 'Home · no booking', detail: 'Signed in, nothing connected', open: () => openPrototypePage({ state: 'account-only', screen: 'stay-overview' }) },
     { group: 'Empty states', label: 'My Stay · nothing booked', detail: 'A live stay with no services', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'my-stay' }) },
@@ -2664,6 +2680,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const draftHotel = findStayHotel(stayDraft.hotelId);
   const held = heldRooms(session.bookings);
   const promoAccount = promoAccountFor(session);
+  /* Came in with a booking reference: one stay, on this phone, no account behind it. */
+  const isGuest = session.auth === 'anonymous';
+  const savedHotelIds = useSavedHotels();
+  /* The guest keeps everything; only who holds it changes. */
+  const signInGuest = (method: AuthMethod) => setSession((current) => convertGuestToAccount(current, method));
   const draftRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
   const resumeBooking = draftHotel && stayDraft.cart.length
     ? {
@@ -2768,6 +2789,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           online={online}
           addOns={stayDraft.addOns}
           account={promoAccount}
+          accountGate={isGuest ? (
+            <AccountSignInCard
+              title="Sign in to book"
+              text="Hotel bookings in the app belong to an account, so the receipt, refunds and your vouchers have a home. Your current stay comes with you."
+              onSignIn={signInGuest}
+              online={online}
+            />
+          ) : undefined}
         />
       );
     }
@@ -4851,49 +4880,67 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
               <div className="guest-profile-intro__copy">
                 <h1>{session.guestName || 'Profile'}</h1>
-                {session.email ? <p>{session.email}</p> : null}
+                {/* A guest has no account to name: what they hold is one booking, on this phone. */}
+                {isGuest ? <p>Guest · {primaryBooking?.id ?? 'no booking'}</p> : session.email ? <p>{session.email}</p> : null}
               </div>
             </div>
+            {isGuest ? (
+              <AccountSignInCard
+                title="Keep this stay in an account"
+                text="Right now it lives on this phone. An account keeps it, and every stay after it, wherever you sign in."
+                points={['Receipts and payments on any phone', 'Points and badges that stay yours', 'Book other partner hotels in the app']}
+                onSignIn={signInGuest}
+                online={online}
+              />
+            ) : null}
             <section className="guest-profile-section" aria-labelledby="guest-profile-account-heading">
               <div className="guest-profile-section__header">
                 <div>
-                  <h2 id="guest-profile-account-heading">Account</h2>
+                  <h2 id="guest-profile-account-heading">{isGuest ? 'On this phone' : 'Account'}</h2>
                 </div>
               </div>
               <div className="guest-profile-action-list">
-                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('rewards')}>
+                <button className={`guest-list-row guest-profile-action${isGuest ? ' is-locked' : ''}`} type="button" onClick={() => go('rewards')}>
                   <span><GuestNavIcon icon={HugeTrophyIcon} /></span>
                   <div>
                     <b>Achievements</b>
-                    <small>{earnedBadges(session).length} badges · {pointsBalance(session).toLocaleString('en-US')} points</small>
+                    <small>{isGuest ? `${pointsBalance(session).toLocaleString('en-US')} points · create an account to keep them` : `${earnedBadges(session).length} badges · ${pointsBalance(session).toLocaleString('en-US')} points`}</small>
                   </div>
                   <CaretRight />
                 </button>
-                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('stay-history')}>
-                  <span><SuitcaseRolling /></span>
-                  <div><b>Stay history</b><small>{pastStays.length} {pastStays.length === 1 ? 'stay' : 'stays'} across {new Set(pastStays.map((stay) => stay.property)).size} {new Set(pastStays.map((stay) => stay.property)).size === 1 ? 'property' : 'properties'}</small></div>
-                  <CaretRight />
-                </button>
+                {/* Past stays belong to an account; a guest has only the one they looked up. */}
+                {isGuest ? null : (
+                  <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('stay-history')}>
+                    <span><SuitcaseRolling /></span>
+                    <div><b>Stay history</b><small>{pastStays.length} {pastStays.length === 1 ? 'stay' : 'stays'} across {new Set(pastStays.map((stay) => stay.property)).size} {new Set(pastStays.map((stay) => stay.property)).size === 1 ? 'property' : 'properties'}</small></div>
+                    <CaretRight />
+                  </button>
+                )}
                 <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('payments')}>
                   <span><Receipt /></span>
-                  <div><b>Payments</b><small>{paymentsSummary(session).count ? `${paymentsSummary(session).count} ${paymentsSummary(session).count === 1 ? 'payment' : 'payments'} · ${formatPesoAmount(paymentsSummary(session).net)} paid` : 'Nothing paid in the app yet'}</small></div>
+                  <div><b>{isGuest ? 'This stay’s payments' : 'Payments'}</b><small>{paymentsSummary(session).count ? `${paymentsSummary(session).count} ${paymentsSummary(session).count === 1 ? 'payment' : 'payments'} · ${formatPesoAmount(paymentsSummary(session).net)} paid` : 'Nothing paid in the app yet'}</small></div>
+                  <CaretRight />
+                </button>
+                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('saved-hotels')}>
+                  <span><Heart /></span>
+                  <div><b>Saved hotels</b><small>{savedHotelIds.length ? `${savedHotelIds.length} ${savedHotelIds.length === 1 ? 'hotel' : 'hotels'}` : 'Tap the heart on any hotel'}{isGuest ? ' · on this phone' : ''}</small></div>
                   <CaretRight />
                 </button>
               </div>
             </section>
-            <button className="guest-list-row guest-profile-signout" type="button" aria-label="Sign out" onClick={() => setConfirmSignOut(true)}>
+            <button className="guest-list-row guest-profile-signout" type="button" aria-label={isGuest ? 'Forget this booking on this phone' : 'Sign out'} onClick={() => setConfirmSignOut(true)}>
               <span><SignOut /></span>
-              <div><b>Sign out</b><small>Return to the welcome screen</small></div>
+              <div>{isGuest ? <><b>Forget this booking on this phone</b><small>Find it again with the reference and last name</small></> : <><b>Sign out</b><small>Return to the welcome screen</small></>}</div>
               <CaretRight />
             </button>
             {/* Asked first: mid-stay, signing out drops the room link and the chat until the guest signs back in. */}
             {confirmSignOut ? (
               <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmSignOut(false); }}>
                 <section className="guest-confirm-sheet" role="alertdialog" aria-modal="true" aria-labelledby="guest-signout-title" aria-describedby="guest-signout-text">
-                  <h2 id="guest-signout-title">Sign out of Cabana?</h2>
-                  <p id="guest-signout-text">{primaryBooking && describeStayStatus(primaryBooking).status !== 'checked-out' ? `Your stay at ${primaryBooking.property} stays booked. Sign back in to see it, your room charges and the front desk chat.` : 'Sign back in any time to see your stays.'}</p>
-                  <Button className="guest-button guest-button--primary" type="button" onClick={() => { setConfirmSignOut(false); signOut(); }}>Sign out</Button>
-                  <TextButton onClick={() => setConfirmSignOut(false)}>Stay signed in</TextButton>
+                  <h2 id="guest-signout-title">{isGuest ? 'Forget this booking on this phone?' : 'Sign out of Cabana?'}</h2>
+                  <p id="guest-signout-text">{isGuest ? `There is no account to sign back into. To see ${primaryBooking?.property ?? 'the stay'} again, look it up with ${primaryBooking?.id ?? 'the booking reference'} and your last name. Saved hotels on this phone are cleared too.` : primaryBooking && describeStayStatus(primaryBooking).status !== 'checked-out' ? `Your stay at ${primaryBooking.property} stays booked. Sign back in to see it, your room charges and the front desk chat.` : 'Sign back in any time to see your stays.'}</p>
+                  <Button className="guest-button guest-button--primary" type="button" onClick={() => { setConfirmSignOut(false); if (isGuest) clearDeviceData(); signOut(); }}>{isGuest ? 'Forget booking' : 'Sign out'}</Button>
+                  <TextButton onClick={() => setConfirmSignOut(false)}>{isGuest ? 'Keep it' : 'Stay signed in'}</TextButton>
                 </section>
               </div>
             ) : null}
@@ -5013,6 +5060,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'payment-detail':
         return <PaymentDetailScreen payment={(session.payments ?? []).find((payment) => payment.id === selectedPaymentId)} />;
+
+      case 'saved-hotels':
+        return <SavedHotelsScreen search={stayDraft.search} onOpenHotel={openPartnerHotel} onBrowse={() => go('book-stay-results')} onDevice={isGuest} />;
 
       case 'stay-history': {
         const lifetime = formatPesoAmount(pastStays.reduce((sum, stay) => sum + parsePesoAmount(summarisePastStay(stay).total), 0));
@@ -5299,7 +5349,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 label="Profile"
                 icon={HugeProfileIcon}
                 activeIcon={HugeProfileSolidIcon}
-                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'payments' || activeScreen === 'payment-detail' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
+                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'saved-hotels' || activeScreen === 'payments' || activeScreen === 'payment-detail' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
                 onClick={() => go('profile')}
               />
             </nav>

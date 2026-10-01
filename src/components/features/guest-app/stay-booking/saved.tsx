@@ -2,7 +2,10 @@
 
 import { Heart } from '@phosphor-icons/react';
 import { useMemo, useSyncExternalStore } from 'react';
-import type { StayHotel } from './model';
+import type { StayHotel, StaySearch } from './model';
+import { ANYWHERE, searchHotels } from './model';
+import { stayDatesLabel } from './format';
+import { HotelResultCard } from './results';
 
 /*
   Saved hotels: a heart on every hotel card and page, and a row of them on
@@ -80,5 +83,42 @@ export function SaveHotelButton({ hotel, labelled }: { hotel: StayHotel; labelle
       <Heart weight={saved ? 'fill' : 'bold'} aria-hidden="true" />
       {labelled ? <span>{saved ? 'Saved' : 'Save'}</span> : null}
     </button>
+  );
+}
+
+/**
+ * Every saved hotel, from Profile -- reachable with or without a booking,
+ * since Home only shows them while there is no stay to show instead.
+ */
+export function SavedHotelsScreen({ search, onOpenHotel, onBrowse, onDevice }: {
+  search: StaySearch;
+  onOpenHotel: (id: string) => void;
+  onBrowse: () => void;
+  /** A guest's list is kept on this phone only, and is told so. */
+  onDevice?: boolean;
+}) {
+  const ids = useSavedHotels();
+  const priced = { ...search, location: ANYWHERE };
+  const results = searchHotels(priced);
+  const saved = ids.flatMap((id) => results.filter((result) => result.hotel.id === id));
+  return (
+    <div className="guest-stack">
+      <div className="guest-page-title">
+        <h1>Saved hotels</h1>
+        {saved.length || onDevice ? <p>{saved.length ? `Priced for ${stayDatesLabel(search.checkIn, search.checkOut)}.` : ''}{onDevice ? `${saved.length ? ' ' : ''}Kept on this phone.` : ''}</p> : null}
+      </div>
+      {saved.length ? (
+        <div className="sb-results__list">
+          {saved.map((result) => <HotelResultCard key={result.hotel.id} result={result} search={priced} onOpen={() => onOpenHotel(result.hotel.id)} />)}
+        </div>
+      ) : (
+        <div className="sb-saved-empty">
+          <Heart weight="duotone" aria-hidden="true" />
+          <b>Nothing saved yet</b>
+          <small>Hotels you heart show up here, with today’s prices for your dates.</small>
+          <button type="button" className="guest-button guest-button--secondary" onClick={onBrowse}>Browse partner hotels</button>
+        </div>
+      )}
+    </div>
   );
 }

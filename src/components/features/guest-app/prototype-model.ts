@@ -65,6 +65,7 @@ export type ScreenId =
   | 'profile'
   | 'stay-history'
   | 'payments'
+  | 'saved-hotels'
   | 'payment-detail'
   | 'stay-detail'
   | 'stay-entry'
@@ -141,6 +142,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(38, 'Account', 'profile', 'Guest profile'),
   screen(39, 'Account', 'stay-history', 'Stay history'),
   screen(78, 'Account', 'payments', 'Payments'),
+  screen(81, 'Account', 'saved-hotels', 'Saved hotels'),
   screen(79, 'Account', 'payment-detail', 'Payment receipt'),
   screen(40, 'Stay', 'restaurant-cart', 'Review dining order'),
   screen(41, 'Stay', 'dining-order-confirmation', 'Dining order confirmed'),
@@ -1063,6 +1065,15 @@ export function createAccountSession(
     accountStatus: 'new',
     authMethod: method,
   };
+}
+
+/**
+ * A guest who came in with a booking reference makes an account without
+ * losing anything: the stay, its charges, payments and saved details all
+ * carry over. Only the identity changes -- from this phone to an account.
+ */
+export function convertGuestToAccount(session: GuestSession, method: AuthMethod): GuestSession {
+  return { ...session, auth: 'authenticated', authMethod: method, accountStatus: 'new' };
 }
 
 /**

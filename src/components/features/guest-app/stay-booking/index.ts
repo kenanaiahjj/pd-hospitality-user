@@ -5,7 +5,7 @@ export { StayHotelScreen, clampCart } from './hotel-page';
 export { StayAssignGuestsScreen } from './assign-guests';
 export { StayAddOnsScreen } from './add-ons';
 export { OffersStrip, savePendingVoucher } from './offers';
-export { SaveHotelButton, seedSavedHotels, useSavedHotels } from './saved';
+export { SaveHotelButton, SavedHotelsScreen, seedSavedHotels, useSavedHotels } from './saved';
 export { StayCheckoutScreen, StayPaymentScreen, emptyGuestDetails } from './checkout';
 export { CancelReservationSheet, GettingThere, StayConfirmationScreen } from './confirmation';
 export { stayDatesLabel, weekdayDate } from './format';

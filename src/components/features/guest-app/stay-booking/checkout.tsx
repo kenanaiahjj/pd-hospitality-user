@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { ArrowRight, Check, CheckCircle, CreditCard, LockSimple, Tag as TagIcon, WifiSlash, X } from '@phosphor-icons/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
 import { countNightsBetween } from '../prototype-model';
 import { readPendingVoucher, savePendingVoucher } from './offers';
@@ -185,7 +185,7 @@ const METHOD_HINTS: Record<GatewayMethod, string> = {
  * to pay -- chosen right here rather than in a sheet over the form. A
  * prototype stand-in for the gateway: nothing is charged.
  */
-export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChange, onPaid, online, addOns, account = NEW_ACCOUNT }: {
+export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChange, onPaid, online, addOns, account = NEW_ACCOUNT, accountGate }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
@@ -197,6 +197,11 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   addOns?: StayAddOn[];
   /** Who is paying, so a first-booking code is refused once they have booked. */
   account?: PromoAccount;
+  /**
+   * Shown instead of paying when the guest has no account: a booking has to
+   * belong to someone, for its receipt, refunds and vouchers to have a home.
+   */
+  accountGate?: ReactNode;
 }) {
   const [method, setMethod] = useState<GatewayMethod | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -232,7 +237,7 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
 
   const pay = () => {
     setTried(true);
-    if (!method || !online || processing) return;
+    if (accountGate || !method || !online || processing) return;
     setProcessing(true);
     timer.current = window.setTimeout(() => onPaid(method), 900);
   };
@@ -253,6 +258,9 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
           <small>{partyLabel(search)}</small>
         </span>
       </section>
+
+      {/* First, before choosing how to pay: a guest without an account learns it here, not at the end. */}
+      {accountGate}
 
       <fieldset className="sb-methods" disabled={processing}>
         <legend>Pay with</legend>
@@ -332,11 +340,11 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
       <div className="guest-dock">
         <div className="guest-dock__summary">
           <strong>{peso(total)}</strong>
-          <small className={`sb-dock__fit${quote.refundable ? ' is-positive' : ' is-muted'}`}>
-            {quote.refundable ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
+          <small className={`sb-dock__fit${accountGate ? ' is-muted' : quote.refundable ? ' is-positive' : ' is-muted'}`}>
+            {accountGate ? 'Sign in above to pay' : quote.refundable ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : 'Non-refundable'}
           </small>
         </div>
-        <button type="button" className="guest-button guest-button--primary" disabled={!online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(total)}`}>
+        <button type="button" className="guest-button guest-button--primary" disabled={Boolean(accountGate) || !online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(total)}`}>
           {processing ? 'Processing…' : <><LockSimple aria-hidden="true" />Pay</>}
         </button>
       </div>

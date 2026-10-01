@@ -32,9 +32,9 @@ uniform float uSpin;
 out vec4 outColor;
 
 // GOLD is the rim's metal, PLUM the face's enamel, EMERALD the check -- all greens now.
-const vec3 GOLD = vec3(0.16, 0.8, 0.46);
-const vec3 PLUM = vec3(0.004, 0.07, 0.035);
-const vec3 EMERALD = vec3(0.03, 0.4, 0.17);
+const vec3 GOLD = vec3(0.42, 0.95, 0.66);
+const vec3 PLUM = vec3(0.02, 0.2, 0.1);
+const vec3 EMERALD = vec3(0.34, 0.9, 0.6);
 
 mat3 rotY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c); }
 mat3 rotX(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c); }
@@ -73,10 +73,14 @@ vec3 normalAt(vec3 p) {
 // A studio: warm ceiling, dark floor, two soft boxes and a rim light.
 vec3 environment(vec3 d) {
   // A warm floor bounce, so gold facing down still glows rather than going brown.
-  vec3 col = mix(vec3(0.16, 0.09, 0.07), vec3(0.42, 0.3, 0.22), smoothstep(-0.6, 0.9, d.y));
+  // Dark below, bright above: gloss is contrast, the reflections must have somewhere dark to sit against.
+  vec3 col = mix(vec3(0.03, 0.035, 0.035), vec3(0.55, 0.6, 0.58), smoothstep(-0.3, 1.0, d.y));
   col += vec3(3.2, 2.7, 2.2) * pow(max(dot(d, normalize(vec3(-0.6, 0.7, 0.55))), 0.0), 24.0);
   col += vec3(1.6, 1.25, 1.1) * pow(max(dot(d, normalize(vec3(0.75, 0.25, 0.6))), 0.0), 12.0);
   col += vec3(0.9, 0.4, 0.7) * pow(max(dot(d, normalize(vec3(0.1, -0.5, -0.9))), 0.0), 6.0);
+  // A broad soft box in front, up and to the left: the wide sheen across the face that reads as gloss.
+  col += vec3(5.0, 5.0, 4.8) * pow(max(dot(d, normalize(vec3(-0.35, 0.45, 1.0))), 0.0), 36.0);
+  col += vec3(0.7, 0.75, 0.72) * pow(max(dot(d, normalize(vec3(-0.35, 0.45, 1.0))), 0.0), 4.0);
   return col;
 }
 
@@ -128,24 +132,31 @@ void main() {
       float diffuse = max(dot(nWorld, key), 0.0) * 0.7 + 0.3;
       float edge = pow(1.0 - max(dot(nWorld, v), 0.0), 1.5);
       vec3 body = EMERALD * diffuse * 2.4 + vec3(0.2, 0.8, 0.45) * edge * 0.3;
-      float f = 0.04 + 0.96 * pow(1.0 - max(dot(nWorld, v), 0.0), 5.0);
+      // A thick, wet clear coat: more reflection at every angle, a hard highlight.
+      float f = 0.08 + 0.92 * pow(1.0 - max(dot(nWorld, v), 0.0), 4.0);
       vec3 coat = environment(reflect(rd, nWorld)) * f;
-      float spec = pow(max(dot(reflect(-key, nWorld), v), 0.0), 60.0);
-      col = body + coat * 0.9 + vec3(1.0, 1.0, 0.92) * spec * 0.9 + sweep * vec3(0.3, 0.5, 0.35);
+      float spec = pow(max(dot(reflect(-key, nWorld), v), 0.0), 140.0);
+      col = body + coat * 1.3 + vec3(1.0, 1.0, 0.95) * spec * 2.2 + sweep * vec3(0.5, 0.7, 0.55);
     } else {
       // Enamel: a sunburst engraved under clear coat, plum body glowing at the edges.
       float a = atan(p.y, p.x);
       float rr = length(p.xy);
       float engrave = sin(a * 56.0) * 0.5 + sin(rr * 70.0) * 0.25;
-      vec3 ne = normalize(nWorld + 0.06 * engrave * (turn * vec3(-sin(a), cos(a), 0.0)));
+      vec3 ne = normalize(nWorld + 0.018 * engrave * (turn * vec3(-sin(a), cos(a), 0.0)));
       vec3 key = normalize(vec3(-0.5, 0.7, 0.6));
       float diffuse = max(dot(ne, key), 0.0) * 0.6 + 0.25;
       float rimGlow = pow(1.0 - max(dot(ne, v), 0.0), 2.0);
-      vec3 body = PLUM * diffuse * 3.2 + vec3(0.03, 0.22, 0.11) * rimGlow * 0.6;
+      vec3 body = PLUM * diffuse * 2.6 + vec3(0.12, 0.5, 0.3) * rimGlow * 0.5;
       body *= 0.9 + 0.1 * engrave;
-      float f = 0.04 + 0.96 * pow(1.0 - max(dot(ne, v), 0.0), 5.0);
+      float f = 0.07 + 0.93 * pow(1.0 - max(dot(ne, v), 0.0), 4.0);
       vec3 coat = environment(reflect(rd, ne)) * f;
-      col = body + coat * 0.6;
+      // Glossy enamel: the clear coat's reflection plus a tight highlight from the key light.
+      float specFace = pow(max(dot(reflect(-key, nWorld), v), 0.0), 120.0);
+      // The lacquer highlight: a soft diagonal lozenge on the upper left of the enamel, riding with the
+      // coin, brightest when the face looks at you -- the window a glossy surface always seems to hold.
+      vec2 q = mat2(0.8, -0.6, 0.6, 0.8) * (p.xy - vec2(-0.3, 0.34));
+      float sheen = exp(-dot(q * vec2(1.0, 3.2), q * vec2(1.0, 3.2)) * 7.0) * (0.55 + 0.45 * max(dot(nWorld, v), 0.0));
+      col = body + coat * 1.1 + vec3(1.0, 1.0, 0.95) * (specFace * 1.6 + sheen * 0.55);
     }
     alpha = 1.0;
   } else {
@@ -164,7 +175,8 @@ void main() {
   }
 
   // Filmic curve, then display gamma; premultiplied for the page behind.
-  col = col / (col + 0.75) * 1.12;
+  // ACES-style curve: keeps highlights hot and darks deep, which is what reads as glossy.
+  col = clamp((col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14), 0.0, 1.0);
   col = pow(col, vec3(1.0 / 2.2));
   outColor = vec4(col * alpha, alpha);
 }`;

@@ -6,12 +6,12 @@ import { RecommendedRail } from './promoted';
 import { ANYWHERE, HotelResultCard, OffersStrip, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, promoAccountFor, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
-import { CATEGORY_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
+import { CATEGORY_IMAGES, ITEM_THUMBNAIL_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
 import { Button } from '@/components/ui';
 import { CabanaMark } from '@/components/ui/cabana-logo';
 import { CalendarCheck01Icon as HugeCalendarCheckIcon, ChevronRightIcon as HugeChevronRightIcon } from '@hugeicons-pro/core-stroke-rounded';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight, Bed, CalendarBlank, Car, CaretRight, ChatCircleDots, Check, CheckCircle, Clock, Compass, ForkKnife, Gift, Megaphone, PencilSimple, Plus, QrCode, Receipt, SignOut, Sparkle, Storefront, Ticket, Users, Wrench, X } from '@phosphor-icons/react';
+import { ArrowRight, Bed, CalendarBlank, Car, CaretRight, ChatCircleDots, Check, CheckCircle, Clock, Compass, ForkKnife, Gift, Megaphone, PencilSimple, Plus, QrCode, Receipt, SignOut, Sparkle, Storefront, Ticket, SuitcaseRolling, Users, X } from '@phosphor-icons/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
@@ -449,13 +449,24 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
               </span>
             </span>
           </button>
-          <button className="guest-transfer-card" type="button" onClick={() => onNavigate('pre-arrival-services')}>
-            <Wrench aria-hidden="true" />
-            <span>
-              <b>More arrival services</b>
-              <small>Early check-in, luggage assistance, private driver, and celebration setup</small>
+          {/* The rest of the roster, as pictures of what it is: flowers waiting, bags carried, a car for the day. */}
+          <button className="guest-ride-card guest-ride-card--mosaic guest-ride-card--busy" type="button" onClick={() => onNavigate('pre-arrival-services')}>
+            <span className="guest-ride-card__mosaic" aria-hidden="true">
+              {(['celebration', 'luggage', 'private-car'] as const).map((key) => (
+                <span key={key}><Image src={ITEM_THUMBNAIL_IMAGES[key]!.src} alt="" fill sizes="(max-width: 720px) 34vw, 190px" style={{ objectPosition: ITEM_THUMBNAIL_IMAGES[key]!.focalPoint }} /></span>
+              ))}
             </span>
-            <CaretRight aria-hidden="true" />
+            <span className="guest-ride-card__action" aria-hidden="true"><ArrowRight /></span>
+            <span className="guest-ride-card__body">
+              <small>Before you arrive</small>
+              <b>More arrival services</b>
+              <span>Arranged by {booking.property} and ready when you walk in.</span>
+              <span className="guest-ride-card__pills">
+                <span><SuitcaseRolling aria-hidden="true" />Luggage</span>
+                <span><Car aria-hidden="true" />Private driver</span>
+                <span><Sparkle aria-hidden="true" />Celebrations</span>
+              </span>
+            </span>
           </button>
         </>
       ) : null}

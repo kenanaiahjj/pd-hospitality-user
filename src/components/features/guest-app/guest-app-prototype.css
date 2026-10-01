@@ -9150,3 +9150,9 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-prototype-stage .guest-push__text > span:last-child { display: -webkit-box; overflow: hidden; color: var(--ds-ink-muted); font-size: 13px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 @keyframes guest-push-in { from { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(0.98); } to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .guest-prototype-stage .guest-push { animation: none; } }
+
+/* "More arrival services": the ride card's treatment, three pictures instead of one. */
+.guest-ride-card--mosaic { min-height: 224px; }
+.guest-ride-card__mosaic { position: absolute; inset: 0; z-index: -2; display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 2px; background: oklch(0.2 0.01 60); }
+.guest-ride-card__mosaic > span { position: relative; overflow: hidden; }
+.guest-ride-card__mosaic img { object-fit: cover; }

@@ -6,7 +6,7 @@ import { directionsUrl, openStatus, walkLabel } from './nearby-place';
 import type { MiniAppCategoryId } from './prototype-model';
 import { getPropertyImage } from './service-images';
 import { Button } from '@/components/ui';
-import { ArrowLeft, ArrowRight, Bell, Check, Clock, Copy, Gift, House, MapPin, Minus, NavigationArrow, PersonSimpleWalk, Plus, Storefront, X } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Bell, Check, Clock, Copy, Gift, House, MapPin, Minus, NavigationArrow, PersonSimpleWalk, Phone, Plus, Storefront, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 
 import Image from 'next/image';
@@ -28,12 +28,18 @@ export type NearbyEstablishment = {
   hours: string;
   contact?: string;
   image: string;
+  /**
+   * On Cabana through the vendor app: it publishes its own availability and
+   * guests book it directly. Absent means independent -- not on Cabana, so a
+   * table is a phone call.
+   */
+  partner?: boolean;
 };
 
 export const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = [
   { id: 'kape-lab-manila', city: 'Manila', categoryId: 'dining' as const, name: 'Kape Lab Manila', type: 'Coffee & bakery', distance: '280 m away', description: 'Small-batch coffee, pastries, and early breakfast.', address: '142 Roxas Boulevard, Manila', hours: 'Daily · 6:00 AM–9:00 PM', contact: '+63 917 555 0142', image: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=80' },
-  { id: 'bayleaf-kitchen', city: 'Manila', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Independent neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: '/experiments/bayleaf-kitchen.jpg' },
-  { id: 'sunset-roasters', city: 'Manila', categoryId: 'dining', name: 'Sunset Roasters', type: 'Coffee shop', distance: '850 m away', description: 'A relaxed independent café for coffee, tea, and light bites.', address: '77 Roxas Boulevard, Manila', hours: 'Daily · 7:00 AM–8:00 PM', contact: '+63 917 555 0187', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80' },
+  { id: 'bayleaf-kitchen', city: 'Manila', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Independent neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: '/experiments/bayleaf-kitchen.jpg', partner: true },
+  { id: 'sunset-roasters', city: 'Manila', categoryId: 'dining', name: 'Sunset Roasters', type: 'Coffee shop', distance: '850 m away', description: 'A relaxed independent café for coffee, tea, and light bites.', address: '77 Roxas Boulevard, Manila', hours: 'Daily · 7:00 AM–8:00 PM', contact: '+63 917 555 0187', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80', partner: true },
   { id: 'hilot-house', city: 'Manila', categoryId: 'spa' as const, name: 'Hilot House', type: 'Independent wellness studio', distance: '450 m away', description: 'A neighborhood studio for traditional hilot and restorative treatments.', address: '18 Adriatico Street, Manila', hours: 'Mon–Sun · 10:00 AM–10:00 PM', contact: '+63 917 555 0198', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80' },
   { id: 'bamboo-wellness', city: 'Manila', categoryId: 'spa', name: 'Bamboo Wellness Studio', type: 'Massage & wellness', distance: '700 m away', description: 'Independent therapists offering calming massages and wellness rituals.', address: '26 Pedro Gil Street, Manila', hours: 'Daily · 9:00 AM–9:00 PM', contact: '+63 917 555 0133', image: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?auto=format&fit=crop&w=900&q=80' },
   { id: 'quiet-corner-yoga', city: 'Manila', categoryId: 'spa', name: 'Quiet Corner Yoga', type: 'Yoga studio', distance: '1 km away', description: 'Small group yoga and breathwork classes for all experience levels.', address: '41 Taft Avenue, Manila', hours: 'Mon–Sat · 7:00 AM–8:00 PM', contact: '+63 917 555 0175', image: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=900&q=80' },
@@ -87,7 +93,7 @@ export function NearbyRecommendationsPage({ categoryId, city, property, now, onS
   const [view, setView] = useState<'list' | 'map'>('list');
   return (
     <div className="guest-stack guest-nearby-page">
-      <div className="guest-page-title"><h1>Nearby recommendations</h1><p>Independent places close to {property}.</p></div>
+      <div className="guest-page-title"><h1>Nearby recommendations</h1><p>Partners and independent places close to {property}.</p></div>
       {recommendations.length ? (
         <div className="guest-nearby-view" role="group" aria-label="Show as">
           <button type="button" aria-pressed={view === 'list'} className={view === 'list' ? 'is-active' : ''} onClick={() => setView('list')}>List</button>
@@ -177,18 +183,21 @@ function tableTimes(hours: string): string[] {
   venue is not on Cabana, so the desk calls and confirms in chat. Free to ask;
   the meal is paid at the place.
 */
-function TableRequestSheet({ establishment, days, defaultParty, dayLabel, onClose, onSubmit }: {
+function TableRequestSheet({ establishment, days, defaultParty, dayLabel, partnerTimes, maxParty = 10, onClose, onSubmit }: {
   establishment: NearbyEstablishment;
   days: string[];
   defaultParty: number;
   dayLabel: (day: string) => string;
+  /** A partner's own published times: the table is confirmed the moment it is chosen. */
+  partnerTimes?: readonly string[];
+  maxParty?: number;
   onClose: () => void;
   onSubmit: (request: TableRequest) => void;
 }) {
-  const times = tableTimes(establishment.hours);
+  const times = partnerTimes ? [...partnerTimes] : tableTimes(establishment.hours);
   const [day, setDay] = useState(days[0] ?? '');
   const [time, setTime] = useState(times.find((option) => (hourOf(option) ?? 0) >= 18) ?? times[0] ?? '');
-  const [party, setParty] = useState(Math.max(1, defaultParty));
+  const [party, setParty] = useState(Math.min(maxParty, Math.max(1, defaultParty)));
   const [requests, setRequests] = useState('');
   return (
     <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -205,27 +214,27 @@ function TableRequestSheet({ establishment, days, defaultParty, dayLabel, onClos
             <div className="guest-table-request__chips">{times.map((option) => <button key={option} type="button" aria-pressed={time === option} onClick={() => setTime(option)}>{option}</button>)}</div>
           </fieldset>
           <div className="guest-table-request__party">
-            <span><b>Guests</b><small>Up to 10</small></span>
+            <span><b>Guests</b><small>Up to {maxParty}</small></span>
             <span className="guest-table-request__stepper">
               <button type="button" aria-label="Fewer guests" disabled={party <= 1} onClick={() => setParty(party - 1)}><Minus aria-hidden="true" /></button>
               <output aria-live="polite">{party}</output>
-              <button type="button" aria-label="More guests" disabled={party >= 10} onClick={() => setParty(party + 1)}><Plus aria-hidden="true" /></button>
+              <button type="button" aria-label="More guests" disabled={party >= maxParty} onClick={() => setParty(party + 1)}><Plus aria-hidden="true" /></button>
             </span>
           </div>
           <label className="guest-table-request__requests">
             <span>Special requests <small>Optional</small></span>
             <textarea rows={2} maxLength={240} value={requests} placeholder="A high chair if possible, a table by the window, a birthday…" onChange={(event) => setRequests(event.currentTarget.value)} />
-            <small>The desk passes these on; the venue does its best.</small>
+            <small>{partnerTimes ? `Sent to ${establishment.name} with your booking.` : 'The desk passes these on; the venue does its best.'}</small>
           </label>
-          <p className="guest-table-request__note">{establishment.name} isn’t on Cabana, so the front desk calls to book it and confirms here in chat. Nothing to pay now.</p>
+          <p className="guest-table-request__note">{partnerTimes ? `These are the tables ${establishment.name} has open. Yours is confirmed straight away.` : `${establishment.name} isn’t on Cabana, so the front desk calls to book it and confirms here in chat.`}</p>
         </div>
-        <Button className="guest-button guest-button--primary" type="button" disabled={!day || !time} onClick={() => onSubmit({ day, time, party, requests: requests.trim() || undefined })}>Ask the front desk to reserve<ArrowRight aria-hidden="true" /></Button>
+        <Button className="guest-button guest-button--primary" type="button" disabled={!day || !time} onClick={() => onSubmit({ day, time, party, requests: requests.trim() || undefined })}>{partnerTimes ? 'Reserve table' : 'Ask the front desk to reserve'}<ArrowRight aria-hidden="true" /></Button>
       </section>
     </div>
   );
 }
 
-export function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide, onReserveTable, reserveDays = [], dayLabel = (day) => day, defaultParty = 2 }: {
+export function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide, onReserveTable, partnerTables, reserveDays = [], dayLabel = (day) => day, defaultParty = 2 }: {
   establishment: NearbyEstablishment;
   city: string;
   property: string;
@@ -235,12 +244,18 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
   onBookRide: () => void;
   /** Restaurants and cafes: a table, asked for through the desk, instead of a ride. */
   onReserveTable?: (request: TableRequest) => void;
+  /** A partner's published tables; absent for an independent place. */
+  partnerTables?: { times: readonly string[]; maxParty?: number };
   reserveDays?: string[];
   dayLabel?: (day: string) => string;
   defaultParty?: number;
 }) {
   const [reserving, setReserving] = useState(false);
-  const reservable = establishment.categoryId === 'dining' && Boolean(onReserveTable) && reserveDays.length > 0;
+  const dining = establishment.categoryId === 'dining';
+  // A partner books in the app; an independent place is a phone call, the desk only if the guest would rather not.
+  const bookable = dining && Boolean(onReserveTable) && reserveDays.length > 0;
+  const partnerBookable = bookable && Boolean(establishment.partner && partnerTables);
+  const phone = establishment.contact?.replace(/\s/g, '');
   return <div className="guest-stack guest-nearby-detail">
     <section className="guest-nearby-detail__hero" aria-label={`${establishment.name} overview`}>
       <Image src={establishment.image} alt="" fill sizes="100vw" priority />
@@ -249,7 +264,7 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
       <button className="guest-nearby-detail__control guest-nearby-detail__notifications" type="button" onClick={onNotifications} aria-label="Notifications"><Bell /></button>
       <div className="guest-nearby-detail__hero-copy">
         <h1>{establishment.name}</h1>
-        <div className="guest-nearby-detail__tags" aria-label="Recommendation details"><span>{establishment.type}</span><span>Independent</span></div>
+        <div className="guest-nearby-detail__tags" aria-label="Recommendation details"><span>{establishment.type}</span><span>{establishment.partner ? 'Partner' : 'Independent'}</span></div>
       </div>
     </section>
 
@@ -264,7 +279,7 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
     <section className="guest-nearby-detail__good-to-know">
       <h2>Good to know</h2>
       <div className="guest-nearby-detail__facts">
-        <span><Storefront aria-hidden="true" /><b>Independently operated</b></span>
+        <span><Storefront aria-hidden="true" /><b>{establishment.partner ? 'Partner on Cabana · books instantly' : 'Independently operated'}</b></span>
         <span><House aria-hidden="true" /><b>Outside the hotel</b></span>
         {establishment.categoryId === 'gifts' ? <span><Gift aria-hidden="true" /><b>Local handicrafts and gifts</b></span> : null}
         {establishment.distance ? <span><PersonSimpleWalk aria-hidden="true" /><b>{establishment.distance}</b></span> : null}
@@ -272,12 +287,19 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
     </section>
 
     <div className="guest-nearby-detail__cta">
-      {reservable
-        ? <Button className="guest-button guest-button--primary" type="button" onClick={() => setReserving(true)}>Reserve a table<ArrowRight /></Button>
-        : <Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button>}
+      {partnerBookable ? (
+        <Button className="guest-button guest-button--primary" type="button" onClick={() => setReserving(true)}>Reserve a table<ArrowRight /></Button>
+      ) : dining && phone ? (
+        <>
+          <a className="guest-button guest-button--primary" href={`tel:${phone}`}><Phone aria-hidden="true" />Call to reserve</a>
+          {bookable ? <button type="button" className="guest-nearby-detail__alt" onClick={() => setReserving(true)}>Or ask the front desk to book it</button> : null}
+        </>
+      ) : (
+        <Button className="guest-button guest-button--primary" type="button" onClick={onBookRide}>Book a ride<ArrowRight /></Button>
+      )}
     </div>
     {reserving && onReserveTable ? (
-      <TableRequestSheet establishment={establishment} days={reserveDays} defaultParty={defaultParty} dayLabel={dayLabel} onClose={() => setReserving(false)} onSubmit={(request) => { setReserving(false); onReserveTable(request); }} />
+      <TableRequestSheet establishment={establishment} days={reserveDays} defaultParty={defaultParty} dayLabel={dayLabel} partnerTimes={partnerBookable ? partnerTables?.times : undefined} maxParty={partnerBookable ? partnerTables?.maxParty : undefined} onClose={() => setReserving(false)} onSubmit={(request) => { setReserving(false); onReserveTable(request); }} />
     ) : null}
   </div>;
 }

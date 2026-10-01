@@ -1403,6 +1403,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const reserveNearbyTable = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: { day: string; time: string; party: number; requests?: string }) => {
     const asks = request.requests?.trim();
+    // A partner confirms its own published table at once; an independent one is the desk's phone call.
+    const direct = Boolean(place.partner);
     const [hours = 19, minutes = 0] = (() => { const m = request.time.match(/(\d{1,2}):(\d{2})\s*([AP]M)/i); return m ? [(Number(m[1]) % 12) + (m[3]!.toUpperCase() === 'PM' ? 12 : 0), Number(m[2])] : [19, 0]; })();
     const table: ServiceBooking = {
       id: `service-table-${place.id}-${request.day}-${hours}${minutes}`,
@@ -1416,7 +1418,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       amount: '',
       status: 'confirmed',
       categoryId: 'dining',
-      provider: place.name,
+      provider: direct ? `Run by ${place.name}` : place.name,
       // The title names the venue; above it, only where it is.
       place: place.address,
       partySize: request.party,
@@ -1424,11 +1426,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       facts: [
         { label: 'Guests', value: `${request.party}` },
         ...(asks ? [{ label: 'Requests', value: asks }] : []),
-        { label: 'Status', value: 'Requested · the front desk is calling to book it' },
+        { label: 'Status', value: direct ? `Confirmed by ${place.name}` : 'Requested · the front desk is calling to book it' },
       ],
     };
     setSession((current) => ({ ...current, serviceBookings: [table, ...current.serviceBookings.filter((item) => item.id !== table.id)] }));
-    setChatMessages((messages) => [
+    if (!direct) setChatMessages((messages) => [
       ...messages,
       { from: 'guest', body: `Could you book a table for ${request.party} at ${place.name} on ${formatServiceDay(request.day).long.replace(' · ', ', ')} at ${request.time}?${asks ? ` ${asks.replace(/[.\s]*$/, '')}.` : ''}`, state: 'Sent' },
       { from: 'desk', body: `Of course. We’ll call ${place.name} now${asks ? ', pass on your request,' : ''} and confirm your table here.`, state: 'Seen' },
@@ -3812,7 +3814,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const visibleVenues = stayVenues.filter(matchesSubcategory);
         const visibleServices = categoryServices.filter(matchesSubcategory);
         const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', rentals: 'Motorbikes, cars and bikes by the day, from the hotel driveway.', services: 'Explore hotel services and independent options nearby.' };
-        const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', rentals: 'Independent rental shops near the hotel.', services: 'Independent services available near the hotel.' };
+        const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Partner and independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', rentals: 'Independent rental shops near the hotel.', services: 'Independent services available near the hotel.' };
         return (
           <div className="guest-stack guest-category-listing">
             <div className="guest-page-title">
@@ -3951,6 +3953,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             dayLabel={(day) => (day === PROTOTYPE_TODAY ? 'Today' : formatServiceDay(day).short)}
             defaultParty={contextBooking.guestCount}
             onReserveTable={(request) => reserveNearbyTable(establishment, request)}
+            partnerTables={establishment.partner ? listingFor(establishment.id) : undefined}
           />
         ) : null;
       }
@@ -5489,7 +5492,7 @@ const BROWSE_CATEGORIES: BrowseCategory[] = [
   { id: 'rentals', label: 'Rentals', detail: 'Motorbikes, cars and bikes', image: getCategoryCoverImage('rentals') },
   { id: 'services', label: 'Hotel Services', detail: 'Transfers, laundry and celebrations', image: storyImage('pool') },
   { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs', detail: 'Pasalubong and keepsakes', image: storyImage('food-crawl') },
-  { id: 'nearby', label: 'Nearby', detail: 'Independent places around the hotel', image: storyImage('heritage-walk') },
+  { id: 'nearby', label: 'Nearby', detail: 'Partners and independent places around the hotel', image: storyImage('heritage-walk') },
 ];
 
 const ROOM_UPGRADES = [

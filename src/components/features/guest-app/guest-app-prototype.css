@@ -7723,7 +7723,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   bottom: 12px;
   margin: 8px 20px 0;
   padding-top: 18px;
-  background: linear-gradient(to bottom, transparent, var(--guest-canvas) 45%);
+  /* The page here is paper, not canvas: fade to it, or a grey band shows behind the second action. */
+  background: linear-gradient(to bottom, transparent, var(--guest-paper) 45%);
 }
 .guest-nearby-detail__cta .guest-button { width: 100%; min-height: 56px; border-radius: 28px; }
 
@@ -9115,3 +9116,6 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-app .guest-table-request__requests textarea { width: 100%; min-height: 64px; padding: 10px 12px; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-field, 14px); background: var(--guest-paper); color: var(--guest-ink); font: inherit; font-size: 15px; resize: vertical; }
 .guest-app .guest-table-request__requests textarea:focus { outline: none; box-shadow: var(--guest-focus-ring); }
 .guest-app .guest-table-request__requests > small { color: var(--guest-muted); font-size: 12.5px; }
+.guest-app .guest-nearby-detail__cta { display: grid; gap: 8px; }
+.guest-app .guest-nearby-detail__cta a.guest-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.guest-app .guest-nearby-detail__alt { justify-self: center; padding: 6px 10px; border: 0; background: none; color: var(--guest-accent-strong); font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }

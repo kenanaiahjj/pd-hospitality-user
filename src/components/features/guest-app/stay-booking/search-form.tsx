@@ -5,7 +5,7 @@ import { Buildings, CalendarBlank, ClockCounterClockwise, Globe, MagnifyingGlass
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { PROTOTYPE_TODAY, countNightsBetween } from '../prototype-model';
 import type { StayLocation, StaySearch } from './model';
-import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, matchesWords, partyLabel, quickDates, resolveLocation, validSearchDates } from './model';
+import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, matchesWords, partyLabel, quickDates, resolveLocation, stayNights, validSearchDates } from './model';
 import { childAgeLabel, compactRange, longDate, shortDate, stayDatesLabel, weekdayDate } from './format';
 
 /*
@@ -143,9 +143,10 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
         ) : null}
         {steps.includes('when') ? (
           <SheetSection icon={<CalendarBlank />} label="When" question="When’s your trip?" value={datesOk ? stayDatesLabel(draft.checkIn, draft.checkOut) : 'Choose dates'} open={step === 'when'} onOpen={() => setStep('when')}>
-            {!isBlocked ? (
+            {/* At a hotel, only the quick dates it has room on. */}
+            {quickDates().some((option) => !stayNights(option.checkIn, option.checkOut).some((night) => isBlocked?.(night))) ? (
               <div className="sb-chips sb-quick-dates" role="group" aria-label="Quick dates">
-                {quickDates().map((option) => (
+                {quickDates().filter((option) => !stayNights(option.checkIn, option.checkOut).some((night) => isBlocked?.(night))).map((option) => (
                   <button key={option.label} type="button" className={`sb-chip${draft.checkIn === option.checkIn && draft.checkOut === option.checkOut ? ' is-active' : ''}`} aria-pressed={draft.checkIn === option.checkIn && draft.checkOut === option.checkOut} onClick={() => { setDraft((current) => ({ ...current, checkIn: option.checkIn, checkOut: option.checkOut })); const after = next('when'); if (after) setStep(after); }}>
                     {option.label}<small>{compactRange(option.checkIn, option.checkOut)}</small>
                   </button>
@@ -182,7 +183,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
 
       <footer className="sb-sheet__foot">
         <span className="sb-sheet__summary">
-          <b>{awaitingCheckOut ? `${shortDate(draft.checkIn)} → choose check-out` : datesOk ? `${compactRange(draft.checkIn, draft.checkOut)} · ${countNightsBetween(draft.checkIn, draft.checkOut)} ${countNightsBetween(draft.checkIn, draft.checkOut) === 1 ? 'night' : 'nights'}` : 'Choose dates'}</b>
+          <b>{awaitingCheckOut ? `${shortDate(draft.checkIn)} → check-out?` : datesOk ? `${compactRange(draft.checkIn, draft.checkOut)} · ${countNightsBetween(draft.checkIn, draft.checkOut)} ${countNightsBetween(draft.checkIn, draft.checkOut) === 1 ? 'night' : 'nights'}` : 'Choose dates'}</b>
           <button type="button" className="sb-sheet__clear" onClick={() => { setDraft(steps.includes('where') ? DEFAULT_STAY_SEARCH : { ...DEFAULT_STAY_SEARCH, location: draft.location }); setTried(false); setStep(steps[0]!); }}>Clear all</button>
         </span>
         <button className="guest-button guest-button--primary sb-sheet__submit" type="button" onClick={submit}>
@@ -401,7 +402,7 @@ export function GuestsPanel({ adults, childAges, onChange, showErrors }: { adult
       <Counter label="Adults" detail="Ages 18 and over" value={adults} min={1} max={MAX_ADULTS} unit="adults" onChange={(next) => onChange(next, childAges)} />
       <Counter
         label="Children"
-        detail="Ages 0–17"
+        detail="Ages 0–17 · 12 and up take an adult’s place in a room"
         value={childAges.length}
         min={0}
         max={MAX_CHILDREN}

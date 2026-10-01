@@ -76,9 +76,8 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
         ))}
       </div>
 
-      <OffersStrip nights={countNightsBetween(search.checkIn, search.checkOut)} account={account} />
-
-      {sort === 'recommended' ? <p className="sb-small sb-results__disclosure">Recommended shows The Henry’s own hotels first, then partners by guest rating.</p> : null}
+      {/* Only worth explaining when there is an order to explain. */}
+      {sort === 'recommended' && results.length > 1 && view.mode === 'list' ? <p className="sb-small sb-results__disclosure">Recommended shows The Henry’s own hotels first, then partners by guest rating, with sold-out stays last.</p> : null}
 
       {!results.length ? (
         <div className="sb-empty">
@@ -93,7 +92,11 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
         <StayResultsMap results={results} onOpenHotel={onOpenHotel} />
       ) : (
         <div className="sb-results__list">
-          {results.map((result) => <HotelResultCard key={result.hotel.id} result={result} search={search} onOpen={() => onOpenHotel(result.hotel.id)} />)}
+          {/* Offers after the first two hotels, not above them: the stays are what was searched for. */}
+          {results.flatMap((result, index) => [
+            <HotelResultCard key={result.hotel.id} result={result} search={search} onOpen={() => onOpenHotel(result.hotel.id)} />,
+            ...(index === Math.min(1, results.length - 1) ? [<OffersStrip key="offers" nights={countNightsBetween(search.checkIn, search.checkOut)} account={account} />] : []),
+          ])}
         </div>
       )}
 

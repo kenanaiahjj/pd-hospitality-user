@@ -52,7 +52,7 @@ export type Reservation = {
    * Arrival extras paid in the same payment. Kept apart from `total`, which is
    * the rooms alone, so cancelling a room refunds only that room's share.
    */
-  addOns?: { id: AddOnId; serviceBookingId: string; title: string; amount: number }[];
+  addOns?: { id: AddOnId; serviceBookingId: string; title: string; amount: number; detail?: string }[];
   addOnsTotal?: number;
 };
 
@@ -538,14 +538,22 @@ export type RoomOffer = {
   plans: { id: RatePlanId; total: number; perNight: number; refundable: boolean }[];
 };
 
+/**
+ * Whether free cancellation is still on offer for this check-in: it ends
+ * three days before, so a stay starting sooner is non-refundable whatever
+ * the rate says.
+ */
+export const cancellationOpen = (checkIn: string, today = PROTOTYPE_TODAY) => addDays(checkIn, -FREE_CANCELLATION_DAYS) >= today;
+
 export function roomOffers(hotel: StayHotel, search: StaySearch, held: HeldRooms = NO_HELD_ROOMS): RoomOffer[] {
   const nights = Math.max(1, countNightsBetween(search.checkIn, search.checkOut));
+  const open = cancellationOpen(search.checkIn);
   return hotel.roomTypes.map((roomType) => ({
     roomType,
     left: roomsLeft(hotel.id, roomType.id, search.checkIn, search.checkOut, held),
     plans: roomType.plans.map((id) => {
       const total = stayRate(roomType, id, search.checkIn, search.checkOut);
-      return { id, total, perNight: round10(total / nights), refundable: id !== 'saver' };
+      return { id, total, perNight: round10(total / nights), refundable: id !== 'saver' && open };
     }),
   }));
 }
@@ -689,7 +697,8 @@ export type Promo = {
   terms: string;
   apply: (subtotal: number) => number;
   /** Why this stay does not qualify, or undefined when it does. */
-  rejects?: (hotel: StayHotel, nights: number) => string | undefined;
+  /** With no hotel (results, Home), only the rules about the stay itself are checked. */
+  rejects?: (hotel: StayHotel | undefined, nights: number) => string | undefined;
   /** Why this guest cannot use it, whatever the stay. */
   refuses?: (account: PromoAccount) => string | undefined;
 };
@@ -721,14 +730,14 @@ export const PROMO_CODES: Record<string, Promo> = {
     title: '15% off 3+ nights at The Henry',
     terms: 'The Henry Manila, Cebu and Dumaguete. Stays of 3 nights or more.',
     apply: (subtotal) => Math.round(subtotal * 0.15),
-    rejects: (hotel, nights) => (!hotel.henry ? 'HENRY15 is for The Henry’s own hotels.' : nights < 3 ? 'HENRY15 needs a stay of 3 nights or more.' : undefined),
+    rejects: (hotel, nights) => (hotel && !hotel.henry ? 'HENRY15 is for The Henry’s own hotels.' : nights < 3 ? 'HENRY15 needs a stay of 3 nights or more.' : undefined),
   },
 };
 
 /** The offers a stay qualifies for, best first -- what checkout suggests without the guest knowing a code. */
 export function offersFor(hotel: StayHotel | undefined, nights: number, account: PromoAccount = NEW_ACCOUNT): { code: string; promo: Promo }[] {
   return Object.entries(PROMO_CODES)
-    .filter(([, promo]) => !promo.refuses?.(account) && !(hotel && promo.rejects?.(hotel, nights)))
+    .filter(([, promo]) => !promo.refuses?.(account) && !promo.rejects?.(hotel, nights))
     .map(([code, promo]) => ({ code, promo }));
 }
 
@@ -764,7 +773,7 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
   const taxable = subtotal - discount;
   const vat = Math.round(taxable * VAT_RATE);
   const service = Math.round(taxable * SERVICE_RATE);
-  const refundable = lines.length > 0 && lines.every((line) => line.ratePlanId !== 'saver');
+  const refundable = lines.length > 0 && lines.every((line) => line.ratePlanId !== 'saver') && cancellationOpen(search.checkIn);
   return {
     nights,
     lines,
@@ -870,7 +879,11 @@ export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTE
       // With the free-cancellation filter on, the price shown is the refundable one: what that guest would pay.
       fromPrice: filters.freeCancellation ? refundableFrom(offers) : fromPrice(hotel, search, held),
       fromRefundable: refundableFrom(offers),
-      fromTotal: offers.length ? Math.min(...offers.flatMap((offer) => offer.plans.map((plan) => plan.total))) : undefined,
+      // The same rates as the per-night price, so the two lines agree.
+      fromTotal: (() => {
+        const totals = offers.flatMap((offer) => offer.plans.filter((plan) => !filters.freeCancellation || plan.refundable).map((plan) => plan.total));
+        return totals.length ? Math.min(...totals) : undefined;
+      })(),
       distanceKm: center ? Math.round(distanceKm(center, hotel.position) * 10) / 10 : undefined,
       freeCancellation: offers.some((offer) => offer.plans.some((plan) => plan.refundable)),
       cheapestRefundable: (() => {
@@ -902,9 +915,16 @@ export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTE
 
 /* ---------- the booking ---------- */
 
-/** "CAB-" and six characters, derived from the draft so a replay gives the same reference. */
-export function reservationReference(hotelId: string, search: StaySearch, cart: CartLine[], paidAt: string): string {
-  return `CAB-${hash(`${hotelId}|${JSON.stringify(search)}|${JSON.stringify(cart)}|${paidAt}`).toString(36).toUpperCase().slice(0, 6).padStart(6, '0')}`;
+/**
+ * "CAB-" and six characters, derived from the draft so a replay gives the
+ * same reference -- unless that reference is taken, as it is when the same
+ * rooms and dates are booked twice: then the next free one.
+ */
+export function reservationReference(hotelId: string, search: StaySearch, cart: CartLine[], paidAt: string, taken: readonly string[] = []): string {
+  for (let attempt = 0; ; attempt++) {
+    const reference = `CAB-${hash(`${hotelId}|${JSON.stringify(search)}|${JSON.stringify(cart)}|${paidAt}${attempt ? `|${attempt}` : ''}`).toString(36).toUpperCase().slice(0, 6).padStart(6, '0')}`;
+    if (!taken.includes(reference)) return reference;
+  }
 }
 
 export function describeRooms(rooms: { roomName: string }[]): string {
@@ -913,7 +933,7 @@ export function describeRooms(rooms: { roomName: string }[]): string {
   return [...counts].map(([name, count]) => (count > 1 ? `${count} × ${name}` : name)).join(' + ');
 }
 
-export function bookingFromDraft({ hotel, search, cart, allocation, details, quote, paidWith, paidAt }: {
+export function bookingFromDraft({ hotel, search, cart, allocation, details, quote, paidWith, paidAt, taken }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
@@ -922,12 +942,17 @@ export function bookingFromDraft({ hotel, search, cart, allocation, details, quo
   quote: StayQuote;
   paidWith: string;
   paidAt: string;
+  /** References already used on this account, booked or cancelled. */
+  taken?: readonly string[];
 }): Booking {
-  const reference = reservationReference(hotel.id, search, cart, paidAt);
+  const reference = reservationReference(hotel.id, search, cart, paidAt, taken);
   const stayRates = cartRooms(hotel, cart).map((item) => stayRate(item.roomType, item.ratePlanId, search.checkIn, search.checkOut));
   const rateTotal = stayRates.reduce((sum, rate) => sum + rate, 0) || 1;
+  // Each room's share, the rounding left over going to the last so the shares add up to what was paid.
+  const shares = stayRates.map((rate) => Math.round((quote.total * rate) / rateTotal));
+  if (shares.length) shares[shares.length - 1]! += quote.total - shares.reduce((sum, share) => sum + share, 0);
   const rooms = cartRooms(hotel, cart).map((item, i) => ({
-    amount: Math.round((quote.total * stayRates[i]!) / rateTotal),
+    amount: shares[i]!,
     roomTypeId: item.roomType.id,
     roomName: item.roomType.name,
     ratePlanId: item.ratePlanId,
@@ -1191,7 +1216,7 @@ export function clockLabel(time: string): string {
 
 export function addOnDetail(addOn: StayAddOn, hotel: StayHotel): string {
   switch (addOn.id) {
-    case 'transfer': return `${airportForCity(hotel.city)}${addOn.time ? ` · ${clockLabel(addOn.time)}` : ''} · ${addOn.passengers} ${addOn.passengers === 1 ? 'guest' : 'guests'} · ${transferVehicle(addOn.passengers ?? 1)}`;
+    case 'transfer': return `${airportForCity(hotel.city)} · ${addOn.time ? clockLabel(addOn.time) : 'landing time needed'} · ${addOn.passengers} ${addOn.passengers === 1 ? 'guest' : 'guests'} · ${transferVehicle(addOn.passengers ?? 1)}`;
     case 'private-car': return `${addOn.days} ${addOn.days === 1 ? 'day' : 'days'} from check-in`;
     case 'celebration': return `${CELEBRATION_SETUPS[addOn.setup ?? 'flowers'].label}${addOn.occasion ? ` · ${addOn.occasion}` : ''}`;
     case 'early-check-in': return `From ${EARLY_CHECK_IN.time} · refunded if the hotel can’t confirm`;
@@ -1234,8 +1259,8 @@ export function addOnServiceBookings({ addOns, hotel, booking, method, paidAt }:
     switch (addOn.id) {
       case 'transfer': {
         const airport = airportForCity(hotel.city);
-        const clock = clockLabel(addOn.time ?? '10:00');
-        const [hours = 10, minutes = 0] = (addOn.time ?? '10:00').split(':').map(Number);
+        const clock = clockLabel(addOn.time || '10:00');
+        const [hours = 10, minutes = 0] = (addOn.time || '10:00').split(':').map(Number);
         return {
           ...paid,
           id: `service-ride-${booking.id}-in-${booking.checkIn}-${hours}${minutes}`,
@@ -1334,9 +1359,24 @@ export function withAddOns({ booking, hotel, addOns, method, paidAt }: {
       earlyCheckIn: services.some((item) => item.serviceId === 'early-check-in') ? EARLY_CHECK_IN : booking.earlyCheckIn,
       reservation: {
         ...booking.reservation,
-        addOns: services.map((item, index) => ({ id: lines[index]!.id, serviceBookingId: item.id, title: lines[index]!.title, amount: lines[index]!.amount })),
+        addOns: services.map((item, index) => ({ id: lines[index]!.id, serviceBookingId: item.id, title: lines[index]!.title, amount: lines[index]!.amount, detail: lines[index]!.detail })),
         addOnsTotal: total,
       },
     },
   };
+}
+
+/**
+ * Extras kept in line with the stay they were chosen for: a car for no more
+ * days than there are nights, a pickup for no more people than are coming.
+ * Run whenever the dates or party change under a draft.
+ */
+export function fitAddOns(addOns: StayAddOn[] | undefined, search: StaySearch): StayAddOn[] {
+  const nights = Math.max(1, countNightsBetween(search.checkIn, search.checkOut));
+  const party = search.adults + search.childAges.length;
+  return (addOns ?? []).map((addOn) => {
+    if (addOn.id === 'private-car') return { ...addOn, days: Math.min(Math.max(1, addOn.days ?? 1), nights) };
+    if (addOn.id === 'transfer') return { ...addOn, passengers: Math.min(Math.max(1, addOn.passengers ?? party), Math.max(party, 1)) };
+    return addOn;
+  });
 }

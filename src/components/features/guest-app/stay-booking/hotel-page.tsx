@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { ArrowRight, Bed, CaretRight, Check, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Phone, Plus, Ruler, Star, Users, Warning, X } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { CartLine, HeldRooms, PromoAccount, RatePlanId, RoomFilter, RoomOffer, StayHotel, StaySearch } from './model';
-import { AMENITY_LABELS, RATE_PLAN_LABELS, ROOM_FILTER_LABELS, cartFit, cartRooms, describeRooms, isHotelFull, peso, quoteStay, roomMatches, roomOffers, suggestRooms, validSearchDates } from './model';
+import { AMENITY_LABELS, RATE_PLAN_LABELS, cancellationOpen, ROOM_FILTER_LABELS, cartFit, cartRooms, describeRooms, isHotelFull, peso, quoteStay, roomMatches, roomOffers, suggestRooms, validSearchDates } from './model';
 import { compactRange, nightsLabel, roomsLabel } from './format';
 import { StaySearchSheet, type SearchStep } from './search-form';
 import { OffersStrip } from './offers';
@@ -100,7 +100,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
 
       <section className="sb-stay-bar" aria-label="Your stay">
         <button type="button" aria-haspopup="dialog" onClick={() => setEditing('when')}>
-          <small>Dates</small><b>{compactRange(search.checkIn, search.checkOut)} · {nightsLabel(search.checkIn, search.checkOut)}</b>
+          <small>Dates · {nightsLabel(search.checkIn, search.checkOut)}</small><b>{compactRange(search.checkIn, search.checkOut)}</b>
         </button>
         <button type="button" aria-haspopup="dialog" onClick={() => setEditing('who')}>
           <small>Guests</small><b>{search.adults} {search.adults === 1 ? 'adult' : 'adults'}{search.childAges.length ? ` · ${search.childAges.length} ${search.childAges.length === 1 ? 'kid' : 'kids'}` : ''}</b>
@@ -127,8 +127,6 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
         ) : null}
       </section>
 
-      <OffersStrip hotel={hotel} nights={countNightsBetween(search.checkIn, search.checkOut)} title="Offers for this stay" account={account} />
-
       <section className="sb-section" aria-labelledby="sb-rooms-title">
         <div className="sb-section__head">
           <h2 id="sb-rooms-title">Choose your rooms</h2>
@@ -142,10 +140,10 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
             <span className="sb-suggest__text">
               <small>Best fit for your {search.adults + search.childAges.length} {search.adults + search.childAges.length === 1 ? 'guest' : 'guests'}</small>
               <b>{describeRooms(cartRooms(hotel, suggestion.cart).map((item) => ({ roomName: item.roomType.name })))}</b>
-              <span>{peso(suggestion.total)} for {nightsLabel(search.checkIn, search.checkOut)} · free cancellation</span>
+              <span>{peso(suggestion.total)} for {nightsLabel(search.checkIn, search.checkOut)}{cancellationOpen(search.checkIn) ? ' · free cancellation' : ''}</span>
             </span>
             <button type="button" className="guest-button guest-button--secondary" disabled={suggestionTaken} onClick={() => onCartChange(suggestion.cart)}>
-              {suggestionTaken ? <><Check aria-hidden="true" />Added</> : cart.length ? 'Use this instead' : 'Add rooms'}
+              {suggestionTaken ? <><Check aria-hidden="true" />Added</> : cart.length ? 'Use this instead' : suggestion.rooms === 1 ? 'Add this room' : `Add ${suggestion.rooms} rooms`}
             </button>
           </div>
         ) : null}
@@ -173,7 +171,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
                     <b>{roomType.name}</b>
                     <small>Sleeps {roomType.sleeps} · {roomType.beds}</small>
                     {soldOut ? <span className="sb-note sb-note--warning">Sold out for these dates</span>
-                      : <span className="sb-room-row__price"><b>{peso(from)}</b> <small>/ night</small>{offer.left <= 3 ? <span className="sb-note sb-note--urgent">Only {offer.left} left</span> : null}</span>}
+                      : <span className="sb-room-row__price">{offer.plans.length > 1 ? <small>from</small> : null} <b>{peso(from)}</b> <small>/ night</small>{offer.left <= 3 ? <span className="sb-note sb-note--urgent">Only {offer.left} left</span> : null}</span>}
                   </span>
                   {taken ? <span className="sb-room-row__count" aria-hidden="true">{taken}</span> : <CaretRight className="sb-room-row__go" aria-hidden="true" />}
                 </button>
@@ -193,6 +191,9 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
           onClose={() => setOpenRoom(null)}
         />
       ) : null}
+
+      {/* After the rooms: they are what the guest came to this page for. */}
+      <OffersStrip hotel={hotel} nights={countNightsBetween(search.checkIn, search.checkOut)} title="Offers for this stay" account={account} />
 
       <section className="sb-section" aria-labelledby="sb-about-title">
         <h2 id="sb-about-title">About the hotel</h2>
@@ -275,7 +276,7 @@ function RoomSheet({ offer, cart, datesOk, onCartChange, onClose }: { offer: Roo
                   <li key={plan.id} className={`sb-plan${quantity ? ' is-selected' : ''}`}>
                     <span className="sb-plan__text">
                       <b>{plan.id === 'flex-breakfast' ? <Coffee aria-hidden="true" /> : null}{label.title}</b>
-                      <small className={plan.refundable ? 'is-positive' : undefined}>{plan.refundable ? <CheckCircle weight="fill" aria-hidden="true" /> : null}{label.detail}</small>
+                      <small className={plan.refundable ? 'is-positive' : undefined}>{plan.refundable ? <CheckCircle weight="fill" aria-hidden="true" /> : null}{plan.refundable || plan.id === 'saver' ? label.detail : 'Non-refundable · check-in is within 3 days'}</small>
                       {plan.id === 'flex-breakfast' ? <small>Breakfast for {roomType.sleeps}</small> : null}
                     </span>
                     <span className="sb-plan__price">

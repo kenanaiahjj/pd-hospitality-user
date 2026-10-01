@@ -265,8 +265,9 @@ export function hotelHighlight(hotelId: string): string | undefined {
   const sight = bestSight(hotelId);
   const store = spots.find((item) => item.kind === 'essential' && item.icon === 'store');
   const parts = [
-    sight ? `${sight.name} ${travelLabel(sight)}` : undefined,
-    store && store.mode === 'walk' && store.minutes <= 5 ? `${store.name.startsWith('7-Eleven') ? '7-Eleven' : 'Store'} ${store.minutes} min` : undefined,
+    // Time first, as the Home card has it: "Station 1 1 min walk" ran two numbers into each other.
+    sight ? `${travelLabel(sight)} to ${sight.name}` : undefined,
+    store && store.mode === 'walk' && store.minutes <= 5 ? `${store.minutes} min to ${store.name.startsWith('7-Eleven') ? '7-Eleven' : 'a store'}` : undefined,
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : undefined;
 }

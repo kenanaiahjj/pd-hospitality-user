@@ -174,7 +174,7 @@
 
 /* map */
 .guest-app .sb-map { position: relative; overflow: hidden; border-radius: var(--guest-radius-lg); border: 1px solid var(--guest-line); }
-.guest-app .sb-map__canvas { height: min(56vh, 520px); background: var(--guest-sunken); }
+.guest-app .sb-map__canvas { height: min(52vh, 520px); background: var(--guest-sunken); }
 .guest-app .sb-map-marker { background: none; border: 0; }
 .guest-app .sb-map-pin {
   display: inline-block;
@@ -815,6 +815,8 @@
 .guest-app .sb-sheet__card .sb-location__list,
 .guest-app .sb-sheet__card .sb-calendar__months { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; scrollbar-width: none; }
 .guest-app .sb-sheet__card .sb-location__list::-webkit-scrollbar { display: none; }
+/* Grown to fill the card, the list's grid would otherwise stretch two suggestions to half the card each. */
+.guest-app .sb-sheet__card .sb-location__list { align-content: start; }
 .guest-app .sb-sheet__card > .sb-guests { overflow-y: auto; scrollbar-width: none; }
 .guest-app .sb-sheet__card > .sb-guests::-webkit-scrollbar { display: none; }
 @media (max-width: 400px) {

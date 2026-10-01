@@ -275,6 +275,8 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
   }
 
   const roomAssignment = describeRoomAssignment(booking);
+  // A ride to the hotel already arranged for this stay, if there is one.
+  const arrivalPickup = session.serviceBookings.find((service) => service.bookingId === booking.id && service.serviceId === 'transfer' && service.status === 'confirmed' && Boolean(service.summary?.includes('→ hotel')));
   // The one date people forget: said on Home in the last three days, not only in View booking.
   const reminder = cancellationReminder(booking);
 
@@ -423,13 +425,14 @@ export function StayOverviewHome({ session, booking, onNavigate, picks, onOpenPi
             what a guest pictures before the trip, so it leads; the rest of
             the roster sits under it as a plain row.
           */}
-          <button className="guest-ride-card" type="button" onClick={() => (onRequestRide ? onRequestRide('arrival') : onNavigate('transfer-booking'))}>
+          <button className="guest-ride-card" type="button" onClick={() => (arrivalPickup ? onOpenEntry?.(arrivalPickup.id) : onRequestRide ? onRequestRide('arrival') : onNavigate('transfer-booking'))}>
             <Image className="guest-ride-card__image" src={getServiceImage('transfer').src} alt="" fill sizes="(max-width: 720px) 100vw, 560px" style={{ objectPosition: getServiceImage('transfer').focalPoint }} />
             <span className="guest-ride-card__action" aria-hidden="true"><ArrowRight /></span>
+            {/* Already booked -- with the rooms or from the cart -- it says when, rather than offering a second one. */}
             <span className="guest-ride-card__body">
-              <small>Private pick-up</small>
-              <b>Need a ride to the hotel?</b>
-              <span>{`A hotel driver meets you at ${airportFor(booking)} and brings you to ${booking.property}.`}</span>
+              <small>{arrivalPickup ? 'Pick-up booked' : 'Private pick-up'}</small>
+              <b>{arrivalPickup ? `${arrivalPickup.summary?.split(' · ')[0] ?? 'Your driver'} at ${airportFor(booking)}` : 'Need a ride to the hotel?'}</b>
+              <span>{arrivalPickup ? (arrivalPickup.facts?.find((fact) => fact.label === 'Status')?.value ?? 'The hotel confirms the driver here.') : `A hotel driver meets you at ${airportFor(booking)} and brings you to ${booking.property}.`}</span>
               <span className="guest-ride-card__pills">
                 <span><CalendarBlank aria-hidden="true" />{`Arriving ${formatStayDateRange(booking).split('–')[0]}`}</span>
                 <span><Users aria-hidden="true" />{`${booking.guestCount} ${booking.guestCount === 1 ? 'guest' : 'guests'}`}</span>

@@ -186,6 +186,7 @@ import {
   stayDatesLabel,
   StayAddOnsScreen,
   withAddOns,
+  fitAddOns,
   promoAccountFor,
   SavedHotelsScreen,
   useSavedHotels,
@@ -2810,7 +2811,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         held={held}
         account={promoAccount}
         onContinue={() => {
-          setStayDraft((draft) => ({ ...draft, allocation: defaultAllocation(current, draft.search, draft.cart) }));
+          // Extras chosen earlier follow the stay's new dates and party.
+          setStayDraft((draft) => ({ ...draft, allocation: defaultAllocation(current, draft.search, draft.cart), addOns: fitAddOns(draft.addOns, draft.search) }));
           go('book-stay-rooms');
         }}
       />
@@ -2822,24 +2824,24 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const hotel = findStayHotel(stayDraft.hotelId);
     if (!hotel || !stayDetails) return;
     const quote = quoteStay(hotel, stayDraft.search, stayDraft.cart, stayDetails.promoCode, promoAccount);
-    const drafted = bookingFromDraft({ hotel, search: stayDraft.search, cart: stayDraft.cart, allocation: stayDraft.allocation, details: stayDetails, quote, paidWith: GATEWAY_METHOD_LABELS[method], paidAt: PROTOTYPE_TODAY });
+    // The same rooms and dates booked twice are two bookings, so the reference must not repeat a past one.
+    const taken = [...session.bookings.map((item) => item.id), ...(session.payments ?? []).flatMap((payment) => (payment.bookingId ? [payment.bookingId] : []))];
+    const drafted = bookingFromDraft({ hotel, search: stayDraft.search, cart: stayDraft.cart, allocation: stayDraft.allocation, details: stayDetails, quote, paidWith: GATEWAY_METHOD_LABELS[method], paidAt: PROTOTYPE_TODAY, taken });
     /*
       Arrival extras become the stay's service bookings now, and only now: the
       same payment covered them. The reservation keeps their total apart from
       the rooms', so cancelling a room never refunds an extra.
     */
     const { booking, services: extras, total: extrasTotal, lines: extraLines } = withAddOns({ booking: drafted, hotel, addOns: stayDraft.addOns, method, paidAt: PROTOTYPE_TODAY });
-    // A bed chosen at checkout is the room preference the hotel sees; "No preference" leaves the profile's.
-    const bed = { 'One large bed': 'King bed', 'Two separate beds': 'Twin beds' }[stayDetails.bedPreferences[0] ?? ''];
     const roomLeads = [...new Set(stayDetails.roomLeads.map((name) => name.trim()).filter((name) => name && name !== stayDetails.name.trim()))];
     // The booker plus each other room's named lead: when that is the whole party, nobody is left to name.
     const namedBooking = { ...booking, companionsNamed: roomLeads.length + 1 >= booking.guestCount };
     const stayRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
     setSession((current) => recordPayment({
       ...current,
-      roomPreferences: bed ? { ...current.roomPreferences, bed } : current.roomPreferences,
-      // Other rooms' lead guests are the people the hotel should expect, so they join the guest list.
-      additionalGuests: roomLeads.length ? roomLeads : current.additionalGuests,
+      // Other rooms' lead guests are the people the hotel should expect, so they join the guest list --
+      // unless another stay is current: the list is the session's, and that stay's companions stay put.
+      additionalGuests: roomLeads.length && !current.bookings.some((item) => item.status === 'active' || item.status === 'upcoming') ? roomLeads : current.additionalGuests,
       guestName: current.guestName || booking.guestName,
       bookings: [...current.bookings.filter((item) => item.id !== booking.id), namedBooking],
       serviceBookings: [...extras, ...current.serviceBookings.filter((item) => !extras.some((extra) => extra.id === item.id))],
@@ -2891,7 +2893,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         cart: current.cart?.filter((line) => line.booking.bookingId !== bookingId),
       };
     });
-    setCancelNotice(`${booking.property} is cancelled. ${peso(booking.reservation.total)} is on its way back to ${booking.reservation.paidWith}.${hadServices ? ' Arrival services booked for this stay are cancelled too.' : ''}`);
+    // What actually goes back: the whole payment less anything already refunded, extras included.
+    const stayPayment = (session.payments ?? []).find((payment) => payment.bookingId === bookingId && payment.kind === 'stay');
+    const refunded = stayPayment ? stayPayment.amount - stayPayment.refunded : booking.reservation.total;
+    setCancelNotice(`${booking.property} is cancelled. ${peso(refunded)} is on its way back to ${booking.reservation.paidWith}.${hadServices ? ' Arrival services booked for this stay are cancelled too.' : ''}`);
     setHistory([]);
     replaceScreen('stay-overview');
   };
@@ -3544,7 +3549,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       </>
                     ) : null}
                     {reservation.promo ? <SummaryRow label="Voucher" value={`${reservation.promo.code} · −${peso(reservation.promo.discount)}`} /> : null}
-                    <SummaryRow label="Paid" value={`${peso(reservation.total + (reservation.addOns ?? []).filter((extra) => session.serviceBookings.some((service) => service.id === extra.serviceBookingId && service.status !== 'cancelled')).reduce((sum, extra) => sum + extra.amount, 0))} · ${reservation.paidWith}`} strong />
+                    {/* What was paid and what has come back, from the payment itself: a sum of what is left read as "paid" after a refund. */}
+                    {(() => {
+                      const stayPayment = (session.payments ?? []).find((payment) => payment.bookingId === displayBooking.id && payment.kind === 'stay');
+                      if (!stayPayment) return <SummaryRow label="Paid" value={`${peso(reservation.total + (reservation.addOnsTotal ?? 0))} · ${reservation.paidWith}`} strong />;
+                      return (
+                        <>
+                          <SummaryRow label="Paid" value={`${peso(stayPayment.amount)} · ${reservation.paidWith}`} strong={!stayPayment.refunded} />
+                          {stayPayment.refunded ? <SummaryRow label="Refunded" value={`${peso(stayPayment.refunded)} · to ${reservation.paidWith}`} /> : null}
+                          {stayPayment.refunded ? <SummaryRow label="You paid, after refunds" value={peso(stayPayment.amount - stayPayment.refunded)} strong /> : null}
+                        </>
+                      );
+                    })()}
                     <SummaryRow
                       label="Cancellation"
                       value={!reservation.refundable || !reservation.freeCancellationUntil

@@ -7,7 +7,7 @@ import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
 import { countNightsBetween } from '../prototype-model';
 import { readPendingVoucher, savePendingVoucher } from './offers';
 import type { CartLine, PromoAccount, RoomAllocation, StayAddOn, StayGuestDetails, StayHotel, StaySearch } from './model';
-import { FREE_CANCELLATION_DAYS, NEW_ACCOUNT, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, addOnLines, addOnsTotal, cartRooms, describeRooms, offersFor, partyLabel, peso, quoteStay } from './model';
+import { FREE_CANCELLATION_DAYS, NEW_ACCOUNT, cancellationOpen, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, addOnLines, addOnsTotal, cartRooms, describeRooms, offersFor, partyLabel, peso, quoteStay } from './model';
 import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
@@ -112,15 +112,10 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
               <header>
                 <small>Room {index + 1} · {allocation[index]?.adults ?? 0} {allocation[index]?.adults === 1 ? 'adult' : 'adults'}{allocation[index]?.childIndexes.length ? `, ${allocation[index]!.childIndexes.length} ${allocation[index]!.childIndexes.length === 1 ? 'child' : 'children'}` : ''}</small>
                 <b>{room.roomType.name}</b>
-                <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · {RATE_PLAN_LABELS[room.ratePlanId].detail}</span>
+                <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · {room.ratePlanId === 'saver' || cancellationOpen(search.checkIn) ? RATE_PLAN_LABELS[room.ratePlanId].detail : 'Non-refundable'}</span>
               </header>
               <TextField label="Guest name for this room" value={details.roomLeads[index] ?? ''} onChange={(value) => setAt('roomLeads', index, value)} placeholder={index === 0 ? 'Lead guest' : `Optional · else ${details.name || 'you'}`} show={false} />
-              <label className="sb-field">
-                <span>Bed preference</span>
-                <select value={details.bedPreferences[index] ?? BED_PREFERENCES[0]} onChange={(event) => setAt('bedPreferences', index, event.currentTarget.value)}>
-                  {BED_PREFERENCES.map((option) => <option key={option}>{option}</option>)}
-                </select>
-              </label>
+              {/* No bed preference: each room class has one bed setup, so choosing the room chose the beds. */}
             </article>
           ))}
         </div>
@@ -278,7 +273,7 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
         <h2 id="sb-voucher-title">Voucher</h2>
         {quote.promo ? (
           <p className="sb-promo-applied"><TagIcon aria-hidden="true" /><span><b>{quote.promo.code}</b><small>{quote.promo.label} · −{peso(quote.discount)}</small></span>
-            <button type="button" aria-label="Remove voucher" onClick={() => { set({ promoCode: '' }); setPromoDraft(''); setPromoTried(false); }}><X /></button>
+            <button type="button" aria-label="Remove voucher" disabled={processing} onClick={() => { set({ promoCode: '' }); setPromoDraft(''); setPromoTried(false); }}><X /></button>
           </p>
         ) : (
           <>
@@ -286,15 +281,15 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
             <div className="sb-promo">
               <label className={`sb-field${promoTried && quote.promoError ? ' is-invalid' : ''}`}>
                 <span className="sr-only">Voucher code</span>
-                <input value={promoDraft} placeholder="Voucher code" autoCapitalize="characters" autoComplete="off" onChange={(event) => { setPromoDraft(event.currentTarget.value); setPromoTried(false); }} onKeyDown={(event) => { if (event.key === 'Enter' && promoDraft.trim()) { set({ promoCode: promoDraft }); setPromoTried(true); } }} />
+                <input value={promoDraft} disabled={processing} placeholder="Voucher code" autoCapitalize="characters" autoComplete="off" onChange={(event) => { setPromoDraft(event.currentTarget.value); setPromoTried(false); }} onKeyDown={(event) => { if (event.key === 'Enter' && promoDraft.trim()) { set({ promoCode: promoDraft }); setPromoTried(true); } }} />
               </label>
-              <button type="button" className="guest-button guest-button--secondary" disabled={!promoDraft.trim()} onClick={() => { set({ promoCode: promoDraft }); setPromoTried(true); }}>Apply</button>
+              <button type="button" className="guest-button guest-button--secondary" disabled={processing || !promoDraft.trim()} onClick={() => { set({ promoCode: promoDraft }); setPromoTried(true); }}>Apply</button>
               {promoTried && quote.promoError ? <small className="sb-field-error" role="alert">{quote.promoError}</small> : null}
             </div>
             {offers.length ? (
               <div className="sb-offers" role="group" aria-label="Offers for this stay">
                 {offers.map(({ code, promo }) => (
-                  <button key={code} type="button" className="sb-offer" onClick={() => { set({ promoCode: code }); setPromoDraft(code); setPromoTried(true); }}>
+                  <button key={code} type="button" className="sb-offer" disabled={processing} onClick={() => { set({ promoCode: code }); setPromoDraft(code); setPromoTried(true); }}>
                     <TagIcon aria-hidden="true" /><span><b>{promo.label}</b><small>Use {code}</small></span>
                   </button>
                 ))}
@@ -328,7 +323,9 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
         <p className={`sb-policy${quote.refundable ? ' is-positive' : ''}`}>
           {quote.refundable
             ? <><CheckCircle weight="fill" aria-hidden="true" />Free cancellation until {longDate(quote.freeCancellationUntil!)}, 11:59 PM. Cancel in the app for a full refund.</>
-            : <>Non-refundable: one or more rooms are on a Saver rate. For a refund, every room must be on a free cancellation rate, cancelled at least {FREE_CANCELLATION_DAYS} days before check-in.</>}
+            : quote.lines.some((line) => line.ratePlanId === 'saver')
+              ? <>Non-refundable: one or more rooms are on a Saver rate. For a refund, every room must be on a free cancellation rate, cancelled at least {FREE_CANCELLATION_DAYS} days before check-in.</>
+              : <>Non-refundable: check-in is less than {FREE_CANCELLATION_DAYS} days away, after free cancellation ends.</>}
         </p>
       </section>
 

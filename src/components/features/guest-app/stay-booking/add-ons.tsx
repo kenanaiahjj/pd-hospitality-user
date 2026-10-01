@@ -57,7 +57,12 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
     const invalid = chosen.find((addOn) => addOnError(addOn));
     if (invalid) {
       setTried(true);
-      root.current?.querySelector<HTMLElement>(`[data-addon="${invalid.id}"] [aria-invalid="true"]`)?.focus();
+      // After the render that marks it invalid, or there is nothing to find yet.
+      window.requestAnimationFrame(() => {
+        const field = root.current?.querySelector<HTMLElement>(`[data-addon="${invalid.id}"] [aria-invalid="true"]`);
+        field?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        field?.focus({ preventScroll: true });
+      });
       return;
     }
     onContinue();
@@ -108,7 +113,7 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
                     <span className="sb-stepper">
                       <button type="button" aria-label="Fewer passengers" disabled={(addOn.passengers ?? 1) <= 1} onClick={() => patch(id, { passengers: (addOn.passengers ?? 1) - 1 })}><Minus aria-hidden="true" /></button>
                       <output aria-live="polite">{addOn.passengers}</output>
-                      <button type="button" aria-label="More passengers" disabled={(addOn.passengers ?? 1) >= Math.max(party, 10)} onClick={() => patch(id, { passengers: (addOn.passengers ?? 1) + 1 })}><Plus aria-hidden="true" /></button>
+                      <button type="button" aria-label="More passengers" disabled={(addOn.passengers ?? 1) >= party} onClick={() => patch(id, { passengers: (addOn.passengers ?? 1) + 1 })}><Plus aria-hidden="true" /></button>
                     </span>
                   </div>
                 </div>

@@ -64,12 +64,36 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
     if (!textArea || !device || !viewport) return undefined;
 
     let textAreaFocused = document.activeElement === textArea;
+    let keyboardVisible = false;
+    let baselineHeight = viewport.height + viewport.offsetTop;
+    const clearKeyboardViewport = () => {
+      device.removeAttribute('data-chat-keyboard-open');
+      device.style.removeProperty('--guest-chat-visible-top');
+      device.style.removeProperty('--guest-chat-visible-height');
+      keyboardVisible = false;
+    };
     const updateVisibleHeight = () => {
+      const visibleBottom = viewport.height + viewport.offsetTop;
       if (!textAreaFocused) {
-        device.style.removeProperty('--guest-chat-visible-height');
+        clearKeyboardViewport();
+        baselineHeight = visibleBottom;
         return;
       }
-      device.style.setProperty('--guest-chat-visible-height', `${Math.round(viewport.height + viewport.offsetTop)}px`);
+      // Safari can focus a field without showing the software keyboard (for
+      // example, when hardware-keyboard input is available). Don't anchor the
+      // whole app to that scrolled visual viewport in that state.
+      if (baselineHeight - visibleBottom < 100) {
+        if (keyboardVisible) {
+          clearKeyboardViewport();
+          baselineHeight = visibleBottom;
+        }
+        return;
+      }
+
+      keyboardVisible = true;
+      device.dataset.chatKeyboardOpen = 'true';
+      device.style.setProperty('--guest-chat-visible-top', `${Math.round(viewport.offsetTop)}px`);
+      device.style.setProperty('--guest-chat-visible-height', `${Math.round(viewport.height)}px`);
     };
     const handleFocus = () => {
       textAreaFocused = true;
@@ -93,7 +117,7 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
       viewport.removeEventListener('resize', updateVisibleHeight);
       viewport.removeEventListener('scroll', updateVisibleHeight);
       window.removeEventListener('resize', updateVisibleHeight);
-      device.style.removeProperty('--guest-chat-visible-height');
+      clearKeyboardViewport();
     };
   }, []);
 

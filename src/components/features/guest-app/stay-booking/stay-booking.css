@@ -146,7 +146,7 @@
 .guest-app .sb-note svg { flex: 0 0 15px; width: 15px; height: 15px; }
 .guest-app .sb-note--positive { color: var(--guest-positive); }
 .guest-app .sb-note--warning { color: var(--guest-warning); }
-.guest-app .sb-note--urgent { padding: 2px 8px; border-radius: var(--guest-radius-pill); background: var(--guest-danger-soft); color: var(--guest-danger); }
+.guest-app .sb-note--urgent { color: var(--guest-danger); }
 
 .guest-app .sb-empty { display: grid; gap: 6px; padding: 28px 20px; border: 1px dashed var(--guest-line-strong); border-radius: var(--guest-radius-lg); text-align: center; }
 .guest-app .sb-empty b { font-size: 17px; }
@@ -219,12 +219,12 @@
 
 /* ---------- hotel page ---------- */
 
-.guest-app .sb-hotel { gap: 22px; }
+.guest-app .sb-hotel { gap: 24px; }
 
 .guest-app .sb-hotel__gallery::-webkit-scrollbar { display: none; }
 .guest-app .sb-hotel__photo { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border-radius: var(--guest-radius-lg); background: var(--guest-placeholder); scroll-snap-align: start; }
 .guest-app .sb-hotel__photo img { object-fit: cover; }
-.guest-app .sb-hotel__title { gap: 6px; }
+.guest-app .sb-hotel__title { gap: 8px; }
 .guest-app .sb-hotel__meta { display: flex; align-items: center; gap: 10px; margin: 0; }
 
 .guest-app .sb-stay-bar > button { display: grid; gap: 1px; min-width: 0; padding: 10px 14px; border: 0; background: transparent; color: var(--guest-ink); text-align: left; }
@@ -271,13 +271,6 @@
 .guest-app .sb-dock__fit.is-empty { color: var(--guest-ink); font-size: 14.5px; font-weight: 650; white-space: normal; line-height: 1.3; }
 .guest-app .sb-dock-spacer { height: 96px; }
 
-/* ---------- guest split ---------- */
-
-.guest-app .sb-assign { gap: 20px; }
-.guest-app .sb-assign__rooms { display: grid; gap: 12px; }
-
-.guest-app .sb-assign__room.is-invalid { border-color: color-mix(in oklch, var(--guest-warning) 60%, var(--guest-line)); }
-
 /* ---------- checkout ---------- */
 
 .guest-app .sb-checkout { gap: 26px; }
@@ -308,7 +301,42 @@
 .guest-app .sb-promo-applied > svg { width: 18px; height: 18px; color: var(--guest-positive); }
 .guest-app .sb-promo-applied span { display: grid; }
 .guest-app .sb-promo-applied small { color: var(--guest-muted); font-size: 13px; }
-.guest-app .sb-promo-applied button { display: grid; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; place-items: center; background: var(--guest-paper); color: var(--guest-ink); }
+.guest-app .sb-promo-applied__actions { display: flex !important; align-items: center; gap: 2px; }
+.guest-app .sb-promo-applied button { display: grid; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; place-items: center; background: var(--guest-paper); color: var(--guest-ink); }
+.guest-app .sb-promo-applied .sb-voucher-change { width: auto; padding: 0 10px; border-radius: var(--guest-radius-pill); background: transparent; color: var(--guest-accent-strong); font-size: 13px; font-weight: 700; }
+.guest-app .sb-voucher-entry { display: grid; grid-template-columns: 20px minmax(0, 1fr) 18px; align-items: center; gap: 12px; width: 100%; min-height: 68px; padding: 10px 14px; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); text-align: left; cursor: pointer; }
+.guest-app .sb-voucher-entry > svg:first-child { width: 19px; height: 19px; color: var(--guest-accent-strong); }
+.guest-app .sb-voucher-entry > svg:last-child { width: 18px; height: 18px; color: var(--guest-muted); }
+.guest-app .sb-voucher-entry > span { display: grid; gap: 2px; }
+.guest-app .sb-voucher-entry b { font-size: 15px; }
+.guest-app .sb-voucher-entry small { color: var(--guest-muted); font-size: 13px; line-height: 1.35; }
+.guest-app .sb-voucher-entry:focus-visible { outline: none; box-shadow: var(--guest-focus-ring); }
+.guest-app .sb-voucher-entry:disabled { color: var(--guest-muted); cursor: not-allowed; }
+.guest-app .sb-voucher-page { gap: 22px; }
+.guest-app .sb-voucher-code { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; }
+.guest-app .sb-voucher-code .guest-button { width: auto; min-height: 52px; }
+.guest-app .sb-voucher-current { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: var(--guest-radius-md); background: var(--guest-positive-soft); }
+.guest-app .sb-voucher-current > span { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.guest-app .sb-voucher-current svg { flex: 0 0 18px; width: 18px; height: 18px; color: var(--guest-positive); }
+.guest-app .sb-voucher-current b { font-size: 14px; }
+.guest-app .sb-voucher-current button { flex: 0 0 auto; min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--guest-radius-pill); background: transparent; color: var(--guest-accent-strong); font-size: 13px; font-weight: 700; }
+.guest-app .sb-voucher-section { display: grid; gap: 10px; }
+.guest-app .sb-voucher-section h2 { margin: 0; font-size: 16px; }
+.guest-app .sb-voucher-list { overflow: hidden; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); }
+.guest-app .sb-voucher-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 11px; width: 100%; min-height: 78px; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--guest-line); background: transparent; color: var(--guest-ink); text-align: left; cursor: pointer; }
+.guest-app .sb-voucher-row:last-child { border-bottom: 0; }
+.guest-app .sb-voucher-row > svg { width: 18px; height: 18px; color: var(--guest-accent-strong); }
+.guest-app .sb-voucher-row__copy { display: grid; justify-items: start; gap: 2px; min-width: 0; }
+.guest-app .sb-voucher-row__copy b { font-size: 14.5px; line-height: 1.3; }
+.guest-app .sb-voucher-row__copy code { padding: 1px 0; color: var(--guest-muted); font-family: var(--font-mono); font-size: 11.5px; }
+.guest-app .sb-voucher-row__copy small { color: var(--guest-muted); font-size: 12px; line-height: 1.35; }
+.guest-app .sb-voucher-row__action { display: grid; justify-items: end; gap: 3px; color: var(--guest-accent-strong); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.guest-app .sb-voucher-row__action small { color: var(--guest-muted); font-size: 11.5px; font-weight: 550; }
+.guest-app .sb-voucher-row.is-selected { background: var(--guest-accent-soft); }
+.guest-app .sb-voucher-list--unavailable .sb-voucher-row { background: var(--guest-surface); color: var(--guest-muted); cursor: not-allowed; }
+.guest-app .sb-voucher-list--unavailable .sb-voucher-row > svg,
+.guest-app .sb-voucher-list--unavailable .sb-voucher-row__action { color: var(--guest-muted); }
+.guest-app .sb-voucher-list--unavailable .sb-voucher-row:disabled { opacity: 1; }
 
 .guest-app .sb-price-card { padding: 16px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-paper); }
 .guest-app .sb-price-card dl { display: grid; gap: 10px; margin: 0; }
@@ -645,14 +673,6 @@
 .guest-app .sb-results__title { margin: 0; font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; line-height: 1.15; font-size: 26px; }
 .guest-app .sb-dock__fit { color: var(--guest-warning); font-size: 12px; font-weight: 650; text-overflow: ellipsis; display: -webkit-box; overflow: hidden; white-space: normal; line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 
-.guest-app .sb-assign__room header { padding-bottom: 6px; border-bottom: 1px solid var(--guest-line); display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; gap: 12px; }
-.guest-app .sb-assign__thumb { position: relative; overflow: hidden; width: 52px; height: 52px; border-radius: 12px; background: var(--guest-placeholder); }
-.guest-app .sb-assign__thumb img { object-fit: cover; }
-.guest-app .sb-assign__title { display: grid; gap: 1px; min-width: 0; }
-.guest-app .sb-assign__title small { color: var(--guest-muted); font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.guest-app .sb-assign__title b { font-size: 16px; }
-.guest-app .sb-assign__title span { color: var(--guest-muted); font-size: 13px; }
-
 /* ---------- payment page ---------- */
 
 .guest-app .sb-trip { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 14px; padding: 12px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
@@ -826,23 +846,6 @@
 .guest-app .sb-plan__text b { display: inline-flex; align-items: center; gap: 5px; font-size: 15px; }
 .guest-app .sb-plan__price b { font-variant-numeric: tabular-nums; font-weight: 750; letter-spacing: -0.01em; font-size: 18px; }
 
-.guest-app .sb-assign__child { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px 2px; border-top: 1px solid var(--guest-line); }
-.guest-app .sb-assign__child > span { display: grid; gap: 1px; }
-.guest-app .sb-assign__child b { font-size: 15px; font-weight: 650; }
-.guest-app .sb-assign__child small { color: var(--guest-muted); font-size: 13px; }
-.guest-app .sb-assign__move select {
-  min-height: 38px;
-  padding: 0 32px 0 14px;
-  border: 1px solid var(--guest-line-strong);
-  border-radius: var(--guest-radius-pill);
-  background: var(--guest-paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2356585f' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.25 8 10.25 12 6.25'/%3E%3C/svg%3E") no-repeat right 12px center / 14px;
-  color: var(--guest-ink);
-  font-size: 13.5px;
-  font-weight: 600;
-  appearance: none;
-}
-.guest-app .sb-assign__room { display: grid; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-xs); gap: 10px; padding: 16px; }
-
 /* Booking docks: two lines and room around them. Three stacked lines in a 64px pill read as cramped. */
 .guest-app .guest-dock:has(.sb-dock__fit) { min-height: 70px; gap: 16px; padding: 10px 10px 10px 24px; }
 .guest-app .guest-dock:has(.sb-dock__fit) .guest-dock__summary { gap: 3px; }
@@ -935,7 +938,7 @@
 .guest-app .sb-cancel__single-room strong { font-size: 14.5px; font-variant-numeric: tabular-nums; }
 
 /* Hotel page highlights: three facts that jump to their sections. */
-.guest-app .sb-highlights { display: flex; gap: 8px; margin: 6px calc(-1 * var(--app-gutter)) 0; padding: 2px var(--app-gutter); overflow-x: auto; scroll-padding-inline: var(--app-gutter); scrollbar-width: none; }
+.guest-app .sb-highlights { display: flex; gap: 8px; margin: 12px calc(-1 * var(--app-gutter)) 0; padding: 2px var(--app-gutter); overflow-x: auto; scroll-padding-inline: var(--app-gutter); scrollbar-width: none; }
 .guest-app .sb-highlights::-webkit-scrollbar { display: none; }
 .guest-app .sb-highlight-chip { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 8px; min-height: 48px; padding: 6px 14px 6px 10px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); text-align: left; }
 .guest-app .sb-highlight-chip > svg { flex: 0 0 18px; width: 18px; height: 18px; color: var(--guest-accent-strong); }

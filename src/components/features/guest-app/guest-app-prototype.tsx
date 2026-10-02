@@ -120,6 +120,7 @@ import {
   cancellationCutoffHours,
   describeCancellationWindow,
   describeServicePaidBy,
+  awaitsProvider,
   acceptsPayNow,
   describeServicePayment,
   describeServiceProvider,
@@ -163,7 +164,6 @@ import {
   GettingThere,
   cancelRooms,
   weekdayDate,
-  StayAssignGuestsScreen,
   StayCheckoutScreen,
   StayPaymentScreen,
   StayConfirmationScreen,
@@ -264,7 +264,7 @@ import type { PassportFields } from './pre-arrival';
 import { EmptyStayHome, HotelBrowse, RoomReadyNotification, StayCard, StayEntryCard, StayOverviewHome, UpcomingBookingCard, VendorFolioQrDialog, airportFor, countNights, defaultFeedClock, describeParty, formatCheckoutDate, formatStayDateRange, getVendorFolioQrValue, listBookingGuests } from './stay-home';
 import { EARLY_CHECK_IN, earlyCheckInBookingId } from './guest-shared';
 import type { ActiveScreen } from './guest-shared';
-import { NEARBY_ESTABLISHMENTS, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs } from './places';
+import { NEARBY_ESTABLISHMENTS, NearbyDiscoverySection, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs, type NearbyBookingRequest } from './places';
 import { GATEWAY_METHOD_LABELS, GatewayCheckout, type GatewayMethod } from './gateway-checkout';
 import { HotelEssentialsRow } from './hotel-essentials';
 import { PaymentDetailScreen, PaymentsScreen } from './payments';
@@ -391,7 +391,7 @@ const ARRIVAL_BLURBS: Record<string, string> = {
 type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out' | 'scanned-early' | 'failed' | 'pms-down' | 'scan-failed';
 
 /* Booking a hotel starts from Home, so Home stays lit through it. */
-const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation'];
+const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation'];
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
   'my-stay',
@@ -474,6 +474,25 @@ const merchantFrom = (provider: string) => (provider.startsWith('Run by ') ? pro
 const withoutTime = (when: string) => when.replace(/\s*·\s*\d{1,2}:\d{2}\s*[AP]M.*$/i, '');
 /** Hours for today and tomorrow; days beyond, where "215 hours" means nothing. */
 const timeUntilLabel = (hours: number) => (hours < 48 ? `${hours} ${hours === 1 ? 'hour' : 'hours'} before service` : `${Math.round(hours / 24)} days before service`);
+
+function guestDetailsFromSession(session: GuestSession, rooms: number): StayGuestDetails {
+  const name = session.guestName.trim() || GUEST_PROFILE.name;
+  const details = emptyGuestDetails(
+    name,
+    session.email || GUEST_PROFILE.email,
+    session.record?.mobile || session.mobile || GUEST_PROFILE.mobile,
+    rooms,
+  );
+  const companions = [...new Set([
+    ...session.additionalGuests,
+    ...(session.companionRecords ?? []).map((person) => person.name),
+  ].map((person) => person.trim()).filter((person) => person && person !== name))];
+  return {
+    ...details,
+    roomLeads: details.roomLeads.map((lead, index) => index === 0 ? name : companions[index - 1] ?? lead),
+    requests: session.roomPreferences.note ?? '',
+  };
+}
 
 /** Chips answer the empty chat's question; the docked cards carry a line of detail. */
 function ChatQuickActions({ chips = false, disabled, onPick, preArrival = false, postStay = false }: { chips?: boolean; disabled: boolean; onPick: (action: ChatQuickAction) => void; preArrival?: boolean; postStay?: boolean }) {
@@ -633,6 +652,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [stayTabChoice, setStayTab] = useState<'upcoming' | 'past' | null>(null);
   const [expandedChargeId, setExpandedChargeId] = useState<string | null>(null);
   const [selectedPastStayId, setSelectedPastStayId] = useState<string | null>(null);
+  const [reviewingStayId, setReviewingStayId] = useState<string | null>(null);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   /* What the venue says about the service the service page is showing, when the guest came from a recommendation. */
   const [serviceHighlights, setServiceHighlights] = useState<{ serviceId: string; lines: string[] } | null>(null);
@@ -644,6 +664,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [stayDraft, setStayDraft] = useState<StayBookingDraft>({ search: DEFAULT_STAY_SEARCH, cart: [], allocation: [] });
   const [resultsView, setResultsView] = useState<ResultsView>(DEFAULT_RESULTS_VIEW);
   const [stayDetails, setStayDetails] = useState<StayGuestDetails | null>(null);
+  const [stayGatewayMethod, setStayGatewayMethod] = useState<GatewayMethod | null>(null);
   const [confirmedStayId, setConfirmedStayId] = useState<string | null>(null);
   /* "Booking cancelled · ₱X refunded", shown on Home until dismissed. */
   const [cancelNotice, setCancelNotice] = useState<string | null>(null);
@@ -694,6 +715,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [profileMatch, setProfileMatch] = useState<ProfileMatch | null>(null);
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
+  const [chatNotifications, setChatNotifications] = useState<GuestNotification[]>([]);
 
   const openChatImagePreview = useCallback((image: string, trigger: HTMLButtonElement) => {
     chatPreviewTriggerRef.current = trigger;
@@ -710,6 +732,132 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   useEffect(() => () => {
     chatObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     chatObjectUrlsRef.current.clear();
+  }, []);
+
+  /*
+    Mobile browsers shrink the visual viewport when the software keyboard
+    opens, but the app frame and its fixed actions otherwise keep their old
+    height. Fit the frame to the visible area and move the active field clear
+    of the dock; Chat has its own composer-specific viewport handling.
+  */
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const mobile = window.matchMedia('(max-width: 719px)');
+    if (!viewport) return undefined;
+
+    let fieldFocused = false;
+    let keyboardVisible = false;
+    let baselineHeight = viewport.height + viewport.offsetTop;
+    const getDevice = () => document.querySelector<HTMLElement>('.guest-device');
+    const isTextEntry = (target: EventTarget | null): target is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLElement => {
+      if (target instanceof HTMLInputElement) {
+        return !['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit'].includes(target.type);
+      }
+      return target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || (target instanceof HTMLElement && target.isContentEditable);
+    };
+    const clearKeyboardViewport = (device: HTMLElement) => {
+      device.removeAttribute('data-keyboard-open');
+      device.removeAttribute('data-keyboard-compact');
+      device.style.removeProperty('--guest-keyboard-visible-top');
+      device.style.removeProperty('--guest-keyboard-visible-height');
+      keyboardVisible = false;
+    };
+    const updateKeyboardViewport = () => {
+      const device = getDevice();
+      if (!device) return;
+      if (!mobile.matches || device.querySelector('.guest-screen--chat')) {
+        clearKeyboardViewport(device);
+        fieldFocused = false;
+        baselineHeight = viewport.height + viewport.offsetTop;
+        return;
+      }
+
+      const visibleTop = Math.round(viewport.offsetTop);
+      const visibleHeight = Math.round(viewport.height);
+      const visibleBottom = visibleTop + visibleHeight;
+      if (isTextEntry(document.activeElement)) {
+        // Keep the pre-keyboard height if the browser has already reduced
+        // the visual viewport by the time the resize handler runs. Some
+        // mobile browsers update activeElement before delivering focusin.
+        if (!fieldFocused && !keyboardVisible && baselineHeight - visibleBottom < 100) {
+          baselineHeight = visibleBottom;
+        }
+        fieldFocused = true;
+        if (baselineHeight - visibleBottom < 100) {
+          if (keyboardVisible) {
+            clearKeyboardViewport(device);
+            baselineHeight = visibleBottom;
+          }
+          return;
+        }
+
+        keyboardVisible = true;
+        device.dataset.keyboardOpen = 'true';
+        if (visibleBottom < 420) device.dataset.keyboardCompact = 'true';
+        else device.removeAttribute('data-keyboard-compact');
+        device.style.setProperty('--guest-keyboard-visible-top', `${visibleTop}px`);
+        device.style.setProperty('--guest-keyboard-visible-height', `${visibleHeight}px`);
+        window.requestAnimationFrame(() => {
+          const active = document.activeElement;
+          if (!keyboardVisible || !isTextEntry(active)) return;
+          const field = active.getBoundingClientRect();
+          const visibleTop = viewport.offsetTop;
+          const viewportBottom = viewport.height + viewport.offsetTop;
+          const hiddenByViewport = field.top < visibleTop + 8 || field.bottom > viewportBottom - 8;
+          const hiddenByAction = [...device.querySelectorAll<HTMLElement>('.guest-dock, .guest-bottom-nav, .guest-order-tray__footer')]
+            .some((action) => {
+              const rect = action.getBoundingClientRect();
+              return getComputedStyle(action).display !== 'none'
+                && rect.bottom > field.top + 4
+                && rect.top < field.bottom - 4
+                && rect.right > field.left
+                && rect.left < field.right;
+            });
+          if (hiddenByViewport || hiddenByAction) active.scrollIntoView({ block: 'center', inline: 'nearest' });
+        });
+        return;
+      }
+
+      fieldFocused = false;
+      if (keyboardVisible && visibleBottom >= baselineHeight - 80) {
+        clearKeyboardViewport(device);
+        baselineHeight = visibleBottom;
+      }
+    };
+    const handleFocusIn = (event: FocusEvent) => {
+      if (!isTextEntry(event.target)) return;
+      if (!fieldFocused && !keyboardVisible) baselineHeight = viewport.height + viewport.offsetTop;
+      fieldFocused = true;
+      window.requestAnimationFrame(updateKeyboardViewport);
+    };
+    const handleFocusOut = () => {
+      window.requestAnimationFrame(() => {
+        if (isTextEntry(document.activeElement)) return;
+        fieldFocused = false;
+        updateKeyboardViewport();
+      });
+    };
+
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    viewport.addEventListener('resize', updateKeyboardViewport);
+    viewport.addEventListener('scroll', updateKeyboardViewport);
+    window.addEventListener('resize', updateKeyboardViewport);
+    mobile.addEventListener('change', updateKeyboardViewport);
+    updateKeyboardViewport();
+
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+      viewport.removeEventListener('resize', updateKeyboardViewport);
+      viewport.removeEventListener('scroll', updateKeyboardViewport);
+      window.removeEventListener('resize', updateKeyboardViewport);
+      mobile.removeEventListener('change', updateKeyboardViewport);
+      const device = getDevice();
+      if (device) clearKeyboardViewport(device);
+    };
   }, []);
 
   useEffect(() => {
@@ -856,6 +1004,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (next === 'rate-detail') setViewedBookingId(viewBooking ?? null);
     // Stays opens on what is ahead, not on whichever tab was last looked at.
     if (next === 'stay-history') setStaysTab(null);
+    // A transient action notice belongs to the screen where it appeared.
+    // Leaving that screen avoids duplicate actions beside the destination item.
+    setPushNotice(null);
+    setPushFocused(false);
     setPassEntranceScreen(null);
     setRoomCancelNotice(null);
     if (['restaurant-cart', 'service-booking', 'transfer-booking'].includes(next)) {
@@ -883,6 +1035,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   /* A different hotel starts a fresh cart; coming back to the same one keeps it. */
   const openPartnerHotel = (hotelId: string) => {
+    setStayGatewayMethod(null);
     setStayDraft((draft) => (draft.hotelId === hotelId ? draft : { ...draft, hotelId, cart: [], allocation: [], addOns: [] }));
     go('book-stay-hotel');
   };
@@ -921,6 +1074,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
+  const notifyGuestRequest = (id: string, headline: string, detail: string, options: { inbox?: boolean; screen?: GuestNotification['screen'] } = {}) => {
+    if (options.inbox) {
+      const notification: GuestNotification = {
+        id: `notification-request-${id}`,
+        tone: 'desk',
+        title: headline,
+        body: detail,
+        time: 'Just now',
+        screen: options.screen ?? 'chat',
+      };
+      setChatNotifications((current) => [notification, ...current.filter((item) => item.id !== notification.id)]);
+    }
+    setPushNotice({ id, headline, detail, screen: options.screen });
+  };
+
   const sendChatMessage = (body: string, attachment?: ChatAttachment) => {
     const messageBody = body.trim() || (attachment?.kind === 'image' ? 'Image attached.' : 'Voice message attached.');
     setChatDraft('');
@@ -932,6 +1100,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       return;
     }
     setChatMessages((messages) => [...messages, { from: 'guest', body: messageBody, state, attachment }]);
+    const notificationId = `chat-${Date.now()}`;
+    notifyGuestRequest(
+      notificationId,
+      online ? 'Request sent' : 'Request saved',
+      online ? 'The front desk received your message.' : 'This message will send when you reconnect.',
+      { inbox: true, screen: 'chat' },
+    );
     if (!online) return;
     setSending(true);
     window.setTimeout(() => {
@@ -1026,6 +1201,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       { from: 'guest', body: `The app couldn’t book ${selectedService.name} for ${formatServiceDay(serviceDate ?? PROTOTYPE_TODAY).long} at ${serviceTime}. Could you book it for me?`, state: 'Sent' },
       { from: 'desk', body: `Of course. We’ll book ${selectedService.name} and confirm here. It shows on My Stay in the meantime.`, state: 'Seen' },
     ]);
+    notifyGuestRequest(request.id, `${request.title} requested`, 'The front desk will confirm this in chat.');
+    setSelectedStayEntryId(request.id);
     goReplacing('chat');
   };
 
@@ -1040,6 +1217,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ...(messages.length === 1 && messages[0].body === genericWelcome ? [] : messages),
       { from: 'guest', body: guestMessage, state: 'Sent' },
     ]);
+    notifyGuestRequest(`order-chat-${contextBooking.id}-${Date.now()}`, 'Order request sent', `The front desk will help with your order from ${venue.name}.`, { inbox: true, screen: 'chat' });
     setSending(true);
     go('chat');
     window.setTimeout(() => {
@@ -1095,6 +1273,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const guestMessage = `I’d like to request a ride from ${from} to ${to} for ${ridePassengers} ${ridePassengers === 1 ? 'guest' : 'guests'}${schedule}.${checkoutDayDeparture ? ' Please add the ₱1,200 fare to my room charges.' : ''}`;
     // An airport ride is a booking with a fixed fare; it belongs on My Stay, not only in the chat.
     const airport = airportFor(contextBooking);
+    let rideBookingId: string | undefined;
     if (from === airport || to === airport) {
       const rideDay = rideWhen === 'later' && rideDate ? rideDate : PROTOTYPE_TODAY;
       const rideBooking: ServiceBooking = {
@@ -1118,11 +1297,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           { label: 'Status', value: 'Waiting for the hotel to confirm the driver' },
         ],
       };
+      rideBookingId = rideBooking.id;
       setSession((cur) => ({ ...cur, serviceBookings: [rideBooking, ...cur.serviceBookings.filter((service) => service.id !== rideBooking.id)] }));
     }
     setChatOrderVenue(null);
     setChatDraft('');
     setChatMessages((messages) => [...messages, { from: 'guest', body: guestMessage, state: 'Sent' }]);
+    notifyGuestRequest(
+      rideBookingId ?? `ride-chat-${contextBooking.id}-${Date.now()}`,
+      'Airport transfer requested',
+      checkedOut ? 'The front desk will confirm the fare and availability in chat.' : 'The front desk will confirm the driver and pickup time in chat.',
+      rideBookingId ? {} : { inbox: true, screen: 'chat' },
+    );
     setSending(true);
     goReplacing('chat');
     window.setTimeout(() => {
@@ -1169,6 +1355,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       { from: 'guest', body: change.message, state: online ? 'Sent' : 'Will send when connected' },
       { from: 'desk', body: change.reply, state: 'Seen' },
     ]);
+    notifyGuestRequest(
+      request.id,
+      `${request.title} requested`,
+      online ? 'Waiting for the hotel to confirm.' : 'Saved on this device. It will send when you reconnect.',
+    );
     if (!isChatScreen(activeScreen)) go('chat');
   };
 
@@ -1213,7 +1404,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-rooms', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'service-detail', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'service-detail', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1303,7 +1494,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* Inside the provider's cutoff, a change is the front desk's to make. */
   const canCancelYourself = (entryId: string) => {
     const service = cancellableServiceFor(entryId);
-    if (service.paymentStatus === 'pending-confirmation') return true;
+    if (service.paymentStatus === 'pending-confirmation' || awaitsProvider(service) || awaitsHotel(service)) return true;
     const cutoffHours = cancellationCutoffHours(cutoffFor(service));
     return cutoffHours !== null && getCancellationState(hoursUntilService(service, PROTOTYPE_TODAY, clockHour), cutoffHours) === 'self-service';
   };
@@ -1312,7 +1503,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const stayTab = stayTabChoice ?? (primaryBooking?.status === 'completed' ? 'past' : 'upcoming');
   const visibleStayEntries = stayTab === 'upcoming' ? stayEntries.upcoming : stayEntries.past;
 
-  const notifications = getNotifications(session, primaryBooking);
+  const notifications = [...chatNotifications, ...getNotifications(session, primaryBooking)];
   const unreadNotifications = notifications.filter((item) => !seenNotificationIds.includes(item.id)).length;
 
   const openNotifications = () => {
@@ -1376,12 +1567,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const what = `${service.title.charAt(0).toLowerCase()}${service.title.slice(1)}`;
     const status = approve
       ? kind === 'transfer' ? 'Driver confirmed · Ramon D., white Toyota Hiace (NBC 4127)'
-        : kind === 'early-check-in' ? `Confirmed · room ready from ${EARLY_CHECK_IN.time}`
+        : kind === 'early-check-in' ? `Confirmed · ${service.amount} added to your room bill`
           : 'Confirmed by the hotel'
       : `Not available · ${paid ? `refunded to ${method}` : 'no charge'}`;
     const body = approve
       ? kind === 'transfer' ? `Your driver is confirmed for ${day}: Ramon D. will meet you at arrivals with a Cabana sign, in a white Toyota Hiace (NBC 4127).${flight ? ` We’re tracking ${flight}, so a delay is no problem.` : ''}`
-        : kind === 'early-check-in' ? `Good news: your room will be ready from ${EARLY_CHECK_IN.time} on ${day}.`
+        : kind === 'early-check-in' ? `Good news: your room will be ready from ${EARLY_CHECK_IN.time} on ${day}. ${service.amount} will be added to your room bill, due at checkout.`
           : `Good news: your ${what} is confirmed for ${day}.${service.paymentStatus === 'pending-confirmation' && parsePesoAmount(service.amount) ? ` The ${service.amount} goes on your room bill.` : ''}`
       : kind === 'transfer' ? `Sorry, we can’t arrange the airport pickup on ${day}. ${refund} Metered taxis wait outside arrivals.`
         : kind === 'early-check-in' ? `We’re full the night before, so we can’t have your room ready early on ${day}. ${refund} Check-in is from ${CHECK_IN_FROM}, and we’re happy to hold your bags until then.`
@@ -1398,7 +1589,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ...(approve
                 ? item.paymentStatus === 'pending-confirmation' ? { paymentStatus: parsePesoAmount(item.amount) ? 'charged-to-room' as const : 'complimentary' as const } : {}
                 : { status: 'cancelled' as const, paymentStatus: paid ? 'refunded' as const : item.paymentStatus }),
-              facts: item.facts?.map((fact) => (fact.label === 'Status' ? { ...fact, value: status } : fact)),
+              facts: item.facts?.flatMap((fact) => {
+                if (fact.label === 'Status') return [{ ...fact, value: status }];
+                if (kind === 'early-check-in' && fact.label === 'If approved') {
+                  return approve ? [{ ...fact, label: 'Room bill' }] : [];
+                }
+                return [fact];
+              }),
             }
           : item)),
         bookings: !approve && kind === 'early-check-in'
@@ -1420,7 +1617,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const unavailable = online ? undefined : 'Needs a connection';
     return [
       { icon, label: `Confirm ${name}`, detail: 'The hotel says yes; the guest is notified.', onClick: () => answerHotelRequest(service, true), unavailable },
-      { icon: <X />, label: `Decline ${name}`, detail: 'Cancelled, refunded if paid, and the guest is notified.', onClick: () => answerHotelRequest(service, false), unavailable },
+      { icon: <X />, label: `Decline ${name}`, detail: service.serviceId === 'early-check-in' ? 'No charge. The guest is notified.' : 'Cancelled, refunded if paid, and the guest is notified.', onClick: () => answerHotelRequest(service, false), unavailable },
     ];
   });
 
@@ -1433,15 +1630,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setStayDetails(null);
   };
 
-  /*
-    A table at an independent place nearby: not on Cabana, so the front desk
-    books it by phone. It sits on My Stay as a request and the desk confirms
-    in chat. Free to ask; the meal is paid at the venue.
-  */
+  /* A nearby table is confirmed through the vendor integration; the meal is paid there. */
   const reserveNearbyTable = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: { day: string; time: string; party: number; requests?: string }) => {
     const asks = request.requests?.trim();
-    // A partner confirms its own published table at once; an independent one is the desk's phone call.
-    const direct = Boolean(place.partner);
     const [hours = 19, minutes = 0] = (() => { const m = request.time.match(/(\d{1,2}):(\d{2})\s*([AP]M)/i); return m ? [(Number(m[1]) % 12) + (m[3]!.toUpperCase() === 'PM' ? 12 : 0), Number(m[2])] : [19, 0]; })();
     const table: ServiceBooking = {
       id: `service-table-${place.id}-${request.day}-${hours}${minutes}`,
@@ -1451,28 +1642,111 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       scheduledDate: request.day,
       scheduledHour: hours,
       bookedAt: PROTOTYPE_TODAY,
-      // A reservation, not a purchase: no amount and no payment status.
+      // Holding a table is free; the meal is paid at the venue, never to the room.
       amount: '',
       status: 'confirmed',
+      paymentStatus: 'pay-at-provider',
       categoryId: 'dining',
-      provider: direct ? `Run by ${place.name}` : place.name,
+      provider: place.name,
       // The title names the venue; above it, only where it is.
-      place: place.address,
+      place: place.name,
+      placeDetail: place.address,
       partySize: request.party,
       summary: `${request.time} · ${request.party} ${request.party === 1 ? 'guest' : 'guests'} · ${place.type}`,
       facts: [
         { label: 'Guests', value: `${request.party}` },
         ...(asks ? [{ label: 'Requests', value: asks }] : []),
-        { label: 'Status', value: direct ? `Confirmed by ${place.name}` : 'Requested · the front desk is calling to book it' },
+        { label: 'Status', value: `Confirmed by ${place.name}` },
       ],
     };
     setSession((current) => ({ ...current, serviceBookings: [table, ...current.serviceBookings.filter((item) => item.id !== table.id)] }));
-    if (!direct) setChatMessages((messages) => [
-      ...messages,
-      { from: 'guest', body: `Could you book a table for ${request.party} at ${place.name} on ${formatServiceDay(request.day).long.replace(' · ', ', ')} at ${request.time}?${asks ? ` ${asks.replace(/[.\s]*$/, '')}.` : ''}`, state: 'Sent' },
-      { from: 'desk', body: `Of course. We’ll call ${place.name} now${asks ? ', pass on your request,' : ''} and confirm your table here.`, state: 'Seen' },
-    ]);
+    notifyGuestRequest(
+      table.id,
+      'Table reserved',
+      `${place.name} · ${request.time}`,
+    );
     setSelectedStayEntryId(table.id);
+    go('stay-entry');
+  };
+
+  const bookNearbyPlace = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: NearbyBookingRequest) => {
+    const quote = place.paymentIntegration;
+    const amount = quote
+      ? quote.amount * (quote.basis === 'guest' ? request.party : quote.basis === 'unit' ? request.quantity ?? 1 : 1)
+      : 0;
+    const payNowMethod = request.paymentMethod && request.paymentMethod !== 'room' ? request.paymentMethod : undefined;
+    const paidNow = Boolean(payNowMethod && quote && amount > 0);
+    const chargedToRoom = Boolean(request.paymentMethod === 'room' && quote && amount > 0);
+    const { hour, minute } = parseClockTime(request.time);
+    const id = 'service-nearby-' + place.id + '-' + request.day + '-' + hour + minute;
+    const existing = session.serviceBookings.find((item) => item.id === id && item.status === 'confirmed');
+    if (existing) {
+      setSelectedStayEntryId(existing.id);
+      go('stay-entry');
+      return;
+    }
+    const rentals = place.categoryId === 'rentals';
+    const booking: ServiceBooking = {
+      id,
+      bookingId: contextBooking.id,
+      title: place.type + ' at ' + place.name,
+      scheduledFor: formatServiceDay(request.day).long + ' · ' + request.time,
+      scheduledDate: request.day,
+      scheduledHour: hour,
+      bookedAt: PROTOTYPE_TODAY,
+      ...(chargedToRoom ? { roomChargePostedAt: PROTOTYPE_TODAY } : {}),
+      amount: paidNow || chargedToRoom ? formatPesoAmount(amount) : '',
+      status: 'confirmed',
+      categoryId: place.categoryId === 'gifts' ? 'services' : place.categoryId,
+      provider: place.name,
+      place: place.name,
+      placeDetail: place.address,
+      ...(rentals ? { rentalQuantity: request.quantity ?? 1 } : { partySize: request.party }),
+      summary: request.time + ' · ' + (rentals
+        ? (request.quantity ?? 1) + ((request.quantity ?? 1) === 1 ? ' rental' : ' rentals')
+        : request.party + (request.party === 1 ? ' guest' : ' guests')),
+      ...(paidNow && payNowMethod
+        ? { paymentStatus: 'paid' as const, paymentMethod: payNowMethod }
+        : chargedToRoom
+          ? { paymentStatus: 'charged-to-room' as const, paymentMethod: 'room' as const }
+          : { paymentStatus: 'pay-at-provider' as const }),
+      facts: [
+        { label: 'Provider', value: place.name },
+        ...(rentals ? [{ label: 'Rentals', value: String(request.quantity ?? 1) }] : [{ label: 'Guests', value: String(request.party) }]),
+        ...(request.requests ? [{ label: 'Note', value: request.requests }] : []),
+        { label: 'Payment', value: paidNow ? 'Paid directly to ' + place.name : chargedToRoom ? 'Charged to Room ' + contextBooking.roomNumber : 'Pay the provider directly · no room charge' },
+        { label: 'Status', value: 'Confirmed by ' + place.name },
+      ],
+    };
+    const withBooking = {
+      ...session,
+      serviceBookings: [booking, ...session.serviceBookings.filter((item) => item.id !== booking.id)],
+    };
+    setSession(paidNow && payNowMethod
+      ? recordPayment(withBooking, {
+          id: 'pay-' + booking.id,
+          paidAt: PROTOTYPE_TODAY,
+          kind: 'service',
+          title: booking.title,
+          detail: place.name,
+          amount,
+          method: payNowMethod,
+          bookingId: contextBooking.id,
+          items: [{ id: booking.id, title: booking.title, amount }],
+          refunded: 0,
+        })
+      : withBooking);
+    notifyGuestRequest(
+      booking.id,
+      paidNow ? 'Booking paid and confirmed' : 'Booking confirmed',
+      paidNow
+        ? formatPesoAmount(amount) + ' paid to ' + place.name
+        : chargedToRoom
+          ? formatPesoAmount(amount) + ` added to Room ${contextBooking.roomNumber}.`
+          : 'Pay ' + place.name + ' directly when you arrive.',
+      { screen: 'stay-entry' },
+    );
+    setSelectedStayEntryId(booking.id);
     go('stay-entry');
   };
 
@@ -1481,7 +1755,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const id = upgradeAwaitingDesk.id;
     const upgrade = upgradeAwaitingDesk.roomUpgrade;
     setSession((current) => approveRoomUpgrade(current, id));
-    if (upgrade) setPushNotice({ id: `upgrade-${id}`, headline: 'Room upgrade approved', detail: `${upgrade.newRoomType}${upgrade.offeredRoomNumber ? ` · Room ${upgrade.offeredRoomNumber}` : ''}`, screen: 'my-stay' });
+    if (upgrade) notifyGuestRequest(`upgrade-${id}`, 'Room upgrade approved', `${upgrade.newRoomType}${upgrade.offeredRoomNumber ? ` · Room ${upgrade.offeredRoomNumber}` : ''}`, { inbox: true, screen: 'my-stay' });
     window.setTimeout(() => setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === id && booking.roomUpgrade?.status === 'preparing' ? { ...booking, roomUpgrade: { ...booking.roomUpgrade, status: 'ready' } } : booking) })), 2500);
   };
 
@@ -1591,6 +1865,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       serviceBookings: [orderBooking, ...current.serviceBookings],
       folioTotal: newFolioTotal,
     }));
+    notifyGuestRequest(orderBooking.id, 'Order sent', `${venue.name} is preparing your order.`);
     setRestaurantCarts((carts) => ({ ...carts, [venue.id]: {} }));
     setDiningOrderError(null);
     goReplacing('dining-order-confirmation');
@@ -1638,21 +1913,75 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       : []),
     ...session.pastStays,
   ];
+  const managedReviewStayId = reviewingStayId
+    ?? (hasCurrentStay ? contextBooking.id : [...pastStays].sort((a, b) => b.checkOut.localeCompare(a.checkOut))[0]?.id);
+  const activeChatActions = checkedOutNav
+    ? POST_STAY_QUICK_ACTIONS
+    : hasStayStarted(contextBooking) ? CHAT_QUICK_ACTIONS : PRE_ARRIVAL_QUICK_ACTIONS;
+  const chatRequestUnavailable = !primaryBooking
+    ? 'Needs a stay'
+    : checkedOutNav && !postStayWindow.deskOpen ? 'The front desk chat is closed' : undefined;
+  const lateCheckoutUnavailable = !primaryBooking
+    ? 'Needs a stay'
+    : primaryBooking.checkOut !== PROTOTYPE_TODAY || primaryBooking.status === 'completed'
+      ? 'Available on checkout day before checkout'
+      : undefined;
+  const requestPrototypeRoomUpgrade = () => {
+    if (!primaryBooking) return;
+    const upgrade = ROOM_UPGRADES[0];
+    if (!upgrade) return;
+    const next = requestRoomUpgrade(session, primaryBooking.id, upgrade);
+    if (next === session) return;
+    setSession(next);
+    setSelectedUpgradeId(upgrade.id);
+    notifyGuestRequest(`service-upgrade-${primaryBooking.id}`, 'Room upgrade requested', 'The hotel will confirm the room and price.');
+    goReplacing('room-upgrade-success');
+  };
+  const guestRequestEvents = [
+    ...activeChatActions.map((action) => ({
+    icon: <ChatCircleDots />,
+    label: `Send ${action.label.toLowerCase()} request`,
+    detail: 'Runs the guest request flow and sends a push banner plus an inbox notification.',
+    onClick: () => action.label === 'Late checkout' ? openLateCheckoutChat() : sendQuickMessage(action.message(contextRoom)),
+    unavailable: chatRequestUnavailable ?? (action.label === 'Late checkout' ? lateCheckoutUnavailable : undefined),
+    })),
+    {
+      icon: <Bed />,
+      label: 'Request a room upgrade',
+      detail: 'Sends an upgrade request and notifies the guest; the hotel confirms the room and price.',
+      onClick: requestPrototypeRoomUpgrade,
+      unavailable: !primaryBooking
+        ? 'Needs a stay'
+        : !online
+          ? 'Needs a connection'
+          : !canUseOnPropertyServices(primaryBooking)
+            ? 'Verify the room first'
+            : primaryBooking.roomUpgrade ? 'An upgrade is already in progress' : undefined,
+    },
+  ];
   const [autoDetectScans, setAutoDetectScans] = useState(true);
   const stayReview = session.reviews.find((review) => review.bookingId === contextBooking.id);
+  const reviewPageStayId = reviewingStayId ?? contextBooking.id;
+  const reviewPageStay = pastStays.find((stay) => stay.id === reviewPageStayId);
+  const reviewPageBooking = session.bookings.find((booking) => booking.id === reviewPageStayId);
+  const reviewPageReview = session.reviews.find((review) => review.bookingId === reviewPageStayId);
 
-  const saveStayReview = (rating: StayReview['rating'], comment: string) => {
+  const saveReviewForStay = (bookingId: string, rating: StayReview['rating'], comment: string) => {
     setSession((current) => ({
       ...current,
       reviews: [
-        ...current.reviews.filter((review) => review.bookingId !== contextBooking.id),
-        { bookingId: contextBooking.id, rating, comment, submittedAt: PROTOTYPE_TODAY },
+        ...current.reviews.filter((review) => review.bookingId !== bookingId),
+        { bookingId, rating, comment, submittedAt: PROTOTYPE_TODAY },
       ],
     }));
   };
 
+  const saveStayReview = (rating: StayReview['rating'], comment: string) => {
+    saveReviewForStay(contextBooking.id, rating, comment);
+  };
+
   const submitStayReview = (rating: StayReview['rating'], comment: string) => {
-    saveStayReview(rating, comment);
+    saveReviewForStay(reviewPageStayId, rating, comment);
     go('stay-review-sent');
   };
 
@@ -1968,6 +2297,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           refunded: 0,
         })
       : next);
+    notifyGuestRequest(serviceBooking.id, `${serviceBooking.title} booked`, `${serviceBooking.scheduledFor} · ${serviceBooking.amount}`);
     setLastServiceBookingId(id);
     setAppliedPoints(0);
     goReplacing('booking-confirmation');
@@ -2153,6 +2483,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           refunded: 0,
         })
       : next);
+    if (bookingIds.length) {
+      notifyGuestRequest(
+        bookingIds[0]!,
+        asks.length ? 'Arrival requests sent' : 'Arrival services booked',
+        `${bookingIds.length} ${bookingIds.length === 1 ? 'item is' : 'items are'} on My Stay.`,
+      );
+    }
     setCartReceipt({ ids: bookingIds, method });
     goReplacing('arrival-cart-confirmation');
   };
@@ -2231,6 +2568,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     // A new state is a new stay as far as the demo goes: its chat starts empty.
     setAllChatMessages([]);
     setChatOrderVenue(null);
+    setChatNotifications([]);
+    setPushNotice(null);
+    setReviewingStayId(null);
     setHistory([]);
     setProfileMatch(null);
     setCode('');
@@ -2279,13 +2619,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   // An airport pickup for the whole family and an anniversary setup: two extras with fields of their own.
   const DEMO_EXTRAS: StayAddOn[] = [{ id: 'transfer', time: '14:30', flight: 'PR 2041', passengers: 5 }, { id: 'celebration', setup: 'full', occasion: 'Anniversary' }];
   const openBookingPage = (setup: { screen: ActiveScreen; search?: StaySearch; hotelId?: string; cart?: StayCartLine[]; withDetails?: boolean; online?: boolean; view?: ResultsView; addOns?: StayAddOn[] }) => {
+    setStayGatewayMethod(null);
     openPrototypePage({ state: 'account-only', screen: setup.screen, online: setup.online });
     const search = setup.search ?? DEFAULT_STAY_SEARCH;
     const hotel = findStayHotel(setup.hotelId);
     const cart = setup.cart ?? [];
     setStayDraft({ search, hotelId: setup.hotelId, cart, allocation: hotel && cart.length ? defaultAllocation(hotel, search, cart) : [], addOns: setup.addOns ?? [] });
     setResultsView(setup.view ?? DEFAULT_RESULTS_VIEW);
-    setStayDetails(setup.withDetails && hotel ? emptyGuestDetails(MOCK_SESSION.guestName, GUEST_PROFILE.email, GUEST_PROFILE.mobile, cartRooms(hotel, cart).length) : null);
+    setStayDetails(setup.withDetails && hotel ? guestDetailsFromSession(restoreProfileSession(), cartRooms(hotel, cart).length) : null);
     setCancelNotice(null);
     setHistory(setup.screen === 'stay-overview' ? [] : ['stay-overview']);
   };
@@ -2295,20 +2636,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const cart: StayCartLine[] = policy === 'saver'
       ? [{ roomTypeId: 'manila-king', ratePlanId: 'saver', quantity: 1 }, { roomTypeId: 'manila-suite', ratePlanId: 'saver', quantity: 1 }]
       : policy === 'mixed' ? MIXED_CANCELLATION_CART : MIXED_CART;
-    const details = emptyGuestDetails(current.guestName || MOCK_SESSION.guestName, current.email || GUEST_PROFILE.email, GUEST_PROFILE.mobile, 2);
+    const details = guestDetailsFromSession(current, 2);
     const quote = quoteStay(hotel, FAMILY_SEARCH, cart);
     const booking = bookingFromDraft({ hotel, search: FAMILY_SEARCH, cart, allocation: defaultAllocation(hotel, FAMILY_SEARCH, cart), details, quote, paidWith: 'GCash', paidAt: PROTOTYPE_TODAY });
     // "Ended" moves the deadline behind the prototype clock; "soon" puts it tomorrow.
     const until = policy === 'ended' ? addDays(PROTOTYPE_TODAY, -1) : policy === 'soon' ? addDays(PROTOTYPE_TODAY, 1) : undefined;
     const reservation = until && booking.reservation ? { ...booking.reservation, freeCancellationUntil: until } : booking.reservation;
     const extras = withAddOns({ booking: { ...booking, reservation }, hotel, addOns, method: 'gcash', paidAt: PROTOTYPE_TODAY });
-    // Paid as checkout pays: on the Payments ledger, itemised when there are extras, so refunds have somewhere to show.
+    const payNowServices = extras.services.filter((item) => item.serviceId !== 'early-check-in');
+    const payNowLines = extras.lines.filter((line) => line.id !== 'early-check-in');
+    // Record upfront extras on the payment; early check-in remains a room-charge request.
     return recordPayment({ ...current, bookings: [extras.booking], serviceBookings: [...extras.services, ...current.serviceBookings], activeBookingId: booking.id }, {
       id: `pay-stay-${booking.id}`,
       paidAt: PROTOTYPE_TODAY,
       kind: 'stay',
       title: hotel.name,
-      detail: `2 rooms${extras.services.length ? ` + ${extras.services.length} extras` : ''} · ${stayDatesLabel(FAMILY_SEARCH.checkIn, FAMILY_SEARCH.checkOut)}`,
+      detail: `2 rooms${payNowServices.length ? ` + ${payNowServices.length} ${payNowServices.length === 1 ? 'extra' : 'extras'}` : ''} · ${stayDatesLabel(FAMILY_SEARCH.checkIn, FAMILY_SEARCH.checkOut)}`,
       amount: quote.total + extras.total,
       method: 'gcash',
       bookingId: booking.id,
@@ -2318,7 +2661,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           title: `Room ${bookedRoomNumber(room, index)} · ${room.roomName}`,
           amount: room.amount ?? 0,
         })),
-        ...extras.services.map((item, index) => ({ id: item.id, title: item.title, amount: extras.lines[index]!.amount })),
+        ...payNowServices.map((item, index) => ({ id: item.id, title: item.title, amount: payNowLines[index]!.amount })),
       ],
       refunded: 0,
     });
@@ -2338,7 +2681,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     { group: 'Find a hotel', label: 'Hotel page · rooms don’t fit', detail: 'One King for a family of five', open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: FAMILY_SEARCH, cart: [MIXED_CART[0]!] }) },
     { group: 'Find a hotel', label: 'Hotel page · fully booked night', detail: `Every room sold out`, open: () => openBookingPage({ screen: 'book-stay-hotel', hotelId: 'manila', search: { ...DEFAULT_STAY_SEARCH, checkIn: fullNight, checkOut: addDays(fullNight, 1) } }) },
     { group: 'Find a hotel', label: 'Home · saved hotels', detail: 'Two hearts, and the saved rail', open: () => { seedSavedHotels(['alon-boracay', 'manila']); openBookingPage({ screen: 'stay-overview' }); } },
-    { group: 'Book', label: 'Who’s in each room', detail: 'Three adults and two children, two rooms', open: () => openBookingPage({ screen: 'book-stay-rooms', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART }) },
     { group: 'Book', label: 'Arrival extras', detail: 'Optional; skip or add pickup and more', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true }) },
     { group: 'Book', label: 'Arrival extras · pickup and flowers', detail: 'Two extras, filled in', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, addOns: DEMO_EXTRAS }) },
     { group: 'Book', label: 'Arrival extras · no airport pickup', detail: 'Baguio: nothing to meet at the airport', open: () => openBookingPage({ screen: 'book-stay-addons', hotelId: 'pinetop-baguio', search: { ...DEFAULT_STAY_SEARCH, location: 'Baguio' }, cart: [{ roomTypeId: findStayHotel('pinetop-baguio')!.roomTypes[0]!.id, ratePlanId: 'flex', quantity: 1 }], withDetails: true }) },
@@ -2428,9 +2770,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const clearReview = () => {
+    if (!managedReviewStayId) return;
     setSession((current) => ({
       ...current,
-      reviews: current.reviews.filter((review) => review.bookingId !== contextBooking.id),
+      reviews: current.reviews.filter((review) => review.bookingId !== managedReviewStayId),
     }));
   };
 
@@ -2705,7 +3048,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ? contextBooking.roomNumber
         ? 'Arrange a transfer, luggage help, or another arrival service. Scan the code in your room to unlock dining, spa, tours, and room charging.'
         : 'Arrange a transfer, luggage help, or another arrival service while the hotel assigns your room. The on-property catalogue opens after your room is assigned and you scan in.'
-      : 'Explore arrival services at the hotel and arrange what you need before you arrive.';
+      : 'Arrange hotel services and explore nearby restaurants, tours, rentals and more before you arrive.';
 
     return (
       <div className="guest-stack">
@@ -2778,9 +3121,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </section>
         ) : (
           preArrival ? (
-            <Notice title="One cart, one payment">
-              Add what you need and pay once, with card, GCash or Maya. Some requests depend on hotel availability, and the hotel confirms them after you pay. Early check-in is the exception: its fee goes on your room once you have one.
-            </Notice>
+            <NearbyDiscoverySection
+              city={contextBooking.city}
+              property={contextBooking.property}
+              empty={emptyCatalogue}
+              onSelect={(category) => { setSelectedCategory(category); go('nearby-recommendations'); }}
+            />
           ) : <Notice title="Hotel confirmation">
             Some arrival requests depend on hotel availability. Hotel services are charged to your room and settled at the front desk at checkout; partners on property can also be paid now. We&rsquo;ll show whether it is complimentary or needs hotel confirmation before you book.</Notice>
         )}
@@ -2848,25 +3194,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     // The old partner routes had no hotel of their own; they open the first.
     const current = hotel ?? findStayHotel('manila')!;
-    if (activeScreen === 'book-stay-rooms' && stayDraft.cart.length) {
-      return (
-        <StayAssignGuestsScreen
-          hotel={current}
-          search={search}
-          cart={stayDraft.cart}
-          allocation={stayDraft.allocation}
-          onChange={(allocation) => setStayDraft((draft) => ({ ...draft, allocation }))}
-          onContinue={() => {
-            const rooms = cartRooms(current, stayDraft.cart).length;
-            // Keep what the guest typed if they come back with the same rooms.
-            setStayDetails((details) => (details && details.roomLeads.length === rooms
-              ? details
-              : emptyGuestDetails(session.guestName, session.email || GUEST_PROFILE.email, GUEST_PROFILE.mobile, rooms)));
-            go('book-stay-addons');
-          }}
-        />
-      );
-    }
     if (activeScreen === 'book-stay-addons' && stayDraft.cart.length && stayDetails) {
       return (
         <StayAddOnsScreen
@@ -2893,10 +3220,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         />
       );
     }
-    if (activeScreen === 'book-stay-payment' && stayDraft.cart.length && stayDetails) {
+    if ((activeScreen === 'book-stay-payment' || activeScreen === 'book-stay-vouchers') && stayDraft.cart.length && stayDetails) {
       return (
         <StayPaymentScreen
-          // A different booking is a different payment page: its voucher field and saved offer start fresh.
+          // Keep payment selection mounted as the voucher page opens.
           key={`${current.id}:${JSON.stringify(stayDraft.cart)}`}
           hotel={current}
           search={search}
@@ -2907,6 +3234,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           online={online}
           addOns={stayDraft.addOns}
           account={promoAccount}
+          voucherPage={activeScreen === 'book-stay-vouchers'}
+          onOpenVouchers={() => go('book-stay-vouchers')}
+          onVoucherBack={back}
+          method={stayGatewayMethod}
+          onMethodChange={setStayGatewayMethod}
           accountGate={isGuest ? (
             <AccountSignInCard
               title="Sign in to book"
@@ -2928,9 +3260,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         held={held}
         account={promoAccount}
         onContinue={() => {
-          // Extras chosen earlier follow the stay's new dates and party.
+          const rooms = cartRooms(current, stayDraft.cart).length;
+          // Keep the booking's automatic room split without asking the guest to review it.
           setStayDraft((draft) => ({ ...draft, allocation: defaultAllocation(current, draft.search, draft.cart), addOns: fitAddOns(draft.addOns, draft.search) }));
-          go('book-stay-rooms');
+          // Arrival extras follow the stay's current rooms, dates, and party.
+          setStayDetails((details) => (details && details.roomLeads.length === rooms
+            ? details
+            : guestDetailsFromSession(session, rooms)));
+          go('book-stay-addons');
         }}
       />
     );
@@ -2945,19 +3282,31 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const taken = [...session.bookings.map((item) => item.id), ...(session.payments ?? []).flatMap((payment) => (payment.bookingId ? [payment.bookingId] : []))];
     const drafted = bookingFromDraft({ hotel, search: stayDraft.search, cart: stayDraft.cart, allocation: stayDraft.allocation, details: stayDetails, quote, paidWith: GATEWAY_METHOD_LABELS[method], paidAt: PROTOTYPE_TODAY, taken });
     /*
-      Arrival extras become the stay's service bookings now, and only now: the
-      same payment covered them. The reservation keeps their total apart from
-      the rooms', so cancelling a room never refunds an extra.
+      Paid arrival extras and the early-check-in request become service
+      bookings after payment. Only the paid extras are included in its total.
     */
     const { booking, services: extras, total: extrasTotal, lines: extraLines } = withAddOns({ booking: drafted, hotel, addOns: stayDraft.addOns, method, paidAt: PROTOTYPE_TODAY });
+    const payNowExtras = extras.filter((item) => item.serviceId !== 'early-check-in');
+    const payNowExtraLines = extraLines.filter((line) => line.id !== 'early-check-in');
     const roomLeads = [...new Set(stayDetails.roomLeads.map((name) => name.trim()).filter((name) => name && name !== stayDetails.name.trim()))];
     // The booker plus each other room's named lead: when that is the whole party, nobody is left to name.
     // Other rooms' lead guests are the people the hotel should expect: this booking's own guest list.
-    const namedBooking = { ...booking, companions: roomLeads, companionsNamed: roomLeads.length + 1 >= booking.guestCount };
+    const namedBooking = {
+      ...booking,
+      companions: roomLeads,
+      companionsNamed: roomLeads.length + 1 >= booking.guestCount,
+      honouredPreferences: summarizeRoomPreferences(session.roomPreferences),
+    };
     const stayRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
     setSession((current) => recordPayment({
       ...current,
-      guestName: current.guestName || booking.guestName,
+      guestName: stayDetails.name.trim() || current.guestName || booking.guestName,
+      email: stayDetails.email.trim() || current.email,
+      mobile: stayDetails.phone.trim() || current.mobile,
+      record: current.record ? { ...current.record, mobile: stayDetails.phone.trim() || current.record.mobile } : current.record,
+      additionalGuests: roomLeads.length
+        ? [...roomLeads, ...current.additionalGuests.filter((name) => !roomLeads.includes(name))]
+        : current.additionalGuests,
       bookings: [...current.bookings.filter((item) => item.id !== booking.id), namedBooking],
       serviceBookings: [...extras, ...current.serviceBookings.filter((item) => !extras.some((extra) => extra.id === item.id))],
       // The app follows the stay in progress, else the trip that starts soonest -- the new one only if it is that trip.
@@ -2968,7 +3317,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       paidAt: PROTOTYPE_TODAY,
       kind: 'stay',
       title: hotel.name,
-      detail: `${stayRooms} ${stayRooms === 1 ? 'room' : 'rooms'}${extras.length ? ` + ${extras.length} ${extras.length === 1 ? 'extra' : 'extras'}` : ''} · ${stayDatesLabel(stayDraft.search.checkIn, stayDraft.search.checkOut)}`,
+      detail: `${stayRooms} ${stayRooms === 1 ? 'room' : 'rooms'}${payNowExtras.length ? ` + ${payNowExtras.length} ${payNowExtras.length === 1 ? 'extra' : 'extras'}` : ''} · ${stayDatesLabel(stayDraft.search.checkIn, stayDraft.search.checkOut)}`,
       amount: quote.total + extrasTotal,
       method,
       bookingId: booking.id,
@@ -2979,7 +3328,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           title: `Room ${bookedRoomNumber(room, index)} · ${room.roomName}`,
           amount: room.amount ?? 0,
         })),
-        ...extras.map((item, index) => ({ id: item.id, title: item.title, amount: extraLines[index]!.amount })),
+        ...payNowExtras.map((item, index) => ({ id: item.id, title: item.title, amount: payNowExtraLines[index]!.amount })),
       ],
       refunded: 0,
     }));
@@ -3239,6 +3588,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <StayOverviewHome
               resumeBooking={resumeBooking}
               session={session}
+              pastStays={pastStays}
+              reviews={session.reviews}
               booking={hasCurrentStay ? primaryBooking : undefined}
               staySearch={stayDraft.search}
               onSearchStay={startStaySearch}
@@ -3252,6 +3603,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               onOpenHotel={openPartnerHotel}
               onRequestRide={(direction) => (direction === 'arrival' ? openArrivalRide() : openDepartureRide())}
               onOpenEntry={(id) => { setSelectedStayEntryId(id); go('stay-entry'); }}
+              onRatePreviousStay={(stayId) => { setReviewingStayId(stayId); go('stay-review'); }}
               clockHour={clockHour}
             />
             {primaryBooking && preArrival ? <ArrivalCartDock totals={cartSummary} onOpen={() => go('arrival-cart')} /> : null}
@@ -3264,10 +3616,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'book-stay-dates':
       case 'book-stay-results':
       case 'book-stay-hotel':
-      case 'book-stay-rooms':
       case 'book-stay-addons':
       case 'book-stay-checkout':
       case 'book-stay-payment':
+      case 'book-stay-vouchers':
       case 'book-stay-confirmation':
         return renderStayBooking();
 
@@ -3558,7 +3910,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<Bed size={30} />} title="Request this upgrade" text="The hotel confirms the room and assigns its number. Nothing is charged until they do."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Requested upgrade" value={upgrade.name} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="If approved" value="Added to your room bill, settled at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } setSession((current) => requestRoomUpgrade(current, contextBooking.id, upgrade)); goReplacing('room-upgrade-success'); }}>Request upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Request this upgrade" text="The hotel confirms the room and assigns its number. Nothing is charged until they do."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Requested upgrade" value={upgrade.name} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="If approved" value="Added to your room bill, settled at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } const next = requestRoomUpgrade(session, contextBooking.id, upgrade); if (next === session) return; setSession(next); notifyGuestRequest(`service-upgrade-${contextBooking.id}`, 'Room upgrade requested', 'The hotel will confirm the room and price.'); goReplacing('room-upgrade-success'); }}>Request upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
       }
 
       case 'room-upgrade-success': {
@@ -3731,10 +4083,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     {reservation.addOns?.length ? (
                       <>
                         <SummaryRow label="Rooms" value={peso(reservation.total)} />
-                        {/* Each extra as it stands now: one cancelled on its own reads as refunded. */}
+                        {/* Keep each extra's current settlement state visible. */}
                         {reservation.addOns.map((extra) => {
                           const live = session.serviceBookings.find((service) => service.id === extra.serviceBookingId);
-                          return <SummaryRow key={extra.serviceBookingId} label={extra.title} value={!live || live.status === 'cancelled' ? 'Cancelled · refunded' : extra.amount ? peso(extra.amount) : 'Free'} />;
+                          const value = !live
+                            ? extra.amount ? peso(extra.amount) : 'Free'
+                            : live.status === 'cancelled'
+                              ? live.paymentStatus === 'refunded' ? 'Cancelled · refunded' : 'Cancelled · no charge'
+                              : live.paymentStatus === 'pending-confirmation'
+                                ? `${peso(extra.amount)} · On room if confirmed`
+                                : live.paymentStatus === 'charged-to-room'
+                                  ? `${peso(extra.amount)} · On room bill`
+                                  : extra.amount ? peso(extra.amount) : 'Free';
+                          return <SummaryRow key={extra.serviceBookingId} label={extra.title} value={value} />;
                         })}
                       </>
                     ) : null}
@@ -3878,11 +4239,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <StayReviewForm
             mode="page"
-            property={contextBooking.property}
-            review={stayReview}
+            property={reviewPageStay?.property ?? reviewPageBooking?.property ?? contextBooking.property}
+            review={reviewPageReview}
             isCheckoutDay
             onSubmit={submitStayReview}
-            onBackToMyStay={() => go('my-stay')}
+            onBackToMyStay={() => go(primaryBooking ? 'my-stay' : 'stay-overview')}
           />
         );
 
@@ -3953,8 +4314,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const matchesSubcategory = (row: { id: string }) => matchesListingSubcategory(selectedCategory, selectedSubcategory, row);
         const visibleVenues = stayVenues.filter(matchesSubcategory);
         const visibleServices = categoryServices.filter(matchesSubcategory);
-        const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', rentals: 'Motorbikes, cars and bikes by the day, from the hotel driveway.', services: 'Explore hotel services and independent options nearby.' };
-        const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Partner and independent places to eat and drink near the hotel.', spa: 'Independent spas and wellness centers near the hotel.', entertainment: 'Nearby activities and independently operated tours.', rentals: 'Independent rental shops near the hotel.', services: 'Independent services available near the hotel.' };
+        const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', rentals: 'Motorbikes, cars and bikes by the day, from the hotel driveway.', services: 'Explore hotel services and local vendors nearby.' };
+        const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Restaurants and cafés you can book directly near the hotel.', spa: 'Book wellness appointments with nearby vendors.', entertainment: 'Book nearby tours and attractions directly.', rentals: 'Book bikes and other rentals with local vendors.', services: 'Book local services directly with nearby vendors.' };
         return (
           <div className="guest-stack guest-category-listing">
             <div className="guest-page-title">
@@ -4068,8 +4429,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           return (
             <div className="guest-stack">
               <div className="guest-page-title"><h1>Nearby recommendations</h1></div>
-              <StatePanel icon={<MapPin />} title="No places listed nearby yet" actions={<TextButton onClick={() => go('chat')}>Ask the front desk for a recommendation</TextButton>}>
-                {`We don’t have independent places listed around ${contextBooking.property} yet. The front desk knows the area and can point you somewhere good.`}
+              <StatePanel icon={<MapPin />} title="No places listed nearby yet">
+                {`There aren’t nearby vendors listed around ${contextBooking.property} yet.`}
               </StatePanel>
             </div>
           );
@@ -4089,11 +4450,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             onBack={back}
             onNotifications={() => go('notifications')}
             onBookRide={() => openRideRequest({ from: contextBooking.property, to: establishment.name, toDetail: establishment.address })}
+            onBookNearby={(request) => bookNearbyPlace(establishment, request)}
             reserveDays={tableDays}
             dayLabel={(day) => (day === PROTOTYPE_TODAY ? 'Today' : formatServiceDay(day).short)}
             defaultParty={contextBooking.guestCount}
+            roomChargeAvailable={canUseOnPropertyServices(contextBooking)}
+            roomNumber={contextBooking.roomNumber}
             onReserveTable={(request) => reserveNearbyTable(establishment, request)}
-            partnerTables={establishment.partner ? listingFor(establishment.id) : undefined}
+            partnerTables={establishment.bookingIntegration ? listingFor(establishment.id) : undefined}
           />
         ) : null;
       }
@@ -4845,6 +5209,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // A table is a reservation, not a purchase: no total, no payment, nothing about the room bill.
         // A restaurant's order and its table share the venue's id, so a hotel table is the one that costs nothing.
         const isTable = Boolean(entry && (entry.id.startsWith('service-table-') || (entry.serviceId && isReservation(entry.serviceId) && !parsePesoAmount(entry.amount))));
+        const noCabanaTotal = isTable || Boolean(entry && entry.paidBy === 'provider' && !parsePesoAmount(entry.amount));
         if (!entry) {
           return (
             <EmptyStayHome
@@ -4858,6 +5223,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         // `status` files a past cancellation under completed; the money story needs the real one.
         const entryCancelled = entry.cancelled || entry.status === 'cancelled';
+        const tableStatus = entry.facts?.find((fact) => fact.label === 'Status')?.value ?? '';
+        const tableWaiting = isTable && /requested|waiting/i.test(tableStatus);
+        const earlyCheckInEntry = entry.serviceId === 'early-check-in';
         // Still ahead, so not on the bill yet: it goes on once it has happened.
         const entryAhead = !entryCancelled && entry.status === 'confirmed' && entry.date > PROTOTYPE_TODAY;
 
@@ -4885,7 +5253,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               checking what a charge on their room was for needs the order read
               back to them.
             */}
-            {isTable ? null : (
+            {noCabanaTotal ? null : (
             <>
             <section>
               {entry.lines.length > 1 ? <SectionHeading title="Items" /> : null}
@@ -4901,15 +5269,37 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   : entry.lines[0]?.detail
                     ? <SummaryRow label={entry.lines[0].detail} value={entry.lines[0].amount} />
                     : null}
-                <SummaryRow label="Total" value={entry.amount} strong />
+                <SummaryRow
+                  label={earlyCheckInEntry
+                    ? (entryCancelled ? 'Charge' : entry.settlement === 'Awaiting hotel confirmation' ? 'Room charge if confirmed' : 'Room charge')
+                    : 'Total'}
+                  value={earlyCheckInEntry && entryCancelled ? 'No charge' : entry.amount}
+                  strong
+                />
               </div>
             </section>
 
             <Notice
-              tone={entryCancelled || entry.settlement === 'Awaiting hotel confirmation' ? 'neutral' : 'positive'}
-              title={entryCancelled ? 'Cancelled' : entry.settlement === 'Awaiting hotel confirmation' ? 'Awaiting hotel confirmation' : entryAhead && entry.paidBy === 'room' ? 'Goes on your room' : entry.paidBy === 'card' ? 'Paid up front' : entry.paidBy === 'complimentary' ? 'Complimentary' : 'Charged to your room'}
+              tone={entryCancelled || tableWaiting || entry.settlement === 'Awaiting hotel confirmation' || entry.settlement === 'Awaiting provider confirmation' ? 'neutral' : 'positive'}
+              title={entryCancelled ? 'Cancelled'
+                : isTable ? tableWaiting ? 'Waiting for the restaurant' : 'Table confirmed'
+                : entry.settlement === 'Awaiting provider confirmation' ? 'Awaiting provider confirmation'
+                  : entry.settlement === 'Awaiting hotel confirmation' ? 'Awaiting hotel confirmation'
+                    : entry.settlement === 'Pay the provider directly' ? 'Pay the provider directly'
+                      : entryAhead && entry.paidBy === 'room' ? 'Goes on your room'
+                        : entry.paidBy === 'card' ? 'Paid up front'
+                          : entry.paidBy === 'complimentary' ? 'Complimentary'
+                            : 'Charged to your room'}
             >
-              {entryCancelled ? `Nothing was charged to ${contextRoom.toLowerCase()}.` : entry.settlement === 'Awaiting hotel confirmation' ? 'Nothing is charged until the hotel confirms. You can withdraw the request until then.' : entry.paidBy === 'complimentary' ? `On the house. Nothing is added to ${contextRoom.toLowerCase()}.` : entryAhead ? `Added to ${contextRoom.toLowerCase()} once it has happened, and settled at the front desk at checkout.` : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
+              {entryCancelled ? 'Nothing was charged to room.'
+                : isTable ? tableWaiting ? 'The restaurant will confirm your reservation. Pay for your meal there; nothing is charged to a room.'
+                  : 'No charge to reserve. Pay for your meal at the restaurant; nothing goes on your room bill.'
+                : entry.settlement === 'Awaiting provider confirmation' ? 'Nothing is charged in Cabana. The provider will confirm this request; you’ll pay them directly.'
+                  : entry.settlement === 'Awaiting hotel confirmation' ? 'Nothing is charged until the hotel confirms. You can withdraw the request until then.'
+                    : entry.settlement === 'Pay the provider directly' ? 'This booking is outside the hotel. Pay the provider directly; nothing is added to your room bill.'
+                      : entry.paidBy === 'complimentary' ? 'On the house. Nothing is added to your room.'
+                        : entryAhead && entry.paidBy === 'room' ? `Added to ${contextRoom.toLowerCase()} once it has happened, and settled at the front desk at checkout.`
+                          : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
             </Notice>
             </>
             )}
@@ -4925,7 +5315,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   cancel used to open the self-service screen, and cancel the
                   Hilom massage whichever booking had been opened.
                 */}
-                {primary(entry.settlement === 'Awaiting hotel confirmation' ? 'Withdraw request' : 'Change or cancel', canCancelYourself(entry.id) ? 'cancel-before-cutoff' : 'cancel-after-cutoff')}
+                {primary(tableWaiting || entry.settlement === 'Awaiting hotel confirmation' || entry.settlement === 'Awaiting provider confirmation' ? 'Withdraw request' : 'Change or cancel', canCancelYourself(entry.id) ? 'cancel-before-cutoff' : 'cancel-after-cutoff')}
                 <TextButton onClick={() => go('chat')}>Ask the front desk</TextButton>
               </>
             ) : (
@@ -5012,6 +5402,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const hoursLeft = Math.max(0, Math.floor(hoursUntilService(cancellable, PROTOTYPE_TODAY, clockHour)));
         const paidBy = describeServicePaidBy(cancellable);
         const time = cancellable.scheduledFor.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
+        const isRequest = cancellable.paymentStatus === 'pending-confirmation' || awaitsProvider(cancellable) || awaitsHotel(cancellable);
 
         if (activeScreen === 'cancel-after-cutoff') {
           return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title="Contact the front desk to change this" text={cutoffHours === null ? 'This provider does not take cancellations in the app.' : `The provider’s ${cutoffHours}-hour self-service cutoff has passed. ${paidBy === 'room' ? 'The charge stays on your room folio.' : 'The booking stays as it is.'}`}><Notice tone="warning" title="Front desk help required">Send a message and the team will check what the provider can do.</Notice>{primary('Chat with front desk', 'chat')}<TextButton onClick={() => go('my-stay')}>Keep booking</TextButton></ScreenIntro>;
@@ -5041,8 +5432,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ? { title: 'Your payment is refunded', body: 'It goes back the way you paid. Nothing else changes.' }
           : paidBy === 'complimentary'
             ? { title: 'Nothing to refund', body: 'This one was complimentary.' }
+            : paidBy === 'provider'
+              ? { title: 'No provider payment made', body: 'Nothing was charged in Cabana or to your room.' }
             : { title: 'The charge will be removed from your room', body: 'This service has not settled. No money moves when you cancel.' };
-        return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title={cancellable.paymentStatus === 'pending-confirmation' ? 'Withdraw this request?' : 'Cancel this booking?'} text={`This is before the provider’s ${cutoffHours ?? 24}-hour cutoff, so you can cancel it yourself.`}><div className="guest-ticket"><div><small>{withoutTime(cancellable.scheduledFor)}</small><h2>{time}</h2><p>{cancellable.title} · {cancellable.amount}{paidBy === 'room' ? ` · ${contextRoom}` : ''}</p></div></div><Notice tone="positive" title={settlement.title}>{settlement.body}</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">{cancellable.paymentStatus === 'pending-confirmation' ? 'Withdraw request' : 'Cancel service'}</button><TextButton onClick={() => go('my-stay')}>{cancellable.paymentStatus === 'pending-confirmation' ? 'Keep request' : 'Keep booking'}</TextButton></ScreenIntro>;
+        return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title={isRequest ? 'Withdraw this request?' : 'Cancel this booking?'} text={`This is before the provider’s ${cutoffHours ?? 24}-hour cutoff, so you can cancel it yourself.`}><div className="guest-ticket"><div><small>{withoutTime(cancellable.scheduledFor)}</small><h2>{time}</h2><p>{cancellable.title}{cancellable.amount ? ' · ' + cancellable.amount : ''}{paidBy === 'room' ? ` · ${contextRoom}` : ''}</p></div></div><Notice tone="positive" title={settlement.title}>{settlement.body}</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">{isRequest ? 'Withdraw request' : 'Cancel service'}</button><TextButton onClick={() => go('my-stay')}>{isRequest ? 'Keep request' : 'Keep booking'}</TextButton></ScreenIntro>;
       }
 
       case 'folio': {
@@ -5480,7 +5873,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         canToggleRoomVerified={Boolean(primaryBooking && (primaryBooking.roomVerification || isStayUnderWay(primaryBooking)))}
         hasHistory={pastStays.length > 0}
         onToggleHistory={toggleHistory}
-        hasReview={session.reviews.some((review) => review.bookingId === contextBooking.id)}
+        hasReview={Boolean(managedReviewStayId && session.reviews.some((review) => review.bookingId === managedReviewStayId))}
         onClearReview={clearReview}
         autoDetectScans={autoDetectScans}
         onToggleAutoDetectScans={() => setAutoDetectScans((on) => !on)}
@@ -5502,6 +5895,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onEmptyAccount={() => openPrototypePage({ state: 'account-only', patch: brandNewAccount, screen: 'stay-overview' })}
         pages={prototypePages}
         hotelEvents={hotelAnswerEvents}
+        guestEvents={guestRequestEvents}
         onClearDeviceData={clearDeviceData}
       />
 

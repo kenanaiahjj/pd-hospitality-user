@@ -4,7 +4,7 @@ import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
 import { ANYWHERE, HotelResultCard, OffersStrip, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
-import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry } from './prototype-model';
+import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry, StayReview } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, ITEM_THUMBNAIL_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
 import { ENTRY_ILLUSTRATIONS } from './illustrations';
@@ -138,6 +138,9 @@ export type ResumeBooking = { title: string; detail: string; onResume: () => voi
 
 export type StayOverviewHomeProps = {
   session: GuestSession;
+  /** Combined account history, including a stay that just checked out. */
+  pastStays?: PastStay[];
+  reviews?: StayReview[];
   booking?: Booking;
   staySearch: StaySearch;
   onSearchStay: (search: StaySearch) => void;
@@ -159,21 +162,24 @@ export type StayOverviewHomeProps = {
   onOpenEntry?: (id: string) => void;
   /** The prototype clock's hour, so time-bound updates stop once they are over. */
   clockHour?: number;
+  onRatePreviousStay?: (stayId: string) => void;
 };
 
-export function StayOverviewHome({ session, booking, staySearch, onSearchStay, promoAccount, onNavigate, picks, onOpenPick, onOpenHotel, resumeBooking, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19 }: StayOverviewHomeProps) {
+export function StayOverviewHome({ session, pastStays = session.pastStays, reviews = session.reviews, booking, staySearch, onSearchStay, promoAccount, onNavigate, picks, onOpenPick, onOpenHotel, resumeBooking, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19, onRatePreviousStay }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
     .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-  const showNoBookingDiscovery = session.auth === 'authenticated' && session.bookings.length === 0;
+  const showNoBookingDiscovery = session.auth === 'authenticated' && (session.bookings.length === 0 || !booking);
 
   if (variant === 'empty' || !booking) {
     return (
       <EmptyStayHome
         guestName={session.guestName}
-        pastStays={session.pastStays}
-        returning={session.pastStays.length > 0 || session.bookings.some((item) => item.status === 'completed')}
+        pastStays={pastStays}
+        reviews={reviews}
+        onRatePreviousStay={onRatePreviousStay}
+        returning={pastStays.length > 0 || session.bookings.some((item) => item.status === 'completed')}
         onNavigate={onNavigate}
         resumeBooking={resumeBooking}
         discovery={showNoBookingDiscovery ? { staySearch, onSearchStay, onOpenHotel } : undefined}
@@ -265,11 +271,14 @@ export function StayOverviewHome({ session, booking, staySearch, onSearchStay, p
   }
 
   if (variant === 'completed') {
+    const previousStay = pastStays.find((stay) => stay.id === booking.id);
+    const previousStayReview = reviews.find((review) => review.bookingId === booking.id);
     return (
       <div className="guest-stack guest-home-booking guest-home-booking--completed" data-testid="guest-home-completed">
         <div className="guest-page-title"><h1>Your latest stay</h1></div>
         <Notice tone="positive" icon={<CheckCircle />} title="Stay complete">Your previous room charges were settled at checkout.</Notice>
         <UpcomingBookingCard booking={booking} onNavigate={onNavigate} statusLabel="Checked out" showRoomBadge={false} hideEyebrow />
+        {previousStay ? <PreviousStayReviewCard stay={previousStay} review={previousStayReview} onRate={onRatePreviousStay} /> : null}
         {deskOpen ? (
           <button className="guest-after-checkout-card" type="button" onClick={() => onNavigate('chat')}>
             <ChatCircleDots aria-hidden="true" />
@@ -280,9 +289,11 @@ export function StayOverviewHome({ session, booking, staySearch, onSearchStay, p
             <strong>Open chat<ArrowRight aria-hidden="true" /></strong>
           </button>
         ) : null}
-        {/* The stay first, then where to go next: selling before closing read as pushy. */}
+        <section className="guest-home-rebook" aria-label="Book another stay">
+          <div className="guest-page-title"><h2>Where to next?</h2><p>Search Cabana stays by destination, dates, and guests.</p></div>
+          <StaySearchAndDestinations value={staySearch} onSearch={onSearchStay} />
+        </section>
         <BookAnotherStayCard onNavigate={onNavigate} />
-        {/* Stay history lives in Profile; a second way in here was noise. */}
       </div>
     );
   }
@@ -479,7 +490,7 @@ export function StayOverviewHome({ session, booking, staySearch, onSearchStay, p
   );
 }
 
-/** The next trip, from any home that already has one: the same search the no-booking home leads with. */
+/** A direct entry to the same stay search shown on Home. */
 function BookAnotherStayCard({ onNavigate }: { onNavigate: (screen: ActiveScreen) => void }) {
   return (
     <button className="guest-add-booking-card guest-add-booking-card--secondary" type="button" onClick={() => onNavigate('book-stay')}>
@@ -791,6 +802,8 @@ export function getVendorFolioQrValue(booking: Booking) {
 export function EmptyStayHome({
   guestName,
   pastStays,
+  reviews = [],
+  onRatePreviousStay,
   onNavigate,
   resumeBooking,
   discovery,
@@ -799,6 +812,8 @@ export function EmptyStayHome({
 }: {
   guestName: string;
   pastStays: PastStay[];
+  reviews?: StayReview[];
+  onRatePreviousStay?: (stayId: string) => void;
   /** Has stayed before -- a finished stay not yet moved into `pastStays` counts. */
   returning?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
@@ -807,6 +822,8 @@ export function EmptyStayHome({
   offers?: { nights: number; account?: PromoAccount };
 }) {
   const firstName = guestName.trim().split(' ')[0];
+  const previousStay = [...pastStays].sort((a, b) => b.checkOut.localeCompare(a.checkOut))[0];
+  const previousStayReview = previousStay ? reviews.find((review) => review.bookingId === previousStay.id) : undefined;
   return (
     <div className="guest-stack" data-testid="guest-home-empty">
       <div className="guest-page-title">
@@ -820,6 +837,7 @@ export function EmptyStayHome({
               : `Hello, ${firstName}`}
         </h1>
       </div>
+      {previousStay && (previousStayReview || onRatePreviousStay) ? <PreviousStayReviewCard stay={previousStay} review={previousStayReview} onRate={onRatePreviousStay} /> : null}
       {discovery ? <StaySearchAndDestinations value={discovery.staySearch} onSearch={discovery.onSearchStay} /> : null}
       {/*
         Keep external booking lookup available on Home for reservations made
@@ -851,6 +869,25 @@ export function EmptyStayHome({
         </section>
       ) : null}
     </div>
+  );
+}
+
+function PreviousStayReviewCard({ stay, review, onRate }: { stay: PastStay; review?: StayReview; onRate?: (stayId: string) => void }) {
+  return (
+    <section className="guest-previous-stay" aria-label="Previous stay">
+      <div className="guest-previous-stay__copy">
+        <small>Previous stay</small>
+        <b>{stay.property}</b>
+        <span>{weekdayDate(stay.checkIn)} – {weekdayDate(stay.checkOut)} · {stay.roomType}</span>
+      </div>
+      {review ? (
+        <p className="guest-previous-stay__rating" role="status">Rated {review.rating} out of 5</p>
+      ) : onRate ? (
+        <button type="button" className="guest-previous-stay__action" onClick={() => onRate(stay.id)}>
+          Rate your previous stay<ArrowRight aria-hidden="true" />
+        </button>
+      ) : null}
+    </section>
   );
 }
 

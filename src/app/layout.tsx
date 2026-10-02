@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Newsreader } from 'next/font/google';
 import { QueryProvider } from '@/lib/queries';
 import './globals.css';
@@ -16,6 +16,12 @@ export const metadata: Metadata = {
   title: 'Cabana — your stay, in one place',
   description:
     'Cabana is a light, mobile-first guest app for hotel stays: arrival, on-property services, room charges, and the front desk in a single calm surface.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

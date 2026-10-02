@@ -2146,7 +2146,7 @@ describe('booking another stay', () => {
     merging classes, the split losing a child, the payment not creating the
     booking, or Home not switching to the new stay.
   */
-  it('books two classes of room in one booking, splits the party, pays, and lands on the new stay', async () => {
+  it('skips room assignment, books two classes of room, pays, and lands on the new stay', async () => {
     const user = userEvent.setup();
     const noBooking = { ...restoreProfileSession(), bookings: [], activeBookingId: undefined };
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={noBooking} />);
@@ -2171,13 +2171,9 @@ describe('booking another stay', () => {
     expect(screen.getByText('2 rooms · fits 4 guests')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Continue/ }));
 
-    expect(screen.getByRole('heading', { name: 'Who’s in each room?' })).toBeInTheDocument();
-    expect(screen.getByRole('article', { name: /Room 1, King Room/ })).toBeInTheDocument();
-    expect(screen.getByRole('article', { name: /Room 2, Garden Suite/ })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^Continue/ }));
-
-    // Arrival extras are optional: skipping keeps the rooms-only booking.
-    expect(screen.getByRole('heading', { name: 'Add to your arrival' })).toBeInTheDocument();
+    // Guests go straight to optional arrival extras; Cabana keeps its automatic split in the draft.
+    expect(screen.getByRole('heading', { name: 'Add-ons' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Who’s in each room?' })).toBeNull();
     await user.click(screen.getByRole('button', { name: /^Skip/ }));
 
     // Details, then payment on a page of its own -- no sheet over the form.

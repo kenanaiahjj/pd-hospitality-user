@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { ArrowRight, Check, Minus, Plus } from '@phosphor-icons/react';
 import { ITEM_THUMBNAIL_IMAGES, ROOM_IMAGES } from '../service-images';
 import type { AddOnId, CelebrationSetup, StayAddOn, StayHotel, StaySearch } from './model';
-import { ADD_ON_INFO, CELEBRATION_SETUPS, OCCASIONS, PRIVATE_CAR_PER_DAY, TRANSFER_FARES, VAN_SEATS, addOnAmount, addOnError, addOnLines, addOnsFor, addOnsTotal, airportForCity, newAddOn, peso, pickupBlurb } from './model';
+import { ADD_ON_INFO, CELEBRATION_SETUPS, OCCASIONS, PRIVATE_CAR_PER_DAY, TRANSFER_FARES, VAN_SEATS, addOnAmount, addOnError, addOnLines, addOnsFor, addOnsPayNowTotal, addOnsRoomChargeTotal, airportForCity, newAddOn, peso, pickupBlurb } from './model';
 import { countNightsBetween } from '../prototype-model';
 import { weekdayDate } from './format';
 
@@ -43,7 +43,9 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
   const offered = addOnsFor(hotel);
   const chosen = addOns.filter((addOn) => offered.includes(addOn.id));
   const lines = addOnLines(chosen, hotel);
-  const total = addOnsTotal(lines);
+  const payNowTotal = addOnsPayNowTotal(lines);
+  const roomChargeTotal = addOnsRoomChargeTotal(lines);
+  const paidExtrasCount = lines.filter((line) => line.id !== 'early-check-in' && line.amount > 0).length;
   const party = search.adults + search.childAges.length;
   const nights = Math.max(1, countNightsBetween(search.checkIn, search.checkOut));
   const find = (id: AddOnId) => chosen.find((addOn) => addOn.id === id);
@@ -56,9 +58,9 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
   return (
     <div className="guest-stack sb-addons">
       <div className="guest-page-title">
-        <p className="guest-eyebrow">Optional · {hotel.name}</p>
-        <h1>Add to your arrival</h1>
-        <p>Arranged by the hotel for {weekdayDate(search.checkIn)} and paid with your rooms. You can also add these later from your stay.</p>
+        <p className="guest-eyebrow">{hotel.name} · {weekdayDate(search.checkIn)}</p>
+        <h1>Add-ons</h1>
+        <p>Early check-in is added to your room bill if confirmed.</p>
       </div>
 
       <div className="sb-addons__list">
@@ -139,7 +141,7 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
               ) : null}
 
               {addOn?.id === 'early-check-in' ? (
-                <p className="sb-addon__note">The hotel confirms before you arrive. If it can’t have your room ready, the {peso(addOnAmount(addOn))} goes back to how you paid.</p>
+                <p className="sb-addon__note">The hotel confirms first. There’s no charge if it can’t confirm.</p>
               ) : null}
             </article>
           );
@@ -149,8 +151,10 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
       <div className="guest-dock-spacer" aria-hidden="true" />
       <div className="guest-dock">
         <div className="guest-dock__summary">
-          <strong>{lines.length ? `+${peso(total)}` : 'No extras'}</strong>
-          <small className={`sb-dock__fit${missing ? '' : ' is-muted'}`} aria-live="polite">{missing ? addOnError(missing) : lines.length ? `${lines.length} ${lines.length === 1 ? 'extra' : 'extras'} added` : 'All optional'}</small>
+          <strong>{payNowTotal ? `${peso(payNowTotal)} due now` : lines.length ? 'No payment now' : 'No extras'}</strong>
+          <small className={`sb-dock__fit${missing ? '' : ' is-muted'}`} aria-live="polite">
+            {missing ? addOnError(missing) : roomChargeTotal ? `${peso(roomChargeTotal)} on your room if confirmed` : paidExtrasCount ? `${paidExtrasCount} ${paidExtrasCount === 1 ? 'extra' : 'extras'} selected` : lines.length ? 'Free extra selected' : 'All optional'}
+          </small>
         </div>
         <button type="button" className="guest-button guest-button--primary" disabled={Boolean(missing)} onClick={onContinue}>
           {lines.length ? 'Continue' : 'Skip'}<ArrowRight aria-hidden="true" />

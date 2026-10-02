@@ -1,13 +1,13 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowRight, Check, CheckCircle, CreditCard, LockSimple, Tag as TagIcon, WifiSlash, X } from '@phosphor-icons/react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowRight, CaretRight, Check, CheckCircle, CreditCard, LockSimple, Tag as TagIcon, WifiSlash, X } from '@phosphor-icons/react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
 import { countNightsBetween } from '../prototype-model';
 import { readPendingVoucher, savePendingVoucher } from './offers';
 import type { CartLine, PromoAccount, RoomAllocation, StayAddOn, StayGuestDetails, StayHotel, StaySearch } from './model';
-import { NEW_ACCOUNT, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, addOnLines, addOnsTotal, cartRooms, describeRooms, offersFor, partyLabel, peso, quoteStay, roomCancellationPolicy } from './model';
+import { NEW_ACCOUNT, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, addOnLines, addOnsPayNowTotal, addOnsRoomChargeTotal, cartRooms, describeRooms, offersFor, partyLabel, peso, quoteStay, roomCancellationPolicy, voucherOptionsFor } from './model';
 import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
@@ -66,7 +66,9 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
   const [tried, setTried] = useState(false);
   const rooms = cartRooms(hotel, cart);
   const quote = quoteStay(hotel, search, cart, details.promoCode, account);
-  const extras = addOnsTotal(addOnLines(addOns, hotel));
+  const extraLines = addOnLines(addOns, hotel);
+  const extras = addOnsPayNowTotal(extraLines);
+  const roomCharge = addOnsRoomChargeTotal(extraLines);
   const errors = detailsErrors(details);
   const valid = !Object.values(errors).some(Boolean);
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
@@ -157,9 +159,12 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
       <div className="guest-dock">
         <div className="guest-dock__summary">
           <strong>{peso(quote.total + extras)}</strong>
-          <small className={`sb-dock__fit${tried && !valid ? '' : ' is-muted'}`} role={tried && !valid ? 'alert' : undefined}>
-            {tried && !valid ? 'Check your details above' : `${nightsLabel(search.checkIn, search.checkOut)} · incl. taxes${extras ? ' and extras' : ''}`}
-          </small>
+          {tried && !valid ? <small className="sb-dock__fit" role="alert">Check your details above</small> : (
+            <>
+              <small className="sb-dock__fit is-muted">Due now · {nightsLabel(search.checkIn, search.checkOut)} · taxes included</small>
+              {roomCharge ? <small className="sb-dock__fit is-muted">{peso(roomCharge)} on your room if confirmed</small> : null}
+            </>
+          )}
         </div>
         <button type="button" className="guest-button guest-button--primary" onClick={next} aria-label="Continue to payment">
           Continue<ArrowRight aria-hidden="true" />
@@ -180,7 +185,7 @@ const METHOD_HINTS: Record<GatewayMethod, string> = {
  * to pay -- chosen right here rather than in a sheet over the form. A
  * prototype stand-in for the gateway: nothing is charged.
  */
-export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChange, onPaid, online, addOns, account = NEW_ACCOUNT, accountGate }: {
+export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChange, onPaid, online, addOns, account = NEW_ACCOUNT, accountGate, voucherPage = false, onOpenVouchers, onVoucherBack, method, onMethodChange }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
@@ -188,7 +193,7 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   onDetailsChange: (details: StayGuestDetails) => void;
   onPaid: (method: GatewayMethod) => void;
   online: boolean;
-  /** Arrival extras chosen on the step before; paid in this same payment, outside the room taxes and voucher. */
+  /** Arrival extras chosen on the step before. Early check-in is billed to the room if confirmed. */
   addOns?: StayAddOn[];
   /** Who is paying, so a first-booking code is refused once they have booked. */
   account?: PromoAccount;
@@ -197,11 +202,13 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
    * belong to someone, for its receipt, refunds and vouchers to have a home.
    */
   accountGate?: ReactNode;
+  voucherPage?: boolean;
+  onOpenVouchers: () => void;
+  onVoucherBack: () => void;
+  method: GatewayMethod | null;
+  onMethodChange: (method: GatewayMethod) => void;
 }) {
-  const [method, setMethod] = useState<GatewayMethod | null>(null);
   const [processing, setProcessing] = useState(false);
-  const [promoDraft, setPromoDraft] = useState(details.promoCode);
-  const [promoTried, setPromoTried] = useState(Boolean(details.promoCode));
   const offers = offersFor(hotel, countNightsBetween(search.checkIn, search.checkOut), account);
   /*
     An offer saved on results or the hotel page arrives applied. From a
@@ -213,8 +220,6 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
     if (details.promoCode || !pending || !offers.some((offer) => offer.code === pending)) return;
     const timer = window.setTimeout(() => {
       onDetailsChange({ ...details, promoCode: pending });
-      setPromoDraft(pending);
-      setPromoTried(true);
       savePendingVoucher(null);
     }, 0);
     return () => window.clearTimeout(timer);
@@ -227,7 +232,10 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   const quote = quoteStay(hotel, search, cart, details.promoCode, account);
   const freeRooms = rooms.filter((room) => roomCancellationPolicy(room.ratePlanId, search.checkIn).refundable).length;
   const extraLines = addOnLines(addOns, hotel);
-  const total = quote.total + addOnsTotal(extraLines);
+  const payNowLines = extraLines.filter((line) => line.id !== 'early-check-in');
+  const roomChargeLines = extraLines.filter((line) => line.id === 'early-check-in');
+  const extrasPayNow = addOnsPayNowTotal(payNowLines);
+  const total = quote.total + extrasPayNow;
   const set = (patch: Partial<StayGuestDetails>) => onDetailsChange({ ...details, ...patch });
 
   const pay = () => {
@@ -235,6 +243,20 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
     setProcessing(true);
     timer.current = window.setTimeout(() => onPaid(method), 900);
   };
+
+  if (voucherPage) {
+    return (
+      <StayVoucherPicker
+        hotel={hotel}
+        search={search}
+        cart={cart}
+        details={details}
+        onDetailsChange={onDetailsChange}
+        account={account}
+        onBack={onVoucherBack}
+      />
+    );
+  }
 
   return (
     <div className="guest-stack sb-checkout sb-payment">
@@ -259,7 +281,7 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
       <fieldset className="sb-methods" disabled={processing}>
         <legend>Pay with</legend>
         {(Object.keys(GATEWAY_METHOD_LABELS) as GatewayMethod[]).map((option) => (
-          <button key={option} type="button" aria-pressed={method === option} className={`sb-method${method === option ? ' is-active' : ''}`} onClick={() => setMethod(option)}>
+          <button key={option} type="button" aria-pressed={method === option} className={`sb-method${method === option ? ' is-active' : ''}`} onClick={() => onMethodChange(option)}>
             <span className="sb-method__glyph" data-method={option} aria-hidden="true">{option === 'card' ? <CreditCard /> : option === 'gcash' ? 'G' : 'M'}</span>
             <span className="sb-method__text"><b>{GATEWAY_METHOD_LABELS[option]}</b><small>{METHOD_HINTS[option]}</small></span>
             <span className="sb-method__radio" aria-hidden="true">{method === option ? <Check weight="bold" /> : null}</span>
@@ -270,31 +292,20 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
       <section className="sb-section sb-promo-section" aria-labelledby="sb-voucher-title">
         <h2 id="sb-voucher-title">Voucher</h2>
         {quote.promo ? (
-          <p className="sb-promo-applied"><TagIcon aria-hidden="true" /><span><b>{quote.promo.code}</b><small>{quote.promo.label} · −{peso(quote.discount)}</small></span>
-            <button type="button" aria-label="Remove voucher" disabled={processing} onClick={() => { set({ promoCode: '' }); setPromoDraft(''); setPromoTried(false); }}><X /></button>
-          </p>
+          <div className="sb-promo-applied"><TagIcon aria-hidden="true" /><span><b>{quote.promo.code}</b><small>{quote.promo.label} · −{peso(quote.discount)}</small></span>
+            <span className="sb-promo-applied__actions">
+              <button type="button" className="sb-voucher-change" disabled={processing} onClick={onOpenVouchers}>Change</button>
+              <button type="button" aria-label="Remove voucher" disabled={processing} onClick={() => set({ promoCode: '' })}><X /></button>
+            </span>
+          </div>
         ) : (
-          <>
-            {/* Always open: a guest holding a code should never hunt for where it goes. */}
-            <div className="sb-promo">
-              <label className={`sb-field${promoTried && quote.promoError ? ' is-invalid' : ''}`}>
-                <span className="sr-only">Voucher code</span>
-                <input value={promoDraft} disabled={processing} placeholder="Voucher code" autoCapitalize="characters" autoComplete="off" onChange={(event) => { setPromoDraft(event.currentTarget.value); setPromoTried(false); }} onKeyDown={(event) => { if (event.key === 'Enter' && promoDraft.trim()) { set({ promoCode: promoDraft }); setPromoTried(true); } }} />
-              </label>
-              <button type="button" className="guest-button guest-button--secondary" disabled={processing || !promoDraft.trim()} onClick={() => { set({ promoCode: promoDraft }); setPromoTried(true); }}>Apply</button>
-              {promoTried && quote.promoError ? <small className="sb-field-error" role="alert">{quote.promoError}</small> : null}
-            </div>
-            {offers.length ? (
-              <div className="sb-offers" role="group" aria-label="Offers for this stay">
-                {offers.map(({ code, promo }) => (
-                  <button key={code} type="button" className="sb-offer" disabled={processing} onClick={() => { set({ promoCode: code }); setPromoDraft(code); setPromoTried(true); }}>
-                    <TagIcon aria-hidden="true" /><span><b>{promo.label}</b><small>Use {code}</small></span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </>
+          <button type="button" className="sb-voucher-entry" disabled={processing} onClick={onOpenVouchers}>
+            <TagIcon aria-hidden="true" />
+            <span><b>Have a voucher?</b><small>See your vouchers or enter a code</small></span>
+            <CaretRight aria-hidden="true" />
+          </button>
         )}
+        {!quote.promo && quote.promoError ? <small className="sb-field-error" role="alert">{quote.promoError}</small> : null}
       </section>
 
       <section className="sb-section sb-price-card" aria-labelledby="sb-price">
@@ -308,15 +319,23 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
           ))}
           {quote.discount ? <div className="is-discount"><dt>Promo {quote.promo?.code}</dt><dd>−{peso(quote.discount)}</dd></div> : null}
           <div><dt>Taxes and fees<small>{Math.round(VAT_RATE * 100)}% VAT {peso(quote.vat)} · {Math.round(SERVICE_RATE * 100)}% service charge {peso(quote.service)}</small></dt><dd>{peso(quote.vat + quote.service)}</dd></div>
-          {extraLines.length ? (
+          {payNowLines.length ? (
             <>
               <div className="sb-price-group"><dt>Arrival extras</dt></div>
-              {extraLines.map((line) => (
+              {payNowLines.map((line) => (
                 <div key={line.id}><dt>{line.title}<small>{line.detail}</small></dt><dd>{line.amount ? peso(line.amount) : 'Free'}</dd></div>
               ))}
             </>
           ) : null}
-          <div className="is-total"><dt>Total</dt><dd>{peso(total)}</dd></div>
+          {roomChargeLines.length ? (
+            <>
+              <div className="sb-price-group"><dt>Room charge if confirmed</dt></div>
+              {roomChargeLines.map((line) => (
+                <div key={line.id}><dt>{line.title}<small>{line.detail}</small></dt><dd>{peso(line.amount)}</dd></div>
+              ))}
+            </>
+          ) : null}
+          <div className="is-total"><dt>Total due now</dt><dd>{peso(total)}</dd></div>
         </dl>
         <p className={`sb-policy${freeRooms ? ' is-positive' : ''}`}>
           {freeRooms === rooms.length && freeRooms > 0
@@ -332,7 +351,7 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
       <p className="sb-small sb-center sb-secure">
         <span className="sb-secure__inner">
           <LockSimple aria-hidden="true" />
-          <span>Paid directly to {hotel.name} through our payment partner. Not added to a room bill.</span>
+          <span>{roomChargeLines.length ? `Payment goes to ${hotel.name} through our payment partner. Early check-in is added to your room bill if confirmed.` : `Payment goes to ${hotel.name} through our payment partner. It isn’t added to a room bill.`}</span>
         </span>
       </p>
 
@@ -341,13 +360,118 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
         <div className="guest-dock__summary">
           <strong>{peso(total)}</strong>
           <small className={`sb-dock__fit${accountGate || !method ? ' is-muted' : freeRooms ? ' is-positive' : ' is-muted'}`}>
-            {accountGate ? 'Sign in above to pay' : !method ? 'Choose how to pay' : freeRooms === rooms.length && freeRooms ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : freeRooms ? `${freeRooms} of ${rooms.length} rooms refundable` : 'No room refunds'}
+            {accountGate ? 'Sign in above to pay' : !method ? 'Choose how to pay' : 'Due now'}
           </small>
+          {roomChargeLines.length ? <small className="sb-dock__fit is-muted">{peso(addOnsRoomChargeTotal(roomChargeLines))} on room if confirmed</small> : null}
+          {!roomChargeLines.length && method && !accountGate ? (
+            <small className={`sb-dock__fit${freeRooms ? ' is-positive' : ' is-muted'}`}>
+              {freeRooms === rooms.length && freeRooms ? `Free cancellation to ${shortDate(quote.freeCancellationUntil!)}` : freeRooms ? `${freeRooms} of ${rooms.length} rooms refundable` : 'No room refunds'}
+            </small>
+          ) : null}
         </div>
         <button type="button" className="guest-button guest-button--primary" disabled={Boolean(accountGate) || !method || !online || processing} onClick={pay} aria-label={processing ? 'Processing payment' : `Pay ${peso(total)}`}>
           {processing ? 'Processing…' : <><LockSimple aria-hidden="true" />Pay</>}
         </button>
       </div>
+    </div>
+  );
+}
+
+function StayVoucherPicker({ hotel, search, cart, details, onDetailsChange, account, onBack }: {
+  hotel: StayHotel;
+  search: StaySearch;
+  cart: CartLine[];
+  details: StayGuestDetails;
+  onDetailsChange: (details: StayGuestDetails) => void;
+  account: PromoAccount;
+  onBack: () => void;
+}) {
+  const [promoDraft, setPromoDraft] = useState(details.promoCode);
+  const [promoTried, setPromoTried] = useState(Boolean(details.promoCode));
+  const nights = countNightsBetween(search.checkIn, search.checkOut);
+  const quote = quoteStay(hotel, search, cart, details.promoCode, account);
+  const draftQuote = quoteStay(hotel, search, cart, promoDraft, account);
+  const options = voucherOptionsFor(hotel, nights, account);
+  const available = options
+    .filter((option) => !option.unavailableReason)
+    .sort((a, b) => b.promo.apply(quote.subtotal) - a.promo.apply(quote.subtotal));
+  const unavailable = options.filter((option) => option.unavailableReason);
+
+  const applyDraft = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!promoDraft.trim()) return;
+    setPromoTried(true);
+    if (!draftQuote.promo) return;
+    onDetailsChange({ ...details, promoCode: draftQuote.promo.code });
+    onBack();
+  };
+
+  const selectVoucher = (code: string) => {
+    onDetailsChange({ ...details, promoCode: code });
+    onBack();
+  };
+
+  return (
+    <div className="guest-stack sb-checkout sb-payment sb-voucher-page">
+      <div className="guest-page-title">
+        <h1>Vouchers</h1>
+        <p>Choose one for this stay or enter a code.</p>
+      </div>
+
+      {quote.promo ? (
+        <section className="sb-voucher-current" aria-label="Applied voucher">
+          <span><CheckCircle weight="fill" aria-hidden="true" /><b>{quote.promo.code} · {peso(quote.discount)} off</b></span>
+          <button type="button" onClick={() => { onDetailsChange({ ...details, promoCode: '' }); setPromoDraft(''); setPromoTried(false); }}>Remove</button>
+        </section>
+      ) : null}
+
+      <form className="sb-voucher-code" onSubmit={applyDraft}>
+        <label className={`sb-field${promoTried && draftQuote.promoError ? ' is-invalid' : ''}`}>
+          <span>Voucher code</span>
+          <input
+            value={promoDraft}
+            autoCapitalize="characters"
+            autoComplete="off"
+            aria-invalid={promoTried && Boolean(draftQuote.promoError) || undefined}
+            onChange={(event) => { setPromoDraft(event.currentTarget.value); setPromoTried(false); }}
+          />
+          {promoTried && draftQuote.promoError ? <small className="sb-field-error" role="alert">{draftQuote.promoError}</small> : null}
+        </label>
+        <button type="submit" className="guest-button guest-button--secondary" disabled={!promoDraft.trim()}>Apply</button>
+      </form>
+
+      <section className="sb-voucher-section" aria-labelledby="sb-vouchers-available">
+        <h2 id="sb-vouchers-available">Available for this booking</h2>
+        {available.length ? (
+          <div className="sb-voucher-list">
+            {available.map(({ code, promo }) => {
+              const selected = quote.promo?.code === code;
+              return (
+                <button key={code} type="button" className={`sb-voucher-row${selected ? ' is-selected' : ''}`} aria-pressed={selected} onClick={() => selectVoucher(code)}>
+                  <TagIcon aria-hidden="true" />
+                  <span className="sb-voucher-row__copy"><b>{promo.label}</b><code>{code}</code><small>{promo.terms}</small></span>
+                  <span className="sb-voucher-row__action">{selected ? 'Applied' : 'Apply'}<small>Save {peso(promo.apply(quote.subtotal))}</small></span>
+                </button>
+              );
+            })}
+          </div>
+        ) : <p className="sb-small">No vouchers apply to this stay.</p>}
+      </section>
+
+      {unavailable.length ? (
+        <section className="sb-voucher-section" aria-labelledby="sb-vouchers-unavailable">
+          <h2 id="sb-vouchers-unavailable">Not available for this booking</h2>
+          <div className="sb-voucher-list sb-voucher-list--unavailable">
+            {unavailable.map(({ code, promo, unavailableReason }) => (
+              <button key={code} type="button" className="sb-voucher-row is-unavailable" disabled aria-describedby={`sb-voucher-reason-${code}`}>
+                <TagIcon aria-hidden="true" />
+                <span className="sb-voucher-row__copy"><b>{promo.label}</b><code>{code}</code><small id={`sb-voucher-reason-${code}`}>{unavailableReason}</small></span>
+                <span className="sb-voucher-row__action">Unavailable</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

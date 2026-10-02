@@ -16,6 +16,47 @@
   color: var(--ds-ink);
 }
 
+@media (max-width: 719px) {
+  /* The guest app owns its scrolling surfaces. Lock the document so Safari
+     can't pan the whole screen away from its back control when a field focuses. */
+  html:has(.guest-prototype-stage),
+  body:has(.guest-prototype-stage) {
+    height: 100%;
+    overflow: clip;
+  }
+
+  .guest-prototype-stage {
+    height: 100dvh;
+    min-height: 0;
+    overflow: clip;
+  }
+
+  /* iOS Safari zooms the page when a focused text control uses less than
+     16px text. That zoom shifts full-screen sheets and their controls sideways. */
+  .guest-prototype-stage .guest-app :is(
+    input:not([type]),
+    input[type='text'],
+    input[type='email'],
+    input[type='tel'],
+    input[type='url'],
+    input[type='search'],
+    input[type='date'],
+    input[type='datetime-local'],
+    input[type='month'],
+    input[type='week'],
+    input[type='time'],
+    input[type='number'],
+    input[type='password'],
+    textarea,
+    select,
+    [contenteditable='true']
+  ) {
+    font-size: 16px;
+  }
+
+  .guest-prototype-stage .guest-app .guest-code-field input { font-size: 20px; }
+}
+
 /* Prototype infrastructure deliberately sits outside `.guest-app`. The dashed
    edge makes the control read as a demo tool, never as a guest-facing action. */
 .guest-prototype-modal-backdrop {
@@ -432,6 +473,7 @@
   position: relative;
   display: flex;
   height: 100svh;
+  height: 100dvh;
   min-height: 560px;
   flex-direction: column;
   background: var(--guest-canvas);
@@ -445,21 +487,19 @@
   align-items: center;
   gap: 8px;
   min-height: 56px;
-  padding: max(10px, env(safe-area-inset-top)) var(--app-inset) 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) var(--app-inset) 10px;
   position: relative;
   background: var(--guest-canvas);
 }
 
-/* No hairline: once content has moved under the bar, a short band below its
-   edge blurs and fades that content out instead. The band sits over the
-   scroll area, so it takes no taps. */
+/* Once content has moved under the bar, blur it without drawing a tint or
+   divider. The band sits over the scroll area, so it takes no taps. */
 .guest-appbar::after {
   position: absolute;
   top: 100%;
   right: 0;
   left: 0;
   height: 18px;
-  background: linear-gradient(to bottom, var(--guest-appbar-fade, var(--guest-canvas)), transparent);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
@@ -579,7 +619,47 @@
 @media (max-width: 719px) {
   .guest-device:has(.guest-screen--chat) {
     height: var(--guest-chat-visible-height, 100svh);
+    height: var(--guest-chat-visible-height, 100dvh);
     min-height: 0;
+  }
+
+  .guest-device[data-keyboard-open='true'] {
+    position: fixed;
+    top: var(--guest-keyboard-visible-top, 0px);
+    right: 0;
+    left: 0;
+    height: var(--guest-keyboard-visible-height, 100svh);
+    height: var(--guest-keyboard-visible-height, 100dvh);
+    min-height: 0;
+  }
+
+  .guest-device[data-chat-keyboard-open='true'] {
+    position: fixed;
+    top: var(--guest-chat-visible-top, 0px);
+    right: 0;
+    left: 0;
+    height: var(--guest-chat-visible-height, 100svh);
+    height: var(--guest-chat-visible-height, 100dvh);
+    min-height: 0;
+  }
+
+  .guest-device[data-keyboard-open='true'] .guest-bottom-nav {
+    display: none;
+  }
+
+  .guest-device[data-keyboard-compact='true'] .guest-dock {
+    display: none;
+  }
+
+  .guest-device[data-keyboard-open='true'] .guest-sheet-backdrop {
+    top: 0;
+    bottom: auto;
+    height: var(--guest-keyboard-visible-height, 100svh);
+  }
+
+  .guest-device[data-keyboard-open='true'] .guest-order-tray {
+    max-height: calc(var(--guest-keyboard-visible-height, 100svh) - 16px);
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
 .guest-screen--chat > .guest-chat {
@@ -1524,6 +1604,39 @@
 
 .guest-home-empty { min-height: 100%; align-content: center; justify-items: start; }
 .guest-home-empty .guest-page-title { max-width: 40ch; }
+.guest-home-rebook { display: grid; width: 100%; gap: 14px; }
+.guest-previous-stay {
+  display: grid;
+  width: 100%;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+.guest-previous-stay__copy { display: grid; gap: 4px; }
+.guest-previous-stay__copy small { color: var(--guest-subtle); font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.guest-previous-stay__copy b { color: var(--guest-ink); font-size: 15px; }
+.guest-previous-stay__copy span,
+.guest-previous-stay__rating { margin: 0; color: var(--guest-muted); font-size: 13px; line-height: 1.4; }
+.guest-previous-stay__action {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--guest-accent-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+.guest-previous-stay__action svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.guest-previous-stay__action:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 3px; border-radius: 4px; }
 
 /* --------------------------------------------------------------------------
    Forms
@@ -2183,7 +2296,7 @@
   display: grid;
   gap: 6px;
   margin: 0 calc(-1 * var(--app-inset));
-  padding: 12px var(--app-inset) 8px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--app-inset) 8px;
 }
 .guest-chat__identity {
   display: grid;
@@ -6936,7 +7049,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-restaurant-menu-viewer__close {
   position: absolute;
   z-index: 1;
-  top: 20px;
+  top: calc(20px + env(safe-area-inset-top, 0px));
   right: 20px;
   width: 40px;
   height: 40px;
@@ -7945,8 +8058,6 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-screen.has-nav:not(.guest-screen--chat) {
   background: var(--guest-paper);
 }
-.guest-device:has(.guest-screen.has-nav:not(.guest-screen--chat)) .guest-appbar { --guest-appbar-fade: var(--guest-paper); }
-
 .guest-screen.has-nav:not(.guest-screen--chat) .guest-home-booking--active {
   gap: 28px;
 }
@@ -9118,6 +9229,36 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-app .guest-nearby-detail__cta { display: grid; gap: 8px; }
 .guest-app .guest-nearby-detail__cta a.guest-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
 .guest-app .guest-nearby-detail__alt { justify-self: center; padding: 6px 10px; border: 0; background: none; color: var(--guest-accent-strong); font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
+
+/* Pre-arrival Explore: a visual index to places guests can use before they scan in. */
+.guest-app .guest-nearby-discovery { display: grid; gap: 14px; margin-top: 8px; }
+.guest-app .guest-nearby-discovery__heading { display: grid; gap: 4px; }
+.guest-app .guest-nearby-discovery__heading h2 { margin: 0; color: var(--guest-ink); font-size: 21px; font-weight: 650; }
+.guest-app .guest-nearby-discovery__heading p,
+.guest-app .guest-nearby-discovery__empty { margin: 0; color: var(--guest-muted); font-size: 15px; line-height: 1.45; }
+.guest-app .guest-nearby-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.guest-app .guest-nearby-category-card { position: relative; display: flex; min-width: 0; min-height: 156px; align-items: flex-end; overflow: hidden; padding: 14px; border: 0; border-radius: 18px; background: var(--guest-sunken); color: white; text-align: left; cursor: pointer; isolation: isolate; }
+.guest-app .guest-nearby-category-card img { position: absolute; z-index: -2; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 180ms ease; }
+.guest-app .guest-nearby-category-card__scrim { position: absolute; z-index: -1; inset: 0; background: linear-gradient(180deg, rgb(28 13 20 / 7%) 10%, rgb(28 13 20 / 78%) 100%); }
+.guest-app .guest-nearby-category-card__copy { display: grid; gap: 3px; min-width: 0; padding-right: 22px; }
+.guest-app .guest-nearby-category-card__copy small { color: rgb(255 255 255 / 82%); font-size: 12px; font-weight: 550; }
+.guest-app .guest-nearby-category-card__copy b { font-size: 17px; line-height: 1.2; }
+.guest-app .guest-nearby-category-card__copy > span { color: rgb(255 255 255 / 88%); font-size: 12px; line-height: 1.3; }
+.guest-app .guest-nearby-category-card__arrow { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; padding: 7px; border-radius: 50%; background: rgb(28 13 20 / 35%); color: white; }
+.guest-app .guest-nearby-category-card:focus-visible { outline: 3px solid var(--guest-accent-strong); outline-offset: 3px; }
+.guest-app .guest-nearby-category-card:active img { transform: scale(1.035); }
+.guest-app .guest-nearby-discovery__empty { padding: 16px; border-radius: 16px; background: var(--guest-soft); }
+.guest-app .guest-table-request__requests textarea { font-size: 16px; }
+
+@media (hover: hover) {
+  .guest-app .guest-nearby-category-card:hover img { transform: scale(1.035); }
+}
+
+@media (min-width: 720px) {
+  .guest-app .guest-nearby-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .guest-app .guest-nearby-category-card { min-height: 190px; }
+  .guest-app .guest-nearby-category-card:last-child:nth-child(3n + 2) { grid-column: span 2; }
+}
 
 /* --- Push banner: frosted like the tab bar, the whole thing a tap ------------------- */
 .guest-prototype-stage .guest-push {

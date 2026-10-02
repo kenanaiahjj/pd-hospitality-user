@@ -51,11 +51,9 @@ export type Reservation = {
   receipt?: CompanyReceipt;
   /** The voucher used, and what it took off the rooms. */
   promo?: { code: string; label: string; discount: number };
-  /**
-   * Arrival extras paid in the same payment. Kept apart from `total`, which is
-   * the rooms alone, so cancelling a room refunds only that room's share.
-   */
+  /** Arrival extras paid with the booking. Excludes charges added to the room if confirmed. */
   addOns?: { id: AddOnId; serviceBookingId: string; title: string; amount: number; detail?: string }[];
+  /** Upfront extras only; excludes room charges such as confirmed early check-in. */
   addOnsTotal?: number;
 };
 
@@ -195,6 +193,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'A boutique hotel in Banilad with distinctive design and on-site dining.',
     about: 'The Henry Hotel Cebu sits in Banilad near Paseo Saturnino, with a pool deck, the Azotea rooftop and quick access to Mactan.',
     amenities: ['pool', 'restaurant', 'wifi', 'breakfast', 'airport-transfer', 'gym'],
+    phone: '+63 32 520 8877',
+    email: 'reservations.cebu@thehenryhotel.com',
     henry: true,
     roomTypes: [
       room('cebu-deluxe', 'Deluxe Room', 5600, 2, 2, 28, '1 queen bed', 'Pool view', ROOM_PHOTOS.deluxe, ['Rain shower', 'Smart TV']),
@@ -758,11 +758,24 @@ export const PROMO_CODES: Record<string, Promo> = {
   },
 };
 
+export type VoucherOption = { code: string; promo: Promo; unavailableReason?: string };
+
+const promoUnavailableReason = (promo: Promo, hotel: StayHotel | undefined, nights: number, account: PromoAccount) =>
+  promo.refuses?.(account) ?? promo.rejects?.(hotel, nights);
+
+/** The checkout voucher list, including offers that do not qualify for this guest or stay. */
+export function voucherOptionsFor(hotel: StayHotel | undefined, nights: number, account: PromoAccount = NEW_ACCOUNT): VoucherOption[] {
+  return Object.entries(PROMO_CODES).map(([code, promo]) => {
+    const unavailableReason = promoUnavailableReason(promo, hotel, nights, account);
+    return { code, promo, ...(unavailableReason ? { unavailableReason } : {}) };
+  });
+}
+
 /** The offers a stay qualifies for, best first -- what checkout suggests without the guest knowing a code. */
 export function offersFor(hotel: StayHotel | undefined, nights: number, account: PromoAccount = NEW_ACCOUNT): { code: string; promo: Promo }[] {
-  return Object.entries(PROMO_CODES)
-    .filter(([, promo]) => !promo.refuses?.(account) && !promo.rejects?.(hotel, nights))
-    .map(([code, promo]) => ({ code, promo }));
+  return voucherOptionsFor(hotel, nights, account)
+    .filter((option) => !option.unavailableReason)
+    .map(({ code, promo }) => ({ code, promo }));
 }
 
 export const normalizePromo = (code: string) => code.trim().toUpperCase();
@@ -791,7 +804,7 @@ export function quoteStay(hotel: StayHotel, search: StaySearch, cart: CartLine[]
   const subtotal = lines.reduce((sum, line) => sum + line.total, 0);
   const code = normalizePromo(promoCode);
   const known = code ? PROMO_CODES[code] : undefined;
-  const rejection = known?.refuses?.(account) ?? known?.rejects?.(hotel, nights);
+  const rejection = known ? promoUnavailableReason(known, hotel, nights, account) : undefined;
   const promo = rejection ? undefined : known;
   const discount = promo ? promo.apply(subtotal) : 0;
   const taxable = subtotal - discount;
@@ -995,6 +1008,8 @@ export function bookingFromDraft({ hotel, search, cart, allocation, details, quo
     checkIn: search.checkIn,
     checkOut: search.checkOut,
     roomType: describeRooms(rooms),
+    arrivalTime: details.arrivalTime,
+    specialRequests: details.requests.trim() || undefined,
     guestCount: search.adults + search.childAges.length,
     source: 'Cabana app',
     preArrivalCompleted: 0,
@@ -1225,13 +1240,13 @@ export const TRAVEL_NOTES: Record<string, TravelNote> = {
   Tagaytay: { summary: 'About 1.5–2 hours by road from Manila', steps: ['Drive via CAVITEX or SLEX and Santa Rosa–Tagaytay Road', 'Or a bus from Pasay to Tagaytay Rotonda, then a short tricycle ride'], transfer: false },
 };
 
-/* ---------- arrival extras, booked with the rooms ---------- */
+/* ---------- optional extras for a new hotel booking ---------- */
 
 /*
-  The pre-arrival roster, offered between choosing rooms and paying for them
+  The roster between choosing rooms and paying for them
   (docs/superpowers/specs/2026-09-30-hotel-booking-pre-arrival-add-ons-design.md).
-  The draft holds only what the guest chose; service bookings exist once the
-  payment that covers them has gone through.
+  Paid extras and an early-check-in request are attached after the booking
+  payment succeeds; the request itself is charged only if the hotel confirms.
 */
 
 export type AddOnId = 'transfer' | 'private-car' | 'luggage' | 'celebration' | 'early-check-in';
@@ -1266,7 +1281,7 @@ export const ADD_ON_INFO: Record<AddOnId, { title: string; blurb: string }> = {
   'private-car': { title: 'Private car & driver', blurb: 'A car and driver for the day, up to 10 hours.' },
   luggage: { title: 'Luggage storage & delivery', blurb: 'Bags held before check-in and after check-out, or sent to your room.' },
   celebration: { title: 'Flowers & celebration setup', blurb: 'The room ready for the occasion when you walk in.' },
-  'early-check-in': { title: 'Early check-in', blurb: `Your room from ${EARLY_CHECK_IN.time} instead of ${CHECK_IN_FROM}.` },
+  'early-check-in': { title: 'Early check-in', blurb: `Your room from ${EARLY_CHECK_IN.time} instead of ${CHECK_IN_FROM}. Added to your room bill if confirmed.` },
 };
 
 /** Up to this many passengers ride in the executive van; more take the private van. */
@@ -1316,7 +1331,7 @@ export function addOnDetail(addOn: StayAddOn, hotel: StayHotel): string {
     case 'transfer': return `${airportForCity(hotel.city)} · ${addOn.time ? clockLabel(addOn.time) : 'landing time needed'} · ${addOn.passengers} ${addOn.passengers === 1 ? 'guest' : 'guests'} · ${transferVehicle(addOn.passengers ?? 1)}`;
     case 'private-car': return `${addOn.days} ${addOn.days === 1 ? 'day' : 'days'} from check-in`;
     case 'celebration': return `${CELEBRATION_SETUPS[addOn.setup ?? 'flowers'].label}${addOn.occasion ? ` · ${addOn.occasion}` : ''}`;
-    case 'early-check-in': return `From ${EARLY_CHECK_IN.time} · refunded if the hotel can’t confirm`;
+    case 'early-check-in': return `From ${EARLY_CHECK_IN.time}`;
     default: return 'Complimentary';
   }
 }
@@ -1335,11 +1350,13 @@ export function addOnLines(addOns: StayAddOn[] | undefined, hotel: StayHotel): A
 }
 
 export const addOnsTotal = (lines: AddOnLine[]) => lines.reduce((sum, line) => sum + line.amount, 0);
+export const addOnsPayNowTotal = (lines: AddOnLine[]) => lines.reduce((sum, line) => sum + (line.id === 'early-check-in' ? 0 : line.amount), 0);
+export const addOnsRoomChargeTotal = (lines: AddOnLine[]) => lines.reduce((sum, line) => sum + (line.id === 'early-check-in' ? line.amount : 0), 0);
 
 /**
- * The paid extras as the stay's service bookings, made only once the payment
- * has succeeded. Ids follow the ones the pre-arrival cart uses, so My Stay,
- * cancellation and refunds treat them like any other arrival booking.
+ * Arrival extras as the stay's service bookings, made only after the booking
+ * payment succeeds. Early check-in waits for hotel confirmation before its
+ * room charge is posted.
  */
 export function addOnServiceBookings({ addOns, hotel, booking, method, paidAt }: {
   addOns: StayAddOn[] | undefined;
@@ -1352,7 +1369,8 @@ export function addOnServiceBookings({ addOns, hotel, booking, method, paidAt }:
   const offered = addOnsFor(hotel);
   return (addOns ?? []).filter((addOn) => offered.includes(addOn.id)).map((addOn): ServiceBooking => {
     const amount = addOnAmount(addOn);
-    const paid = { amount: formatPesoAmount(amount), status: 'confirmed' as const, bookedAt: paidAt, bookingId: booking.id, scheduledDate: booking.checkIn, ...(amount ? { paymentStatus: 'paid' as const, paymentMethod: method } : { paymentStatus: 'complimentary' as const }) };
+    const booked = { amount: formatPesoAmount(amount), status: 'confirmed' as const, bookedAt: paidAt, bookingId: booking.id, scheduledDate: booking.checkIn };
+    const paid = { ...booked, ...(amount ? { paymentStatus: 'paid' as const, paymentMethod: method } : { paymentStatus: 'complimentary' as const }) };
     switch (addOn.id) {
       case 'transfer': {
         const airport = airportForCity(hotel.city);
@@ -1405,7 +1423,9 @@ export function addOnServiceBookings({ addOns, hotel, booking, method, paidAt }:
       }
       case 'early-check-in':
         return {
-          ...paid,
+          ...booked,
+          paymentStatus: amount ? 'pending-confirmation' : 'complimentary',
+          paymentMethod: 'room',
           id: earlyCheckInBookingId(booking.id),
           serviceId: 'early-check-in',
           title: 'Early check-in',
@@ -1414,8 +1434,8 @@ export function addOnServiceBookings({ addOns, hotel, booking, method, paidAt }:
           summary: `${EARLY_CHECK_IN.time} · instead of ${CHECK_IN_FROM}`,
           facts: [
             { label: 'Room from', value: `${EARLY_CHECK_IN.time} instead of ${CHECK_IN_FROM}` },
-            { label: 'Status', value: 'Paid with your booking · waiting for the hotel to confirm' },
-            { label: 'If not approved', value: 'Refunded to how you paid' },
+            { label: 'Status', value: 'Waiting for the hotel to confirm' },
+            { label: 'If approved', value: `${formatPesoAmount(amount)} added to your room bill, due at checkout` },
           ],
         };
       default:
@@ -1433,8 +1453,8 @@ export function addOnServiceBookings({ addOns, hotel, booking, method, paidAt }:
 }
 
 /**
- * A paid booking with its extras attached: the service bookings to add to the
- * session, and the reservation recording them apart from the rooms.
+ * A paid booking with its extras attached: service bookings and the
+ * reservation's upfront-only extras total, apart from the room total.
  */
 export function withAddOns({ booking, hotel, addOns, method, paidAt }: {
   booking: Booking;
@@ -1445,7 +1465,7 @@ export function withAddOns({ booking, hotel, addOns, method, paidAt }: {
 }): { booking: Booking; services: ServiceBooking[]; total: number; lines: AddOnLine[] } {
   const services = addOnServiceBookings({ addOns, hotel, booking, method, paidAt });
   const lines = addOnLines(addOns, hotel);
-  const total = addOnsTotal(lines);
+  const total = addOnsPayNowTotal(lines);
   if (!services.length || !booking.reservation) return { booking, services: [], total: 0, lines: [] };
   return {
     services,

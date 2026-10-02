@@ -112,7 +112,7 @@ function ReservationSummary({ booking }: { booking: Booking }) {
       {reservation.addOns?.length ? (
         <ul className="sb-reservation__extras" aria-label="Arrival extras">
           {reservation.addOns.map((extra) => (
-            <li key={extra.serviceBookingId}><span><b>{extra.title}</b><small>{extra.detail ?? 'Arrival extra'}</small></span><span>{extra.amount ? peso(extra.amount) : 'Free'}</span></li>
+            <li key={extra.serviceBookingId}><span><b>{extra.title}</b><small>{extra.id === 'early-check-in' ? `${extra.detail ?? 'Early check-in'} · charged to your room if confirmed` : extra.detail ?? 'Arrival extra'}</small></span><span>{extra.amount ? peso(extra.amount) : 'Free'}</span></li>
           ))}
         </ul>
       ) : null}

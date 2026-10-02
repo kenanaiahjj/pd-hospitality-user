@@ -136,6 +136,7 @@ export function PrototypeControls({
   onEmptyAccount,
   pages,
   hotelEvents = [],
+  guestEvents = [],
   onClearDeviceData,
 }: {
   online: boolean;
@@ -173,6 +174,8 @@ export function PrototypeControls({
   pages: PrototypePage[];
   /** The hotel answering what a guest asked for before arrival. */
   hotelEvents?: PrototypeEvent[];
+  /** Guest-side chat and service requests available in the current stay state. */
+  guestEvents?: PrototypeEvent[];
   /** Forgets what this device kept: saved hotels, recent searches, a saved offer, a booking draft. */
   onClearDeviceData?: () => void;
 }) {
@@ -259,6 +262,7 @@ export function PrototypeControls({
     { group: 'PMS events', icon: <BellRinging />, label: 'Simulate room ready', detail: 'Housekeeping marks the assigned room ready.', onClick: onSimulateRoomReady, unavailable: offline ?? (canSimulateRoomReady ? undefined : 'Needs a room that is being prepared') },
     { group: 'PMS events', icon: <Bed />, label: 'Approve upgrade request', detail: 'The front desk confirms the upgrade and assigns the room.', onClick: onSimulateUpgradeApproved, unavailable: offline ?? (canSimulateUpgradeApproved ? undefined : 'No upgrade requested') },
     ...hotelEvents.map((event) => ({ ...event, group: 'Hotel answers' })),
+    ...guestEvents.map((event) => ({ ...event, group: 'Guest requests' })),
     { group: 'Gates', icon: <QrCode />, label: roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)', detail: roomVerified ? 'Locks the stay again, so the scan can be run.' : 'Opens on-property services without scanning.', onClick: onToggleRoomVerified, unavailable: canToggleRoomVerified ? undefined : 'Needs a stay with a room' },
     { group: 'Gates', icon: <ClockCountdown />, label: simulatePostStayExpired ? 'Reset 24-hour chat window' : 'Simulate 24 hours after checkout', detail: simulatePostStayExpired ? 'Reopens the front desk after checkout.' : 'The desk closes and the stay moves to Profile: Home has no booking.', onClick: onTogglePostStayExpired },
     { group: 'Data', icon: <Receipt />, label: hasHistory ? 'Clear stay history' : 'Seed stay history', detail: hasHistory ? 'As a first-time guest, with no past stays.' : 'Adds past stays to the profile.', onClick: onToggleHistory },
@@ -452,4 +456,3 @@ export function PrototypeControls({
     </div>
   );
 }
-

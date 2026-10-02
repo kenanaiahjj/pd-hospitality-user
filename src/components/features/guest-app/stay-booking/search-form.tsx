@@ -424,7 +424,6 @@ export function GuestsPanel({ adults, childAges, onChange, showErrors }: { adult
               </select>
             </label>
           ))}
-          <p className="sb-guests__note">Age at check-in. Under 6 stay free.</p>
         </div>
       ) : null}
     </div>

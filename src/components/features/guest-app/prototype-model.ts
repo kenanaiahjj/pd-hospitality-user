@@ -14,10 +14,10 @@ export type ScreenId =
   | 'book-stay-dates'
   | 'book-stay-results'
   | 'book-stay-hotel'
-  | 'book-stay-rooms'
   | 'book-stay-addons'
   | 'book-stay-checkout'
   | 'book-stay-payment'
+  | 'book-stay-vouchers'
   | 'book-stay-confirmation'
   | 'identify-returning'
   | 'verify-contact'
@@ -217,6 +217,9 @@ export type Booking = {
   reportsRoomReadiness?: boolean;
   /** Preferences the property could honour, echoed back after allocation. */
   honouredPreferences?: string[];
+  /** Returning guest's requested arrival window and note for this reservation. */
+  arrivalTime?: string;
+  specialRequests?: string;
   guestCount: number;
   source: string;
   preArrivalCompleted: number;
@@ -336,6 +339,8 @@ export type ServiceBooking = {
   scheduledHour?: number;
   /** ISO date the guest made the booking, as distinct from when it happens. */
   bookedAt?: string;
+  /** ISO date an in-app service was posted to the room folio, distinct from its service date. */
+  roomChargePostedAt?: string;
   /**
    * What was booked, as `SERVICES[].id`.
    *
@@ -353,7 +358,9 @@ export type ServiceBooking = {
   amount: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   provider?: string;
-  paymentStatus?: 'charged-to-room' | 'paid' | 'payment-pending' | 'pending-confirmation' | 'complimentary' | 'refunded';
+  paymentStatus?: 'charged-to-room' | 'paid' | 'payment-pending' | 'pending-confirmation' | 'complimentary' | 'refunded' | 'pay-at-provider';
+  /** An independent vendor still needs to confirm the request. */
+  bookingConfirmation?: 'awaiting-provider';
   /**
    * The hotel's answer to something only it can promise -- early check-in,
    * late checkout, an extra night, a driver. Absent while it is still asked.
@@ -524,6 +531,8 @@ export type PaymentRecord = {
 export type GuestSession = {
   guestName: string;
   email: string;
+  /** Contact mobile collected at checkout, separate from optional ID registration details. */
+  mobile?: string;
   bookings: Booking[];
   activeBookingId?: string;
   serviceBookings: ServiceBooking[];
@@ -2639,6 +2648,7 @@ export function shiftServiceBooking(service: ServiceBooking, days: number): Serv
     scheduledDate,
     scheduledFor: time ? `${day} · ${time}` : day,
     bookedAt: service.bookedAt ? shiftIsoDay(service.bookedAt, days) : undefined,
+    roomChargePostedAt: service.roomChargePostedAt ? shiftIsoDay(service.roomChargePostedAt, days) : undefined,
   };
 }
 
@@ -2748,7 +2758,7 @@ export type StayEntry = {
    * and some things cost nothing, so "charged to your room" is one answer of
    * three rather than a safe default.
    */
-  paidBy: 'room' | 'card' | 'complimentary';
+  paidBy: 'room' | 'card' | 'complimentary' | 'provider';
   /** Where tapping it goes, when it goes anywhere. */
   screen?: ScreenId;
 };
@@ -2781,14 +2791,15 @@ const PAYMENT_METHOD_LABELS: Record<NonNullable<ServiceBooking['paymentMethod']>
 };
 
 /** Where a booking's money went, as the receipt states it. */
-export function describeServicePaidBy(service: Pick<ServiceBooking, 'paymentStatus'>): StayEntry['paidBy'] {
+export function describeServicePaidBy(service: Pick<ServiceBooking, 'paymentStatus' | 'bookingConfirmation'>): StayEntry['paidBy'] {
   if (service.paymentStatus === 'complimentary') return 'complimentary';
   if (service.paymentStatus === 'paid') return 'card';
+  if (service.paymentStatus === 'pay-at-provider' || service.bookingConfirmation === 'awaiting-provider') return 'provider';
   return 'room';
 }
 
 const describeServiceSettlement = (
-  service: Pick<ServiceBooking, 'status' | 'paymentStatus' | 'paymentMethod'>,
+  service: Pick<ServiceBooking, 'status' | 'paymentStatus' | 'paymentMethod' | 'bookingConfirmation'>,
   roomNumber?: string,
 ): string | undefined => {
   const room = roomNumber ? `room ${roomNumber}` : 'your room';
@@ -2798,6 +2809,8 @@ const describeServiceSettlement = (
   // total above the list is not where this one landed.
   if (paidBy === 'card') return `Paid with ${PAYMENT_METHOD_LABELS[service.paymentMethod ?? 'card']}`;
   if (paidBy === 'complimentary') return 'Complimentary';
+  if (service.bookingConfirmation === 'awaiting-provider') return 'Awaiting provider confirmation';
+  if (service.paymentStatus === 'pay-at-provider') return 'Pay the provider directly';
   if (service.paymentStatus === 'pending-confirmation') return 'Awaiting hotel confirmation';
   if (service.status === 'completed') return `Completed · charged to ${room}`;
   // Still ahead: the running total already says where this lands.
@@ -2970,8 +2983,14 @@ function shortWhen(when: string): string {
 /** Asked of the hotel and not yet answered: a room-charge request, or a paid one whose status says it waits. */
 export function awaitsHotel(service: ServiceBooking): boolean {
   if (service.status !== 'confirmed' || service.hotelDecision) return false;
+  if (service.bookingConfirmation === 'awaiting-provider') return false;
   return service.paymentStatus === 'pending-confirmation'
     || Boolean(service.facts?.some((fact) => fact.label === 'Status' && /requested|waiting|confirms the driver/i.test(fact.value)));
+}
+
+/** A nearby booking request belongs to the independent provider, not the hotel's approval queue. */
+export function awaitsProvider(service: ServiceBooking): boolean {
+  return service.status === 'confirmed' && !service.hotelDecision && service.bookingConfirmation === 'awaiting-provider';
 }
 
 export function getNotifications(session: GuestSession, booking?: Booking): GuestNotification[] {
@@ -3052,7 +3071,8 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
 
   for (const service of session.serviceBookings) {
     if (service.bookingId !== booking.id || service.status !== 'confirmed' || service.hotelDecision) continue;
-    const waiting = awaitsHotel(service);
+    const waitingOnProvider = awaitsProvider(service);
+    const waiting = awaitsHotel(service) || waitingOnProvider;
 
     notifications.push(service.diningOrder ? {
       id: `notification-order-${service.id}`,
@@ -3068,8 +3088,9 @@ export function getNotifications(session: GuestSession, booking?: Booking): Gues
       title: waiting ? `${service.title} requested` : `${service.title} confirmed`,
       // Where the money went, not "added to your room" for every line.
       // A reservation has no money story: say who it is for, not where a charge went.
-      body: !service.paymentStatus && !parsePesoAmount(service.amount) ? `${shortWhen(service.scheduledFor)}${service.partySize ? ` · ${service.partySize} ${service.partySize === 1 ? 'guest' : 'guests'}` : ''}${waiting ? ' · awaiting confirmation' : ''}` : `${shortWhen(service.scheduledFor)} · ${
+      body: waitingOnProvider ? `${shortWhen(service.scheduledFor)} · awaiting ${service.provider ?? 'provider'} confirmation` : !service.paymentStatus && !parsePesoAmount(service.amount) ? `${shortWhen(service.scheduledFor)}${service.partySize ? ` · ${service.partySize} ${service.partySize === 1 ? 'guest' : 'guests'}` : ''}${waiting ? ' · awaiting confirmation' : ''}` : `${shortWhen(service.scheduledFor)} · ${
         waiting ? 'awaiting hotel confirmation'
+          : service.paymentStatus === 'pay-at-provider' ? 'pay the provider directly'
           : service.paymentStatus === 'complimentary' ? 'complimentary'
             : service.paymentStatus === 'paid' ? `paid with ${PAYMENT_METHOD_LABELS[service.paymentMethod ?? 'card']}`
               : `added to ${room.toLowerCase()}`}`,
@@ -3571,19 +3592,24 @@ export function getRoomCharges(
   // A stay that has not started cannot have run anything up yet.
   const hasKnownFolio = parsePesoAmount(session.folioTotal || booking.folioTotal || '₱0') > 0;
   const posted = booking.status === 'upcoming' || !hasKnownFolio ? [] : postedChargesFor(booking);
-  // A booking still ahead has not been charged yet: it is on My Stay's Upcoming, not the bill.
+  // Room charges post when the booking says they do; older rows fall back to the service date.
   const booked: RoomCharge[] = session.serviceBookings
-    .filter((service) => service.bookingId === booking.id && isChargedToRoom(service) && service.scheduledDate <= PROTOTYPE_TODAY)
+    .filter((service) => service.bookingId === booking.id
+      && isChargedToRoom(service)
+      && (service.roomChargePostedAt ?? service.scheduledDate) <= PROTOTYPE_TODAY)
     .map((service) => {
-      const date = new Date(`${service.scheduledDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const date = new Date(`${service.roomChargePostedAt ?? service.scheduledDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const serviceDate = new Date(`${service.scheduledDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const time = service.scheduledFor.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
       return {
         id: service.id,
         date,
         title: service.title,
         detail: service.diningOrder
-          ? `${countOf(service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0), 'item')} · ${date} · ${time}`
-          : `${date} · ${time}`,
+          ? `${countOf(service.diningOrder.items.reduce((sum, item) => sum + item.quantity, 0), 'item')} · ${serviceDate} · ${time}`
+          : service.roomChargePostedAt && service.roomChargePostedAt !== service.scheduledDate
+            ? `For ${serviceDate} · ${time}`
+            : `${serviceDate} · ${time}`,
         amount: service.amount,
         pointsSource: 'in-app-booking' as const,
       };

@@ -62,7 +62,7 @@ export function PointsWallet({
     <section className="points-wallet">
       <p className="points-wallet__balance">
         <b>{points(balance)}</b>
-        <span>points · {pointsAsPesos(balance)} off anything</span>
+        <span>points · {pointsAsPesos(balance)} to use on services booked in a stay</span>
       </p>
       {pending > 0 ? (
         <p className="points-wallet__pending">

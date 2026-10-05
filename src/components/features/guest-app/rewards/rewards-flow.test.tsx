@@ -107,7 +107,7 @@ describe('PointsWallet', () => {
     renderWallet();
 
     expect(screen.getByText('31,520')).toBeInTheDocument();
-    expect(screen.getByText(/₱3,100 off anything/)).toBeInTheDocument();
+    expect(screen.getByText(/₱3,100 to use on services booked in a stay/)).toBeInTheDocument();
     expect(screen.getByText('Couples massage suite')).toBeInTheDocument();
   });
 
@@ -428,6 +428,10 @@ describe('redeeming from the app', () => {
     await userEvent.click(screen.getByRole('button', { name: /hilom signature massage/i }));
     await userEvent.click(screen.getByRole('button', { name: /redeem/i }));
 
+    // The guest is given a code to quote, and the desk is told.
+    expect(screen.getByText('RW-001-HIL')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+
     // 31,520 − 16,000, and no earn for the redemption itself.
     await userEvent.click(screen.getByRole('tab', { name: 'Points' }));
     expect(screen.getByText('15,520')).toBeInTheDocument();
@@ -543,7 +547,7 @@ describe('points where money is already being discussed', () => {
     render(<GuestAppPrototype initialSession={live} initialScreen="folio" />);
 
     expect(screen.getByText(/32,520 points/)).toBeInTheDocument();
-    expect(screen.getByText(/₱3,200 off this bill/)).toBeInTheDocument();
+    expect(screen.getByText(/₱3,200 to use on services you book in your stay/)).toBeInTheDocument();
   });
 
   /*

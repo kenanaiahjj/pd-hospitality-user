@@ -177,7 +177,7 @@
 .guest-app .sb-switch input:checked::after { transform: translateX(20px); }
 
 /* map */
-.guest-app .sb-map { position: relative; overflow: hidden; border-radius: var(--guest-radius-lg); border: 1px solid var(--guest-line); }
+.guest-app .sb-map { position: relative; isolation: isolate; overflow: hidden; border-radius: var(--guest-radius-lg); border: 1px solid var(--guest-line); }
 .guest-app .sb-map__canvas { height: min(52vh, 520px); background: var(--guest-sunken); }
 .guest-app .sb-map-marker { background: none; border: 0; }
 .guest-app .sb-map-pin {
@@ -614,7 +614,7 @@
 .guest-app .sb-hotel__title .sb-highlight { font-size: 13.5px; }
 
 .guest-app .sb-hood { gap: 14px; }
-.guest-app .sb-hood-map { height: 190px; overflow: hidden; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-sunken); }
+.guest-app .sb-hood-map { isolation: isolate; height: 190px; overflow: hidden; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-lg); background: var(--guest-sunken); }
 .guest-app .sb-hood-marker { background: none; border: 0; }
 
 .guest-app .sb-hood-pin[data-kind='food']::before { background: oklch(0.66 0.15 55); }
@@ -712,9 +712,9 @@
 .guest-app .sb-method.is-active .sb-method__radio { border-color: var(--guest-accent); background: var(--guest-accent); }
 .guest-app .sb-method__radio svg { width: 12px; height: 12px; }
 .guest-app .sb-secure { display: flex; align-items: center; justify-content: center; }
-.guest-app .sb-secure__inner { display: inline-flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; text-align: left; }
+.guest-app .sb-secure__inner { display: inline-flex; align-items: flex-start; justify-content: center; gap: 6px; max-width: 100%; text-align: left; }
 .guest-app .sb-secure__inner > span { min-width: 0; }
-.guest-app .sb-secure svg { flex: 0 0 14px; width: 14px; height: 14px; }
+.guest-app .sb-secure svg { flex: 0 0 14px; width: 14px; height: 14px; margin-top: 0.2em; }
 
 .guest-app .sb-payment { gap: 22px; }
 

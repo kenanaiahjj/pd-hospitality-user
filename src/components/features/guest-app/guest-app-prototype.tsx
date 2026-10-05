@@ -108,6 +108,9 @@ import {
   SERVICES,
   ssoSession,
   signOutSession,
+  getRewards,
+  accountActivity,
+  restoreAccountActivity,
   findProfileByLookup,
   restoreProfileSession,
   toFinishedStay,
@@ -253,8 +256,11 @@ import {
   pesosOff,
   redeemReward,
   spendPoints,
+  returnPoints,
+  maxApplicable,
+  redemptionCode,
 } from './rewards';
-import { clearStoredSession, readStoredSession, readStoredStayDraft, writeStoredSession, writeStoredStayDraft } from './session-storage';
+import { clearStoredSession, readAccountStash, readStoredSession, readStoredStayDraft, writeAccountStash, writeStoredSession, writeStoredStayDraft } from './session-storage';
 import { AccountSignInCard } from './guest-account';
 import { Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
 import { HeroIcon, formatPastStayDates } from './guest-ui';
@@ -388,7 +394,18 @@ const ARRIVAL_BLURBS: Record<string, string> = {
  * cover a guest three days out and a guest standing in their room, and the two
  * need opposite things said to them -- one is waiting, the other can act now.
  */
-type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out' | 'scanned-early' | 'failed' | 'pms-down' | 'scan-failed';
+type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pending' | 'checked-out' | 'scanned-early' | 'failed' | 'pms-down' | 'scan-failed' | 'no-slot';
+
+/*
+  What View booking opens onto. Reached from a trip the app is not following,
+  these act on that trip, not on the nearer one: its guests, its upgrade, its
+  arrival extras.
+*/
+const VIEWED_TRIP_SCREENS: ActiveScreen[] = [
+  'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details',
+  'additional-guests', 'guest-details', 'room-preferences', 'repeat-review',
+  'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'service-detail', 'vendor-service', 'hotel-service',
+];
 
 /* Booking a hotel starts from Home, so Home stays lit through it. */
 const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation'];
@@ -563,6 +580,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
   /* Which reward the detail screen is showing. */
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
+  /** The reward just redeemed: what to quote at the desk, and whether the desk was told. */
+  const [redeemedReward, setRedeemedReward] = useState<{ code: string; toldDesk: boolean } | null>(null);
   /* Points staged against the booking in progress, in ₱100 blocks. */
   const [appliedPoints, setAppliedPoints] = useState(0);
   /* Only third-party vendors offer pay-now; everything else stays on the room. */
@@ -1002,6 +1021,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** `viewBooking`: open View booking for that trip, not the one the app is following. */
   const go = (next: ActiveScreen, viewBooking?: string) => {
     if (next === 'rate-detail') setViewedBookingId(viewBooking ?? null);
+    // Carried only from View booking into what it opens; any other route in starts clean.
+    else if (!(VIEWED_TRIP_SCREENS.includes(next) && (activeScreenRef.current === 'rate-detail' || VIEWED_TRIP_SCREENS.includes(activeScreenRef.current)))) setViewedBookingId(null);
     // Stays opens on what is ahead, not on whichever tab was last looked at.
     if (next === 'stay-history') setStaysTab(null);
     // A transient action notice belongs to the screen where it appeared.
@@ -1430,7 +1451,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     : undefined;
   const displayBooking = primaryBooking ?? lookupBooking ?? MOCK_SESSION.bookings[0]!;
 
-  const contextBooking = primaryBooking ?? displayBooking;
+  const viewedTrip = viewedBookingId && VIEWED_TRIP_SCREENS.includes(activeScreen)
+    ? session.bookings.find((item) => item.id === viewedBookingId)
+    : undefined;
+  const contextBooking = viewedTrip ?? primaryBooking ?? displayBooking;
   const followedBooking = displayBooking;
   /** The prototype clock's hour: the one chosen, else the stay's own default. */
   const clockHour = (feedClock ?? defaultFeedClock(contextBooking)).hour;
@@ -1454,8 +1478,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* A table is free to hold: the meal is ordered and paid for at the venue. */
   const reservation = isReservation(selectedService.id);
   const servicePrice = reservation ? 0 : serviceUnitPrice * (serviceIsRental ? rentalQuantity : 1);
+  /*
+    Staged points, held to what this booking can use. The party or quantity can
+    shrink after points were chosen, and points never pay more than the
+    booking costs or more than the balance holds.
+  */
+  const usablePoints = Math.min(appliedPoints, maxApplicable(pointsBalance(session), formatPesoAmount(servicePrice)));
   /* What the booking costs once staged points come off it. */
-  const serviceCharge = formatPesoAmount(Math.max(0, servicePrice - pesosOff(appliedPoints)));
+  const serviceCharge = formatPesoAmount(Math.max(0, servicePrice - pesosOff(usablePoints)));
   /* Room, card or nothing -- decided by the gate, never by the form. */
   const servicePayment = reservation ? 'complimentary' : describeServicePayment(selectedService.price);
   /* Before arrival everything is arranged into one cart and paid once; in the stay each booking stands alone. */
@@ -1578,7 +1608,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         : kind === 'early-check-in' ? `We’re full the night before, so we can’t have your room ready early on ${day}. ${refund} Check-in is from ${CHECK_IN_FROM}, and we’re happy to hold your bags until then.`
           : `Sorry, we couldn’t get your ${what} on ${day}. ${refund}`;
     setSession((current) => {
-      const base = !approve && paid ? refundServiceLine(current, service.id) : current;
+      const refunded = !approve && paid ? refundServiceLine(current, service.id) : current;
+      const base = approve ? refunded : returnPoints(refunded, [service.id]);
       return {
         ...base,
         serviceBookings: base.serviceBookings.map((item) => (item.id === service.id
@@ -2182,33 +2213,54 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* "Open now" on a nearby place reads the same clock as the feed. */
   const mapClock: MapClock = { date: PROTOTYPE_TODAY, hour: clockHour };
 
-  const confirmService = (paidWith?: GatewayMethod) => {
-    setGatewayOpen(false);
-    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+  /*
+    Everything that can refuse a service booking, asked before a guest is sent
+    to pay and before anything is held. A pay-now guest used to meet these only
+    after the gateway had taken the money, and be told nothing was charged.
+  */
+  const serviceGate = (booking: Booking | undefined): booking is Booking => {
     if (!online) {
       setBookingBlockedReason('offline');
       go('booking-blocked');
-      return;
+      return false;
     }
     if (pmsDown || failNext.booking) {
       setFailNext((current) => ({ ...current, booking: false }));
       setBookingBlockedReason(pmsDown ? 'pms-down' : 'failed');
       go('booking-blocked');
-      return;
+      return false;
     }
     if (!booking || !canBookService(booking, selectedService.id)) {
       // Not a network problem, and it must not claim to be one.
       setBookingBlockedReason(booking ? blockedReasonFor(booking) : 'not-arrived');
       go('booking-blocked');
-      return;
+      return false;
     }
+    if (!bookableServiceDays(booking, PROTOTYPE_TODAY, selectedService.id).length) {
+      setBookingBlockedReason('no-slot');
+      go('booking-blocked');
+      return false;
+    }
+    return true;
+  };
+
+  /* Pay-now: the gateway opens only for a booking that can go through. */
+  const startServicePayment = () => {
+    if (serviceGate(getPrimaryBooking(session.bookings, session.activeBookingId))) setGatewayOpen(true);
+  };
+
+  const confirmService = (paidWith?: GatewayMethod) => {
+    setGatewayOpen(false);
+    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+    // Already vetted before the gateway opened: a payment taken is never refused afterwards.
+    const vetted = paidWith ? Boolean(booking) : serviceGate(booking);
+    if (!vetted || !booking) return;
     // The room by default; a third-party vendor may be paid now through the gateway. Free ones cost nothing.
     const payment: 'room' | 'paid' | 'complimentary' = servicePayment === 'complimentary'
       ? 'complimentary'
       : paidWith && acceptsPayNow(selectedService) ? 'paid' : 'room';
 
     const days = bookableServiceDays(booking, PROTOTYPE_TODAY, selectedService.id);
-    if (!days.length) return;
     const day = serviceDate && days.includes(serviceDate) ? serviceDate : days[0]!;
     const slotTime = SERVICE_SCHEDULES[selectedService.id]?.time ?? serviceTime;
     const { hour } = parseClockTime(slotTime);
@@ -2245,7 +2297,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         ? { rentalQuantity }
         : { partySize: servicePartySize }),
       /* What is actually charged: points come off before anything sees it. */
-      amount: formatPesoAmount(Math.max(0, servicePrice - pesosOff(appliedPoints))),
+      amount: formatPesoAmount(Math.max(0, servicePrice - pesosOff(usablePoints))),
       status: 'confirmed',
       provider: providerFor(selectedService),
       paymentStatus: payment === 'room' ? 'charged-to-room' : payment === 'paid' ? 'paid' : 'complimentary',
@@ -2265,11 +2317,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       Spending and booking are one step, so a balance can never be debited for
       a booking that did not happen.
     */
-    const next = appliedPoints > 0
+    const next = usablePoints > 0
       ? spendPoints(booked, {
           id: serviceBooking.id,
           title: `Points off ${serviceBooking.title}`,
-          points: appliedPoints,
+          points: usablePoints,
         })
       : booked;
 
@@ -2309,14 +2361,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     direct booking, so the two can never both exist.
   */
   const addServiceToCart = () => {
-    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+    const booking = viewedTrip ?? getPrimaryBooking(session.bookings, session.activeBookingId);
     if (!booking || !canBookService(booking, selectedService.id)) {
       setBookingBlockedReason(booking ? blockedReasonFor(booking) : 'not-arrived');
       go('booking-blocked');
       return;
     }
     const days = bookableServiceDays(booking, PROTOTYPE_TODAY, selectedService.id);
-    if (!days.length) return;
+    if (!days.length) {
+      setBookingBlockedReason('no-slot');
+      go('booking-blocked');
+      return;
+    }
     const day = serviceDate && days.includes(serviceDate) ? serviceDate : days[0]!;
     const slotTime = SERVICE_SCHEDULES[selectedService.id]?.time ?? serviceTime;
     const { hour } = parseClockTime(slotTime);
@@ -2357,8 +2413,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const [hours = 10, minutes = 0] = rideTime.split(':').map(Number);
     const clock = `${((hours + 11) % 12) + 1}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
     const arriving = to === contextBooking.property;
+    const rideId = `service-ride-${contextBooking.id}-${arriving ? 'in' : 'out'}-${rideDate}-${hours}${minutes}`;
+    // The same ride at the same time is already booked (it may have come with the stay): never a second fare.
+    if (session.serviceBookings.some((service) => service.id === rideId && service.status === 'confirmed')) {
+      returnToArrivalServices();
+      return;
+    }
     const rideBooking: ServiceBooking = {
-      id: `service-ride-${contextBooking.id}-${arriving ? 'in' : 'out'}-${rideDate}-${hours}${minutes}`,
+      id: rideId,
       bookingId: contextBooking.id,
       serviceId: 'transfer',
       title: arriving ? 'Airport transfer · to the hotel' : 'Airport transfer · to the airport',
@@ -2507,13 +2569,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               // Cleared, not left behind: at 100% there is no next step, and a
               // stale one reads as work still owed.
               nextPreArrivalStep: undefined,
-              /**
-               * Pre-registration reaching the property is what prompts it to
-               * allocate a room, so this is where pending becomes assigned.
-               * Cabana does not choose the room -- it learns which one.
-               */
-              roomAssignment: booking.roomAssignment === 'ready' ? 'ready' : 'assigned',
-              roomNumber: booking.roomNumber ?? '512',
+              /*
+                Pre-registration does not assign a room. The hotel allocates
+                from its own inventory around arrival, and Cabana only learns
+                which one -- so the number and state are left as they were
+                (pending until the hotel's assignment arrives).
+              */
               honouredPreferences: summarizeRoomPreferences(session.roomPreferences),
               // The names confirmed here belong to this stay, not to every trip on the account.
               ...(patch.additionalGuests ? { companions: patch.additionalGuests } : {}),
@@ -2779,17 +2840,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const resetPrototype = () => {
     clearStoredSession();
+    writeAccountStash(undefined);
     applyStayState('signed-out');
   };
 
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const signOut = () => {
     /*
-      Clearing here as well as letting the write effect persist the anonymous
-      session: the effect would store a signed-out record, this removes it
-      outright. A demo device left on a desk should not carry the last guest's
-      folio in storage, even an empty-looking one.
+      The live session is removed outright rather than left as a signed-out
+      record. What the account booked in the app is kept apart and handed back
+      on the next sign-in: "sign back in to see your stays" has to be true, and
+      a guest who paid for a hotel here must not lose it by signing out.
     */
+    writeAccountStash(accountActivity(session));
     clearStoredSession();
     setSession(signOutSession());
     setCode('');
@@ -3386,7 +3449,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setSession((current) => {
       const bookings = current.bookings.filter((item) => item.id !== bookingId);
       const itemRefunded = refundBookingItems(current, bookingId, [...roomUpdates, ...serviceUpdates]);
-      const servicesRefunded = refundRemainingLinkedPayments(itemRefunded, bookingId, paidServices.map((item) => item.id));
+      const servicesRefunded = returnPoints(
+        refundRemainingLinkedPayments(itemRefunded, bookingId, paidServices.map((item) => item.id)),
+        current.serviceBookings.filter((item) => item.bookingId === bookingId).map((item) => item.id),
+      );
       return {
         ...servicesRefunded,
         bookings,
@@ -3416,7 +3482,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 holding, and the lookup stopped being the secondary action it
                 was specified as.
               */
-              const next = ssoSession(method);
+              const next = restoreAccountActivity(ssoSession(method), readAccountStash());
               setSession(next);
               go(getPostAuthScreen(next));
             }}
@@ -3488,7 +3554,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   return;
                 }
 
-                const next = emailLoginSession(pendingEmail);
+                const next = restoreAccountActivity(emailLoginSession(pendingEmail), readAccountStash());
                 setSession(next);
                 setPendingEmail('');
                 setCode('');
@@ -3776,7 +3842,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'no-booking':
-        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try the confirmation number from your hotel or booking provider.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('partner-hotels')}>Contact a hotel for help</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try the confirmation number from your hotel or booking provider.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('partner-hotels')}>Find a hotel’s contact details</TextButton></ScreenIntro>;
 
       case 'welcome-back':
         return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0] || 'there'}`} text="Review the details saved to your Cabana account for this stay."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="Your stay is connected">Check the saved details before you continue.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
@@ -3910,7 +3976,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<Bed size={30} />} title="Request this upgrade" text="The hotel confirms the room and assigns its number. Nothing is charged until they do."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Requested upgrade" value={upgrade.name} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="If approved" value="Added to your room bill, settled at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } const next = requestRoomUpgrade(session, contextBooking.id, upgrade); if (next === session) return; setSession(next); notifyGuestRequest(`service-upgrade-${contextBooking.id}`, 'Room upgrade requested', 'The hotel will confirm the room and price.'); goReplacing('room-upgrade-success'); }}>Request upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Request this upgrade" text="The hotel confirms the room and assigns its number. Nothing is charged until they do."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Requested upgrade" value={upgrade.name} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="If approved" value="Added to your room bill, settled at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } const next = requestRoomUpgrade(session, contextBooking.id, upgrade); /* One already with the hotel: show it, where it can be withdrawn. */ if (next === session) { goReplacing('my-stay'); return; } setSession(next); notifyGuestRequest(`service-upgrade-${contextBooking.id}`, 'Room upgrade requested', 'The hotel will confirm the room and price.'); goReplacing('room-upgrade-success'); }}>Request upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
       }
 
       case 'room-upgrade-success': {
@@ -3972,7 +4038,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   ) : null}
                   {manageAppBooking && reservation ? (
                     <>
-                      <button className="guest-list-row" type="button" onClick={() => { setChatDraft(`I'd like to change my booking ${reservation.reference}.`); go('chat'); }}>
+                      <button className="guest-list-row" type="button" onClick={() => { setChatDraft(`I'd like to change my booking ${reservation.reference} at ${displayBooking.property} (${formatStayDateRange(displayBooking)}, ${reservation.rooms.length} ${reservation.rooms.length === 1 ? 'room' : 'rooms'}). What I'd like to change: `); go('chat'); }}>
                         <span><CalendarPlus aria-hidden="true" /></span>
                         <div><b>Change dates or rooms</b><small>The front desk can move or resize your booking.</small></div>
                         <CaretRight aria-hidden="true" />
@@ -4026,7 +4092,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 {displayBooking.complimentaryUpgrade ? <SummaryRow label="Upgrade" value={`From ${displayBooking.complimentaryUpgrade.from} · complimentary`} /> : null}
                 <SummaryRow label="Party" value={describeParty(displayBooking, session)} />
                 <SummaryRow label="Booked through" value={displayBooking.source} />
-                {reservation?.receipt ? <SummaryRow label="Official receipt" value={`${reservation.receipt.company} · TIN ${reservation.receipt.tin}`} /> : null}
+                {reservation?.receipt ? <SummaryRow label="Official receipt" value={`Requested · ${reservation.receipt.company} · TIN ${reservation.receipt.tin} · issued by the hotel at check-out`} /> : null}
                 <SummaryRow label="Confirmation" value={displayBooking.id} />
               </div>
             </section>
@@ -4438,8 +4504,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <NearbyRecommendationsPage categoryId={selectedCategory} city={contextBooking.city} property={contextBooking.property} now={mapClock} onSelect={(id) => { setSelectedNearbyEstablishmentId(id); go('nearby-establishment'); }} />;
 
       case 'nearby-establishment': {
-        // From today, or check-in if later, to the last night: the days the guest is here to eat.
-        const tableDays = Array.from({ length: 14 }, (_, i) => addDays(PROTOTYPE_TODAY > contextBooking.checkIn ? PROTOTYPE_TODAY : contextBooking.checkIn, i)).filter((day) => day < contextBooking.checkOut);
+        // From today, or check-in if later, to check-out day: the days the guest is here to eat.
+        const tableDays = Array.from({ length: 14 }, (_, i) => addDays(PROTOTYPE_TODAY > contextBooking.checkIn ? PROTOTYPE_TODAY : contextBooking.checkIn, i)).filter((day) => day <= contextBooking.checkOut);
         const establishment = NEARBY_ESTABLISHMENTS.find((item) => item.id === selectedNearbyEstablishmentId) ?? NEARBY_ESTABLISHMENTS[0];
         return establishment ? (
           <NearbyEstablishmentScreen
@@ -4780,7 +4846,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : null}
             {servicePayment === 'complimentary' ? null : (
               <>
-                {preArrival ? null : <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={appliedPoints} onChange={setAppliedPoints} />}
+                {preArrival ? null : <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={usablePoints} onChange={setAppliedPoints} />}
                 {preArrival ? (
                   <Notice title="Paid now, with your cart">
                     Card, GCash or Maya, in one payment for everything you arrange. Not added to a room bill.
@@ -4806,7 +4872,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 )}
               </>
             )}
-            <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => (preArrival ? addServiceToCart() : payingNow ? setGatewayOpen(true) : confirmService())}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
+            <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => (preArrival ? addServiceToCart() : payingNow ? startServicePayment() : confirmService())}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
             {gatewayOpen && payingNow ? (
               <GatewayCheckout
                 merchant={merchant}
@@ -4924,6 +4990,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
 
+        if (bookingBlockedReason === 'no-slot') {
+          return (
+            <ScreenIntro
+              icon={<Clock size={30} />}
+              eyebrow={selectedService.name}
+              title="Nothing left to book for this stay"
+              text="There is no day left in your stay when this can be booked. The front desk may still be able to arrange it."
+            >
+              <Notice title="Nothing was booked or charged">Message the desk and they will tell you what is possible.</Notice>
+              {primary('Message the front desk', 'chat')}
+              <TextButton onClick={back}>Back</TextButton>
+            </ScreenIntro>
+          );
+        }
+
         if (bookingBlockedReason === 'scan-failed') {
           return (
             <ScreenIntro icon={<QrCode size={30} />} eyebrow={contextRoom} title="We couldn’t read the code" text="Hold the phone steady over the card on the desk, with the whole code in the frame and some light on it.">
@@ -5028,7 +5109,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             */}
             {(!checkedOut && contextBooking.status === 'active') || (started && !checkedOut) ? (
             <div className="guest-stay-context guest-checkout-card">
-              {!checkedOut && contextBooking.status === 'active' && checkoutIsDue ? <div className="guest-checkout-card__actions"><button className="guest-button guest-button--primary" type="button" onClick={() => go('stay-review')}>Check out now</button></div> : null}
+              {!checkedOut && contextBooking.status === 'active' && checkoutIsDue ? <div className="guest-checkout-card__actions"><button className="guest-button guest-button--primary" type="button" onClick={() => { setReviewingStayId(null); go('stay-review'); }}>Rate your stay</button></div> : null}
 
               {/* Live-stay folio access belongs with the other stay details. */}
               {started && !checkedOut ? (
@@ -5065,7 +5146,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {/*
               Once the desk closes the stay is over, and asking for the rating
               is the only thing left to do here -- so this is where it is asked,
-              not buried behind "Check out now", which a checked-out guest has
+              not buried behind "Rate your stay", which a checked-out guest has
               no reason to press again. Asked once: a rating already given is
               reported back rather than re-requested.
             */}
@@ -5076,7 +5157,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   You rated this stay {stayReview.rating} out of 5.
                 </p>
               ) : (
-                <Button className="guest-button guest-button--secondary" type="button" onClick={() => go('stay-review')}>
+                <Button className="guest-button guest-button--secondary" type="button" onClick={() => { setReviewingStayId(null); go('stay-review'); }}>
                   Rate your stay<ArrowRight aria-hidden="true" />
                 </Button>
               )
@@ -5405,12 +5486,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const isRequest = cancellable.paymentStatus === 'pending-confirmation' || awaitsProvider(cancellable) || awaitsHotel(cancellable);
 
         if (activeScreen === 'cancel-after-cutoff') {
-          return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title="Contact the front desk to change this" text={cutoffHours === null ? 'This provider does not take cancellations in the app.' : `The provider’s ${cutoffHours}-hour self-service cutoff has passed. ${paidBy === 'room' ? 'The charge stays on your room folio.' : 'The booking stays as it is.'}`}><Notice tone="warning" title="Front desk help required">Send a message and the team will check what the provider can do.</Notice>{primary('Chat with front desk', 'chat')}<TextButton onClick={() => go('my-stay')}>Keep booking</TextButton></ScreenIntro>;
+          return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title="Contact the front desk to change this" text={cutoffHours === null ? 'This provider does not take cancellations in the app.' : `The provider’s ${cutoffHours}-hour self-service cutoff has passed. ${paidBy === 'room' ? 'The charge stays on your room folio.' : 'The booking stays as it is.'}`}><Notice tone="warning" title="Front desk help required">Send a message and the team will check what the provider can do.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => { setChatDraft(`I'd like to cancel ${cancellable.title} on ${withoutTime(cancellable.scheduledFor)}. It's past the cutoff in the app, so can you check what the provider can do?`); go('chat'); }}>Chat with front desk<ArrowRight aria-hidden="true" /></Button><TextButton onClick={() => go('my-stay')}>Keep booking</TextButton></ScreenIntro>;
         }
 
         const cancelService = () => {
           setSession((current) => ({
-            ...(paidBy === 'card' ? refundServiceLine(current, cancellable.id) : current),
+            ...returnPoints(paidBy === 'card' ? refundServiceLine(current, cancellable.id) : current, [cancellable.id]),
             serviceBookings: current.serviceBookings.map((service) => (
               service.id === cancellable.id
                 ? { ...service, status: 'cancelled', paymentStatus: paidBy === 'card' ? 'refunded' : service.paymentStatus }
@@ -5463,7 +5544,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom);
         const folioTotal = getRoomChargesTotal(session, contextBooking, contextRoom);
         const visibleCharges = folioCharges;
-        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}{pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} off this bill</small></span><CaretRight aria-hidden="true" /></button> : null}{visibleCharges.length === 0 ? <StatePanel icon={<Receipt />} title="Nothing on your bill yet">{`What you order or book in the stay, and what the hotel posts, shows here as it lands on ${contextRoom}. It all settles at the front desk at checkout.`}</StatePanel> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
+        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}{pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} to use on services you book in your stay</small></span><CaretRight aria-hidden="true" /></button> : null}{visibleCharges.length === 0 ? <StatePanel icon={<Receipt />} title="Nothing on your bill yet">{`What you order or book in the stay, and what the hotel posts, shows here as it lands on ${contextRoom}. It all settles at the front desk at checkout.`}</StatePanel> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
       }
 
       case 'chat':
@@ -5582,6 +5663,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const earned = earnedBadges(session);
         const openReward = (rewardId: string) => {
           setSelectedRewardId(rewardId);
+          setRedeemedReward(null);
           go('reward-detail');
         };
 
@@ -5672,7 +5754,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             balance={pointsBalance(session)}
             /* `redeemReward` returns the session untouched if the balance
                cannot cover it, so a view bug cannot go negative. */
-            onRedeem={() => { setSession(redeemReward(session, reward)); go('rewards'); }}
+            onRedeem={() => {
+              const next = redeemReward(session, reward);
+              // Refused (balance short): nothing was spent, so nothing is promised.
+              if (next === session) return;
+              const redemptions = getRewards(next).redemptions;
+              const code = redemptionCode(redemptions[redemptions.length - 1]!, redemptions.length - 1);
+              const toldDesk = Boolean(primaryBooking) && online;
+              setSession(next);
+              if (toldDesk) {
+                setChatMessages((messages) => [
+                  ...messages,
+                  { from: 'guest', body: `I’ve redeemed ${reward.title} with my points (${code}). Please have it ready.`, state: 'Sent' },
+                  { from: 'desk', body: `Thank you. We have ${reward.title} noted against ${code} and will have it ready for you.`, state: 'Seen' },
+                ]);
+                notifyGuestRequest(`reward-${code}`, `${reward.title} redeemed`, `Code ${code} · the front desk has it.`);
+              }
+              setRedeemedReward({ code, toldDesk });
+            }}
+            redeemed={redeemedReward ?? undefined}
+            onDone={() => { setRedeemedReward(null); go('rewards'); }}
           />
         );
       }
@@ -5680,8 +5781,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'payments':
         return <PaymentsScreen session={session} onOpen={(id) => { setSelectedPaymentId(id); go('payment-detail'); }} onExplore={() => go('partner-hotels')} />;
 
-      case 'payment-detail':
-        return <PaymentDetailScreen payment={(session.payments ?? []).find((payment) => payment.id === selectedPaymentId)} />;
+      case 'payment-detail': {
+        const selectedPayment = (session.payments ?? []).find((payment) => payment.id === selectedPaymentId);
+        return <PaymentDetailScreen payment={selectedPayment} receipt={selectedPayment?.kind === 'stay' ? session.bookings.find((item) => item.id === selectedPayment.bookingId)?.reservation?.receipt : undefined} />;
+      }
 
       case 'saved-hotels':
         return <SavedHotelsScreen search={stayDraft.search} onOpenHotel={openPartnerHotel} onBrowse={() => go('book-stay-results')} onDevice={isGuest} />;

@@ -58,7 +58,7 @@ export function PaymentsScreen({ session, onOpen, onExplore }: { session: GuestS
   );
 }
 
-export function PaymentDetailScreen({ payment }: { payment?: PaymentRecord }) {
+export function PaymentDetailScreen({ payment, receipt }: { payment?: PaymentRecord; /** Company and TIN the guest asked the hotel to make an official receipt out to. */ receipt?: { company: string; tin: string } }) {
   if (!payment) {
     return (
       <div className="guest-stack">
@@ -101,6 +101,7 @@ export function PaymentDetailScreen({ payment }: { payment?: PaymentRecord }) {
           ))}
         </ul>
       ) : null}
+      {receipt ? <Notice title="Official receipt requested">Made out to {receipt.company}, TIN {receipt.tin}. The hotel issues it when you check out. It isn’t generated in the app.</Notice> : null}
       {status !== 'paid' ? <Notice title="Refunds go back the way you paid">It can take a few days to show on your {PAYMENT_METHOD_NAMES[payment.method]} statement.</Notice> : null}
     </div>
   );

@@ -132,6 +132,35 @@ export function clearStoredSession(): void {
 }
 
 /*
+  What an account made in the app, kept past a sign-out so "sign back in to see
+  your stays" is true. Its own key, so the sign-out that removes the live
+  session does not take it, and the demo reset can.
+*/
+export const ACCOUNT_STASH_KEY = 'cabana.account-stash.v1';
+
+export function readAccountStash(): GuestSession | undefined {
+  try {
+    const raw = getStore()?.getItem(ACCOUNT_STASH_KEY);
+    if (!raw) return undefined;
+    const parsed: unknown = JSON.parse(raw);
+    return isStoredSession(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function writeAccountStash(session: GuestSession | undefined): void {
+  try {
+    const store = getStore();
+    if (!store) return;
+    if (session) store.setItem(ACCOUNT_STASH_KEY, JSON.stringify(session));
+    else store.removeItem(ACCOUNT_STASH_KEY);
+  } catch {
+    // Storage full or blocked: the stays are simply not kept past sign-out.
+  }
+}
+
+/*
   The hotel booking in progress, kept beside the session so a reload or a
   closed tab does not throw away the search, the rooms and who sleeps where.
   Its own key: a draft is disposable, and a bad one must never cost the guest

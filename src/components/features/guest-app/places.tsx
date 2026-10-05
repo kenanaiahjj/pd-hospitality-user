@@ -221,8 +221,11 @@ const hourOf = (time: string) => {
   return match ? (Number(match[1]) % 12) + (match[3]!.toUpperCase() === 'PM' ? 12 : 0) + Number(match[2]) / 60 : undefined;
 };
 function tableTimes(hours: string): string[] {
-  const [open, close] = (hours.match(/\d{1,2}:\d{2}\s*[AP]M/gi) ?? []).map(hourOf);
-  if (open === undefined || close === undefined) return TABLE_TIMES;
+  // "12:00 MN" and "midnight" are 12:00 AM; a close at or before the open is the next morning.
+  const normalised = hours.replace(/\b12:00\s*MN\b/gi, '12:00 AM').replace(/midnight/gi, '12:00 AM');
+  const [open, rawClose] = (normalised.match(/\d{1,2}:\d{2}\s*[AP]M/gi) ?? []).map(hourOf);
+  if (open === undefined || rawClose === undefined) return TABLE_TIMES;
+  const close = rawClose <= open ? rawClose + 24 : rawClose;
   // The last table an hour before closing.
   return TABLE_TIMES.filter((time) => { const at = hourOf(time)!; return at >= open && at <= close - 1; });
 }

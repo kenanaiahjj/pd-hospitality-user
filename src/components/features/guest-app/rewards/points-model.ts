@@ -235,12 +235,12 @@ export function buildPointsLedger(session: GuestSession): PointsEntry[] {
     });
   }
 
-  for (const redemption of getRewards(session).redemptions) {
+  for (const [index, redemption] of getRewards(session).redemptions.entries()) {
     entries.push({
       id: `redemption-${redemption.id}`,
       date: redemption.redeemedAt,
       title: redemption.title,
-      detail: 'Redeemed',
+      detail: `Redeemed · ${redemptionCode(redemption, index)}`,
       source: 'redemption',
       points: -redemption.points,
     });
@@ -284,6 +284,11 @@ export function pointsExpiry(session: GuestSession): string {
   const pad = (value: number) => String(value).padStart(2, '0');
 
   return `${year + Math.floor(shifted / 12)}-${pad((shifted % 12) + 1)}-${pad(day)}`;
+}
+
+/** What the guest quotes at the desk: stable for a redemption, short enough to read aloud. */
+export function redemptionCode(redemption: { rewardId: string }, index: number): string {
+  return `RW-${String(index + 1).padStart(3, '0')}-${redemption.rewardId.replace(/[^a-z0-9]/gi, '').slice(0, 3).toUpperCase()}`;
 }
 
 /**
@@ -334,5 +339,19 @@ export function spendPoints(
         },
       ],
     },
+  };
+}
+
+/**
+ * Puts back the points a booking spent, when that booking is cancelled or
+ * declined. A spend is written down against the booking's id, so it is found
+ * and removed by it; no spend, no change.
+ */
+export function returnPoints(session: GuestSession, bookingIds: string[]): GuestSession {
+  const rewards = getRewards(session);
+  if (!rewards.redemptions.some((redemption) => bookingIds.includes(redemption.rewardId))) return session;
+  return {
+    ...session,
+    rewards: { ...rewards, redemptions: rewards.redemptions.filter((redemption) => !bookingIds.includes(redemption.rewardId)) },
   };
 }

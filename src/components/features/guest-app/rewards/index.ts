@@ -52,5 +52,7 @@ export {
   pointsExpiry,
   redeemReward,
   spendPoints,
+  returnPoints,
+  redemptionCode,
 } from './points-model';
 export type { PointsEarnSource, PointsEntry, Reward } from './points-model';

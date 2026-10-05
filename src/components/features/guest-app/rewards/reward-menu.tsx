@@ -73,15 +73,43 @@ export type RewardDetailProps = {
   reward: Reward;
   balance: number;
   onRedeem: () => void;
+  /** Set once redeemed: what to quote, and whether the desk already knows. */
+  redeemed?: { code: string; toldDesk: boolean };
+  onDone?: () => void;
 };
 
 /*
   No back control of its own. The app bar already carries one on every screen,
   and a second one beside it is two answers to the same question.
 */
-export function RewardDetail({ reward, balance, onRedeem }: RewardDetailProps) {
+export function RewardDetail({ reward, balance, onRedeem, redeemed, onDone }: RewardDetailProps) {
   const afterwards = balance - reward.points;
   const affordable = afterwards >= 0;
+
+  if (redeemed) {
+    return (
+      <div className="guest-stack reward-detail">
+        <div className="guest-page-title">
+          <p className="guest-eyebrow">Redeemed</p>
+          <h1>{reward.title}</h1>
+          <p>
+            {redeemed.toldDesk
+              ? 'The front desk has your request and will have this ready. Quote the code if they ask.'
+              : 'Show this code at the front desk on your next stay and they will have it ready.'}
+          </p>
+        </div>
+
+        <div className="reward-detail__cost">
+          <b>{redeemed.code}</b>
+          <small>{points(reward.points)} points used · {points(balance)} left</small>
+        </div>
+
+        <button type="button" className="guest-button guest-button--primary reward-detail__redeem" onClick={onDone}>
+          Done
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="guest-stack reward-detail">
@@ -119,7 +147,7 @@ export function RewardDetail({ reward, balance, onRedeem }: RewardDetailProps) {
       </button>
 
       <p className="reward-detail__note">
-        Redeeming does not earn points. The front desk will have this ready for you.
+        Redeeming does not earn points. You will get a code to quote, and the front desk is told.
       </p>
     </div>
   );

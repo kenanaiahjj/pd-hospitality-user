@@ -1,6 +1,6 @@
 'use client';
 
-import { Notice, PropertyImage, SectionHeading, Tag, TextButton } from './guest-ui';
+import { Notice, PropertyImage, SectionHeading, Tag } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
 import { ANYWHERE, HotelResultCard, OffersStrip, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
@@ -335,34 +335,24 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
         booking.roomVerification ? null : (
           <section className="guest-home-booking guest-home-booking--primary guest-room-ready-card" data-testid="guest-room-ready-card">
             <div className="guest-home-booking__heading">
-              {/* One fact for the heading and the line under it: "ready" once the stay is under way, "held" before. */}
-              <h2>{isStayUnderWay(booking) ? `Room ${booking.roomNumber ?? 'assigned'} is ready` : `Room ${booking.roomNumber ?? 'assigned'} is held for you`}</h2>
+              <h2>{roomAssignment.headline}</h2>
             </div>
             <p className="guest-home-booking__room-type">
               <b>{booking.roomType}</b>
               <small>{(booking.honouredPreferences?.length ? booking.honouredPreferences : summarizeRoomPreferences(session.roomPreferences)).join(' · ')}</small>
             </p>
-            {/*
-              The scan is only offered while it can succeed. Days out, a button
-              to scan a code the guest cannot be standing next to either fails
-              or, before the model refused it, "unlocked" a stay that had not
-              begun.
-            */}
-            {isStayUnderWay(booking) ? (
-              <>
-                <p>Your room is now ready. Once inside, scan the room code to connect your stay to the app.</p>
-                <Button
-                  className="guest-button guest-button--primary"
-                  type="button"
-                  data-testid="guest-room-qr-row"
-                  onClick={() => onNavigate('scan-room-code')}
-                >
-                  <QrCode aria-hidden="true" />Scan room code<ArrowRight aria-hidden="true" />
-                </Button>
-              </>
-            ) : (
-              <p>{`Held for your arrival on ${formatStayDateRange(booking).split('–')[0]}. Once you are in the room, scan the code on the desk card to connect your stay to the app.`}</p>
-            )}
+            {/* A room only shows from arrival day, so the scan is always one the guest can make. */}
+            <p>{roomAssignment.state === 'ready'
+              ? 'Your room is now ready. Once inside, scan the room code to connect your stay to the app.'
+              : `${roomAssignment.detail} Once you are in the room, scan the room code to connect your stay to the app.`}</p>
+            <Button
+              className="guest-button guest-button--primary"
+              type="button"
+              data-testid="guest-room-qr-row"
+              onClick={() => onNavigate('scan-room-code')}
+            >
+              <QrCode aria-hidden="true" />Scan room code<ArrowRight aria-hidden="true" />
+            </Button>
           </section>
         )
       ) : (
@@ -377,7 +367,9 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
               {roomAssignment.action.label}<ArrowRight aria-hidden="true" />
             </Button>
           ) : (
-            <TextButton onClick={() => onNavigate(roomAssignment.action.screen)}>{roomAssignment.action.label}</TextButton>
+            <Button className="guest-button guest-button--secondary guest-button--outlined" type="button" onClick={() => onNavigate(roomAssignment.action.screen)}>
+              {roomAssignment.action.label}<ArrowRight aria-hidden="true" />
+            </Button>
           )}
         </section>
       )}

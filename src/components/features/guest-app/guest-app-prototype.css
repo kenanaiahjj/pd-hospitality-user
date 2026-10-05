@@ -950,6 +950,7 @@
 .guest-app .guest-button--primary:disabled { box-shadow: none; }
 .guest-app .guest-button--primary:focus-visible { outline-color: var(--guest-ink); }
 .guest-app .guest-button--secondary { border-color: var(--guest-line-strong); background: var(--guest-paper); color: var(--guest-ink); }
+.guest-app .guest-button--outlined { border: 1.5px solid var(--guest-accent-strong); color: var(--guest-accent-strong); }
 .guest-app .guest-button--danger { background: var(--guest-danger); color: var(--guest-paper); }
 
 .guest-app .guest-text-button {
@@ -2087,11 +2088,13 @@
 .guest-review-block { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 14px; padding: 14px; }
 .guest-review-block + .guest-review-block { box-shadow: inset 0 1px 0 var(--guest-line); }
 .guest-review-block > span { display: grid; width: 26px; height: 26px; place-items: center; color: var(--guest-ink); }
+.guest-review-block--action { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color var(--duration-fast) ease; }
+.guest-review-block--action:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: -2px; }
 .guest-review-block svg { width: 18px; height: 18px; }
 .guest-review-block > div { display: grid; gap: 2px; }
 .guest-review-block b { font-size: 14px; font-weight: 650; }
 .guest-review-block small { color: var(--guest-muted); font-size: 13px; line-height: 1.4; }
-.guest-review-block button { display: grid; width: 40px; height: 40px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--guest-subtle); transition: background-color var(--duration-fast) ease; }
+.guest-review-block > .guest-review-block__caret { width: 40px; height: 40px; color: var(--guest-subtle); }
 
 .guest-price-card,
 .guest-ticket {
@@ -2740,7 +2743,7 @@
   .guest-date-strip button:hover:not(.is-active),
   .guest-chip-grid button:hover:not(.is-active) { border-color: var(--guest-line-strong); background: var(--guest-surface); }
   .guest-passport-capture__choice:hover { border-color: var(--guest-accent-strong); background: var(--guest-soft); }
-  .guest-review-block button:hover { background: var(--guest-surface); }
+  .guest-review-block--action:hover { background: var(--guest-surface); }
   .guest-section-heading button:hover { text-decoration: underline; text-underline-offset: 3px; }
   .guest-featured-service button:hover { text-decoration: underline; text-underline-offset: 3px; }
 }

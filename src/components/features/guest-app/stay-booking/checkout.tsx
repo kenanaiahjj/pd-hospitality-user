@@ -241,7 +241,11 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
   const pay = () => {
     if (accountGate || !method || !online || processing) return;
     setProcessing(true);
-    timer.current = window.setTimeout(() => onPaid(method), 900);
+    timer.current = window.setTimeout(() => {
+      onPaid(method);
+      // Normally the screen has moved on by now; if the payment went nowhere the button must not stay stuck.
+      setProcessing(false);
+    }, 900);
   };
 
   if (voucherPage) {

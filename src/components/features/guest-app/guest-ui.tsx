@@ -198,7 +198,17 @@ export function StayMiniCard({ booking, status }: { booking: Booking; status: st
 }
 
 export function ReviewBlock({ icon, title, lines, onEdit }: { icon: ReactNode; title: string; lines: string[]; onEdit?: () => void }) {
-  return <div className="guest-review-block"><span>{icon}</span><div><b>{title}</b>{lines.map((line) => <small key={line}>{line}</small>)}</div><button type="button" aria-label={`Edit ${title}`} onClick={onEdit}><CaretRight /></button></div>;
+  const content = (
+    <>
+      <span>{icon}</span>
+      <div><b>{title}</b>{lines.map((line) => <small key={line}>{line}</small>)}</div>
+      <span className="guest-review-block__caret" aria-hidden="true"><CaretRight /></span>
+    </>
+  );
+  // The whole block is the tap target; the caret only signals that it opens.
+  return onEdit
+    ? <button type="button" className="guest-review-block guest-review-block--action" aria-label={`Edit ${title}`} onClick={onEdit}>{content}</button>
+    : <div className="guest-review-block">{content}</div>;
 }
 
 export function SectionHeading({ title, action, onAction, count }: { title: string; action?: string; onAction?: () => void; count?: string }) {

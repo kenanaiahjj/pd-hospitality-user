@@ -61,7 +61,9 @@ export function settleCart(
   const ids = new Set(lines.map((line) => line.booking.id));
 
   return {
-    bookingIds: lines.map((line) => line.booking.id),
+    // Only what this payment made. A line whose slot is already held leaves the
+    // cart without being booked again, so it is not part of what was paid.
+    bookingIds: bookings.map((booking) => booking.id),
     session: {
       ...session,
       cart: (session.cart ?? []).filter((line) => !ids.has(line.booking.id)),

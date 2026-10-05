@@ -859,9 +859,9 @@ describe('pre-arrival progress card', () => {
     expect(screen.queryByText('Add who else is staying')).toBeNull();
     // The card's job becomes the room instead.
     expect(screen.getByText('Your room')).toBeInTheDocument();
-    // Nothing is allocated yet, so the way out stays quiet rather than
-    // offering a full-width button for a state the guest cannot act on.
-    expect(screen.getByRole('button', { name: /Review stay/ })).toHaveClass('guest-text-button');
+    // Nothing is allocated yet, so the way out is an outlined button rather
+    // than the filled one a state the guest can act on gets.
+    expect(screen.getByRole('button', { name: /Review stay/ })).toHaveClass('guest-button--outlined');
   });
 
   it('says where room assignment stands rather than implying the app can hurry it', () => {
@@ -874,7 +874,9 @@ describe('pre-arrival progress card', () => {
 
     cleanup();
 
-    const assigned = sessionFor([
+    // A number on file for a stay days away is not shown: rooms are not
+    // assigned ahead of arrival day.
+    const early = sessionFor([
       makeBooking({
         id: 'a',
         status: 'upcoming',
@@ -883,19 +885,36 @@ describe('pre-arrival progress card', () => {
         preArrivalCompleted: 4,
         preArrivalTotal: 4,
         roomNumber: '512',
+        roomAssignment: 'assigned',
       }),
     ]);
-    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={assigned} />);
-    expect(screen.getByText('Room 512 is held for you')).toBeInTheDocument();
-    expect(screen.getByText('King room')).toBeInTheDocument();
-    expect(screen.getByText('Higher floor · King bed')).toBeInTheDocument();
-    expect(screen.queryByText('Your room')).toBeNull();
-    expect(screen.queryByText('Assigned')).toBeNull();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={early} />);
+    expect(screen.getByText('Room assigned on arrival day')).toBeInTheDocument();
+    expect(screen.queryByText(/Room 512/)).toBeNull();
+
+    cleanup();
+
+    // On arrival day the hotel's allocation shows, with the scan to follow.
+    const arrivalDay = sessionFor([
+      makeBooking({
+        id: 'b',
+        status: 'upcoming',
+        checkIn: '2026-11-11',
+        checkOut: '2026-11-14',
+        preArrivalCompleted: 4,
+        preArrivalTotal: 4,
+        roomNumber: '512',
+        roomAssignment: 'assigned',
+      }),
+    ]);
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={arrivalDay} />);
+    expect(screen.getByText('Room 512 is yours')).toBeInTheDocument();
+    expect(screen.getByTestId('guest-room-qr-row')).toBeInTheDocument();
   });
 });
 
 describe('room assignment through the flow', () => {
-  it('learns a room number once pre-registration reaches the property', async () => {
+  it('does not invent a room number when pre-registration reaches the property', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="guest-details" initialSession={firstRegistration} />);
 
@@ -904,11 +923,10 @@ describe('room assignment through the flow', () => {
     await user.click(screen.getByRole('button', { name: 'Continue' }));
     await user.click(screen.getByRole('button', { name: 'Finish' }));
 
-    // After: the property allocated one, and the app reports it rather than
-    // claiming to have chosen it. The stay is under way, so it is ready.
-    expect(screen.getByText('Room 512 is ready')).toBeInTheDocument();
-    expect(screen.getByText('Higher floor · King bed')).toBeInTheDocument();
-    expect(screen.queryByText(/allocates rooms from its own inventory/)).toBeNull();
+    // After: still unallocated. The hotel assigns a room from its own
+    // inventory around arrival, and the app only reports it when it does.
+    expect(screen.getByText('Room assigned on arrival day')).toBeInTheDocument();
+    expect(screen.queryByText(/Room 512/)).toBeNull();
   });
 });
 
@@ -1483,7 +1501,7 @@ describe('my stay', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
-    expect(screen.queryByRole('button', { name: 'Check out now' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Rate your stay' })).toBeNull();
     // Stay changes live with the booking, one tap in.
     await user.click(screen.getByRole('button', { name: /View booking/ }));
     expect(screen.getByRole('button', { name: /Request late checkout/ })).toBeInTheDocument();
@@ -3221,12 +3239,12 @@ describe('scanning outside the stay window', () => {
     { activeBookingId: 'soon' },
   );
 
-  it('holds the room card without a scan until the stay starts', () => {
+  it('shows no room, and no scan, until arrival day', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={early} />);
 
-    expect(screen.getByText('Room 512 is held for you')).toBeInTheDocument();
+    expect(screen.getByText('Room assigned on arrival day')).toBeInTheDocument();
+    expect(screen.queryByText(/Room 512/)).toBeNull();
     expect(screen.queryByTestId('guest-room-qr-row')).toBeNull();
-    expect(screen.getByText(/Held for your arrival on Nov 20/)).toBeInTheDocument();
   });
 
   /*

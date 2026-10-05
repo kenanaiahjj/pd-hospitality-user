@@ -98,7 +98,7 @@ describe('guest app prototype model', () => {
     });
 
     it('promises a readiness moment only where the PMS reports one', () => {
-      const capable = describeRoomAssignment({ ...base, roomAssignment: 'assigned', roomNumber: '512' }, '2026-11-08');
+      const capable = describeRoomAssignment({ ...base, roomAssignment: 'assigned', roomNumber: '512' }, '2026-11-09');
       expect(capable.headline).toBe('Room 512 is yours');
       expect(capable.detail).toMatch(/we'll tell you the moment it is ready/i);
       expect(capable.canGoUp).toBe(false);
@@ -107,7 +107,7 @@ describe('guest app prototype model', () => {
       // guest is sent to the desk instead of waiting on a signal never sent.
       const legacy = describeRoomAssignment({
         ...base, roomAssignment: 'assigned', roomNumber: '512', reportsRoomReadiness: false,
-      }, '2026-11-08');
+      }, '2026-11-09');
       expect(legacy.detail).toMatch(/Collect your key at the desk/);
       expect(legacy.detail).not.toMatch(/we'll tell you/i);
       expect(legacy.canGoUp).toBe(false);
@@ -150,9 +150,9 @@ describe('guest app prototype model', () => {
 
     it('infers a state for bookings that carry none, so old fixtures stay valid', () => {
       expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: undefined }).state).toBe('pending');
-      // Allocated for a stay that has not begun: assigned, not released. The
-      // dates decide this now, so the reference window is stated explicitly.
-      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304' }, '2026-11-08').state).toBe('assigned');
+      // Rooms are not assigned ahead of arrival day, so a number on a stay that
+      // has not begun is not shown: the dates decide this, stated explicitly.
+      expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304' }, '2026-11-08').state).toBe('pending');
       // Already in the room is the definition of released.
       expect(describeRoomAssignment({ ...base, roomAssignment: undefined, roomNumber: '304' }, '2026-11-11').state).toBe('ready');
     });
@@ -785,7 +785,8 @@ describe('room release eligibility', () => {
 
   it('accepts a release up to check-out, regardless of an asserted status', () => {
     // `status` stays 'upcoming' throughout; only the clock moves.
-    expect(canReportRoomReady(assigned, '2026-11-11')).toBe(true);
+    // Before arrival day nothing is assigned, so nothing can be released.
+    expect(canReportRoomReady(assigned, '2026-11-11')).toBe(false);
     expect(canReportRoomReady(assigned, '2026-11-12')).toBe(true);
     expect(canReportRoomReady(assigned, '2026-11-15')).toBe(true);
     // Past check-out there is no room left to release.
@@ -867,9 +868,9 @@ describe('stay status label', () => {
     expect(describeStayStatus(stay(), '2026-11-10')).toEqual({ status: 'upcoming', label: 'Upcoming' });
   });
 
-  it('promotes a released room ahead of arrival', () => {
+  it('does not announce a room ahead of arrival day', () => {
     const released = stay({ roomNumber: '512', roomAssignment: 'ready' });
-    expect(describeStayStatus(released, '2026-11-10')).toEqual({ status: 'room-ready', label: 'Room ready' });
+    expect(describeStayStatus(released, '2026-11-10')).toEqual({ status: 'upcoming', label: 'Upcoming' });
   });
 
   it('says checked out past the window, and for a closed stay', () => {
@@ -906,8 +907,9 @@ describe('room card copy once the stay has started', () => {
 
     expect(describeRoomAssignment(midStay, '2026-11-11').detail).toMatch(/Collect your key/i);
     expect(describeRoomAssignment(midStay, '2026-11-11').detail).not.toMatch(/before check-in/i);
-    // Before arrival it still promises the signal.
-    expect(describeRoomAssignment(midStay, '2026-11-08').detail).toMatch(/before check-in/i);
+    // Before arrival day there is no room to show; on the day it promises the signal.
+    expect(describeRoomAssignment(midStay, '2026-11-08').state).toBe('pending');
+    expect(describeRoomAssignment(midStay, '2026-11-09').detail).toMatch(/moment it is ready/i);
   });
 });
 

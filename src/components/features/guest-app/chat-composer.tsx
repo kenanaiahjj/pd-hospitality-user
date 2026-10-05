@@ -339,9 +339,35 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
   };
 
   const canSend = Boolean(draft.trim() || pendingAttachment);
-  const openFilePicker = () => {
+  /* Camera takes a new photo; Photos opens the library. One input, told which. */
+  const openFilePicker = (camera: boolean) => {
     setAttachmentMenuOpen(false);
-    fileInputRef.current?.click();
+    const input = fileInputRef.current;
+    if (!input) return;
+    if (camera) input.setAttribute('capture', 'environment');
+    else input.removeAttribute('capture');
+    input.click();
+  };
+
+  /* The place the guest is standing, as a link in the draft: they see it and send it themselves. */
+  const addLocation = () => {
+    setAttachmentMenuOpen(false);
+    if (!navigator.geolocation) {
+      setMediaError("Location isn't available on this device. You can type where you are instead.");
+      return;
+    }
+    setMediaError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (!mountedRef.current) return;
+        const link = `https://www.google.com/maps?q=${coords.latitude.toFixed(5)},${coords.longitude.toFixed(5)}`;
+        onDraftChange(`${draft.trim() ? `${draft.trim()} ` : ''}My location: ${link}`);
+      },
+      () => {
+        if (mountedRef.current) setMediaError("We couldn't get your location. Check that location access is allowed, or type where you are.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   };
 
   useEffect(() => {
@@ -413,9 +439,9 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
 
       {attachmentMenuOpen ? (
         <div className="guest-composer__menu" role="menu" aria-label="Message attachments">
-          <button type="button" role="menuitem" onClick={openFilePicker} disabled={disabled || isRecording}><Camera aria-hidden="true" /><span>Camera</span><CaretRight aria-hidden="true" /></button>
-          <button type="button" role="menuitem" onClick={openFilePicker} disabled={disabled || isRecording}><Images aria-hidden="true" /><span>Photos</span><CaretRight aria-hidden="true" /></button>
-          <button type="button" role="menuitem" onClick={() => setAttachmentMenuOpen(false)} disabled={disabled || isRecording}><MapPin aria-hidden="true" /><span>Location</span><CaretRight aria-hidden="true" /></button>
+          <button type="button" role="menuitem" onClick={() => openFilePicker(true)} disabled={disabled || isRecording}><Camera aria-hidden="true" /><span>Camera</span><CaretRight aria-hidden="true" /></button>
+          <button type="button" role="menuitem" onClick={() => openFilePicker(false)} disabled={disabled || isRecording}><Images aria-hidden="true" /><span>Photos</span><CaretRight aria-hidden="true" /></button>
+          <button type="button" role="menuitem" onClick={addLocation} disabled={disabled || isRecording}><MapPin aria-hidden="true" /><span>Location</span><CaretRight aria-hidden="true" /></button>
           <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); void startRecording(); }} disabled={disabled || isRecording}><Waveform aria-hidden="true" /><span>Audio</span><CaretRight aria-hidden="true" /></button>
         </div>
       ) : null}

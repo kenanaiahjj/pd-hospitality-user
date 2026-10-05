@@ -1165,6 +1165,46 @@ export function signInSession(method: AuthMethod = 'google'): GuestSession {
   };
 }
 
+/**
+ * What an account made inside the app, kept across a sign-out: the stays it
+ * booked, what was arranged and paid on them, its points and its saved
+ * details. Bookings that came from elsewhere are the estate's to give back on
+ * sign-in, so they are not carried.
+ */
+export function accountActivity(session: GuestSession): GuestSession | undefined {
+  if (session.auth !== 'authenticated') return undefined;
+  const ownIds = new Set(session.bookings.filter((booking) => booking.source === 'Cabana app').map((booking) => booking.id));
+  if (ownIds.size === 0 && !(session.payments?.length)) return undefined;
+  return {
+    ...session,
+    bookings: session.bookings.filter((booking) => ownIds.has(booking.id)),
+    serviceBookings: session.serviceBookings.filter((item) => ownIds.has(item.bookingId)),
+  };
+}
+
+/** Puts an account's kept activity back on a fresh sign-in, without duplicating anything the estate already returned. */
+export function restoreAccountActivity(next: GuestSession, kept: GuestSession | undefined): GuestSession {
+  if (!kept) return next;
+  const have = new Set(next.bookings.map((booking) => booking.id));
+  const returned = kept.bookings.filter((booking) => !have.has(booking.id));
+  const bookings = [...next.bookings, ...returned];
+  const ids = new Set(bookings.map((booking) => booking.id));
+  const haveService = new Set(next.serviceBookings.map((item) => item.id));
+  const payments = [...(next.payments ?? [])];
+  for (const payment of kept.payments ?? []) if (!payments.some((item) => item.id === payment.id)) payments.push(payment);
+  return {
+    ...next,
+    bookings,
+    activeBookingId: next.activeBookingId ?? (kept.activeBookingId && ids.has(kept.activeBookingId) ? kept.activeBookingId : returned[0]?.id),
+    serviceBookings: [...next.serviceBookings, ...kept.serviceBookings.filter((item) => ids.has(item.bookingId) && !haveService.has(item.id))],
+    payments,
+    rewards: kept.rewards ?? next.rewards,
+    record: kept.record ?? next.record,
+    companionRecords: kept.companionRecords ?? next.companionRecords,
+    roomPreferences: kept.roomPreferences,
+  };
+}
+
 export function signOutSession(): GuestSession {
   return { ...ANONYMOUS_SESSION };
 }
@@ -3168,8 +3208,14 @@ export function describeRoomAssignment(
     begun has not. `status` used to decide this, and it is the one field a
     fixture or a lagging PMS can assert against the booking's own window.
   */
-  const inferred: RoomAssignmentState = booking.roomAssignment
-    ?? (booking.roomNumber ? (hasStayStarted(booking, today) ? 'ready' : 'assigned') : 'pending');
+  /*
+    Rooms are not assigned ahead of time: the hotel allocates one on arrival
+    day, from what is free then. Before that day there is no room to show,
+    whatever a stored booking or a lagging PMS says.
+  */
+  const inferred: RoomAssignmentState = !hasStayStarted(booking, today)
+    ? 'pending'
+    : booking.roomAssignment ?? (booking.roomNumber ? 'ready' : 'pending');
   const reportsReadiness = booking.reportsRoomReadiness ?? true;
   const room = booking.roomNumber;
 
@@ -3189,10 +3235,10 @@ export function describeRoomAssignment(
       state: 'assigned',
       roomNumber: room,
       headline: `Room ${room} is yours`,
-      detail: hasStayStarted(booking, today)
+      detail: dayIndex(today) > dayIndex(booking.checkIn)
         ? `Collect your key at the front desk if you have not already.`
         : reportsReadiness
-          ? `Housekeeping releases it before check-in, and we'll tell you the moment it is ready.`
+          ? `Housekeeping is releasing it, and we'll tell you the moment it is ready.`
           : `Collect your key at the desk from ${CHECK_IN_FROM}. This property does not report room readiness to the app.`,
       canGoUp: false,
       statusLabel: 'Assigned',

@@ -1198,3 +1198,17 @@
 /* One line: the price and what it includes. */
 .guest-app .sb-dock .guest-dock__summary strong { white-space: nowrap; }
 .guest-app .sb-dock__est { white-space: nowrap; }
+
+/* The hotels of one trip, in travel order. The tappable ones are bordered and carry a caret: no hover to rely on. */
+.guest-app .sb-trail__stops { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.guest-app .sb-trail__stop { display: grid; width: 100%; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); text-align: left; font: inherit; }
+.guest-app button.sb-trail__stop:active { transform: scale(0.99); }
+.guest-app button.sb-trail__stop:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+.guest-app .sb-trail__stop.is-here { border-color: var(--guest-line); background: var(--guest-surface); }
+.guest-app .sb-trail__thumb { position: relative; width: 56px; height: 56px; overflow: hidden; border-radius: 12px; background: var(--guest-sunken); }
+.guest-app .sb-trail__text { display: grid; gap: 2px; min-width: 0; }
+.guest-app .sb-trail__text b { font-size: 15px; font-weight: 700; letter-spacing: -0.008em; }
+.guest-app .sb-trail__text small { color: var(--guest-muted); font-size: 13px; line-height: 1.35; }
+.guest-app .sb-trail__text .sb-trail__hop { color: var(--guest-accent-strong); font-size: 12px; font-weight: 650; }
+.guest-app .sb-trail__here { padding: 4px 10px; border-radius: var(--guest-radius-pill); background: var(--guest-paper); color: var(--guest-muted); font-size: 12px; font-weight: 650; white-space: nowrap; }
+.guest-app .sb-trail__stop > svg { width: 16px; height: 16px; color: var(--guest-subtle); }

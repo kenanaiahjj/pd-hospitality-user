@@ -11,6 +11,7 @@ import { OffersStrip } from './offers';
 import { SaveHotelButton, ShareHotelButton } from './saved';
 import { countNightsBetween } from '../prototype-model';
 import { HighlightStrip, NeighbourhoodSection, PartnersSection } from './neighbourhood-section';
+import { RegionTrail } from './region-trail';
 
 /*
   The hotel, and the room picker that is the point of this flow: every room
@@ -56,7 +57,7 @@ function setQuantity(cart: CartLine[], roomTypeId: string, ratePlanId: RatePlanI
   return copy;
 }
 
-export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchChange, onContinue, held, account }: {
+export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchChange, onContinue, held, account, onOpenHotel }: {
   hotel: StayHotel;
   search: StaySearch;
   cart: CartLine[];
@@ -66,6 +67,8 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
   /** Rooms already sold in the app, so availability reflects them. */
   held?: HeldRooms;
   account?: PromoAccount;
+  /** Opens another hotel on the same trip. */
+  onOpenHotel?: (id: string) => void;
 }) {
   const [editing, setEditing] = useState<SearchStep | null>(null);
   const [cartNotice, setCartNotice] = useState<string | null>(null);
@@ -220,6 +223,7 @@ export function StayHotelScreen({ hotel, search, cart, onCartChange, onSearchCha
 
       <NeighbourhoodSection hotel={hotel} />
       <PartnersSection hotel={hotel} />
+      {onOpenHotel ? <RegionTrail hotelId={hotel.id} search={search} onOpenHotel={onOpenHotel} title="Continue your trip" hereLabel="You’re here" /> : null}
 
       <section className="sb-section" aria-labelledby="sb-contact-title">
         <h2 id="sb-contact-title">Location and contact</h2>

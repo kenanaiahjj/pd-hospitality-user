@@ -312,15 +312,14 @@ describe('account sessions', () => {
     expect(MOCK_SESSION.accountStatus).toBe('returning');
   });
 
-  it('sends Apple to the upcoming booking and Google to the signed-in, no-booking home', () => {
+  it('signs Apple and Google in with no current booking', () => {
     const apple = ssoSession('apple');
     const google = ssoSession('google');
 
     expect(apple).toMatchObject({ auth: 'authenticated', accountStatus: 'returning', authMethod: 'apple' });
     expect(google).toMatchObject({ auth: 'authenticated', accountStatus: 'returning', authMethod: 'google' });
-    // The reference booking, moved clear of the prototype clock so it is genuinely ahead.
-    expect(apple.bookings).toEqual([expect.objectContaining({ id: UPCOMING_BOOKING_FIXTURE.id, status: 'upcoming', checkIn: '2026-11-20', checkOut: '2026-11-23' })]);
-    expect(apple.activeBookingId).toBe(UPCOMING_BOOKING_FIXTURE.id);
+    expect(apple.bookings).toEqual([]);
+    expect(apple.activeBookingId).toBeUndefined();
     expect(google.bookings).toEqual([]);
     expect(google.activeBookingId).toBeUndefined();
 
@@ -383,11 +382,8 @@ describe('account sessions', () => {
 });
 
 describe('getPostAuthScreen', () => {
-  it('routes an authenticated account with no booking to the booking lookup', () => {
-    expect(getPostAuthScreen(emailLoginSession('guest@example.com'))).toBe('identify');
-  });
-
-  it('keeps a booking-linked account on the stay home after authentication', () => {
+  it('lands an authenticated account with no booking on Home, not a lookup form', () => {
+    expect(getPostAuthScreen(emailLoginSession('guest@example.com'))).toBe('stay-overview');
     expect(getPostAuthScreen(ssoSession('apple'))).toBe('stay-overview');
   });
 });

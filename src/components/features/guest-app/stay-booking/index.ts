@@ -3,6 +3,7 @@ export { StaySearchBar, StaySearchLauncher, StaySearchSheet, clearRecentSearches
 export { DEFAULT_RESULTS_VIEW, HotelResultCard, StayResultsScreen, type ResultsView } from './results';
 export { StayHotelScreen, clampCart } from './hotel-page';
 export { StayAddOnsScreen } from './add-ons';
+export { RegionTrail } from './region-trail';
 export { OffersStrip, savePendingVoucher } from './offers';
 export { SaveHotelButton, SavedHotelsScreen, seedSavedHotels, useSavedHotels } from './saved';
 export { StayCheckoutScreen, StayPaymentScreen, emptyGuestDetails } from './checkout';

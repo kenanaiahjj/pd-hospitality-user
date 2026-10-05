@@ -127,6 +127,8 @@ export const STAY_LOCATIONS: StayLocation[] = [
   { label: 'Siargao', detail: 'Surigao del Norte', center: [9.789, 126.156] },
   { label: 'Bohol', detail: 'Panglao Island', center: [9.576, 123.763] },
   { label: 'Dumaguete', detail: 'Negros Oriental', center: [9.3068, 123.3054] },
+  { label: 'Valencia', detail: 'Negros Oriental', center: [9.2862, 123.2433] },
+  { label: 'Siquijor', detail: 'Siquijor Island', center: [9.2147, 123.5128] },
   { label: 'Baguio', detail: 'Benguet', center: [16.4023, 120.596] },
   { label: 'Tagaytay', detail: 'Cavite', center: [14.1153, 120.9621] },
 ];
@@ -223,6 +225,50 @@ export const STAY_HOTELS: StayHotel[] = [
     roomTypes: [
       room('dumaguete-deluxe', 'Deluxe Room', 4900, 2, 2, 26, '1 queen bed', 'Sea view', ROOM_PHOTOS.queen, ['Balcony', 'Rain shower']),
       room('dumaguete-suite', 'Corner Suite', 7600, 4, 3, 40, '1 king + 1 sofa bed', 'Sea view', ROOM_PHOTOS.suite, ['Wraparound balcony', 'Sitting area']),
+    ],
+  },
+  {
+    id: 'valencia-forest-lodge',
+    name: 'Pulangbato Forest Lodge',
+    city: 'Valencia',
+    area: 'Pulangbato · Valencia, Negros Oriental',
+    address: 'Pulangbato Rd., Valencia, Negros Oriental, Philippines',
+    stars: 3,
+    rating: 8.8,
+    reviews: 214,
+    position: [9.2862, 123.2433],
+    image: unsplash('1596394516093-501ba68a0ba6', 'Pulangbato Forest Lodge among the trees'),
+    gallery: [ROOM_PHOTOS.garden, ROOM_PHOTOS.mountain],
+    summary: 'Cool-air cabins in the foothills above Dumaguete.',
+    about: 'A base for waterfalls, the twin lakes and the hot springs, with a spring-fed pool and farm-to-table breakfasts.',
+    amenities: ['pool', 'restaurant', 'wifi', 'breakfast', 'parking', 'family'],
+    phone: '+63 35 555 0229',
+    email: 'stay@pulangbatolodge.example',
+    roomTypes: [
+      room('valencia-garden', 'Garden Room', 3600, 2, 2, 24, '1 queen bed', 'Garden view', ROOM_PHOTOS.garden, ['Veranda', 'Rain shower']),
+      room('valencia-cabin', 'Forest Cabin', 5200, 4, 3, 38, '1 queen + 2 single beds', 'Forest view', ROOM_PHOTOS.mountain, ['Deck', 'Kitchenette']),
+    ],
+  },
+  {
+    id: 'siquijor-coral-villas',
+    name: 'Salagdoong Beach Villas',
+    city: 'Siquijor',
+    area: 'Maria · Siquijor Island',
+    address: 'Salagdoong Beach Rd., Maria, Siquijor, Philippines',
+    stars: 4,
+    rating: 9.1,
+    reviews: 187,
+    position: [9.1883, 123.6366],
+    image: unsplash('1519046904884-53103b34b206', 'Salagdoong Beach Villas on the white sand'),
+    gallery: [ROOM_PHOTOS.villa, ROOM_PHOTOS.garden],
+    summary: 'Quiet beachfront villas on the island’s eastern shore.',
+    about: 'Cliff jumping at Salagdoong, snorkelling off the reef and slow dinners on the sand, a ferry ride from Dumaguete.',
+    amenities: ['beach', 'pool', 'spa', 'restaurant', 'breakfast', 'wifi'],
+    phone: '+63 35 555 0240',
+    email: 'reservations@salagdoongvillas.example',
+    roomTypes: [
+      room('siquijor-garden', 'Garden Bungalow', 5400, 2, 2, 30, '1 queen bed', 'Garden view', ROOM_PHOTOS.garden, ['Hammock porch', 'Outdoor shower']),
+      room('siquijor-beach', 'Beachfront Villa', 8800, 4, 3, 48, '1 king + 2 single beds', 'Beachfront', ROOM_PHOTOS.villa, ['Private deck', 'Outdoor shower']),
     ],
   },
   {
@@ -407,6 +453,59 @@ export const STAY_HOTELS: StayHotel[] = [
 ];
 
 export const findStayHotel = (id?: string) => STAY_HOTELS.find((hotel) => hotel.id === id);
+
+/*
+  Hotels that make one trip: the same stretch of country, in the order a
+  traveller would take them. Each stop says how it connects to the one before
+  it. The figures are prototype ones -- the property or the PMS middleware
+  supplies real ones.
+*/
+export type TrailStop = { hotel: StayHotel; hop?: string };
+export type RegionTrail = { id: string; label: string; stops: TrailStop[] };
+
+const TRAILS: { id: string; label: string; stops: { hotelId: string; hop?: string }[] }[] = [
+  {
+    id: 'negros-siquijor',
+    label: 'Negros and Siquijor',
+    stops: [
+      { hotelId: 'dumaguete' },
+      { hotelId: 'valencia-forest-lodge', hop: '25 min drive inland from Dumaguete' },
+      { hotelId: 'siquijor-coral-villas', hop: 'About 2 hr by road and ferry from Valencia' },
+    ],
+  },
+  {
+    id: 'manila-tagaytay',
+    label: 'Metro Manila and Tagaytay',
+    stops: [
+      { hotelId: 'manila' },
+      { hotelId: 'poblacion-loft', hop: '20 min drive from Pasay' },
+      { hotelId: 'ridgeline-tagaytay', hop: '1 hr 30 min drive south from Makati' },
+    ],
+  },
+  {
+    id: 'cebu-bohol',
+    label: 'Cebu and Bohol',
+    stops: [
+      { hotelId: 'cebu' },
+      { hotelId: 'mactan-tidewater', hop: '35 min drive across the bridge' },
+      { hotelId: 'panglao-palm', hop: '2 hr by fast ferry from Cebu' },
+    ],
+  },
+];
+
+/** The trip a hotel belongs to, if it belongs to one; hotels on their own have none. */
+export function regionTrailFor(hotelId?: string): RegionTrail | undefined {
+  const trail = TRAILS.find((item) => item.stops.some((stop) => stop.hotelId === hotelId));
+  if (!trail) return undefined;
+  return {
+    id: trail.id,
+    label: trail.label,
+    stops: trail.stops.flatMap((stop) => {
+      const hotel = findStayHotel(stop.hotelId);
+      return hotel ? [{ hotel, hop: stop.hop }] : [];
+    }),
+  };
+}
 
 /**
  * A place's picture: a partner outside the estate where there is one, so the
@@ -748,12 +847,15 @@ export type Promo = {
  * have never paid for a stay in the app; a real account would have the
  * backend say so, since bookings made elsewhere count too.
  */
-export type PromoAccount = { firstBooking: boolean };
-export const NEW_ACCOUNT: PromoAccount = { firstBooking: true };
+export type PromoAccount = { firstBooking: boolean; /** Has finished a stay before, here or elsewhere. */ hasStayed?: boolean };
+export const NEW_ACCOUNT: PromoAccount = { firstBooking: true, hasStayed: false };
 
 /** A first booking until any stay has been paid for in the app -- a cancelled one included, since the code was used. */
-export function promoAccountFor(session: { bookings: { reservation?: unknown }[]; payments?: { kind: string }[] }): PromoAccount {
-  return { firstBooking: !session.bookings.some((item) => item.reservation) && !(session.payments ?? []).some((payment) => payment.kind === 'stay') };
+export function promoAccountFor(session: { bookings: { reservation?: unknown; status?: string }[]; payments?: { kind: string }[]; pastStays?: unknown[] }): PromoAccount {
+  return {
+    firstBooking: !session.bookings.some((item) => item.reservation) && !(session.payments ?? []).some((payment) => payment.kind === 'stay'),
+    hasStayed: (session.pastStays?.length ?? 0) > 0 || session.bookings.some((item) => item.status === 'completed'),
+  };
 }
 
 export const PROMO_CODES: Record<string, Promo> = {
@@ -764,6 +866,13 @@ export const PROMO_CODES: Record<string, Promo> = {
     terms: 'Your first stay booked in the app.',
     apply: (subtotal) => Math.min(500, subtotal),
     refuses: (account) => (account.firstBooking ? undefined : 'WELCOME500 is for your first booking in the app.'),
+  },
+  NEXTSTAY10: {
+    label: '10% off rooms',
+    title: 'Welcome back: 10% off your next stay',
+    terms: 'For guests who have stayed before. Any partner hotel, any dates, this year or next.',
+    apply: (subtotal) => Math.round(subtotal * 0.1),
+    refuses: (account) => (account.hasStayed ? undefined : 'NEXTSTAY10 is for guests who have stayed before.'),
   },
   HENRY15: {
     label: '15% off rooms',

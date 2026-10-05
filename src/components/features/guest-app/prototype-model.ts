@@ -1086,10 +1086,8 @@ export function convertGuestToAccount(session: GuestSession, method: AuthMethod)
 }
 
 /**
- * The two SSO providers deliberately land on different account shapes, so the
- * demo can show both starting states from the same sheet: Apple is the guest
- * with an upcoming stay (the booking-linked pre-arrival experience), while
- * Google is signed in without a current booking and starts at booking lookup.
+ * Apple and Google both sign in the guest the estate already knows (name and
+ * stay history), with no current booking.
  */
 export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
   /*
@@ -1113,12 +1111,11 @@ export function ssoSession(method: AuthMethod = 'apple'): GuestSession {
   return {
     ...restoreProfileSession(),
     ...identity,
-    // Apple keeps the upcoming stay, so auth opens in pre-arrival state.
-    // Google has none, so auth opens at booking lookup.
-    // Before the stay, as the demo intends: the reference fixture's dates
-    // include today, which put a checked-in guest on a pre-arrival checklist.
-    bookings: method === 'apple' ? [{ ...UPCOMING_BOOKING_FIXTURE, ...PRE_ARRIVAL_DATES }] : [],
-    activeBookingId: method === 'apple' ? UPCOMING_BOOKING_FIXTURE.id : undefined,
+    // Both providers sign in an account with no current booking: the guest lands on
+    // the no-booking home and books a hotel or adds a booking from there. The stay
+    // states (pre-arrival, live, checkout) are reached from the prototype controls.
+    bookings: [],
+    activeBookingId: undefined,
     serviceBookings: [],
     folioTotal: '₱0',
     authMethod: method,
@@ -1294,14 +1291,14 @@ export function connectBooking(session: GuestSession, booking: Booking = UPCOMIN
 /**
  * Where a guest lands the moment authentication is accepted.
  *
- * Booking-linked accounts open on the stay overview. An authenticated account
- * without a current booking starts at lookup so the next action is to connect
- * a stay, not to render stay-only surfaces without a reservation.
+ * Always Home. An account with a booking sees its stay; one without sees the
+ * no-booking home, which offers search, Explore and "Already booked?".
  */
 export function getPostAuthScreen(session: GuestSession): ScreenId {
-  return session.auth === 'authenticated' && session.bookings.length === 0
-    ? 'identify'
-    : 'stay-overview';
+  // Signed in, with or without a booking, a guest lands on Home: with no booking it is the
+  // no-booking home (search, Explore, "Already booked?"), never a lookup form first.
+  void session;
+  return 'stay-overview';
 }
 
 export function getPrimaryBooking(
@@ -2443,9 +2440,6 @@ export const PROTOTYPE_STAY_STATES: Array<{
   { id: 'just-checked-out', label: 'Just checked out', detail: 'Settled, front desk open 24 hours' },
   // No "Stay closed" row: once the desk window ends the guest is on the no-booking home, which is "Signed in, no booking".
 ];
-
-/** The upcoming stay the demo opens before arrival: clear of the prototype clock. */
-const PRE_ARRIVAL_DATES = { status: 'upcoming' as const, checkIn: '2026-11-20', checkOut: '2026-11-23', roomNumber: undefined, roomAssignment: 'pending' as const, folioTotal: undefined };
 
 export function applyPrototypeStayState(state: PrototypeStayState): GuestSession {
   if (state === 'signed-out') return { ...ANONYMOUS_SESSION };

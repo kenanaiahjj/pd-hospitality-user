@@ -152,37 +152,30 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
   });
 
-  it('uses Apple SSO from the welcome screen to reach the booking-linked home', async () => {
+  it('uses Apple SSO from the welcome screen to reach the signed-in, no-booking home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
 
-    expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Check-in before arrival' })).toBeInTheDocument();
-    expect(screen.queryByText('Choose how to connect your stay.')).toBeNull();
-
-    /*
-      The lookup is not offered here, and that is the point. `ssoSession`
-      returns a guest the estate already knows, reservation included, so
-      "Add a booking" lives on the no-booking home -- putting it here asked
-      someone holding a booking to go and look it up.
-    */
-    expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
+    // Signed in with nothing booked: Home with search and "Already booked?", never a lookup form first.
+    expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
+    expect(screen.getByText('Already booked?')).toBeInTheDocument();
+    expect(screen.queryByTestId('guest-home-upcoming')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
-  it('uses Google SSO from the welcome screen to reach booking lookup', async () => {
+  it('uses Google SSO from the welcome screen to reach the signed-in, no-booking home', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype />);
 
     expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
 
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
+    expect(screen.getByText('Already booked?')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
   it('pages the welcome steps one at a time from the dots', async () => {
@@ -241,7 +234,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
   });
 
-  it('moves from email login to a six-digit OTP and then to booking lookup', async () => {
+  it('moves from email login to a six-digit OTP and then to the no-booking home', async () => {
     const user = userEvent.setup();
     // Straight to the email screen: its entry on the welcome screen is off for now.
     render(<GuestAppPrototype initialScreen="sign-in" />);
@@ -261,9 +254,8 @@ describe('GuestAppPrototype', () => {
     await user.type(code, '123456');
     await user.click(screen.getByRole('button', { name: 'Verify' }));
 
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
+    expect(screen.getByText('Already booked?')).toBeInTheDocument();
   });
 
   it('keeps an invalid OTP on the verification screen with an accessible error', async () => {
@@ -806,11 +798,8 @@ describe('guest account and entry flows', () => {
 
     expect(screen.getByRole('group', { name: 'Ways to continue' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
-    /*
-      Apple returns a guest the estate already knows, reservation included, so
-      the booking-linked home opens directly without a lookup step.
-    */
-    expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
+    // Straight to the no-booking home, without a lookup step.
+    expect(screen.getByText('Already booked?')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
@@ -3073,25 +3062,16 @@ describe('signed-in home with no booking', () => {
     expect(document.querySelector('a[href^="mailto:"]')).toBeInTheDocument();
   });
 
-  it('starts the signed-in, no-booking flow at booking lookup after Google SSO', async () => {
+  it('lands on the no-booking home after Google or Apple SSO', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype />);
+    for (const provider of ['Google', 'Apple']) {
+      render(<GuestAppPrototype />);
+      await user.click(screen.getByRole('button', { name: `Continue with ${provider}` }));
 
-    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
-
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Last name/)).toBeInTheDocument();
-  });
-
-  it('keeps Apple SSO on the upcoming booking, not the no-booking home', async () => {
-    const user = userEvent.setup();
-    render(<GuestAppPrototype />);
-
-    await user.click(screen.getByRole('button', { name: 'Continue with Apple' }));
-
-    expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Check-in before arrival' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Welcome back, Ana' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
+      cleanup();
+    }
   });
 
   it('keeps previous stays off the home and shows partner hotels in Explore', () => {

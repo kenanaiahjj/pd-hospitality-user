@@ -3,7 +3,7 @@
 import { Notice, PropertyImage, SectionHeading, Tag } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { ANYWHERE, HotelResultCard, OffersStrip, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, OffersStrip, RegionTrail, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry, StayReview } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, ITEM_THUMBNAIL_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
@@ -293,6 +293,9 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
           <div className="guest-page-title"><h2>Where to next?</h2><p>Search Cabana stays by destination, dates, and guests.</p></div>
           <StaySearchAndDestinations value={staySearch} onSearch={onSearchStay} />
         </section>
+        {/* A guest who has just stayed is offered their next one: a welcome-back code, and the hotels on the same trip. */}
+        <OffersStrip nights={countNightsBetween(staySearch.checkIn, staySearch.checkOut)} account={promoAccount} only={['NEXTSTAY10']} title="For your next stay" />
+        <RegionTrail hotelId={booking.reservation?.hotelId ?? booking.city.toLowerCase()} search={staySearch} onOpenHotel={onOpenHotel} title="Where to next" hereLabel="You stayed here" />
         <BookAnotherStayCard onNavigate={onNavigate} />
       </div>
     );

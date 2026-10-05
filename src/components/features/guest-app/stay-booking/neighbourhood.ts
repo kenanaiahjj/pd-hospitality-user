@@ -105,6 +105,34 @@ export const NEIGHBOURHOODS: Record<string, Neighbourhood> = {
     ],
     partners: [partner('lakbay-tours', 'Lakbay Island Tours', 'Tours', 'Apo Island day trips', 'tour'), ...HENRY_PARTNERS.slice(0, 1), partner('dumaguete-pool', 'Poolside Bar', 'Bar', 'Shakes and cocktails by the pool', 'poolside-bar', 'hotel')],
   },
+  'valencia-forest-lodge': {
+    spots: [
+      spot('attraction', 'nature', 'Pulangbato Falls', 'Hot-spring-fed falls', 10, 'drive'),
+      spot('attraction', 'nature', 'Twin Lakes of Balinsasayao', 'Crater lakes in the forest', 45, 'drive'),
+      spot('attraction', 'nature', 'Forest Camp', 'Cool-air trails and picnic grounds', 20, 'drive'),
+      spot('attraction', 'church', 'Valencia town plaza', 'Church and weekend market', 12, 'drive'),
+      spot('food', 'food', 'Lodge kitchen', 'At the lodge · farm-to-table', 1),
+      spot('food', 'cafe', 'Hillside coffee stop', 'Local coffee and puto maya', 8, 'drive'),
+      spot('essential', 'store', 'Sari-sari store', 'Snacks and load', 4),
+      spot('essential', 'pharmacy', 'Valencia pharmacy', 'Pharmacy', 14, 'drive'),
+      spot('essential', 'airport', 'Sibulan Airport', 'Airport', 35, 'drive'),
+    ],
+    partners: [partner('valencia-hikes', 'Forest Camp Guides', 'Tours', 'Waterfall and twin-lake hikes', 'heritage-walk'), partner('valencia-spa', 'Hot spring massage', 'Spa', 'Soak and massage after a hike', 'spa', 'hotel')],
+  },
+  'siquijor-coral-villas': {
+    spots: [
+      spot('attraction', 'beach', 'Salagdoong Beach', 'Cliff jumping and clear water', 6),
+      spot('attraction', 'nature', 'Cambugahay Falls', 'Tiered turquoise falls', 25, 'drive'),
+      spot('attraction', 'landmark', 'Lazi Convent', 'Centuries-old church and convent', 30, 'drive'),
+      spot('attraction', 'nature', 'Century-old balete tree', 'Fish-spa spring below the roots', 28, 'drive'),
+      spot('food', 'food', 'Villa beach deck', 'At the resort · dinner on the sand', 1),
+      spot('food', 'cafe', 'Maria town bakeries', 'Coconut bread and coffee', 10, 'drive'),
+      spot('essential', 'store', 'Sari-sari store', 'Snacks and load', 5),
+      spot('essential', 'pharmacy', 'Siquijor pharmacy', 'Pharmacy', 20, 'drive'),
+      spot('essential', 'port', 'Siquijor Port', 'Ferry to Dumaguete', 35, 'drive'),
+    ],
+    partners: [partner('siquijor-island-hop', 'Island Day Tours', 'Tours', 'Waterfalls, churches and the balete tree', 'tour'), partner('siquijor-snorkel', 'Reef snorkelling', 'Tours', 'Guided snorkel off the house reef', 'sunset-cruise', 'hotel')],
+  },
   'poblacion-loft': {
     spots: [
       spot('attraction', 'bar', 'Poblacion bar street', 'Makati’s nightlife block', 1),

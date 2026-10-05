@@ -3212,6 +3212,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         onSearchChange={(next) => setStayDraft((draft) => ({ ...draft, search: next }))}
         held={held}
         account={promoAccount}
+        onOpenHotel={openPartnerHotel}
         onContinue={() => {
           const rooms = cartRooms(current, stayDraft.cart).length;
           // Keep the booking's automatic room split without asking the guest to review it.

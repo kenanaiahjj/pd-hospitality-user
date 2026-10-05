@@ -240,6 +240,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'Compact lofts in the middle of Makati’s bar and food street.',
     about: 'A good-value base a short walk from the Makati CBD, with a rooftop bar and 24-hour front desk.',
     amenities: ['wifi', 'restaurant', 'gym'],
+    phone: '+63 2 8555 0141',
+    email: 'hello@poblacionloft.example',
     roomTypes: [
       room('poblacion-queen', 'Queen Loft', 3200, 2, 2, 20, '1 queen bed', 'City view', ROOM_PHOTOS.dark, ['Mezzanine bed', 'Smart TV']),
       room('poblacion-twin', 'Twin Loft', 3500, 2, 2, 22, '2 single beds', 'City view', ROOM_PHOTOS.twin, ['Work desk']),
@@ -261,6 +263,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'A beachfront resort with its own reef, fifteen minutes from the airport.',
     about: 'Lagoon pools, a house reef for snorkelling, a full spa and a kids’ club on the Punta Engaño shoreline.',
     amenities: ['beach', 'pool', 'spa', 'restaurant', 'wifi', 'breakfast', 'airport-transfer', 'gym', 'family'],
+    phone: '+63 32 555 0152',
+    email: 'reservations@mactantidewater.example',
     roomTypes: [
       room('mactan-deluxe', 'Deluxe Ocean King', 11800, 2, 2, 42, '1 king bed', 'Ocean view', ROOM_PHOTOS.kingBright, ['Balcony', 'Bathtub']),
       room('mactan-family', 'Family Ocean Room', 14600, 4, 3, 56, '1 king + 2 single beds', 'Ocean view', ROOM_PHOTOS.twin, ['Kids’ club access', 'Balcony']),
@@ -282,6 +286,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'Steps from the quietest stretch of White Beach.',
     about: 'Low-rise rooms around a garden pool, with sunset loungers on the sand and a beach bar at the gate.',
     amenities: ['beach', 'pool', 'restaurant', 'wifi', 'breakfast', 'airport-transfer'],
+    phone: '+63 36 555 0163',
+    email: 'stay@alonbeachhouse.example',
     roomTypes: [
       room('alon-garden', 'Garden Queen', 7200, 2, 2, 28, '1 queen bed', 'Garden view', ROOM_PHOTOS.garden, ['Terrace', 'Outdoor shower']),
       room('alon-beach', 'Beachfront King', 10900, 2, 2, 34, '1 king bed', 'Beachfront', ROOM_PHOTOS.kingBright, ['Sunset balcony', 'Minibar']),
@@ -303,6 +309,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'Cliffside villas facing the Bacuit Bay islands.',
     about: 'Island-hopping from the resort jetty, an infinity pool above the cove and dinners on the sand.',
     amenities: ['beach', 'pool', 'spa', 'restaurant', 'breakfast', 'airport-transfer'],
+    phone: '+63 38 555 0174',
+    email: 'reservations@batocove.example',
     roomTypes: [
       room('bato-villa', 'Bay View Villa', 16500, 2, 2, 55, '1 king bed', 'Bay view', ROOM_PHOTOS.villa, ['Outdoor bath', 'Deck']),
       room('bato-family', 'Two-Bedroom Cliff Villa', 27800, 5, 4, 110, '1 king + 2 queen beds', 'Bay view', ROOM_PHOTOS.lounge, ['Plunge pool', 'Two bedrooms'], ['flex', 'flex-breakfast']),
@@ -323,6 +331,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'A laid-back lodge a scooter ride from Cloud 9.',
     about: 'Surf lessons, board storage, a smoothie bar and hammocks around a small pool.',
     amenities: ['pool', 'wifi', 'restaurant', 'breakfast', 'family'],
+    phone: '+63 86 555 0185',
+    email: 'hello@dagatsurflodge.example',
     roomTypes: [
       room('dagat-queen', 'Queen Cabana', 3900, 2, 2, 22, '1 queen bed', 'Garden view', ROOM_PHOTOS.dark, ['Fan and air-con', 'Porch']),
       room('dagat-family', 'Family Cabana', 5600, 4, 3, 34, '1 queen + 2 single beds', 'Pool view', ROOM_PHOTOS.twin, ['Loft beds', 'Porch']),
@@ -343,6 +353,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'Pine-forest rooms with fireplaces, above the city fog.',
     about: 'Cool mornings, a fireplace lounge and trails through Camp John Hay from the back gate.',
     amenities: ['restaurant', 'wifi', 'breakfast', 'parking', 'family'],
+    phone: '+63 74 555 0196',
+    email: 'reservations@pinetophotel.example',
     roomTypes: [
       room('pinetop-deluxe', 'Deluxe Pine Room', 5200, 2, 2, 30, '1 queen bed', 'Forest view', ROOM_PHOTOS.mountain, ['Fireplace', 'Heated shower']),
       room('pinetop-family', 'Family Loft', 7800, 5, 4, 48, '1 queen + 3 single beds', 'Forest view', ROOM_PHOTOS.queen, ['Loft', 'Fireplace']),
@@ -363,6 +375,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'Pool villas a short walk from Alona Beach.',
     about: 'Private-feeling villas around a lagoon pool, with dive trips and Chocolate Hills tours from the desk.',
     amenities: ['pool', 'spa', 'restaurant', 'wifi', 'breakfast', 'airport-transfer', 'family'],
+    phone: '+63 38 555 0207',
+    email: 'stay@panglaopalmvillas.example',
     roomTypes: [
       room('panglao-deluxe', 'Deluxe Garden Room', 6400, 2, 2, 32, '1 king bed', 'Garden view', ROOM_PHOTOS.garden, ['Terrace', 'Rain shower']),
       room('panglao-villa', 'Pool Villa', 12500, 3, 2, 60, '1 king bed + daybed', 'Pool view', ROOM_PHOTOS.villa, ['Pool access', 'Outdoor shower']),
@@ -383,6 +397,8 @@ export const STAY_HOTELS: StayHotel[] = [
     summary: 'Taal Lake views and cool air, an hour from Manila.',
     about: 'Rooms facing Taal volcano, a heated pool and a bulalo restaurant for the drive back.',
     amenities: ['pool', 'restaurant', 'wifi', 'breakfast', 'parking', 'family'],
+    phone: '+63 46 555 0218',
+    email: 'reservations@ridgelinehotel.example',
     roomTypes: [
       room('ridgeline-deluxe', 'Deluxe Lake View', 5800, 2, 2, 30, '1 king bed', 'Taal Lake view', ROOM_PHOTOS.suite, ['Balcony']),
       room('ridgeline-family', 'Family Suite', 8900, 5, 4, 50, '1 king + 2 single beds', 'Taal Lake view', ROOM_PHOTOS.twin, ['Sitting area', 'Balcony']),

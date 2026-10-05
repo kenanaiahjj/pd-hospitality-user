@@ -4,9 +4,8 @@ import { Notice, ServiceImage, SummaryRow, TextButton } from './guest-ui';
 import { slug } from './prototype-controls';
 import type { Booking, RestaurantVenue, ServiceBooking } from './prototype-model';
 import { PROTOTYPE_TODAY, RESTAURANTS, describeStayStatus, formatPesoAmount, getRoomCharges, parsePesoAmount } from './prototype-model';
-import { getItemThumbnail, getServiceImageKey } from './service-images';
-import { Button } from '@/components/ui';
-import { ArrowLeft, ArrowRight, Bell, CalendarPlus, CaretRight, Check, ForkKnife, House, MapPin, Minus, Plus, Sparkle, Storefront, WifiSlash, X } from '@phosphor-icons/react';
+import { getServiceImageKey } from './service-images';
+import { ArrowLeft, ArrowRight, Bell, CalendarPlus, CaretRight, ForkKnife, House, MapPin, Sparkle, Storefront, WifiSlash, X } from '@phosphor-icons/react';
 import type { ReactNode, TouchEvent as ReactTouchEvent } from 'react';
 import { useRef, useState } from 'react';
 
@@ -85,67 +84,6 @@ export const MENU_ITEM_IMAGE_URLS: Record<string, string> = {
   'ird-7': 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&w=600&q=80',
   'ird-8': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=80',
 };
-
-export function getMenuItemImage(itemId: string, categoryId = 'dining') {
-  return MENU_ITEM_IMAGE_URLS[itemId] ?? getItemThumbnail(itemId, categoryId).src;
-}
-
-export type OrderTrayItem = { id: string; name: string; unitPrice: string; quantity: number; image: string };
-
-export function OrderTray({ title, establishment, items, total, roomNumber, onChangeQuantity, onClose, onCheckout }: { title: string; establishment: string; items: OrderTrayItem[]; total: string; roomNumber?: string; onChangeQuantity: (id: string, delta: number) => void; onClose: () => void; onCheckout: () => void }) {
-  void title;
-  const [page, setPage] = useState<'summary' | 'checkout' | 'review'>('summary');
-  const [fulfillment, setFulfillment] = useState<'room' | 'pickup' | null>(null);
-  const [schedule, setSchedule] = useState<'asap' | 'later' | null>(null);
-  const [scheduledDate, setScheduledDate] = useState('Today · Nov 11');
-  const [scheduledTime, setScheduledTime] = useState('7:30 PM');
-  const count = items.reduce((sum, item) => sum + item.quantity, 0);
-  const ready = Boolean(roomNumber && fulfillment && schedule && (schedule !== 'later' || (scheduledDate && scheduledTime)));
-
-  return (
-    <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="guest-order-tray guest-order-tray--multipage" role="dialog" aria-modal="true" aria-labelledby="order-tray-title">
-        <header className="guest-order-tray__header">
-          <div className="guest-order-tray__heading">
-            {page !== 'summary' ? <button className="guest-order-tray__back" type="button" onClick={() => setPage(page === 'review' ? 'checkout' : 'summary')} aria-label="Back"><ArrowLeft /></button> : null}
-            <div><h2 id="order-tray-title">{page === 'summary' ? 'Your order' : page === 'checkout' ? 'Complete your order' : 'Review and confirm'}</h2>{page === 'summary' ? <p>{establishment}</p> : page === 'checkout' ? <p>{establishment}</p> : null}</div>
-          </div>
-          <button className="guest-order-tray__close" type="button" onClick={onClose} aria-label="Close"><X /></button>
-        </header>
-
-        <div className="guest-order-tray__scroll">
-          {page === 'summary' ? <div className="guest-tray-page">
-            <div className="guest-order-tray__items">{items.map((item) => <div className="guest-order-tray__item" key={item.id}>
-              <Image src={item.image} alt="" width={72} height={72} />
-              <span><b>{item.name}</b><small>{item.unitPrice} each</small></span>
-              <div className="guest-menu-quantity"><button type="button" aria-label={`Decrease ${item.name}`} onClick={() => onChangeQuantity(item.id, -1)}><Minus /></button><output>{item.quantity}</output><button type="button" aria-label={`Increase ${item.name}`} onClick={() => onChangeQuantity(item.id, 1)}><Plus /></button></div>
-              <button className="guest-order-tray__remove" type="button" onClick={() => onChangeQuantity(item.id, -item.quantity)}>Remove</button>
-            </div>)}</div>
-            <div className="guest-order-tray__total"><span>Items <b>{count}</b></span><strong>Subtotal <b>{total}</b></strong></div>
-          </div> : null}
-
-          {page === 'checkout' ? <div className="guest-tray-page guest-tray-checkout">
-            <section><h3>How would you like to receive your order?</h3><div className="guest-tray-options guest-tray-options--compact">
-              <button type="button" className={fulfillment === 'room' ? 'is-active' : ''} disabled={!roomNumber} onClick={() => setFulfillment('room')}><b>Deliver to room</b>{fulfillment === 'room' ? <Check /> : null}</button>
-              <button type="button" className={fulfillment === 'pickup' ? 'is-active' : ''} onClick={() => setFulfillment('pickup')}><b>Pick up</b>{fulfillment === 'pickup' ? <Check /> : null}</button>
-            </div></section>
-            <section><h3>{fulfillment === 'pickup' ? 'When would you like to pick it up?' : 'When would you like it delivered?'}</h3><div className="guest-tray-options guest-tray-options--stacked guest-tray-options--compact">
-              <button type="button" disabled={!fulfillment} className={schedule === 'asap' ? 'is-active' : ''} onClick={() => setSchedule('asap')}><b>As soon as possible</b><small>30–40 minutes</small>{schedule === 'asap' ? <Check /> : null}</button>
-              <button type="button" disabled={!fulfillment} className={schedule === 'later' ? 'is-active' : ''} onClick={() => setSchedule('later')}><b>Schedule for later</b><small>Choose a date and time</small>{schedule === 'later' ? <Check /> : null}</button>
-            </div></section>
-            {schedule === 'later' ? <div className="guest-tray-schedule-picker"><div><span>Date</span><div className="guest-tray-schedule-options">{['Today · Nov 11', 'Tomorrow · Nov 12'].map((date) => <button key={date} type="button" className={scheduledDate === date ? 'is-active' : ''} onClick={() => setScheduledDate(date)}>{date}</button>)}</div></div><div><span>Time</span><div className="guest-tray-schedule-options">{['6:30 PM', '7:00 PM', '7:30 PM'].map((time) => <button key={time} type="button" className={scheduledTime === time ? 'is-active' : ''} onClick={() => setScheduledTime(time)}>{time}</button>)}</div></div></div> : null}
-            <section><h3>Charged to your room</h3><p>The order total is added to your room folio and settled at checkout.</p></section>
-            <div className="guest-order-tray__price-summary"><SummaryRow label="Items" value={`${count}`} /><SummaryRow label="Subtotal" value={total} strong /></div>
-          </div> : null}
-
-          {page === 'review' ? <div className="guest-tray-page guest-order-tray__review"><SummaryRow label="Establishment" value={establishment} /><SummaryRow label="Items" value={`${count}`} /><SummaryRow label="Fulfillment" value={fulfillment === 'room' ? `Deliver to room ${roomNumber}` : 'Pick up · Hotel lobby'} /><SummaryRow label="Schedule" value={schedule === 'asap' ? 'As soon as possible · 30–40 minutes' : `${scheduledDate} · ${scheduledTime}`} /><SummaryRow label="Room charge" value={`Room ${roomNumber ?? '—'} · settled at checkout`} /><SummaryRow label="Subtotal" value={total} /><SummaryRow label="Total" value={total} strong /></div> : null}
-        </div>
-
-        <footer className="guest-order-tray__footer"><Button className="guest-button guest-button--primary" type="button" disabled={page === 'checkout' && !ready} onClick={() => page === 'summary' ? setPage('checkout') : page === 'checkout' ? setPage('review') : onCheckout()}>{page === 'summary' ? 'Checkout' : page === 'checkout' ? 'Review order' : `Charge ${total} to room`}<ArrowRight /></Button></footer>
-      </section>
-    </div>
-  );
-}
 
 export function ActionTile({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
   return <button className="guest-action-tile" onClick={onClick}><span>{icon}</span><b>{label}</b><CaretRight /></button>;

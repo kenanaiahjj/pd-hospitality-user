@@ -17,9 +17,7 @@ import {
   ForkKnife,
   IdentificationCard,
   MapPin,
-  Minus,
   Person,
-  Plus,
   QrCode,
   Receipt,
   SignOut,
@@ -32,7 +30,6 @@ import {
   Lock,
   Car,
   Users,
-  WifiHigh,
   WifiSlash,
   X,
   WarningCircle,
@@ -91,7 +88,6 @@ import {
   getPostAuthScreen,
   emailLoginSession,
   getPrimaryBooking,
-  getVenueCartSummary,
   getRoomCharges,
   getRoomChargesTotal,
   canReportRoomReady,
@@ -148,7 +144,6 @@ import {
   type StayEntry,
   type StayReview,
   type NotificationTone,
-  type DiningFulfillment,
   type MiniAppCategoryId,
   type ServiceBooking,
   type RestaurantVenue,
@@ -280,12 +275,12 @@ import { paymentsSummary, recordPayment, refundBookingItems, refundRemainingLink
 import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
 import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
 import type { AuthMethod, CartLine } from './prototype-model';
-import { EstablishmentChatScreen, GIFT_PRODUCTS, LOBBY_SHOP_NAME, OrderTray, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getMenuItemImage, getRestaurantMenuImages, readChatOrder } from './dining';
+import { EstablishmentChatScreen, GIFT_PRODUCTS, LOBBY_SHOP_NAME, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getRestaurantMenuImages, readChatOrder } from './dining';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
 import './rewards/rewards.css';
 
-const isChatScreen = (screen: ActiveScreen) => screen === 'chat' || screen === 'chat-after-hours';
+const isChatScreen = (screen: ActiveScreen) => screen === 'chat';
 
 type ChatMessage = {
   /** The stay this thread belongs to; stamped when the message is added. */
@@ -343,7 +338,6 @@ const formatChatDuration = (seconds: number) => {
 const EXPLORE_SCREENS: ActiveScreen[] = [
   'pre-arrival-services',
   'transfer-booking',
-  'transfer-confirmation',
   'arrival-cart',
   'arrival-cart-confirmation',
   'marketplace',
@@ -355,11 +349,8 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
   'room-upgrade-confirmation',
   'room-upgrade-success',
   'room-transfer-details',
-  'hotel-service',
   'vendor-service',
   'restaurant-menu',
-  'restaurant-cart',
-  'dining-order-confirmation',
   'service-detail',
   'service-booking',
   'booking-confirmation',
@@ -404,11 +395,11 @@ type BlockedReason = 'offline' | 'not-arrived' | 'not-verified' | 'unlock-pendin
 const VIEWED_TRIP_SCREENS: ActiveScreen[] = [
   'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details',
   'additional-guests', 'guest-details', 'room-preferences', 'repeat-review',
-  'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'service-detail', 'vendor-service', 'hotel-service',
+  'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'service-detail', 'vendor-service',
 ];
 
 /* Booking a hotel starts from Home, so Home stays lit through it. */
-const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation'];
+const STAY_BOOKING_SCREENS: ActiveScreen[] = ['partner-hotels', 'book-stay', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation'];
 
 const MY_STAY_SCREENS: ActiveScreen[] = [
   'my-stay',
@@ -639,13 +630,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [selectedNearbyEstablishmentId, setSelectedNearbyEstablishmentId] = useState<string | null>(null);
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<string | null>(null);
   const [exploreSubcategory, setExploreSubcategory] = useState('All');
-  const [restaurantCarts, setRestaurantCarts] = useState<Record<string, Record<string, number>>>({});
-  const [orderTrayOpen, setOrderTrayOpen] = useState<'restaurant' | null>(null);
-  const [, setOrderTrayStep] = useState<'tray' | 'review'>('tray');
-  const [diningMethod, setDiningMethod] = useState<'delivery' | 'pickup'>('delivery');
-  const [diningTiming, setDiningTiming] = useState<'asap' | 'scheduled'>('asap');
-  const [diningTime, setDiningTime] = useState('7:00 PM');
-  const [diningOrderError, setDiningOrderError] = useState<string | null>(null);
   const [bookingBlockedReason, setBookingBlockedReason] = useState<BlockedReason>('offline');
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
@@ -707,23 +691,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /** The open field on the stay and ride forms; one at a time. */
   const [openFormField, setOpenFormField] = useState<'check-in' | 'check-out' | 'ride-date' | 'ride-time' | null>(null);
   const [ridePassengers, setRidePassengers] = useState(2);
-  // Bookings all go on the room now; only the resets remain.
-  const [, setCheckoutPayment] = useState<'room' | 'pay-now' | null>(null);
-  const [, setPaymentMethod] = useState<'card' | 'gcash' | 'maya' | null>(null);
-  /* Read by the retired `transfer-confirmation` screen only; rides are requested in Chat now. */
-  const [transferBooking] = useState<{
-    destination: string;
-    pickupLocation: string;
-    arrivalDate: string;
-    arrivalTime: string;
-    flightNumber: string;
-    passengers: string;
-    luggage: string;
-    vehicle: string;
-    specialRequests: string;
-    paymentMethod: 'room' | 'card' | 'gcash' | 'maya';
-    paymentStatus: 'charged-to-room' | 'paid';
-  } | null>(null);
   /** The reservation the lookup produced, held between the form and the
       confirmation so both show the guest's own reference rather than a
       fixture's. */
@@ -1031,10 +998,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setPushFocused(false);
     setPassEntranceScreen(null);
     setRoomCancelNotice(null);
-    if (['restaurant-cart', 'service-booking', 'transfer-booking'].includes(next)) {
-      setCheckoutPayment(null);
-      setPaymentMethod(null);
-    }
     if (isChatScreen(next)) setHasUnreadChat(false);
     setHistory((items) => [...items, activeScreen]);
     setActiveScreen(next);
@@ -1078,11 +1041,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
   };
 
-  const goToCheckout = (next: ActiveScreen) => {
-    setCheckoutPayment(null);
-    setPaymentMethod(null);
-    go(next);
-  };
 
   const back = () => {
     setScrolled(false);
@@ -1425,7 +1383,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'partner-hotel-detail', 'book-stay', 'book-stay-dates', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'hotel-service', 'vendor-service', 'service-detail', 'restaurant-menu', 'restaurant-cart', 'dining-order-confirmation', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'chat-after-hours', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'book-stay', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'vendor-service', 'service-detail', 'restaurant-menu', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1833,74 +1791,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (activeScreen !== 'stay-overview') go('stay-overview');
   };
 
-  const changeCartQuantity = (venueId: string, itemId: string, delta: number) => {
-    setRestaurantCarts((carts) => {
-      const venueCart = carts[venueId] ?? {};
-      const quantity = Math.max(0, (venueCart[itemId] ?? 0) + delta);
-      return { ...carts, [venueId]: { ...venueCart, [itemId]: quantity } };
-    });
-  };
-
-  const confirmDiningOrder = () => {
-    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
-    const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
-    const cartSummary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
-
-    if (!online) {
-      setDiningOrderError('Connect to place this order');
-      return;
-    }
-    // A room order is a room charge: the same gate as every other one.
-    if (!booking || !canUseOnPropertyServices(booking)) {
-      setDiningOrderError(booking && isStayUnderWay(booking) ? 'Scan your room code to order to your room' : 'Room orders open when your stay starts');
-      return;
-    }
-    if (diningMethod === 'delivery' && !booking.roomNumber) {
-      setDiningOrderError('Room delivery is available after your room is assigned.');
-      return;
-    }
-    if (cartSummary.itemCount === 0) {
-      setDiningOrderError('Add at least one item before placing your order');
-      return;
-    }
-    const scheduledFor = diningMethod === 'delivery'
-      ? diningTiming === 'asap'
-        ? `Deliver to Room ${booking.roomNumber} · As soon as possible`
-        : `Deliver to Room ${booking.roomNumber} · Today, ${diningTime}`
-      : `Pick up at ${venue.name} · Today, ${diningTime}`;
-    const fulfillment: DiningFulfillment = diningMethod === 'delivery'
-      ? { method: 'delivery', timing: diningTiming, scheduledFor }
-      : { method: 'pickup', timing: 'scheduled', scheduledFor };
-    const orderBooking: ServiceBooking = {
-      id: `dining-order-${venue.id}-${session.serviceBookings.length + 1}`,
-      bookingId: booking.id,
-      title: venue.name,
-      scheduledFor,
-      scheduledDate: PROTOTYPE_TODAY,
-      amount: cartSummary.formattedTotal,
-      status: 'confirmed',
-      provider: 'Operated by the hotel',
-      paymentStatus: 'charged-to-room',
-      paymentMethod: 'room',
-      diningOrder: {
-        venueId: venue.id,
-        venueName: venue.name,
-        items: cartSummary.items,
-        fulfillment,
-      },
-    };
-    const newFolioTotal = formatPesoAmount(parsePesoAmount(session.folioTotal) + cartSummary.total);
-
-    setSession((current) => ({
-      ...current,
-      serviceBookings: [orderBooking, ...current.serviceBookings],
-      folioTotal: newFolioTotal,
-    }));
-    notifyGuestRequest(orderBooking.id, 'Order sent', `${venue.name} is preparing your order.`);
-    setRestaurantCarts((carts) => ({ ...carts, [venue.id]: {} }));
-    setDiningOrderError(null);
-    goReplacing('dining-order-confirmation');
-  };
 
   /*
     The gate, resolved once per render. Every surface that asks "can this
@@ -2115,7 +2005,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       go('booking-blocked');
       return;
     }
-    goToCheckout('service-booking');
+    go('service-booking');
   };
 
   const openExploreItem = (itemId: string) => {
@@ -3243,7 +3133,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       the guest was: closing it goes back there.
     */
     const searchPage = <StaySearchSheet value={search} onClose={back} onSearch={startStaySearch} />;
-    if (activeScreen === 'book-stay' || activeScreen === 'book-stay-dates') return searchPage;
+    if (activeScreen === 'book-stay') return searchPage;
     // Hotels from Browse mid-stay, and from Explore after checkout: the same browse as the no-booking Home.
     if (activeScreen === 'partner-hotels') return <div className="guest-stack">{renderHotelBrowse()}</div>;
     if (activeScreen === 'book-stay-results') {
@@ -3593,9 +3483,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
       }
 
-      case 'connect-booking':
-        return renderBookingLookup();
-
       case 'room-qr-landing': {
         /*
           Two arrivals at the same code. A guest who already has this booking
@@ -3622,9 +3509,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return <ScreenIntro icon={<QrCode size={30} />} eyebrow="Room QR detected" title="Let’s link this room to you" text="This permanent room code opens the guest app. Your last name confirms which live booking is yours."><StayMiniCard booking={contextBooking} status={`Room ${contextBooking.roomNumber ?? '304'} detected`} /><form className="guest-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); linkRoomStay(String(data.get('qr-last-name') ?? '').trim()); }}><Field label="Last name" name="qr-last-name" placeholder="Santos" required /><Button className="guest-button guest-button--primary" type="submit">Link my stay<ArrowRight aria-hidden="true" /></Button></form><TextButton onClick={() => go('front-desk-assist')}>I need help</TextButton></ScreenIntro>;
       }
-
-      case 'wifi-landing':
-        return <ScreenIntro icon={<WifiHigh size={30} />} eyebrow="Connected to hotel Wi-Fi" title="Welcome to The Henry Manila" text="You’re online through the hotel network. Find your booking to continue."><Notice title="Hotel-local connection" icon={<WifiHigh />}>Your itinerary and stay details remain available if this connection drops.</Notice>{primary('Find my booking', 'identify')}</ScreenIntro>;
 
       case 'identify':
         return renderBookingLookup();
@@ -3677,9 +3561,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'partner-hotels':
-      case 'partner-hotel-detail':
       case 'book-stay':
-      case 'book-stay-dates':
       case 'book-stay-results':
       case 'book-stay-hotel':
       case 'book-stay-addons':
@@ -3821,14 +3703,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
       }
 
-      case 'lookup-fallback':
-        return (
-          <ScreenIntro title="Try another way" text="Use the reference from your hotel, Agoda or Booking.com confirmation.">
-            {primary('Enter a confirmation number', 'identify')}
-            <TextButton onClick={() => go('identify-returning')}>Looking for a past stay?</TextButton>
-          </ScreenIntro>
-        );
-
       case 'front-desk-assist':
         return primaryBooking ? (
           <ScreenIntro icon={<ChatCircleDots size={30} />} title="Contact the front desk" text="Your booking is connected. Send the hotel a message about this stay.">
@@ -3844,12 +3718,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'no-booking':
         return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try the confirmation number from your hotel or booking provider.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('partner-hotels')}>Find a hotel’s contact details</TextButton></ScreenIntro>;
 
-      case 'welcome-back':
-        return <ScreenIntro icon={<CheckCircle size={30} />} title={`Welcome back, ${session.guestName.split(' ')[0] || 'there'}`} text="Review the details saved to your Cabana account for this stay."><StayCard booking={displayBooking} /><Notice tone="positive" icon={<Sparkle />} title="Your stay is connected">Check the saved details before you continue.</Notice>{primary('Review saved details', 'repeat-review')}</ScreenIntro>;
-
       case 'guest-details':
-
-      case 'id-capture':
         return (
           <IdentityStep
             guestName={session.guestName || lookupBooking?.guestName || 'Guest'}
@@ -4533,106 +4402,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} onReserve={TABLE_VENUE_SERVICE_IDS[venue.id] ? () => openServiceBooking(TABLE_VENUE_SERVICE_IDS[venue.id]!) : undefined} onBack={() => go('category-listing')} onNotifications={() => go('notifications')} />;
       }
 
-      case 'restaurant-cart': {
-        const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        const cartSummary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
-        return (
-          <div className="guest-stack guest-order-cart">
-            <div className="guest-page-title">
-              <p className="guest-eyebrow">{venue.name} · room folio</p>
-              <h1>Your {venue.name} order</h1>
-              <p>Review your items and choose delivery or pickup. The total is added to your room and settled at checkout.</p>
-            </div>
-            <div className="guest-order-cart__summary" aria-live="polite">
-              <span>{cartSummary.itemCount} {cartSummary.itemCount === 1 ? 'item' : 'items'}</span>
-              <strong>{cartSummary.formattedTotal}</strong>
-            </div>
-            <p className="guest-provider-label">Operated by the hotel</p>
-            <div className="guest-order-items">
-              {cartSummary.items.map((item) => (
-                <div className="guest-order-item" key={item.id}>
-                  <div><b>{item.name}</b><small>{item.unitPrice} each</small></div>
-                  <div className="guest-menu-quantity" aria-label={`${item.name} quantity`}>
-                    <button type="button" aria-label={`Decrease ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, -1)}><Minus aria-hidden="true" /></button>
-                    <output aria-live="polite">{item.quantity}</output>
-                    <button type="button" aria-label={`Increase ${item.name} quantity`} onClick={() => changeCartQuantity(venue.id, item.id, 1)}><Plus aria-hidden="true" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <fieldset className="guest-fulfillment-options">
-              <legend>How would you like this order?</legend>
-              <div>
-                <button
-                  type="button"
-                  aria-label="Deliver to room"
-                  aria-pressed={diningMethod === 'delivery'}
-                  className={diningMethod === 'delivery' ? 'is-active' : ''}
-                  disabled={!contextBooking.roomNumber}
-                  onClick={() => setDiningMethod('delivery')}
-                >
-                  <b>Deliver to room</b><small>{contextBooking.roomNumber ? contextRoom : 'Room assignment required'}</small>
-                </button>
-                <button
-                  type="button"
-                  aria-label="Pick up"
-                  aria-pressed={diningMethod === 'pickup'}
-                  className={diningMethod === 'pickup' ? 'is-active' : ''}
-                  onClick={() => { setDiningMethod('pickup'); setDiningTiming('scheduled'); }}
-                >
-                  <b>Pick up</b><small>{venue.location}</small>
-                </button>
-              </div>
-            </fieldset>
-            {!contextBooking.roomNumber ? <Notice title="Room delivery is available after your room is assigned.">Choose pickup to order before a room has been assigned.</Notice> : null}
-            <fieldset className="guest-fulfillment-options">
-              <legend>When?</legend>
-              {diningMethod === 'delivery' ? (
-                <div>
-                  <button type="button" aria-label="As soon as possible" aria-pressed={diningTiming === 'asap'} className={diningTiming === 'asap' ? 'is-active' : ''} onClick={() => setDiningTiming('asap')}><b>As soon as possible</b><small>About 30–40 minutes</small></button>
-                  <button type="button" aria-label="Schedule for later" aria-pressed={diningTiming === 'scheduled'} className={diningTiming === 'scheduled' ? 'is-active' : ''} onClick={() => setDiningTiming('scheduled')}><b>Schedule for later</b><small>Choose an available time</small></button>
-                </div>
-              ) : null}
-              {diningMethod === 'pickup' || diningTiming === 'scheduled' ? (
-                <div className="guest-order-times" aria-label="Available order times">
-                  {['6:30 PM', '7:00 PM', '7:30 PM'].map((time) => (
-                    <button key={time} type="button" aria-pressed={diningTime === time} className={diningTime === time ? 'is-active' : ''} onClick={() => setDiningTime(time)}>{time}</button>
-                  ))}
-                </div>
-              ) : null}
-            </fieldset>
-            {diningOrderError ? <Notice tone={!online ? 'offline' : 'warning'} title={diningOrderError}>Your cart is saved. Review it and try again when you’re ready.</Notice> : null}
-            <Notice title={`Added to ${contextRoom} when you place this order`}>Your order will be added to the room folio and settled at checkout.</Notice>
-            <Button className="guest-button guest-button--primary guest-order-submit" type="button" disabled={cartSummary.itemCount === 0} onClick={confirmDiningOrder}>{`Charge ${cartSummary.formattedTotal} to room`}<ArrowRight aria-hidden="true" /></Button>
-            <TextButton onClick={() => go('restaurant-menu')}>Add more from {venue.name}</TextButton>
-          </div>
-        );
-      }
-
-      case 'dining-order-confirmation': {
-        const order = session.serviceBookings.find((service) => service.diningOrder && service.bookingId === contextBooking.id);
-        const paidNow = order?.paymentStatus === 'paid';
-        return (
-          <ScreenIntro
-            icon={<CheckCircle size={30} />}
-            eyebrow={paidNow ? 'Order confirmed · paid' : 'Order confirmed · charged to room'}
-            title={order?.diningOrder?.fulfillment.method === 'pickup' ? 'Your order is confirmed' : 'Your order is on its way'}
-            text={order?.scheduledFor ?? 'The establishment has received your order.'}
-          >
-            <div className="guest-summary">
-              <SummaryRow label="Establishment" value={order?.diningOrder?.venueName ?? 'Food & Drink'} />
-              <SummaryRow label="Provider" value={order?.provider ?? 'Operated by the hotel'} />
-              <SummaryRow label="Items" value={`${order?.diningOrder?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0}`} />
-              <SummaryRow label={paidNow ? 'Paid' : 'Added to room charges'} value={order?.amount ?? '₱0'} strong />
-            </div>
-            <PointsEarned points={order ? pointsForCharge(order.amount) : 0} badges={[]} />
-            <Notice title={paidNow ? 'Payment successful' : 'Pay at checkout'}>{paidNow ? 'Your receipt is available in this order.' : 'This order is now part of your personal room tab. No payment is due now.'}</Notice>
-            {!paidNow ? primary('View room charges', 'folio') : null}
-            <TextButton onClick={() => go('category-listing')}>Order from another establishment</TextButton>
-          </ScreenIntro>
-        );
-      }
-
       case 'transfer-booking': {
         const ride = rideEnds();
         const pickUp = ride.to === contextBooking.property;
@@ -4712,42 +4481,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </div>
         );
       }
-
-      case 'transfer-confirmation':
-        {
-          const transferPaidNow = transferBooking?.paymentStatus === 'paid';
-          const transferAmount = transferBooking?.vehicle === 'Private van'
-            ? 1800
-            : transferBooking?.vehicle === 'Hotel SUV'
-              ? 1500
-              : 1200;
-        return (
-          <ScreenIntro
-            icon={<Car size={30} />}
-            title="Your hotel transfer is booked"
-            text="The hotel is arranging your pick-up. Your confirmed fare and request have been sent to the hotel team."
-          >
-            <div className="guest-summary">
-              <SummaryRow label="Pick-up" value={transferBooking?.pickupLocation || 'Your arrival location'} />
-              {transferBooking?.destination ? <SummaryRow label="Destination" value={transferBooking.destination} /> : null}
-              <SummaryRow label="Arrival" value={`${transferBooking?.arrivalDate || contextBooking.checkIn} · ${transferBooking?.arrivalTime || '10:00'}`} />
-              <SummaryRow label="Passengers" value={transferBooking?.passengers || String(contextBooking.guestCount)} />
-              <SummaryRow label="Vehicle" value={transferBooking?.vehicle || 'Executive van'} />
-              <SummaryRow label="Provider" value="Operated by the hotel" />
-              <SummaryRow label={transferPaidNow ? 'Payment status' : 'Charged to'} value={transferPaidNow ? 'Paid' : contextRoom} />
-              <SummaryRow label="Fare" value={transferBooking ? (transferBooking.vehicle === 'Private van' ? '₱1,800' : transferBooking.vehicle === 'Hotel SUV' ? '₱1,500' : '₱1,200') : '₱1,200'} strong />
-            </div>
-            <PointsEarned points={pointsForCharge(formatPesoAmount(transferAmount))} badges={[]} />
-            <Notice title={transferPaidNow ? 'Payment successful' : `Added to ${contextRoom.toLowerCase()}`}>{transferPaidNow ? 'Your receipt is available in this booking.' : 'This hotel transfer is included in Additional charges and is paid with your room bill at checkout.'}</Notice>
-            <Notice icon={<Car />} title="Driver details coming soon">The hotel will add your driver’s name, contact details, and vehicle plate here once they assign the transfer.</Notice>
-            <Notice title="Operated by the hotel">Your transfer is coordinated directly by {contextBooking.property}.</Notice>
-            {primary('View my stay', 'rate-detail')}
-          </ScreenIntro>
-        );
-        }
-
-      case 'hotel-service':
-        return <ServiceDetail kind="hotel" booking={contextBooking} online={online} onBook={() => openServiceBooking('dining')} onChat={() => go('chat')} />;
 
       case 'service-detail':
         return (
@@ -5550,9 +5283,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'chat':
         return renderChatScreen();
 
-      case 'chat-after-hours':
-        return renderChatScreen();
-
       case 'room-qr-midstay':
         return (
           <RoomUnlocked
@@ -6065,11 +5795,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {renderScreen()}
           </div>
 
-          {orderTrayOpen === 'restaurant' ? (() => {
-            const venue = RESTAURANTS.find((restaurant) => restaurant.id === selectedRestaurantId) ?? RESTAURANTS[0];
-            const summary = getVenueCartSummary(venue.menu, restaurantCarts[venue.id] ?? {});
-            return <OrderTray title="Your order" establishment={venue.name} items={summary.items.map((item) => ({ id: item.id, name: item.name, unitPrice: item.unitPrice, quantity: item.quantity, image: getMenuItemImage(item.id) }))} total={summary.formattedTotal} roomNumber={contextBooking.roomNumber} onChangeQuantity={(id, delta) => changeCartQuantity(venue.id, id, delta)} onClose={() => setOrderTrayOpen(null)} onCheckout={() => setOrderTrayStep((step) => step === 'tray' ? 'review' : step)} />;
-          })() : null}
 
           {showPrimaryNav ? (
             <nav className={`guest-bottom-nav${reelsOnScreen && !feedSheet ? ' guest-bottom-nav--dark' : ''}`} aria-label="Primary navigation">

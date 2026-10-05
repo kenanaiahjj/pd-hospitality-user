@@ -294,7 +294,7 @@ describe('GuestAppPrototype', () => {
   });
 
   it('connects a booking and reaches the matched-stay confirmation', () => {
-    render(<GuestAppPrototype initialScreen="connect-booking" />);
+    render(<GuestAppPrototype initialScreen="identify" />);
 
     fireEvent.change(screen.getByLabelText(/Booking or confirmation number/), {
       target: { value: 'HEN-241109' },
@@ -360,8 +360,7 @@ describe('GuestAppPrototype', () => {
   });
 
   it('keeps the booking connection copy concise and destination-specific', async () => {
-    const user = userEvent.setup();
-    const { unmount } = render(<GuestAppPrototype initialScreen="connect-booking" />);
+    render(<GuestAppPrototype initialScreen="identify" />);
 
     expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Booking or confirmation number/)).toBeInTheDocument();
@@ -372,15 +371,6 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByPlaceholderText('e.g. HEN-241109')).toBeInTheDocument();
     expect(screen.getByText('Hotel, Agoda, or Booking.com reference')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Find another way' })).toBeNull();
-
-    unmount();
-    render(<GuestAppPrototype initialScreen="lookup-fallback" />);
-    expect(screen.getByRole('heading', { name: 'Try another way' })).toBeInTheDocument();
-    expect(screen.getByText('Use the reference from your hotel, Agoda or Booking.com confirmation.')).toBeInTheDocument();
-    expect(screen.queryByText('No match yet')).toBeNull();
-    // Back to the lookup, not on to a desk the guest has no stay with yet.
-    await user.click(screen.getByRole('button', { name: 'Enter a confirmation number' }));
-    expect(screen.getByRole('heading', { name: 'Find your booking' })).toBeInTheDocument();
   });
 
   it('returns a pre-arrival guest to the upcoming home after registration', async () => {
@@ -770,7 +760,7 @@ describe('GuestAppPrototype', () => {
 describe('guest account and entry flows', () => {
   it('routes a booking-first arrival directly to pre-arrival onboarding without account registration', async () => {
     const user = userEvent.setup();
-    render(<GuestAppPrototype initialScreen="connect-booking" />);
+    render(<GuestAppPrototype initialScreen="identify" />);
 
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-241109');
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
@@ -2600,7 +2590,7 @@ describe('lifecycle gates', () => {
   });
 
   it('keeps back navigation and hides the primary nav to focus Chat', () => {
-    for (const initialScreen of ['chat', 'chat-after-hours'] as const) {
+    for (const initialScreen of ['chat'] as const) {
       render(<GuestAppPrototype initialScreen={initialScreen} initialSession={verified} />);
 
       expect(screen.getByRole('button', { name: 'Go back' })).toBeInTheDocument();

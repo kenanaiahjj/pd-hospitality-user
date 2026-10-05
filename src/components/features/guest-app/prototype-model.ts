@@ -2,16 +2,12 @@ import type { Reservation } from './stay-booking/model';
 export type ScreenGroup = 'Entry' | 'Pre-arrival' | 'Stay' | 'Account';
 
 export type ScreenId =
-  | 'connect-booking'
   | 'sign-in'
   | 'verify-code'
   | 'room-qr-landing'
-  | 'wifi-landing'
   | 'identify'
   | 'partner-hotels'
-  | 'partner-hotel-detail'
   | 'book-stay'
-  | 'book-stay-dates'
   | 'book-stay-results'
   | 'book-stay-hotel'
   | 'book-stay-addons'
@@ -21,14 +17,11 @@ export type ScreenId =
   | 'book-stay-confirmation'
   | 'identify-returning'
   | 'verify-contact'
-  | 'lookup-fallback'
   | 'front-desk-assist'
   | 'no-booking'
   | 'booking-found'
-  | 'welcome-back'
   | 'stay-overview'
   | 'guest-details'
-  | 'id-capture'
   | 'room-preferences'
   | 'additional-guests'
   | 'repeat-review'
@@ -46,12 +39,9 @@ export type ScreenId =
   | 'room-upgrade-confirmation'
   | 'room-upgrade-success'
   | 'room-transfer-details'
-  | 'hotel-service'
   | 'vendor-service'
   | 'service-detail'
   | 'restaurant-menu'
-  | 'restaurant-cart'
-  | 'dining-order-confirmation'
   | 'service-booking'
   | 'booking-confirmation'
   | 'booking-blocked'
@@ -60,7 +50,6 @@ export type ScreenId =
   | 'cancel-after-cutoff'
   | 'folio'
   | 'chat'
-  | 'chat-after-hours'
   | 'room-qr-midstay'
   | 'profile'
   | 'stay-history'
@@ -71,7 +60,6 @@ export type ScreenId =
   | 'stay-entry'
   | 'pre-arrival-services'
   | 'transfer-booking'
-  | 'transfer-confirmation'
   | 'arrival-cart'
   | 'arrival-cart-confirmation'
   | 'stay-review'
@@ -97,18 +85,13 @@ const screen = (number: number, group: ScreenGroup, id: ScreenId, title: string)
 });
 
 export const SCREENS: PrototypeScreen[] = [
-  screen(3, 'Entry', 'connect-booking', 'Find your booking'),
   screen(4, 'Entry', 'room-qr-landing', 'Room QR detected'),
-  screen(5, 'Entry', 'wifi-landing', 'Hotel Wi-Fi'),
   screen(6, 'Entry', 'identify', 'Find your booking'),
-  screen(7, 'Entry', 'lookup-fallback', 'Try another way'),
   screen(8, 'Entry', 'front-desk-assist', 'Front desk assist'),
   screen(9, 'Entry', 'no-booking', 'No booking found'),
   screen(10, 'Entry', 'booking-found', 'Booking found'),
-  screen(11, 'Entry', 'welcome-back', 'Welcome back'),
   screen(12, 'Pre-arrival', 'stay-overview', 'Your stay'),
   screen(13, 'Pre-arrival', 'guest-details', 'Guest details'),
-  screen(14, 'Pre-arrival', 'id-capture', 'ID or passport'),
   screen(15, 'Account', 'room-preferences', 'Room preferences'),
   screen(16, 'Pre-arrival', 'additional-guests', 'Additional guests'),
   screen(17, 'Pre-arrival', 'repeat-review', 'Review your details'),
@@ -125,7 +108,6 @@ export const SCREENS: PrototypeScreen[] = [
   screen(61, 'Account', 'reward-detail', 'Redeem a reward'),
   screen(62, 'Account', 'badge-detail', 'Achievement detail'),
   screen(58, 'Stay', 'gifts-souvenirs', 'Gifts & Souvenirs'),
-  screen(25, 'Stay', 'hotel-service', 'In-room dining'),
   screen(26, 'Stay', 'vendor-service', 'Hilom signature massage'),
   screen(80, 'Stay', 'service-detail', 'Service page'),
   screen(27, 'Stay', 'restaurant-menu', 'Menu & Dining'),
@@ -137,15 +119,12 @@ export const SCREENS: PrototypeScreen[] = [
   screen(33, 'Stay', 'cancel-after-cutoff', 'Contact front desk'),
   screen(34, 'Stay', 'folio', 'Room charges'),
   screen(35, 'Stay', 'chat', 'Front desk chat'),
-  screen(36, 'Stay', 'chat-after-hours', 'Chat after hours'),
   screen(37, 'Stay', 'room-qr-midstay', 'You are checked in'),
   screen(38, 'Account', 'profile', 'Guest profile'),
   screen(39, 'Account', 'stay-history', 'Stay history'),
   screen(78, 'Account', 'payments', 'Payments'),
   screen(81, 'Account', 'saved-hotels', 'Saved hotels'),
   screen(79, 'Account', 'payment-detail', 'Payment receipt'),
-  screen(40, 'Stay', 'restaurant-cart', 'Review dining order'),
-  screen(41, 'Stay', 'dining-order-confirmation', 'Dining order confirmed'),
   screen(42, 'Stay', 'notifications', 'Notifications'),
   screen(43, 'Account', 'stay-detail', 'Stay detail'),
   screen(44, 'Stay', 'stay-entry', 'Booking receipt'),
@@ -153,7 +132,6 @@ export const SCREENS: PrototypeScreen[] = [
   screen(46, 'Entry', 'verify-contact', 'Verify it is you'),
   screen(52, 'Pre-arrival', 'pre-arrival-services', 'Arrange your arrival'),
   screen(56, 'Pre-arrival', 'transfer-booking', 'Book a hotel transfer'),
-  screen(57, 'Pre-arrival', 'transfer-confirmation', 'Transfer booked'),
   screen(76, 'Pre-arrival', 'arrival-cart', 'Your cart'),
   screen(77, 'Pre-arrival', 'arrival-cart-confirmation', 'Arrival booked'),
   screen(53, 'Stay', 'stay-review', 'Rate your stay'),
@@ -162,7 +140,6 @@ export const SCREENS: PrototypeScreen[] = [
   screen(72, 'Entry', 'sign-in', 'Log in'),
   screen(73, 'Entry', 'verify-code', 'Check your email'),
   screen(74, 'Stay', 'partner-hotels', 'Partner hotels'),
-  screen(75, 'Stay', 'partner-hotel-detail', 'Hotel details'),
 ];
 
 export type BookingStatus = 'upcoming' | 'active' | 'completed';
@@ -1633,27 +1610,6 @@ export function getHomeVariant(
   if (bookings.some((booking) => booking.status === 'completed')) return 'completed';
   return 'empty';
 }
-
-export type ScenarioId = 'A' | 'B' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I';
-
-export type Scenario = {
-  id: ScenarioId;
-  title: string;
-  description: string;
-  start: ScreenId;
-  offline?: boolean;
-};
-
-export const SCENARIOS: Scenario[] = [
-  { id: 'A', title: 'First-timer, pre-arrival', description: 'Confirmation link to pre-registration', start: 'identify' },
-  { id: 'B', title: 'Repeat guest', description: 'Recognized and confirmed in under 30 seconds', start: 'welcome-back' },
-  { id: 'D', title: 'Room QR, mid-stay', description: 'Skip pre-arrival and order dining', start: 'room-qr-midstay' },
-  { id: 'E', title: 'Hotel Wi-Fi arrival', description: 'Identify and attach the booking', start: 'wifi-landing' },
-  { id: 'F', title: 'Booking lookup fails', description: 'Three-tier fallback to human help', start: 'identify' },
-  { id: 'G', title: 'Spa booking and cancellation', description: 'Third-party service charged to the room', start: 'marketplace' },
-  { id: 'H', title: 'Request towels', description: 'Structured request in front desk chat', start: 'chat' },
-  { id: 'I', title: 'Offline booking attempt', description: 'Capacity is blocked; chat queues', start: 'vendor-service', offline: true },
-];
 
 export type OfflineCapability = 'cached-stay' | 'chat' | 'pre-registration' | 'preferences' | 'service-booking' | 'payment' | 'live-rates' | 'authentication';
 export type OfflineAction = 'available' | 'queued' | 'blocked';

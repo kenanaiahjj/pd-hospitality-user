@@ -59,8 +59,8 @@ export function BrowseSheet({ categories, index = [], recommendations = [], onOp
             <input
               type="search"
               value={query}
-              placeholder="Search or ask about your stay"
-              aria-label="Search or ask about your stay"
+              placeholder="Search"
+              aria-label="Search"
               onChange={(event) => { setQuery(event.target.value); setAskedId(null); }}
             />
             {searching ? (

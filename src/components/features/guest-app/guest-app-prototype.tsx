@@ -4808,6 +4808,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               onNavigate={go}
               statusLabel={stayStatus.label}
               showCountdown
+              action={!checkedOut && contextBooking.status === 'active' && checkoutIsDue ? (
+                <button className="guest-button guest-button--primary" type="button" onClick={() => { setReviewingStayId(null); go('stay-review'); }}>Rate your stay</button>
+              ) : undefined}
               pass={showVendorFolioQr ? (
                 <div className={`guest-stay-pass${vendorFolioIsAvailable ? '' : ' is-unverified'}`}>
                   <span className="guest-stay-pass__copy">
@@ -4842,7 +4845,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             */}
             {(!checkedOut && contextBooking.status === 'active') || (started && !checkedOut) ? (
             <div className="guest-stay-context guest-checkout-card">
-              {!checkedOut && contextBooking.status === 'active' && checkoutIsDue ? <div className="guest-checkout-card__actions"><button className="guest-button guest-button--primary" type="button" onClick={() => { setReviewingStayId(null); go('stay-review'); }}>Rate your stay</button></div> : null}
 
               {/* Live-stay folio access belongs with the other stay details. */}
               {started && !checkedOut ? (

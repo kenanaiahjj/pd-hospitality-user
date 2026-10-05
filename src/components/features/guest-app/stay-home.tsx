@@ -667,7 +667,7 @@ export function countdownCell(booking: Booking): { label: string; value: string 
   return { label: which === 'in' ? 'Check-in' : 'Check-out', value: `${when.charAt(0).toUpperCase()}${when.slice(1)} · ${at}` };
 }
 
-export function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showCountdown = false, pass }: {
+export function UpcomingBookingCard({ booking, primary = false, onNavigate, statusLabel, showRoomBadge = true, hideEyebrow = false, showCountdown = false, pass, action }: {
   booking: Booking;
   primary?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
@@ -677,6 +677,8 @@ export function UpcomingBookingCard({ booking, primary = false, onNavigate, stat
   showCountdown?: boolean;
   /** The room-charge pass, torn into the card under the photo: the stay and the code for its room, one object. */
   pass?: ReactNode;
+  /** One thing to do about the stay, under View booking: the card is the stay and what to do next. */
+  action?: ReactNode;
 }) {
   const countdown = showCountdown ? countdownCell(booking) : undefined;
   // With the pass, check-in or check-out is only said when it is close: today or tomorrow, above the card.
@@ -714,6 +716,7 @@ export function UpcomingBookingCard({ booking, primary = false, onNavigate, stat
         <span><b>View booking</b><small>Rate, policies and confirmation</small></span>
         <CaretRight />
       </button>
+      {action ? <div className="guest-stay-hero-card__action">{action}</div> : null}
       </div>
     </section>
     </>

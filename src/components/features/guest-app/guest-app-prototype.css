@@ -950,6 +950,7 @@
 .guest-app .guest-button--primary:disabled { box-shadow: none; }
 .guest-app .guest-button--primary:focus-visible { outline-color: var(--guest-ink); }
 .guest-app .guest-button--secondary { border-color: var(--guest-line-strong); background: var(--guest-paper); color: var(--guest-ink); }
+.guest-app .guest-stay-hero-card__action { margin-top: 12px; }
 .guest-app .guest-button--outlined { border: 1.5px solid var(--guest-accent-strong); color: var(--guest-accent-strong); }
 .guest-app .guest-button--danger { background: var(--guest-danger); color: var(--guest-paper); }
 

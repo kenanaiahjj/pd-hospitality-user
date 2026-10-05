@@ -2242,7 +2242,7 @@ describe('rentals', () => {
     // Search lives in the Browse sheet.
     render(<BrowseSheet categories={[]} index={buildSearchIndex()} onOpenItem={() => {}} onOpen={() => {}} onClose={() => {}} />);
 
-    const box = screen.getByRole('searchbox', { name: 'Search or ask about your stay' });
+    const box = screen.getByRole('searchbox', { name: 'Search' });
     await user.type(box, 'motorbike');
     expect(screen.getByRole('button', { name: /Motorcycle/ })).toBeInTheDocument();
     await user.clear(box);

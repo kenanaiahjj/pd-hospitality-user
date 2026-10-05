@@ -110,7 +110,7 @@ describe('feed sheets', () => {
     const onOpenItem = vi.fn();
     render(<BrowseSheet categories={[]} index={[item]} onOpenItem={onOpenItem} onOpen={vi.fn()} onClose={vi.fn()} />);
 
-    await user.type(screen.getByRole('searchbox', { name: 'Search or ask about your stay' }), 'signature');
+    await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'signature');
     await user.click(screen.getByRole('button', { name: /Hilom signature massage/ }));
 
     expect(onOpenItem).toHaveBeenCalledWith('spa');

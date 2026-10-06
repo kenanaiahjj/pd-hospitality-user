@@ -35,9 +35,9 @@ export function savePendingVoucher(code: string | null) {
 }
 
 /** A row of offer cards: the ones this guest can use, and with a hotel, only those that stay qualifies for. */
-export function OffersStrip({ hotel, nights, title = 'Offers', account = NEW_ACCOUNT, untitled, only }: { hotel?: StayHotel; nights: number; title?: string; account?: PromoAccount; /** Show just these codes. */ only?: string[]; /** The page gives it a heading of its own. */ untitled?: boolean }) {
+export function OffersStrip({ hotel, nights, title = 'Offers', account = NEW_ACCOUNT, untitled, only, except }: { hotel?: StayHotel; nights: number; title?: string; account?: PromoAccount; /** Show just these codes. */ only?: string[]; /** Leave these out: they are shown elsewhere on the page. */ except?: string[]; /** The page gives it a heading of its own. */ untitled?: boolean }) {
   const [saved, setSaved] = useState(readPendingVoucher);
-  const offers = offersFor(hotel, nights, account).filter(({ code }) => !only || only.includes(code));
+  const offers = offersFor(hotel, nights, account).filter(({ code }) => (!only || only.includes(code)) && !except?.includes(code));
   if (!offers.length) return null;
   return (
     <section className="sb-offers-strip" aria-label={title}>

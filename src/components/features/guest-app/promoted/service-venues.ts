@@ -44,7 +44,7 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     name: 'Hilom Spa & Wellness',
     location: 'Fourth floor, east wing',
     kind: 'venue',
-    operates: ['spa', 'scrub', 'hot-stone', 'couples-massage', 'facial', 'sauna'],
+    operates: ['spa', 'scrub', 'hot-stone', 'couples-massage', 'reflexology', 'facial', 'sauna'],
     image: storyImage('spa'),
   },
   {
@@ -76,7 +76,7 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     name: 'Sakay Rentals',
     location: 'Driveway, ground floor',
     kind: 'venue',
-    operates: ['scooter', 'motorcycle', 'e-bike'],
+    operates: ['scooter', 'motorcycle', 'e-bike', 'rental'],
     image: storyImage('food-crawl'),
   },
   {
@@ -116,8 +116,8 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     location: 'Front desk, lobby',
     kind: 'property',
     operates: [
-      'reflexology', 'cooking-class', 'music', 'film-night',
-      'transfer', 'private-car', 'rental', 'laundry', 'luggage',
+      'cooking-class', 'music', 'film-night',
+      'transfer', 'private-car', 'laundry', 'luggage',
       'trainer', 'meeting-room', 'gym', 'pool', 'business-centre',
     ],
     image: PROPERTY_IMAGE,

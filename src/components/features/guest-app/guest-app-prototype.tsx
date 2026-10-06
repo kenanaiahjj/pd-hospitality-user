@@ -3121,6 +3121,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         showOffers={!showNoBookingExplore}
         showSaved={!showNoBookingExplore}
         showDestinations={!showNoBookingExplore}
+        showThemes={showNoBookingExplore}
       />
     </>
   );

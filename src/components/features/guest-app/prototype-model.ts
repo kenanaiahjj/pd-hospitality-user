@@ -4120,7 +4120,7 @@ export const SERVICES = [
   { id: 'scrub', name: 'Herbal body scrub & wrap', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,800', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'hot-stone', name: 'Hot stone therapy', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱3,200', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'couples-massage', name: 'Couples massage suite', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱4,600', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
-  { id: 'reflexology', name: 'Express foot reflexology', category: 'Spa & massage', categoryId: 'spa', operator: 'Hotel operated', price: '₱1,200', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
+  { id: 'reflexology', name: 'Express foot reflexology', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱1,200', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
   { id: 'facial', name: 'Calamansi brightening facial', category: 'Facial & skin', categoryId: 'spa', operator: 'Third-party on property', price: '₱1,950', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'mani-pedi', name: 'Manicure & pedicure', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱900', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
   { id: 'barber', name: 'Barber & blow-dry bar', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱1,100', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
@@ -4141,7 +4141,7 @@ export const SERVICES = [
   { id: 'private-car', name: 'Private car & driver', category: 'Transfers', categoryId: 'services', operator: 'Hotel arranged', price: '₱4,800 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
   /* Rentals -- by the day. Anything with an engine needs a licence, which
      the desk checks at pickup; the app only says so. */
-  { id: 'rental', name: 'City bicycle', category: 'Bike rental', categoryId: 'rentals', operator: 'Hotel operated', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  { id: 'rental', name: 'City bicycle', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
   { id: 'e-bike', name: 'E-bike', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱600 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
   { id: 'scooter', name: 'Scooter · 125cc', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱900 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
   { id: 'motorcycle', name: 'Motorcycle · 150cc', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱1,500 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },

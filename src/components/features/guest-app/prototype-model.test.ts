@@ -516,12 +516,12 @@ describe('listing controls', () => {
   });
 
   it('filters services by operator', () => {
-    const spa = SERVICES.filter((service) => service.categoryId === 'spa');
-    const hotel = filterServices(spa, { operators: ['Hotel operated'], types: [], sort: 'recommended' });
+    const hotel = filterServices(SERVICES, { operators: ['Hotel operated'], types: [], sort: 'recommended' });
     expect(hotel.length).toBeGreaterThan(0);
+    expect(hotel.length).toBeLessThan(SERVICES.length);
     for (const service of hotel) expect(service.operator).toBe('Hotel operated');
     // No selection means no narrowing.
-    expect(filterServices(spa, { operators: [], types: [], sort: 'recommended' })).toHaveLength(spa.length);
+    expect(filterServices(SERVICES, { operators: [], types: [], sort: 'recommended' })).toHaveLength(SERVICES.length);
   });
 });
 

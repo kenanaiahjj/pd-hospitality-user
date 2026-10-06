@@ -3,7 +3,7 @@
 import { Notice, PropertyImage, SectionHeading, Tag } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { ANYWHERE, HotelResultCard, OffersStrip, RegionTrail, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, ExploreRails, OffersStrip, RegionTrail, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry, StayReview } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, ITEM_THUMBNAIL_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
@@ -294,7 +294,7 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
           <StaySearchAndDestinations value={staySearch} onSearch={onSearchStay} />
         </section>
         {/* A guest who has just stayed is offered their next one: a welcome-back code, and the hotels on the same trip. */}
-        <OffersStrip nights={countNightsBetween(staySearch.checkIn, staySearch.checkOut)} account={promoAccount} only={['NEXTSTAY10']} title="For your next stay" />
+        <OffersStrip nights={countNightsBetween(staySearch.checkIn, staySearch.checkOut)} account={promoAccount} only={['COMEBACK30']} title="For your next stay" />
         <RegionTrail hotelId={booking.reservation?.hotelId ?? booking.city.toLowerCase()} search={staySearch} onOpenHotel={onOpenHotel} title="Where to next" hereLabel="You stayed here" />
         <BookAnotherStayCard onNavigate={onNavigate} />
       </div>
@@ -835,8 +835,9 @@ export function EmptyStayHome({
               : `Hello, ${firstName}`}
         </h1>
       </div>
-      {previousStay && (previousStayReview || onRatePreviousStay) ? <PreviousStayReviewCard stay={previousStay} review={previousStayReview} onRate={onRatePreviousStay} /> : null}
       {discovery ? <StaySearchAndDestinations value={discovery.staySearch} onSearch={discovery.onSearchStay} /> : null}
+      {/* A guest who has stayed before is welcomed back with a code for the next one. */}
+      {offers && returning ? <OffersStrip nights={offers.nights} account={offers.account} only={['COMEBACK30']} title="Welcome back" /> : null}
       {/*
         Keep external booking lookup available on Home for reservations made
         outside Cabana. No scan here: without a stay, the guest has no room and
@@ -863,9 +864,11 @@ export function EmptyStayHome({
       {offers ? (
         <section className="guest-empty-hotels">
           <SectionHeading title="Offers" />
-          <OffersStrip nights={offers.nights} account={offers.account} untitled />
+          <OffersStrip nights={offers.nights} account={offers.account} except={['COMEBACK30']} untitled />
         </section>
       ) : null}
+      {/* The last stay is a reminder further down, not the first thing on Home: search leads. */}
+      {previousStay && (previousStayReview || onRatePreviousStay) ? <PreviousStayReviewCard stay={previousStay} review={previousStayReview} onRate={onRatePreviousStay} /> : null}
     </div>
   );
 }
@@ -949,7 +952,7 @@ function SavedHotelsRail({ search, onOpenHotel }: { search: StaySearch; onOpenHo
  * Hotel discovery shared between Explore and booking flows: search, saved
  * hotels, destinations, offers, and partner hotels.
  */
-export function HotelBrowse({ staySearch, onSearchStay, onOpenHotel, resumeBooking, promoAccount, showOffers = true, showSaved = true, showDestinations = true }: {
+export function HotelBrowse({ staySearch, onSearchStay, onOpenHotel, resumeBooking, promoAccount, showOffers = true, showSaved = true, showDestinations = true, showThemes = false }: {
   staySearch: StaySearch;
   onSearchStay: (search: StaySearch) => void;
   onOpenHotel: (id: string) => void;
@@ -958,10 +961,12 @@ export function HotelBrowse({ staySearch, onSearchStay, onOpenHotel, resumeBooki
   showOffers?: boolean;
   showSaved?: boolean;
   showDestinations?: boolean;
+  /** Themed rows and multi-stop trips, for a guest with nothing booked. */
+  showThemes?: boolean;
 }) {
   // The estate's own hotels lead; prices are for the dates in the search card.
   const everyHotel = searchHotels({ ...staySearch, location: ANYWHERE });
-  const featured = everyHotel.filter((result) => !result.soldOut).slice(0, 6);
+  const featured = everyHotel.filter((result) => !result.soldOut).slice(0, showThemes ? 24 : 6);
   return (
     <>
       <StaySearchAndDestinations value={staySearch} onSearch={onSearchStay} showDestinations={showDestinations} />
@@ -979,9 +984,11 @@ export function HotelBrowse({ staySearch, onSearchStay, onOpenHotel, resumeBooki
         </section>
       ) : null}
 
+      {showThemes ? <ExploreRails search={staySearch} onOpenHotel={onOpenHotel} /> : null}
+
       {/* Past stays live in Profile; the directory ends with partner hotels. */}
       <section className="guest-empty-hotels">
-        <SectionHeading title="Partner hotels" />
+        <SectionHeading title={showThemes ? 'All partner hotels' : 'Partner hotels'} />
         <div className="sb-rail">
           {featured.map((result) => <HotelResultCard key={result.hotel.id} result={result} search={staySearch} compact onOpen={() => onOpenHotel(result.hotel.id)} />)}
         </div>

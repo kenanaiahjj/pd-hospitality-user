@@ -1199,6 +1199,17 @@
 .guest-app .sb-dock .guest-dock__summary strong { white-space: nowrap; }
 .guest-app .sb-dock__est { white-space: nowrap; }
 
+/* A multi-stop trip as a card: bordered, with a caret, so it reads as tappable without hover. */
+.guest-app .sb-trip-card { display: grid; align-content: start; gap: 6px; padding: 16px; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-lg); background: var(--guest-paper); color: var(--guest-ink); text-align: left; font: inherit; }
+.guest-app .sb-trip-card:active { transform: scale(0.99); }
+.guest-app .sb-trip-card:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+.guest-app .sb-trip-card__icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: var(--guest-soft); color: var(--guest-accent-strong); }
+.guest-app .sb-trip-card__icon svg { width: 20px; height: 20px; }
+.guest-app .sb-trip-card b { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.guest-app .sb-trip-card small { color: var(--guest-muted); font-size: 13px; line-height: 1.35; }
+.guest-app .sb-trip-card__foot { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--guest-accent-strong); font-size: 13px; font-weight: 700; }
+.guest-app .sb-trip-card__foot svg { width: 14px; height: 14px; }
+
 /* The hotels of one trip, in travel order. The tappable ones are bordered and carry a caret: no hover to rely on. */
 .guest-app .sb-trail__stops { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .guest-app .sb-trail__stop { display: grid; width: 100%; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); text-align: left; font: inherit; }

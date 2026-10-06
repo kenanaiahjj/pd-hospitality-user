@@ -4,6 +4,7 @@ export { DEFAULT_RESULTS_VIEW, HotelResultCard, StayResultsScreen, type ResultsV
 export { StayHotelScreen, clampCart } from './hotel-page';
 export { StayAddOnsScreen } from './add-ons';
 export { RegionTrail } from './region-trail';
+export { ExploreRails } from './explore-rails';
 export { OffersStrip, savePendingVoucher } from './offers';
 export { SaveHotelButton, SavedHotelsScreen, seedSavedHotels, useSavedHotels } from './saved';
 export { StayCheckoutScreen, StayPaymentScreen, emptyGuestDetails } from './checkout';

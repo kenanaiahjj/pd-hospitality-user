@@ -3099,7 +3099,11 @@ describe('signed-in home with no booking', () => {
 
     expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: 'Explore' }));
-    expect(screen.getByRole('heading', { name: 'Partner hotels' })).toBeInTheDocument();
+    // Explore is full of reasons to open a hotel, not one list: trips, themed rows, then all of them.
+    expect(screen.getByRole('heading', { name: 'Trips of more than one stay' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Guest favourites' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Beach escapes' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'All partner hotels' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /The Henry/ }).length).toBeGreaterThan(0);
   });
 

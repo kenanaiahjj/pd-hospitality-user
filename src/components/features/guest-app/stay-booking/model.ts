@@ -493,6 +493,11 @@ const TRAILS: { id: string; label: string; stops: { hotelId: string; hop?: strin
   },
 ];
 
+/** Every trip, for browsing: the hotels of each, in travel order. */
+export function allRegionTrails(): RegionTrail[] {
+  return TRAILS.flatMap((trail) => regionTrailFor(trail.stops[0]?.hotelId) ?? []);
+}
+
 /** The trip a hotel belongs to, if it belongs to one; hotels on their own have none. */
 export function regionTrailFor(hotelId?: string): RegionTrail | undefined {
   const trail = TRAILS.find((item) => item.stops.some((stop) => stop.hotelId === hotelId));
@@ -867,12 +872,12 @@ export const PROMO_CODES: Record<string, Promo> = {
     apply: (subtotal) => Math.min(500, subtotal),
     refuses: (account) => (account.firstBooking ? undefined : 'WELCOME500 is for your first booking in the app.'),
   },
-  NEXTSTAY10: {
-    label: '10% off rooms',
-    title: 'Welcome back: 10% off your next stay',
+  COMEBACK30: {
+    label: '30% off rooms',
+    title: 'Welcome back: 30% off your next stay',
     terms: 'For guests who have stayed before. Any partner hotel, any dates, this year or next.',
-    apply: (subtotal) => Math.round(subtotal * 0.1),
-    refuses: (account) => (account.hasStayed ? undefined : 'NEXTSTAY10 is for guests who have stayed before.'),
+    apply: (subtotal) => Math.round(subtotal * 0.3),
+    refuses: (account) => (account.hasStayed ? undefined : 'COMEBACK30 is for guests who have stayed before.'),
   },
   HENRY15: {
     label: '15% off rooms',

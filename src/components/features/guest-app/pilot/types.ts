@@ -71,6 +71,16 @@ export type Listing = {
   freeCancelHours: number;
   durationMin: number;
   menuPdf?: string;
+  /** `unit` (default): price x quantity x days. `booking`: one price for the booking, whatever the party. */
+  priceBasis?: 'unit' | 'booking';
+  /** Which ways the vendor takes payment. Default both. A hotel-run service is room only. */
+  payModes?: PayMode[];
+  /** Rentals: the time the same-day return is due, "HH:MM". Replaces start plus duration. */
+  returnBy?: string;
+  /** Goods: ready this many minutes after the order when the date is today, instead of a fixed evening. */
+  leadMin?: number;
+  /** Goods: when the order is ready on a later date, "HH:MM". Default 17:00. */
+  readyAt?: string;
 };
 
 export type StayStatus = 'booked' | 'in-house' | 'checked-out' | 'cancelled';
@@ -393,6 +403,8 @@ export type DeskActions = {
   checkIn(stayId: string): Result;
   moveRoom(stayId: string, room: string): Result;
   shortenStay(stayId: string, newCheckOut: string): Result;
+  /** The hotel system's view of the stay changed: dates, room or status. Applies no side effects of its own. */
+  syncStay(stayId: string, patch: { room?: string; checkIn?: string; checkOut?: string; status?: StayStatus }): Result;
   cancelStay(stayId: string): Result;
   /** Lists what blocks it; finishes only when nothing does. */
   checkout(stayId: string): Result<{ blockers: string[]; checklist: string[] }>;
@@ -490,4 +502,8 @@ export type PilotOptions = {
   start?: number;
   /** Maria's stay, ISO dates. */
   mariaStay?: { checkIn: string; checkOut: string; status?: StayStatus; room?: string };
+  /** The guest's first name. Default Maria. */
+  guestName?: string;
+  /** Vendors and listings to offer instead of the Dumaguete pilot's own. */
+  catalog?: { vendors: Vendor[]; listings: Listing[] };
 };

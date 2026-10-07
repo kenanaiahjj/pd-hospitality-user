@@ -78,8 +78,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     seed,
     now: options.start ?? SCENE.start,
     steps: 0,
-    vendors: PILOT_VENDORS.map((v) => ({ ...v })),
-    listings: new Map(PILOT_LISTINGS.map((l) => [l.id, { ...l, times: [...l.times] }])),
+    vendors: (options.catalog?.vendors ?? PILOT_VENDORS).map((v) => ({ ...v })),
+    listings: new Map((options.catalog?.listings ?? PILOT_LISTINGS).map((l) => [l.id, { ...l, times: [...l.times] }])),
     guests: new Map(),
     stays: new Map(),
     bookings: new Map(),
@@ -88,7 +88,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     tasks: new Map(),
     notifications: [],
     log: [],
-    vendorRuntime: new Map(PILOT_VENDORS.map((v) => [v.id, { online: true, away: false, pendingTaps: [], cache: null, blockedSlots: new Set(), removedListings: new Set() } as VendorRuntime])),
+    vendorRuntime: new Map((options.catalog?.vendors ?? PILOT_VENDORS).map((v) => [v.id, { online: true, away: false, pendingTaps: [], cache: null, blockedSlots: new Set(), removedListings: new Set() } as VendorRuntime])),
     pms: { mode: 'up', staleRoomRefused: false, dropNextReply: false, refuseReversal: false, folio: [] },
     gateway: { mode: 'ok', loseCallbacks: false, duplicateCallbacks: 0, failRefunds: false, allowDoublePay: false, net: 0 },
     txns: [],
@@ -362,19 +362,20 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   const cabanaCommitted = (stayId: string) =>
     [...w.payments.values()].filter((p) => p.stayId === stayId && p.mode === 'room' && !['voided', 'reversed'].includes(p.state)).reduce((s, p) => s + p.amount, 0);
 
-  const payOptionsFor = (stay: Stay, date: string, amount: number): PayOptions => {
-    const inStay = date >= stay.checkIn && date <= stay.checkOut && (stay.status === 'booked' || stay.status === 'in-house');
+  const payOptionsFor = (stay: Stay, date: string, amount: number, listing?: Listing): PayOptions => {
+    const modes = listing?.payModes ?? ['room', 'card'];
+    const inStay = modes.includes('room') && date >= stay.checkIn && date <= stay.checkOut && (stay.status === 'booked' || stay.status === 'in-house');
     const within = amount <= settings.perOrderLimit && cabanaCommitted(stay.id) + amount <= settings.perStayLimit;
     const needsApproval = inStay && !within;
     return {
       price: amount,
-      defaultMode: inStay ? 'room' : 'card',
+      defaultMode: inStay || !modes.includes('card') ? 'room' : 'card',
       room: {
         offered: inStay,
         needsApproval,
-        why: !inStay ? 'That date is outside your stay, so it cannot be charged to your room.' : needsApproval ? 'This is over the limit, so the front desk approves it first.' : undefined,
+        why: !modes.includes('room') ? 'This vendor takes payment by card or e-wallet only.' : !inStay ? 'That date is outside your stay, so it cannot be charged to your room.' : needsApproval ? 'This is over the limit, so the front desk approves it first.' : undefined,
       },
-      card: { offered: true },
+      card: { offered: modes.includes('card') },
     };
   };
 
@@ -704,14 +705,18 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (listing.kind === 'goods' && draft.qty > (listing.orderCap ?? Infinity)) return refuse('over-cap', `The most for one order is ${listing.orderCap}. Ask the vendor in chat for more.`);
     if ((listing.kind === 'service' || listing.kind === 'rental') && (!draft.time || !listing.times.includes(draft.time))) return refuse('not-possible', 'That start time is not offered.');
     const days = listing.kind === 'rental' ? Math.max(1, draft.days ?? 1) : 1;
-    const time = listing.kind === 'goods' ? '17:00' : draft.time ?? '00:00';
-    const start = at(draft.date, time);
-    const end = listing.kind === 'rental' ? at(addDays(draft.date, days - 1), time) + listing.durationMin * MIN : start + listing.durationMin * MIN;
+    const time = listing.kind === 'goods' ? listing.readyAt ?? '17:00' : draft.time ?? '00:00';
+    let start = at(draft.date, time);
+    // A goods order for today is ready a little after it is placed, not at a fixed evening hour.
+    if (listing.kind === 'goods' && listing.leadMin !== undefined && draft.date === dateOf(w.now)) start = w.now + listing.leadMin * MIN;
+    const end = listing.kind === 'rental'
+      ? (listing.returnBy ? at(addDays(draft.date, days - 1), listing.returnBy) : at(addDays(draft.date, days - 1), time) + listing.durationMin * MIN)
+      : start + listing.durationMin * MIN;
     if (start <= w.now) return refuse('not-possible', 'That time has already passed.');
     const slotKeys = listing.kind === 'rental' ? Array.from({ length: days }, (_, i) => slotKeyFor(listing, addDays(draft.date, i))) : [slotKeyFor(listing, draft.date, draft.time)];
     if (slotKeys.some((k) => rt.blockedSlots.has(k))) return refuse('unavailable', 'That slot is not taking bookings.');
-    const amount = listing.unitPrice * draft.qty * days;
-    return ok({ plan: { listing, stay, start, end, days, amount, slotKeys, options: payOptionsFor(stay, draft.date, amount) } });
+    const amount = listing.priceBasis === 'booking' ? listing.unitPrice : listing.unitPrice * draft.qty * days;
+    return ok({ plan: { listing, stay, start, end, days, amount, slotKeys, options: payOptionsFor(stay, draft.date, amount, listing) } });
   };
 
   const holdOpen = (slotKeys: string[], qty: number): boolean =>
@@ -729,9 +734,11 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (dup) return ok({ bookingId: dup.id, duplicate: true });
     if (!holdOpen(slotKeys, quantity)) return refuse('unavailable', 'Just booked. Pick another time.');
     let payMode: PayMode | null = null;
-    if (listing.kind !== 'table') {
+    const free = listing.kind !== 'table' && amount === 0;
+    if (listing.kind !== 'table' && !free) {
       payMode = draft.payMode ?? opts.defaultMode;
       if (payMode === 'room' && !opts.room.offered) return refuse('not-offered', opts.room.why ?? 'Charge to room is not offered.');
+      if (payMode === 'card' && !opts.card.offered) return refuse('not-offered', 'This vendor does not take card payment.');
     }
     let deadline: number | undefined;
     if (listing.confirm === 'vendor') {
@@ -742,7 +749,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     const id = how.preId ?? nextId('BK');
     const guest = guestRecord(guestId);
     const needsApproval = payMode === 'room' && opts.room.needsApproval;
-    const initial: BookingStatus = listing.kind === 'table' ? 'reserved' : needsApproval ? 'needs-approval' : listing.confirm === 'vendor' ? 'requested' : payMode === 'room' ? 'confirmed' : 'awaiting-payment';
+    const initial: BookingStatus = listing.kind === 'table' ? 'reserved' : needsApproval ? 'needs-approval' : listing.confirm === 'vendor' ? 'requested' : free || payMode === 'room' ? 'confirmed' : 'awaiting-payment';
     const b: Booking = {
       id, listingId: listing.id, stayId: stay.id, guestId, kind: listing.kind, status: initial, qty: draft.qty, days, start, end, amount, payMode, paymentIds: [], threadId: `thread-${id}`, createdAt: w.now,
       note: draft.note, origin: how.origin, staffName: how.staffName, vendorOpened: false, slotKeys, version: 1, readyFor: listing.kind === 'goods' ? draft.date : undefined,
@@ -768,9 +775,9 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     } else if (initial === 'requested') {
       startVendorTimer(b);
     } else if (initial === 'confirmed') {
-      roomCharge(b, amount, 'booking');
+      if (!free) roomCharge(b, amount, 'booking');
       notify('vendor', 'push', 'new-booking', id);
-      announce(b, `Confirmed. ${peso(amount)} is charged to the room.`);
+      announce(b, free ? 'Confirmed. Nothing to pay.' : `Confirmed. ${peso(amount)} is charged to the room.`);
     } else if (initial === 'awaiting-payment') {
       const p = newPayment(b, 'card', amount, 'booking');
       startCardWindow(b, p);
@@ -814,7 +821,10 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (b.status !== 'requested') return refusedStale(b, 'confirm');
     cancelTimers(b.id);
     b.acceptedAt = w.now;
-    if (b.payMode === 'room') {
+    if (b.amount === 0 && b.kind !== 'table') {
+      move(b, 'confirmed', who, 'accepted');
+      announce(b, `${who} confirmed. Nothing to pay.`);
+    } else if (b.payMode === 'room') {
       move(b, 'confirmed', who, 'accepted');
       roomCharge(b, b.amount, 'booking');
       announce(b, `${who} confirmed. ${peso(b.amount)} is charged to your room.`);
@@ -1501,6 +1511,17 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         return ok();
       });
     },
+    syncStay(stayId, patch) {
+      return act(() => {
+        const stay = w.stays.get(stayId);
+        if (!stay) return refuse('not-found', 'No such stay.');
+        if (patch.room !== undefined) stay.room = patch.room;
+        if (patch.checkIn !== undefined) stay.checkIn = patch.checkIn;
+        if (patch.checkOut !== undefined) stay.checkOut = patch.checkOut;
+        if (patch.status !== undefined) stay.status = patch.status;
+        return ok();
+      });
+    },
     cancelStay(stayId) {
       return act(() => {
         const stay = w.stays.get(stayId);
@@ -1665,7 +1686,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   };
   const ms = options.mariaStay;
   const mariaIn = ms?.checkIn ?? '2026-10-05';
-  const maria = makeGuest('Maria', ms?.room ?? 'Villa 12', mariaIn, ms?.checkOut ?? SCENE.tue, ms?.status ?? (mariaIn <= dateOf(w.now) ? 'in-house' : 'booked'));
+  const maria = makeGuest(options.guestName ?? 'Maria', ms?.room ?? 'Villa 12', mariaIn, ms?.checkOut ?? SCENE.tue, ms?.status ?? (mariaIn <= dateOf(w.now) ? 'in-house' : 'booked'));
 
   // ------------------------------------------------------- the Pilot
 

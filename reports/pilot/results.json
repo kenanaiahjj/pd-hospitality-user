@@ -7,7 +7,7 @@
       "group": "Happy paths",
       "title": "Bike rental paid by room",
       "pass": true,
-      "ms": 43.6,
+      "ms": 26,
       "states": [
         "booking: requested > confirmed > in-progress > completed",
         "payment: pending > posting > posted"
@@ -36,7 +36,7 @@
       "group": "Happy paths",
       "title": "Bike rental paid in full",
       "pass": true,
-      "ms": 2.9,
+      "ms": 1.5,
       "states": [
         "booking: requested > awaiting-payment > confirmed",
         "payment: awaiting > paid"
@@ -64,7 +64,7 @@
       "group": "Happy paths",
       "title": "Apo Island trip from the app, by room",
       "pass": true,
-      "ms": 2.5,
+      "ms": 1,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -91,7 +91,7 @@
       "group": "Happy paths",
       "title": "Apo Island trip asked through the desk",
       "pass": true,
-      "ms": 2.5,
+      "ms": 0.8,
       "states": [
         "booking: requested"
       ],
@@ -117,7 +117,7 @@
       "group": "Happy paths",
       "title": "Guest adds the tour card to the chat",
       "pass": true,
-      "ms": 4.4,
+      "ms": 0.4,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -145,7 +145,7 @@
       "title": "Pasalubong from Cafe Sans Rival, 3 days ahead",
       "adapted": "Pasalubong charges as the guest confirms; there is no vendor accept step.",
       "pass": true,
-      "ms": 1.5,
+      "ms": 0.8,
       "states": [
         "booking: confirmed > ready > collected",
         "payment: pending > posting > posted"
@@ -173,7 +173,7 @@
       "group": "Happy paths",
       "title": "Table at Si Señor",
       "pass": true,
-      "ms": 2.8,
+      "ms": 0.6,
       "states": [
         "booking: reserved > seated"
       ],
@@ -199,7 +199,7 @@
       "group": "Happy paths",
       "title": "Table at The Red Kitchen at the party limit",
       "pass": true,
-      "ms": 1.6,
+      "ms": 0.7,
       "states": [
         "booking: reserved"
       ],
@@ -226,7 +226,7 @@
       "title": "Henry's own yoga class",
       "adapted": "Henry’s own activities charge as the guest confirms; staff do not accept first.",
       "pass": true,
-      "ms": 2.3,
+      "ms": 0.8,
       "states": [
         "booking: confirmed > in-progress > completed",
         "payment: pending > posting > posted"
@@ -253,7 +253,7 @@
       "group": "Happy paths",
       "title": "Room booking made before arrival",
       "pass": true,
-      "ms": 1.3,
+      "ms": 0.6,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -281,7 +281,7 @@
       "group": "Timing and races",
       "title": "Withdraw and accept at the same instant",
       "pass": true,
-      "ms": 2.2,
+      "ms": 1.1,
       "states": [
         "booking: requested > withdrawn"
       ],
@@ -307,7 +307,7 @@
       "group": "Timing and races",
       "title": "Vendor taps Confirm after the request lapsed",
       "pass": true,
-      "ms": 1.4,
+      "ms": 0.8,
       "states": [
         "booking: requested > lapsed > requested > confirmed",
         "payment: pending > posting > posted"
@@ -334,7 +334,7 @@
       "group": "Timing and races",
       "title": "Same request sent twice",
       "pass": true,
-      "ms": 1.7,
+      "ms": 0.3,
       "states": [
         "booking: requested"
       ],
@@ -359,7 +359,7 @@
       "group": "Timing and races",
       "title": "Two guests, one slot left",
       "pass": true,
-      "ms": 0.5,
+      "ms": 0.2,
       "states": [
         "booking: requested"
       ],
@@ -384,7 +384,7 @@
       "group": "Timing and races",
       "title": "Vendor never opens a request",
       "pass": true,
-      "ms": 0.8,
+      "ms": 0.3,
       "states": [
         "booking: requested > lapsed"
       ],
@@ -410,7 +410,7 @@
       "group": "Timing and races",
       "title": "Vendor has no signal at the deadline",
       "pass": true,
-      "ms": 2.1,
+      "ms": 0.6,
       "states": [],
       "steps": 0,
       "stepNames": [
@@ -434,7 +434,7 @@
       "group": "Timing and races",
       "title": "Request arrives while the vendor is closed",
       "pass": true,
-      "ms": 0.5,
+      "ms": 0.2,
       "states": [
         "booking: requested > lapsed"
       ],
@@ -460,7 +460,7 @@
       "group": "Timing and races",
       "title": "Service start is near",
       "pass": true,
-      "ms": 0.6,
+      "ms": 0.2,
       "states": [
         "booking: requested > lapsed"
       ],
@@ -486,7 +486,7 @@
       "group": "Payment",
       "title": "Over the limit, desk approves",
       "pass": true,
-      "ms": 2.1,
+      "ms": 0.3,
       "states": [
         "booking: needs-approval > requested"
       ],
@@ -512,7 +512,7 @@
       "group": "Payment",
       "title": "Over the limit, desk is silent",
       "pass": true,
-      "ms": 1.8,
+      "ms": 0.5,
       "states": [
         "booking: needs-approval > pay-or-cancel > requested"
       ],
@@ -539,7 +539,7 @@
       "group": "Payment",
       "title": "Service date outside the stay",
       "pass": true,
-      "ms": 1.2,
+      "ms": 0.3,
       "states": [
         "booking: requested"
       ],
@@ -564,7 +564,7 @@
       "group": "Payment",
       "title": "Card payment fails three times",
       "pass": true,
-      "ms": 1.1,
+      "ms": 0.5,
       "states": [
         "booking: requested > awaiting-payment > payment-expired",
         "payment: awaiting > expired"
@@ -591,7 +591,7 @@
       "group": "Payment",
       "title": "Guest never pays",
       "pass": true,
-      "ms": 0.5,
+      "ms": 0.2,
       "states": [
         "booking: requested > awaiting-payment > payment-expired",
         "payment: awaiting > expired",
@@ -619,7 +619,7 @@
       "group": "Payment",
       "title": "Gateway took the money, callback lost",
       "pass": true,
-      "ms": 1,
+      "ms": 0.4,
       "states": [],
       "steps": 0,
       "stepNames": [
@@ -643,7 +643,7 @@
       "group": "Payment",
       "title": "Guest pays twice",
       "pass": true,
-      "ms": 0.7,
+      "ms": 0.2,
       "states": [
         "booking: requested > awaiting-payment > confirmed",
         "payment: awaiting > paid",
@@ -670,7 +670,7 @@
       "group": "Payment",
       "title": "Refund fails",
       "pass": true,
-      "ms": 0.9,
+      "ms": 0.5,
       "states": [
         "booking: requested > awaiting-payment > confirmed > cancelled",
         "payment: awaiting > paid > refund-pending > refund-failed"
@@ -696,7 +696,7 @@
       "group": "Payment",
       "title": "Extra charge by room",
       "pass": true,
-      "ms": 0.8,
+      "ms": 0.5,
       "states": [
         "booking: requested > confirmed > in-progress > completed",
         "payment: pending > posting > posted",
@@ -724,7 +724,7 @@
       "group": "Payment",
       "title": "Extra charge on a card booking, unpaid",
       "pass": true,
-      "ms": 3.1,
+      "ms": 0.8,
       "states": [
         "booking: requested > awaiting-payment > confirmed > in-progress > completed",
         "payment: awaiting > paid",
@@ -753,7 +753,7 @@
       "group": "Payment",
       "title": "Guest questions an extra charge",
       "pass": true,
-      "ms": 3.7,
+      "ms": 1,
       "states": [],
       "steps": 0,
       "stepNames": [
@@ -779,7 +779,7 @@
       "group": "Payment",
       "title": "Vendor corrects a wrong amount",
       "pass": true,
-      "ms": 3.4,
+      "ms": 0.6,
       "states": [],
       "steps": 0,
       "stepNames": [
@@ -803,7 +803,7 @@
       "group": "PMS and the bill",
       "title": "PMS is down when posting",
       "pass": true,
-      "ms": 3,
+      "ms": 1.7,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > posting > pending > failed"
@@ -831,7 +831,7 @@
       "group": "PMS and the bill",
       "title": "PMS rejects the room",
       "pass": true,
-      "ms": 1,
+      "ms": 0.4,
       "states": [],
       "steps": 0,
       "stepNames": [
@@ -881,7 +881,7 @@
       "group": "PMS and the bill",
       "title": "Guest moves rooms mid-stay",
       "pass": true,
-      "ms": 0.5,
+      "ms": 0.4,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted",
@@ -912,7 +912,7 @@
       "group": "PMS and the bill",
       "title": "Cancel after posting, before checkout",
       "pass": true,
-      "ms": 0.4,
+      "ms": 0.5,
       "states": [],
       "steps": 0,
       "stepNames": [
@@ -962,7 +962,7 @@
       "group": "PMS and the bill",
       "title": "Checkout with open items",
       "pass": true,
-      "ms": 5.8,
+      "ms": 1.1,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted > settled",
@@ -995,7 +995,7 @@
       "group": "Cancellations",
       "title": "Cancel inside the free window, room",
       "pass": true,
-      "ms": 1.2,
+      "ms": 0.4,
       "states": [
         "booking: requested > confirmed > cancelled",
         "payment: pending > posting > posted > reversed"
@@ -1021,7 +1021,7 @@
       "group": "Cancellations",
       "title": "Cancel inside the free window, card",
       "pass": true,
-      "ms": 0.6,
+      "ms": 0.2,
       "states": [
         "booking: requested > awaiting-payment > confirmed > cancelled",
         "payment: awaiting > paid > refund-pending > refunded"
@@ -1047,7 +1047,7 @@
       "group": "Cancellations",
       "title": "Cancel outside the window, vendor accepts",
       "pass": true,
-      "ms": 1,
+      "ms": 0.3,
       "states": [
         "booking: requested > confirmed > cancelled",
         "payment: pending > posting > posted > reversed"
@@ -1074,7 +1074,7 @@
       "group": "Cancellations",
       "title": "Cancel outside the window, vendor declines",
       "pass": true,
-      "ms": 2.5,
+      "ms": 0.3,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -1100,7 +1100,7 @@
       "group": "Cancellations",
       "title": "Vendor cancels with a reason",
       "pass": true,
-      "ms": 1.2,
+      "ms": 0.3,
       "states": [
         "booking: requested > confirmed > cancelled",
         "payment: pending > posting > posted > reversed"
@@ -1126,7 +1126,7 @@
       "group": "Cancellations",
       "title": "Weather cancels the boat",
       "pass": true,
-      "ms": 7,
+      "ms": 3.1,
       "states": [
         "24 records, states reached: requested ×12, confirmed ×12, cancelled ×12, pending ×6, posting ×6, posted ×6, reversed ×6, awaiting-payment ×6, awaiting ×6, paid ×6, refund-pending ×6"
       ],
@@ -1152,7 +1152,7 @@
       "group": "Cancellations",
       "title": "Guest does not show up",
       "pass": true,
-      "ms": 0.5,
+      "ms": 0.4,
       "states": [
         "booking: requested > confirmed > no-show",
         "payment: pending > posting > posted"
@@ -1206,7 +1206,7 @@
       "group": "Cancellations",
       "title": "Stay shortened below a booking",
       "pass": true,
-      "ms": 0.6,
+      "ms": 0.5,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -1234,7 +1234,7 @@
       "group": "Cancellations",
       "title": "Stay cancelled",
       "pass": true,
-      "ms": 0.6,
+      "ms": 0.4,
       "states": [
         "booking: requested > confirmed > cancelled",
         "booking: requested > confirmed > cancelled",
@@ -1291,7 +1291,7 @@
       "group": "Vendors and listings",
       "title": "Remove a listing that has bookings",
       "pass": true,
-      "ms": 0.4,
+      "ms": 0.3,
       "states": [
         "booking: requested > confirmed > cancelled",
         "booking: requested > confirmed > cancelled",
@@ -1319,7 +1319,7 @@
       "group": "Vendors and listings",
       "title": "Block a slot that is booked",
       "pass": true,
-      "ms": 0.5,
+      "ms": 0.4,
       "states": [
         "booking: requested > declined",
         "booking: requested > declined",
@@ -1347,7 +1347,7 @@
       "group": "Vendors and listings",
       "title": "Owner and staff both tap Confirm",
       "pass": true,
-      "ms": 0.3,
+      "ms": 0.2,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -1373,7 +1373,7 @@
       "group": "Vendors and listings",
       "title": "QR scan with no signal, cache present",
       "pass": true,
-      "ms": 0.4,
+      "ms": 0.3,
       "states": [
         "booking: requested > confirmed > in-progress",
         "payment: pending > posting > posted"
@@ -1400,7 +1400,7 @@
       "group": "Vendors and listings",
       "title": "QR scan with no signal, no cache",
       "pass": true,
-      "ms": 0.3,
+      "ms": 0.2,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -1426,7 +1426,7 @@
       "group": "Vendors and listings",
       "title": "Guest’s phone is dead",
       "pass": true,
-      "ms": 0.2,
+      "ms": 0.1,
       "states": [
         "booking: requested > confirmed > in-progress",
         "payment: pending > posting > posted"
@@ -1477,7 +1477,7 @@
       "group": "Restaurants and pasalubong at Henry's",
       "title": "Running late for a table",
       "pass": true,
-      "ms": 0.3,
+      "ms": 0.2,
       "states": [
         "booking: reserved > no-show"
       ],
@@ -1503,7 +1503,7 @@
       "group": "Restaurants and pasalubong at Henry's",
       "title": "Cancel a reservation",
       "pass": true,
-      "ms": 0.3,
+      "ms": 0.1,
       "states": [
         "booking: reserved > cancelled"
       ],
@@ -1558,7 +1558,7 @@
       "group": "Restaurants and pasalubong at Henry's",
       "title": "Order food ahead",
       "pass": true,
-      "ms": 0.3,
+      "ms": 0.2,
       "states": [
         "booking: reserved"
       ],
@@ -1583,7 +1583,7 @@
       "group": "Restaurants and pasalubong at Henry's",
       "title": "Meal charged to the room at the venue",
       "pass": true,
-      "ms": 0.4,
+      "ms": 0.3,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -1610,7 +1610,7 @@
       "title": "Checkout without collecting pasalubong",
       "adapted": "Pasalubong charges as the guest confirms, so the order is Confirmed with the charge posted before it is packed.",
       "pass": true,
-      "ms": 1.7,
+      "ms": 0.3,
       "states": [
         "booking: confirmed > ready > collected",
         "payment: pending > posting > posted > settled"
@@ -1638,7 +1638,7 @@
       "title": "Pasalubong above the vendor cap",
       "adapted": "The cap check happens as the guest confirms; there is no vendor to ask first.",
       "pass": true,
-      "ms": 0.6,
+      "ms": 0.1,
       "states": [
         "booking: awaiting-payment",
         "payment: awaiting"
@@ -1664,7 +1664,7 @@
       "group": "Chat and cards",
       "title": "One booking in three threads",
       "pass": true,
-      "ms": 1.6,
+      "ms": 0.4,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -1691,7 +1691,7 @@
       "group": "Chat and cards",
       "title": "Thread closes 48 hours after the service",
       "pass": true,
-      "ms": 1.5,
+      "ms": 0.4,
       "states": [
         "booking: requested > confirmed > in-progress > completed",
         "payment: pending > posting > posted"
@@ -1718,7 +1718,7 @@
       "group": "Chat and cards",
       "title": "Vendor types \"ok\" instead of tapping Confirm",
       "pass": true,
-      "ms": 0.9,
+      "ms": 0.4,
       "states": [
         "booking: requested"
       ],
@@ -1743,7 +1743,7 @@
       "group": "Chat and cards",
       "title": "Desk books for a guest who asked in person",
       "pass": true,
-      "ms": 1.6,
+      "ms": 0.3,
       "states": [
         "booking: confirmed",
         "payment: pending > posting > posted"
@@ -1769,7 +1769,7 @@
       "group": "Chat and cards",
       "title": "Guest has notifications off",
       "pass": true,
-      "ms": 2,
+      "ms": 0.3,
       "states": [
         "booking: requested > confirmed > cancelled",
         "payment: pending > posting > posted > reversed"
@@ -1796,7 +1796,7 @@
       "group": "Chat and cards",
       "title": "Booking thread opens with all three",
       "pass": true,
-      "ms": 1,
+      "ms": 0.2,
       "states": [
         "booking: requested"
       ],
@@ -1821,7 +1821,7 @@
       "group": "Chat and cards",
       "title": "Desk talks to the vendor privately",
       "pass": true,
-      "ms": 2,
+      "ms": 0.2,
       "states": [
         "booking: requested"
       ],
@@ -1846,7 +1846,7 @@
       "group": "Chat and cards",
       "title": "Vendor answers a guest question",
       "pass": true,
-      "ms": 0.7,
+      "ms": 0.2,
       "states": [
         "booking: requested > confirmed",
         "payment: pending > posting > posted"
@@ -1872,7 +1872,7 @@
       "group": "Chat and cards",
       "title": "Booking thread after a cancel",
       "pass": true,
-      "ms": 0.5,
+      "ms": 0.2,
       "states": [
         "booking: requested > confirmed > cancelled",
         "payment: pending > posting > posted > reversed"
@@ -1898,7 +1898,7 @@
       "group": "Stress and chaos",
       "title": "A busy afternoon",
       "pass": true,
-      "ms": 223.2,
+      "ms": 91,
       "states": [
         "254 records, states reached: awaiting-payment ×27, payment-expired ×27, awaiting ×27, expired ×27, reserved ×92, no-show ×55, confirmed ×46, pending ×46, posting ×46, posted ×46, requested ×31, declined ×8, needs-approval ×6, pay-or-cancel ×6, lapsed ×8"
       ],
@@ -1924,7 +1924,7 @@
       "group": "Stress and chaos",
       "title": "One slot, many guests",
       "pass": true,
-      "ms": 3.4,
+      "ms": 1,
       "states": [
         "booking: requested",
         "booking: requested",
@@ -1957,7 +1957,7 @@
       "title": "PMS down for 24 hours",
       "adapted": "The 300 charges are yoga bookings, which charge as the guest confirms.",
       "pass": true,
-      "ms": 1437.7,
+      "ms": 648.4,
       "states": [
         "600 records, states reached: confirmed ×300, cancelled ×40, pending ×78120, posting ×78080, voided ×40, posted ×260"
       ],
@@ -1984,7 +1984,7 @@
       "group": "Stress and chaos",
       "title": "Duplicate gateway callbacks",
       "pass": true,
-      "ms": 1.6,
+      "ms": 0.7,
       "states": [
         "booking: requested > awaiting-payment > confirmed",
         "payment: awaiting > paid"
@@ -2010,7 +2010,7 @@
       "group": "Stress and chaos",
       "title": "Clock jumps three days",
       "pass": true,
-      "ms": 6.1,
+      "ms": 1.2,
       "states": [
         "booking: requested > lapsed",
         "booking: requested > awaiting-payment > payment-expired",
@@ -2041,7 +2041,7 @@
       "group": "Stress and chaos",
       "title": "Seeded chaos run",
       "pass": true,
-      "ms": 3082.8,
+      "ms": 826.6,
       "states": [
         "87 records, states reached: awaiting-payment ×16, confirmed ×13, in-progress ×9, completed ×9, awaiting ×17, paid ×5, refund-pending ×5, refunded ×5, reserved ×27, cancelled ×28, pending ×207, posting ×206, posted ×12, settled ×9, refund-due ×5, reversed ×8, needs-approval ×4, payment-expired ×10, expired ×12, no-show ×2, pay-or-cancel ×3, lapsed ×3, requested ×6, withdrawn ×2, failed ×5, declined ×1, voided ×1, ready ×2, collected ×2"
       ],
@@ -2064,7 +2064,7 @@
       "group": "Stress and chaos",
       "title": "A big weather cancellation",
       "pass": true,
-      "ms": 36.1,
+      "ms": 15.1,
       "states": [
         "80 records, states reached: requested ×40, confirmed ×40, cancelled ×40, pending ×20, posting ×20, posted ×20, reversed ×20, awaiting-payment ×20, awaiting ×20, paid ×20, refund-pending ×20, refunded ×20"
       ],
@@ -2090,7 +2090,7 @@
   "passed": 78,
   "failed": 0,
   "invariantChecks": 105219,
-  "ranAt": "2026-10-07T09:15:49.172Z",
+  "ranAt": "2026-10-07T09:35:09.692Z",
   "invariantNames": {
     "I1": "No overbooking",
     "I2": "No double charge",

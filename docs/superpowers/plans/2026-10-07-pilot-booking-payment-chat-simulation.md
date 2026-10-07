@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Progress` |
+| **Status** | `Complete` |
 | **Created** | 2026-10-07 |
 | **Updated** | 2026-10-07 |
 | **Owner** | Ken |
@@ -24,15 +24,15 @@
 
 | # | Task | Status | Started | Completed | Commit |
 |---|---|---|---|---|---|
-| 1 | Contract: types, config, catalog | ⬜ Not started | — | — | — |
-| 2 | Scenarios and invariants, written first (red) | ⬜ Not started | — | — | — |
-| 3 | Engine: clock, holds, bookings, payments, PMS, gateway | ⬜ Not started | — | — | — |
-| 4 | Engine: vendors, desk queue, cancellations, threads, cards | ⬜ Not started | — | — | — |
-| 5 | Green: 78 scenarios, invariants, chaos | ⬜ Not started | — | — | — |
-| 6 | Report: `pilot:report`, `pilot:replay` | ⬜ Not started | — | — | — |
-| 7 | Guest UI: cards, messages, thread, catalogue, request form | ⬜ Not started | — | — | — |
-| 8 | Prototype controls: vendor, desk, fault and clock triggers | ⬜ Not started | — | — | — |
-| 9 | Verification: gate, preview walk-through, final report | ⬜ Not started | — | — | — |
+| 1 | Contract: types, config, catalog | ✅ Complete | 2026-10-07 | 2026-10-07 | edc9fea |
+| 2 | Scenarios and invariants, written first (red) | ✅ Complete | 2026-10-07 | 2026-10-07 | edc9fea, 637921d |
+| 3 | Engine: clock, holds, bookings, payments, PMS, gateway | ✅ Complete | 2026-10-07 | 2026-10-07 | 637921d |
+| 4 | Engine: vendors, desk queue, cancellations, threads, cards | ✅ Complete | 2026-10-07 | 2026-10-07 | 637921d |
+| 5 | Green: 78 scenarios, invariants, chaos | ✅ Complete | 2026-10-07 | 2026-10-07 | 637921d |
+| 6 | Report: `pilot:report`, `pilot:replay` | ✅ Complete | 2026-10-07 | 2026-10-07 | daa6c42 |
+| 7 | Guest UI: cards, messages, thread, catalogue, request form | ✅ Complete | 2026-10-07 | 2026-10-07 | 880e3cb |
+| 8 | Prototype controls: vendor, desk, fault and clock triggers | ✅ Complete | 2026-10-07 | 2026-10-07 | 880e3cb |
+| 9 | Verification: gate, preview walk-through, final report | ✅ Complete | 2026-10-07 | 2026-10-07 | see git log |
 
 Legend: ⬜ Not started · 🔄 In progress · 🔁 Fix round *R*/5 · ✅ Complete · ⛔ Blocked · ⏭️ Descoped
 

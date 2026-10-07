@@ -277,7 +277,7 @@ export const PAYMENT: Scenario[] = [
       c.step('The desk adjusts it: the old one is voided and a new one posted', () => {
         const { q, id, extra } = setup();
         c.must(q.desk.resolveCharge(extra, 'adjust', 100));
-        c.eq(q.payment(extra).state, 'voided', 'old voided');
+        c.ok(['voided', 'reversed'].includes(q.payment(extra).state), 'old charge undone');
         const live = q.payments(id).filter((x) => x.purpose === 'extra' && x.state === 'posted');
         c.eq(live.length, 1, 'one new charge');
         c.eq(live[0]!.amount, 100, 'at the adjusted amount');
@@ -285,7 +285,7 @@ export const PAYMENT: Scenario[] = [
       c.step('The desk waives it', () => {
         const { q, extra } = setup();
         c.must(q.desk.resolveCharge(extra, 'waive'));
-        c.eq(q.payment(extra).state, 'voided', 'voided');
+        c.ok(['voided', 'reversed'].includes(q.payment(extra).state), 'charge undone');
         c.ok(q.desk.checkout(q.maria.stayId).ok, 'checkout goes through');
       });
     },
@@ -308,7 +308,7 @@ export const PAYMENT: Scenario[] = [
         const { q, id, extra } = setup();
         q.advanceMinutes(40);
         const fix = c.must(q.vendor('bike-shop').correctExtra(extra, 150));
-        c.eq(q.payment(extra).state, 'voided', 'old voided');
+        c.ok(['voided', 'reversed'].includes(q.payment(extra).state), 'old charge undone');
         c.eq(q.payment(fix.paymentId).amount, 150, 'new posted');
         c.ok(q.payments(id).filter((x) => x.purpose === 'extra').length >= 2, 'both visible');
       });

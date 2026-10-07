@@ -28,6 +28,7 @@ const settled = (p: Pilot, b: Booking): boolean => {
   if (terminal.includes(b.status)) return true;
   if (b.status === 'requested' && b.deadline && b.deadline >= p.now()) return true;
   if (['confirmed', 'reserved', 'in-progress', 'ready'].includes(b.status)) return true;
+  if (['needs-approval', 'pay-or-cancel'].includes(b.status) && b.holdUntil !== undefined && b.holdUntil >= p.now()) return true;
   if (b.status === 'awaiting-payment' && p.payments(b.id).some((x) => x.windowEnd && x.windowEnd >= p.now())) return true;
   return p.tasks('open').some((t) => t.bookingId === b.id);
 };
@@ -56,10 +57,10 @@ function chaos(c: Ctx, steps: number): { steps: number } {
     else if (roll < 0.54) { const b = some((x) => x.status === 'in-progress'); if (b) { const vid = PILOT_LISTINGS.find((l) => l.id === b.listingId)!.vendorId; if (c.rng() < 0.4) p.vendor(vid).addExtra(b.id, 100 + Math.floor(c.rng() * 400), 'Extra'); else p.vendor(vid).complete(b.id); } }
     else if (roll < 0.57) { const b = some((x) => x.status === 'confirmed' || x.status === 'reserved'); if (b) p.vendor(PILOT_LISTINGS.find((l) => l.id === b.listingId)!.vendorId).markNoShow(b.id); }
     else if (roll < 0.6) { const b = some((x) => ['confirmed', 'reserved', 'awaiting-payment'].includes(x.status)); if (b) p.vendor(PILOT_LISTINGS.find((l) => l.id === b.listingId)!.vendorId).cancel(b.id, 'Chaos'); }
-    else if (roll < 0.62) { const b = some((x) => x.status === 'needs-approval'); if (b) (c.rng() < 0.5 ? p.desk.approve(b.id) : p.desk.declineApproval(b.id)); }
+    else if (roll < 0.62) { const b = some((x) => x.status === 'needs-approval'); if (b) { if (c.rng() < 0.5) p.desk.approve(b.id); else p.desk.declineApproval(b.id); } }
     else if (roll < 0.66) { const t = pick(c, [...p.tasks('open'), undefined as never]); if (t) p.desk.resolveTask(t.id); }
     else if (roll < 0.68) { const b = some((x) => x.status === 'confirmed' && x.kind === 'goods'); if (b) { p.vendor('cafe-sans-rival').sendToDesk(b.id); p.desk.markReady(b.id); if (c.rng() < 0.5) p.desk.handOver(b.id); } }
-    else if (roll < 0.7) { const s = stays(); if (s.length) pick(c, [() => p.desk.checkIn(pick(c, s)), () => p.desk.moveRoom(pick(c, s), `Villa ${60 + Math.floor(c.rng() * 20)}`), () => p.desk.checkout(pick(c, s))])(); }
+    else if (roll < 0.7) { const s = stays(); if (s.length) void pick(c, [() => p.desk.checkIn(pick(c, s)), () => p.desk.moveRoom(pick(c, s), `Villa ${60 + Math.floor(c.rng() * 20)}`), () => p.desk.checkout(pick(c, s))])(); }
     else if (roll < 0.72) p.setPms({ mode: pick(c, ['up', 'up', 'down', 'reject'] as const), staleRoomRefused: c.rng() < 0.5, dropNextReply: c.rng() < 0.2, refuseReversal: c.rng() < 0.2 });
     else if (roll < 0.74) p.setGateway({ mode: pick(c, ['ok', 'ok', 'fail', 'abandon'] as const), loseCallbacks: c.rng() < 0.2, duplicateCallbacks: c.rng() < 0.2 ? 3 : 0, failRefunds: c.rng() < 0.15, allowDoublePay: c.rng() < 0.2 });
     else if (roll < 0.77) { const vs = p.vendor(v); const r = c.rng(); if (r < 0.4) vs.setOnline(c.rng() < 0.5); else if (r < 0.6) vs.setAway(c.rng() < 0.3); else vs.cacheBookings(); }
@@ -98,7 +99,7 @@ export const STRESS: Scenario[] = [
       c.step('Every request ends in a terminal state or has a live timer or desk task', () => {
         p.advanceMinutes(5);
         const loose = p.bookings().filter((b) => !settled(p, b));
-        c.eq(loose.length, 0, `${loose.length} requests are neither finished nor live`);
+        c.eq(loose.length, 0, `${loose.length} requests are neither finished nor live: ${loose.slice(0, 3).map((b) => `${b.id} ${b.status} ${b.listingId} deadline ${b.deadline ? new Date(b.deadline).toISOString() : '-'} now ${new Date(p.now()).toISOString()} hold ${b.holdUntil ?? '-'}`).join('; ')}`);
         p.advanceDays(3);
         const after = p.bookings().filter((b) => !settled(p, b));
         c.eq(after.length, 0, 'still true three days on');

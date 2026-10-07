@@ -83,6 +83,7 @@ export type Stay = {
   checkIn: string;
   checkOut: string;
   status: StayStatus;
+  checkedOutAt?: number;
 };
 
 export type Guest = {
@@ -138,6 +139,14 @@ export type Booking = {
   shortBy?: number;
   /** Which slot holds this booking uses. */
   slotKeys: string[];
+  /** Until when this booking's hold is good for: a timer, a payment window or a desk answer. */
+  holdUntil?: number;
+  /** For a vendor-confirm booking: when the vendor accepted it. */
+  acceptedAt?: number;
+  /** The stay changed under a room-paid booking: the guest pays in full or cancels. */
+  needsPayChange?: boolean;
+  /** Goods: the vendor has packed it and sent it to the desk. */
+  packed?: boolean;
   /** How many times the status has changed: a guard for simultaneous actions. */
   version: number;
   lastActor?: { name: string; at: number; action: string };
@@ -163,6 +172,10 @@ export type Payment = {
   /** Extra charges the vendor may still correct until this time. */
   correctUntil?: number;
   voidedBy?: string;
+  /** The room the charge was addressed to when it was made; refreshed if the PMS refuses it. */
+  roomHint?: string;
+  /** A second payment for something already paid: refunded automatically. */
+  duplicate?: boolean;
 };
 
 export type Task = {
@@ -201,6 +214,8 @@ export type Message = {
   kind: 'text' | 'system' | 'card';
   /** For a card: the booking it shows. A card is a view, never a copy. */
   bookingId?: string;
+  /** For an extra-charge card: the payment it shows. */
+  paymentId?: string;
   visibleTo: Role[];
 };
 
@@ -440,6 +455,8 @@ export type Pilot = {
   payment(id: string): Payment;
   payments(bookingId?: string): Payment[];
   card(bookingId: string): Card;
+  /** The card for one extra charge. */
+  extraCard(paymentId: string): Card;
   /** The threads a guest (by guest id), a vendor (by vendor id) or the desk can see. */
   threads(viewer: Role, viewerId?: string): ThreadSummary[];
   thread(threadId: string, viewer: Role): Result<{ messages: Message[]; readOnly: boolean }>;

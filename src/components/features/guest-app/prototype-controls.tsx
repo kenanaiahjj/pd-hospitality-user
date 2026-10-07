@@ -25,7 +25,6 @@ import {
 import { PROTOTYPE_STAY_STATES } from './prototype-model';
 import type { PrototypeStayState } from './prototype-model';
 import type { FeedClock } from './promoted';
-import { PilotControls } from './pilot/ui/pilot-controls';
 
 /** When the prototype's "hotel system down" data was last in sync. */
 export const PMS_LAST_SYNC = '6:40 PM';
@@ -139,7 +138,7 @@ export function PrototypeControls({
   hotelEvents = [],
   guestEvents = [],
   onClearDeviceData,
-  pilot,
+  pilotEvents,
 }: {
   online: boolean;
   stayState: PrototypeStayState;
@@ -180,8 +179,8 @@ export function PrototypeControls({
   guestEvents?: PrototypeEvent[];
   /** Forgets what this device kept: saved hotels, recent searches, a saved offer, a booking draft. */
   onClearDeviceData?: () => void;
-  /** The booking, payment and chat pilot: open it, and drive the vendor and front desk from here. */
-  pilot?: { active: boolean; onToggle: () => void };
+  /** The other side of the conversation: the vendor, the front desk, the clock, and what can go wrong. */
+  pilotEvents?: { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[] };
 }) {
   /*
     Collapsed by default. This is scaffolding, not part of the product, and as
@@ -191,7 +190,7 @@ export function PrototypeControls({
   */
   const [open, setOpen] = useState(false);
   /* Kept while the page lives, so reopening lands where the presenter was. */
-  const [tab, setTab] = useState<'state' | 'clock' | 'events' | 'conditions' | 'pages' | 'pilot'>('state');
+  const [tab, setTab] = useState<'state' | 'clock' | 'events' | 'conditions' | 'pages'>('state');
   /* A downward swipe on the sheet's head closes it, as a phone sheet does. */
   const dragFrom = useRef<number | null>(null);
 
@@ -267,6 +266,10 @@ export function PrototypeControls({
     { group: 'PMS events', icon: <Bed />, label: 'Approve upgrade request', detail: 'The front desk confirms the upgrade and assigns the room.', onClick: onSimulateUpgradeApproved, unavailable: offline ?? (canSimulateUpgradeApproved ? undefined : 'No upgrade requested') },
     ...hotelEvents.map((event) => ({ ...event, group: 'Hotel answers' })),
     ...guestEvents.map((event) => ({ ...event, group: 'Guest requests' })),
+    ...(pilotEvents?.vendor ?? []).map((event) => ({ ...event, group: 'Vendor' })),
+    ...(pilotEvents?.desk ?? []).map((event) => ({ ...event, group: 'Front desk' })),
+    ...(pilotEvents?.clock ?? []).map((event) => ({ ...event, group: 'Bookings clock' })),
+    ...(pilotEvents?.faults ?? []).map((event) => ({ ...event, group: 'Things going wrong' })),
     { group: 'Gates', icon: <QrCode />, label: roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)', detail: roomVerified ? 'Locks the stay again, so the scan can be run.' : 'Opens on-property services without scanning.', onClick: onToggleRoomVerified, unavailable: canToggleRoomVerified ? undefined : 'Needs a stay with a room' },
     { group: 'Gates', icon: <ClockCountdown />, label: simulatePostStayExpired ? 'Reset 24-hour chat window' : 'Simulate 24 hours after checkout', detail: simulatePostStayExpired ? 'Reopens the front desk after checkout.' : 'The desk closes and the stay moves to Profile: Home has no booking.', onClick: onTogglePostStayExpired },
     { group: 'Data', icon: <Receipt />, label: hasHistory ? 'Clear stay history' : 'Seed stay history', detail: hasHistory ? 'As a first-time guest, with no past stays.' : 'Adds past stays to the profile.', onClick: onToggleHistory },
@@ -313,7 +316,7 @@ export function PrototypeControls({
       </div>
 
       <div className="guest-prototype-tabs" role="tablist" aria-label="Controls">
-        {([['state', 'State'], ['clock', 'Clock'], ['events', 'Events'], ['conditions', 'Conditions'], ['pages', 'Pages'], ...(pilot ? ([['pilot', 'Pilot']] as const) : [])] as const).map(([id, label]) => (
+        {([['state', 'State'], ['clock', 'Clock'], ['events', 'Events'], ['conditions', 'Conditions'], ['pages', 'Pages']] as const).map(([id, label]) => (
           <button key={id} type="button" role="tab" id={`prototype-tab-${id}`} aria-selected={tab === id} aria-controls={`prototype-panel-${id}`} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}>
             {label}
           </button>
@@ -438,8 +441,6 @@ export function PrototypeControls({
             </section>
           </>
         ) : null}
-
-        {tab === 'pilot' && pilot ? <PilotControls active={pilot.active} onToggle={() => { pilot.onToggle(); if (!pilot.active) setOpen(false); }} /> : null}
 
         {tab === 'pages' ? (
           <>

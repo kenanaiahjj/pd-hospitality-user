@@ -34,6 +34,11 @@ type Callable = Record<string, (...args: unknown[]) => unknown>;
 
 function exec(pilot: Pilot, path: string, args: unknown[]): unknown {
   const [scope, method] = path.split('.') as [string, string];
+  if (scope === 'race') {
+    // The guest withdraws as the vendor confirms, in the same instant.
+    const [guestId, vendorId, bookingId] = args as [string, string, string];
+    return pilot.together(() => pilot.guest(guestId).cancel(bookingId), () => pilot.vendor(vendorId).confirm(bookingId));
+  }
   if (scope === 'desk') return (pilot.desk as unknown as Callable)[method]!(...args);
   if (scope === 'pilot') return (pilot as unknown as Callable)[method]!(...args);
   const [id, ...rest] = args as [string, ...unknown[]];
@@ -157,6 +162,17 @@ export class Host {
     if (ms === this.pilot.now()) return;
     if (ms > this.pilot.now()) {
       this.call('pilot.advanceTo', ms);
+      return;
+    }
+    if (this.pilot.bookings().length === 0) {
+      // Nothing booked yet, so nothing to lose: begin the day at that hour, keeping only who is on which stay.
+      this.start = ms;
+      const fresh = makePilot(ms);
+      const kept = this.ops.filter((op) => op.path === 'pilot.addGuest' || op.path === 'desk.syncStay');
+      for (const op of kept) exec(fresh, op.path, op.args);
+      this.pilot = fresh;
+      this.ops = kept;
+      this.touch();
       return;
     }
     const keep: Op[] = [];

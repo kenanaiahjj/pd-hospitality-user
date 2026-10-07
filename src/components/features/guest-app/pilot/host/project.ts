@@ -1,4 +1,5 @@
 import { formatPesoAmount, formatServiceDay, PROTOTYPE_TODAY, type GuestSession, type PaymentRecord, type ServiceBooking } from '../../prototype-model';
+import { returnPoints } from '../../rewards/points-model';
 import type { Booking as EngineBooking, BookingStatus, Payment, Pilot } from '../types';
 import type { Host } from './host';
 
@@ -44,6 +45,18 @@ export function engineStatusLine(eb: EngineBooking): string {
     case 'payment-expired': return 'Payment expired';
     case 'cancelled': return 'Cancelled';
   }
+}
+
+/** What the guest may do about cancelling, in the engine's own rule: free in the window, the vendor's say after it. */
+export function engineCancelLine(pilot: Pilot, eb: EngineBooking): string {
+  const listing = pilot.listing(eb.listingId);
+  if (eb.kind === 'table') return 'Free to cancel any time before you are seated. The table is held 15 minutes past your time.';
+  if (['requested', 'needs-approval', 'pay-or-cancel', 'awaiting-payment'].includes(eb.status)) return 'Withdraw any time before it is confirmed. Nothing is charged until then.';
+  const until = eb.start - listing.freeCancelHours * 3_600_000;
+  const d = new Date(until);
+  const h = d.getUTCHours();
+  const clock = `${((h + 11) % 12) + 1}:${String(d.getUTCMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+  return `Free to cancel until ${clock} on ${formatServiceDay(isoOf(until)).short}. After that the vendor has to accept the cancellation.`;
 }
 
 function present(pilot: Pilot, host: Host, eb: EngineBooking, appBookingId: string, existing: ServiceBooking | undefined): ServiceBooking {
@@ -197,5 +210,8 @@ export function applyEngine(session: GuestSession, host: Host): GuestSession {
       }
     }
   }
-  return changed ? { ...session, serviceBookings: bookings, payments } : session;
+  const projected = changed ? { ...session, serviceBookings: bookings, payments } : session;
+  // Points staged against a booking come back when it does not happen. Returning is a no-op the second time.
+  const ended = bookings.filter((service) => service.engineId && service.status === 'cancelled').map((service) => service.id);
+  return ended.length ? returnPoints(projected, ended) : projected;
 }

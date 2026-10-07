@@ -24,9 +24,9 @@
 
 | # | Task | Status | Started | Completed | Commit |
 |---|---|---|---|---|---|
-| 1 | Engine: injectable catalogue, per-booking price, free items, pay modes, stay sync | ⬜ Not started | — | — | — |
-| 2 | Host: catalogue adapter, replay log, clock bridge, projection onto `ServiceBooking` | ⬜ Not started | — | — | — |
-| 3 | Book: service/rental/table form and pay step through the engine | ⬜ Not started | — | — | — |
+| 1 | Engine: injectable catalogue, per-booking price, free items, pay modes, stay sync | ✅ Complete | 2026-10-07 | 2026-10-07 | eb7ebff |
+| 2 | Host: catalogue adapter, replay log, clock bridge, projection onto `ServiceBooking` | ✅ Complete | 2026-10-07 | 2026-10-07 | see git log |
+| 3 | Book: service/rental/table form and pay step through the engine | 🔄 In progress | 2026-10-07 | — | — |
 | 4 | Book: nearby places and the lobby shop (goods) through the engine | ⬜ Not started | — | — | — |
 | 5 | Chat: Messages list, three-way booking thread, cards in the desk chat | ⬜ Not started | — | — | — |
 | 6 | After booking: receipt, cancel, bell, bill and Payments read the engine | ⬜ Not started | — | — | — |

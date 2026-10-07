@@ -20,15 +20,30 @@ const METHOD_HINTS: Record<GatewayMethod, string> = {
   maya: 'Approve in the Maya app',
 };
 
-export function GatewayCheckout({ merchant, amount, item, onPaid, onClose }: { merchant: string; amount: string; item: string; onPaid: (method: GatewayMethod) => void; onClose: () => void }) {
+/**
+  `onPaid` may answer with a sentence when the payment did not go through (the
+  gateway failed, the guest walked away, the window closed). The sheet stays
+  open and says so, so a guest can try again instead of being sent on as if
+  they had paid. `hint` is a line the caller wants above the button, such as
+  how long the slot is held.
+*/
+export function GatewayCheckout({ merchant, amount, item, onPaid, onClose, hint }: { merchant: string; amount: string; item: string; onPaid: (method: GatewayMethod) => string | void; onClose: () => void; hint?: string }) {
   const [method, setMethod] = useState<GatewayMethod | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
 
   const pay = () => {
     if (!method || processing) return;
     setProcessing(true);
-    timer.current = window.setTimeout(() => onPaid(method), 900);
+    setProblem(null);
+    timer.current = window.setTimeout(() => {
+      const answer = onPaid(method);
+      if (typeof answer === 'string') {
+        setProcessing(false);
+        setProblem(answer);
+      }
+    }, 900);
   };
   const close = () => {
     if (timer.current) window.clearTimeout(timer.current);
@@ -59,6 +74,8 @@ export function GatewayCheckout({ merchant, amount, item, onPaid, onClose }: { m
             </button>
           ))}
         </fieldset>
+        {hint ? <p className="guest-gateway__note">{hint}</p> : null}
+        {problem ? <p className="guest-gateway__note" role="alert"><b>{problem}</b></p> : null}
         <p className="guest-gateway__note"><LockSimple aria-hidden="true" />Paid directly to {merchant} through our payment partner. Not added to your room bill.</p>
         <footer className="guest-order-tray__footer">
           <Button className="guest-button guest-button--primary" type="button" disabled={!method || processing} onClick={pay}>

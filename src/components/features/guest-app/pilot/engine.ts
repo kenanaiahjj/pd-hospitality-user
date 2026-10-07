@@ -715,7 +715,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (start <= w.now) return refuse('not-possible', 'That time has already passed.');
     const slotKeys = listing.kind === 'rental' ? Array.from({ length: days }, (_, i) => slotKeyFor(listing, addDays(draft.date, i))) : [slotKeyFor(listing, draft.date, draft.time)];
     if (slotKeys.some((k) => rt.blockedSlots.has(k))) return refuse('unavailable', 'That slot is not taking bookings.');
-    const amount = listing.priceBasis === 'booking' ? listing.unitPrice : listing.unitPrice * draft.qty * days;
+    const amount = Math.max(0, (listing.priceBasis === 'booking' ? listing.unitPrice : listing.unitPrice * draft.qty * days) - (draft.discount ?? 0));
     return ok({ plan: { listing, stay, start, end, days, amount, slotKeys, options: payOptionsFor(stay, draft.date, amount, listing) } });
   };
 

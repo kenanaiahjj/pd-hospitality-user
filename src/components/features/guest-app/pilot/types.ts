@@ -116,6 +116,8 @@ export type Draft = {
   payMode?: PayMode;
   note?: string;
   origin?: 'app' | 'guest-chat' | 'desk';
+  /** Pesos off the price, from points. The booking costs that much less. */
+  discount?: number;
 };
 
 export type Booking = {

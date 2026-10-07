@@ -494,6 +494,11 @@ describe('booking with points', () => {
   const openBooking = async (session = beforeMassage) => {
     // Room only, so there is no payment choice to make first.
     render(<GuestAppPrototype initialSession={session} initialScreen="service-booking" />);
+    // Morning, so today's 1:30 PM treatment is still ahead: the live stay opens at 7 PM, when it has gone.
+    await userEvent.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Clock' }));
+    await userEvent.click(screen.getByRole('button', { name: /Morning/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close prototype controls' }));
   };
 
   it('charges less when points are applied', async () => {

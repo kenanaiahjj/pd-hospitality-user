@@ -202,7 +202,10 @@ import {
 } from './stay-booking';
 import { PMS_LAST_SYNC, PrototypeControls} from './prototype-controls';
 import { HostStore, hostClock, type StayInput } from './pilot/host/host';
-import { applyEngine } from './pilot/host/project';
+import { EngineBookingCard } from './pilot/host/booking-card';
+import type { Draft as EngineDraft } from './pilot/types';
+import { applyEngine, engineCancelLine, engineStatusLine } from './pilot/host/project';
+import { buildPilotEvents } from './pilot/host/events';
 import type { PrototypePage } from './prototype-controls';
 import {
   getPropertyImage,
@@ -622,6 +625,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [openServiceField, setOpenServiceField] = useState<'date' | 'time' | null>(null);
   const [servicePartySize, setServicePartySize] = useState(1);
   const [rentalQuantity, setRentalQuantity] = useState(1);
+  /* A card payment the engine is waiting on, shown in the gateway until it is paid or left. */
+  const [enginePay, setEnginePay] = useState<{ engineId: string; paymentId?: string } | null>(null);
+  /* What the engine answered to the last thing the guest did: a refusal to explain, or a confirmation. */
+  const [engineNote, setEngineNote] = useState<{ tone: 'warning' | 'positive'; text: string } | null>(null);
   /* The booking the confirmation screen is about. */
   const [lastServiceBookingId, setLastServiceBookingId] = useState<string | null>(null);
   /* Badges the last confirmed booking tipped over, for the confirmation. */
@@ -1590,9 +1597,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
     }
     setFeedClock(clock);
-    // The engine's clock follows the day's hour forward, and never back: a booking made this afternoon stays made.
+    // The engine's clock follows the day's hour forward. Back, only while nothing is booked: a booking made this afternoon stays made.
     const host = hostStore.host;
-    if (host && hostClock(PROTOTYPE_TODAY, clock.hour) > host.now()) host.setTime(hostClock(PROTOTYPE_TODAY, clock.hour));
+    const target = hostClock(PROTOTYPE_TODAY, clock.hour);
+    if (host && (target > host.now() || host.pilot.bookings().length === 0)) host.setTime(target);
   };
 
   /* The desk's side of an upgrade: approve it, then the room is prepared and made ready. */
@@ -1672,6 +1680,36 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       { icon: <X />, label: `Decline ${name}`, detail: service.serviceId === 'early-check-in' ? 'No charge. The guest is notified.' : 'Cancelled, refunded if paid, and the guest is notified.', onClick: () => answerHotelRequest(service, false), unavailable },
     ];
   });
+
+  /*
+    The other side of the conversation for what the engine holds: the vendor,
+    the front desk, the clock and the faults. Present only when there is a stay
+    for the engine to know a guest on.
+  */
+  const pilotEvents = hostStore.host && primaryBooking && hostStore.host.guestOf(primaryBooking.id)
+    ? buildPilotEvents({
+        host: hostStore.host,
+        stayId: primaryBooking.id,
+        canShortenStay: countNightsBetween(primaryBooking.checkIn, primaryBooking.checkOut) > 1,
+        shortenStay: () => {
+          const host = hostStore.host;
+          const stay = host?.guestOf(primaryBooking.id);
+          if (!host || !stay) return;
+          const checkOut = shiftIsoDay(primaryBooking.checkOut, -1);
+          host.call('desk.shortenStay', stay.stayId, checkOut);
+          setSession((current) => ({ ...current, bookings: current.bookings.map((item) => (item.id === primaryBooking.id ? { ...item, checkOut } : item)) }));
+        },
+        cancelStay: () => {
+          const stay = hostStore.host?.guestOf(primaryBooking.id);
+          if (stay) hostStore.host?.call('desk.cancelStay', stay.stayId);
+        },
+        deskMessage: () => {
+          setChatMessages((messages) => [...messages, { from: 'desk', body: 'Good afternoon. Is there anything we can arrange for you today?', state: 'Seen' }]);
+          if (activeScreenRef.current !== 'chat') setHasUnreadChat(true);
+          notifyGuestRequest('desk-hello', 'Front desk', 'Good afternoon. Is there anything we can arrange for you today?', { inbox: true, screen: 'chat' });
+        },
+      })
+    : undefined;
 
   /* A fresh device: no saved hotels, recent searches, saved offer or half-made booking. */
   const clearDeviceData = () => {
@@ -2168,6 +2206,24 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const mapClock: MapClock = { date: PROTOTYPE_TODAY, hour: clockHour };
 
   /*
+    The days and times a guest can still ask for, on the engine's clock. A slot
+    earlier today has gone, and the engine would say so; the form should never
+    have offered it.
+  */
+  const resolveEngineSlot = (booking: Booking) => {
+    const schedule = SERVICE_SCHEDULES[selectedService.id];
+    const hostNow = hostStore.host?.now();
+    const minutes = (time: string) => parseClockTime(time).hour * 60 + parseClockTime(time).minute;
+    const timesOn = (d: string) => (schedule ? [schedule.time] : [...listingFor(selectedService.id).times])
+      .filter((time) => hostNow === undefined || hostClock(d, 0) + minutes(time) * 60_000 > hostNow);
+    const days = bookableServiceDays(booking, PROTOTYPE_TODAY, selectedService.id).filter((d) => timesOn(d).length > 0);
+    const day = serviceDate && days.includes(serviceDate) ? serviceDate : days[0];
+    const times = day ? timesOn(day) : [];
+    const time = times.includes(serviceTime) ? serviceTime : times[0] ?? serviceTime;
+    return { days, day, times, time };
+  };
+
+  /*
     Everything that can refuse a service booking, asked before a guest is sent
     to pay and before anything is held. A pay-now guest used to meet these only
     after the gateway had taken the money, and be told nothing was charged.
@@ -2308,6 +2364,143 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setLastServiceBookingId(id);
     setAppliedPoints(0);
     setServiceNote('');
+    goReplacing('booking-confirmation');
+  };
+
+  /*
+    The pilot's way of booking a table, a service, a rental. The engine decides
+    what happens next -- confirmed now, waiting for the vendor, waiting for the
+    front desk, or held for a card -- and the record below only presents it.
+  */
+  const toClock24 = (time: string) => {
+    const { hour, minute } = parseClockTime(time);
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  };
+
+  const engineDraftFor = (day: string, slotTime: string, payMode: 'room' | 'card' | undefined, discount = 0): EngineDraft => ({
+    listingId: selectedService.id,
+    date: day,
+    time: toClock24(slotTime),
+    qty: serviceIsRental ? rentalQuantity : reservation || ['spa', 'entertainment', 'dining'].includes(selectedService.categoryId) ? servicePartySize : 1,
+    days: serviceIsRental ? 1 : undefined,
+    payMode,
+    note: serviceNote.trim() || undefined,
+    origin: 'app',
+    ...(discount ? { discount } : {}),
+  });
+
+  /* Open the gateway for the card payment the engine is holding for this booking (or one of its extra charges). */
+  const payEngineBooking = (engineId: string, paymentId?: string) => {
+    const host = hostStore.host;
+    if (!host) return;
+    const eb = host.pilot.booking(engineId);
+    const pending = paymentId ? host.pilot.payment(paymentId) : host.pilot.payments(engineId).filter((x) => x.mode === 'card' && x.purpose === 'booking' && !x.duplicate).at(-1);
+    if (!pending || pending.state !== 'awaiting') {
+      setEngineNote({ tone: 'warning', text: 'There is nothing to pay on this booking.' });
+      return;
+    }
+    setEnginePay({ engineId: eb.id, paymentId: pending.id });
+  };
+
+  /* The gateway said yes: tell the engine. It answers with a sentence if the payment did not take. */
+  const takeEnginePayment = (method: GatewayMethod): string | void => {
+    const host = hostStore.host;
+    const paying = enginePay;
+    if (!host || !paying) return;
+    const eb = host.pilot.booking(paying.engineId);
+    const pending = paying.paymentId ? host.pilot.payment(paying.paymentId) : undefined;
+    if (!pending) return 'There is nothing to pay on this booking.';
+    host.setMeta(`method:${pending.id}`, method);
+    const result = pending.purpose === 'extra'
+      ? host.call<{ ok: boolean; message?: string; outcome?: string; triesLeft?: number }>('guest.payExtra', eb.guestId, pending.id)
+      : host.call<{ ok: boolean; message?: string; outcome?: string; triesLeft?: number }>('guest.payCard', eb.guestId, eb.id);
+    if (!result.ok) {
+      setEnginePay(null);
+      setEngineNote({ tone: 'warning', text: result.message ?? 'The payment did not go through.' });
+      return;
+    }
+    if (result.outcome === 'failed') return result.triesLeft ? `The payment failed. ${result.triesLeft} ${result.triesLeft === 1 ? 'try' : 'tries'} left.` : 'The payment failed three times, so the slot was released.';
+    if (result.outcome === 'abandoned') return 'The checkout did not finish. Nothing was charged yet; try again.';
+    setEnginePay(null);
+    setEngineNote({ tone: 'positive', text: 'Paid. Your booking is confirmed.' });
+    goReplacing('booking-confirmation');
+  };
+
+  const submitEngineBooking = (payingNow: boolean) => {
+    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+    if (!serviceGate(booking) || !booking) return;
+    const host = hostStore.host;
+    const stay = host?.guestOf(booking.id);
+    if (!host || !stay) return;
+
+    const slot = resolveEngineSlot(booking);
+    if (!slot.day) {
+      setBookingBlockedReason('no-slot');
+      go('booking-blocked');
+      return;
+    }
+    const day = slot.day;
+    const slotTime = slot.time;
+    const { hour } = parseClockTime(slotTime);
+    const id = `service-${selectedService.id}-${booking.id}-${day}-${hour}`;
+    const listing = host.pilot.listing(selectedService.id);
+    const waitsForVendor = listing.confirm === 'vendor';
+
+    const known = session.serviceBookings.find((service) => service.id === id && service.engineId);
+    if (known && !['cancelled'].includes(known.status)) {
+      setLastServiceBookingId(id);
+      goReplacing('booking-confirmation');
+      return;
+    }
+
+    const wantsCard = payingNow;
+    const discount = waitsForVendor ? 0 : pesosOff(usablePoints);
+    const draft = engineDraftFor(day, slotTime, reservation || servicePrice === 0 ? undefined : wantsCard ? 'card' : 'room', discount);
+    const result = host.call<{ ok: boolean; message?: string; bookingId: string }>('guest.request', stay.guestId, draft);
+    if (!result.ok) {
+      setEngineNote({ tone: 'warning', text: result.message ?? 'That did not go through.' });
+      return;
+    }
+
+    const engineBooking = host.pilot.booking(result.bookingId);
+    const unitWord = selectedService.categoryId === 'rentals' ? rentalUnitFor(selectedService.id) : null;
+    const serviceBooking: ServiceBooking = {
+      id,
+      bookingId: booking.id,
+      engineId: result.bookingId,
+      title: selectedService.name,
+      scheduledFor: `${formatServiceDay(day).long} · ${slotTime}`,
+      scheduledDate: day,
+      scheduledHour: hour,
+      bookedAt: PROTOTYPE_TODAY,
+      serviceId: selectedService.id,
+      ...(unitWord ? { summary: `${slotTime} · return by 8:00 PM · ${rentalQuantity} ${rentalQuantity === 1 ? unitWord.singular : unitWord.plural}`, rentalQuantity } : reservation ? { summary: `${slotTime} · Table for ${servicePartySize} · order at the venue`, partySize: servicePartySize } : { partySize: servicePartySize }),
+      amount: reservation ? '' : formatPesoAmount(engineBooking.amount),
+      status: 'confirmed',
+      provider: providerFor(selectedService),
+      ...(serviceNote.trim() ? { facts: noteFact(serviceNote) } : {}),
+    };
+
+    const booked: GuestSession = { ...session, serviceBookings: [...rawSession.serviceBookings, serviceBooking] };
+    const next = discount > 0
+      ? spendPoints(booked, { id: serviceBooking.id, title: `Points off ${serviceBooking.title}`, points: usablePoints })
+      : booked;
+    const held = new Set(earnedBadges(session).map((row) => row.definition.id));
+    // Judged on the booking as the engine has it, not as the bare record first reads.
+    setJustEarned(earnedBadges(applyEngine(next, host)).filter((row) => !held.has(row.definition.id)).map((row) => row.definition.id));
+    setSession(next);
+
+    notifyGuestRequest(serviceBooking.id, waitsForVendor ? `${serviceBooking.title} requested` : `${serviceBooking.title} booked`, `${serviceBooking.scheduledFor}${serviceBooking.amount ? ` · ${serviceBooking.amount}` : ''}`);
+    setLastServiceBookingId(id);
+    setAppliedPoints(0);
+    setServiceNote('');
+    setEngineNote(null);
+    if (engineBooking.status === 'awaiting-payment') {
+      // Instant and paid by card: the slot is held, and the gateway opens now.
+      payEngineBooking(result.bookingId);
+      goReplacing('booking-confirmation');
+      return;
+    }
     goReplacing('booking-confirmation');
   };
 
@@ -4577,8 +4770,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return <ServiceDetail kind="vendor" booking={contextBooking} online={online} onBook={() => openServiceBooking('spa')} onChat={() => go('chat')} />;
 
       case 'service-booking': {
-        const days = bookableServiceDays(contextBooking, PROTOTYPE_TODAY, selectedService.id);
-        const day = serviceDate && days.includes(serviceDate) ? serviceDate : days[0];
+        const pilotHost = hostStore.host;
+        const pilotStay = pilotHost ? pilotHost.guestOf(contextBooking.id) : undefined;
+        const viaEngine = !preArrival && Boolean(pilotStay) && Boolean(pilotHost?.pilot.listings().some((entry) => entry.id === selectedService.id));
+        const slot = viaEngine ? resolveEngineSlot(contextBooking) : undefined;
+        const days = slot?.days ?? bookableServiceDays(contextBooking, PROTOTYPE_TODAY, selectedService.id);
+        const day = slot ? slot.day : serviceDate && days.includes(serviceDate) ? serviceDate : days[0];
+        const timeShown = slot?.time ?? serviceTime;
         const schedule = SERVICE_SCHEDULES[selectedService.id];
         // Party size only where it changes the booking: a table, a treatment, a tour.
         const asksPartySize = ['spa', 'entertainment', 'dining'].includes(selectedService.categoryId);
@@ -4586,9 +4784,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const rentalRate = selectedService.price.replace(/\s*\/\s*day$/i, '').trim();
         const rentalRateLabel = `${rentalRate} / ${rentalUnit.singular} / day`;
         const chargeToRoom = canUseOnPropertyServices(contextBooking);
+        /*
+          Through the engine, what is offered comes from the engine: the room
+          only inside the stay and within the limits, the card only where the
+          vendor takes it. Before the stay (arrival services) the cart still
+          settles these, so the old rules stand there.
+        */
+        const quote = viaEngine && day ? pilotHost!.pilot.guest(pilotStay!.guestId).quote(engineDraftFor(day, schedule?.time ?? timeShown, undefined)) : undefined;
+        const confirmFirst = viaEngine && pilotHost!.pilot.listing(selectedService.id).confirm === 'vendor';
+        const roomOffered = quote?.ok ? quote.options.room.offered : chargeToRoom;
+        const cardOffered = quote?.ok ? quote.options.card.offered : acceptsPayNow(selectedService);
+        const needsApproval = Boolean(quote?.ok && quote.options.room.needsApproval);
         // The room, settled at the front desk -- or, for a third-party vendor, paid now through the gateway.
-        const payNowOffered = acceptsPayNow(selectedService);
-        const payingNow = chargeToRoom && payNowOffered && servicePayChoice === 'pay-now';
+        const payNowOffered = viaEngine ? cardOffered : acceptsPayNow(selectedService);
+        const payingNow = viaEngine
+          ? servicePayment !== 'complimentary' && !reservation && cardOffered && (!roomOffered || servicePayChoice === 'pay-now')
+          : chargeToRoom && payNowOffered && servicePayChoice === 'pay-now';
         const merchant = merchantFrom(provider);
         const ready = Boolean(day);
         const submitLabel = !day
@@ -4599,6 +4810,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ? 'Reserve a table'
           : servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
+          : confirmFirst ? 'Send request'
+          : viaEngine && needsApproval && !payingNow ? 'Ask the front desk to approve'
           : payingNow ? `Continue to pay ${serviceCharge}`
           : chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`;
         const roomLine = contextBooking.roomNumber ? `Charge to Room ${contextBooking.roomNumber}` : 'Charge to your room';
@@ -4624,11 +4837,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ) : (
                 <ExpandableField
                   label={serviceIsRental ? 'Pick up' : 'Time'}
-                  value={serviceTime}
+                  value={timeShown}
                   open={openServiceField === 'time'}
                   onToggle={() => setOpenServiceField((field) => field === 'time' ? null : 'time')}
                 >
-                  <TimeWheel times={listingFor(selectedService.id).times} value={serviceTime} onChange={setServiceTime} />
+                  <TimeWheel times={slot ? slot.times : listingFor(selectedService.id).times} value={timeShown} onChange={setServiceTime} />
                 </ExpandableField>
               )}
               {serviceIsRental ? <SummaryRow label="Return" value="By 8:00 PM the same day" /> : null}
@@ -4658,10 +4871,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <NotesField name="service-note" value={serviceNote} onChange={setServiceNote} placeholder={serviceNoteHint(selectedService.categoryId, reservation)} />
             {servicePayment === 'complimentary' ? null : (
               <>
-                {preArrival ? null : <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={usablePoints} onChange={setAppliedPoints} />}
+                {preArrival || confirmFirst ? null : <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={usablePoints} onChange={setAppliedPoints} />}
                 {preArrival ? (
                   <Notice title="Paid now, with your cart">
                     Card, GCash or Maya, in one payment for everything you arrange. Not added to a room bill.
+                  </Notice>
+                ) : viaEngine && !roomOffered && cardOffered ? (
+                  <Notice title="Pay in full">
+                    {quote?.ok ? quote.options.room.why : 'This one is paid by card or e-wallet.'} Card, GCash or Maya, paid straight to {merchant}.
                   </Notice>
                 ) : payNowOffered ? (
                   <fieldset className="guest-payment-choice">
@@ -4669,11 +4886,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     <div className="guest-payment-options">
                       <button type="button" aria-pressed={servicePayChoice === 'room'} className={servicePayChoice === 'room' ? 'is-active' : ''} onClick={() => setServicePayChoice('room')}>
                         <b>{roomLine}</b>
-                        <small>{contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}</small>
+                        <small>{confirmFirst ? 'Added to your room bill once the vendor confirms.' : needsApproval ? 'Over the limit, so the front desk approves it first.' : contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}</small>
                       </button>
                       <button type="button" aria-pressed={servicePayChoice === 'pay-now'} className={servicePayChoice === 'pay-now' ? 'is-active' : ''} onClick={() => setServicePayChoice('pay-now')}>
                         <b>Pay now</b>
-                        <small>Card, GCash or Maya, paid straight to {merchant}. Not added to your room bill.</small>
+                        <small>{confirmFirst ? `Card, GCash or Maya, paid straight to ${merchant} once they confirm. Not added to your room bill.` : `Card, GCash or Maya, paid straight to ${merchant}. Not added to your room bill.`}</small>
                       </button>
                     </div>
                   </fieldset>
@@ -4684,8 +4901,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 )}
               </>
             )}
-            <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => (preArrival ? addServiceToCart() : payingNow ? startServicePayment() : confirmService())}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
-            {gatewayOpen && payingNow ? (
+            {confirmFirst ? (
+              <Notice title={`${provider.replace(/^Run by /, '')} confirms first`}>
+                You are charged only once they do. You can withdraw the request until then, and follow it under Messages.
+              </Notice>
+            ) : null}
+            {quote && !quote.ok ? <Notice tone="warning" title="Not available">{quote.message}</Notice> : null}
+            {engineNote?.tone === 'warning' ? <Notice tone="warning" title="That did not go through">{engineNote.text}</Notice> : null}
+            <Button className="guest-button guest-button--primary" type="button" disabled={!ready || (viaEngine && quote !== undefined && !quote.ok)} onClick={() => (viaEngine ? submitEngineBooking(payingNow) : preArrival ? addServiceToCart() : payingNow ? startServicePayment() : confirmService())}>{submitLabel}<ArrowRight aria-hidden="true" /></Button>
+            {gatewayOpen && payingNow && !viaEngine ? (
               <GatewayCheckout
                 merchant={merchant}
                 amount={serviceCharge}
@@ -4708,11 +4932,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const bookingCount = bookedService.categoryId === 'rentals'
           ? countOf(booked?.rentalQuantity ?? 1, rentalUnitFor(bookedService.id).singular)
           : countOf(booked?.partySize ?? 1, 'guest');
+        /* Booked through the engine: what the guest is told depends on where the engine has it. */
+        const engineHost = hostStore.host;
+        const engineBooking = engineHost && booked?.engineId ? engineHost.pilot.booking(booked.engineId) : undefined;
+        const vendorName = engineHost && engineBooking ? engineHost.pilot.vendors().find((v) => v.id === engineHost.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'The vendor' : 'The vendor';
+        const engineHeadline = engineBooking?.status === 'requested' ? { title: `Request sent to ${vendorName}`, text: `Nothing is charged until ${vendorName} confirms. You can follow it, and message them, under Messages.`, tag: 'Waiting' }
+          : engineBooking?.status === 'needs-approval' ? { title: 'Waiting for the front desk', text: 'The front desk approves charging this to your room. If they do not answer in 10 minutes you can pay in full or cancel.', tag: 'Waiting' }
+          : engineBooking?.status === 'pay-or-cancel' ? { title: 'Pay in full or cancel', text: 'The front desk has not answered. Pay in full instead, or cancel.', tag: 'Waiting' }
+          : engineBooking?.status === 'awaiting-payment' ? { title: `Pay to confirm ${booked?.title ?? bookedService.name}`, text: 'Your slot is held while you pay. If it is not paid in time it is released.', tag: 'Pay to confirm' }
+          : engineBooking && ['cancelled', 'declined', 'lapsed', 'withdrawn', 'payment-expired'].includes(engineBooking.status) ? { title: `${booked?.title ?? bookedService.name} is not booked`, text: engineStatusLine(engineBooking) + '. Nothing was charged.', tag: 'Not booked' }
+          : undefined;
         return (
           <ScreenIntro
             icon={<Check size={30} />}
-            title={isReservation(bookedService.id) ? `Table reserved at ${booked?.title ?? bookedService.name}` : `${booked?.title ?? bookedService.name} is booked`}
-            text={isReservation(bookedService.id)
+            title={engineHeadline?.title ?? (isReservation(bookedService.id) ? `Table reserved at ${booked?.title ?? bookedService.name}` : `${booked?.title ?? bookedService.name} is booked`)}
+            text={engineHeadline ? engineHeadline.text : isReservation(bookedService.id)
               ? 'Nothing to pay to reserve. Order and pay at the venue; the reservation is on your stay in My Stay.'
               : paidBy === 'card'
               ? `Paid with ${methodLabel}, direct to ${merchantFrom(booked?.provider ?? '')}. It is not on your room bill; your receipt is in My Stay.`
@@ -4720,14 +4954,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 ? 'Complimentary, so there is nothing to pay. It is on your stay in My Stay.'
                 : `The charge has been added to ${contextRoom.toLowerCase()} and is paid with your room bill at checkout.`}
           >
-            <div className="guest-ticket"><div><small>{withoutTime(slot)}</small><h2>{time}</h2><p>{booked?.title ?? bookedService.name} · {bookingCount}</p></div><Tag>Confirmed</Tag></div>
+            <div className="guest-ticket"><div><small>{withoutTime(slot)}</small><h2>{time}</h2><p>{booked?.title ?? bookedService.name} · {bookingCount}</p></div><Tag>{engineHeadline?.tag ?? 'Confirmed'}</Tag></div>
             <div className="guest-summary">
               <SummaryRow label="Provider" value={booked?.provider ?? providerFor(bookedService)} />
               {booked?.facts?.find((fact) => fact.label === 'Your note') ? <SummaryRow label="Your note" value={booked.facts.find((fact) => fact.label === 'Your note')!.value} /> : null}
-              <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? (isReservation(bookedService.id) ? 'No charge to reserve' : 'Complimentary') : 'Charged to room'} />
+              <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={engineHeadline && engineBooking && ['requested', 'needs-approval', 'pay-or-cancel'].includes(engineBooking.status) ? (engineBooking.payMode === 'card' ? 'Paid in full once confirmed' : 'Charged to room once confirmed') : engineHeadline?.tag === 'Pay to confirm' ? 'Paid in full, by card or e-wallet' : paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? (isReservation(bookedService.id) ? 'No charge to reserve' : 'Complimentary') : 'Charged to room'} />
             </div>
-            <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />
-            <Notice title="Cancellation cutoff">{booked ? describeCancellationWindow(cutoffFor(booked), booked, PROTOTYPE_TODAY, clockHour) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
+            {engineBooking && engineHeadline ? null : <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />}
+            <Notice title="Cancellation">{engineHost && engineBooking ? engineCancelLine(engineHost.pilot, engineBooking) : booked ? describeCancellationWindow(cutoffFor(booked), booked, PROTOTYPE_TODAY, clockHour) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
+            {engineHost && booked?.engineId ? (
+              <EngineBookingCard host={engineHost} bookingId={booked.engineId} onPay={payEngineBooking} onNote={setEngineNote} onOpenDesk={() => go('chat')} onPickAnother={() => go(bookingSlot.screen)} />
+            ) : null}
+            {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
             {primary('View my stay', 'my-stay')}
             {/* Back to the catalogue this guest can use: arrival services before the stay, Explore during it. */}
             <TextButton onClick={() => go(bookingSlot.screen)}>Book another service</TextButton>
@@ -5124,6 +5362,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const earlyCheckInEntry = entry.serviceId === 'early-check-in';
         // Still ahead, so not on the bill yet: it goes on once it has happened.
         const entryAhead = !entryCancelled && entry.status === 'confirmed' && entry.date > PROTOTYPE_TODAY;
+        /* A booking the engine holds is read and acted on through its card; the old cancel screens do not apply. */
+        const entryEngineId = session.serviceBookings.find((service) => service.id === entry.id)?.engineId;
+        const entryExtraId = session.serviceBookings.find((service) => service.id === entry.id)?.engineExtraId;
+        const engineEntryHost = hostStore.host && (entryEngineId || entryExtraId) ? hostStore.host : undefined;
+        const engineEntryBookingId = entryEngineId ?? (entryExtraId && engineEntryHost ? engineEntryHost.pilot.payment(entryExtraId).bookingId : undefined);
 
         return (
           <div className="guest-stack">
@@ -5132,6 +5375,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <h1>{entry.title}</h1>
               <p>{entry.detail}</p>
             </div>
+
+            {engineEntryHost && engineEntryBookingId ? (
+              <EngineBookingCard host={engineEntryHost} bookingId={engineEntryBookingId} paymentId={entryExtraId} onPay={payEngineBooking} onNote={setEngineNote} onOpenDesk={() => go('chat')} onPickAnother={() => go(bookingSlot.screen)} onQuestion={(paymentId) => { setChatDraft(`I have a question about the ${engineEntryHost.pilot.payment(paymentId).reason ?? 'extra'} charge.`); go('chat'); }} />
+            ) : null}
+            {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
 
             {/* What differs by kind: a rental's pick-up and return, a tour's meeting point and guide. */}
             {entry.facts?.length ? (
@@ -5175,7 +5423,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
             </section>
 
-            <Notice
+            {engineEntryHost ? null : <Notice
               tone={entryCancelled || tableWaiting || entry.settlement === 'Awaiting hotel confirmation' || entry.settlement === 'Awaiting provider confirmation' ? 'neutral' : 'positive'}
               title={entryCancelled ? 'Cancelled'
                 : isTable ? tableWaiting ? 'Waiting for the restaurant' : 'Table confirmed'
@@ -5196,7 +5444,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                       : entry.paidBy === 'complimentary' ? 'On the house. Nothing is added to your room.'
                         : entryAhead && entry.paidBy === 'room' ? `Added to ${contextRoom.toLowerCase()} once it has happened, and settled at the front desk at checkout.`
                           : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
-            </Notice>
+            </Notice>}
             </>
             )}
 
@@ -5204,7 +5452,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               Cancelling is an action on the booking, reached from the booking
               -- not the thing an ordinary tap does.
             */}
-            {entry.canCancel ? (
+            {entry.canCancel && !engineEntryHost ? (
               <>
                 {/*
                   Which screen is decided by this booking's own cutoff. Every
@@ -5811,6 +6059,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         pages={prototypePages}
         hotelEvents={hotelAnswerEvents}
         guestEvents={guestRequestEvents}
+        pilotEvents={pilotEvents}
         onClearDeviceData={clearDeviceData}
       />
 
@@ -5877,6 +6126,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {renderScreen()}
           </div>
 
+
+          {enginePay && hostStore.host ? (() => {
+            const host = hostStore.host;
+            const eb = host.pilot.booking(enginePay.engineId);
+            const pay = enginePay.paymentId ? host.pilot.payment(enginePay.paymentId) : undefined;
+            const listing = host.pilot.listing(eb.listingId);
+            const vendor = host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? listing.title;
+            const left = pay?.windowEnd ? Math.max(0, Math.ceil((pay.windowEnd - host.now()) / 60_000)) : undefined;
+            return (
+              <GatewayCheckout
+                merchant={vendor}
+                amount={formatPesoAmount(pay?.amount ?? eb.amount)}
+                item={`${pay?.purpose === 'extra' ? pay.reason ?? 'Extra charge' : listing.title}`}
+                hint={left !== undefined ? `Your slot is held for ${left} more ${left === 1 ? 'minute' : 'minutes'}.` : undefined}
+                onPaid={takeEnginePayment}
+                onClose={() => setEnginePay(null)}
+              />
+            );
+          })() : null}
 
           {showPrimaryNav ? (
             <nav className={`guest-bottom-nav${reelsOnScreen && !feedSheet ? ' guest-bottom-nav--dark' : ''}`} aria-label="Primary navigation">

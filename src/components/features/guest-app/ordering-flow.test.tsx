@@ -41,8 +41,9 @@ describe('Explore → ordering', { timeout: 15_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'Reserve a table' }));
 
     // The rooftop opens in the evening: the form offers its slots, not a lunchtime default.
+    // It is 7 PM in the live stay, so 6:00 PM has gone: the first table still ahead is 7:30 PM.
     expect(screen.getByRole('heading', { name: 'Reserve a table' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Time/ })).toHaveTextContent('6:00 PM');
+    expect(screen.getByRole('button', { name: /^Time/ })).toHaveTextContent('7:30 PM');
     expect(screen.getByText('Free to reserve')).toBeInTheDocument();
     expect(screen.getByText('Nothing to pay now')).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: /How would you like to pay/ })).toBeNull();

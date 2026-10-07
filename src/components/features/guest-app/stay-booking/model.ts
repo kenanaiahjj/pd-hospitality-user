@@ -1391,6 +1391,8 @@ export type StayAddOn = {
   days?: number;
   setup?: CelebrationSetup;
   occasion?: string;
+  /** Anything else the guest wants the provider to know about this extra. */
+  note?: string;
 };
 
 const AIRPORTS: Record<string, string> = {
@@ -1497,7 +1499,9 @@ export function addOnServiceBookings({ addOns, hotel, booking, method, paidAt }:
 }): ServiceBooking[] {
   const day = formatServiceDay(booking.checkIn).long;
   const offered = addOnsFor(hotel);
-  return (addOns ?? []).filter((addOn) => offered.includes(addOn.id)).map((addOn): ServiceBooking => {
+  return (addOns ?? []).filter((addOn) => offered.includes(addOn.id)).map((addOn): ServiceBooking => withAddOnNote(addOn, buildAddOnService(addOn)));
+
+  function buildAddOnService(addOn: StayAddOn): ServiceBooking {
     const amount = addOnAmount(addOn);
     const booked = { amount: formatPesoAmount(amount), status: 'confirmed' as const, bookedAt: paidAt, bookingId: booking.id, scheduledDate: booking.checkIn };
     const paid = { ...booked, ...(amount ? { paymentStatus: 'paid' as const, paymentMethod: method } : { paymentStatus: 'complimentary' as const }) };
@@ -1579,7 +1583,13 @@ export function addOnServiceBookings({ addOns, hotel, booking, method, paidAt }:
           summary: 'Held before check-in and after check-out',
         };
     }
-  });
+  }
+}
+
+/** The guest's own words about an extra, carried into its details. */
+function withAddOnNote(addOn: StayAddOn, service: ServiceBooking): ServiceBooking {
+  const note = addOn.note?.trim();
+  return note ? { ...service, facts: [...(service.facts ?? []), { label: 'Your note', value: note }] } : service;
 }
 
 /**

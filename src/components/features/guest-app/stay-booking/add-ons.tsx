@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { ArrowRight, Check, Minus, Plus } from '@phosphor-icons/react';
 import { ITEM_THUMBNAIL_IMAGES, ROOM_IMAGES } from '../service-images';
 import type { AddOnId, CelebrationSetup, StayAddOn, StayHotel, StaySearch } from './model';
+import { NotesField } from '../guest-ui';
 import { ADD_ON_INFO, CELEBRATION_SETUPS, OCCASIONS, PRIVATE_CAR_PER_DAY, TRANSFER_FARES, VAN_SEATS, addOnAmount, addOnError, addOnLines, addOnsFor, addOnsPayNowTotal, addOnsRoomChargeTotal, airportForCity, newAddOn, peso, pickupBlurb } from './model';
 import { countNightsBetween } from '../prototype-model';
 import { weekdayDate } from './format';
@@ -21,6 +22,15 @@ const PHOTOS: Record<AddOnId, { src: string; focalPoint: string }> = {
   luggage: ITEM_THUMBNAIL_IMAGES.luggage!,
   celebration: ITEM_THUMBNAIL_IMAGES.celebration!,
   'early-check-in': ROOM_IMAGES.king,
+};
+
+/** What a guest might want to add, per extra: a prompt, not a requirement. */
+const ADD_ON_NOTE_HINTS: Record<AddOnId, string> = {
+  transfer: 'Luggage, a child seat, a wheelchair…',
+  'private-car': 'Where you’d like to go, a child seat, a stop on the way…',
+  luggage: 'How many bags, delivery to your room…',
+  celebration: 'A message for the card, favourite flowers, dietary needs…',
+  'early-check-in': 'Arriving on a red-eye, travelling with a baby…',
 };
 
 function priceLabel(id: AddOnId): string {
@@ -142,6 +152,12 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
 
               {addOn?.id === 'early-check-in' ? (
                 <p className="sb-addon__note">The hotel confirms first. There’s no charge if it can’t confirm.</p>
+              ) : null}
+
+              {addOn ? (
+                <div className="sb-addon__fields">
+                  <NotesField name={`addon-note-${id}`} value={addOn.note ?? ''} onChange={(note) => patch(id, { note })} placeholder={ADD_ON_NOTE_HINTS[id]} />
+                </div>
               ) : null}
             </article>
           );

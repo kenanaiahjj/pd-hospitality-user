@@ -9308,3 +9308,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-app .guest-stays-current { display: grid; gap: 8px; }
 .guest-app .guest-stays-current h2 { margin: 0; font-size: 18px; }
 .guest-app .guest-stays-list__note { margin: 0; color: var(--guest-muted); font-size: 13px; }
+
+/* The notes field every booking shares: a hint under it, in the muted tone of other helper text. */
+.guest-app .guest-notes-field .guest-notes-field__hint { margin-top: 2px; color: var(--guest-muted); font-size: 12.5px; line-height: 1.4; }
+.guest-app .guest-cart__note { color: var(--guest-muted); font-style: italic; overflow-wrap: anywhere; }

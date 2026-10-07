@@ -211,6 +211,28 @@ export function ReviewBlock({ icon, title, lines, onEdit }: { icon: ReactNode; t
     : <div className="guest-review-block">{content}</div>;
 }
 
+/**
+ * The one place a guest can say something extra about what they are booking:
+ * an allergy, a child seat, a bag count, an occasion. Optional, short, and
+ * the same wording everywhere so it is recognised when it turns up again.
+ */
+export function NotesField({ value, onChange, placeholder = 'Anything the provider should know?', label = 'Notes or special requests', name = 'booking-note', maxLength = 280 }: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  label?: string;
+  name?: string;
+  maxLength?: number;
+}) {
+  return (
+    <label className="guest-field guest-notes-field">
+      <span>{label} <small>Optional</small></span>
+      <textarea name={name} rows={3} maxLength={maxLength} placeholder={placeholder} value={value} onChange={(event) => onChange(event.currentTarget.value)} />
+      <small className="guest-notes-field__hint">Requests depend on availability. The provider confirms what it can.</small>
+    </label>
+  );
+}
+
 export function SectionHeading({ title, action, onAction, count }: { title: string; action?: string; onAction?: () => void; count?: string }) {
   return <div className="guest-section-heading"><h2>{title}</h2>{count ? <span className="guest-section-heading__count">{count}</span> : action ? <button onClick={onAction}>{action}<CaretRight /></button> : null}</div>;
 }

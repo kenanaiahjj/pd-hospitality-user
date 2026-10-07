@@ -2204,6 +2204,8 @@ export function requestRoomUpgrade(
   bookingId: string,
   upgrade: RoomUpgradeOffer,
   today: string = PROTOTYPE_TODAY,
+  /** Anything the guest wants the hotel to know about the new room. */
+  note = '',
 ): GuestSession {
   const booking = session.bookings.find((item) => item.id === bookingId);
   if (!booking || booking.roomUpgrade || !canUseOnPropertyServices(booking, today)) return session;
@@ -2224,6 +2226,7 @@ export function requestRoomUpgrade(
       { label: 'Room', value: `${upgrade.name}, assigned by the hotel` },
       { label: 'If approved', value: `${upgrade.price}, added to your room bill` },
       { label: 'Transfer', value: upgrade.transfer },
+      ...(note.trim() ? [{ label: 'Your note', value: note.trim() }] : []),
     ],
   };
   return {

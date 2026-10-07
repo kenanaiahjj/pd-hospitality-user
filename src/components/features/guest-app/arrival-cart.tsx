@@ -24,6 +24,9 @@ const whenAndWhat = (booking: ServiceBooking) => {
 const linesLabel = (count: number) => `${count} ${count === 1 ? 'item' : 'items'}`;
 
 /** Docked above the tab bar while the cart has anything in it. */
+/** What the guest asked the provider to know, if they said anything. */
+const noteOf = (booking: { facts?: { label: string; value: string }[] }) => booking.facts?.find((fact) => fact.label === 'Your note')?.value;
+
 export function ArrivalCartDock({ totals, onOpen }: { totals: CartTotals; onOpen: () => void }) {
   if (!totals.count) return null;
   return (
@@ -86,6 +89,7 @@ export function ArrivalCartScreen({ property, lines, totals, onRemove, onStartPa
             <div className="guest-cart__what">
               <b>{line.booking.title}</b>
               <small>{whenAndWhat(line.booking)}</small>
+              {noteOf(line.booking) ? <small className="guest-cart__note">Note: {noteOf(line.booking)}</small> : null}
             </div>
             <div className="guest-cart__price">
               <strong>{line.settle === 'free' ? 'Free' : line.booking.amount}</strong>
@@ -153,6 +157,7 @@ export function ArrivalCartConfirmation({ bookings, method, onViewStay, onBrowse
             <div className="guest-cart__what">
               <b>{booking.title}</b>
               <small>{whenAndWhat(booking)}</small>
+              {noteOf(booking) ? <small className="guest-cart__note">Note: {noteOf(booking)}</small> : null}
             </div>
             <div className="guest-cart__price">
               <strong>{booking.paymentStatus === 'paid' ? `Paid ${booking.amount}` : booking.paymentStatus === 'complimentary' ? 'Complimentary' : 'On room later'}</strong>

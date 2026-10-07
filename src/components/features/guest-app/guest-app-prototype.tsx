@@ -257,7 +257,7 @@ import {
 } from './rewards';
 import { clearStoredSession, readAccountStash, readStoredSession, readStoredStayDraft, writeAccountStash, writeStoredSession, writeStoredStayDraft } from './session-storage';
 import { AccountSignInCard } from './guest-account';
-import { Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
+import { Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, NotesField, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
 import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
 import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen, passportDate } from './pre-arrival';
@@ -476,6 +476,21 @@ const providerFor = (service: { id: string; operator: string }) => {
   const venue = venueForService(service.id);
   return venue.kind === 'property' ? describeServiceProvider(service) : `Run by ${venue.name}`;
 };
+/** A booking's note, as a sentence to add to a message to the hotel. */
+const noteSuffix = (service: ServiceBooking) => {
+  const note = service.facts?.find((fact) => fact.label === 'Your note')?.value;
+  return note ? ` Note: ${note}` : '';
+};
+/** The guest's own words, as a line in a booking's details. */
+const noteFact = (note: string) => (note.trim() ? [{ label: 'Your note', value: note.trim() }] : []);
+/** What to suggest a guest might say, by the kind of thing they are booking. */
+const serviceNoteHint = (categoryId: string, reservation: boolean) => (
+  reservation ? 'Occasion, a high chair, seating preference…'
+    : categoryId === 'spa' ? 'Allergies, pressure preference, injuries…'
+      : categoryId === 'entertainment' ? 'Dietary needs, mobility, anything about your group…'
+        : categoryId === 'rentals' ? 'A child seat, helmet size, when you’ll collect…'
+          : 'Anything the provider should know…'
+);
 /** Who a pay-now charge goes to: the vendor's name where there is one. */
 const merchantFrom = (provider: string) => (provider.startsWith('Run by ') ? provider.slice('Run by '.length) : 'the provider');
 /** "Friday · November 20 · 11:00 AM" -> "Friday · November 20", for a line that sits above the time. */
@@ -686,6 +701,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [transferDestinationAddress, setTransferDestinationAddress] = useState('');
   const [rideWhen, setRideWhen] = useState<'now' | 'later'>('now');
   const [rideFlight, setRideFlight] = useState('');
+  /* What the guest wants a provider to know: one note per thing being booked, cleared when it is. */
+  const [serviceNote, setServiceNote] = useState('');
+  const [rideNote, setRideNote] = useState('');
+  const [earlyNote, setEarlyNote] = useState('');
+  const [upgradeNote, setUpgradeNote] = useState('');
   const [rideDate, setRideDate] = useState('');
   const [rideTime, setRideTime] = useState('10:00');
   /** The open field on the stay and ride forms; one at a time. */
@@ -1234,6 +1254,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setRideWhen(ride.date ? 'later' : 'now');
     setRideDate(ride.date ?? '');
     setRideFlight('');
+    setRideNote('');
     go('transfer-booking');
   };
 
@@ -1249,7 +1270,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const [hours = 10, minutes = 0] = rideTime.split(':').map(Number);
     const clock = `${((hours + 11) % 12) + 1}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
     const schedule = (rideWhen === 'later' && rideDate && rideTime ? ` on ${formatServiceDay(rideDate).long} at ${clock}` : ' now') + (rideFlight.trim() ? `, meeting flight ${rideFlight.trim().toUpperCase()}` : '');
-    const guestMessage = `I’d like to request a ride from ${from} to ${to} for ${ridePassengers} ${ridePassengers === 1 ? 'guest' : 'guests'}${schedule}.${checkoutDayDeparture ? ' Please add the ₱1,200 fare to my room charges.' : ''}`;
+    const guestMessage = `I’d like to request a ride from ${from} to ${to} for ${ridePassengers} ${ridePassengers === 1 ? 'guest' : 'guests'}${schedule}.${checkoutDayDeparture ? ' Please add the ₱1,200 fare to my room charges.' : ''}${rideNote.trim() ? ` Note: ${rideNote.trim()}` : ''}`;
     // An airport ride is a booking with a fixed fare; it belongs on My Stay, not only in the chat.
     const airport = airportFor(contextBooking);
     let rideBookingId: string | undefined;
@@ -1273,6 +1294,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           { label: 'Drop off', value: to },
           ...(rideFlight.trim() ? [{ label: 'Flight', value: rideFlight.trim().toUpperCase() }] : []),
           { label: 'Passengers', value: `${ridePassengers}` },
+          ...noteFact(rideNote),
           { label: 'Status', value: 'Waiting for the hotel to confirm the driver' },
         ],
       };
@@ -1281,6 +1303,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     setChatOrderVenue(null);
     setChatDraft('');
+    setRideNote('');
     setChatMessages((messages) => [...messages, { from: 'guest', body: guestMessage, state: 'Sent' }]);
     notifyGuestRequest(
       rideBookingId ?? `ride-chat-${contextBooking.id}-${Date.now()}`,
@@ -1996,6 +2019,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     // The party the booking is for, not one: a couples massage for 1 was the default.
     setServicePartySize(Math.max(1, contextBooking.guestCount));
     setRentalQuantity(1);
+    setServiceNote('');
     setAppliedPoints(0);
     setServicePayChoice('room');
     setGatewayOpen(false);
@@ -2192,6 +2216,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       provider: providerFor(selectedService),
       paymentStatus: payment === 'room' ? 'charged-to-room' : payment === 'paid' ? 'paid' : 'complimentary',
       paymentMethod: payment === 'room' ? 'room' : payment === 'paid' ? paidWith : undefined,
+      ...(serviceNote.trim() ? { facts: noteFact(serviceNote) } : {}),
     };
 
     const booked: GuestSession = {
@@ -2242,6 +2267,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     notifyGuestRequest(serviceBooking.id, `${serviceBooking.title} booked`, `${serviceBooking.scheduledFor} · ${serviceBooking.amount}`);
     setLastServiceBookingId(id);
     setAppliedPoints(0);
+    setServiceNote('');
     goReplacing('booking-confirmation');
   };
 
@@ -2290,9 +2316,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         status: 'confirmed',
         provider: providerFor(selectedService),
         paymentStatus: 'payment-pending',
+        ...(serviceNote.trim() ? { facts: noteFact(serviceNote) } : {}),
       },
     };
     setSession((cur) => addToCart(cur, line));
+    setServiceNote('');
     returnToArrivalServices();
   };
 
@@ -2328,10 +2356,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         { label: 'Drop off', value: to },
         ...(arriving && rideFlight.trim() ? [{ label: 'Flight', value: rideFlight.trim().toUpperCase() }] : []),
         { label: 'Passengers', value: `${ridePassengers}` },
+        ...noteFact(rideNote),
         { label: 'Status', value: 'Paid · waiting for the hotel to confirm the driver' },
       ],
     };
     setSession((cur) => addToCart(cur, { booking: rideBooking, settle: 'pay-now' }));
+    setRideNote('');
     returnToArrivalServices();
   };
 
@@ -2369,11 +2399,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       summary: `${request.time} · instead of ${CHECK_IN_FROM}`,
       facts: [
         { label: 'Room from', value: `${request.time} instead of ${CHECK_IN_FROM}` },
+        ...noteFact(earlyNote),
         { label: 'Status', value: 'Waiting for the hotel to confirm' },
         { label: 'If approved', value: `${request.fee}, added to your room bill once you have a room` },
       ],
     };
     setSession((cur) => addToCart(cur, { booking: requestBooking, settle: 'room-later', earlyCheckIn: request }));
+    setEarlyNote('');
     // Back to where the guest asked from: the home tile, or the arrival roster.
     if (history.length > 0) back();
     else go('stay-overview');
@@ -2408,11 +2440,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         ...messages,
         ...asks.flatMap((service): ChatMessage[] => service.serviceId === 'early-check-in'
           ? [
-              { from: 'guest', body: `I’d like to request early check-in from ${EARLY_CHECK_IN.time} on ${formatStayDateRange(contextBooking).split('–')[0]}.`, state: 'Sent' },
+              { from: 'guest', body: `I’d like to request early check-in from ${EARLY_CHECK_IN.time} on ${formatStayDateRange(contextBooking).split('–')[0]}.${noteSuffix(service)}`, state: 'Sent' },
               { from: 'desk', body: 'Noted. We’ll confirm early check-in before you arrive. If it’s approved, the fee goes on your room once you have one.', state: 'Seen' },
             ]
           : [
-              { from: 'guest', body: `I’ve booked and paid for an airport transfer: ${service.summary ?? ''} on ${service.scheduledFor.split(' · ')[0]}. Please confirm the driver.`, state: 'Sent' },
+              { from: 'guest', body: `I’ve booked and paid for an airport transfer: ${service.summary ?? ''} on ${service.scheduledFor.split(' · ')[0]}. Please confirm the driver.${noteSuffix(service)}`, state: 'Sent' },
               { from: 'desk', body: 'Thanks, we have your payment. We’ll confirm the driver and pick-up details here. If we can’t arrange it, you’ll be refunded.', state: 'Seen' },
             ]),
       ]);
@@ -3847,7 +3879,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<Bed size={30} />} title="Request this upgrade" text="The hotel confirms the room and assigns its number. Nothing is charged until they do."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Requested upgrade" value={upgrade.name} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="If approved" value="Added to your room bill, settled at checkout" /></div><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } const next = requestRoomUpgrade(session, contextBooking.id, upgrade); /* One already with the hotel: show it, where it can be withdrawn. */ if (next === session) { goReplacing('my-stay'); return; } setSession(next); notifyGuestRequest(`service-upgrade-${contextBooking.id}`, 'Room upgrade requested', 'The hotel will confirm the room and price.'); goReplacing('room-upgrade-success'); }}>Request upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Bed size={30} />} title="Request this upgrade" text="The hotel confirms the room and assigns its number. Nothing is charged until they do."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber ?? '—'}`} /><SummaryRow label="Requested upgrade" value={upgrade.name} /><SummaryRow label="Additional cost" value={upgrade.price} strong /><SummaryRow label="Transfer" value={upgrade.transfer} /><SummaryRow label="If approved" value="Added to your room bill, settled at checkout" /></div><NotesField name="upgrade-note" value={upgradeNote} onChange={setUpgradeNote} placeholder="A quiet floor, a bed type, anything for the new room…" /><Button className="guest-button guest-button--primary" type="button" onClick={() => { if (!online) { setBookingBlockedReason('offline'); go('booking-blocked'); return; } if (!canUseOnPropertyServices(contextBooking)) { setBookingBlockedReason(blockedReasonFor(contextBooking)); go('booking-blocked'); return; } const next = requestRoomUpgrade(session, contextBooking.id, upgrade, undefined, upgradeNote); /* One already with the hotel: show it, where it can be withdrawn. */ if (next === session) { goReplacing('my-stay'); return; } setSession(next); setUpgradeNote(''); notifyGuestRequest(`service-upgrade-${contextBooking.id}`, 'Room upgrade requested', 'The hotel will confirm the room and price.'); goReplacing('room-upgrade-success'); }}>Request upgrade<ArrowRight /></Button><TextButton onClick={() => go('room-upgrades')}>Choose another room</TextButton></ScreenIntro>;
       }
 
       case 'room-upgrade-success': {
@@ -4111,6 +4143,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </>
             ) : (
               <>
+                <NotesField name="early-check-in-note" value={earlyNote} onChange={setEarlyNote} placeholder="Arriving on a red-eye, travelling with a baby…" />
                 <Button
                   className="guest-button guest-button--primary"
                   type="button"
@@ -4478,6 +4511,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <Field label="Flight number (optional)" name="ride-flight" placeholder="e.g. PR 102" value={rideFlight} onValueChange={setRideFlight} helper="The driver tracks it, so a delay does not leave you waiting." />
               ) : null}
               <StepperField label="Passengers" unit="passenger" value={ridePassengers} min={1} max={8} onChange={setRidePassengers} />
+              <NotesField name="ride-note" value={rideNote} onChange={setRideNote} placeholder="Luggage, a child seat, a wheelchair…" />
               <Button className="guest-button guest-button--primary" type="submit" disabled={toCart && !rideDate}>{toCart ? 'Add to cart · ₱1,200' : 'Request a ride'}<ArrowRight aria-hidden="true" /></Button>
             </form>
           </div>
@@ -4579,6 +4613,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 Bring it with you. The desk checks it when you collect the keys; nothing is uploaded here.
               </Notice>
             ) : null}
+            <NotesField name="service-note" value={serviceNote} onChange={setServiceNote} placeholder={serviceNoteHint(selectedService.categoryId, reservation)} />
             {servicePayment === 'complimentary' ? null : (
               <>
                 {preArrival ? null : <PointsApply balance={pointsBalance(session)} amount={formatPesoAmount(servicePrice)} applied={usablePoints} onChange={setAppliedPoints} />}
@@ -4646,6 +4681,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-ticket"><div><small>{withoutTime(slot)}</small><h2>{time}</h2><p>{booked?.title ?? bookedService.name} · {bookingCount}</p></div><Tag>Confirmed</Tag></div>
             <div className="guest-summary">
               <SummaryRow label="Provider" value={booked?.provider ?? providerFor(bookedService)} />
+              {booked?.facts?.find((fact) => fact.label === 'Your note') ? <SummaryRow label="Your note" value={booked.facts.find((fact) => fact.label === 'Your note')!.value} /> : null}
               <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? (isReservation(bookedService.id) ? 'No charge to reserve' : 'Complimentary') : 'Charged to room'} />
             </div>
             <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />

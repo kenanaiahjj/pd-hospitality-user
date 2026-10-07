@@ -11,7 +11,9 @@
     "lint:fix": "eslint --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "pilot:report": "PILOT_REPORT=1 vitest run src/components/features/guest-app/pilot/report.test.ts",
+    "pilot:replay": "vitest run src/components/features/guest-app/pilot/scenarios.test.ts -t \"S6\""
   },
   "dependencies": {
     "@hugeicons-pro/core-solid-rounded": "4.3.2",

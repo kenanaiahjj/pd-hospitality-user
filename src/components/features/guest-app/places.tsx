@@ -220,7 +220,7 @@ const hourOf = (time: string) => {
   const match = time.match(/(\d{1,2}):(\d{2})\s*([AP]M)/i);
   return match ? (Number(match[1]) % 12) + (match[3]!.toUpperCase() === 'PM' ? 12 : 0) + Number(match[2]) / 60 : undefined;
 };
-function tableTimes(hours: string): string[] {
+export function tableTimes(hours: string): string[] {
   // "12:00 MN" and "midnight" are 12:00 AM; a close at or before the open is the next morning.
   const normalised = hours.replace(/\b12:00\s*MN\b/gi, '12:00 AM').replace(/midnight/gi, '12:00 AM');
   const [open, rawClose] = (normalised.match(/\d{1,2}:\d{2}\s*[AP]M/gi) ?? []).map(hourOf);

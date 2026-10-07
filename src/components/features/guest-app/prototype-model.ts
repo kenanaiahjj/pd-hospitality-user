@@ -345,6 +345,10 @@ export type ServiceBooking = {
    */
   hotelDecision?: 'confirmed' | 'declined';
   paymentMethod?: 'room' | 'card' | 'gcash' | 'maya';
+  /** The pilot engine's booking this record presents. Its state, not this record's, is the truth. */
+  engineId?: string;
+  /** An extra charge a vendor added to an engine booking, shown as a line of its own. */
+  engineExtraId?: string;
   diningOrder?: DiningOrderDetails;
   /**
    * What a booking card says under its title, when time-and-place is not the

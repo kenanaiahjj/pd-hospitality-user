@@ -55,7 +55,7 @@ import {
   MessageCircleMoreIcon as HugeChatSolidIcon,
   UserRoundIcon as HugeProfileSolidIcon,
 } from '@hugeicons-pro/core-solid-rounded';
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode} from 'react';
 import { CabanaLockup} from '@/components/ui/cabana-logo';
 import { type MapClock } from './nearby-map';
 import { CalendarPicker, ExpandableField, StepperField, TimeWheel } from './field-controls';
@@ -201,7 +201,8 @@ import {
   type StaySearch,
 } from './stay-booking';
 import { PMS_LAST_SYNC, PrototypeControls} from './prototype-controls';
-import { PilotApp } from './pilot/ui/pilot-app';
+import { HostStore, hostClock, type StayInput } from './pilot/host/host';
+import { applyEngine } from './pilot/host/project';
 import type { PrototypePage } from './prototype-controls';
 import {
   getPropertyImage,
@@ -582,7 +583,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
   const activeScreenRef = useRef(activeScreen);
   const [vendorFolioQrOpen, setVendorFolioQrOpen] = useState(false);
-  const [session, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
+  const [rawSession, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
+  /*
+    The pilot engine: it decides what happens to a booking (the vendor's yes,
+    room or card, the windows, the threads). The session below is what the app
+    reads; it is the stored session with the engine's answers laid on top, so
+    every screen that already read a booking reads the live state.
+  */
+  const [hostStore] = useState(() => new HostStore(!initialSession));
+  const hostVersion = useSyncExternalStore(hostStore.subscribe, hostStore.getVersion, () => 0);
+  const session = useMemo(() => {
+    // The engine changes in place, so its version is what says the projection is stale.
+    void hostVersion;
+    return hostStore.host ? applyEngine(rawSession, hostStore.host) : rawSession;
+  }, [rawSession, hostStore, hostVersion]);
   /* The selected badge is rendered by the full-page achievement detail route. */
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
   /* Which reward the detail screen is showing. */
@@ -661,8 +675,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* Explore before the scan: this stay's arrival services, or partner hotels to browse and share. */
   const [exploreView, setExploreView] = useState<'stay' | 'hotels'>('stay');
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
-  // The booking, payment and chat pilot, laid over the device. Opened from the Pilot tab of the prototype controls.
-  const [pilotOn, setPilotOn] = useState(false);
   /*
     Two sets, because "the bell has stopped nagging me" and "I have read this
     one" are different facts. Opening the inbox marks everything seen, which is
@@ -968,13 +980,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       would land right back here and persist an empty record -- so the clear
       only sticks if this agrees that empty means absent.
     */
-    if (session.auth === 'anonymous' && session.bookings.length === 0) {
+    if (rawSession.auth === 'anonymous' && rawSession.bookings.length === 0) {
       clearStoredSession();
       return;
     }
 
-    writeStoredSession(session);
-  }, [persistent, session]);
+    writeStoredSession(rawSession);
+  }, [persistent, rawSession]);
 
   /* The draft is kept only while there is something to come back to: a hotel with rooms in the cart. */
   const draftPristineRef = useRef(true);
@@ -1442,6 +1454,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const followedBooking = displayBooking;
   /** The prototype clock's hour: the one chosen, else the stay's own default. */
   const clockHour = (feedClock ?? defaultFeedClock(contextBooking)).hour;
+
+  /*
+    The engine knows a guest and a stay for every booking the app holds, and
+    keeps them in step with it: the room, the dates (the prototype clock moves
+    them) and whether the stay has started. Written to the engine's own store,
+    never to React state, so this is an effect and not a state update.
+  */
+  const pilotStays = rawSession.bookings.map((booking): StayInput => ({
+    id: booking.id,
+    firstName: rawSession.guestName.split(' ')[0] || 'Guest',
+    room: booking.roomNumber ?? '',
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    status: booking.status === 'completed' ? 'checked-out' : hasStayStarted(booking) && canUseOnPropertyServices(booking) ? 'in-house' : 'booked',
+  }));
+  const pilotStaysKey = JSON.stringify(pilotStays);
+  useEffect(() => {
+    if (!JSON.parse(pilotStaysKey).length) return;
+    const host = hostStore.ensure(hostClock(PROTOTYPE_TODAY, clockHour));
+    for (const stay of JSON.parse(pilotStaysKey) as StayInput[]) host.ensureGuest(stay);
+  }, [hostStore, pilotStaysKey, clockHour]);
   /*
     One front-desk thread per stay. Requests made for next month's booking
     were showing up in the chat for this one, room number and all.
@@ -1551,11 +1584,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 roomVerification: item.roomVerification ? { ...item.roomVerification, at: shiftIsoDay(item.roomVerification.at, offset) } : undefined,
               }
             : item)),
-          serviceBookings: current.serviceBookings.map((service) => (service.bookingId === booking.id ? shiftServiceBooking(service, offset) : service)),
+          // An engine booking sits at a real moment on the engine's clock, which the stay's shift does not move.
+          serviceBookings: current.serviceBookings.map((service) => (service.bookingId === booking.id && !service.engineId ? shiftServiceBooking(service, offset) : service)),
         }));
       }
     }
     setFeedClock(clock);
+    // The engine's clock follows the day's hour forward, and never back: a booking made this afternoon stays made.
+    const host = hostStore.host;
+    if (host && hostClock(PROTOTYPE_TODAY, clock.hour) > host.now()) host.setTime(hostClock(PROTOTYPE_TODAY, clock.hour));
   };
 
   /* The desk's side of an upgrade: approve it, then the room is prepared and made ready. */
@@ -1567,7 +1604,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     as a banner, and a "no" refunds what was paid for it.
   */
   // Upgrades have their own approval (it moves the guest to a new room), under PMS events.
-  const waitingOnHotel = session.serviceBookings.filter((service) => service.bookingId === contextBooking.id && service.serviceId !== 'room-upgrade' && awaitsHotel(service));
+  const waitingOnHotel = session.serviceBookings.filter((service) => service.bookingId === contextBooking.id && service.serviceId !== 'room-upgrade' && !service.engineId && awaitsHotel(service));
   const answerHotelRequest = (service: ServiceBooking, approve: boolean) => {
     if (!online) return;
     const paid = service.paymentStatus === 'paid';
@@ -2550,6 +2587,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const applyStayState = (state: PrototypeStayState) => {
     const next = applyPrototypeStayState(state);
+    // A new demo state is a new world: no booking, thread or charge from the last one.
+    hostStore.reset(hostClock(PROTOTYPE_TODAY, clockHour));
     setSession(next);
     // A new state is a new stay as far as the demo goes: its chat starts empty.
     setAllChatMessages([]);
@@ -5773,7 +5812,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         hotelEvents={hotelAnswerEvents}
         guestEvents={guestRequestEvents}
         onClearDeviceData={clearDeviceData}
-        pilot={{ active: pilotOn, onToggle: () => setPilotOn((on) => !on) }}
       />
 
       {pushNotice ? (
@@ -5895,7 +5933,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               />
             </nav>
           ) : null}
-          {pilotOn ? <PilotApp onExit={() => setPilotOn(false)} /> : null}
         </section>
       </main>
     </div>

@@ -334,7 +334,7 @@ function MessageView({ p, m, onCardAction, onAskAboutCharge, onPayExtra }: {
   const mine = m.from.role === 'guest';
   return (
     <div className={`guest-message guest-message--${mine ? 'guest' : 'desk'} pilot-msg pilot-msg--${m.from.role}`}>
-      <span className="pilot-sender">{m.from.name}{m.from.role === 'vendor' || m.from.role === 'desk' ? <i>{ROLE_WORD[m.from.role]}</i> : null}</span>
+      <span className="pilot-sender">{m.from.name}{(m.from.role === 'vendor' || m.from.role === 'desk') && m.from.name !== ROLE_WORD[m.from.role] ? <i>{ROLE_WORD[m.from.role]}</i> : null}</span>
       <p>{m.text}</p>
       <small>{clock12(m.at)}</small>
     </div>
@@ -427,8 +427,9 @@ function RequestForm({ p, listing, onDone }: { p: Pilot; listing: Listing; onDon
   };
   const cta =
     listing.kind === 'table' ? 'Reserve table'
+    : chosen === 'room' && options?.room.needsApproval ? 'Ask the front desk to approve'
     : listing.confirm === 'vendor' ? 'Send request'
-    : chosen === 'room' ? (options?.room.needsApproval ? 'Ask the front desk to approve' : 'Book and charge to my room')
+    : chosen === 'room' ? 'Book and charge to my room'
     : 'Continue to payment';
 
   return (

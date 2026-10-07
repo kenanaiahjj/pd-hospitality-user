@@ -347,7 +347,7 @@ export type GuestActions = {
   /** Withdraw before it is answered, or cancel after. */
   cancel(bookingId: string): Result<{ outcome: 'withdrawn' | 'cancelled' | 'requested' }>;
   question(paymentId: string, text?: string): Result;
-  payExtra(paymentId: string, mode?: PayMode): Result<{ outcome?: 'paid' | 'failed' | 'abandoned' }>;
+  payExtra(paymentId: string, mode?: PayMode): Result<{ outcome?: 'paid' | 'failed' | 'abandoned'; triesLeft?: number }>;
   send(threadId: string, text: string): Result<{ redirectedTo?: string }>;
   sendToDesk(text: string): Result;
   runningLate(bookingId: string): Result;

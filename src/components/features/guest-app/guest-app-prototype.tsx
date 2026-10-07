@@ -201,6 +201,7 @@ import {
   type StaySearch,
 } from './stay-booking';
 import { PMS_LAST_SYNC, PrototypeControls} from './prototype-controls';
+import { PilotApp } from './pilot/ui/pilot-app';
 import type { PrototypePage } from './prototype-controls';
 import {
   getPropertyImage,
@@ -660,6 +661,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* Explore before the scan: this stay's arrival services, or partner hotels to browse and share. */
   const [exploreView, setExploreView] = useState<'stay' | 'hotels'>('stay');
   const [simulatePostStayExpired, setSimulatePostStayExpired] = useState(false);
+  // The booking, payment and chat pilot, laid over the device. Opened from the Pilot tab of the prototype controls.
+  const [pilotOn, setPilotOn] = useState(false);
   /*
     Two sets, because "the bell has stopped nagging me" and "I have read this
     one" are different facts. Opening the inbox marks everything seen, which is
@@ -5770,6 +5773,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         hotelEvents={hotelAnswerEvents}
         guestEvents={guestRequestEvents}
         onClearDeviceData={clearDeviceData}
+        pilot={{ active: pilotOn, onToggle: () => setPilotOn((on) => !on) }}
       />
 
       {pushNotice ? (
@@ -5891,6 +5895,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               />
             </nav>
           ) : null}
+          {pilotOn ? <PilotApp onExit={() => setPilotOn(false)} /> : null}
         </section>
       </main>
     </div>

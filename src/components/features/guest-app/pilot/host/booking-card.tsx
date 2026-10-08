@@ -117,7 +117,7 @@ function Countdown({ timer, vendor }: { timer: NonNullable<Card['timer']>; vendo
   );
 }
 
-export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, ...handlers }: {
+export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, inBar, ...handlers }: {
   host: Host;
   bookingId: string;
   paymentId?: string;
@@ -125,6 +125,8 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
   inThread?: boolean;
   /** On the booking's own page the title and photo are already the page's header. */
   bare?: boolean;
+  /** Opened from a chat's booking bar, which already says the status, the day, the time and the facts. */
+  inBar?: boolean;
 } & CardHandlers) {
   const [qr, setQr] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -195,7 +197,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
 
   const vendorName = pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? '';
   // The vendor is the subtitle, so it is not a fact as well. An extra charge says what it was added to.
-  const subtitle = paymentId ? `Added to ${listing.title}` : vendorName;
+  const subtitle = paymentId ? `From ${vendorName} · ${listing.title}` : vendorName;
   const tone = STATUS_TONE(card.state, card.label);
   const status = <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>;
   const image = paymentId ? undefined : handlers.imageFor?.(bookingId);
@@ -213,8 +215,21 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
   const detail = rest.filter((f) => f.label !== 'Ready for').map((f) => factPhrase(f.label, f.value)).join(' · ');
 
   return (
-    <article className={`pilot-card pilot-card--${card.state}${bare ? ' pilot-card--bare' : ''}${paymentId ? ' pilot-card--extra' : ''}`} aria-label={`${card.title}, ${card.label}`}>
-      {bare ? (
+    <article className={`pilot-card pilot-card--${card.state}${bare || inBar ? ' pilot-card--bare' : ''}${inBar ? ' pilot-card--in-bar' : ''}${paymentId ? ' pilot-card--extra' : ''}`} aria-label={`${card.title}, ${card.label}`}>
+      {inBar ? null : paymentId ? (
+        // An extra charge reads as a receipt: what it is, who added it, and the amount, large.
+        <header className="pilot-card__receipt">
+          <span className="pilot-card__receipt-icon" aria-hidden="true"><Receipt weight="regular" /></span>
+          <div className="pilot-card__title">
+            <h3>{card.title}</h3>
+            <p>{subtitle}</p>
+          </div>
+          <div className="pilot-card__amount">
+            <b>{peso(card.cost.amount)}</b>
+            <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>
+          </div>
+        </header>
+      ) : bare ? (
         <div className="pilot-card__status-row">{status}{subtitle ? <span>{subtitle}</span> : null}</div>
       ) : image ? (
         <header className="pilot-card__hero">
@@ -227,14 +242,14 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
         </header>
       ) : (
         <header className="pilot-card__head">
-          <BookingThumb className="pilot-card__thumb" kind={booking.kind} extra={Boolean(paymentId)} />
+          <BookingThumb className="pilot-card__thumb" kind={booking.kind} />
           <div className="pilot-card__title">
             <h3>{card.title}</h3>
             <p>{status}{subtitle ? <span>{subtitle}</span> : null}</p>
           </div>
         </header>
       )}
-      {paymentId ? null : (
+      {paymentId || inBar ? null : (
         <div className="pilot-card__ticket">
           <span className="pilot-card__day" aria-hidden="true"><small>{dayParts.weekday}</small><b>{dayParts.date}</b><small>{dayParts.month}</small></span>
           <span className="pilot-card__when">
@@ -247,7 +262,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
       )}
       {asked ? <p className="pilot-card__note pilot-card__note--asked">{asked.value}</p> : null}
       {card.note && !inThread ? <p className="pilot-card__note">{card.note}</p> : null}
-      <div className="pilot-card__cost"><span>{card.cost.line}</span>{card.cost.amount ? <b>{peso(card.cost.amount)}</b> : null}</div>
+      <div className="pilot-card__cost"><span>{card.cost.line}</span>{card.cost.amount && !paymentId ? <b>{peso(card.cost.amount)}</b> : null}</div>
       {card.timer ? <Countdown timer={card.timer} vendor={vendorName} /> : null}
       {confirmingCancel && card.actions.includes('cancel') ? (
         <div className="pilot-actions" role="group" aria-label="Confirm cancelling">

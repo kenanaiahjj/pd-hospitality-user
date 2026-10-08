@@ -296,7 +296,9 @@
 .pilot-booking-bar .pilot-card { margin: 0 -10px -10px; border: 0; border-radius: 0; transform-origin: top center; animation: pilot-details-in 240ms var(--pilot-ease) both; }
 /* The details settle in from just under the bar: they come from it. Closing is instant, as letting go should be. */
 @keyframes pilot-details-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); filter: blur(2px); } }
-.pilot-booking-bar .pilot-card__status-row { display: none; }
+/* In the bar, the card starts at the money: a hairline from the summary above, nothing repeated. */
+.pilot-booking-bar .pilot-card { border-top: 1px solid var(--guest-line); }
+.pilot-booking-bar .pilot-card > :first-child { border-top: 0; }
 
 .pilot-msg { max-width: 80%; }
 .pilot-msg--grouped { margin-bottom: -6px; }
@@ -391,6 +393,31 @@
 .pilot-card__hero .pilot-card__title h3 { font-size: 17px; line-height: 22px; letter-spacing: -0.012em; }
 .pilot-card__hero .pilot-card__title p { display: block; color: var(--guest-muted); font-size: 13.5px; }
 .pilot-card__hero + * { border-top: 0; }
+
+/* An extra charge, as a receipt: the icon, what it is and who added it, the amount large at the right. */
+.pilot-card__receipt {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 14px 14px;
+}
+.pilot-card__receipt-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--guest-brand) 8%, var(--guest-paper));
+  color: var(--guest-brand);
+  font-size: 22px;
+}
+.pilot-card__receipt .pilot-card__title { display: grid; gap: 2px; padding: 0; }
+.pilot-card__receipt .pilot-card__title h3 { font-size: 15.5px; line-height: 20px; }
+.pilot-card__receipt .pilot-card__title p { display: block; overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-card__amount { display: grid; justify-items: end; gap: 3px; }
+.pilot-card__amount b { font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+.pilot-card--extra.pilot-card--extra-charge .pilot-card__amount b { color: var(--guest-ink); }
 
 /* A ticket row: the day as a stub, the time leading the line beside it. */
 .pilot-card__ticket {

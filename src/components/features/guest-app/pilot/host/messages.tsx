@@ -219,7 +219,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
             ) : null}
             <span className="pilot-booking-bar__text">
               <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>
-              <span className="pilot-booking-bar__when">{booking ? [clock12(booking.start), ...card.facts.filter((f) => !['When', 'Vendor', 'Return', 'Held until', 'Cancellation'].includes(f.label)).map((f) => factPhrase(f.label, f.value))].join(' · ') : ''}</span>
+              <span className="pilot-booking-bar__when">{booking ? [booking.kind === 'goods' ? undefined : clock12(booking.start), ...card.facts.filter((f) => !['When', 'Vendor', 'Cancellation', 'Collect at'].includes(f.label)).map((f) => factPhrase(f.label, f.value))].filter(Boolean).join(' · ') : ''}</span>
             </span>
             <span className="pilot-booking-bar__chevron" aria-hidden="true"><CaretDown weight="bold" /></span>
           </button>
@@ -228,7 +228,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
               Pay {card.cost.amount ? `₱${card.cost.amount.toLocaleString('en-US')}` : 'now'}
             </button>
           ) : null}
-          {open ? <EngineBookingCard host={host} bookingId={bookingId} inThread bare {...handlers} onOpenDesk={onOpenDesk} /> : null}
+          {open ? <EngineBookingCard host={host} bookingId={bookingId} inThread inBar {...handlers} onOpenDesk={onOpenDesk} /> : null}
         </div>
       ) : null}
 

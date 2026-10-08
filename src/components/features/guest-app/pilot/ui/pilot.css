@@ -36,8 +36,8 @@
    words, then where it stands. */
 .pilot-inbox { display: block; margin: 0; padding: 0; list-style: none; }
 .pilot-inbox > li + li { border-top: 1px solid var(--guest-line); }
-/* The desk's pinned row sits a step apart from the conversations under it. */
-.pilot-inbox > .pilot-inbox__pinned + li { border-top: 6px solid var(--guest-sunken); }
+/* The desk's pinned row sits a step apart from the conversations under it: space, not a band. */
+.pilot-inbox > .pilot-inbox__pinned { padding-bottom: 6px; }
 
 .pilot-empty {
   margin: 8px 0 0;

@@ -8,8 +8,8 @@
 
 .pilot-icon {
   display: grid;
-  width: 44px;
-  height: 44px;
+  inline-size: 44px;
+  block-size: 44px;
   place-items: center;
   border: 1px solid var(--guest-line);
   border-radius: 999px;
@@ -20,10 +20,9 @@
 .pilot-icon:active { transform: scale(0.96); }
 .pilot-muted { margin: 4px 0 8px; color: var(--guest-muted); font-size: 13px; line-height: 1.45; }
 
-/* Motion: one strong ease-out for anything the guest sets off, short enough
-   to feel like an answer, not a show. Press is instant in, eased out. */
-.pilot-messages,
-.pilot-chat { --pilot-ease: cubic-bezier(0.23, 1, 0.32, 1); }
+/* Motion uses the app's tokens (--ease-out, --ease-in-out). Anything that
+   moves or scales is opted in under prefers-reduced-motion: no-preference at
+   the end of this file; fades of colour and opacity stay where they are. */
 
 /* ------------------------------------------------------------------ Messages */
 /* An inbox of people: a round photo, who it is, when they last spoke, what
@@ -35,7 +34,7 @@
    between conversations. Each one is a face, who and what about, the last
    words, then where it stands. */
 .pilot-inbox { display: block; margin: 0; padding: 0; list-style: none; }
-.pilot-inbox > li + li { border-top: 1px solid var(--guest-line); }
+.pilot-inbox > li + li { border-block-start: 1px solid var(--guest-line); }
 /* The front desk: a plum card above the list, struck like the booking
    confirmation -- a brass bell rendered by a shader, light type, a fine gold
    line along the bottom edge. Plum in both themes: it is the brand's counter,
@@ -43,7 +42,7 @@
 .pilot-desk-card {
   --desk-gold: oklch(0.82 0.11 82);
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   border-radius: 22px;
   background:
     radial-gradient(110% 150% at 10% 15%, oklch(0.42 0.085 351) 0%, var(--ds-plum, oklch(0.3 0.07 351)) 45%, oklch(0.2 0.05 351) 100%);
@@ -53,14 +52,15 @@
 }
 .pilot-desk-card::after {
   position: absolute;
-  inset: auto 14% 0;
-  height: 1px;
+  inset-inline: 14%;
+  inset-block-end: 0;
+  block-size: 1px;
   background: linear-gradient(90deg, transparent, var(--desk-gold), transparent);
   content: '';
   opacity: 0.75;
 }
 .pilot-desk-card .pilot-chat-row--desk { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; padding: 16px 18px 18px 12px; color: inherit; }
-.pilot-desk-card .pilot-chat-row--desk:active { background: oklch(1 0 0 / 0.06); }
+.pilot-desk-card .pilot-chat-row--desk:active { background: oklch(1 0 none / 0.06); }
 .pilot-desk-card .pilot-chat-row--desk:focus-visible { outline-color: var(--desk-gold); }
 .pilot-desk-card .pilot-chat-row__top b { color: oklch(0.98 0.008 80); font-weight: 650; }
 .pilot-desk-card .pilot-chat-row__about { color: var(--desk-gold); }
@@ -68,16 +68,16 @@
 .pilot-desk-card .pilot-chat-row.is-unread .pilot-chat-row__preview { color: oklch(0.99 0.005 80); }
 .pilot-desk-card .pilot-dot { background: var(--desk-gold); }
 
-.pilot-bell { position: relative; display: grid; width: 72px; height: 72px; place-items: center; }
-.pilot-bell__canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 400ms ease; }
+.pilot-bell { position: relative; display: grid; inline-size: 72px; block-size: 72px; place-items: center; }
+.pilot-bell__canvas { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; transition: opacity 250ms var(--ease-out); }
 .pilot-bell[data-gl='on'] .pilot-bell__canvas { opacity: 1; }
 .pilot-bell__fallback {
   display: grid;
-  width: 56px;
-  height: 56px;
+  inline-size: 56px;
+  block-size: 56px;
   place-items: center;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.1);
+  background: oklch(1 0 none / 0.1);
   color: oklch(0.82 0.11 82);
   font-size: 26px;
 }
@@ -93,12 +93,12 @@
 }
 
 /* A chat's tile: the booking's photo, rounded, with a badge on its corner saying what kind of booking it is. */
-.pilot-tile { position: relative; display: block; width: 56px; height: 56px; flex: none; }
+.pilot-tile { position: relative; display: block; inline-size: 56px; block-size: 56px; flex: none; }
 .pilot-tile__photo {
   position: absolute;
   inset: 0;
   display: grid;
-  overflow: hidden;
+  overflow: clip;
   place-items: center;
   border-radius: 16px;
   background: var(--guest-sunken);
@@ -108,11 +108,11 @@
 .pilot-tile__photo img { object-fit: cover; }
 .pilot-tile__badge {
   position: absolute;
-  right: -5px;
-  bottom: -5px;
+  inset-inline-end: -5px;
+  inset-block-end: -5px;
   display: grid;
-  width: 26px;
-  height: 26px;
+  inline-size: 26px;
+  block-size: 26px;
   place-items: center;
   border-radius: 999px;
   background: var(--guest-paper);
@@ -121,18 +121,18 @@
   font-size: 14px;
 }
 .pilot-tile.is-quiet .pilot-tile__photo { filter: grayscale(1); opacity: 0.55; }
-.pilot-tile--small { width: 40px; height: 40px; }
+.pilot-tile--small { inline-size: 40px; block-size: 40px; }
 .pilot-tile--small .pilot-tile__photo { border-radius: 12px; }
-.pilot-tile--small .pilot-tile__badge { right: -4px; bottom: -4px; width: 20px; height: 20px; font-size: 11px; }
+.pilot-tile--small .pilot-tile__badge { inset-inline-end: -4px; inset-block-end: -4px; inline-size: 20px; block-size: 20px; font-size: 11px; }
 .pilot-chat .guest-chat__identity { column-gap: 12px; }
 
 /* The front desk's face in its chat header: a plum circle with a gold bell. */
-.pilot-faces { position: relative; display: grid; width: 56px; height: 56px; flex: none; place-items: center; }
+.pilot-faces { position: relative; display: grid; inline-size: 56px; block-size: 56px; flex: none; place-items: center; }
 .pilot-face {
   display: grid;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: clip;
   place-items: center;
   border-radius: 999px;
 }
@@ -141,11 +141,11 @@
   color: oklch(0.82 0.11 82);
   font-size: 20px;
 }
-.pilot-faces--small { width: 40px; height: 40px; }
+.pilot-faces--small { inline-size: 40px; block-size: 40px; }
 
 .pilot-chat-row {
   display: grid;
-  width: 100%;
+  inline-size: 100%;
   grid-template-columns: 56px minmax(0, 1fr);
   align-items: center;
   gap: 14px;
@@ -155,30 +155,29 @@
   color: var(--guest-ink);
   font: inherit;
   text-align: left;
-  transition: background-color 200ms var(--pilot-ease);
+  transition: background-color 200ms var(--ease-out);
 }
 .pilot-chat-row:active { background: var(--guest-sunken); transition-duration: 0ms; }
 .pilot-chat-row:active .pilot-tile { transform: scale(0.96); }
-.pilot-tile { transition: transform 160ms var(--pilot-ease); }
 .pilot-chat-row:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: -2px; border-radius: 12px; }
 
-.pilot-chat-row__body { display: grid; min-width: 0; gap: 3px; }
-.pilot-chat-row__top { display: flex; min-width: 0; align-items: baseline; gap: 5px; }
+.pilot-chat-row__body { display: grid; min-inline-size: 0; gap: 3px; }
+.pilot-chat-row__top { display: flex; min-inline-size: 0; align-items: baseline; gap: 5px; }
 .pilot-chat-row__top b {
   flex: none;
-  max-width: 62%;
-  overflow: hidden;
+  max-inline-size: 62%;
+  overflow: clip;
   font-size: 16px;
   font-weight: 500;
   line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pilot-chat-row__about { min-width: 0; overflow: hidden; color: var(--guest-muted); font-size: 16px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
-.pilot-chat-row__top time { flex: none; margin-left: auto; padding-left: 8px; color: var(--guest-subtle); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pilot-chat-row__about { min-inline-size: 0; overflow: clip; color: var(--guest-muted); font-size: 16px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-chat-row__top time { flex: none; margin-inline-start: auto; padding-inline-start: 8px; color: var(--guest-subtle); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pilot-chat-row__preview {
   display: -webkit-box;
-  overflow: hidden;
+  overflow: clip;
   color: var(--guest-ink);
   font-size: 16px;
   line-height: 22px;
@@ -188,7 +187,7 @@
 .pilot-chat-row__meta--preview .pilot-chat-row__preview { -webkit-line-clamp: 2; }
 .pilot-chat-row__meta {
   display: flex;
-  min-height: 20px;
+  min-block-size: 20px;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -201,11 +200,11 @@
 .pilot-chat-row.is-unread .pilot-chat-row__preview { font-weight: 650; }
 .pilot-chat-row.is-unread .pilot-chat-row__top time { color: var(--guest-brand); font-weight: 650; }
 
-.pilot-dot { width: 10px; height: 10px; flex: none; border-radius: 999px; background: var(--guest-brand); }
+.pilot-dot { inline-size: 10px; block-size: 10px; flex: none; border-radius: 999px; background: var(--guest-brand); }
 .pilot-badge {
   display: inline-grid;
-  min-width: 20px;
-  height: 20px;
+  min-inline-size: 20px;
+  block-size: 20px;
   flex: none;
   padding: 0 6px;
   place-items: center;
@@ -228,7 +227,7 @@
   font-weight: 650;
   line-height: 1.2;
 }
-.pilot-status::before { width: 6px; height: 6px; border-radius: 999px; background: currentColor; content: ''; }
+.pilot-status::before { inline-size: 6px; block-size: 6px; border-radius: 999px; background: currentColor; content: ''; }
 .pilot-status--wait { color: oklch(0.52 0.11 70); }
 .pilot-status--good { color: oklch(0.5 0.11 155); }
 .pilot-status--bad { color: oklch(0.52 0.15 25); }
@@ -243,8 +242,8 @@
 .pilot-booking-bar {
   display: grid;
   gap: 10px;
-  margin-top: 4px;
-  overflow: hidden;
+  margin-block-start: 4px;
+  overflow: clip;
   padding: 10px 10px 10px 10px;
   border-radius: 18px;
   background: var(--guest-paper);
@@ -262,7 +261,7 @@
   color: var(--guest-ink);
   font: inherit;
   text-align: left;
-  transition: opacity 160ms var(--pilot-ease);
+  transition: opacity 160ms var(--ease-out);
 }
 .pilot-booking-bar__toggle:active { opacity: 0.6; transition-duration: 0ms; }
 .pilot-booking-bar__toggle:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: 2px; border-radius: 12px; }
@@ -275,33 +274,33 @@
   line-height: 1;
 }
 .pilot-booking-bar__day small { color: var(--guest-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-.pilot-booking-bar__day b { margin-top: 3px; font-size: 18px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; }
-.pilot-booking-bar__text { display: grid; min-width: 0; gap: 3px; }
+.pilot-booking-bar__day b { margin-block-start: 3px; font-size: 18px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; }
+.pilot-booking-bar__text { display: grid; min-inline-size: 0; gap: 3px; }
 .pilot-booking-bar__text .pilot-status { font-size: 13.5px; }
-.pilot-booking-bar__when { overflow: hidden; color: var(--guest-muted); font-size: 13.5px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-booking-bar__when { overflow: clip; color: var(--guest-muted); font-size: 13.5px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-booking-bar__chevron {
   display: grid;
-  width: 32px;
-  height: 32px;
+  inline-size: 32px;
+  block-size: 32px;
   place-items: center;
   border-radius: 999px;
   background: var(--guest-sunken);
   color: var(--guest-ink);
 }
-.pilot-booking-bar__chevron svg { width: 14px; height: 14px; transition: transform 240ms var(--pilot-ease); }
-.pilot-booking-bar.is-open .pilot-booking-bar__chevron svg { transform: rotate(180deg); }
-.pilot-booking-bar__pay.guest-button { min-height: 40px; font-size: 14px; }
-.pilot-booking-bar { overflow: hidden; }
+.pilot-booking-bar__chevron svg { inline-size: 1em; block-size: 1em; }
+.pilot-booking-bar.is-open .pilot-booking-bar__chevron svg { rotate: 180deg; }
+.pilot-booking-bar__pay.guest-button { min-block-size: 40px; font-size: 14px; }
+.pilot-booking-bar { overflow: clip; }
 /* Opened, the bar already says the status and the chat says the vendor: the card shows only what the bar does not. */
-.pilot-booking-bar .pilot-card { margin: 0 -10px -10px; border: 0; border-radius: 0; transform-origin: top center; animation: pilot-details-in 240ms var(--pilot-ease) both; }
+.pilot-booking-bar .pilot-card { margin: 0 -10px -10px; border: 0; border-radius: 0; transform-origin: top center; animation: pilot-details-fade 160ms var(--ease-out) both; }
 /* The details settle in from just under the bar: they come from it. Closing is instant, as letting go should be. */
 @keyframes pilot-details-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); filter: blur(2px); } }
 /* In the bar, the card starts at the money: a hairline from the summary above, nothing repeated. */
-.pilot-booking-bar .pilot-card { border-top: 1px solid var(--guest-line); }
-.pilot-booking-bar .pilot-card > :first-child { border-top: 0; }
+.pilot-booking-bar .pilot-card { border-block-start: 1px solid var(--guest-line); }
+.pilot-booking-bar .pilot-card > :first-child { border-block-start: 0; }
 
-.pilot-msg { max-width: 80%; }
-.pilot-msg--grouped { margin-bottom: -6px; }
+.pilot-msg { max-inline-size: 80%; }
+.pilot-msg--grouped { margin-block-end: -6px; }
 .pilot-msg small { font-variant-numeric: tabular-nums; }
 
 .pilot-day {
@@ -316,7 +315,7 @@
 }
 .pilot-event {
   align-self: center;
-  max-width: 78%;
+  max-inline-size: 78%;
   margin: 4px 0;
   color: var(--guest-muted);
   font-size: 12.5px;
@@ -332,21 +331,21 @@
 .pilot-card {
   display: grid;
   align-self: stretch;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
   background: var(--guest-paper);
 }
 .pilot-card > * { margin: 0; padding: 14px 16px; }
-.pilot-card > * + * { border-top: 1px solid var(--guest-line); }
+.pilot-card > * + * { border-block-start: 1px solid var(--guest-line); }
 .pilot-card > .pilot-sheet-backdrop { padding: 0; border: 0; }
 
 .pilot-card__thumb {
   position: relative;
   display: grid;
-  width: 48px;
-  height: 48px;
-  overflow: hidden;
+  inline-size: 48px;
+  block-size: 48px;
+  overflow: clip;
   place-items: center;
   border-radius: 10px;
   background: var(--guest-sunken);
@@ -355,44 +354,44 @@
 }
 .pilot-card__thumb img { object-fit: cover; }
 .pilot-card__head { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px 16px 12px 12px; }
-.pilot-card__title { display: grid; min-width: 0; gap: 3px; }
+.pilot-card__title { display: grid; min-inline-size: 0; gap: 3px; }
 .pilot-card__title h3 { margin: 0; font-size: 15px; font-weight: 650; line-height: 20px; letter-spacing: -0.008em; text-wrap: balance; }
 .pilot-card__title p,
-.pilot-card__status-row { display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--guest-muted); font-size: 13px; line-height: 1.3; }
+.pilot-card__status-row { display: flex; min-inline-size: 0; align-items: center; gap: 8px; color: var(--guest-muted); font-size: 13px; line-height: 1.3; }
 .pilot-card__title p > span:last-child,
-.pilot-card__status-row > span:last-child:not(.pilot-status) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-card__status-row > span:last-child:not(.pilot-status) { overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-card__title .pilot-status + span::before,
-.pilot-card__status-row .pilot-status + span::before { margin-right: 8px; color: var(--guest-line-strong); content: '·'; }
+.pilot-card__status-row .pilot-status + span::before { margin-inline-end: 8px; color: var(--guest-line-strong); content: '·'; }
 .pilot-card__status-row { padding-block: 12px; }
 
 /* The booking's photograph across the top, as the stay card has it, with its status on it. */
 .pilot-card__hero { position: relative; display: grid; padding: 0; }
-.pilot-card__photo { position: relative; display: block; height: 128px; overflow: hidden; background: var(--guest-sunken); }
+.pilot-card__photo { position: relative; display: block; block-size: 128px; overflow: clip; background: var(--guest-sunken); }
 .pilot-card__photo img { object-fit: cover; }
 .pilot-card__chip {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  inset-block-start: 12px;
+  inset-inline-start: 12px;
   display: inline-flex;
-  min-height: 26px;
+  min-block-size: 26px;
   align-items: center;
   gap: 6px;
   padding: 0 10px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.94);
+  background: oklch(1 0 none / 0.94);
   box-shadow: 0 2px 8px oklch(0.2 0.02 330 / 0.14);
   color: var(--guest-ink);
   font-size: 12px;
   font-weight: 650;
 }
-.pilot-card__chip::before { width: 7px; height: 7px; border-radius: 999px; background: currentColor; content: ''; }
+.pilot-card__chip::before { inline-size: 7px; block-size: 7px; border-radius: 999px; background: currentColor; content: ''; }
 .pilot-card__chip--good { color: oklch(0.45 0.11 155); }
 .pilot-card__chip--wait { color: oklch(0.5 0.11 70); }
 .pilot-card__chip--bad { color: oklch(0.5 0.15 25); }
 .pilot-card__hero .pilot-card__title { padding: 14px 16px 0; gap: 2px; }
 .pilot-card__hero .pilot-card__title h3 { font-size: 17px; line-height: 22px; letter-spacing: -0.012em; }
 .pilot-card__hero .pilot-card__title p { display: block; color: var(--guest-muted); font-size: 13.5px; }
-.pilot-card__hero + * { border-top: 0; }
+.pilot-card__hero + * { border-block-start: 0; }
 
 /* An extra charge, as a receipt: the icon, what it is and who added it, the amount large at the right. */
 .pilot-card__receipt {
@@ -404,8 +403,8 @@
 }
 .pilot-card__receipt-icon {
   display: grid;
-  width: 44px;
-  height: 44px;
+  inline-size: 44px;
+  block-size: 44px;
   place-items: center;
   border-radius: 14px;
   background: color-mix(in oklch, var(--guest-brand) 8%, var(--guest-paper));
@@ -414,7 +413,7 @@
 }
 .pilot-card__receipt .pilot-card__title { display: grid; gap: 2px; padding: 0; }
 .pilot-card__receipt .pilot-card__title h3 { font-size: 15.5px; line-height: 20px; }
-.pilot-card__receipt .pilot-card__title p { display: block; overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-card__receipt .pilot-card__title p { display: block; overflow: clip; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-card__amount { display: grid; justify-items: end; gap: 3px; }
 .pilot-card__amount b { font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
 .pilot-card--extra.pilot-card--extra-charge .pilot-card__amount b { color: var(--guest-ink); }
@@ -436,7 +435,7 @@
 }
 .pilot-card__day small { color: var(--guest-muted); font-size: 10.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
 .pilot-card__day b { margin: 3px 0 2px; font-size: 21px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; }
-.pilot-card__when { display: grid; min-width: 0; gap: 3px; }
+.pilot-card__when { display: grid; min-inline-size: 0; gap: 3px; }
 .pilot-card__when b { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 650; line-height: 1.25; }
 .pilot-card__when span { color: var(--guest-muted); font-size: 13.5px; line-height: 1.4; }
 
@@ -459,7 +458,7 @@
 .pilot-card--lapsed .pilot-card__cost b,
 .pilot-card--cancelled .pilot-card__cost b { color: var(--guest-muted); text-decoration: line-through; }
 
-/* Time left: one quiet line, not a bar across the card. A small ring runs
+/* Time inset-inline-start: one quiet line, not a bar across the card. A small ring runs
    down beside the sentence; the end time sits at the right, in figures. */
 .pilot-countdown {
   display: grid;
@@ -473,27 +472,27 @@
   font-size: 13.5px;
   line-height: 1.35;
 }
-.pilot-card > .pilot-countdown { margin: 0 16px; padding: 10px 12px; border-top: 0; }
-.pilot-card > * + .pilot-countdown { margin-top: 2px; }
+.pilot-card > .pilot-countdown { margin: 0 16px; padding: 10px 12px; border-block-start: 0; }
+.pilot-card > * + .pilot-countdown { margin-block-start: 2px; }
 .pilot-countdown--theirs { --countdown-tint: oklch(0.975 0.025 85); --countdown-ink: oklch(0.42 0.07 70); --countdown-ring: oklch(0.7 0.13 75); }
 .pilot-countdown--yours { --countdown-tint: color-mix(in oklch, var(--guest-brand) 7%, var(--guest-paper)); --countdown-ink: var(--guest-brand); --countdown-ring: var(--guest-brand); }
-.pilot-countdown svg { width: 20px; height: 20px; }
+.pilot-countdown svg { inline-size: 20px; block-size: 20px; }
 .pilot-countdown circle { fill: none; stroke-width: 2.5; }
 .pilot-countdown__track { stroke: color-mix(in oklch, var(--countdown-ring) 20%, transparent); }
-.pilot-countdown__left { stroke: var(--countdown-ring); stroke-linecap: round; transition: stroke-dashoffset 600ms cubic-bezier(0.23, 1, 0.32, 1); }
+.pilot-countdown__left { stroke: var(--countdown-ring); stroke-linecap: round;  }
 .pilot-countdown span { font-weight: 550; }
 .pilot-countdown time { color: color-mix(in oklch, var(--countdown-ink) 70%, transparent); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* One main action across the card; the rest share the row under it. */
 .pilot-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.pilot-card > .pilot-actions { border-top: 0; padding-top: 2px; }
-.pilot-card > .pilot-countdown + .pilot-actions { padding-top: 12px; }
-.pilot-actions .guest-button { min-height: 44px; flex: 1 1 calc(50% - 4px); padding: 0 16px; font-size: 14px; }
+.pilot-card > .pilot-actions { border-block-start: 0; padding-block-start: 2px; }
+.pilot-card > .pilot-countdown + .pilot-actions { padding-block-start: 12px; }
+.pilot-actions .guest-button { min-block-size: 44px; flex: 1 1 calc(50% - 4px); padding: 0 16px; font-size: 14px; }
 .pilot-actions .pilot-actions__lead { flex-basis: 100%; order: -1; }
 /* What is not the next step is a quiet word, not another big pill. */
 .pilot-actions__minor {
   display: inline-flex;
-  min-height: 44px;
+  min-block-size: 44px;
   flex: 1 1 0;
   align-items: center;
   justify-content: center;
@@ -505,9 +504,9 @@
   font: inherit;
   font-size: 14px;
   font-weight: 650;
-  transition: background-color 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: background-color 200ms var(--ease-out);
 }
-.pilot-actions__minor:active { background: var(--guest-sunken); transform: scale(0.97); transition-duration: 0ms; }
+.pilot-actions__minor:active { background: var(--guest-sunken); scale: 0.97; transition-duration: 0ms; }
 .pilot-actions__minor:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: 2px; }
 .pilot-actions__minor--quiet { color: var(--guest-muted); }
 /* With no main action, the words get a surface of their own so they still read as buttons. */
@@ -518,15 +517,17 @@
 /* ------------------------------------------------------------------ sheets */
 
 .pilot-sheet-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; background: oklch(0.2 0.02 350 / 0.4); }
-.pilot-sheet { display: grid; width: 100%; gap: 12px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--guest-canvas); }
+.pilot-sheet { display: grid; inline-size: 100%; gap: 12px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--guest-canvas); }
 .pilot-sheet header { display: flex; align-items: center; justify-content: space-between; }
 .pilot-sheet h2 { margin: 0; font-size: 17px; }
-.pilot-qr { display: grid; place-items: center; padding: 16px; border-radius: 16px; background: #fff; }
+.pilot-qr { display: grid; place-items: center; padding: 16px; border-radius: 16px; background: oklch(1 0 none); }
 
-@media (prefers-reduced-motion: reduce) {
-  .pilot-booking-bar .pilot-card { animation: pilot-details-fade 160ms ease both; }
-  .pilot-tile,
-  .pilot-booking-bar__chevron svg { transition: none; }
-  .pilot-chat-row:active .pilot-tile { transform: none; }
+/* Motion that moves or scales, for people who have not asked for less. */
+@media (prefers-reduced-motion: no-preference) {
+  .pilot-tile { transition: transform 160ms var(--ease-out); }
+  .pilot-booking-bar__chevron svg { transition: rotate 240ms var(--ease-out); }
+  .pilot-booking-bar .pilot-card { animation: pilot-details-in 240ms var(--ease-out) both; }
+  .pilot-actions__minor { transition: background-color 200ms var(--ease-out), scale 160ms var(--ease-out); }
+  .pilot-countdown__left { transition: stroke-dashoffset 300ms var(--ease-out); }
 }
 @keyframes pilot-details-fade { from { opacity: 0; } }

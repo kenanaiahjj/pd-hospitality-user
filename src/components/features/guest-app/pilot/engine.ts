@@ -948,6 +948,13 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       return b && b.guestId === guestId ? b : undefined;
     };
     const who = () => guestRecord(guestId).firstName;
+    /** The guest's own action never lights up their own unread: only what others say does. */
+    const own = <T,>(fn: () => T): T => act(() => {
+      const before = new Map([...w.threads.values()].map((t) => [t.id, t.unread.guest]));
+      const result = fn();
+      for (const t of w.threads.values()) t.unread.guest = Math.min(t.unread.guest, before.get(t.id) ?? 0);
+      return result;
+    });
     return {
       quote(draft) {
         const pl = plan(guestId, draft);
@@ -955,10 +962,10 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         return ok({ options: pl.plan.options });
       },
       request(draft) {
-        return act(() => createBooking(guestId, draft, { origin: draft.origin ?? 'app' }));
+        return own(() => createBooking(guestId, draft, { origin: draft.origin ?? 'app' }));
       },
       choosePayInFull(bookingId) {
-        return act(() => {
+        return own(() => {
           const b = mine(bookingId);
           if (!b) return refuse('not-found', 'That booking is not yours.');
           if (b.status === 'confirmed' && b.needsPayChange) {
@@ -985,7 +992,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         });
       },
       payCard(bookingId) {
-        return act(() => {
+        return own(() => {
           const b = mine(bookingId);
           if (!b) return refuse('not-found', 'That booking is not yours.');
           const pay = paysOf(b).filter((p) => p.mode === 'card' && p.purpose === 'booking' && !p.duplicate).at(-1);
@@ -1007,14 +1014,14 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         });
       },
       cancel(bookingId) {
-        return act(() => {
+        return own(() => {
           const b = mine(bookingId);
           if (!b) return refuse('not-found', 'That booking is not yours.');
           return guestCancel(b, who());
         });
       },
       question(paymentId, text) {
-        return act(() => {
+        return own(() => {
           const p = w.payments.get(paymentId);
           const b = p ? w.bookings.get(p.bookingId) : undefined;
           if (!p || !b || b.guestId !== guestId) return refuse('not-found', 'That charge is not yours.');
@@ -1031,7 +1038,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         });
       },
       payExtra(paymentId) {
-        return act(() => {
+        return own(() => {
           const p = w.payments.get(paymentId);
           const b = p ? w.bookings.get(p.bookingId) : undefined;
           if (!p || !b || b.guestId !== guestId) return refuse('not-found', 'That charge is not yours.');
@@ -1041,7 +1048,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         });
       },
       send(threadId, text) {
-        return act(() => {
+        return own(() => {
           const t = w.threads.get(threadId);
           if (!t || !t.participants.includes('guest')) return refuse('not-a-participant', 'That thread is not yours.');
           const stay = must(w.stays.get(guestRecord(guestId).stayId), 'stay');
@@ -1053,14 +1060,14 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         });
       },
       sendToDesk(text) {
-        return act(() => {
+        return own(() => {
           const stay = must(w.stays.get(guestRecord(guestId).stayId), 'stay');
           post(ensureDeskThread(stay.id), { role: 'guest', name: who() }, text);
           return ok();
         });
       },
       runningLate(bookingId) {
-        return act(() => {
+        return own(() => {
           const b = mine(bookingId);
           if (!b) return refuse('not-found', 'That booking is not yours.');
           if (!['reserved', 'confirmed'].includes(b.status)) return refuse('invalid-state', 'There is nothing to be late for.');

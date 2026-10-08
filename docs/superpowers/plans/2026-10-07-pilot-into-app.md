@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Status** | `In Progress` |
+| **Status** | `Complete` |
 | **Created** | 2026-10-07 |
 | **Updated** | 2026-10-07 |
 | **Owner** | Ken |
@@ -31,7 +31,7 @@
 | 5 | Chat: Messages list, three-way booking thread, cards in the desk chat | ✅ Complete | 2026-10-08 | 2026-10-08 | see git log |
 | 6 | After booking: receipt, cancel, bell, bill and Payments read the engine | ✅ Complete | 2026-10-08 | 2026-10-08 | see git log |
 | 7 | Controls: vendor, desk, fault and clock triggers in the real controls; remove the overlay | ✅ Complete | 2026-10-08 | 2026-10-08 | see git log |
-| 8 | Tests: rewrite the old assertions, add app-level flows, final gate and walk-through | ⬜ Not started | — | — | — |
+| 8 | Tests: rewrite the old assertions, add app-level flows, final gate and walk-through | ✅ Complete | 2026-10-08 | 2026-10-08 | see git log |
 
 Legend: ⬜ Not started · 🔄 In progress · ✅ Complete · ⛔ Blocked
 

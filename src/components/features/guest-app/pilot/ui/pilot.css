@@ -276,12 +276,59 @@
 .pilot-card__status-row .pilot-status + span::before { margin-right: 8px; color: var(--guest-line-strong); content: '·'; }
 .pilot-card__status-row { padding-block: 12px; }
 
-.pilot-card__facts { display: grid; gap: 10px; }
-.pilot-card__facts > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
-.pilot-card__facts dt { flex: none; color: var(--guest-muted); font-size: 13.5px; line-height: 1.35; }
-.pilot-card__facts dd { margin: 0; font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1.35; text-align: right; }
+/* The booking's photograph across the top, as the stay card has it, with its status on it. */
+.pilot-card__hero { position: relative; display: grid; padding: 0; }
+.pilot-card__photo { position: relative; display: block; height: 128px; overflow: hidden; background: var(--guest-sunken); }
+.pilot-card__photo img { object-fit: cover; }
+.pilot-card__chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.94);
+  box-shadow: 0 2px 8px oklch(0.2 0.02 330 / 0.14);
+  color: var(--guest-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+.pilot-card__chip::before { width: 7px; height: 7px; border-radius: 999px; background: currentColor; content: ''; }
+.pilot-card__chip--good { color: oklch(0.45 0.11 155); }
+.pilot-card__chip--wait { color: oklch(0.5 0.11 70); }
+.pilot-card__chip--bad { color: oklch(0.5 0.15 25); }
+.pilot-card__hero .pilot-card__title { padding: 14px 16px 0; gap: 2px; }
+.pilot-card__hero .pilot-card__title h3 { font-size: 17px; line-height: 22px; letter-spacing: -0.012em; }
+.pilot-card__hero .pilot-card__title p { display: block; color: var(--guest-muted); font-size: 13.5px; }
+.pilot-card__hero + * { border-top: 0; }
+
+/* A ticket row: the day as a stub, the time leading the line beside it. */
+.pilot-card__ticket {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+.pilot-card__day {
+  display: grid;
+  justify-items: center;
+  padding: 6px 0 7px;
+  border-radius: 12px;
+  background: var(--guest-sunken);
+  line-height: 1;
+}
+.pilot-card__day small { color: var(--guest-muted); font-size: 10.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
+.pilot-card__day b { margin: 3px 0 2px; font-size: 21px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; }
+.pilot-card__when { display: grid; min-width: 0; gap: 3px; }
+.pilot-card__when b { font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 650; line-height: 1.25; }
+.pilot-card__when span { color: var(--guest-muted); font-size: 13.5px; line-height: 1.4; }
 
 .pilot-card__note { color: var(--guest-muted); font-size: 13.5px; line-height: 1.45; }
+.pilot-card__note--asked::before { content: none; }
+.pilot-card__note--asked { color: oklch(0.45 0.08 70); font-weight: 550; }
 .pilot-card__note::before { content: 'Your note · '; color: var(--guest-subtle); }
 
 .pilot-card__cost { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
@@ -290,7 +337,9 @@
 
 /* A booking that did not happen steps back: the photo greys, the title quiets, the status says why. */
 .pilot-card--lapsed .pilot-card__thumb,
-.pilot-card--cancelled .pilot-card__thumb { filter: grayscale(1); opacity: 0.6; }
+.pilot-card--cancelled .pilot-card__thumb,
+.pilot-card--lapsed .pilot-card__photo,
+.pilot-card--cancelled .pilot-card__photo { filter: grayscale(1); opacity: 0.6; }
 .pilot-card--lapsed .pilot-card__title h3,
 .pilot-card--cancelled .pilot-card__title h3 { color: var(--guest-muted); }
 .pilot-card--lapsed .pilot-card__cost b,
@@ -327,6 +376,29 @@
 .pilot-card > .pilot-countdown + .pilot-actions { padding-top: 12px; }
 .pilot-actions .guest-button { min-height: 44px; flex: 1 1 calc(50% - 4px); padding: 0 16px; font-size: 14px; }
 .pilot-actions .pilot-actions__lead { flex-basis: 100%; order: -1; }
+/* What is not the next step is a quiet word, not another big pill. */
+.pilot-actions__minor {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--guest-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  transition: background-color 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.pilot-actions__minor:active { background: var(--guest-sunken); transform: scale(0.97); transition-duration: 0ms; }
+.pilot-actions__minor:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: 2px; }
+.pilot-actions__minor--quiet { color: var(--guest-muted); }
+/* With no main action, the words get a surface of their own so they still read as buttons. */
+.pilot-actions--minor-only .pilot-actions__minor { background: var(--guest-sunken); }
+.pilot-actions--minor-only .pilot-actions__minor--quiet { background: transparent; box-shadow: inset 0 0 0 1px var(--guest-line); }
 .pilot-actions .pilot-muted { flex-basis: 100%; margin: 0; }
 
 /* ------------------------------------------------------------------ sheets */

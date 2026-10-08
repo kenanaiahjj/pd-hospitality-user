@@ -80,6 +80,21 @@ const clockAt = (ms: number) => {
   return `${((h + 11) % 12) + 1}:${String(d.getUTCMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 };
 
+/** A fact as a phrase someone would say: "2 bikes", "Table for 4", "Back by 8:00 PM". */
+const factPhrase = (label: string, value: string) => {
+  const n = Number(value);
+  const count = (one: string, many: string) => `${value} ${n === 1 ? one : many}`;
+  switch (label) {
+    case 'Bikes': return count('bike', 'bikes');
+    case 'Guests': return count('guest', 'guests');
+    case 'Boxes': return count('box', 'boxes');
+    case 'Party': return `Table for ${value}`;
+    case 'Return': return `Back by ${value}`;
+    case 'Held until': return `Held until ${value}`;
+    default: return value;
+  }
+};
+
 /**
  * How long is left, as a ring that runs down beside the sentence and the time it ends.
  * Plum when the next move is the guest's (pay, choose); amber while someone else is to answer.
@@ -181,30 +196,56 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
   const vendorName = pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? '';
   // The vendor is the subtitle, so it is not a fact as well. An extra charge says what it was added to.
   const subtitle = paymentId ? `Added to ${listing.title}` : vendorName;
-  const facts = card.facts.filter((fact) => fact.label !== 'Vendor');
   const tone = STATUS_TONE(card.state, card.label);
   const status = <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>;
+  const image = paymentId ? undefined : handlers.imageFor?.(bookingId);
+
+  // The day is the ticket's stub; the time leads the line beside it; the rest of the facts follow in one line.
+  const day = new Date(booking.kind === 'goods' && booking.readyFor ? `${booking.readyFor}T00:00:00Z` : booking.start);
+  const dayParts = {
+    weekday: day.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
+    date: day.getUTCDate(),
+    month: day.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }),
+  };
+  const asked = card.facts.find((f) => f.label === 'Cancellation');
+  const rest = card.facts.filter((f) => !['Vendor', 'When', 'Cancellation', 'Reason'].includes(f.label));
+  const lead = booking.kind === 'goods' ? (rest.find((f) => f.label === 'Ready for')?.value ?? '') : clockAt(booking.start);
+  const detail = rest.filter((f) => f.label !== 'Ready for').map((f) => factPhrase(f.label, f.value)).join(' · ');
 
   return (
-    <article className={`pilot-card pilot-card--${card.state}${bare ? ' pilot-card--bare' : ''}`} aria-label={`${card.title}, ${card.label}`}>
+    <article className={`pilot-card pilot-card--${card.state}${bare ? ' pilot-card--bare' : ''}${paymentId ? ' pilot-card--extra' : ''}`} aria-label={`${card.title}, ${card.label}`}>
       {bare ? (
         <div className="pilot-card__status-row">{status}{subtitle ? <span>{subtitle}</span> : null}</div>
+      ) : image ? (
+        <header className="pilot-card__hero">
+          <span className="pilot-card__photo" aria-hidden="true"><Image src={image.src} alt="" fill sizes="(max-width: 720px) 90vw, 420px" style={{ objectPosition: image.focalPoint }} /></span>
+          <span className={`pilot-card__chip pilot-card__chip--${tone}`}>{card.label}</span>
+          <div className="pilot-card__title">
+            <h3>{card.title}</h3>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+        </header>
       ) : (
         <header className="pilot-card__head">
-          <BookingThumb className="pilot-card__thumb" image={handlers.imageFor?.(bookingId)} kind={booking.kind} extra={Boolean(paymentId)} />
+          <BookingThumb className="pilot-card__thumb" kind={booking.kind} extra={Boolean(paymentId)} />
           <div className="pilot-card__title">
             <h3>{card.title}</h3>
             <p>{status}{subtitle ? <span>{subtitle}</span> : null}</p>
           </div>
         </header>
       )}
-      {facts.length ? (
-        <dl className="pilot-card__facts">
-          {facts.map((f) => (
-            <div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>
-          ))}
-        </dl>
-      ) : null}
+      {paymentId ? null : (
+        <div className="pilot-card__ticket">
+          <span className="pilot-card__day" aria-hidden="true"><small>{dayParts.weekday}</small><b>{dayParts.date}</b><small>{dayParts.month}</small></span>
+          <span className="pilot-card__when">
+            <b>{lead}</b>
+            {detail ? <span>{detail}</span> : null}
+          </span>
+          {/* The same facts, said plainly, for anyone not reading the tile. */}
+          <span className="sr-only">{card.facts.filter((f) => f.label !== 'Vendor' && f.label !== 'Cancellation').map((f) => `${f.label}: ${f.value}`).join('. ')}</span>
+        </div>
+      )}
+      {asked ? <p className="pilot-card__note pilot-card__note--asked">{asked.value}</p> : null}
       {card.note && !inThread ? <p className="pilot-card__note">{card.note}</p> : null}
       <div className="pilot-card__cost"><span>{card.cost.line}</span>{card.cost.amount ? <b>{peso(card.cost.amount)}</b> : null}</div>
       {card.timer ? <Countdown timer={card.timer} vendor={vendorName} /> : null}
@@ -215,9 +256,9 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
           <button type="button" className="guest-button guest-button--primary" onClick={doCancel}>{freeToCancel ? 'Yes, cancel' : 'Yes, ask to cancel'}</button>
         </div>
       ) : card.actions.length ? (
-        <div className="pilot-actions">
+        <div className={`pilot-actions${card.actions.some((a) => PRIMARY.includes(a)) ? '' : ' pilot-actions--minor-only'}`}>
           {card.actions.filter((a) => a !== 'open-menu' || (handlers.hasMenu ? handlers.hasMenu(listing.id) : true)).map((a) => (
-            <button key={a} type="button" className={`guest-button ${PRIMARY.includes(a) ? 'guest-button--primary' : 'guest-button--secondary'}${PRIMARY.includes(a) ? ' pilot-actions__lead' : ''}`} onClick={() => act(a)}>
+            <button key={a} type="button" className={PRIMARY.includes(a) ? 'guest-button guest-button--primary pilot-actions__lead' : `pilot-actions__minor${a === 'cancel' || a === 'withdraw' ? ' pilot-actions__minor--quiet' : ''}`} onClick={() => act(a)}>
               {a === 'pay' && card.cost.amount ? `Pay now ${peso(card.cost.amount)}` : LABEL[a]}
             </button>
           ))}

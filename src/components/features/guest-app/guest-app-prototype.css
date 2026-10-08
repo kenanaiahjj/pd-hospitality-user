@@ -2316,9 +2316,9 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--guest-paper);
+  /* The same back button as every other screen: a soft circle, no shadow. */
+  background: var(--guest-soft);
   color: var(--guest-ink);
-  box-shadow: var(--shadow-xs);
 }
 .guest-chat__back svg { width: 20px; height: 20px; }
 .guest-chat__back:active { transform: scale(0.94); }

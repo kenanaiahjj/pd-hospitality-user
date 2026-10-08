@@ -81,7 +81,7 @@ const clockAt = (ms: number) => {
 };
 
 /** A fact as a phrase someone would say: "2 bikes", "Table for 4", "Back by 8:00 PM". */
-const factPhrase = (label: string, value: string) => {
+export const factPhrase = (label: string, value: string) => {
   const n = Number(value);
   const count = (one: string, many: string) => `${value} ${n === 1 ? one : many}`;
   switch (label) {

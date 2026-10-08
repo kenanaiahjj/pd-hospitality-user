@@ -1,12 +1,14 @@
 'use client';
 
-import { ArrowLeft, CaretDown } from '@phosphor-icons/react';
-import { Fragment, useEffect, useState, type CSSProperties } from 'react';
+import { ArrowLeft, Bicycle, CaretDown, Compass, ForkKnife, ShoppingBag, Sparkle } from '@phosphor-icons/react';
+import Image from 'next/image';
+import type { ServiceImageDefinition } from '../../service-images';
+import { Fragment, useEffect, useState } from 'react';
 import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
 import { DeskBell } from './desk-bell';
-import { EngineBookingCard, STATUS_TONE, type CardHandlers } from './booking-card';
+import { EngineBookingCard, STATUS_TONE, factPhrase, type CardHandlers } from './booking-card';
 import { engineStatusLine } from './project';
 import type { Host } from './host';
 import '../ui/pilot.css';
@@ -47,10 +49,13 @@ const vendorOf = (host: Host, bookingId: string) => {
   return host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'The vendor';
 };
 
-export function MessagesList({ host, guestId, desk, onOpenDesk, onOpenThread }: {
+export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpenDesk, onOpenThread }: {
   host: Host;
   guestId: string;
   desk: DeskRow;
+  /** A booking's photo and its category in the app, for the tile and its badge. */
+  imageFor?: (bookingId: string) => ServiceImageDefinition | undefined;
+  categoryFor?: (bookingId: string) => string | undefined;
   onOpenDesk: () => void;
   onOpenThread: (threadId: string) => void;
 }) {
@@ -80,7 +85,7 @@ export function MessagesList({ host, guestId, desk, onOpenDesk, onOpenThread }: 
       <ul className="pilot-inbox">
         {threads.map((thread) => (
           <li key={thread.id}>
-            <ThreadRow host={host} thread={thread} onOpen={onOpenThread} />
+            <ThreadRow host={host} thread={thread} image={thread.bookingId ? imageFor?.(thread.bookingId) : undefined} categoryFor={categoryFor} onOpen={onOpenThread} />
           </li>
         ))}
       </ul>
@@ -89,23 +94,36 @@ export function MessagesList({ host, guestId, desk, onOpenDesk, onOpenThread }: 
   );
 }
 
-/* Each partner gets a face of its own: its initials on a colour taken from its name, so two vendors never look alike. */
-const FACE_HUES = [250, 200, 300, 175, 225, 330, 280, 215];
-const faceHue = (name: string) => FACE_HUES[[...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % FACE_HUES.length]!;
-const initials = (name: string) => name.replace(/^The\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('');
+/** What kind of booking a chat is about, for the badge on its photo. A tour is a service the app files under things to do. */
+export type ChatKind = 'rental' | 'tour' | 'service' | 'table' | 'goods';
+const KIND = {
+  rental: { Icon: Bicycle, word: 'Rental' },
+  tour: { Icon: Compass, word: 'Tour' },
+  service: { Icon: Sparkle, word: 'Service' },
+  table: { Icon: ForkKnife, word: 'Table' },
+  goods: { Icon: ShoppingBag, word: 'Goods' },
+} as const;
+const kindOf = (host: Host, bookingId: string, categoryFor?: (bookingId: string) => string | undefined): ChatKind => {
+  const kind = host.pilot.booking(bookingId).kind;
+  if (kind === 'service' && categoryFor?.(bookingId) === 'entertainment') return 'tour';
+  return kind;
+};
 
-/** Who the chat is with: one face per chat, the vendor's own initials on its own colour. */
-function Faces({ name, small }: { name: string; small?: boolean }) {
+/** The booking's photo as a rounded tile, with what kind of booking it is in a small badge on its corner. */
+function ChatTile({ image, kind, quiet, small }: { image?: ServiceImageDefinition; kind: ChatKind; quiet?: boolean; small?: boolean }) {
+  const { Icon } = KIND[kind];
   return (
-    <span className={`pilot-faces${small ? ' pilot-faces--small' : ''}`} aria-hidden="true">
-      <span className="pilot-face pilot-face--initials" style={{ '--face-hue': faceHue(name) } as CSSProperties}>{initials(name)}</span>
+    <span className={`pilot-tile${small ? ' pilot-tile--small' : ''}${quiet ? ' is-quiet' : ''}`} aria-hidden="true">
+      <span className="pilot-tile__photo">{image ? <Image src={image.src} alt="" fill sizes="56px" style={{ objectPosition: image.focalPoint }} /> : <Icon />}</span>
+      <span className="pilot-tile__badge"><Icon weight="bold" /></span>
     </span>
   );
 }
 
-function ThreadRow({ host, thread, onOpen }: { host: Host; thread: ThreadSummary; onOpen: (id: string) => void }) {
+function ThreadRow({ host, thread, image, categoryFor, onOpen }: { host: Host; thread: ThreadSummary; image?: ServiceImageDefinition; categoryFor?: (bookingId: string) => string | undefined; onOpen: (id: string) => void }) {
   const booking = thread.bookingId ? host.pilot.booking(thread.bookingId) : undefined;
   const name = booking ? vendorOf(host, booking.id) : thread.title;
+  const kind = booking ? kindOf(host, booking.id, categoryFor) : 'service';
   // The last thing said, as an inbox shows it. A status change says itself; a person's words name only "You".
   const last = thread.last;
   const preview = !last ? 'No messages yet.'
@@ -117,9 +135,9 @@ function ThreadRow({ host, thread, onOpen }: { host: Host; thread: ThreadSummary
       type="button"
       className={`pilot-chat-row${thread.unread ? ' is-unread' : ''}`}
       onClick={() => onOpen(thread.id)}
-      aria-label={`${name}, ${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}
+      aria-label={`${name}, ${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}, ${KIND[kind].word}${thread.unread ? `, ${thread.unread} unread` : ''}`}
     >
-      <Faces name={name} />
+      <ChatTile image={image} kind={kind} quiet={thread.cardState === 'lapsed' || thread.cardState === 'cancelled'} />
       <span className="pilot-chat-row__body">
         <span className="pilot-chat-row__top">
           <b>{name}</b>
@@ -136,7 +154,7 @@ function ThreadRow({ host, thread, onOpen }: { host: Host; thread: ThreadSummary
   );
 }
 
-export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskDesk, note, ...handlers }: {
+export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskDesk, note, categoryFor, ...handlers }: {
   host: Host;
   threadId: string;
   onBack: () => void;
@@ -144,6 +162,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
   note?: { tone: 'warning' | 'positive'; text: string } | null;
   /** After a thread closes, a question goes to the front desk's own chat. */
   onAskDesk: (text: string) => void;
+  categoryFor?: (bookingId: string) => string | undefined;
 } & CardHandlers) {
   const [draft, setDraft] = useState('');
   const [open, setOpen] = useState(false);
@@ -181,7 +200,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
       <div className="guest-chat__context">
         <div className="guest-chat__identity">
           <button className="guest-chat__back" type="button" onClick={onBack} aria-label="Go back"><ArrowLeft aria-hidden="true" /></button>
-          <Faces small name={name} />
+          {bookingId ? <ChatTile small image={handlers.imageFor?.(bookingId)} kind={kindOf(host, bookingId, categoryFor)} /> : null}
           <div className="guest-chat__identity-copy">
             <h1>{name}</h1>
             <span>{thread?.title ?? 'Booking'}</span>
@@ -192,9 +211,17 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
       {card && bookingId ? (
         <div className={`pilot-booking-bar${open ? ' is-open' : ''}`}>
           <button type="button" className="pilot-booking-bar__toggle" aria-expanded={open} onClick={() => setOpen(!open)} aria-label={open ? 'Hide booking details' : `${card.title}, ${card.label}`}>
-            <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>
-            <span className="pilot-booking-bar__when">{booking ? `${shortDate(booking.start)}, ${clock12(booking.start)}` : ''}</span>
-            <span className="pilot-booking-bar__more">{open ? 'Hide' : 'Details'}<CaretDown aria-hidden="true" /></span>
+            {booking ? (
+              <span className="pilot-booking-bar__day" aria-hidden="true">
+                <small>{new Date(booking.start).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })}</small>
+                <b>{new Date(booking.start).getUTCDate()}</b>
+              </span>
+            ) : null}
+            <span className="pilot-booking-bar__text">
+              <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>
+              <span className="pilot-booking-bar__when">{booking ? [clock12(booking.start), ...card.facts.filter((f) => !['When', 'Vendor', 'Return', 'Held until', 'Cancellation'].includes(f.label)).map((f) => factPhrase(f.label, f.value))].join(' · ') : ''}</span>
+            </span>
+            <span className="pilot-booking-bar__chevron" aria-hidden="true"><CaretDown weight="bold" /></span>
           </button>
           {card.actions.includes('pay') && !open ? (
             <button type="button" className="guest-button guest-button--primary pilot-booking-bar__pay" onClick={() => handlers.onPay(bookingId)}>

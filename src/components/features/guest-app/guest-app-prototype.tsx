@@ -1739,6 +1739,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (entry) return stayEntryImage(entry);
     return record ? stayEntryImage({ serviceId: record.serviceId, category: record.categoryId ?? 'services', title: record.title }) : undefined;
   };
+  // Which of the app's categories an engine booking is in: a tour is filed under things to do.
+  const engineCategory = (engineBookingId: string) => {
+    const record = session.serviceBookings.find((service) => service.engineId === engineBookingId);
+    const listingId = hostStore.host?.pilot.bookings().find((b) => b.id === engineBookingId)?.listingId;
+    // The engine's listing is the app's service by id, so the catalogue answers when the record does not say.
+    return record?.categoryId ?? SERVICES.find((service) => service.id === (record?.serviceId ?? listingId))?.categoryId;
+  };
   const cardHandlers = {
     imageFor: engineImage,
     onPay: (bookingId: string, paymentId?: string) => payEngineBooking(bookingId, paymentId),
@@ -5929,6 +5936,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             host={host}
             guestId={guest.guestId}
             desk={{ preview: lastDesk?.body ?? 'Ask the front desk anything about your stay.', fromGuest: lastDesk?.from === 'guest', unread: hasUnreadChat, place: primaryBooking?.property }}
+            imageFor={engineImage}
+            categoryFor={engineCategory}
             onOpenDesk={() => go('chat')}
             onOpenThread={(threadId) => { setSelectedThreadId(threadId); go('booking-thread'); }}
           />
@@ -5946,6 +5955,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             onBack={history.length ? back : () => go('messages')}
             onAskDesk={(text) => { sendChatMessage(`About ${host.pilot.threads('guest', host.pilot.booking(host.pilot.bookings().find((b) => b.threadId === selectedThreadId)?.id ?? '').guestId).find((t) => t.id === selectedThreadId)?.title ?? 'a booking'}: ${text}`); go('chat'); }}
             note={engineNote}
+            categoryFor={engineCategory}
             {...cardHandlers}
           />
         ) : null;

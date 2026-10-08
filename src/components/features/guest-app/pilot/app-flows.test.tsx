@@ -84,3 +84,59 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
     expect(screen.getAllByText(/Nothing was charged/).length).toBeGreaterThan(0);
   });
 });
+
+describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
+  it('reserves a table at a nearby restaurant, free to hold, on a slot still ahead', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="nearby-establishment" initialSession={live} />);
+
+    await user.click(screen.getByRole('button', { name: 'Reserve a table' }));
+    const sheet = screen.getByRole('dialog');
+    // It is 7 PM: nothing earlier today is offered, so the day moves on.
+    expect(within(sheet).queryByRole('button', { name: 'Today' })).toBeNull();
+    await user.click(within(sheet).getByRole('button', { name: 'Reserve table' }));
+
+    expect(screen.getByRole('heading', { name: /Table at Kape Lab Manila/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Reserved/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Bill settled at the restaurant/).length).toBeGreaterThan(0);
+  });
+
+  it('orders from the lobby shop to the room, then collects it when the desk has it ready', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="gifts-souvenirs" initialSession={live} />);
+
+    await user.click(screen.getByRole('button', { name: /Artisan pasalubong box/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Order Artisan pasalubong box' });
+    await user.click(within(sheet).getByRole('button', { name: 'Order and charge ₱850 to room' }));
+
+    expect(screen.getByRole('heading', { level: 1, name: /Artisan pasalubong box/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Confirmed/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Charged to your room/).length).toBeGreaterThan(0);
+
+    await fire(user, /Desk marks Artisan pasalubong box ready/);
+    expect(screen.getByLabelText(/Ready/)).toBeInTheDocument();
+  });
+
+  it('asks a nearby rental shop, and takes the card only once it says yes', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+
+    await openCategory(user, 'Rentals');
+    await user.click(screen.getByRole('button', { name: /City Bike Rentals/ }));
+    await user.click(screen.getByRole('button', { name: /Book with City Bike Rentals/ }));
+    const sheet = screen.getByRole('dialog');
+    await user.click(within(sheet).getByRole('button', { name: /Pay now/ }));
+    await user.click(within(sheet).getByRole('button', { name: 'Send request' }));
+
+    // On the booking, waiting; no gateway yet.
+    expect(screen.getByLabelText(/For confirmation/)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Secure checkout' })).toBeNull();
+
+    await fire(user, /Vendor confirms City Bike Rentals/);
+    await user.click(screen.getByRole('button', { name: /^Pay now/ }));
+    const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
+    await user.click(within(gateway).getByRole('button', { name: /GCash/ }));
+    await user.click(within(gateway).getByRole('button', { name: /^Pay ₱/ }));
+    expect(await screen.findByLabelText(/Confirmed/, {}, { timeout: 4000 })).toBeInTheDocument();
+  });
+});

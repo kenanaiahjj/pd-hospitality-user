@@ -77,9 +77,9 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
     const base = { id: place.id, vendorId, title: place.name, capacity: 8, times: times.length ? times : ['10:00'], freeCancelHours: 2 };
     if (place.categoryId === 'dining') {
       // Partners publish their own tables; the rest are asked for a table.
+      // The slots the table sheet offers are `listingFor(id).times`, so the engine must offer exactly those.
       const own = listingFor(place.id);
-      const fromOwn = own.kind === 'reservation' ? own.times.map(HH) : times;
-      listings.push({ ...base, kind: 'table', confirm: 'instant', unitPrice: 0, times: fromOwn, maxParty: own.maxParty ?? 10, durationMin: 90, capacity: 6, freeCancelHours: Number.POSITIVE_INFINITY, payModes: ['room'] });
+      listings.push({ ...base, kind: 'table', confirm: 'instant', unitPrice: 0, times: own.times.map(HH), maxParty: own.maxParty ?? 10, durationMin: 90, capacity: 6, freeCancelHours: Number.POSITIVE_INFINITY, payModes: ['room'] });
     } else if (place.categoryId === 'rentals') {
       listings.push({ ...base, kind: 'rental', confirm: 'vendor', unitPrice: integration?.amount ?? 0, priceBasis: 'unit', durationMin: 600, returnBy: '20:00', payModes: ['room', 'card'] });
     } else {

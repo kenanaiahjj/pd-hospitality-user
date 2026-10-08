@@ -206,6 +206,8 @@ import { EngineBookingCard } from './pilot/host/booking-card';
 import type { Draft as EngineDraft } from './pilot/types';
 import { applyEngine, engineCancelLine, engineStatusLine } from './pilot/host/project';
 import { buildPilotEvents } from './pilot/host/events';
+import { LobbyShopScreen, type ShopProduct } from './pilot/host/shop';
+import { giftListingId } from './pilot/host/catalog';
 import type { PrototypePage } from './prototype-controls';
 import {
   getPropertyImage,
@@ -280,7 +282,7 @@ import { paymentsSummary, recordPayment, refundBookingItems, refundRemainingLink
 import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
 import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
 import type { AuthMethod, CartLine } from './prototype-model';
-import { EstablishmentChatScreen, GIFT_PRODUCTS, LOBBY_SHOP_NAME, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getRestaurantMenuImages, readChatOrder } from './dining';
+import { GIFT_PRODUCTS, LOBBY_SHOP_NAME, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getRestaurantMenuImages, readChatOrder } from './dining';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
 import './rewards/rewards.css';
@@ -1040,6 +1042,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setPushFocused(false);
     setPassEntranceScreen(null);
     setRoomCancelNotice(null);
+    setEngineNote(null);
     if (isChatScreen(next)) setHasUnreadChat(false);
     setHistory((items) => [...items, activeScreen]);
     setActiveScreen(next);
@@ -1720,124 +1723,139 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setStayDetails(null);
   };
 
-  /* A nearby table is confirmed through the vendor integration; the meal is paid there. */
-  const reserveNearbyTable = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: { day: string; time: string; party: number; requests?: string }) => {
-    const asks = request.requests?.trim();
-    const [hours = 19, minutes = 0] = (() => { const m = request.time.match(/(\d{1,2}):(\d{2})\s*([AP]M)/i); return m ? [(Number(m[1]) % 12) + (m[3]!.toUpperCase() === 'PM' ? 12 : 0), Number(m[2])] : [19, 0]; })();
-    const table: ServiceBooking = {
-      id: `service-table-${place.id}-${request.day}-${hours}${minutes}`,
-      bookingId: contextBooking.id,
-      title: `Table at ${place.name}`,
-      scheduledFor: `${formatServiceDay(request.day).long} · ${request.time}`,
-      scheduledDate: request.day,
-      scheduledHour: hours,
-      bookedAt: PROTOTYPE_TODAY,
-      // Holding a table is free; the meal is paid at the venue, never to the room.
-      amount: '',
-      status: 'confirmed',
-      paymentStatus: 'pay-at-provider',
-      categoryId: 'dining',
-      provider: place.name,
-      // The title names the venue; above it, only where it is.
-      place: place.name,
-      placeDetail: place.address,
-      partySize: request.party,
-      summary: `${request.time} · ${request.party} ${request.party === 1 ? 'guest' : 'guests'} · ${place.type}`,
-      facts: [
-        { label: 'Guests', value: `${request.party}` },
-        ...(asks ? [{ label: 'Requests', value: asks }] : []),
-        { label: 'Status', value: `Confirmed by ${place.name}` },
-      ],
-    };
-    setSession((current) => ({ ...current, serviceBookings: [table, ...current.serviceBookings.filter((item) => item.id !== table.id)] }));
-    notifyGuestRequest(
-      table.id,
-      'Table reserved',
-      `${place.name} · ${request.time}`,
-    );
-    setSelectedStayEntryId(table.id);
-    go('stay-entry');
-  };
-
-  const bookNearbyPlace = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: NearbyBookingRequest) => {
-    const quote = place.paymentIntegration;
-    const amount = quote
-      ? quote.amount * (quote.basis === 'guest' ? request.party : quote.basis === 'unit' ? request.quantity ?? 1 : 1)
-      : 0;
-    const payNowMethod = request.paymentMethod && request.paymentMethod !== 'room' ? request.paymentMethod : undefined;
-    const paidNow = Boolean(payNowMethod && quote && amount > 0);
-    const chargedToRoom = Boolean(request.paymentMethod === 'room' && quote && amount > 0);
-    const { hour, minute } = parseClockTime(request.time);
-    const id = 'service-nearby-' + place.id + '-' + request.day + '-' + hour + minute;
-    const existing = session.serviceBookings.find((item) => item.id === id && item.status === 'confirmed');
-    if (existing) {
-      setSelectedStayEntryId(existing.id);
+  /*
+    Nearby places, through the engine like everything else. A table is free to
+    hold and the meal is paid there. A booking is the vendor's to confirm where
+    it is a rental or a tour; where Cabana takes the money, the room or the
+    card is decided by the engine, and a card is taken once the slot is held
+    (or the vendor has said yes), never before.
+  */
+  const askEngineForNearby = (
+    place: (typeof NEARBY_ESTABLISHMENTS)[number],
+    request: { day: string; time: string; party: number; requests?: string; quantity?: number; paymentMethod?: NearbyBookingRequest['paymentMethod'] },
+    shape: { id: string; title: string; table: boolean },
+  ) => {
+    const host = hostStore.host;
+    const stay = host?.guestOf(contextBooking.id);
+    if (!host || !stay) {
+      setEngineNote({ tone: 'warning', text: 'Booking is not available right now.' });
+      return;
+    }
+    const known = session.serviceBookings.find((item) => item.id === shape.id && item.engineId && item.status !== 'cancelled');
+    if (known) {
+      setSelectedStayEntryId(known.id);
       go('stay-entry');
       return;
     }
     const rentals = place.categoryId === 'rentals';
-    const booking: ServiceBooking = {
-      id,
+    const mode = shape.table ? undefined : request.paymentMethod === 'room' ? 'room' : request.paymentMethod === 'pay-now' ? 'card' : undefined;
+    const draft: EngineDraft = {
+      listingId: place.id,
+      date: request.day,
+      time: toClock24(request.time),
+      qty: rentals ? request.quantity ?? 1 : request.party,
+      days: rentals ? 1 : undefined,
+      payMode: mode,
+      note: request.requests?.trim() || undefined,
+      origin: 'app',
+    };
+    const result = host.call<{ ok: boolean; message?: string; bookingId: string }>('guest.request', stay.guestId, draft);
+    if (!result.ok) {
+      setEngineNote({ tone: 'warning', text: result.message ?? 'That did not go through.' });
+      return;
+    }
+    const { hour } = parseClockTime(request.time);
+    const engineBooking = host.pilot.booking(result.bookingId);
+    const guests = `${request.party} ${request.party === 1 ? 'guest' : 'guests'}`;
+    const units = `${request.quantity ?? 1} ${(request.quantity ?? 1) === 1 ? 'rental' : 'rentals'}`;
+    const record: ServiceBooking = {
+      id: shape.id,
       bookingId: contextBooking.id,
-      title: place.type + ' at ' + place.name,
-      scheduledFor: formatServiceDay(request.day).long + ' · ' + request.time,
+      engineId: result.bookingId,
+      title: shape.title,
+      scheduledFor: `${formatServiceDay(request.day).long} · ${request.time}`,
       scheduledDate: request.day,
       scheduledHour: hour,
       bookedAt: PROTOTYPE_TODAY,
-      ...(chargedToRoom ? { roomChargePostedAt: PROTOTYPE_TODAY } : {}),
-      amount: paidNow || chargedToRoom ? formatPesoAmount(amount) : '',
+      amount: shape.table ? '' : engineBooking.amount ? formatPesoAmount(engineBooking.amount) : '',
       status: 'confirmed',
       categoryId: place.categoryId === 'gifts' ? 'services' : place.categoryId,
       provider: place.name,
+      // The title names the venue; above it, only where it is.
       place: place.name,
       placeDetail: place.address,
       ...(rentals ? { rentalQuantity: request.quantity ?? 1 } : { partySize: request.party }),
-      summary: request.time + ' · ' + (rentals
-        ? (request.quantity ?? 1) + ((request.quantity ?? 1) === 1 ? ' rental' : ' rentals')
-        : request.party + (request.party === 1 ? ' guest' : ' guests')),
-      ...(paidNow && payNowMethod
-        ? { paymentStatus: 'paid' as const, paymentMethod: payNowMethod }
-        : chargedToRoom
-          ? { paymentStatus: 'charged-to-room' as const, paymentMethod: 'room' as const }
-          : { paymentStatus: 'pay-at-provider' as const }),
+      summary: shape.table ? `${request.time} · ${guests} · ${place.type}` : `${request.time} · ${rentals ? units : guests}`,
       facts: [
         { label: 'Provider', value: place.name },
         ...(rentals ? [{ label: 'Rentals', value: String(request.quantity ?? 1) }] : [{ label: 'Guests', value: String(request.party) }]),
-        ...(request.requests ? [{ label: 'Note', value: request.requests }] : []),
-        { label: 'Payment', value: paidNow ? 'Paid directly to ' + place.name : chargedToRoom ? 'Charged to Room ' + contextBooking.roomNumber : 'Pay the provider directly · no room charge' },
-        { label: 'Status', value: 'Confirmed by ' + place.name },
+        ...(request.requests?.trim() ? [{ label: 'Requests', value: request.requests.trim() }] : []),
       ],
     };
-    const withBooking = {
-      ...session,
-      serviceBookings: [booking, ...session.serviceBookings.filter((item) => item.id !== booking.id)],
-    };
-    setSession(paidNow && payNowMethod
-      ? recordPayment(withBooking, {
-          id: 'pay-' + booking.id,
-          paidAt: PROTOTYPE_TODAY,
-          kind: 'service',
-          title: booking.title,
-          detail: place.name,
-          amount,
-          method: payNowMethod,
-          bookingId: contextBooking.id,
-          items: [{ id: booking.id, title: booking.title, amount }],
-          refunded: 0,
-        })
-      : withBooking);
+    setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings.filter((item) => item.id !== record.id)] }));
+    const waits = engineBooking.status === 'requested';
     notifyGuestRequest(
-      booking.id,
-      paidNow ? 'Booking paid and confirmed' : 'Booking confirmed',
-      paidNow
-        ? formatPesoAmount(amount) + ' paid to ' + place.name
-        : chargedToRoom
-          ? formatPesoAmount(amount) + ` added to Room ${contextBooking.roomNumber}.`
-          : 'Pay ' + place.name + ' directly when you arrive.',
+      record.id,
+      shape.table ? 'Table reserved' : waits ? `${place.name} asked` : 'Booking confirmed',
+      shape.table ? `${place.name} · ${request.time}` : waits ? 'Nothing is charged until they confirm.' : record.amount ? `${record.amount} · ${place.name}` : `Pay ${place.name} directly when you arrive.`,
       { screen: 'stay-entry' },
     );
-    setSelectedStayEntryId(booking.id);
+    setEngineNote(null);
+    setSelectedStayEntryId(record.id);
+    if (engineBooking.status === 'awaiting-payment') payEngineBooking(result.bookingId);
     go('stay-entry');
+  };
+
+  /* The lobby shop: each product is something the engine sells to the room and holds at the desk. */
+  const shopDraft = (product: ShopProduct, quantity: number, note?: string): EngineDraft => ({
+    listingId: giftListingId(product.name) ?? '',
+    date: PROTOTYPE_TODAY,
+    qty: quantity,
+    payMode: 'room',
+    note: note?.trim() || undefined,
+    origin: 'app',
+  });
+  const orderFromShop = (product: ShopProduct, quantity: number, note: string): string | void => {
+    const host = hostStore.host;
+    const stay = host?.guestOf(contextBooking.id);
+    if (!host || !stay) return 'The shop is not available right now.';
+    const result = host.call<{ ok: boolean; message?: string; bookingId: string }>('guest.request', stay.guestId, shopDraft(product, quantity, note));
+    if (!result.ok) return result.message ?? 'That did not go through.';
+    const engineBooking = host.pilot.booking(result.bookingId);
+    const id = `service-gift-${result.bookingId}`;
+    const unit = parsePesoAmount(product.price);
+    const record: ServiceBooking = {
+      id,
+      bookingId: contextBooking.id,
+      engineId: result.bookingId,
+      title: product.name,
+      scheduledFor: `${formatServiceDay(PROTOTYPE_TODAY).long} · ready in about 30 minutes`,
+      scheduledDate: PROTOTYPE_TODAY,
+      scheduledHour: new Date(engineBooking.start).getUTCHours(),
+      bookedAt: PROTOTYPE_TODAY,
+      amount: formatPesoAmount(engineBooking.amount),
+      status: 'confirmed',
+      categoryId: 'services',
+      provider: LOBBY_SHOP_NAME,
+      summary: `${quantity} × ${product.name} · collect at the front desk`,
+      items: [{ id: `${id}-1`, name: product.name, unitPrice: formatPesoAmount(unit), quantity }],
+      ...(note.trim() ? { facts: noteFact(note) } : {}),
+    };
+    setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings] }));
+    notifyGuestRequest(id, engineBooking.status === 'needs-approval' ? 'Waiting for the front desk' : 'Order placed', `${product.name} · ${record.amount}`, { screen: 'stay-entry' });
+    setEngineNote(null);
+    setSelectedStayEntryId(id);
+    go('stay-entry');
+  };
+
+  const reserveNearbyTable = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: { day: string; time: string; party: number; requests?: string }) => {
+    const { hour, minute } = parseClockTime(request.time);
+    askEngineForNearby(place, request, { id: `service-table-${place.id}-${request.day}-${hour}${minute}`, title: `Table at ${place.name}`, table: true });
+  };
+
+  const bookNearbyPlace = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: NearbyBookingRequest) => {
+    const { hour, minute } = parseClockTime(request.time);
+    askEngineForNearby(place, request, { id: `service-nearby-${place.id}-${request.day}-${hour}${minute}`, title: `${place.type} at ${place.name}`, table: false });
   };
 
   const simulateUpgradeApproved = () => {
@@ -2422,8 +2440,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (result.outcome === 'failed') return result.triesLeft ? `The payment failed. ${result.triesLeft} ${result.triesLeft === 1 ? 'try' : 'tries'} left.` : 'The payment failed three times, so the slot was released.';
     if (result.outcome === 'abandoned') return 'The checkout did not finish. Nothing was charged yet; try again.';
     setEnginePay(null);
+    // Stay where the guest paid from; only a payment started elsewhere sends them to the booking.
+    const paidFor = session.serviceBookings.find((service) => service.engineId === eb.id);
+    if (paidFor) {
+      setLastServiceBookingId(paidFor.id);
+      setSelectedStayEntryId(paidFor.id);
+    }
     setEngineNote({ tone: 'positive', text: 'Paid. Your booking is confirmed.' });
-    goReplacing('booking-confirmation');
+    if (!['booking-confirmation', 'stay-entry'].includes(activeScreenRef.current)) go('stay-entry');
   };
 
   const submitEngineBooking = (payingNow: boolean) => {
@@ -4627,7 +4651,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'gifts-souvenirs':
-        return <EstablishmentChatScreen kind="gift" booking={contextBooking} online={online} onChat={(message) => { setChatOrderVenue(LOBBY_SHOP_NAME); setChatDraft(message); go('chat'); }} />;
+        return (
+          <LobbyShopScreen
+            quote={(product, quantity) => {
+              const host = hostStore.host;
+              const stay = host?.guestOf(contextBooking.id);
+              return host && stay ? host.pilot.guest(stay.guestId).quote(shopDraft(product, quantity)) : { ok: false, reason: 'unavailable', message: 'The shop is not available right now.' };
+            }}
+            onOrder={orderFromShop}
+            notice={engineNote?.tone === 'warning' ? engineNote.text : undefined}
+          />
+        );
 
       case 'nearby-recommendations':
         if (emptyCatalogue) {
@@ -4663,6 +4697,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             roomNumber={contextBooking.roomNumber}
             onReserveTable={(request) => reserveNearbyTable(establishment, request)}
             partnerTables={establishment.bookingIntegration ? listingFor(establishment.id) : undefined}
+            slotAhead={(day, time) => {
+              const hostNow = hostStore.host?.now();
+              return hostNow === undefined || hostClock(day, 0) + (parseClockTime(time).hour * 60 + parseClockTime(time).minute) * 60_000 > hostNow;
+            }}
+            waitsForVendor={hostStore.host?.pilot.listings().find((entry) => entry.id === establishment.id)?.confirm === 'vendor'}
+            notice={engineNote?.tone === 'warning' ? engineNote.text : undefined}
           />
         ) : null;
       }

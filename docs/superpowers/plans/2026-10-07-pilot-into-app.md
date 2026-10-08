@@ -26,8 +26,8 @@
 |---|---|---|---|---|---|
 | 1 | Engine: injectable catalogue, per-booking price, free items, pay modes, stay sync | ✅ Complete | 2026-10-07 | 2026-10-07 | eb7ebff |
 | 2 | Host: catalogue adapter, replay log, clock bridge, projection onto `ServiceBooking` | ✅ Complete | 2026-10-07 | 2026-10-07 | see git log |
-| 3 | Book: service/rental/table form and pay step through the engine | 🔄 In progress | 2026-10-07 | — | — |
-| 4 | Book: nearby places and the lobby shop (goods) through the engine | ⬜ Not started | — | — | — |
+| 3 | Book: service/rental/table form and pay step through the engine | ✅ Complete | 2026-10-07 | 2026-10-07 | 1e503e1 |
+| 4 | Book: nearby places and the lobby shop (goods) through the engine | ✅ Complete | 2026-10-08 | 2026-10-08 | see git log |
 | 5 | Chat: Messages list, three-way booking thread, cards in the desk chat | ⬜ Not started | — | — | — |
 | 6 | After booking: receipt, cancel, bell, bill and Payments read the engine | ⬜ Not started | — | — | — |
 | 7 | Controls: vendor, desk, fault and clock triggers in the real controls; remove the overlay | ⬜ Not started | — | — | — |

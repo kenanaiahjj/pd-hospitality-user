@@ -3,7 +3,7 @@
 import { Notice, ServiceImage, SummaryRow, TextButton } from './guest-ui';
 import { slug } from './prototype-controls';
 import type { Booking, RestaurantVenue, ServiceBooking } from './prototype-model';
-import { PROTOTYPE_TODAY, RESTAURANTS, describeStayStatus, formatPesoAmount, getRoomCharges, parsePesoAmount } from './prototype-model';
+import { PROTOTYPE_TODAY, RESTAURANTS, formatPesoAmount, getRoomCharges, parsePesoAmount } from './prototype-model';
 import { getServiceImageKey } from './service-images';
 import { ArrowLeft, ArrowRight, Bell, CalendarPlus, CaretRight, ForkKnife, House, MapPin, Sparkle, Storefront, WifiSlash, X } from '@phosphor-icons/react';
 import type { ReactNode, TouchEvent as ReactTouchEvent } from 'react';
@@ -95,27 +95,6 @@ export function ServiceDetail({ kind, booking, online, onBook, onChat }: { kind:
   const vendor = kind === 'vendor';
   const roomLabel = booking.roomNumber ? `room ${booking.roomNumber}` : 'your assigned room';
   return <div className="guest-stack guest-service-detail"><ServiceImage imageKey={vendor ? 'spa' : 'dining'} itemId={vendor ? 'spa' : 'dining'} variant="card" tone={vendor ? 'sage' : 'sand'} icon={vendor ? <Sparkle size={38} /> : <ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{vendor ? 'Hilom signature massage' : 'In-room dining'}</h1><p>{vendor ? 'A 90-minute traditional Filipino therapeutic massage, delivered in the on-property spa.' : `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`}</p></div><div className="guest-summary"><SummaryRow label="Price" value={vendor ? '₱2,400' : 'From ₱450'} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Provider" value={vendor ? 'Run by Hilom Spa & Wellness' : 'Operated by the hotel'} /><SummaryRow label="Location" value={vendor ? 'Spa & wellness · The Henry Manila' : booking.property} /><SummaryRow label="Operating hours" value={vendor ? 'Daily · 9:00 AM–10:00 PM' : 'Daily · 6:30 AM–11:00 PM'} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Cancellation" value={vendor ? 'Up to 24 hours before' : 'Up to 2 hours before'} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" onClick={onBook}>{online ? (vendor ? 'Choose a time' : 'View menu and order') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}</div>;
-}
-
-export function EstablishmentChatScreen({ kind, venue, booking, online, onChat }: { kind: 'restaurant' | 'gift'; venue?: RestaurantVenue; booking: Booking; online: boolean; onChat: (message: string) => void }) {
-  const restaurant = kind === 'restaurant';
-  const checkedOut = describeStayStatus(booking).status === 'checked-out';
-  const name = venue?.name ?? LOBBY_SHOP_NAME;
-  const provider = venue?.operator === 'Hotel operated' ? 'Operated by the hotel' : `Operated by ${venue?.operator ?? 'the hotel'}`;
-  const location = venue?.location ?? `${booking.property} · Hotel lobby`;
-  const hours = venue?.hours ?? 'Daily · 8:00 AM–10:00 PM';
-  const description = venue?.description ?? 'Pasalubong, keepsakes, and thoughtful gifts selected for your stay.';
-  const roomFolio = booking.roomNumber ? `Room ${booking.roomNumber}` : 'your room folio';
-  const instructions = restaurant
-    ? `Open the menu from Explore, then send the item names and quantities here. The front desk will confirm availability and the total, then add the approved order to ${roomFolio} for settlement at checkout.`
-    : checkedOut
-      ? 'Your stay is complete, so this purchase won’t go on the closed room folio. Ask the front desk what is in stock; they’ll confirm the total, take payment there, and add the purchase to your stay’s total charges.'
-      : `Ask the front desk for the current product list, prices, and delivery or pickup options. Once you confirm a purchase, its total is added to ${roomFolio} and settled at checkout.`;
-  const message = restaurant
-    ? `Hi! I’d like to order from ${name}. Please confirm availability and the total before charging ${roomFolio}.`
-    : `Hi! I’d like to see the available products from ${name}.`;
-
-  return <div className="guest-stack guest-establishment-chat-screen">{venue ? <ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<Storefront size={38} />} decorative /> : <div className="guest-establishment-chat-screen__cover"><Image src={GIFT_PRODUCTS[0].image} alt="" fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></div>}<div className="guest-page-title"><h1>{name}</h1><p>{description}</p><div className="guest-establishment-chat-screen__details"><span>{provider}</span><span>{location}</span><span>{hours}</span><span>{online ? 'Available · Confirm with the front desk' : 'Availability shown when connected'}</span></div></div><div className="guest-establishment-chat-screen__instructions"><b>{checkedOut && !restaurant ? 'Pay at the front desk' : 'How ordering works'}</b><p>{instructions}</p></div><button className="guest-button guest-button--primary" type="button" onClick={() => onChat(message)}>{restaurant ? 'Ask the front desk' : checkedOut ? 'Ask about products' : 'Ask the front desk for products'}<ArrowRight /></button></div>;
 }
 
 export const RESTAURANT_MENU_IMAGE_PAGES = [

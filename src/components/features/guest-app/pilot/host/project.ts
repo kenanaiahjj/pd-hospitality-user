@@ -1,4 +1,5 @@
 import { formatPesoAmount, formatServiceDay, PROTOTYPE_TODAY, type GuestSession, type PaymentRecord, type ServiceBooking } from '../../prototype-model';
+import { PAYMENT_METHOD_NAMES } from '../../payments-model';
 import { returnPoints } from '../../rewards/points-model';
 import type { Booking as EngineBooking, BookingStatus, Payment, Pilot } from '../types';
 import type { Host } from './host';
@@ -88,7 +89,11 @@ function present(pilot: Pilot, host: Host, eb: EngineBooking, appBookingId: stri
   const day = isoOf(eb.start);
   const when = `${formatServiceDay(day).long} · ${time12(eb.start)}`;
   const statusFact = { label: 'Status', value: engineStatusLine(eb) };
-  const facts = [...(existing?.facts ?? []).filter((fact) => fact.label !== 'Status'), statusFact];
+  const paymentLine = paymentStatus === 'paid' ? `Paid · ${PAYMENT_METHOD_NAMES[(method ?? 'card') as 'card' | 'gcash' | 'maya']}`
+    : paymentStatus === 'charged-to-room' ? 'Charged to your room'
+    : paymentStatus === 'refunded' ? 'Refunded'
+    : undefined;
+  const facts = [...(existing?.facts ?? []).filter((fact) => fact.label !== 'Status' && fact.label !== 'Payment'), ...(paymentLine ? [{ label: 'Payment', value: paymentLine }] : []), statusFact];
 
   const unit = eb.kind === 'rental' ? (eb.qty === 1 ? 'bike' : 'bikes') : eb.kind === 'goods' ? (eb.qty === 1 ? 'item' : 'items') : eb.kind === 'table' ? 'guests' : 'guests';
   const summary = existing?.summary

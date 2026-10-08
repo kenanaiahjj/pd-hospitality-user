@@ -8,7 +8,8 @@ import { getPropertyImage } from './service-images';
 import { Button } from '@/components/ui';
 import { ArrowLeft, ArrowRight, Bell, Check, Clock, Copy, Gift, House, MapPin, Minus, NavigationArrow, PersonSimpleWalk, Phone, Plus, Storefront, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
-import { GatewayCheckout, type GatewayMethod } from './gateway-checkout';
+import { type GatewayMethod } from './gateway-checkout';
+import { Notice } from './guest-ui';
 import { formatPesoAmount } from './prototype-model';
 
 import Image from 'next/image';
@@ -212,7 +213,8 @@ export function PlaceLocationCard({ establishment, city, property, now }: { esta
 }
 
 export type TableRequest = { day: string; time: string; party: number; requests?: string };
-export type NearbyBookingRequest = TableRequest & { quantity?: number; paymentMethod?: GatewayMethod | 'room' };
+/** `pay-now` is the card or wallet, chosen at the gateway once the booking is held (or once the vendor has said yes). */
+export type NearbyBookingRequest = TableRequest & { quantity?: number; paymentMethod?: GatewayMethod | 'room' | 'pay-now' };
 
 /** Times a table can be asked for, within the place's opening hours when they can be read. */
 const TABLE_TIMES = ['8:00 AM', '10:00 AM', '12:00 PM', '1:30 PM', '3:00 PM', '6:00 PM', '7:30 PM', '9:00 PM'];
@@ -231,19 +233,25 @@ export function tableTimes(hours: string): string[] {
 }
 
 /* Reserve a table through the restaurant's booking integration. */
-function TableRequestSheet({ establishment, days, defaultParty, dayLabel, times, maxParty, onClose, onSubmit }: {
+function TableRequestSheet({ establishment, days, defaultParty, dayLabel, times, maxParty, isAhead, onClose, onSubmit }: {
   establishment: NearbyEstablishment;
   days: string[];
   defaultParty: number;
   dayLabel: (day: string) => string;
   times: readonly string[];
   maxParty: number;
+  /** Whether a slot on a day is still to come. A table earlier today cannot be asked for. */
+  isAhead?: (day: string, time: string) => boolean;
   onClose: () => void;
   onSubmit: (request: TableRequest) => void;
 }) {
-  const availableTimes = [...times];
-  const [day, setDay] = useState(days[0] ?? '');
-  const [time, setTime] = useState(availableTimes.find((option) => (hourOf(option) ?? 0) >= 18) ?? availableTimes[0] ?? '');
+  const ahead = isAhead ?? (() => true);
+  const openDays = days.filter((option) => times.some((slot) => ahead(option, slot)));
+  const [dayChoice, setDay] = useState(openDays[0] ?? '');
+  const day = openDays.includes(dayChoice) ? dayChoice : openDays[0] ?? '';
+  const availableTimes = times.filter((slot) => ahead(day, slot));
+  const [timeChoice, setTime] = useState('');
+  const time = availableTimes.includes(timeChoice) ? timeChoice : availableTimes.find((option) => (hourOf(option) ?? 0) >= 18) ?? availableTimes[0] ?? '';
   const [party, setParty] = useState(Math.min(maxParty, Math.max(1, defaultParty)));
   const [requests, setRequests] = useState('');
   return (
@@ -255,7 +263,7 @@ function TableRequestSheet({ establishment, days, defaultParty, dayLabel, times,
         </header>
         <div className="guest-table-request__body">
           <fieldset><legend>Day</legend>
-            <div className="guest-table-request__chips">{days.map((option) => <button key={option} type="button" aria-pressed={day === option} onClick={() => setDay(option)}>{dayLabel(option)}</button>)}</div>
+            <div className="guest-table-request__chips">{openDays.map((option) => <button key={option} type="button" aria-pressed={day === option} onClick={() => setDay(option)}>{dayLabel(option)}</button>)}</div>
           </fieldset>
           <fieldset><legend>Time</legend>
             <div className="guest-table-request__chips">{availableTimes.map((option) => <button key={option} type="button" aria-pressed={time === option} onClick={() => setTime(option)}>{option}</button>)}</div>
@@ -281,44 +289,42 @@ function TableRequestSheet({ establishment, days, defaultParty, dayLabel, times,
   );
 }
 
-function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomChargeAvailable, roomNumber, onClose, onSubmit }: {
+function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomChargeAvailable, roomNumber, isAhead, waitsForVendor, onClose, onSubmit }: {
   establishment: NearbyEstablishment;
   days: string[];
   defaultParty: number;
   dayLabel: (day: string) => string;
   roomChargeAvailable: boolean;
   roomNumber?: string;
+  isAhead?: (day: string, time: string) => boolean;
+  /** The vendor says yes before anything is charged. */
+  waitsForVendor?: boolean;
   onClose: () => void;
   onSubmit: (request: NearbyBookingRequest) => void;
 }) {
-  const times = tableTimes(establishment.hours);
+  const allTimes = tableTimes(establishment.hours);
   const payment = establishment.paymentIntegration;
-  const [day, setDay] = useState(days[0] ?? '');
-  const [time, setTime] = useState(times[0] ?? '');
+  const ahead = isAhead ?? (() => true);
+  const openDays = days.filter((option) => allTimes.some((slot) => ahead(option, slot)));
+  const [dayChoice, setDay] = useState(openDays[0] ?? '');
+  const day = openDays.includes(dayChoice) ? dayChoice : openDays[0] ?? '';
+  const times = allTimes.filter((slot) => ahead(day, slot));
+  const [timeChoice, setTime] = useState('');
+  const time = times.includes(timeChoice) ? timeChoice : times[0] ?? '';
   const [party, setParty] = useState(Math.min(10, Math.max(1, defaultParty)));
   const [quantity, setQuantity] = useState(1);
   const [requests, setRequests] = useState('');
-  const [checkoutRequest, setCheckoutRequest] = useState<NearbyBookingRequest | null>(null);
   const [paymentChoice, setPaymentChoice] = useState<'room' | 'pay-now'>(roomChargeAvailable ? 'room' : 'pay-now');
   const rentals = establishment.categoryId === 'rentals';
   const title = rentals ? 'Book a rental' : 'Book ' + establishment.type.toLowerCase();
   const amount = payment ? payment.amount * (payment.basis === 'guest' ? party : payment.basis === 'unit' ? quantity : 1) : 0;
   const submit = () => {
     const request = { day, time, party, ...(rentals ? { quantity } : {}), requests: requests.trim() || undefined };
+    // The card is taken after the booking is held (or the vendor has said yes), never before.
     if (payment && amount > 0 && roomChargeAvailable && paymentChoice === 'room') onSubmit({ ...request, paymentMethod: 'room' });
-    else if (payment && amount > 0) setCheckoutRequest(request);
+    else if (payment && amount > 0) onSubmit({ ...request, paymentMethod: 'pay-now' });
     else onSubmit(request);
   };
-
-  if (checkoutRequest && payment) {
-    return <GatewayCheckout
-      merchant={establishment.name}
-      amount={formatPesoAmount(amount)}
-      item={title + ' · ' + dayLabel(checkoutRequest.day) + ' · ' + checkoutRequest.time}
-      onPaid={(paymentMethod) => onSubmit({ ...checkoutRequest, paymentMethod })}
-      onClose={() => setCheckoutRequest(null)}
-    />;
-  }
 
   return (
     <div className="guest-sheet-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -329,7 +335,7 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
         </header>
         <div className="guest-table-request__body">
           <fieldset><legend>Date</legend>
-            <div className="guest-table-request__chips">{days.map((option) => <button key={option} type="button" aria-pressed={day === option} onClick={() => setDay(option)}>{dayLabel(option)}</button>)}</div>
+            <div className="guest-table-request__chips">{openDays.map((option) => <button key={option} type="button" aria-pressed={day === option} onClick={() => setDay(option)}>{dayLabel(option)}</button>)}</div>
           </fieldset>
           <fieldset><legend>Time</legend>
             <div className="guest-table-request__chips">{times.map((option) => <button key={option} type="button" aria-pressed={time === option} onClick={() => setTime(option)}>{option}</button>)}</div>
@@ -361,7 +367,9 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
               </div>
             </fieldset>
           ) : null}
-          <p className="guest-table-request__note">{payment
+          <p className="guest-table-request__note">{waitsForVendor
+            ? `${establishment.name} confirms first. You are charged only once they do, and you can withdraw until then.`
+            : payment
             ? roomChargeAvailable && paymentChoice === 'room'
               ? `The ${formatPesoAmount(amount)} vendor charge goes on your room bill.`
               : roomChargeAvailable
@@ -370,18 +378,20 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
             : establishment.name + ' confirms the booking. Pay the vendor directly; nothing is charged to a room.'}</p>
         </div>
         <Button className="guest-button guest-button--primary" type="button" disabled={!day || !time} onClick={submit}>
-          {payment
-            ? roomChargeAvailable && paymentChoice === 'room'
-              ? 'Confirm and charge ' + formatPesoAmount(amount) + ' to room'
-              : 'Continue to pay ' + formatPesoAmount(amount)
-            : 'Confirm booking'}<ArrowRight aria-hidden="true" />
+          {waitsForVendor
+            ? 'Send request'
+            : payment
+              ? roomChargeAvailable && paymentChoice === 'room'
+                ? 'Confirm and charge ' + formatPesoAmount(amount) + ' to room'
+                : 'Continue to pay ' + formatPesoAmount(amount)
+              : 'Confirm booking'}<ArrowRight aria-hidden="true" />
         </Button>
       </section>
     </div>
   );
 }
 
-export function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide, onReserveTable, onBookNearby, partnerTables, reserveDays = [], dayLabel = (day) => day, defaultParty = 2, roomChargeAvailable = false, roomNumber }: {
+export function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide, onReserveTable, onBookNearby, partnerTables, reserveDays = [], dayLabel = (day) => day, defaultParty = 2, roomChargeAvailable = false, roomNumber, slotAhead, waitsForVendor, notice }: {
   establishment: NearbyEstablishment;
   city: string;
   property: string;
@@ -399,6 +409,12 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
   defaultParty?: number;
   roomChargeAvailable?: boolean;
   roomNumber?: string;
+  /** Whether a slot on a day is still to come. */
+  slotAhead?: (day: string, time: string) => boolean;
+  /** A booking here waits for the vendor before anything is charged. */
+  waitsForVendor?: boolean;
+  /** What the engine said about the last try, when it was a no. */
+  notice?: string;
 }) {
   const [reserving, setReserving] = useState(false);
   const [booking, setBooking] = useState(false);
@@ -407,6 +423,7 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
   const bookable = dining && Boolean(onReserveTable) && reserveDays.length > 0;
   const phone = establishment.contact?.replace(/\s/g, '');
   return <div className="guest-stack guest-nearby-detail">
+    {notice ? <Notice tone="warning" title="That did not go through">{notice}</Notice> : null}
     <section className="guest-nearby-detail__hero" aria-label={`${establishment.name} overview`}>
       <Image src={establishment.image} alt="" fill sizes="100vw" priority />
       <div className="guest-nearby-detail__scrim" aria-hidden="true" />
@@ -450,10 +467,10 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
       ) : <a className="guest-button guest-button--primary" href={`tel:${phone}`}><Phone aria-hidden="true" />Contact {establishment.name}</a>}
     </div>
     {reserving && onReserveTable ? (
-      <TableRequestSheet establishment={establishment} days={reserveDays} defaultParty={defaultParty} dayLabel={dayLabel} times={partnerTables?.times ?? tableTimes(establishment.hours)} maxParty={partnerTables?.maxParty ?? 10} onClose={() => setReserving(false)} onSubmit={(request) => { setReserving(false); onReserveTable(request); }} />
+      <TableRequestSheet establishment={establishment} days={reserveDays} defaultParty={defaultParty} dayLabel={dayLabel} times={partnerTables?.times ?? tableTimes(establishment.hours)} maxParty={partnerTables?.maxParty ?? 10} isAhead={slotAhead} onClose={() => setReserving(false)} onSubmit={(request) => { setReserving(false); onReserveTable(request); }} />
     ) : null}
     {booking && onBookNearby ? (
-      <NearbyBookingSheet key={`${roomChargeAvailable}:${roomNumber ?? ''}`} establishment={establishment} days={reserveDays} defaultParty={defaultParty} dayLabel={dayLabel} roomChargeAvailable={roomChargeAvailable} roomNumber={roomNumber} onClose={() => setBooking(false)} onSubmit={(request) => { setBooking(false); onBookNearby(request); }} />
+      <NearbyBookingSheet key={`${roomChargeAvailable}:${roomNumber ?? ''}`} establishment={establishment} days={reserveDays} defaultParty={defaultParty} dayLabel={dayLabel} roomChargeAvailable={roomChargeAvailable} roomNumber={roomNumber} isAhead={slotAhead} waitsForVendor={waitsForVendor} onClose={() => setBooking(false)} onSubmit={(request) => { setBooking(false); onBookNearby(request); }} />
     ) : null}
   </div>;
 }

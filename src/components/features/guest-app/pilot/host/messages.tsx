@@ -1,11 +1,13 @@
 'use client';
 
-import { ArrowLeft, Bicycle, CaretRight, ChatCircleDots, ForkKnife, PushPin, ShoppingBag, Sparkle } from '@phosphor-icons/react';
+import { ArrowLeft, ChatCircleDots, PushPin } from '@phosphor-icons/react';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
-import { EngineBookingCard, type CardHandlers } from './booking-card';
+import type { ServiceImageDefinition } from '../../service-images';
+import { BookingThumb, EngineBookingCard, STATUS_TONE, type CardHandlers } from './booking-card';
 import { engineStatusLine } from './project';
 import type { Host } from './host';
 import '../ui/pilot.css';
@@ -23,59 +25,60 @@ const clock12 = (ms: number) => {
   return `${((h + 11) % 12) + 1}:${String(d.getUTCMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 };
 
-const TONE: Record<string, string> = {
-  'for-confirmation': 'wait',
-  'pay-to-confirm': 'wait',
-  confirmed: 'good',
-  reserved: 'good',
-  ready: 'good',
-  lapsed: 'bad',
-  cancelled: 'bad',
-  'extra-charge': 'wait',
-};
+export type DeskRow = { preview: string; fromGuest: boolean; unread: boolean; /** The hotel the desk answers for. */ place?: string };
 
-export type DeskRow = { preview: string; fromGuest: boolean; unread: boolean };
+const DAY_MS = 86_400_000;
+const dayOf = (ms: number) => Math.floor(ms / DAY_MS);
+const shortDate = (ms: number) => new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
-const KIND_ICON = { rental: Bicycle, service: Sparkle, table: ForkKnife, goods: ShoppingBag } as const;
+/** When the last message came: a time today, "Yesterday", or a date, as a phone's inbox says it. */
+const sentAt = (ms: number, now: number) =>
+  dayOf(ms) === dayOf(now) ? clock12(ms) : dayOf(ms) === dayOf(now) - 1 ? 'Yesterday' : shortDate(ms);
 
-export function MessagesList({ host, guestId, desk, onOpenDesk, onOpenThread }: {
+export function MessagesList({ host, guestId, desk, deskImage, imageFor, onOpenDesk, onOpenThread }: {
   host: Host;
   guestId: string;
   desk: DeskRow;
+  /** The hotel's photograph, for the front desk's row. */
+  deskImage?: ServiceImageDefinition;
+  imageFor?: (bookingId: string) => ServiceImageDefinition | undefined;
   onOpenDesk: () => void;
   onOpenThread: (threadId: string) => void;
 }) {
-  const threads = host.pilot.threads('guest', guestId).filter((thread) => thread.kind === 'booking');
+  // Newest conversation first, as any inbox.
+  const threads = host.pilot.threads('guest', guestId)
+    .filter((thread) => thread.kind === 'booking')
+    .sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0));
   return (
     <div className="guest-stack pilot-messages">
       <div className="guest-page-title"><h1>Messages</h1></div>
 
-      <section aria-label="Front desk">
-        <div className="pilot-group">
-          <button type="button" className={`pilot-row${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
-            <span className="pilot-row__icon" aria-hidden="true"><ChatCircleDots weight="regular" /></span>
-            <span className="pilot-row__body">
-              <b>Front desk <PushPin aria-hidden="true" className="pilot-row__pin" /></b>
-              <span className="pilot-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
+      <div className="pilot-group">
+        <button type="button" className={`pilot-row${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
+          <span className="pilot-thumb pilot-thumb--desk" aria-hidden="true">
+            {deskImage ? <Image src={deskImage.src} alt="" fill sizes="48px" style={{ objectPosition: deskImage.focalPoint }} /> : <ChatCircleDots />}
+          </span>
+          <span className="pilot-row__body">
+            <span className="pilot-row__top">
+              <b>Front desk</b>
+              <PushPin weight="fill" aria-hidden="true" className="pilot-row__pin" />
             </span>
-            <span className="pilot-row__end">
+            <span className="pilot-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
+            <span className="pilot-row__meta">
+              <span>{desk.place ?? 'Your hotel'}</span>
               {desk.unread ? <i className="pilot-dot" aria-hidden="true" /> : null}
-              <CaretRight aria-hidden="true" className="pilot-row__chevron" />
             </span>
-          </button>
-        </div>
-      </section>
+          </span>
+        </button>
+      </div>
 
-      <section aria-label="Bookings">
-        <div className="pilot-section-head">
-          <h2>Bookings</h2>
-          {threads.length ? <span>{threads.length}</span> : null}
-        </div>
+      <section aria-label="Bookings" className="pilot-section">
+        <h2 className="pilot-section__title">Bookings</h2>
         {threads.length === 0 ? (
-          <p className="pilot-empty">A thread appears here as soon as you ask for something, with the front desk and the vendor in it.</p>
+          <p className="pilot-empty">Ask for something in Explore and its conversation starts here, with the front desk and the vendor in it.</p>
         ) : (
           <ul className="pilot-group">
-            {threads.map((thread) => <li key={thread.id}><ThreadRow host={host} thread={thread} onOpen={onOpenThread} /></li>)}
+            {threads.map((thread) => <li key={thread.id}><ThreadRow host={host} thread={thread} imageFor={imageFor} onOpen={onOpenThread} /></li>)}
           </ul>
         )}
       </section>
@@ -83,32 +86,35 @@ export function MessagesList({ host, guestId, desk, onOpenDesk, onOpenThread }: 
   );
 }
 
-function ThreadRow({ host, thread, onOpen }: { host: Host; thread: ThreadSummary; onOpen: (id: string) => void }) {
+function ThreadRow({ host, thread, imageFor, onOpen }: { host: Host; thread: ThreadSummary; imageFor?: (bookingId: string) => ServiceImageDefinition | undefined; onOpen: (id: string) => void }) {
   const last = thread.last;
   const booking = thread.bookingId ? host.pilot.booking(thread.bookingId) : undefined;
-  const Icon = booking ? KIND_ICON[booking.kind] : ChatCircleDots;
   // A card is where things stand, said in words; a note from Cabana is a line of its own; a person's message names who.
   const preview = !last ? 'No messages yet.'
     : last.kind === 'card' ? (booking ? engineStatusLine(booking) : 'Booking card')
     : last.kind === 'system' ? last.text
     : `${last.from.role === 'guest' ? 'You' : last.from.name}: ${last.text}`;
+  const quiet = thread.cardState === 'lapsed' || thread.cardState === 'cancelled';
   return (
     <button
       type="button"
-      className={`pilot-row${thread.unread ? ' is-unread' : ''}`}
+      className={`pilot-row${thread.unread ? ' is-unread' : ''}${quiet ? ' is-quiet' : ''}`}
       onClick={() => onOpen(thread.id)}
       aria-label={`${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}
     >
-      <span className="pilot-row__icon" aria-hidden="true"><Icon weight="regular" /></span>
+      {booking ? <BookingThumb className="pilot-thumb" image={imageFor?.(booking.id)} kind={booking.kind} /> : <span className="pilot-thumb" aria-hidden="true"><ChatCircleDots /></span>}
       <span className="pilot-row__body">
-        <b>{thread.title}</b>
+        <span className="pilot-row__top">
+          <b>{thread.title}</b>
+          {last ? <time>{sentAt(last.at, host.now())}</time> : null}
+        </span>
         <span className="pilot-row__preview">{preview}</span>
-      </span>
-      <span className="pilot-row__end">
-        {thread.cardLabel ? <span className={`pilot-state pilot-state--${TONE[thread.cardState ?? ''] ?? 'wait'}`}>{thread.cardLabel}</span> : null}
         <span className="pilot-row__meta">
+          <span>
+            {thread.cardLabel ? <span className={`pilot-status pilot-status--${STATUS_TONE(thread.cardState, thread.cardLabel)}`}>{thread.cardLabel}</span> : null}
+            {booking ? <span className="pilot-row__when">{shortDate(booking.start)}, {clock12(booking.start)}</span> : null}
+          </span>
           {thread.unread ? <i className="pilot-badge" aria-hidden="true">{thread.unread}</i> : null}
-          <CaretRight aria-hidden="true" className="pilot-row__chevron" />
         </span>
       </span>
     </button>

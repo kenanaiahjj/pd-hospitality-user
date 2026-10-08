@@ -154,7 +154,7 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     await openMessages(user);
     expect(screen.getByRole('heading', { name: 'Messages' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Front desk/ })).toBeInTheDocument();
-    expect(screen.getByText(/A thread appears here as soon as you ask for something/)).toBeInTheDocument();
+    expect(screen.getByText(/its conversation starts here/)).toBeInTheDocument();
 
     await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: 'Home' }));
     await bookRental(user, 'room');

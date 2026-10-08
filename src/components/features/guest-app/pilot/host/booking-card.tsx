@@ -1,8 +1,10 @@
 'use client';
 
 import { Bicycle, ForkKnife, Receipt, ShoppingBag, Sparkle, X } from '@phosphor-icons/react';
+import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
+import type { ServiceImageDefinition } from '../../service-images';
 import type { Card, CardAction } from '../types';
 import type { Host } from './host';
 import '../ui/pilot.css';
@@ -55,9 +57,32 @@ export type CardHandlers = {
   hasMenu?: (listingId: string) => boolean;
   /** What the engine said back: a refusal worth showing, or a plain confirmation. */
   onNote?: (note: { tone: 'warning' | 'positive'; text: string }) => void;
+  /** The booking's photograph, the one My Stay lists it with. */
+  imageFor?: (bookingId: string) => ServiceImageDefinition | undefined;
 };
 
-export function EngineBookingCard({ host, bookingId, paymentId, inThread, ...handlers }: { host: Host; bookingId: string; paymentId?: string; /** In the booking's own thread the guest's note is already a message there. */ inThread?: boolean } & CardHandlers) {
+/** A booking's photograph, or its kind's glyph on a quiet square when it has none. */
+export function BookingThumb({ image, kind, extra, className }: { image?: ServiceImageDefinition; kind: keyof typeof KIND_ICON; extra?: boolean; className: string }) {
+  const Icon = extra ? Receipt : KIND_ICON[kind];
+  return (
+    <span className={className} aria-hidden="true">
+      {image && !extra ? <Image src={image.src} alt="" fill sizes="48px" style={{ objectPosition: image.focalPoint }} /> : <Icon weight="regular" />}
+    </span>
+  );
+}
+
+export const STATUS_TONE = (state: string | undefined, label?: string) =>
+  state === 'extra-charge' && label === 'Removed' ? 'bad' : STATE_TONE[state ?? ''] ?? 'wait';
+
+export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, ...handlers }: {
+  host: Host;
+  bookingId: string;
+  paymentId?: string;
+  /** In the booking's own thread the guest's note is already a message there. */
+  inThread?: boolean;
+  /** On the booking's own page the title and photo are already the page's header. */
+  bare?: boolean;
+} & CardHandlers) {
   const [qr, setQr] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const pilot = host.pilot;
@@ -125,23 +150,26 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, ...han
     }
   };
 
-  const Icon = paymentId ? Receipt : KIND_ICON[booking.kind];
   const vendorName = pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? '';
   // The vendor is the subtitle, so it is not a fact as well. An extra charge says what it was added to.
   const subtitle = paymentId ? `Added to ${listing.title}` : vendorName;
   const facts = card.facts.filter((fact) => fact.label !== 'Vendor');
-  const tone = card.state === 'extra-charge' && card.label === 'Removed' ? 'bad' : STATE_TONE[card.state] ?? 'wait';
+  const tone = STATUS_TONE(card.state, card.label);
+  const status = <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>;
 
   return (
-    <article className={`pilot-card pilot-card--${card.state}`} aria-label={`${card.title}, ${card.label}`}>
-      <header className="pilot-card__head">
-        <span className="pilot-card__icon" aria-hidden="true"><Icon weight="regular" /></span>
-        <div className="pilot-card__title">
-          <h3>{card.title}</h3>
-          {subtitle ? <p>{subtitle}</p> : null}
-        </div>
-        <span className={`pilot-state pilot-state--${tone}`}>{card.label}</span>
-      </header>
+    <article className={`pilot-card pilot-card--${card.state}${bare ? ' pilot-card--bare' : ''}`} aria-label={`${card.title}, ${card.label}`}>
+      {bare ? (
+        <div className="pilot-card__status-row">{status}{subtitle ? <span>{subtitle}</span> : null}</div>
+      ) : (
+        <header className="pilot-card__head">
+          <BookingThumb className="pilot-card__thumb" image={handlers.imageFor?.(bookingId)} kind={booking.kind} extra={Boolean(paymentId)} />
+          <div className="pilot-card__title">
+            <h3>{card.title}</h3>
+            <p>{status}{subtitle ? <span>{subtitle}</span> : null}</p>
+          </div>
+        </header>
+      )}
       {facts.length ? (
         <dl className="pilot-card__facts">
           {facts.map((f) => (
@@ -149,8 +177,8 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, ...han
           ))}
         </dl>
       ) : null}
-      {card.note && !inThread ? <p className="pilot-card__note">“{card.note}”</p> : null}
-      <p className="pilot-card__cost">{card.cost.amount ? <b>{peso(card.cost.amount)}</b> : null}<span>{card.cost.line}</span></p>
+      {card.note && !inThread ? <p className="pilot-card__note">{card.note}</p> : null}
+      <div className="pilot-card__cost"><span>{card.cost.line}</span>{card.cost.amount ? <b>{peso(card.cost.amount)}</b> : null}</div>
       {card.timer ? (
         <div className="pilot-timer">
           <progress max={1} value={card.timer.progress} aria-label="Time left" />

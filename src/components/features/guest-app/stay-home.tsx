@@ -605,6 +605,20 @@ export function AnnouncementsSection({ booking, hour = 19 }: { booking?: Booking
   );
 }
 
+/** A booking's photograph, the same one wherever the booking is listed: My Stay, Messages, its card. */
+export function stayEntryImage(entry: Pick<StayEntry, 'serviceId' | 'category' | 'title'>) {
+  // A food tour is still food: the tour photograph is an island beach.
+  return entry.serviceId && PARTNER_IMAGES[entry.serviceId]
+    ? PARTNER_IMAGES[entry.serviceId]!
+    : entry.serviceId === 'transfer' || entry.serviceId === 'private-car'
+    ? getServiceImage('transfer')
+    : entry.category === 'entertainment' && /food|dining|dinner|breakfast|market/i.test(entry.title)
+      ? CATEGORY_IMAGES.dining!
+      : entry.serviceId === 'film-night' || entry.serviceId === 'luggage'
+        ? getServiceImage('amenity')
+        : CATEGORY_IMAGES[entry.category] ?? CATEGORY_IMAGES.services!;
+}
+
 /**
  * One booking, as a card that names its parent first.
  *
@@ -626,16 +640,7 @@ export function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: 
   const place = homeProperty && entry.parent === homeProperty ? entry.parentDetail : entry.parent;
   // A booking that knows its own best line (a rental's window, a transfer's route) says it.
   const line = [showWhen ? day : undefined, ...(entry.summary ? [entry.summary] : [time, place])].filter(Boolean).join(' · ');
-  // A food tour is still food: the tour photograph is an island beach.
-  const image = entry.serviceId && PARTNER_IMAGES[entry.serviceId]
-    ? PARTNER_IMAGES[entry.serviceId]!
-    : entry.serviceId === 'transfer' || entry.serviceId === 'private-car'
-    ? getServiceImage('transfer')
-    : entry.category === 'entertainment' && /food|dining|dinner|breakfast|market/i.test(entry.title)
-      ? CATEGORY_IMAGES.dining!
-      : entry.serviceId === 'film-night' || entry.serviceId === 'luggage'
-        ? getServiceImage('amenity')
-        : CATEGORY_IMAGES[entry.category] ?? CATEGORY_IMAGES.services!;
+  const image = stayEntryImage(entry);
   const body = (
     <>
       {/* A square photograph, as Places lists a saved place. */}

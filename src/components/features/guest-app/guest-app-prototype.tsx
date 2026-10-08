@@ -272,7 +272,7 @@ import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
 import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen, passportDate } from './pre-arrival';
 import type { PassportFields } from './pre-arrival';
-import { EmptyStayHome, HotelBrowse, RoomReadyNotification, StayCard, StayEntryCard, StayOverviewHome, UpcomingBookingCard, VendorFolioQrDialog, airportFor, countNights, defaultFeedClock, describeParty, formatCheckoutDate, formatStayDateRange, getVendorFolioQrValue, listBookingGuests } from './stay-home';
+import { EmptyStayHome, HotelBrowse, RoomReadyNotification, StayCard, StayEntryCard, StayOverviewHome, stayEntryImage, UpcomingBookingCard, VendorFolioQrDialog, airportFor, countNights, defaultFeedClock, describeParty, formatCheckoutDate, formatStayDateRange, getVendorFolioQrValue, listBookingGuests } from './stay-home';
 import { EARLY_CHECK_IN, earlyCheckInBookingId } from './guest-shared';
 import type { ActiveScreen } from './guest-shared';
 import { NEARBY_ESTABLISHMENTS, NearbyDiscoverySection, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs, type NearbyBookingRequest } from './places';
@@ -1720,7 +1720,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     What a booking's card can do, the same wherever the card is drawn: the
     receipt, the booking's thread, the front desk chat.
   */
+  // An engine booking's photograph is the one My Stay lists it with.
+  const engineImage = (engineBookingId: string) => {
+    const record = session.serviceBookings.find((service) => service.engineId === engineBookingId);
+    if (!record) return undefined;
+    const entry = [...stayEntries.upcoming, ...stayEntries.past].find((item) => item.id === record.id);
+    return stayEntryImage(entry ?? { serviceId: record.serviceId, category: record.categoryId ?? 'services', title: record.title });
+  };
   const cardHandlers = {
+    imageFor: engineImage,
     onPay: (bookingId: string, paymentId?: string) => payEngineBooking(bookingId, paymentId),
     onNote: (note: { tone: 'warning' | 'positive'; text: string }) => setEngineNote(note),
     onOpenDesk: () => go('chat'),
@@ -5639,6 +5647,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const engineEntryBookingId = entryEngineId ?? (entryExtraId && engineEntryCandidate ? engineEntryCandidate.pilot.payments().find((x) => x.id === entryExtraId)?.bookingId : undefined);
         // Only while the engine still holds it: after a reset the record is just a record.
         const engineEntryHost = engineEntryCandidate && engineEntryBookingId && engineEntryCandidate.pilot.bookings().some((b) => b.id === engineEntryBookingId) ? engineEntryCandidate : undefined;
+        // The card already says where it stands and its own facts; the receipt adds only what the card does not.
+        const cardFactLabels = engineEntryHost && engineEntryBookingId
+          ? new Set(['Status', ...(entryExtraId ? engineEntryHost.pilot.extraCard(entryExtraId) : engineEntryHost.pilot.card(engineEntryBookingId)).facts.map((fact) => fact.label)])
+          : undefined;
+        const entryDetails = (entry.facts ?? []).filter((fact) => !cardFactLabels?.has(fact.label));
 
         return (
           <div className="guest-stack">
@@ -5649,16 +5662,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </div>
 
             {engineEntryHost && engineEntryBookingId ? (
-              <EngineBookingCard host={engineEntryHost} bookingId={engineEntryBookingId} paymentId={entryExtraId} {...cardHandlers} />
+              <EngineBookingCard host={engineEntryHost} bookingId={engineEntryBookingId} paymentId={entryExtraId} bare {...cardHandlers} />
             ) : null}
             {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
 
             {/* What differs by kind: a rental's pick-up and return, a tour's meeting point and guide. */}
-            {entry.facts?.length ? (
+            {entryDetails.length ? (
               <section>
                 <SectionHeading title="Details" />
                 <div className="guest-summary">
-                  {entry.facts.map((fact) => <SummaryRow key={fact.label} label={fact.label} value={fact.value} />)}
+                  {entryDetails.map((fact) => <SummaryRow key={fact.label} label={fact.label} value={fact.value} />)}
                 </div>
               </section>
             ) : null}
@@ -5669,7 +5682,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               checking what a charge on their room was for needs the order read
               back to them.
             */}
-            {noCabanaTotal ? null : (
+            {noCabanaTotal || (engineEntryHost && entry.lines.length <= 1) ? null : (
             <>
             <section>
               {entry.lines.length > 1 ? <SectionHeading title="Items" /> : null}
@@ -5893,7 +5906,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <MessagesList
             host={host}
             guestId={guest.guestId}
-            desk={{ preview: lastDesk?.body ?? 'Ask the front desk anything about your stay.', fromGuest: lastDesk?.from === 'guest', unread: hasUnreadChat }}
+            desk={{ preview: lastDesk?.body ?? 'Ask the front desk anything about your stay.', fromGuest: lastDesk?.from === 'guest', unread: hasUnreadChat, place: primaryBooking?.property }}
+            deskImage={primaryBooking ? getPropertyImage(primaryBooking.property) : undefined}
+            imageFor={engineImage}
             onOpenDesk={() => go('chat')}
             onOpenThread={(threadId) => { setSelectedThreadId(threadId); go('booking-thread'); }}
           />

@@ -92,7 +92,7 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
       vendor.push({ icon: <X />, label: `Vendor cancels ${name}`, detail: 'With a reason. Everything is undone and the guest is told by push and text.', onClick: call('vendor.cancel', vendorId, b.id, 'Equipment breakdown') });
     }
     if (b.cancelRequested) {
-      vendor.push({ icon: <Check />, label: `Vendor accepts the cancellation of ${name}`, detail: 'The guest asked inside the free-cancel window.', onClick: call('vendor.answerCancel', vendorId, b.id, true) });
+      vendor.push({ icon: <Check />, label: `Vendor accepts the cancellation of ${name}`, detail: 'The guest asked past the free-cancel time.', onClick: call('vendor.answerCancel', vendorId, b.id, true) });
       vendor.push({ icon: <X />, label: `Vendor declines the cancellation of ${name}`, detail: 'The booking stands and the front desk is asked to step in.', onClick: call('vendor.answerCancel', vendorId, b.id, false) });
     }
     if (LIVE.includes(b.status)) {
@@ -149,6 +149,15 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
   faults.push({ icon: <WarningCircle />, label: `Payment gateway: ${pilot.gateway.mode === 'ok' ? 'working' : pilot.gateway.mode === 'fail' ? 'failing' : 'guest walks away'}`, detail: 'Tap to change: working, failing, walks away. Three tries, then the slot is released.', onClick: call('pilot.setGateway', { mode: pilot.gateway.mode === 'ok' ? 'fail' : pilot.gateway.mode === 'fail' ? 'abandon' : 'ok' }) });
   faults.push({ icon: <WarningCircle />, label: `Gateway loses payment callbacks: ${pilot.gateway.loseCallbacks ? 'on' : 'off'}`, detail: 'The guest pays, the app is not told. The two-minute check finds it.', onClick: call('pilot.setGateway', { loseCallbacks: !pilot.gateway.loseCallbacks }) });
   faults.push({ icon: <WarningCircle />, label: `Gateway fails refunds: ${pilot.gateway.failRefunds ? 'on' : 'off'}`, detail: 'A refund is refused. The guest is told the hotel is handling it; the desk gets a task.', onClick: call('pilot.setGateway', { failRefunds: !pilot.gateway.failRefunds }) });
-  faults.push({ icon: <Bell />, label: `Notifications to the guest: ${pilot.outbox().some((n) => n.to === 'guest' && !n.delivered) ? 'off' : 'on'}`, detail: 'With push off, an SMS follows 10 minutes after anything critical goes unopened.', onClick: call('pilot.setGuestNotifications', guest.guestId, pilot.outbox().some((n) => n.to === 'guest' && !n.delivered)) });
+  const pushOn = host.meta[`push:${guest.guestId}`] !== 'off';
+  faults.push({
+    icon: <Bell />,
+    label: `Notifications to the guest: ${pushOn ? 'on' : 'off'}`,
+    detail: 'With push off, an SMS follows 10 minutes after anything critical goes unopened.',
+    onClick: () => {
+      host.setMeta(`push:${guest.guestId}`, pushOn ? 'off' : 'on');
+      host.call('pilot.setGuestNotifications', guest.guestId, !pushOn);
+    },
+  });
   return { vendor, desk, clock, faults };
 }

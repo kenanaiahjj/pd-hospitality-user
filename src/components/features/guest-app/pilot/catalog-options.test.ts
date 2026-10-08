@@ -14,6 +14,7 @@ const listings: Listing[] = [
   { ...base, id: 'spa', kind: 'service', title: 'Massage', confirm: 'instant', unitPrice: 2400, priceBasis: 'booking', payModes: ['room'] },
   { ...base, id: 'film', kind: 'service', title: 'Film night', confirm: 'instant', unitPrice: 0 },
   { ...base, id: 'bike', vendorId: 'shop', kind: 'rental', title: 'City bicycle', confirm: 'vendor', unitPrice: 350, times: ['10:00', '13:30'], returnBy: '20:00' },
+  { ...base, id: 'charter', kind: 'service', title: 'Charter', confirm: 'instant', unitPrice: 3000, priceBasis: 'unit', payModes: ['room'] },
   { ...base, id: 'gift', kind: 'goods', title: 'Gift', confirm: 'instant', unitPrice: 300, times: [], leadMin: 30 },
 ];
 const start = Date.UTC(2026, 10, 11, 14, 0);
@@ -74,5 +75,47 @@ describe('the engine on the app’s catalogue', () => {
     p.desk.syncStay(p.maria.stayId, { status: 'in-house', room: '304' });
     expect(p.payments(id)[0]?.state).toBe('posted');
     expect(p.foliosTotal(p.maria.stayId)).toBe(2400);
+  });
+
+  it('does not call two rentals at different pickup times the same booking', () => {
+    const p = make();
+    const a = p.guest().request({ listingId: 'bike', date: '2026-11-12', time: '10:00', qty: 1, payMode: 'room' }) as { bookingId: string; duplicate?: boolean };
+    const b = p.guest().request({ listingId: 'bike', date: '2026-11-12', time: '13:30', qty: 1, payMode: 'room' }) as { bookingId: string; duplicate?: boolean };
+    expect(b.duplicate).toBeUndefined();
+    expect(b.bookingId).not.toBe(a.bookingId);
+  });
+
+  it('shows a late cancellation as asked, offers no second ask, and says the free time has passed', () => {
+    const p = make();
+    const id = (p.guest().request({ listingId: 'gift', date: '2026-11-11', qty: 1, payMode: 'room' }) as { bookingId: string }).bookingId;
+    const first = p.guest().cancel(id);
+    expect(first.ok && first.outcome).toBe('requested');
+    expect(p.card(id).actions).not.toContain('cancel');
+    expect(p.card(id).facts.some((f) => f.label === 'Cancellation')).toBe(true);
+    const again = p.guest().cancel(id);
+    expect(again.ok).toBe(false);
+    expect(p.outbox().filter((n) => n.to === 'vendor' && n.topic === 'cancel-requested')).toHaveLength(1);
+  });
+
+  it('carries a stay change through a request still waiting for the vendor', () => {
+    const p = make();
+    const id = (p.guest().request({ listingId: 'bike', date: '2026-11-12', time: '10:00', qty: 1, payMode: 'room' }) as { bookingId: string }).bookingId;
+    p.desk.shortenStay(p.maria.stayId, '2026-11-11');
+    expect(p.booking(id).needsPayChange).toBe(true);
+    expect(p.card(id).actions).toContain('pay-in-full');
+    // The vendor accepts without the guest having chosen: it is paid by card, never put on a room that cannot take it.
+    p.vendor('shop').confirm(id);
+    expect(p.booking(id).status).toBe('awaiting-payment');
+    expect(p.booking(id).payMode).toBe('card');
+    expect(p.payments(id).some((x) => x.mode === 'room')).toBe(false);
+  });
+
+  it('will not turn a room-only vendor into a card payment', () => {
+    const p = make();
+    // Two charters is ₱6,000: over the room limit, so it waits for the desk; the desk says no.
+    const big = p.guest().request({ listingId: 'charter', date: '2026-11-12', time: '10:00', qty: 2, payMode: 'room' }) as { bookingId: string };
+    expect(p.booking(big.bookingId).status).toBe('needs-approval');
+    p.desk.declineApproval(big.bookingId);
+    expect(p.guest().choosePayInFull(big.bookingId).ok).toBe(false);
   });
 });

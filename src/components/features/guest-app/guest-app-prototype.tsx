@@ -290,6 +290,8 @@ import './promoted/promoted.css';
 import './rewards/rewards.css';
 
 const isChatScreen = (screen: ActiveScreen) => screen === 'chat' || screen === 'booking-thread';
+/** Only the front desk's own chat reads the desk's messages: a booking thread is about something else. */
+const readsDeskChat = (screen: ActiveScreen) => screen === 'chat';
 
 type ChatMessage = {
   /** The stay this thread belongs to; stamped when the message is added. */
@@ -1048,7 +1050,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setPassEntranceScreen(null);
     setRoomCancelNotice(null);
     setEngineNote(null);
-    if (isChatScreen(next)) setHasUnreadChat(false);
+    if (readsDeskChat(next)) setHasUnreadChat(false);
     setHistory((items) => [...items, activeScreen]);
     setActiveScreen(next);
     setScrolled(false);
@@ -1061,7 +1063,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     request and invite a second one.
   */
   const goReplacing = (next: ActiveScreen) => {
-    if (isChatScreen(next)) setHasUnreadChat(false);
+    setEngineNote(null);
+    if (readsDeskChat(next)) setHasUnreadChat(false);
     setActiveScreen(next);
     setScrolled(false);
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -1085,7 +1088,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   /** `go` without leaving the current screen in history, for steps Back should skip. */
   const replaceScreen = (next: ActiveScreen) => {
-    if (isChatScreen(next)) setHasUnreadChat(false);
+    if (readsDeskChat(next)) setHasUnreadChat(false);
     setActiveScreen(next);
     setScrolled(false);
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -1093,11 +1096,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
 
   const back = () => {
+    setEngineNote(null);
     setScrolled(false);
     setHistory((items) => {
       const next = [...items];
       const nextScreen = next.pop() ?? 'entry-hub';
-      if (isChatScreen(nextScreen)) setHasUnreadChat(false);
+      if (readsDeskChat(nextScreen)) setHasUnreadChat(false);
       setActiveScreen(nextScreen);
       return next;
     });
@@ -1189,7 +1193,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         ? `Got it: ${order.items.map((item) => `${item.quantity} × ${item.name}`).join(', ')}. We’ve added ${order.total} to ${contextRoom} for settlement at checkout.`
         : deskReply;
       setChatMessages((messages) => [...messages, { from: 'desk', body: reply, state: 'Seen', images: catalogImages }]);
-      if (!isChatScreen(activeScreenRef.current)) setHasUnreadChat(true);
+      if (!readsDeskChat(activeScreenRef.current)) setHasUnreadChat(true);
       setSending(false);
     }, 850);
   };
@@ -1491,7 +1495,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (!JSON.parse(pilotStaysKey).length) return;
     const host = hostStore.ensure(hostClock(PROTOTYPE_TODAY, clockHour));
     for (const stay of JSON.parse(pilotStaysKey) as StayInput[]) host.ensureGuest(stay);
-  }, [hostStore, pilotStaysKey, clockHour]);
+    // `hostVersion` is here so a reset (which empties the engine's guests but leaves the stays the same) registers them again.
+  }, [hostStore, pilotStaysKey, clockHour, hostVersion]);
   /*
     One front-desk thread per stay. Requests made for next month's booking
     were showing up in the chat for this one, room number and all.
@@ -1573,12 +1578,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const notifications = [...chatNotifications, ...engineFeed.map((item) => item.notification), ...getNotifications(session, primaryBooking)];
   const unreadNotifications = notifications.filter((item) => !seenNotificationIds.includes(item.id)).length;
 
+  /* Seen on the phone, so the engine will not text about it ten minutes on. */
+  const readEngineNews = (items: typeof engineFeed) => {
+    const host = hostStore.host;
+    if (!host) return;
+    for (const item of items) if (item.channel === 'push') host.call('pilot.openNotification', item.id);
+  };
+
   const openNotifications = () => {
     setSeenNotificationIds(notifications.map((item) => item.id));
+    readEngineNews(engineFeed);
     go('notifications');
   };
 
   const openNotification = (item: GuestNotification) => {
+    readEngineNews(engineFeed.filter((news) => news.notification.id === item.id));
     setReadNotificationIds((current) => current.includes(item.id) ? current : [...current, item.id]);
     if (item.entryId) setSelectedStayEntryId(item.entryId);
     go(item.screen);
@@ -1727,11 +1741,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const day = addDays(PROTOTYPE_TODAY, 1) <= contextBooking.checkOut ? addDays(PROTOTYPE_TODAY, 1) : PROTOTYPE_TODAY;
     const result = host.call<{ ok: boolean; message?: string; bookingId: string }>('desk.bookFor', stay.guestId, { listingId: service.id, date: day, time: '10:00', qty: 1, payMode: 'room' }, { staffName: 'Ana', asked: 'in-person' });
     if (!result.ok) {
-      setEngineNote({ tone: 'warning', text: result.message ?? 'That did not go through.' });
+      // The presenter is on whatever screen they were on, so say it where it will be seen.
+      setPushNotice({ id: 'desk-booking-refused', headline: 'The desk could not book it', detail: result.message ?? 'That did not go through.', screen: 'chat' });
       return;
     }
     const engineBooking = host.pilot.booking(result.bookingId);
-    const id = `service-${service.id}-${contextBooking.id}-${day}-10`;
+    const id = `service-${service.id}-${contextBooking.id}-${day}-10-${result.bookingId}`;
     const record: ServiceBooking = {
       id,
       bookingId: contextBooking.id,
@@ -1845,7 +1860,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setEngineNote({ tone: 'warning', text: 'Booking is not available right now.' });
       return;
     }
-    const known = session.serviceBookings.find((item) => item.id === shape.id && item.engineId && item.status !== 'cancelled');
+    // One live booking per slot; a declined or cancelled one can be asked for again as a new booking.
+    const known = session.serviceBookings.find((item) => item.id.startsWith(`${shape.id}-`) && item.engineId && item.status !== 'cancelled');
     if (known) {
       setSelectedStayEntryId(known.id);
       go('stay-entry');
@@ -1868,12 +1884,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setEngineNote({ tone: 'warning', text: result.message ?? 'That did not go through.' });
       return;
     }
+    // The engine answered with a booking already made a moment ago: that is the one to show.
+    const already = session.serviceBookings.find((item) => item.engineId === result.bookingId);
+    if (already) {
+      setSelectedStayEntryId(already.id);
+      go('stay-entry');
+      return;
+    }
     const { hour } = parseClockTime(request.time);
     const engineBooking = host.pilot.booking(result.bookingId);
+    const recordId = `${shape.id}-${result.bookingId}`;
     const guests = `${request.party} ${request.party === 1 ? 'guest' : 'guests'}`;
     const units = `${request.quantity ?? 1} ${(request.quantity ?? 1) === 1 ? 'rental' : 'rentals'}`;
     const record: ServiceBooking = {
-      id: shape.id,
+      id: recordId,
       bookingId: contextBooking.id,
       engineId: result.bookingId,
       title: shape.title,
@@ -1913,7 +1937,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* The lobby shop: each product is something the engine sells to the room and holds at the desk. */
   const shopDraft = (product: ShopProduct, quantity: number, note?: string): EngineDraft => ({
     listingId: giftListingId(product.name) ?? '',
-    date: PROTOTYPE_TODAY,
+    // Today on the engine's clock, which the presenter can move past midnight.
+    date: new Date(hostStore.host?.now() ?? Date.parse(`${PROTOTYPE_TODAY}T00:00:00Z`)).toISOString().slice(0, 10),
     qty: quantity,
     payMode: 'room',
     note: note?.trim() || undefined,
@@ -1923,8 +1948,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const host = hostStore.host;
     const stay = host?.guestOf(contextBooking.id);
     if (!host || !stay) return 'The shop is not available right now.';
-    const result = host.call<{ ok: boolean; message?: string; bookingId: string }>('guest.request', stay.guestId, shopDraft(product, quantity, note));
+    // The same checks as any booking: nothing is taken while the guest is offline or the hotel's system is down.
+    if (!online) return 'You are offline. Orders need a connection.';
+    if (pmsDown || failNext.booking) {
+      if (failNext.booking) setFailNext((current) => ({ ...current, booking: false }));
+      return pmsDown ? 'The hotel system is not answering, so orders are paused. Ask the front desk.' : 'That did not go through. Try again, or ask the front desk.';
+    }
+    const result = host.call<{ ok: boolean; message?: string; bookingId: string; duplicate?: boolean }>('guest.request', stay.guestId, shopDraft(product, quantity, note));
     if (!result.ok) return result.message ?? 'That did not go through.';
+    // The engine answers with the order already placed a moment ago for the same thing: not a second order.
+    if (result.duplicate) {
+      const placed = session.serviceBookings.find((item) => item.engineId === result.bookingId);
+      if (placed) { setSelectedStayEntryId(placed.id); go('stay-entry'); return; }
+    }
     const engineBooking = host.pilot.booking(result.bookingId);
     const id = `service-gift-${result.bookingId}`;
     const unit = parsePesoAmount(product.price);
@@ -2542,7 +2578,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       return;
     }
     if (result.outcome === 'failed') return result.triesLeft ? `The payment failed. ${result.triesLeft} ${result.triesLeft === 1 ? 'try' : 'tries'} left.` : 'The payment failed three times, so the slot was released.';
-    if (result.outcome === 'abandoned') return 'The checkout did not finish. Nothing was charged yet; try again.';
+    if (result.outcome === 'abandoned') return 'We have not heard back from the payment yet. If you were charged it will show here within a couple of minutes, so only try again if it does not.';
     setEnginePay(null);
     // Stay where the guest paid from; only a payment started elsewhere sends them to the booking.
     const paidFor = session.serviceBookings.find((service) => service.engineId === eb.id);
@@ -2550,8 +2586,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setLastServiceBookingId(paidFor.id);
       setSelectedStayEntryId(paidFor.id);
     }
-    setEngineNote({ tone: 'positive', text: 'Paid. Your booking is confirmed.' });
     if (!['booking-confirmation', 'stay-entry'].includes(activeScreenRef.current)) go('stay-entry');
+    // After the move: going somewhere clears the note, and this one is for where the guest lands.
+    setEngineNote({ tone: 'positive', text: 'Paid. Your booking is confirmed.' });
   };
 
   const submitEngineBooking = (payingNow: boolean) => {
@@ -2574,9 +2611,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const listing = host.pilot.listing(selectedService.id);
     const waitsForVendor = listing.confirm === 'vendor';
 
-    const known = session.serviceBookings.find((service) => service.id === id && service.engineId);
-    if (known && !['cancelled'].includes(known.status)) {
-      setLastServiceBookingId(id);
+    /*
+      One live booking per slot. A slot that was declined, lapsed or cancelled
+      can be asked for again, and that is a new booking with a record of its
+      own: the record's id carries the engine's, so the old one is never found
+      in its place.
+    */
+    const known = session.serviceBookings.find((service) => service.id.startsWith(`${id}-`) && service.engineId && service.status !== 'cancelled');
+    if (known) {
+      setLastServiceBookingId(known.id);
       goReplacing('booking-confirmation');
       return;
     }
@@ -2590,10 +2633,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       return;
     }
 
+    // The engine answered with a booking already made (the same slot, a moment ago): show that one.
+    const existingRecord = session.serviceBookings.find((service) => service.engineId === result.bookingId);
+    if (existingRecord) {
+      setLastServiceBookingId(existingRecord.id);
+      goReplacing('booking-confirmation');
+      return;
+    }
     const engineBooking = host.pilot.booking(result.bookingId);
     const unitWord = selectedService.categoryId === 'rentals' ? rentalUnitFor(selectedService.id) : null;
+    const recordId = `${id}-${result.bookingId}`;
     const serviceBooking: ServiceBooking = {
-      id,
+      id: recordId,
       bookingId: booking.id,
       engineId: result.bookingId,
       title: selectedService.name,
@@ -2609,7 +2660,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ...(serviceNote.trim() ? { facts: noteFact(serviceNote) } : {}),
     };
 
-    const booked: GuestSession = { ...session, serviceBookings: [...rawSession.serviceBookings, serviceBooking] };
+    // Built on what is stored, not on the projected view: derived lines must not be written back as if they were kept.
+    const booked: GuestSession = { ...rawSession, serviceBookings: [...rawSession.serviceBookings, serviceBooking] };
     const next = discount > 0
       ? spendPoints(booked, { id: serviceBooking.id, title: `Points off ${serviceBooking.title}`, points: usablePoints })
       : booked;
@@ -2619,7 +2671,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setSession(next);
 
     notifyGuestRequest(serviceBooking.id, waitsForVendor ? `${serviceBooking.title} requested` : `${serviceBooking.title} booked`, `${serviceBooking.scheduledFor}${serviceBooking.amount ? ` · ${serviceBooking.amount}` : ''}`);
-    setLastServiceBookingId(id);
+    setLastServiceBookingId(recordId);
     setAppliedPoints(0);
     setServiceNote('');
     setEngineNote(null);
@@ -2910,6 +2962,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const next = applyPrototypeStayState(state);
     // A new demo state is a new world: no booking, thread or charge from the last one.
     hostStore.reset(hostClock(PROTOTYPE_TODAY, clockHour));
+    setEnginePay(null);
+    setEngineNote(null);
+    setSelectedThreadId(null);
+    // Engine notifications are numbered from 1 again, so what was read before is not what is new now.
+    setSeenNotificationIds([]);
+    setReadNotificationIds([]);
     setSession(next);
     // A new state is a new stay as far as the demo goes: its chat starts empty.
     setAllChatMessages([]);
@@ -4764,6 +4822,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               return host && stay ? host.pilot.guest(stay.guestId).quote(shopDraft(product, quantity)) : { ok: false, reason: 'unavailable', message: 'The shop is not available right now.' };
             }}
             onOrder={orderFromShop}
+            onAskDesk={() => go('chat')}
             notice={engineNote?.tone === 'warning' ? engineNote.text : undefined}
           />
         );
@@ -4807,6 +4866,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               return hostNow === undefined || hostClock(day, 0) + (parseClockTime(time).hour * 60 + parseClockTime(time).minute) * 60_000 > hostNow;
             }}
             waitsForVendor={hostStore.host?.pilot.listings().find((entry) => entry.id === establishment.id)?.confirm === 'vendor'}
+            needsApproval={(request) => {
+              const host = hostStore.host;
+              const stay = host?.guestOf(contextBooking.id);
+              if (!host || !stay) return false;
+              const listing = host.pilot.listings().find((entry) => entry.id === establishment.id);
+              const asked = host.pilot.guest(stay.guestId).quote({ listingId: establishment.id, date: request.day, time: listing ? toClock24(request.time) : undefined, qty: establishment.categoryId === 'rentals' ? request.quantity ?? 1 : request.party, days: establishment.categoryId === 'rentals' ? 1 : undefined });
+              return asked.ok && asked.options.room.offered && asked.options.room.needsApproval;
+            }}
             notice={engineNote?.tone === 'warning' ? engineNote.text : undefined}
           />
         ) : null;
@@ -5079,7 +5146,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           : countOf(booked?.partySize ?? 1, 'guest');
         /* Booked through the engine: what the guest is told depends on where the engine has it. */
         const engineHost = hostStore.host;
-        const engineBooking = engineHost && booked?.engineId ? engineHost.pilot.booking(booked.engineId) : undefined;
+        // A record whose engine booking is gone (the demo was reset) reads as an ordinary booking, never as an error.
+        const engineBooking = engineHost && booked?.engineId ? engineHost.pilot.bookings().find((b) => b.id === booked.engineId) : undefined;
         const vendorName = engineHost && engineBooking ? engineHost.pilot.vendors().find((v) => v.id === engineHost.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'The vendor' : 'The vendor';
         const engineHeadline = engineBooking?.status === 'requested' ? { title: `Request sent to ${vendorName}`, text: `Nothing is charged until ${vendorName} confirms. You can follow it, and message them, under Messages.`, tag: 'Waiting' }
           : engineBooking?.status === 'needs-approval' ? { title: 'Waiting for the front desk', text: 'The front desk approves charging this to your room. If they do not answer in 10 minutes you can pay in full or cancel.', tag: 'Waiting' }
@@ -5107,7 +5175,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </div>
             {engineBooking && engineHeadline ? null : <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />}
             <Notice title="Cancellation">{engineHost && engineBooking ? engineCancelLine(engineHost.pilot, engineBooking) : booked ? describeCancellationWindow(cutoffFor(booked), booked, PROTOTYPE_TODAY, clockHour) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
-            {engineHost && booked?.engineId ? (
+            {engineHost && engineBooking && booked?.engineId ? (
               <EngineBookingCard host={engineHost} bookingId={booked.engineId} onPay={payEngineBooking} onNote={setEngineNote} onOpenDesk={() => go('chat')} onPickAnother={() => go(bookingSlot.screen)} />
             ) : null}
             {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
@@ -5510,8 +5578,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         /* A booking the engine holds is read and acted on through its card; the old cancel screens do not apply. */
         const entryEngineId = session.serviceBookings.find((service) => service.id === entry.id)?.engineId;
         const entryExtraId = session.serviceBookings.find((service) => service.id === entry.id)?.engineExtraId;
-        const engineEntryHost = hostStore.host && (entryEngineId || entryExtraId) ? hostStore.host : undefined;
-        const engineEntryBookingId = entryEngineId ?? (entryExtraId && engineEntryHost ? engineEntryHost.pilot.payment(entryExtraId).bookingId : undefined);
+        const engineEntryCandidate = hostStore.host && (entryEngineId || entryExtraId) ? hostStore.host : undefined;
+        const engineEntryBookingId = entryEngineId ?? (entryExtraId && engineEntryCandidate ? engineEntryCandidate.pilot.payments().find((x) => x.id === entryExtraId)?.bookingId : undefined);
+        // Only while the engine still holds it: after a reset the record is just a record.
+        const engineEntryHost = engineEntryCandidate && engineEntryBookingId && engineEntryCandidate.pilot.bookings().some((b) => b.id === engineEntryBookingId) ? engineEntryCandidate : undefined;
 
         return (
           <div className="guest-stack">
@@ -6303,7 +6373,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </div>
 
 
-          {enginePay && hostStore.host ? (() => {
+          {enginePay && hostStore.host && hostStore.host.pilot.bookings().some((b) => b.id === enginePay.engineId) ? (() => {
             const host = hostStore.host;
             const eb = host.pilot.booking(enginePay.engineId);
             const pay = enginePay.paymentId ? host.pilot.payment(enginePay.paymentId) : undefined;

@@ -124,9 +124,9 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
 
     await openCategory(user, 'Rentals');
     await user.click(screen.getByRole('button', { name: /City Bike Rentals/ }));
-    await user.click(screen.getByRole('button', { name: /Book with City Bike Rentals/ }));
+    await user.click(screen.getByRole('button', { name: /Request with City Bike Rentals/ }));
     const sheet = screen.getByRole('dialog');
-    await user.click(within(sheet).getByRole('button', { name: /Pay now/ }));
+    await user.click(within(sheet).getByRole('button', { name: /Pay by card once they confirm/ }));
     await user.click(within(sheet).getByRole('button', { name: 'Send request' }));
 
     // On the booking, waiting; no gateway yet.
@@ -215,6 +215,7 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     await bookRental(user, 'room');
     await fire(user, /Vendor confirms City bicycle/);
     await user.click(screen.getByRole('button', { name: /^Cancel$/ }));
+    await user.click(screen.getByRole('button', { name: 'Yes, cancel' }));
     expect(screen.getByLabelText(/City bicycle, Cancelled/)).toBeInTheDocument();
 
     for (let i = 0; i < 3; i += 1) await fire(user, /Move the clock on a day/);
@@ -393,6 +394,84 @@ describe('after the stay', { timeout: 30_000 }, () => {
       await user.click(confirm);
       expect(screen.getByText(/Your stay is over/)).toBeInTheDocument();
     }
+  });
+});
+
+describe('what the reviews found', { timeout: 40_000 }, () => {
+  it('books the same slot again after the vendor declines it, as a new booking', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Vendor is not available for City bicycle/);
+    await bookRental(user, 'room');
+    // The new one is live and waiting; the old one is still there, declined.
+    expect(screen.getByRole('heading', { name: /Request sent/ })).toBeInTheDocument();
+    await openMessages(user);
+    const rows = screen.getAllByRole('button', { name: /City bicycle/ });
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.getAttribute('aria-label')).join(' | ')).toMatch(/For confirmation/);
+    expect(rows.map((row) => row.getAttribute('aria-label')).join(' | ')).toMatch(/Not available/);
+  });
+
+  it('survives the presenter resetting the demo while the gateway is open, and keeps working', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await openCategory(user, 'Spa & Wellness');
+    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
+    await user.click(screen.getByRole('button', { name: /Pay now/ }));
+    await user.click(screen.getByRole('button', { name: /^Continue to pay/ }));
+    expect(screen.getByRole('dialog', { name: 'Secure checkout' })).toBeInTheDocument();
+
+    // The same demo state, applied again: a new world, with the stay registered afresh.
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'State' }));
+    await user.click(screen.getByRole('radio', { name: /Live stay/ }));
+    expect(screen.queryByRole('dialog', { name: 'Secure checkout' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Open prototype controls' })).toBeInTheDocument();
+
+    // And the rental still goes through the engine afterwards.
+    await bookRental(user, 'room');
+    expect(screen.getByRole('heading', { name: /Request sent/ })).toBeInTheDocument();
+  });
+
+  it('keeps a stay the desk cancelled cancelled, even after the clock moves', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await fire(user, /Desk cancels the stay/);
+    await fire(user, /Move the clock on an hour/);
+
+    await openCategory(user, 'Rentals');
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
+    expect(screen.getByText(/Your stay is over/)).toBeInTheDocument();
+  });
+
+  it('does not clear the front desk’s unread while the guest reads a booking thread', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Desk sends a message in the chat/);
+    await openMessages(user);
+    expect(screen.getByRole('button', { name: /Front desk, pinned, new message/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: 'Go back' }));
+    expect(screen.getByRole('button', { name: /Front desk, pinned, new message/ })).toBeInTheDocument();
+  });
+
+  it('shows a refused charge as still owed rather than free', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await fire(user, /Hotel system: working/);
+    await fire(user, /Hotel system: down/);
+    await openCategory(user, 'Spa & Wellness');
+    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
+    await user.click(screen.getByRole('button', { name: /Confirm and charge/ }));
+    // Never "complimentary": it is on the bill, waiting for the hotel system.
+    expect(screen.queryByText(/Complimentary/)).toBeNull();
+    expect(screen.getAllByText(/Charged to room|Charged to your room/).length).toBeGreaterThan(0);
   });
 });
 

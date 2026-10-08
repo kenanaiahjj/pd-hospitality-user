@@ -1,6 +1,6 @@
 import { createPilot } from '../engine';
 import type { Pilot, StayStatus } from '../types';
-import { buildCatalog, CATALOG_VERSION } from './catalog';
+import { buildCatalog, catalogVersion } from './catalog';
 
 /*
   One engine for the signed-in guest. Every action that changes it goes through
@@ -50,7 +50,7 @@ const read = (): Stored | null => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? (JSON.parse(raw) as Stored) : null;
-    return parsed && parsed.v === 1 && parsed.catalog === CATALOG_VERSION ? parsed : null;
+    return parsed && parsed.v === 1 && parsed.catalog === catalogVersion() ? parsed : null;
   } catch {
     return null;
   }
@@ -94,11 +94,20 @@ export class Host {
     this.start = stored?.start ?? start;
     this.pilot = makePilot(this.start);
     if (stored) {
-      this.guests = stored.guests;
-      this.meta = stored.meta ?? {};
-      for (const op of stored.ops) {
-        exec(this.pilot, op.path, op.args);
-        this.ops.push(op);
+      try {
+        this.guests = stored.guests;
+        this.meta = stored.meta ?? {};
+        for (const op of stored.ops) {
+          exec(this.pilot, op.path, op.args);
+          this.ops.push(op);
+        }
+      } catch {
+        // A record this build cannot replay (the catalogue moved on, or it was damaged) is dropped, never allowed to break the app.
+        this.pilot = makePilot(this.start);
+        this.ops = [];
+        this.guests = {};
+        this.meta = {};
+        if (this.persistent) forget();
       }
     }
   }
@@ -113,7 +122,7 @@ export class Host {
 
   private touch() {
     this.version += 1;
-    if (this.persistent) write({ v: 1, catalog: CATALOG_VERSION, start: this.start, ops: this.ops, guests: this.guests, meta: this.meta });
+    if (this.persistent) write({ v: 1, catalog: catalogVersion(), start: this.start, ops: this.ops, guests: this.guests, meta: this.meta });
     this.listeners.forEach((l) => l());
   }
 
@@ -137,8 +146,10 @@ export class Host {
       return made;
     }
     const current = this.pilot.stay(known.stayId);
-    if (current.room !== stay.room || current.checkIn !== stay.checkIn || current.checkOut !== stay.checkOut || current.status !== stay.status) {
-      this.call('desk.syncStay', known.stayId, { room: stay.room, checkIn: stay.checkIn, checkOut: stay.checkOut, status: stay.status });
+    // The desk cancelled this stay: the app's own record of it does not say so, and must not bring it back.
+    const status = current.status === 'cancelled' ? 'cancelled' : stay.status;
+    if (current.room !== stay.room || current.checkIn !== stay.checkIn || current.checkOut !== stay.checkOut || current.status !== status) {
+      this.call('desk.syncStay', known.stayId, { room: stay.room, checkIn: stay.checkIn, checkOut: stay.checkOut, status });
     }
     return known;
   }
@@ -157,38 +168,25 @@ export class Host {
     return this.guests[appBookingId];
   }
 
-  /** Move the clock. Forward plays the timers; backward replays the record up to that moment. */
+  /**
+    Move the clock. Forward plays the timers in order. Backward is only possible
+    while nothing is booked: the day simply begins at that hour, keeping who is
+    on which stay and what has been switched on or off. Once there are bookings
+    the past is what it was.
+  */
   setTime(ms: number) {
     if (ms === this.pilot.now()) return;
     if (ms > this.pilot.now()) {
       this.call('pilot.advanceTo', ms);
       return;
     }
-    if (this.pilot.bookings().length === 0) {
-      // Nothing booked yet, so nothing to lose: begin the day at that hour, keeping only who is on which stay.
-      this.start = ms;
-      const fresh = makePilot(ms);
-      const kept = this.ops.filter((op) => op.path === 'pilot.addGuest' || op.path === 'desk.syncStay');
-      for (const op of kept) exec(fresh, op.path, op.args);
-      this.pilot = fresh;
-      this.ops = kept;
-      this.touch();
-      return;
-    }
-    const keep: Op[] = [];
-    const fresh = makePilot(this.start);
-    for (const op of this.ops) {
-      const target = op.path === 'pilot.advanceTo' ? (op.args[0] as number) : op.t0;
-      if (target > ms) break;
-      exec(fresh, op.path, op.args);
-      keep.push(op);
-    }
-    if (fresh.now() < ms) {
-      keep.push({ path: 'pilot.advanceTo', args: [ms], t0: fresh.now() });
-      exec(fresh, 'pilot.advanceTo', [ms]);
-    }
+    if (this.pilot.bookings().length > 0) return;
+    this.start = ms;
+    const fresh = makePilot(ms);
+    const kept = this.ops.filter((op) => op.path !== 'pilot.advanceTo');
+    for (const op of kept) exec(fresh, op.path, op.args);
     this.pilot = fresh;
-    this.ops = keep;
+    this.ops = kept;
     this.touch();
   }
 

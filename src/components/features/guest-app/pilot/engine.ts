@@ -332,6 +332,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       case 'pay-or-cancel': actions.push('pay-in-full', 'cancel'); break;
       case 'requested':
         actions.push('withdraw');
+        if (b.needsPayChange) actions.push('pay-in-full');
         if (b.deadline) timer = { text: `Vendor has ${left(b.deadline)} min to confirm`, endsAt: b.deadline, progress: Math.max(0, Math.min(1, (b.deadline - w.now) / Math.max(1, b.deadline - b.createdAt))) };
         break;
       case 'awaiting-payment': {
@@ -341,10 +342,17 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         break;
       }
       case 'confirmed':
-        actions.push('cancel');
+        if (b.cancelRequested) facts.push({ label: 'Cancellation', value: 'Asked. Waiting for the vendor.' });
+        else actions.push('cancel');
         if (b.kind === 'goods') actions.push('message-desk');
         else actions.push('show-qr');
-        if (b.needsPayChange) actions.push('pay-in-full');
+        if (b.needsPayChange) {
+          const open = paysOf(b).find((x) => x.mode === 'card' && x.purpose === 'booking' && x.state === 'awaiting');
+          if (open) {
+            actions.push('pay');
+            if (open.windowEnd) timer = { text: `Pay within ${left(open.windowEnd)} min to keep this booking`, endsAt: open.windowEnd, progress: Math.max(0, (open.windowEnd - w.now) / (settings.cardWindowMin * MIN)) };
+          } else actions.push('pay-in-full');
+        }
         break;
       case 'reserved': actions.push('cancel', 'open-menu', 'running-late'); break;
       case 'ready': actions.push('message-desk'); break;
@@ -548,6 +556,12 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       announce(b, `Paid ${peso(p.amount)}. Confirmed.`);
       tellGuest(b, 'confirmed');
       notify('vendor', 'push', 'paid', b.id);
+    } else if (b.status === 'confirmed' && b.needsPayChange) {
+      // The stay changed, so the room could no longer take it: paying in full keeps the booking.
+      b.holdUntil = undefined;
+      b.needsPayChange = false;
+      announce(b, `Paid ${peso(p.amount)} in full. Your booking stands.`);
+      notify('vendor', 'push', 'paid', b.id);
     } else {
       refundCard(p);
     }
@@ -730,7 +744,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (!pl.ok) return pl;
     const { listing, stay, start, end, days, amount, slotKeys, options: opts } = pl.plan;
     const quantity = listing.kind === 'table' ? 1 : draft.qty;
-    const dup = [...w.bookings.values()].find((x) => x.guestId === guestId && x.listingId === listing.id && x.slotKeys.join() === slotKeys.join() && x.qty === draft.qty && !EXIT_STATUSES.includes(x.status) && (['needs-approval', 'pay-or-cancel', 'requested', 'awaiting-payment'].includes(x.status) || w.now - x.createdAt < MIN));
+    const dup = [...w.bookings.values()].find((x) => x.guestId === guestId && x.listingId === listing.id && x.slotKeys.join() === slotKeys.join() && x.start === start && x.qty === draft.qty && !EXIT_STATUSES.includes(x.status) && (['needs-approval', 'pay-or-cancel', 'requested', 'awaiting-payment'].includes(x.status) || w.now - x.createdAt < MIN));
     if (dup) return ok({ bookingId: dup.id, duplicate: true });
     if (!holdOpen(slotKeys, quantity)) return refuse('unavailable', 'Just booked. Pick another time.');
     let payMode: PayMode | null = null;
@@ -791,12 +805,12 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     return ok({ bookingId: id });
   };
 
-  const approvalTimeout = (b: Booking) => {
+  const approvalTimeout = (b: Booking, declined = false) => {
     if (b.status !== 'needs-approval') return;
-    move(b, 'pay-or-cancel', 'Cabana', 'the desk did not answer in time');
+    move(b, 'pay-or-cancel', declined ? deskName : 'Cabana', declined ? 'the desk declined' : 'the desk did not answer in time');
     b.holdUntil = w.now + settings.payOrCancelMin * MIN;
-    announce(b, 'The front desk has not answered. Pay in full instead, or cancel.', ['guest', 'desk']);
-    tellGuest(b, 'pay-or-cancel');
+    announce(b, declined ? 'The front desk could not charge this to your room. Pay in full instead, or cancel.' : 'The front desk has not answered. Pay in full instead, or cancel.', ['guest', 'desk']);
+    tellGuest(b, declined ? 'approval-declined' : 'pay-or-cancel');
     sched(b.holdUntil, 'pay-or-cancel-timeout', b.id, () => {
       if (b.status !== 'pay-or-cancel') return;
       move(b, 'lapsed', 'Cabana', 'no choice made');
@@ -821,6 +835,11 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (b.status !== 'requested') return refusedStale(b, 'confirm');
     cancelTimers(b.id);
     b.acceptedAt = w.now;
+    // The stay changed while this waited: the room can no longer take it, so it is paid in full instead.
+    if (b.needsPayChange && b.amount > 0) {
+      b.payMode = 'card';
+      b.needsPayChange = false;
+    }
     if (b.amount === 0 && b.kind !== 'table') {
       move(b, 'confirmed', who, 'accepted');
       announce(b, `${who} confirmed. Nothing to pay.`);
@@ -832,23 +851,23 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       move(b, 'awaiting-payment', who, 'accepted');
       const p = newPayment(b, 'card', b.amount, 'booking');
       startCardWindow(b, p);
-      announce(b, `${who} confirmed. Pay ${peso(b.amount)} within ${settings.cardWindowMin} minutes to keep the slot.`, ['guest', 'desk']);
+      announce(b, `${who} accepted. Pay ${peso(b.amount)} within ${settings.cardWindowMin} minutes to confirm it.`, ['guest', 'desk']);
     }
     tellGuest(b, 'accepted');
     return ok();
   };
-  const declineBooking = (b: Booking, who: string, reason?: string): Result<object> => {
+  const declineBooking = (b: Booking, who: string, reason?: string, quiet = false): Result<object> => {
     if (b.status !== 'requested') return refusedStale(b, 'decline');
     move(b, 'declined', who, 'declined');
     b.reason = reason;
     announce(b, `${who} is not available${reason ? `: ${reason}` : ''}. Nothing was charged.`);
-    tellGuest(b, 'declined');
+    if (!quiet) tellGuest(b, 'declined');
     return ok();
   };
 
   // ---------------------------------------------------------------- cancelling
 
-  const cancelBooking = (b: Booking, who: string, reason: string, by: 'guest' | 'vendor' | 'desk' | 'system', batch = false): void => {
+  const cancelBooking = (b: Booking, who: string, reason: string, by: 'guest' | 'vendor' | 'desk' | 'system' | 'accepted', batch = false): void => {
     undoPayments(b);
     b.reason = reason;
     move(b, 'cancelled', who, 'cancelled');
@@ -857,6 +876,9 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (by === 'vendor') {
       tellGuest(b, 'vendor-cancelled', true);
       notify('desk', 'push', 'vendor-cancelled', b.id);
+    } else if (by === 'accepted') {
+      // The vendor said yes to the guest's own request to cancel: good news, not a vendor cancellation.
+      tellGuest(b, 'cancel-accepted');
     } else {
       notify('vendor', 'push', 'cancelled', b.id);
     }
@@ -887,8 +909,9 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       cancelBooking(b, who, '', 'guest');
       return ok({ outcome: 'cancelled' as const });
     }
+    if (b.cancelRequested) return refuse('already-actioned', 'You already asked to cancel. Waiting for the vendor to answer.');
     b.cancelRequested = true;
-    announce(b, `${who} asked to cancel. It is inside the free-cancel window, so ${vendorOf(listing).name} has to accept.`);
+    announce(b, `${who} asked to cancel. It is past the free-cancel time, so ${vendorOf(listing).name} has to accept.`);
     notify('vendor', 'push', 'cancel-requested', b.id);
     return ok({ outcome: 'requested' as const });
   };
@@ -969,6 +992,9 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           const b = mine(bookingId);
           if (!b) return refuse('not-found', 'That booking is not yours.');
           if (b.status === 'confirmed' && b.needsPayChange) {
+            // Asking twice is one payment: the window already open is the one to use.
+            const open = paysOf(b).find((x) => x.mode === 'card' && x.purpose === 'booking' && x.state === 'awaiting');
+            if (open) return ok();
             for (const p of paysOf(b)) if (p.mode === 'room') undoRoom(p);
             b.payMode = 'card';
             const p = newPayment(b, 'card', b.amount, 'booking');
@@ -976,7 +1002,15 @@ export function createPilot(options: PilotOptions = {}): Pilot {
             announce(b, `Pay ${peso(b.amount)} within ${settings.cardWindowMin} minutes to keep this booking.`, ['guest', 'desk']);
             return ok();
           }
+          if (b.status === 'requested' && b.needsPayChange) {
+            // Still waiting for the vendor: the card is taken once it accepts, as for any confirm-first booking.
+            b.payMode = 'card';
+            b.needsPayChange = false;
+            announce(b, `${who()} will pay in full once the vendor accepts.`);
+            return ok();
+          }
           if (b.status !== 'pay-or-cancel') return refuse('invalid-state', 'There is nothing to choose.');
+          if (!(listingOf(b).payModes ?? ['room', 'card']).includes('card')) return refuse('not-offered', 'This vendor takes payment by room only, so it cannot be paid in full by card. Cancel it, or ask the front desk.');
           cancelTimers(b.id);
           b.payMode = 'card';
           if (listingOf(b).confirm === 'vendor') {
@@ -1282,7 +1316,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           if (!reason.trim()) return refuse('not-possible', 'A cancellation needs a reason.');
           if (w.now >= b.start && b.status !== 'ready') return refuse('not-possible', 'The service has started, so it can no longer be cancelled.');
           if (b.status === 'requested') {
-            const out = declineBooking(b, vendor.name, reason);
+            const out = declineBooking(b, vendor.name, reason, true);
             if (out.ok) { tellGuest(b, 'vendor-cancelled', true); notify('desk', 'push', 'vendor-cancelled', b.id); }
             return out;
           }
@@ -1298,7 +1332,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           const batchId = nextId('BATCH');
           for (const b of hit) {
             if (b.status === 'requested') {
-              declineBooking(b, vendor.name, reason);
+              declineBooking(b, vendor.name, reason, true);
               tellGuest(b, 'vendor-cancelled', true);
               b.reason = reason;
             } else cancelBooking(b, vendor.name, reason, 'vendor', true);
@@ -1313,7 +1347,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           if (!b || !b.cancelRequested) return refuse('invalid-state', 'There is no cancellation to answer.');
           b.cancelRequested = false;
           if (accept) {
-            cancelBooking(b, vendor.name, 'Cancelled with the vendor’s agreement', 'vendor');
+            cancelBooking(b, vendor.name, 'Cancelled with the vendor’s agreement', 'accepted');
             return ok();
           }
           raise('vendor-cancel-declined', b.id, `${vendor.name} declined the guest's cancellation. The booking stands, with no part fee.`, w.now + HOUR, { bookingId: b.id });
@@ -1511,7 +1545,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         stay.checkOut = newCheckOut;
         for (const b of w.bookings.values()) {
           if (b.stayId !== stayId || !['confirmed', 'requested', 'awaiting-payment'].includes(b.status) || dateOf(b.start) <= newCheckOut) continue;
-          if (b.payMode === 'room' && ['confirmed'].includes(b.status)) {
+          if (b.payMode === 'room' && ['confirmed', 'requested'].includes(b.status)) {
             b.needsPayChange = true;
             const due = b.start - settings.stayConflictDeskHours * HOUR;
             raise('stay-conflict', b.id, `The stay now ends ${newCheckOut}, before this booking. The guest was asked to pay in full or cancel.`, due, { bookingId: b.id });
@@ -1688,7 +1722,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     },
   };
   // declining an approval ends the desk's turn at once rather than after the timer
-  const approvalTimeoutNow = (b: Booking) => approvalTimeout(b);
+  const approvalTimeoutNow = (b: Booking) => approvalTimeout(b, true);
 
   // ------------------------------------------------------- fixture
 
@@ -1771,11 +1805,11 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       const order = (t: Thread) => (t.kind === 'desk' ? 0 : 1);
       return rows.sort((a, b) => order(a) - order(b) || (b.messages.at(-1)?.at ?? 0) - (a.messages.at(-1)?.at ?? 0)).map((t) => toSummary(t, viewer));
     },
-    thread(threadId, viewer) {
+    thread(threadId, viewer, markRead = true) {
       const t = w.threads.get(threadId);
       if (!t) return refuse('not-found', 'No such thread.');
       if (!t.participants.includes(viewer)) return refuse('not-a-participant', 'That thread is not yours.');
-      t.unread[viewer] = 0;
+      if (markRead) t.unread[viewer] = 0;
       return ok({ messages: t.messages.filter((m) => m.visibleTo.includes(viewer)), readOnly: t.readOnlyAt !== undefined && w.now >= t.readOnlyAt });
     },
     deskThreadId,

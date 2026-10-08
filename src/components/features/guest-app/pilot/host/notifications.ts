@@ -11,9 +11,11 @@ import type { Host } from './host';
 
 type Words = { title: string; body: string };
 
-function wordsFor(topic: string, title: string): Words | undefined {
+function wordsFor(topic: string, title: string, card: boolean): Words | undefined {
   switch (topic) {
-    case 'accepted': return { title: `${title} confirmed`, body: 'The vendor said yes. Open it to see what is left to do.' };
+    case 'accepted': return card ? { title: `${title} accepted`, body: 'The vendor said yes. Pay now to keep your slot.' } : { title: `${title} confirmed`, body: 'The vendor said yes. It is charged to your room.' };
+    case 'cancel-accepted': return { title: `${title} cancelled`, body: 'The vendor accepted your cancellation. Everything is undone.' };
+    case 'approval-declined': return { title: 'Pay in full or cancel', body: `The front desk could not charge ${title} to your room.` };
     case 'confirmed': return { title: `${title} confirmed`, body: 'Your payment came through.' };
     case 'declined': return { title: `${title} not available`, body: 'Nothing was charged. Pick another time.' };
     case 'lapsed': return { title: `${title} was not answered`, body: 'The vendor did not answer in time. Nothing was charged.' };
@@ -39,7 +41,7 @@ export function engineNews(host: Host, guestId: string, serviceBookings: Service
     if (n.channel === 'push' && !n.delivered) continue;
     const booking = pilot.booking(n.bookingId);
     const title = pilot.listing(booking.listingId).title;
-    const words = wordsFor(n.topic, title);
+    const words = wordsFor(n.topic, title, booking.payMode === 'card');
     if (!words) continue;
     const record = serviceBookings.find((s) => s.engineId === n.bookingId);
     rows.push({

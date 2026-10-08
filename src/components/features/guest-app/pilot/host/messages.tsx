@@ -1,7 +1,7 @@
 'use client';
 
-import { ArrowLeft } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { ArrowLeft, CaretRight } from '@phosphor-icons/react';
+import { useEffect, useState } from 'react';
 import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
@@ -48,12 +48,12 @@ export function MessagesList({ host, guestId, desk, onOpenDesk, onOpenThread }: 
       <div className="guest-page-title"><h1>Messages</h1></div>
       <ul className="pilot-list">
         <li>
-          <button type="button" className="pilot-row pilot-row--thread" onClick={onOpenDesk}>
+          <button type="button" className="pilot-row pilot-row--thread" onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
             <span>
               <b>Front desk <small className="pilot-pin">Pinned</small></b>
               <small className="pilot-preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</small>
             </span>
-            <span className="pilot-row__end">{desk.unread ? <i className="pilot-badge" aria-label="Unread">•</i> : null}</span>
+            <span className="pilot-row__end">{desk.unread ? <i className="pilot-badge" aria-hidden="true">•</i> : null}<CaretRight aria-hidden="true" /></span>
           </button>
         </li>
       </ul>
@@ -70,14 +70,15 @@ function ThreadRow({ thread, onOpen }: { thread: ThreadSummary; onOpen: (id: str
   const last = thread.last;
   const preview = last ? (last.kind === 'card' ? 'Booking card' : last.text) : 'No messages yet.';
   return (
-    <button type="button" className="pilot-row pilot-row--thread" onClick={() => onOpen(thread.id)}>
+    <button type="button" className="pilot-row pilot-row--thread" onClick={() => onOpen(thread.id)} aria-label={`${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}>
       <span>
         <b>{thread.title}</b>
         <small className="pilot-preview">{last && last.from.role !== 'guest' ? `${last.from.name}: ` : ''}{preview}</small>
       </span>
       <span className="pilot-row__end">
         {thread.cardLabel ? <span className={`pilot-state pilot-state--${TONE[thread.cardState ?? ''] ?? 'wait'}`}>{thread.cardLabel}</span> : null}
-        {thread.unread ? <i className="pilot-badge" aria-label={`${thread.unread} unread`}>{thread.unread}</i> : null}
+        {thread.unread ? <i className="pilot-badge" aria-hidden="true">{thread.unread}</i> : null}
+        <CaretRight aria-hidden="true" />
       </span>
     </button>
   );
@@ -95,12 +96,16 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
   onAskDesk: (text: string) => void;
 } & CardHandlers) {
   const [draft, setDraft] = useState('');
-  // Reading a thread is opening it: the engine marks it read for the guest as it hands it over.
-  const view = host.pilot.thread(threadId, 'guest');
-  if (!view.ok) return <p className="pilot-muted">{view.message}</p>;
+  // Looking is not reading: the thread is only marked read by the effect below, which is recorded like any action.
+  const view = host.pilot.thread(threadId, 'guest', false);
   const bookingId = threadBookingId(host, threadId);
   const guestId = bookingId ? host.pilot.booking(bookingId).guestId : undefined;
   const thread = guestId ? host.pilot.threads('guest', guestId).find((t) => t.id === threadId) : undefined;
+  const unread = thread?.unread ?? 0;
+  useEffect(() => {
+    if (unread > 0) host.call('pilot.thread', threadId, 'guest');
+  }, [host, threadId, unread]);
+  if (!view.ok) return <p className="pilot-muted">{view.message}</p>;
 
   const send = (text: string) => {
     if (!text.trim()) return;
@@ -126,7 +131,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
         ))}
       </div>
       {note ? <Notice tone={note.tone} title={note.tone === 'warning' ? 'That did not go through' : 'Done'}>{note.text}</Notice> : null}
-      {view.readOnly ? <Notice title="This thread has closed">It closed 48 hours after the booking. Anything you send now goes to the front desk.</Notice> : null}
+      {view.readOnly ? <Notice title="This thread has closed">It closed 48 hours after the service. Anything you send now goes to the front desk.</Notice> : null}
       <div className="guest-chat__dock">
         <ChatComposer draft={draft} onDraftChange={setDraft} onSubmit={({ body }) => send(body)} placeholder={view.readOnly ? 'Ask the front desk' : 'Message everyone in this booking'} />
       </div>
@@ -141,7 +146,7 @@ const vendorName = (host: Host, bookingId: string) => {
 };
 
 function ThreadMessage({ host, message, ...handlers }: { host: Host; message: Message } & CardHandlers) {
-  if (message.kind === 'system') return <p className="pilot-system">{message.text}</p>;
+  if (message.kind === 'system') return <p className="pilot-system"><b>{message.from.name}</b> · {message.text}</p>;
   if (message.kind === 'card' && message.bookingId) {
     return <EngineBookingCard host={host} bookingId={message.bookingId} paymentId={message.paymentId} {...handlers} />;
   }

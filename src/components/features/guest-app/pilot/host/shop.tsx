@@ -18,11 +18,13 @@ import type { PayOptions, Result } from '../types';
 
 export type ShopProduct = (typeof GIFT_PRODUCTS)[number];
 
-export function LobbyShopScreen({ quote, onOrder, notice }: {
+export function LobbyShopScreen({ quote, onOrder, onAskDesk, notice }: {
   /** What the engine offers for this many of this product: the room, the limit, the cap. */
   quote: (product: ShopProduct, quantity: number) => Result<{ options: PayOptions }>;
   /** Place the order. Answers with a sentence when it did not go through; the sheet stays open to say so. */
   onOrder: (product: ShopProduct, quantity: number, note: string) => string | void;
+  /** When the shop cannot take an order, the front desk still can. */
+  onAskDesk: () => void;
   notice?: string;
 }) {
   const [chosen, setChosen] = useState<ShopProduct | null>(null);
@@ -57,16 +59,17 @@ export function LobbyShopScreen({ quote, onOrder, notice }: {
           </div>
         </section>
       ))}
-      {chosen ? <ShopOrderSheet key={chosen.name} product={chosen} quote={quote} onClose={() => setChosen(null)} onOrder={onOrder} /> : null}
+      {chosen ? <ShopOrderSheet key={chosen.name} product={chosen} quote={quote} onClose={() => setChosen(null)} onOrder={onOrder} onAskDesk={onAskDesk} /> : null}
     </div>
   );
 }
 
-function ShopOrderSheet({ product, quote, onClose, onOrder }: {
+function ShopOrderSheet({ product, quote, onClose, onOrder, onAskDesk }: {
   product: ShopProduct;
   quote: (product: ShopProduct, quantity: number) => Result<{ options: PayOptions }>;
   onClose: () => void;
   onOrder: (product: ShopProduct, quantity: number, note: string) => string | void;
+  onAskDesk: () => void;
 }) {
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
@@ -90,7 +93,7 @@ function ShopOrderSheet({ product, quote, onClose, onOrder }: {
             <span className="guest-table-request__stepper">
               <button type="button" aria-label="Fewer" disabled={quantity <= 1} onClick={() => setQuantity(quantity - 1)}><Minus aria-hidden="true" /></button>
               <output aria-live="polite">{quantity}</output>
-              <button type="button" aria-label="More" disabled={quantity >= 12} onClick={() => setQuantity(quantity + 1)}><Plus aria-hidden="true" /></button>
+              <button type="button" aria-label="More" disabled={quantity >= 10} onClick={() => setQuantity(quantity + 1)}><Plus aria-hidden="true" /></button>
             </span>
           </div>
           <NotesField name="shop-note" value={note} onChange={setNote} placeholder="Gift wrapping, a card message…" />
@@ -98,6 +101,7 @@ function ShopOrderSheet({ product, quote, onClose, onOrder }: {
           {options && !roomOk ? <Notice tone="warning" title="Not on your room">{options.room.why}</Notice> : null}
           {needsApproval ? <Notice title="Over the limit">This is over what can go on a room without the front desk, so they approve it first.</Notice> : null}
           {problem ? <Notice tone="warning" title="That did not go through">{problem}</Notice> : null}
+          {!priced.ok || !roomOk ? <button type="button" className="guest-button guest-button--secondary" onClick={onAskDesk}>Ask the front desk instead</button> : null}
         </div>
         <Button
           className="guest-button guest-button--primary"

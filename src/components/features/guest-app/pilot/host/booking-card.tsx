@@ -48,25 +48,39 @@ export type CardHandlers = {
   onPickAnother?: (bookingId: string) => void;
   onOpenMenu?: (listingId: string) => void;
   onQuestion?: (paymentId: string) => void;
+  /** Whether a table has a menu to open. A nearby place may not. */
+  hasMenu?: (listingId: string) => boolean;
   /** What the engine said back: a refusal worth showing, or a plain confirmation. */
   onNote?: (note: { tone: 'warning' | 'positive'; text: string }) => void;
 };
 
 export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: { host: Host; bookingId: string; paymentId?: string } & CardHandlers) {
   const [qr, setQr] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const pilot = host.pilot;
   const booking = pilot.booking(bookingId);
   const card: Card = paymentId ? pilot.extraCard(paymentId) : pilot.card(bookingId);
   const listing = pilot.listing(booking.listingId);
   const guestId = booking.guestId;
 
+  const doCancel = () => {
+    setConfirmingCancel(false);
+    const r = host.call<{ ok: boolean; message?: string; outcome?: string }>('guest.cancel', guestId, bookingId);
+    if (!r.ok) handlers.onNote?.({ tone: 'warning', text: r.message ?? 'That did not go through.' });
+    else if (r.outcome === 'requested') handlers.onNote?.({ tone: 'positive', text: 'You asked to cancel. It is past the free-cancel time, so the vendor has to accept.' });
+    else handlers.onNote?.({ tone: 'positive', text: 'Cancelled.' });
+  };
+
   const act = (action: CardAction) => {
     switch (action) {
       case 'cancel':
+        // A booking that is confirmed (and maybe paid) is not cancelled by one stray tap.
+        setConfirmingCancel(true);
+        break;
       case 'withdraw': {
         const r = host.call<{ ok: boolean; message?: string; outcome?: string }>('guest.cancel', guestId, bookingId);
         if (!r.ok) handlers.onNote?.({ tone: 'warning', text: r.message ?? 'That did not go through.' });
-        else if (r.outcome === 'requested') handlers.onNote?.({ tone: 'positive', text: 'You asked to cancel. It is inside the free-cancel window, so the vendor has to accept.' });
+        else if (r.outcome === 'requested') handlers.onNote?.({ tone: 'positive', text: 'You asked to cancel. It is past the free-cancel time, so the vendor has to accept.' });
         else handlers.onNote?.({ tone: 'positive', text: action === 'withdraw' ? 'Withdrawn. Nothing was charged.' : 'Cancelled.' });
         break;
       }
@@ -96,9 +110,12 @@ export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: {
       case 'open-menu':
         handlers.onOpenMenu?.(listing.id);
         break;
-      case 'question':
-        if (paymentId) handlers.onQuestion?.(paymentId);
+      case 'question': {
+        // On a booking's own card it is about what the booking costs; on an extra charge, about that charge.
+        const about = paymentId ?? pilot.payments(bookingId).find((x) => x.purpose === 'booking' && !x.duplicate)?.id;
+        if (about) handlers.onQuestion?.(about);
         break;
+      }
       case 'view-booking':
         break;
     }
@@ -108,7 +125,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: {
     <article className={`pilot-card pilot-card--${card.state}`} aria-label={`${card.title}, ${card.label}`}>
       <header>
         <small>{card.kindLabel}</small>
-        <span className={`pilot-state pilot-state--${STATE_TONE[card.state] ?? 'wait'}`}>{card.label}</span>
+        <span className={`pilot-state pilot-state--${card.state === 'extra-charge' && card.label === 'Removed' ? 'bad' : STATE_TONE[card.state] ?? 'wait'}`}>{card.label}</span>
       </header>
       <h3>{card.title}</h3>
       <dl>
@@ -124,9 +141,15 @@ export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: {
           <progress max={1} value={card.timer.progress} aria-label="Time left" />
         </div>
       ) : null}
-      {card.actions.length ? (
+      {confirmingCancel ? (
+        <div className="pilot-actions" role="group" aria-label="Confirm cancelling">
+          <p className="pilot-muted">Cancel this booking? Anything charged is undone.</p>
+          <button type="button" className="guest-button guest-button--secondary" onClick={() => setConfirmingCancel(false)}>Keep it</button>
+          <button type="button" className="guest-button guest-button--primary" onClick={doCancel}>Yes, cancel</button>
+        </div>
+      ) : card.actions.length ? (
         <div className="pilot-actions">
-          {card.actions.map((a) => (
+          {card.actions.filter((a) => a !== 'open-menu' || (handlers.hasMenu ? handlers.hasMenu(listing.id) : true)).map((a) => (
             <button key={a} type="button" className={`guest-button ${PRIMARY.includes(a) ? 'guest-button--primary' : 'guest-button--secondary'}`} onClick={() => act(a)}>
               {a === 'pay' && card.cost.amount ? `Pay now ${peso(card.cost.amount)}` : LABEL[a]}
             </button>

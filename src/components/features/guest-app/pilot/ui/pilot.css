@@ -81,9 +81,12 @@
 .pilot-actions .guest-button { min-height: 44px; flex: 1 1 auto; padding: 0 14px; }
 .pilot-actions a.guest-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 /* sheets */
-.pilot-sheet-backdrop { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; background: oklch(0.2 0.02 350 / 0.4); }
+.pilot-sheet-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; background: oklch(0.2 0.02 350 / 0.4); }
 .pilot-sheet { display: grid; width: 100%; gap: 12px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: var(--guest-canvas); }
 .pilot-sheet header { display: flex; align-items: center; justify-content: space-between; }
 .pilot-sheet h2 { margin: 0; font-size: 17px; }
 .pilot-qr { display: grid; place-items: center; padding: 16px; border-radius: 16px; background: #fff; }
 
+
+.pilot-row .pilot-state { white-space: normal; text-align: center; }
+.pilot-row__end { max-width: 48%; }

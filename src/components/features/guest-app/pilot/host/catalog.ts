@@ -16,7 +16,21 @@ import type { Listing, Vendor } from '../types';
   tours. Everything else is taken at once.
 */
 
-export const CATALOG_VERSION = 'manila-1';
+let versionMemo: string | undefined;
+/**
+  A fingerprint of the catalogue the engine is built from. A record kept for one
+  catalogue is only replayed against the same one: change a price or a time and
+  the old record is let go instead of being played against listings it never saw.
+*/
+export function catalogVersion(): string {
+  if (!versionMemo) {
+    const text = JSON.stringify(buildCatalog());
+    let h = 5381;
+    for (let i = 0; i < text.length; i += 1) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+    versionMemo = `c${h.toString(36)}`;
+  }
+  return versionMemo;
+}
 
 const HH = (time: string): string => {
   const { hour, minute } = parseClockTime(time);

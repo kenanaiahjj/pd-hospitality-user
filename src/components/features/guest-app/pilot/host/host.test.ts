@@ -29,17 +29,30 @@ describe('the pilot host', () => {
     expect(again.now()).toBe(host.now());
   });
 
-  it('steps back in time, dropping what happened after', () => {
+  it('lets the day begin earlier while nothing is booked, and keeps guests and faults', () => {
+    const host = new Host(start, null, true);
+    const { stayId } = host.ensureGuest(stay);
+    host.call('pilot.setGateway', { mode: 'fail' });
+    host.setTime(hostClock('2026-11-11', 8));
+    expect(host.now()).toBe(hostClock('2026-11-11', 8));
+    expect(host.pilot.stay(stayId).room).toBe('304');
+    expect(host.pilot.gateway.mode).toBe('fail');
+  });
+
+  it('does not rewrite the past once something is booked', () => {
     const host = new Host(start, null, true);
     const { guestId } = host.ensureGuest(stay);
-    const early = host.call<{ bookingId: string }>('guest.request', guestId, { listingId: 'cafe', date: '2026-11-12', time: '09:00', qty: 2 });
-    host.setTime(hostClock('2026-11-11', 18));
-    const late = host.call<{ bookingId: string }>('guest.request', guestId, { listingId: 'rooftop', date: '2026-11-12', time: '19:30', qty: 2 });
-    expect(host.pilot.bookings()).toHaveLength(2);
-    host.setTime(hostClock('2026-11-11', 16));
-    expect(host.pilot.bookings().map((b) => b.id)).toEqual([early.bookingId]);
-    expect(host.pilot.bookings().some((b) => b.id === late.bookingId)).toBe(false);
-    expect(host.now()).toBe(hostClock('2026-11-11', 16));
+    host.call('guest.request', guestId, { listingId: 'cafe', date: '2026-11-12', time: '09:00', qty: 2 });
+    host.setTime(hostClock('2026-11-11', 8));
+    expect(host.now()).toBe(start);
+    expect(host.pilot.bookings()).toHaveLength(1);
+  });
+
+  it('lets go of a record it cannot replay instead of breaking', () => {
+    const bad = { v: 1 as const, catalog: 'x', start, guests: {}, ops: [{ path: 'vendor.confirm', args: ['nobody', 'BK-9'], t0: start }, { path: 'pilot.thisDoesNotExist', args: [], t0: start }] };
+    const host = new Host(start, bad, true);
+    expect(host.pilot.bookings()).toHaveLength(0);
+    expect(host.now()).toBe(start);
   });
 
   it('keeps the stay in step with the app', () => {

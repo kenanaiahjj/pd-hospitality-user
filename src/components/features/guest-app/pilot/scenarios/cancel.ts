@@ -190,6 +190,25 @@ export const CANCEL: Scenario[] = [
         const actions = p.card(id).actions;
         c.ok(actions.includes('pay-in-full') && actions.includes('cancel'), 'pay in full or cancel');
       });
+      c.step('Paying in full keeps the booking: one payment, no refund, nothing left to resolve', () => {
+        const q = c.fresh();
+        const bk = (q.guest().request(draft('apo-island-trip', S.tue, 2, { time: '07:30', payMode: 'room' })) as { ok: true; bookingId: string }).bookingId;
+        q.vendor('boat-operator').confirm(bk);
+        q.desk.shortenStay(q.maria.stayId, S.sun);
+        c.must(q.guest().choosePayInFull(bk));
+        // Asking again does not open a second window.
+        c.must(q.guest().choosePayInFull(bk));
+        c.eq(q.payments(bk).filter((x) => x.mode === 'card').length, 1, 'one card payment');
+        c.ok(q.card(bk).actions.includes('pay') && !q.card(bk).actions.includes('pay-in-full'), 'the card offers Pay now with its timer');
+        c.ok(Boolean(q.card(bk).timer), 'and shows the time left');
+        c.must(q.guest().payCard(bk));
+        c.eq(q.booking(bk).status, 'confirmed', 'still confirmed');
+        c.eq(q.booking(bk).needsPayChange, false, 'the conflict is cleared');
+        c.eq(q.payments(bk).filter((x) => x.mode === 'card')[0]!.state, 'paid', 'paid, not refunded');
+        c.ok(!q.tasks('open').some((t) => t.kind === 'stay-conflict'), 'nothing left for the desk');
+        q.advanceMinutes(30);
+        c.eq(q.booking(bk).status, 'confirmed', 'and the old window does not cancel it');
+      });
       c.step('Unresolved 24 hours before, the desk handles it', () => {
         p.advanceTo(p.booking(id).start - 24 * 3_600_000);
         const task = p.tasks('open').find((t) => t.kind === 'stay-conflict' && t.bookingId === id)!;

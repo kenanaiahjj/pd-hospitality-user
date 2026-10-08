@@ -473,7 +473,7 @@ export type Pilot = {
   extraCard(paymentId: string): Card;
   /** The threads a guest (by guest id), a vendor (by vendor id) or the desk can see. */
   threads(viewer: Role, viewerId?: string): ThreadSummary[];
-  thread(threadId: string, viewer: Role): Result<{ messages: Message[]; readOnly: boolean }>;
+  thread(threadId: string, viewer: Role, markRead?: boolean): Result<{ messages: Message[]; readOnly: boolean }>;
   deskThreadId(stayId: string): string;
   privateThreadId(vendorId: string): string;
   tasks(status?: 'open' | 'done'): Task[];

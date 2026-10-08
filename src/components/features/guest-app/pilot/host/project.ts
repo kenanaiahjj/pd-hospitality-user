@@ -10,8 +10,8 @@ import type { Host } from './host';
   that My Stay, the room bill, Payments, badges and the bell already read, so
   none of them had to learn a new vocabulary.
 
-  Pure and idempotent: it returns the very same session when nothing changed,
-  which is what keeps a state update from looping.
+  Pure. It builds the view the app reads and is meant to be recomputed (memoised on
+  the engine's version), never written back into the stored session.
 */
 
 const CANCELLED: BookingStatus[] = ['cancelled', 'declined', 'lapsed', 'withdrawn', 'payment-expired'];
@@ -25,7 +25,8 @@ const time12 = (ms: number) => {
 };
 const isoOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-const roomLive = (p: Payment) => p.mode === 'room' && !['voided', 'reversed', 'refund-due', 'failed'].includes(p.state);
+// A charge the hotel system refused is still a charge: it is on the guest's bill until the desk settles it.
+const roomLive = (p: Payment) => p.mode === 'room' && !['voided', 'reversed', 'refund-due'].includes(p.state);
 
 /** What the guest is told about where a booking stands, in the receipt's own words. */
 export function engineStatusLine(eb: EngineBooking): string {
@@ -52,8 +53,10 @@ export function engineStatusLine(eb: EngineBooking): string {
 export function engineCancelLine(pilot: Pilot, eb: EngineBooking): string {
   const listing = pilot.listing(eb.listingId);
   if (eb.kind === 'table') return 'Free to cancel any time before you are seated. The table is held 15 minutes past your time.';
+  if (['cancelled', 'declined', 'lapsed', 'withdrawn', 'payment-expired', 'no-show', 'completed', 'collected', 'seated'].includes(eb.status)) return 'This booking is closed.';
   if (['requested', 'needs-approval', 'pay-or-cancel', 'awaiting-payment'].includes(eb.status)) return 'Withdraw any time before it is confirmed. Nothing is charged until then.';
   const until = eb.start - listing.freeCancelHours * 3_600_000;
+  if (until <= pilot.now()) return 'The free-cancel time has passed. You can ask to cancel, and the vendor has to accept.';
   const d = new Date(until);
   const h = d.getUTCHours();
   const clock = `${((h + 11) % 12) + 1}:${String(d.getUTCMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
@@ -79,7 +82,7 @@ function present(pilot: Pilot, host: Host, eb: EngineBooking, appBookingId: stri
   else if (eb.status === 'requested') {
     paymentStatus = 'pending-confirmation';
     bookingConfirmation = 'awaiting-provider';
-  } else if (eb.status === 'awaiting-payment') paymentStatus = 'payment-pending';
+  } else if (eb.status === 'awaiting-payment' || (card?.state === 'awaiting' && !room)) paymentStatus = 'payment-pending';
   else if (refunded) paymentStatus = 'refunded';
   else if (card?.state === 'paid') paymentStatus = 'paid';
   else if (room) paymentStatus = 'charged-to-room';
@@ -136,7 +139,7 @@ function present(pilot: Pilot, host: Host, eb: EngineBooking, appBookingId: stri
 
 function presentExtra(pilot: Pilot, eb: EngineBooking, p: Payment, appBookingId: string, existing: ServiceBooking | undefined): ServiceBooking {
   const listing = pilot.listing(eb.listingId);
-  const undone = ['voided', 'reversed', 'expired', 'refunded'].includes(p.state);
+  const undone = ['voided', 'reversed', 'expired', 'refunded', 'refund-pending', 'refund-failed', 'refund-due'].includes(p.state);
   const paymentStatus: ServiceBooking['paymentStatus'] = undone ? 'refunded' : p.mode === 'room' ? 'charged-to-room' : p.state === 'paid' ? 'paid' : 'payment-pending';
   const day = isoOf(eb.start);
   return {

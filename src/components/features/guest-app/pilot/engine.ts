@@ -4,7 +4,7 @@ import { checkInvariants, blocksCheckout } from './invariants';
 import { bookingMoveAllowed, EXIT_STATUSES, holdKind, paymentMoveAllowed } from './rules';
 import type {
   Actor, Booking, BookingStatus, Card, CardAction, CardState, Draft, GuestActions, Kind, Listing, Message, Notification, PayMode, PayOptions, Payment, PayState, Pilot,
-  PilotOptions, Refusal, Result, Role, Stay, Task, Thread, ThreadSummary, VendorActions, DeskActions,
+  PilotOptions, Refusal, Result, Role, Stay, Task, Thread, ThreadSummary, VendorActions, DeskActions, Dispute,
 } from './types';
 import type { GatewayTxn, VendorRuntime, World } from './world';
 
@@ -86,6 +86,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     payments: new Map(),
     threads: new Map(),
     tasks: new Map(),
+    disputes: new Map(),
     notifications: [],
     log: [],
     vendorRuntime: new Map((options.catalog?.vendors ?? PILOT_VENDORS).map((v) => [v.id, { online: true, away: false, pendingTaps: [], cache: null, blockedSlots: new Set(), removedListings: new Set() } as VendorRuntime])),
@@ -232,6 +233,34 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     else sched(w.now + settings.guestSmsUnopenedMin * MIN, 'guest-sms', `${b.id}:${topic}`, () => { if (!push.opened) notify('guest', 'sms', topic, b.id, true); }, b.id);
   };
 
+  // ---------------------------------------------------------------- disputes
+
+  /*
+    A dispute is the one time the front desk may read a guest and vendor chat,
+    and only to read it. It opens when a guest questions a charge, contests a
+    no-show or disputes a vendor's cancellation, or when a vendor claims damage.
+    Deciding it closes it, and with it the desk's access.
+  */
+  const openDisputeFor = (bookingId: string, paymentId?: string) =>
+    [...w.disputes.values()].find((d) => d.bookingId === bookingId && d.decidedAt === undefined && (paymentId === undefined || d.paymentId === paymentId));
+  const openDispute = (b: Booking, kind: Dispute['kind'], openedBy: Dispute['openedBy'], paymentId?: string): Dispute => {
+    const existing = openDisputeFor(b.id, paymentId);
+    if (existing) return existing;
+    const d: Dispute = { id: nextId('DSP'), bookingId: b.id, paymentId, kind, openedBy, openedAt: w.now, reads: [] };
+    w.disputes.set(d.id, d);
+    log('dispute-opened', `${d.id} ${kind} on ${b.id}${paymentId ? ` (${paymentId})` : ''} by ${openedBy}`, { entity: 'booking', entityId: b.id });
+    return d;
+  };
+  const decideDisputes = (bookingId: string, paymentId: string | undefined, outcome: string) => {
+    for (const d of w.disputes.values()) {
+      if (d.bookingId !== bookingId || d.decidedAt !== undefined) continue;
+      if (paymentId !== undefined && d.paymentId !== paymentId) continue;
+      d.decidedAt = w.now;
+      d.outcome = outcome;
+      log('dispute-decided', `${d.id} ${d.kind} on ${bookingId}: ${outcome}. The desk's read access ended.`, { entity: 'booking', entityId: bookingId });
+    }
+  };
+
   // ---------------------------------------------------------------- threads
 
   const makeThread = (t: Omit<Thread, 'unread'>): Thread => {
@@ -367,7 +396,12 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       case 'reserved': actions.push('cancel', 'open-menu', 'running-late'); break;
       case 'ready': actions.push('message-desk'); break;
       case 'in-progress': actions.push('question'); break;
-      case 'withdrawn': case 'declined': case 'lapsed': case 'payment-expired': case 'cancelled': actions.push('pick-another'); break;
+      case 'cancelled':
+        // A vendor's cancellation can be disputed once, while the stay is open.
+        if (b.cancelledBy === 'vendor' && stayOf(b).status !== 'checked-out' && ![...w.disputes.values()].some((d) => d.bookingId === b.id)) actions.push('dispute-cancel');
+        actions.push('pick-another');
+        break;
+      case 'withdrawn': case 'declined': case 'lapsed': case 'payment-expired': actions.push('pick-another'); break;
       case 'no-show': actions.push('question'); break;
       default: break;
     }
@@ -891,6 +925,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   const cancelBooking = (b: Booking, who: string, reason: string, by: 'guest' | 'vendor' | 'desk' | 'system' | 'accepted', batch = false): void => {
     undoPayments(b);
     b.reason = reason;
+    b.cancelledBy = by;
     move(b, 'cancelled', who, 'cancelled');
     b.needsPayChange = false;
     announce(b, `Cancelled${reason ? `: ${reason}` : ''}. ${costLine(b).line}.`);
@@ -970,6 +1005,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         case 'pms-alert': if (![...w.payments.values()].some((x) => x.mode === 'room' && x.state === 'pending' && !x.holdUntilCheckIn)) closeTask(t, 'the hotel system took the queued charges'); break;
         case 'failed-refund': if (p?.state === 'refunded') closeTask(t, 'refunded'); break;
         case 'questioned-charge': if (p && !p.inQuestion) closeTask(t, 'answered'); break;
+        case 'damage-claim': if (p && !p.inQuestion) closeTask(t, 'decided'); break;
+        case 'disputed-cancel': if (b && !openDisputeFor(b.id)) closeTask(t, 'decided'); break;
         case 'checkout-blocker': if (p && !blocksCheckout(p)) closeTask(t, 'cleared'); break;
         case 'lapsed-reinstate': if (b && b.status !== 'lapsed') closeTask(t, 'reinstated'); break;
         case 'refund-due': if (p && ['reversed', 'refunded'].includes(p.state)) closeTask(t, 'settled'); break;
@@ -1082,14 +1119,30 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           const b = p ? w.bookings.get(p.bookingId) : undefined;
           if (!p || !b || b.guestId !== guestId) return refuse('not-found', 'That charge is not yours.');
           if (['voided', 'reversed', 'refunded', 'expired'].includes(p.state)) return refuse('invalid-state', 'That charge is already undone.');
+          if (p.inQuestion) return refuse('already-actioned', 'You have already questioned this charge. The front desk is looking into it.');
+          if ([...w.disputes.values()].some((d) => d.paymentId === p.id && d.decidedAt !== undefined)) return refuse('already-actioned', 'The front desk has already decided this charge. Message them if something is still wrong.');
           if (stayOf(b).status === 'checked-out') {
             post(ensureDeskThread(b.stayId), { role: 'guest', name: who() }, text ?? `I have a question about the ${peso(p.amount)} charge.`);
             return refuse('not-possible', 'Your stay is settled, so the app cannot reopen this charge. Your message went to the front desk.');
           }
           p.inQuestion = true;
+          openDispute(b, b.status === 'no-show' ? 'no-show' : 'charge', 'guest', p.id);
           const stay = stayOf(b);
           raise('questioned-charge', p.id, `${who()} questions ${peso(p.amount)}${p.reason ? ` (${p.reason})` : ''}${text ? `: "${text}"` : ''}`, at(stay.checkOut, '12:00'), { bookingId: b.id, paymentId: p.id });
           announce(b, `${who()} questioned the ${peso(p.amount)} charge. The front desk will settle it before checkout.`);
+          return ok();
+        });
+      },
+      disputeCancel(bookingId, text) {
+        return own(() => {
+          const b = mine(bookingId);
+          if (!b) return refuse('not-found', 'That booking is not yours.');
+          if (b.status !== 'cancelled' || b.cancelledBy !== 'vendor') return refuse('invalid-state', 'Only a cancellation the vendor made can be disputed.');
+          if (stayOf(b).status === 'checked-out') return refuse('not-possible', 'Your stay is settled. Message the front desk instead.');
+          if (openDisputeFor(b.id)) return refuse('already-actioned', 'You have already disputed this. The front desk is looking into it.');
+          openDispute(b, 'vendor-cancel', 'guest');
+          raise('disputed-cancel', b.id, `${who()} disputes ${vendorOf(listingOf(b)).name}'s cancellation${b.reason ? ` ("${b.reason}")` : ''}${text ? `: "${text}"` : ''}`, at(stayOf(b).checkOut, '12:00'), { bookingId: b.id });
+          announce(b, `${who()} disputed the cancellation. The front desk will look into it.`);
           return ok();
         });
       },
@@ -1100,6 +1153,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           if (!p || !b || b.guestId !== guestId) return refuse('not-found', 'That charge is not yours.');
           absorbUnseen(p);
           if (p.mode !== 'card' || p.state !== 'awaiting') return refuse('invalid-state', 'There is nothing to pay.');
+          if (p.inQuestion) return refuse('not-possible', 'This charge is in question. Nothing is paid until the front desk decides.');
           return ok(gatewayAttempt(p));
         });
       },
@@ -1278,6 +1332,22 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           }
           announce(b, `${shortBy} ${shortBy === 1 ? 'box was' : 'boxes were'} short. The charge is now ${peso(b.amount)}.`);
           return ok();
+        });
+      },
+      claimDamage(bookingId, amount, reason) {
+        return act(() => {
+          const b = owns(bookingId);
+          if (!b) return refuse('not-found', 'That booking is not yours.');
+          if (!['in-progress', 'completed'].includes(b.status)) return refuse('invalid-state', 'Damage can be claimed once the rental or service has started.');
+          const added = vendorActions(vendorId).addExtra(bookingId, amount, `Damage: ${reason}`);
+          if (!added.ok) return added;
+          const p = must(w.payments.get(added.paymentId), added.paymentId);
+          // Added, and held: nothing settles until the front desk decides.
+          p.inQuestion = true;
+          openDispute(b, 'damage', 'vendor', p.id);
+          raise('damage-claim', p.id, `${vendor.name} claims ${peso(amount)} for damage: ${reason}`, at(stayOf(b).checkOut, '12:00'), { bookingId: b.id, paymentId: p.id });
+          announce(b, `${vendor.name} claims ${peso(amount)} for damage. It is in question until the front desk decides.`);
+          return ok({ paymentId: p.id });
         });
       },
       addExtra(bookingId, amount, reason) {
@@ -1612,6 +1682,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         const stay = w.stays.get(stayId);
         if (!stay) return refuse('not-found', 'No such stay.');
         if (stay.status === 'checked-out') return refuse('invalid-state', 'Already checked out.');
+        const disputed = [...w.disputes.values()].filter((d) => d.decidedAt === undefined && w.bookings.get(d.bookingId)?.stayId === stayId && !d.paymentId);
+        if (disputed.length) return refuse('blocked', `Cannot check out: ${disputed.length === 1 ? 'a dispute is' : `${disputed.length} disputes are`} still open. Decide ${disputed.length === 1 ? 'it' : 'them'} first.`);
         const blockers = [...w.payments.values()].filter((p) => p.stayId === stayId && blocksCheckout(p));
         if (blockers.length) {
           for (const p of blockers) raise('checkout-blocker', p.id, `${peso(p.amount)} ${p.reason ?? 'charge'} is ${p.inQuestion ? 'in question' : p.state === 'awaiting' ? 'unpaid' : p.state}. Post, void or collect it first.`, w.now + HOUR, { bookingId: p.bookingId, paymentId: p.id });
@@ -1641,6 +1713,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           else if (p.state === 'paid') refundCard(p);
           else if (p.state === 'awaiting') { movePay(p, 'expired'); cancelTimers(p.id); }
         };
+        // Deciding the charge decides its dispute, and ends the desk's read access to the chat.
+        decideDisputes(b.id, p.id, how);
         if (how === 'uphold') {
           p.inQuestion = false;
           announce(b, `The front desk upheld the ${peso(p.amount)} charge.`);
@@ -1658,6 +1732,43 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         announce(b, `The front desk adjusted the charge from ${peso(p.amount)} to ${peso(newAmount)}.`);
         void next;
         return ok();
+      });
+    },
+    readDispute(bookingId) {
+      return act(() => {
+        const b = w.bookings.get(bookingId);
+        if (!b) return refuse('not-found', 'No such booking.');
+        const d = openDisputeFor(b.id);
+        // No dispute, no reading: the desk sees the booking and its tasks, never the chat.
+        if (!d) return refuse('no-dispute', 'There is no open dispute on this booking. The front desk can see the booking and its tasks, not the chat.');
+        const t = must(w.threads.get(b.threadId), 'thread');
+        d.reads.push(w.now);
+        log('dispute-read', `${deskName} read the chat of ${b.id} for ${d.id} (${d.kind})`, { entity: 'booking', entityId: b.id, actor: deskName });
+        // What the two of them said, as they see it; reading marks nothing read for either side.
+        const messages = t.messages.filter((m) => m.visibleTo.includes('guest') || m.visibleTo.includes('vendor'));
+        // Both are told, in this chat, that the desk read it. The desk is still not a member and cannot write here.
+        post(t, SYSTEM, 'The front desk read this chat to settle the dispute.', 'system', ['guest', 'vendor']);
+        return ok({ dispute: { ...d, reads: [...d.reads] }, messages });
+      });
+    },
+    decideCancelDispute(bookingId, outcome) {
+      return act(() => {
+        const b = w.bookings.get(bookingId);
+        if (!b) return refuse('not-found', 'No such booking.');
+        const d = openDisputeFor(b.id);
+        if (!d || d.kind !== 'vendor-cancel') return refuse('no-dispute', 'There is no disputed cancellation on this booking.');
+        if (outcome === 'stands') {
+          decideDisputes(b.id, undefined, 'cancellation stands');
+          announce(b, 'The front desk looked into it: the cancellation stands. Nothing was charged.');
+          return ok({});
+        }
+        // Reinstate: the cancellation stays on the record, and a fresh request for the same slot goes back to the vendor.
+        const listing = listingOf(b);
+        const again = deskActions.bookFor(b.guestId, { listingId: listing.id, date: dateOf(b.start), time: listing.kind === 'goods' ? undefined : new Date(b.start).toISOString().slice(11, 16), qty: b.qty, payMode: b.payMode ?? 'room', days: b.days }, { staffName: deskName, asked: 'chat' });
+        if (!again.ok) return refuse(again.reason, `Could not reinstate it: ${again.message}`);
+        decideDisputes(b.id, undefined, `reinstated as ${again.bookingId}`);
+        announce(b, 'The front desk looked into it and sent a new request for the same time back to the vendor.');
+        return ok({ bookingId: again.bookingId });
       });
     },
     reinstate(bookingId) {
@@ -1743,7 +1854,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
             }
             break;
           case 'failed-refund': case 'refund-due': if (p) deskActions.settleRefund(p.id); break;
-          case 'questioned-charge': if (p) deskActions.resolveCharge(p.id, how === 'waive' ? 'waive' : 'uphold'); break;
+          case 'questioned-charge': case 'damage-claim': if (p) deskActions.resolveCharge(p.id, how === 'waive' ? 'waive' : 'uphold'); break;
+          case 'disputed-cancel': if (b) deskActions.decideCancelDispute(b.id, how === 'reinstate' ? 'reinstate' : 'stands'); break;
           case 'checkout-blocker': if (p?.inQuestion) deskActions.resolveCharge(p.id, 'uphold'); else if (p?.state === 'awaiting') deskActions.collectInFull(p.id); else if (p && ['pending', 'failed'].includes(p.state)) deskActions.postByHand(p.id); break;
           default: break;
         }
@@ -1822,9 +1934,11 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     extraCard(paymentId) {
       const p = must(w.payments.get(paymentId), paymentId);
       const b = must(w.bookings.get(p.bookingId), p.bookingId);
-      const actions: CardAction[] = p.inQuestion || ['voided', 'reversed', 'expired', 'refunded'].includes(p.state) ? [] : ['question'];
-      if (p.mode === 'card' && p.state === 'awaiting') actions.unshift('pay');
-      return { bookingId: b.id, state: 'extra-charge', label: p.state === 'voided' || p.state === 'reversed' ? 'Removed' : 'Added', kindLabel: 'Extra charge', title: p.reason ?? 'Extra charge', facts: [{ label: 'Reason', value: p.reason ?? '' }], cost: { amount: p.amount, line: p.mode === 'room' ? 'Charged to your room' : p.state === 'awaiting' ? 'Pay in full' : 'Paid in full' }, actions };
+      // Once the desk has decided a charge, it is not questioned again.
+      const decided = [...w.disputes.values()].some((d) => d.paymentId === p.id && d.decidedAt !== undefined);
+      const actions: CardAction[] = p.inQuestion || decided || ['voided', 'reversed', 'expired', 'refunded'].includes(p.state) ? [] : ['question'];
+      if (p.mode === 'card' && p.state === 'awaiting' && !p.inQuestion) actions.unshift('pay');
+      return { bookingId: b.id, state: 'extra-charge', label: p.state === 'voided' || p.state === 'reversed' ? 'Removed' : p.inQuestion ? 'In question' : 'Added', kindLabel: 'Extra charge', title: p.reason ?? 'Extra charge', facts: [{ label: 'Reason', value: p.reason ?? '' }], cost: { amount: p.amount, line: p.mode === 'room' ? 'Charged to your room' : p.state === 'awaiting' ? 'Pay in full' : 'Paid in full' }, actions };
     },
     threads(viewer, viewerId) {
       const all = [...w.threads.values()].filter((t) => t.participants.includes(viewer));
@@ -1846,6 +1960,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     deskThreadId,
     privateThreadId,
     tasks: (status) => [...w.tasks.values()].filter((t) => !status || t.status === status),
+    disputes: (bookingId) => [...w.disputes.values()].filter((d) => !bookingId || d.bookingId === bookingId).map((d) => ({ ...d, reads: [...d.reads] })),
     outbox: () => w.notifications,
     log: () => w.log,
     slot(listingId, date, time) {

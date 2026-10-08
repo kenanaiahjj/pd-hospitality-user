@@ -144,6 +144,8 @@ export type Booking = {
   staffName?: string;
   reason?: string;
   cancelRequested?: boolean;
+  /** Who cancelled it, so a guest can dispute a vendor's cancellation and no one else's. */
+  cancelledBy?: 'guest' | 'vendor' | 'desk' | 'system' | 'accepted';
   vendorOpened: boolean;
   /** Goods: the day the order is ready for. */
   readyFor?: string;
@@ -190,6 +192,25 @@ export type Payment = {
   duplicate?: boolean;
 };
 
+/**
+ * A disagreement the front desk has to decide. While one is open the desk may
+ * read the guest and vendor chat, read only; deciding it ends that access.
+ */
+export type DisputeKind = 'charge' | 'no-show' | 'vendor-cancel' | 'damage';
+export type Dispute = {
+  id: string;
+  bookingId: string;
+  /** The charge in question, for every kind but a disputed cancellation. */
+  paymentId?: string;
+  kind: DisputeKind;
+  openedBy: 'guest' | 'vendor';
+  openedAt: number;
+  decidedAt?: number;
+  outcome?: string;
+  /** Each time the desk opened the chat to read it. */
+  reads: number[];
+};
+
 export type Task = {
   id: string;
   kind:
@@ -199,6 +220,8 @@ export type Task = {
     | 'pms-alert'
     | 'failed-refund'
     | 'questioned-charge'
+    | 'disputed-cancel'
+    | 'damage-claim'
     | 'checkout-blocker'
     | 'lapsed-reinstate'
     | 'refund-due'
@@ -298,6 +321,7 @@ export type CardAction =
   | 'pick-another'
   | 'message-desk'
   | 'question'
+  | 'dispute-cancel'
   | 'running-late';
 
 export type Refusal =
@@ -314,7 +338,9 @@ export type Refusal =
   | 'no-cache'
   | 'blocked'
   | 'not-found'
-  | 'not-possible';
+  | 'not-possible'
+  /** The desk asked to read a guest and vendor chat with no dispute open. */
+  | 'no-dispute';
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; reason: Refusal; message: string; by?: string; at?: number };
 
@@ -359,6 +385,8 @@ export type GuestActions = {
   /** Withdraw before it is answered, or cancel after. */
   cancel(bookingId: string): Result<{ outcome: 'withdrawn' | 'cancelled' | 'requested' }>;
   question(paymentId: string, text?: string): Result;
+  /** Dispute a cancellation the vendor made. */
+  disputeCancel(bookingId: string, text?: string): Result;
   payExtra(paymentId: string, mode?: PayMode): Result<{ outcome?: 'paid' | 'failed' | 'abandoned'; triesLeft?: number }>;
   send(threadId: string, text: string): Result<{ redirectedTo?: string }>;
   sendToDesk(text: string): Result;
@@ -377,6 +405,8 @@ export type VendorActions = {
   sendToDesk(bookingId: string): Result;
   markShort(bookingId: string, shortBy: number): Result;
   addExtra(bookingId: string, amount: number, reason: string): Result<{ paymentId: string }>;
+  /** Claim for damage: added as a charge already in question, decided by the front desk. */
+  claimDamage(bookingId: string, amount: number, reason: string): Result<{ paymentId: string }>;
   correctExtra(paymentId: string, amount: number): Result<{ paymentId: string }>;
   markNoShow(bookingId: string): Result;
   cancel(bookingId: string, reason: string): Result;
@@ -412,6 +442,13 @@ export type DeskActions = {
   /** Lists what blocks it; finishes only when nothing does. */
   checkout(stayId: string): Result<{ blockers: string[]; checklist: string[] }>;
   resolveCharge(paymentId: string, how: 'uphold' | 'adjust' | 'waive', newAmount?: number): Result;
+  /**
+   * Read the guest and vendor chat of a booking with an open dispute. Read only:
+   * the desk is never a member of that chat. Both sides are told, and it is logged.
+   */
+  readDispute(bookingId: string): Result<{ dispute: Dispute; messages: Message[] }>;
+  /** Decide a disputed vendor cancellation: it stands, or a fresh request goes back to the vendor. */
+  decideCancelDispute(bookingId: string, outcome: 'stands' | 'reinstate'): Result<{ bookingId?: string }>;
   reinstate(bookingId: string): Result;
   postByHand(paymentId: string): Result;
   voidCharge(paymentId: string): Result;
@@ -478,6 +515,8 @@ export type Pilot = {
   deskThreadId(stayId: string): string;
   privateThreadId(vendorId: string): string;
   tasks(status?: 'open' | 'done'): Task[];
+  /** Disputes, open and decided, optionally for one booking. */
+  disputes(bookingId?: string): Dispute[];
   outbox(): Notification[];
   log(): LogEntry[];
   slot(listingId: string, date: string, time?: string): { key: string; capacity: number; held: number; confirmed: number };

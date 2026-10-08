@@ -204,6 +204,8 @@ import {
 import { PMS_LAST_SYNC, PrototypeControls, slug, type PrototypeEvent } from './prototype-controls';
 import { HostStore, hostClock, type StayInput } from './pilot/host/host';
 import { EngineBookingCard } from './pilot/host/booking-card';
+import { DisputeSheet } from './pilot/host/dispute';
+import type { Dispute, Message as EngineMessage } from './pilot/types';
 import type { Draft as EngineDraft } from './pilot/types';
 import { applyEngine, engineCancelLine, engineStatusLine, withoutEngineRecords } from './pilot/host/project';
 import { buildPilotEvents } from './pilot/host/events';
@@ -637,6 +639,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [rentalQuantity, setRentalQuantity] = useState(1);
   /* A card payment the engine is waiting on, shown in the gateway until it is paid or left. */
   const [enginePay, setEnginePay] = useState<{ engineId: string; paymentId?: string } | null>(null);
+  // The desk reading a dispute: the chat as it stood when the desk opened it.
+  const [disputeView, setDisputeView] = useState<{ bookingId: string; dispute: Dispute; messages: EngineMessage[] } | null>(null);
   /* What the engine answered to the last thing the guest did: a refusal to explain, or a confirmation. */
   const [engineNote, setEngineNote] = useState<{ tone: 'warning' | 'positive'; text: string } | null>(null);
   /* The booking the confirmation screen is about. */
@@ -1850,8 +1854,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           setReadNotificationIds([]);
           setSelectedThreadId(null);
           setEnginePay(null);
+          setDisputeView(null);
         },
         refused: (message) => setPushNotice({ id: 'rig-refused', headline: 'Not allowed', detail: message, screen: 'stay-overview' }),
+        readDispute: (bookingId) => {
+          const host = hostStore.host;
+          if (!host) return;
+          const read = host.call<{ ok: true; dispute: Dispute; messages: EngineMessage[] } | { ok: false; message: string }>('desk.readDispute', bookingId);
+          if (read.ok) setDisputeView({ bookingId, dispute: read.dispute, messages: read.messages });
+          else setPushNotice({ id: 'rig-refused', headline: 'Not allowed', detail: read.message, screen: 'stay-overview' });
+        },
         moveRoom: () => {
           const host = hostStore.host;
           const stay = host?.guestOf(primaryBooking.id);
@@ -3045,6 +3057,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     // A new demo state is a new world: no booking, thread or charge from the last one.
     hostStore.reset(hostClock(PROTOTYPE_TODAY, clockHour));
     setEnginePay(null);
+    setDisputeView(null);
     setEngineNote(null);
     setSelectedThreadId(null);
     // Engine notifications are numbered from 1 again, so what was read before is not what is new now.
@@ -6471,6 +6484,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </div>
 
 
+          {disputeView && hostStore.host ? (
+            <DisputeSheet
+              host={hostStore.host}
+              bookingId={disputeView.bookingId}
+              dispute={disputeView.dispute}
+              messages={disputeView.messages}
+              onClose={() => setDisputeView(null)}
+              onDecided={(text) => setPushNotice({ id: 'rig-dispute', headline: 'Front desk', detail: text, screen: 'stay-overview' })}
+              {...cardHandlers}
+            />
+          ) : null}
           {enginePay && hostStore.host && hostStore.host.pilot.bookings().some((b) => b.id === enginePay.engineId) ? (() => {
             const host = hostStore.host;
             const eb = host.pilot.booking(enginePay.engineId);

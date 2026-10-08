@@ -42,6 +42,7 @@ const LABEL: Record<CardAction, string> = {
   'pick-another': 'Pick another',
   'message-desk': 'Message the front desk',
   question: 'Question this charge',
+  'dispute-cancel': 'Dispute this cancellation',
   'running-late': 'Running late',
 };
 const PRIMARY: CardAction[] = ['pay', 'pay-in-full', 'show-qr'];
@@ -190,6 +191,11 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
         if (about) handlers.onQuestion?.(about);
         break;
       }
+      case 'dispute-cancel': {
+        const r = host.call<{ ok: boolean; message?: string }>('guest.disputeCancel', guestId, bookingId);
+        handlers.onNote?.(r.ok ? { tone: 'positive', text: 'You disputed the cancellation. The front desk will look into it and tell you here.' } : { tone: 'warning', text: r.message ?? 'That did not go through.' });
+        break;
+      }
       case 'view-booking':
         break;
     }
@@ -198,7 +204,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
   const vendorName = pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? '';
   // The vendor is the subtitle, so it is not a fact as well. An extra charge says what it was added to.
   const subtitle = paymentId ? `From ${vendorName} · ${listing.title}` : vendorName;
-  const tone = STATUS_TONE(card.state, card.label);
+  const tone = card.label === 'In question' ? 'wait' : STATUS_TONE(card.state, card.label);
   const status = <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>;
   const image = paymentId ? undefined : handlers.imageFor?.(bookingId);
 

@@ -193,6 +193,45 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     expect(within(desk).getByText(/added that to your City bicycle booking/)).toBeInTheDocument();
   });
 
+  it('lets the front desk read a guest and vendor chat only during a dispute, read only, and tells both', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor adds a ₱300 extra charge to City bicycle/);
+
+    // No dispute yet: the desk has nothing it may read.
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Events' }));
+    expect(screen.getByRole('button', { name: 'Desk reads a guest and vendor chat' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+
+    // She questions the charge: a dispute opens, and the desk may read.
+    await openMessages(user);
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: 'Question this charge' }));
+    await fire(user, /Desk reads the City bicycle chat for the dispute/);
+    const sheet = screen.getByRole('dialog', { name: /Dispute, Extra charge, read only/ });
+    expect(within(sheet).getByText('You are not part of this chat')).toBeInTheDocument();
+    expect(within(sheet).queryByRole('textbox')).toBeNull();
+
+    // Deciding ends the access.
+    await user.click(within(sheet).getByRole('button', { name: 'Uphold' }));
+    expect(screen.queryByRole('dialog', { name: /Dispute/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Events' }));
+    expect(screen.queryByRole('button', { name: /Desk reads the City bicycle chat/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+
+    // She was told in her chat with the shop, and of the outcome. (Questioning took her to the desk chat; back out first.)
+    for (let i = 0; i < 3 && !screen.queryByRole('navigation', { name: 'Primary navigation' }); i += 1) await user.click(screen.getAllByRole('button', { name: 'Go back' })[0]!);
+    await openMessages(user);
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
+    expect(within(thread).getByText('The front desk read this chat to settle the dispute.')).toBeInTheDocument();
+    expect(within(thread).getByText(/upheld the ₱300 charge/)).toBeInTheDocument();
+  });
+
   it('shows one booking in the same state in its thread and on its receipt', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);

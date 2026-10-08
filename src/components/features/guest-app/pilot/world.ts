@@ -1,5 +1,5 @@
 import type { Settings } from './config';
-import type { Booking, Guest, GatewaySim, Listing, LogEntry, Notification, Payment, PmsSim, Stay, Task, Thread, Vendor } from './types';
+import type { Booking, Dispute, Guest, GatewaySim, Listing, LogEntry, Notification, Payment, PmsSim, Stay, Task, Thread, Vendor } from './types';
 
 /*
   Everything the engine knows, in one plain object, so the invariant checks can
@@ -32,6 +32,7 @@ export type World = {
   payments: Map<string, Payment>;
   threads: Map<string, Thread>;
   tasks: Map<string, Task>;
+  disputes: Map<string, Dispute>;
   notifications: Notification[];
   log: LogEntry[];
   vendorRuntime: Map<string, VendorRuntime>;

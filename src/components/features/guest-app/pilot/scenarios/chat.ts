@@ -190,4 +190,91 @@ export const CHAT: Scenario[] = [
       });
     },
   },
+  {
+    id: 'Q10',
+    group: G,
+    title: 'The front desk reads a dispute, read only',
+    run(c) {
+      const { p } = c;
+      let rental = '';
+      let extra = '';
+      const thread = () => p.booking(rental).threadId;
+      c.step('She questions a late-return charge: a dispute opens', () => {
+        rental = c.ask(bike());
+        c.must(p.vendor('bike-shop').confirm(rental));
+        p.advanceTo(p.at(S.sat, '08:05'));
+        c.must(p.vendor('bike-shop').scan(rental));
+        c.must(p.guest().send(thread(), 'We will bring them back by six.'));
+        c.must(p.vendor('bike-shop').message(thread(), 'Thank you. Back by six is fine.'));
+        extra = c.must(p.vendor('bike-shop').addExtra(rental, 300, 'Late return')).paymentId;
+        c.must(p.guest().question(extra, 'We were back on time.'));
+        c.eq(p.disputes(rental).filter((d) => d.decidedAt === undefined).length, 1, 'one open dispute');
+        c.ok(p.tasks('open').some((t) => t.kind === 'questioned-charge' && t.paymentId === extra), 'a desk task');
+      });
+      c.step('The desk reads the chat: read only, both sides told, logged', () => {
+        const read = c.must(p.desk.readDispute(rental));
+        c.ok(read.messages.some((m) => /back by six/i.test(m.text) && m.from.role === 'guest'), 'the desk sees what she said');
+        c.ok(read.messages.some((m) => /six is fine/i.test(m.text) && m.from.role === 'vendor'), 'and what the shop said');
+        c.refused(p.thread(thread(), 'desk'), 'not-a-participant');
+        c.ok(!p.threads('desk').some((t) => t.id === thread()), 'the chat is not in the desk list: it is never a member');
+        for (const viewer of ['guest', 'vendor'] as const) {
+          c.ok(c.must(p.thread(thread(), viewer)).messages.some((m) => m.kind === 'system' && /front desk read this chat/i.test(m.text)), `the ${viewer} is told`);
+        }
+        c.ok(p.log().some((l) => l.kind === 'dispute-read' && l.entityId === rental), 'the open is logged');
+        c.eq(p.disputes(rental)[0]!.reads.length, 1, 'one read on record');
+      });
+      c.step('The desk cannot write in it: what it says goes to its own chat with her', () => {
+        const before = c.must(p.thread(thread(), 'guest')).messages.length;
+        c.must(p.desk.messageBooking(thread(), 'I am looking into the late return.'));
+        c.eq(c.must(p.thread(thread(), 'guest')).messages.length, before, 'nothing new in the guest and vendor chat');
+        c.ok(c.must(p.thread(p.deskThreadId(p.maria.stayId), 'guest')).messages.some((m) => /looking into the late return/.test(m.text)), 'it is in the desk chat');
+      });
+      c.step('Deciding ends the access, and is logged', () => {
+        c.must(p.desk.resolveCharge(extra, 'waive'));
+        c.ok(p.disputes(rental).every((d) => d.decidedAt !== undefined), 'the dispute is decided');
+        c.refused(p.desk.readDispute(rental), 'no-dispute');
+        c.ok(p.log().some((l) => l.kind === 'dispute-decided' && l.entityId === rental), 'the decision is logged');
+      });
+      c.step('A vendor claims damage: added, held in question, readable until decided', () => {
+        const claim = c.must(p.vendor('bike-shop').claimDamage(rental, 500, 'Bent wheel')).paymentId;
+        c.eq(p.payment(claim).inQuestion, true, 'held in question');
+        c.ok(p.disputes(rental).some((d) => d.kind === 'damage' && d.decidedAt === undefined), 'a damage dispute');
+        c.must(p.desk.readDispute(rental));
+        c.must(p.desk.resolveCharge(claim, 'uphold'));
+        c.refused(p.desk.readDispute(rental), 'no-dispute');
+      });
+      c.step('A disputed vendor cancellation blocks checkout; reinstating sends a new request back', () => {
+        // Sunday's boat: the clock is already past Friday's.
+        const boat = c.ask(draft('apo-island-trip', S.sun, 2, { time: '07:30', payMode: 'room' }));
+        c.must(p.vendor('boat-operator').confirm(boat));
+        c.must(p.vendor('boat-operator').cancel(boat, 'Engine trouble'));
+        c.must(p.guest().disputeCancel(boat, 'We were told the boat was fine.'));
+        c.refused(p.desk.checkout(p.maria.stayId), 'blocked');
+        c.must(p.desk.readDispute(boat));
+        const again = c.must(p.desk.decideCancelDispute(boat, 'reinstate'));
+        c.eq(p.booking(boat).status, 'cancelled', 'the cancellation stays on record');
+        c.eq(p.booking(again.bookingId!).status, 'requested', 'a fresh request is back with the operator');
+        c.refused(p.desk.readDispute(boat), 'no-dispute');
+      });
+    },
+  },
+  {
+    id: 'Q11',
+    group: G,
+    title: 'The front desk is refused with no dispute open',
+    run(c) {
+      const { p } = c;
+      c.step('A booking with a chat, nothing in question', () => {
+        const id = c.ask(trip());
+        c.must(p.vendor('boat-operator').confirm(id));
+        c.must(p.guest().send(p.booking(id).threadId, 'Is there shade on the boat?'));
+        c.refused(p.desk.readDispute(id), 'no-dispute');
+        c.refused(p.thread(p.booking(id).threadId, 'desk'), 'not-a-participant');
+        c.ok(!p.log().some((l) => l.kind === 'dispute-read'), 'nothing was read');
+        const guestView = c.must(p.thread(p.booking(id).threadId, 'guest')).messages;
+        c.ok(!guestView.some((m) => /front desk read/i.test(m.text)), 'no notice, because nothing was read');
+        c.ok(p.tasks('open').every((t) => t.bookingId !== id || !['questioned-charge', 'disputed-cancel', 'damage-claim'].includes(t.kind)), 'the desk sees the booking and its tasks only');
+      });
+    },
+  },
 ];

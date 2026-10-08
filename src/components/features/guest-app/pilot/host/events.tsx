@@ -41,13 +41,15 @@ export type EventContext = {
   fillSamples: () => void;
   clearSamples: () => void;
   fillBlocked?: string;
+  /** The desk opens a guest and vendor chat to read it, on a dispute. The view is the app's to show. */
+  readDispute: (bookingId: string) => void;
   /** A booking's photograph, for its heading in the controls. */
   imageFor?: (bookingId: string) => ServiceImageDefinition | undefined;
 };
 
 export type PilotEvents = { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[]; sections: PrototypeSection[] };
 
-export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, cancelStay, deskMessage, deskBooks, moveRoom, checkOut, refused, fillSamples, clearSamples, fillBlocked, imageFor }: EventContext): PilotEvents {
+export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, cancelStay, deskMessage, deskBooks, moveRoom, checkOut, refused, fillSamples, clearSamples, fillBlocked, imageFor, readDispute }: EventContext): PilotEvents {
   const pilot = host.pilot;
   const guest = host.guestOf(stayId);
   const vendor: PrototypeEvent[] = [];
@@ -88,6 +90,9 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     }
     if (['confirmed', 'in-progress', 'completed'].includes(b.status) && b.kind !== 'goods' && b.kind !== 'table') {
       vendor.push({ icon: <Receipt />, label: `Vendor adds a ₱300 extra charge to ${name}`, detail: 'A late fee, say. It lands on the bill or asks for payment, and the guest can question it.', onClick: call('vendor.addExtra', vendorId, b.id, 300, 'Late return fee') });
+    }
+    if (['in-progress', 'completed'].includes(b.status) && b.kind !== 'goods' && b.kind !== 'table') {
+      vendor.push({ icon: <WarningCircle />, label: `Vendor claims ₱500 for damage on ${name}`, detail: 'Added to the bill but held in question: nothing settles until the front desk decides. Opens a dispute.', onClick: call('vendor.claimDamage', vendorId, b.id, 500, 'Bent wheel') });
     }
     for (const extra of extras) {
       if (extra.correctUntil !== undefined && host.now() <= extra.correctUntil) {
@@ -137,6 +142,15 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     }
     if (b.kind === 'goods' && b.status === 'ready') {
       desk.push({ icon: <Check />, label: `Desk hands over ${name}`, detail: 'The guest has it.', onClick: call('desk.handOver', b.id) });
+    }
+    // A dispute is the one time the desk may read the guest and vendor chat, read only.
+    const dispute = pilot.disputes(b.id).find((d) => d.decidedAt === undefined);
+    if (dispute) {
+      desk.push({ icon: <ChatCircleDots />, label: `Desk reads the ${name} chat for the dispute`, detail: 'Read only. The guest and the vendor are both told, and it is logged. Deciding ends the access.', onClick: () => readDispute(b.id) });
+      if (dispute.kind === 'vendor-cancel') {
+        desk.push({ icon: <X />, label: `Desk decides the ${name} cancellation stands`, detail: 'The guest is told. Read access ends.', onClick: call('desk.decideCancelDispute', b.id, 'stands') });
+        desk.push({ icon: <Check />, label: `Desk reinstates ${name} after the dispute`, detail: 'A fresh request for the same time goes back to the vendor. The cancellation stays on record.', onClick: call('desk.decideCancelDispute', b.id, 'reinstate') });
+      }
     }
     for (const extra of pilot.payments(b.id).filter((p) => p.inQuestion)) {
       desk.push({ icon: <Check />, label: `Desk upholds the ${peso(extra.amount)} charge on ${name}`, detail: 'The charge stands.', onClick: call('desk.resolveCharge', extra.id, 'uphold') });
@@ -226,6 +240,7 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
   waiting(desk, (l) => l.includes('marks') && l.includes('ready'), <Check />, 'Desk marks an order ready', 'Needs a confirmed goods order');
   waiting(desk, (l) => l.startsWith('Desk hands over'), <Check />, 'Desk hands over an order', 'Needs an order that is ready');
   waiting(desk, (l) => l.startsWith('Desk sends a message about'), <ChatCircleDots />, 'Desk sends a message about a booking', 'Needs a booking');
+  waiting(desk, (l) => l.startsWith('Desk reads the '), <ChatCircleDots />, 'Desk reads a guest and vendor chat', 'Needs an open dispute: a questioned charge, a contested no-show, a disputed cancellation or a damage claim');
   waiting(desk, (l) => l.startsWith('Desk leaves a private note'), <ChatCircleDots />, 'Desk leaves a private note for a vendor', 'Needs a booking');
 
   desk.push({ icon: <Check />, label: 'Fill Messages with sample bookings and chats', detail: 'A scooter nobody answered, bicycles confirmed with a message from the shop, a tour waiting, a table, an order ready at the desk, a session the desk booked. And a front desk chat to match.', onClick: fillSamples, unavailable: fillBlocked });

@@ -272,7 +272,7 @@ const threadBookingId = (host: Host, threadId: string): string | undefined => ho
 function ThreadMessage({ host, message, first, last, receipt, ...handlers }: { host: Host; message: Message; first: boolean; last: boolean; receipt?: string } & CardHandlers) {
   // What happens to the booking is not anyone's message: a quiet line in the middle, as a messaging app marks an event.
   // The guest is reading: the line that opens the chat says "You asked", not their own name.
-  if (message.kind === 'system') return <p className="pilot-event">{message.text.replace(/^(?!The front desk)\S+ (asked for|booked) /, 'You $1 ')}</p>;
+  if (message.kind === 'system') return <p className="pilot-event">{message.text.replace(/^(?!The front desk)\S+ (asked for|booked|questioned|disputed) /, 'You $1 ')}</p>;
   if (message.kind === 'card' && message.bookingId) {
     return <EngineBookingCard host={host} bookingId={message.bookingId} paymentId={message.paymentId} inThread {...handlers} />;
   }

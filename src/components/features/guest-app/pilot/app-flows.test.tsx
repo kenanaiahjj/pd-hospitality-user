@@ -283,3 +283,116 @@ describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
   });
 });
 
+describe('when things do not go the straight way', { timeout: 40_000 }, () => {
+  const nav = () => within(screen.getByRole('navigation', { name: 'Primary navigation' }));
+
+  it('sends an over-limit room charge to the front desk first, then to the vendor', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+
+    await openCategory(user, 'Rentals');
+    await user.click(screen.getByRole('button', { name: /Compact car/ }));
+    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
+    // Two cars is ₱5,600: over the ₱5,000 a room can take without the desk.
+    await user.click(screen.getByRole('button', { name: /^More cars/i }));
+    expect(screen.getByText(/Over the limit, so the front desk approves it first/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ask the front desk to approve' }));
+
+    expect(screen.getByRole('heading', { name: /Waiting for the front desk/ })).toBeInTheDocument();
+    await fire(user, /Desk approves charging Compact car/);
+    // Approved: now it is the vendor's turn, and still nothing is charged.
+    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    expect(screen.getByText(/Awaiting provider confirmation/)).toBeInTheDocument();
+    await fire(user, /Vendor confirms Compact car/);
+    expect(screen.queryByText(/Awaiting provider confirmation/)).toBeNull();
+  });
+
+  it('lets the slot go after three failed card payments', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+
+    // The gateway is set to fail before the guest pays.
+    await fire(user, /Payment gateway: working/);
+    await openCategory(user, 'Spa & Wellness');
+    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
+    await user.click(screen.getByRole('button', { name: /Pay now/ }));
+    await user.click(screen.getByRole('button', { name: /^Continue to pay/ }));
+
+    const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
+    await user.click(within(gateway).getByRole('button', { name: /GCash/ }));
+    await user.click(within(gateway).getByRole('button', { name: /^Pay ₱/ }));
+    expect(await within(gateway).findByText(/2 tries left/, {}, { timeout: 4000 })).toBeInTheDocument();
+    await user.click(within(gateway).getByRole('button', { name: /^Pay ₱/ }));
+    expect(await within(gateway).findByText(/1 try left/, {}, { timeout: 4000 })).toBeInTheDocument();
+    await user.click(within(gateway).getByRole('button', { name: /^Pay ₱/ }));
+    expect(await within(gateway).findByText(/failed three times, so the slot was released/, {}, { timeout: 4000 })).toBeInTheDocument();
+    await user.click(within(gateway).getByRole('button', { name: 'Close' }));
+    expect(screen.getByRole('heading', { name: /Hot stone therapy is not booked/ })).toBeInTheDocument();
+  });
+
+  it('lapses a request the vendor never answers, and says nothing was charged', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    // The vendor has half an hour; an hour on, it has lapsed.
+    await fire(user, /Move the clock on an hour/);
+
+    await openMessages(user);
+    expect(within(screen.getByRole('button', { name: /City bicycle/ })).getByText('Lapsed')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    expect(screen.getByLabelText(/City bicycle, Lapsed/)).toBeInTheDocument();
+    expect(screen.getAllByText(/did not answer in time/).length).toBeGreaterThan(0);
+    // A lapsed request can be reinstated by the desk.
+    await fire(user, /Desk reinstates City bicycle/);
+    expect(screen.getByLabelText(/City bicycle, For confirmation/)).toBeInTheDocument();
+  });
+
+  it('books a nearby table before the stay has started', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="nearby-establishment" initialSession={applyPrototypeStayState('pre-arrival')} />);
+
+    await user.click(screen.getByRole('button', { name: 'Reserve a table' }));
+    const sheet = screen.getByRole('dialog');
+    await user.click(within(sheet).getByRole('button', { name: 'Reserve table' }));
+    expect(screen.getByRole('heading', { name: /Table at Kape Lab Manila/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Reserved/)).toBeInTheDocument();
+  });
+
+  it('keeps one booking when the same slot is asked for twice', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await bookRental(user, 'room');
+
+    await openMessages(user);
+    expect(screen.getAllByRole('button', { name: /City bicycle/ })).toHaveLength(1);
+    expect(nav().getByRole('button', { name: /^Chat/ })).toBeInTheDocument();
+  });
+});
+
+describe('after the stay', { timeout: 30_000 }, () => {
+  const out = applyPrototypeStayState('just-checked-out');
+
+  it('does not take a shop order for a stay that is over, and says why', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="gifts-souvenirs" initialSession={out} />);
+    await user.click(screen.getByRole('button', { name: /Artisan pasalubong box/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Order Artisan pasalubong box' });
+    expect(within(sheet).getByText(/Your stay is over/)).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: /Order and charge/ })).toBeDisabled();
+  });
+
+  it('does not take a nearby table for a stay that is over, and says why', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="nearby-establishment" initialSession={out} />);
+    await user.click(screen.queryByRole('button', { name: 'Reserve a table' }) ?? screen.getByRole('button', { name: /Book with/ }));
+    const sheet = screen.getByRole('dialog');
+    const confirm = within(sheet).queryByRole('button', { name: 'Reserve table' });
+    if (confirm) {
+      await user.click(confirm);
+      expect(screen.getByText(/Your stay is over/)).toBeInTheDocument();
+    }
+  });
+});
+

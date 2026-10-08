@@ -179,7 +179,10 @@ export function applyEngine(session: GuestSession, host: Host): GuestSession {
     }
   };
 
+  // Only stays this session holds: signed out, or on another account, the engine's guests are not shown.
+  const heldStays = new Set(session.bookings.map((booking) => booking.id));
   for (const [appBookingId, { guestId }] of host.stays()) {
+    if (!heldStays.has(appBookingId)) continue;
     for (const eb of pilot.bookings().filter((b) => b.guestId === guestId)) {
       const existing = bookings.find((s) => s.engineId === eb.id);
       upsert(present(pilot, host, eb, appBookingId, existing), (s) => s.engineId === eb.id);

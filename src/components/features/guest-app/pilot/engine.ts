@@ -1378,6 +1378,17 @@ export function createPilot(options: PilotOptions = {}): Pilot {
 
   // ------------------------------------------------------- desk actions
 
+  /** Room charges asked for before arrival wait for the stay to begin; this lets them through, in order. */
+  const releaseHeldCharges = (stayId: string) => {
+    const stay = must(w.stays.get(stayId), 'stay');
+    for (const p of [...w.payments.values()].filter((x) => x.stayId === stayId && x.holdUntilCheckIn && x.state === 'pending')) {
+      p.holdUntilCheckIn = false;
+      p.roomHint = stay.room;
+      attemptPost(p);
+      if (p.state === 'pending') watchPosting(p);
+    }
+  };
+
   const deskName = 'Front desk';
   const deskActions: DeskActions = {
     approve(bookingId) {
@@ -1478,12 +1489,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         stay.status = 'in-house';
         if (!stay.room) stay.room = 'Villa 12';
         log('check-in', `${stayId} into ${stay.room}`);
-        for (const p of [...w.payments.values()].filter((x) => x.stayId === stayId && x.holdUntilCheckIn && x.state === 'pending')) {
-          p.holdUntilCheckIn = false;
-          p.roomHint = stay.room;
-          attemptPost(p);
-          if (p.state === 'pending') watchPosting(p);
-        }
+        releaseHeldCharges(stayId);
         return ok();
       });
     },
@@ -1525,7 +1531,10 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         if (patch.room !== undefined) stay.room = patch.room;
         if (patch.checkIn !== undefined) stay.checkIn = patch.checkIn;
         if (patch.checkOut !== undefined) stay.checkOut = patch.checkOut;
+        const wasWaiting = stay.status === 'booked';
         if (patch.status !== undefined) stay.status = patch.status;
+        // The stay has begun (the hotel system says so): charges held for it go through now.
+        if (wasWaiting && stay.status === 'in-house') releaseHeldCharges(stayId);
         return ok();
       });
     },

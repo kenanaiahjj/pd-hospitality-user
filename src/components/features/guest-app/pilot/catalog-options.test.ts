@@ -65,4 +65,14 @@ describe('the engine on the app’s catalogue', () => {
     const r = p.guest().quote({ listingId: 'spa', date: '2026-11-12', time: '10:00', qty: 1 });
     expect(r.ok && r.options.room.offered).toBe(false);
   });
+
+  it('posts a room charge held for check-in when the stay becomes in-house', () => {
+    const p = createPilot({ catalog: { vendors, listings }, guestName: 'Ana', start, mariaStay: { checkIn: '2026-11-11', checkOut: '2026-11-13', room: '', status: 'booked' } });
+    const id = (p.guest().request({ listingId: 'spa', date: '2026-11-12', time: '10:00', qty: 1, payMode: 'room' }) as { bookingId: string }).bookingId;
+    expect(p.payments(id)[0]?.state).toBe('pending');
+    // The app learns the guest has scanned in: the stay is in-house, with a room.
+    p.desk.syncStay(p.maria.stayId, { status: 'in-house', room: '304' });
+    expect(p.payments(id)[0]?.state).toBe('posted');
+    expect(p.foliosTotal(p.maria.stayId)).toBe(2400);
+  });
 });

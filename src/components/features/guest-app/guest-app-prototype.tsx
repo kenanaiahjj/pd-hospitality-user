@@ -4955,8 +4955,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           ? 'Reserve a table'
           : servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
-          : confirmFirst ? 'Send request'
           : viaEngine && needsApproval && !payingNow ? 'Ask the front desk to approve'
+          : confirmFirst ? 'Send request'
           : payingNow ? `Continue to pay ${serviceCharge}`
           : chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`;
         const roomLine = contextBooking.roomNumber ? `Charge to Room ${contextBooking.roomNumber}` : 'Charge to your room';
@@ -5031,7 +5031,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     <div className="guest-payment-options">
                       <button type="button" aria-pressed={servicePayChoice === 'room'} className={servicePayChoice === 'room' ? 'is-active' : ''} onClick={() => setServicePayChoice('room')}>
                         <b>{roomLine}</b>
-                        <small>{confirmFirst ? 'Added to your room bill once the vendor confirms.' : needsApproval ? 'Over the limit, so the front desk approves it first.' : contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}</small>
+                        <small>{needsApproval ? (confirmFirst ? 'Over the limit, so the front desk approves it first, then the vendor confirms.' : 'Over the limit, so the front desk approves it first.') : confirmFirst ? 'Added to your room bill once the vendor confirms.' : contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}</small>
                       </button>
                       <button type="button" aria-pressed={servicePayChoice === 'pay-now'} className={servicePayChoice === 'pay-now' ? 'is-active' : ''} onClick={() => setServicePayChoice('pay-now')}>
                         <b>Pay now</b>

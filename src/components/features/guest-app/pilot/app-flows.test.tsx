@@ -489,5 +489,89 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     }
     expect(screen.getByRole('button', { name: 'Open prototype controls' })).toBeInTheDocument();
   });
+
+});
+
+describe('what the audit asked for', { timeout: 50_000 }, () => {
+  const nav = () => within(screen.getByRole('navigation', { name: 'Primary navigation' }));
+
+  it('stops the desk checking a guest out over a charge in question, until the desk settles it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    // Morning, so today's pickup is ahead; the bike is confirmed, scanned, and given an extra charge.
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Clock' }));
+    await user.click(screen.getByRole('button', { name: /Morning/ }));
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+    await bookRental(user, 'room');
+    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor scans City bicycle/);
+    await fire(user, /Vendor adds a ₱300 extra charge to City bicycle/);
+
+    // The guest questions it from its card.
+    await user.click(nav().getByRole('button', { name: /My Stay/ }));
+    await user.click(screen.getAllByRole('button', { name: /Late return fee/ })[0]!);
+    await user.click(screen.getByRole('button', { name: 'Question this charge' }));
+
+    await fire(user, /Desk checks the guest out/);
+    expect(screen.getByText(/The desk cannot check them out/)).toBeInTheDocument();
+    expect(screen.getAllByText(/in question/).length).toBeGreaterThan(0);
+
+    await fire(user, /Desk upholds the ₱300 charge on City bicycle/);
+    await fire(user, /Desk checks the guest out/);
+    expect(screen.queryByText(/The desk cannot check them out/)).toBeNull();
+  });
+
+  it('holds a lobby-shop order for the departure day, chilled, when the guest asks', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="gifts-souvenirs" initialSession={live} />);
+    await user.click(screen.getByRole('button', { name: /Artisan pasalubong box/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Order Artisan pasalubong box' });
+    await user.click(within(sheet).getByRole('button', { name: /Hold it for my departure day/ }));
+    await user.click(within(sheet).getByRole('button', { name: 'Order and charge ₱850 to room' }));
+
+    expect(screen.getAllByText(/Departure day/).length).toBeGreaterThan(0);
+    await fire(user, /Desk marks Artisan pasalubong box ready/);
+    expect(screen.getAllByText(/Front desk, chilled/).length).toBeGreaterThan(0);
+  });
+
+  it('keeps the way back online for a vendor whose request has lapsed', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Sakay Rentals loses signal/);
+    await fire(user, /Move the clock on an hour/);
+    // The request lapsed with the vendor offline: the switch back is still there.
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Events' }));
+    expect(screen.getByRole('button', { name: /Sakay Rentals is back online/ })).toBeInTheDocument();
+  });
+
+  it('books through a hotel system that is down: the engine queues the charge instead of blocking', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Conditions' }));
+    await user.click(screen.getByRole('button', { name: /Hotel system down/ }));
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+
+    await openCategory(user, 'Spa & Wellness');
+    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
+    await user.click(screen.getByRole('button', { name: /Confirm and charge/ }));
+    expect(screen.getByRole('heading', { name: 'Hot stone therapy is booked' })).toBeInTheDocument();
+  });
+
+  it('tells the presenter when the engine refuses what they asked of it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Vendor confirms City bicycle/);
+    // No signal and nothing saved on the shop's phone: the scan is refused, and the presenter is told why.
+    await fire(user, /Sakay Rentals loses signal/);
+    await fire(user, /Vendor scans City bicycle/);
+    expect(screen.getByText('Not allowed')).toBeInTheDocument();
+    expect(screen.getByText(/No signal and no saved bookings/)).toBeInTheDocument();
+  });
 });
 

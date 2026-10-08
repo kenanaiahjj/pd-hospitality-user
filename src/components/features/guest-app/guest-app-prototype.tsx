@@ -1724,7 +1724,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       if (venueId) { setSelectedRestaurantId(venueId); go('restaurant-menu'); }
     },
     onQuestion: (paymentId: string) => {
-      const reason = hostStore.host?.pilot.payments().find((x) => x.id === paymentId)?.reason;
+      // The engine is told first, so the desk has a task and the stay cannot be checked out over it; the words go to the desk chat.
+      const asked = hostStore.host?.pilot.payments().find((x) => x.id === paymentId);
+      if (hostStore.host && asked) hostStore.host.call('guest.question', hostStore.host.pilot.booking(asked.bookingId).guestId, paymentId, 'See my message to the front desk.');
+      const reason = asked?.reason;
       setChatDraft(reason ? `I have a question about the ${reason} charge.` : 'I have a question about a charge on this booking.');
       go('chat');
     },
@@ -1794,6 +1797,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           if (stay) hostStore.host?.call('desk.cancelStay', stay.stayId);
         },
         deskBooks: deskBooksForGuest,
+        refused: (message) => setPushNotice({ id: 'rig-refused', headline: 'Not allowed', detail: message, screen: 'stay-overview' }),
+        moveRoom: () => {
+          const host = hostStore.host;
+          const stay = host?.guestOf(primaryBooking.id);
+          if (!host || !stay) return;
+          const room = primaryBooking.roomNumber === '512' ? '304' : '512';
+          host.call('desk.moveRoom', stay.stayId, room);
+          setSession((current) => ({ ...current, bookings: current.bookings.map((item) => (item.id === primaryBooking.id ? { ...item, roomNumber: room } : item)) }));
+        },
+        checkOut: () => {
+          const host = hostStore.host;
+          const stay = host?.guestOf(primaryBooking.id);
+          if (!host || !stay) return;
+          const result = host.call<{ ok: boolean; message?: string }>('desk.checkout', stay.stayId);
+          if (!result.ok) {
+            setPushNotice({ id: 'rig-checkout', headline: 'The desk cannot check them out', detail: result.message ?? 'Something is still open on the bill.', screen: 'folio' });
+            return;
+          }
+          // The stay is over: the app's own record of it follows what the desk did.
+          setSession((current) => ({ ...current, bookings: current.bookings.map((item) => (item.id === primaryBooking.id ? { ...item, status: 'completed', checkedOutAt: `${PROTOTYPE_TODAY}T${String(clockHour).padStart(2, '0')}:00:00Z` } : item)) }));
+        },
         deskMessage: () => {
           setChatMessages((messages) => [...messages, { from: 'desk', body: 'Good afternoon. Is there anything we can arrange for you today?', state: 'Seen' }]);
           if (activeScreenRef.current !== 'chat') setHasUnreadChat(true);
@@ -1826,7 +1850,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       const threads = host.pilot.threads('guest', guest.guestId).filter((thread) => thread.kind === 'booking' && thread.unread > 0 && thread.last);
       const unreadAfter = threads.reduce((sum, thread) => sum + thread.unread, 0);
       const latest = threads.sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0))[0];
-      if (latest && unreadAfter > unreadBefore) {
+      const pushOff = host.meta[`push:${guest.guestId}`] === 'off';
+      if (latest && unreadAfter > unreadBefore && !pushOff) {
         setPushNotice({ id: latest.id, headline: `New message · ${latest.title}`, detail: `${latest.last!.from.name}: ${latest.last!.text}`, screen: 'booking-thread', threadId: latest.id });
       }
     },
@@ -1937,26 +1962,26 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   /* The lobby shop: each product is something the engine sells to the room and holds at the desk. */
-  const shopDraft = (product: ShopProduct, quantity: number, note?: string): EngineDraft => ({
+  const shopDraft = (product: ShopProduct, quantity: number, note?: string, ready: 'now' | 'departure' = 'now'): EngineDraft => ({
     listingId: giftListingId(product.name) ?? '',
-    // Today on the engine's clock, which the presenter can move past midnight.
-    date: new Date(hostStore.host?.now() ?? Date.parse(`${PROTOTYPE_TODAY}T00:00:00Z`)).toISOString().slice(0, 10),
+    // Ready soon (today on the engine's clock, which the presenter can move past midnight), or held for the day they leave.
+    date: ready === 'departure' ? contextBooking.checkOut : new Date(hostStore.host?.now() ?? Date.parse(`${PROTOTYPE_TODAY}T00:00:00Z`)).toISOString().slice(0, 10),
     qty: quantity,
     payMode: 'room',
     note: note?.trim() || undefined,
     origin: 'app',
   });
-  const orderFromShop = (product: ShopProduct, quantity: number, note: string): string | void => {
+  const orderFromShop = (product: ShopProduct, quantity: number, note: string, ready: 'now' | 'departure'): string | void => {
     const host = hostStore.host;
     const stay = host?.guestOf(contextBooking.id);
     if (!host || !stay) return 'The shop is not available right now.';
     // The same checks as any booking: nothing is taken while the guest is offline or the hotel's system is down.
     if (!online) return 'You are offline. Orders need a connection.';
-    if (pmsDown || failNext.booking) {
-      if (failNext.booking) setFailNext((current) => ({ ...current, booking: false }));
-      return pmsDown ? 'The hotel system is not answering, so orders are paused. Ask the front desk.' : 'That did not go through. Try again, or ask the front desk.';
+    if (failNext.booking) {
+      setFailNext((current) => ({ ...current, booking: false }));
+      return 'That did not go through. Try again, or ask the front desk.';
     }
-    const result = host.call<{ ok: boolean; message?: string; bookingId: string; duplicate?: boolean }>('guest.request', stay.guestId, shopDraft(product, quantity, note));
+    const result = host.call<{ ok: boolean; message?: string; bookingId: string; duplicate?: boolean }>('guest.request', stay.guestId, shopDraft(product, quantity, note, ready));
     if (!result.ok) return result.message ?? 'That did not go through.';
     // The engine answers with the order already placed a moment ago for the same thing: not a second order.
     if (result.duplicate) {
@@ -2388,15 +2413,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     to pay and before anything is held. A pay-now guest used to meet these only
     after the gateway had taken the money, and be told nothing was charged.
   */
-  const serviceGate = (booking: Booking | undefined): booking is Booking => {
+  const serviceGate = (booking: Booking | undefined, throughEngine = false): booking is Booking => {
     if (!online) {
       setBookingBlockedReason('offline');
       go('booking-blocked');
       return false;
     }
-    if (pmsDown || failNext.booking) {
+    // Through the engine a hotel system that is down does not stop a booking: the charge waits and retries. Only the old switch for the legacy flows blocks.
+    if ((pmsDown && !throughEngine) || failNext.booking) {
       setFailNext((current) => ({ ...current, booking: false }));
-      setBookingBlockedReason(pmsDown ? 'pms-down' : 'failed');
+      setBookingBlockedReason(pmsDown && !throughEngine ? 'pms-down' : 'failed');
       go('booking-blocked');
       return false;
     }
@@ -2595,7 +2621,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const submitEngineBooking = (payingNow: boolean) => {
     const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
-    if (!serviceGate(booking) || !booking) return;
+    if (!serviceGate(booking, true) || !booking) return;
     const host = hostStore.host;
     const stay = host?.guestOf(booking.id);
     if (!host || !stay) return;
@@ -4818,10 +4844,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'gifts-souvenirs':
         return (
           <LobbyShopScreen
-            quote={(product, quantity) => {
+            quote={(product, quantity, ready) => {
               const host = hostStore.host;
               const stay = host?.guestOf(contextBooking.id);
-              return host && stay ? host.pilot.guest(stay.guestId).quote(shopDraft(product, quantity)) : { ok: false, reason: 'unavailable', message: 'The shop is not available right now.' };
+              return host && stay ? host.pilot.guest(stay.guestId).quote(shopDraft(product, quantity, undefined, ready)) : { ok: false, reason: 'unavailable', message: 'The shop is not available right now.' };
             }}
             onOrder={orderFromShop}
             onAskDesk={() => go('chat')}

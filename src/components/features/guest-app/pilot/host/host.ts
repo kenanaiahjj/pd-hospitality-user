@@ -39,6 +39,11 @@ function exec(pilot: Pilot, path: string, args: unknown[]): unknown {
     const [guestId, vendorId, bookingId] = args as [string, string, string];
     return pilot.together(() => pilot.guest(guestId).cancel(bookingId), () => pilot.vendor(vendorId).confirm(bookingId));
   }
+  if (scope === 'race' && method === 'confirmAndWithdraw') {
+    // The vendor confirms as the guest withdraws, the vendor's tap first.
+    const [guestId, vendorId, bookingId] = args as [string, string, string];
+    return pilot.together(() => pilot.vendor(vendorId).confirm(bookingId), () => pilot.guest(guestId).cancel(bookingId));
+  }
   if (scope === 'desk') return (pilot.desk as unknown as Callable)[method]!(...args);
   if (scope === 'pilot') return (pilot as unknown as Callable)[method]!(...args);
   const [id, ...rest] = args as [string, ...unknown[]];
@@ -146,8 +151,8 @@ export class Host {
       return made;
     }
     const current = this.pilot.stay(known.stayId);
-    // The desk cancelled this stay: the app's own record of it does not say so, and must not bring it back.
-    const status = current.status === 'cancelled' ? 'cancelled' : stay.status;
+    // The desk cancelled or checked out this stay: the app's own record catches up in its own time and must not bring it back.
+    const status = current.status === 'cancelled' || current.status === 'checked-out' ? current.status : stay.status;
     if (current.room !== stay.room || current.checkIn !== stay.checkIn || current.checkOut !== stay.checkOut || current.status !== status) {
       this.call('desk.syncStay', known.stayId, { room: stay.room, checkIn: stay.checkIn, checkOut: stay.checkOut, status });
     }

@@ -17,12 +17,14 @@ import type { PayOptions, Result } from '../types';
 */
 
 export type ShopProduct = (typeof GIFT_PRODUCTS)[number];
+/** Ready in about half an hour, or held at the desk for the day the guest leaves. */
+export type Ready = 'now' | 'departure';
 
 export function LobbyShopScreen({ quote, onOrder, onAskDesk, notice }: {
   /** What the engine offers for this many of this product: the room, the limit, the cap. */
-  quote: (product: ShopProduct, quantity: number) => Result<{ options: PayOptions }>;
+  quote: (product: ShopProduct, quantity: number, ready: Ready) => Result<{ options: PayOptions }>;
   /** Place the order. Answers with a sentence when it did not go through; the sheet stays open to say so. */
-  onOrder: (product: ShopProduct, quantity: number, note: string) => string | void;
+  onOrder: (product: ShopProduct, quantity: number, note: string, ready: Ready) => string | void;
   /** When the shop cannot take an order, the front desk still can. */
   onAskDesk: () => void;
   notice?: string;
@@ -66,15 +68,16 @@ export function LobbyShopScreen({ quote, onOrder, onAskDesk, notice }: {
 
 function ShopOrderSheet({ product, quote, onClose, onOrder, onAskDesk }: {
   product: ShopProduct;
-  quote: (product: ShopProduct, quantity: number) => Result<{ options: PayOptions }>;
+  quote: (product: ShopProduct, quantity: number, ready: Ready) => Result<{ options: PayOptions }>;
   onClose: () => void;
-  onOrder: (product: ShopProduct, quantity: number, note: string) => string | void;
+  onOrder: (product: ShopProduct, quantity: number, note: string, ready: Ready) => string | void;
   onAskDesk: () => void;
 }) {
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
+  const [ready, setReady] = useState<Ready>('now');
   const [problem, setProblem] = useState<string | null>(null);
-  const priced = quote(product, quantity);
+  const priced = quote(product, quantity, ready);
   const total = formatPesoAmount(parsePesoAmount(product.price) * quantity);
   const options = priced.ok ? priced.options : undefined;
   const roomOk = Boolean(options?.room.offered);
@@ -96,6 +99,19 @@ function ShopOrderSheet({ product, quote, onClose, onOrder, onAskDesk }: {
               <button type="button" aria-label="More" disabled={quantity >= 10} onClick={() => setQuantity(quantity + 1)}><Plus aria-hidden="true" /></button>
             </span>
           </div>
+          <fieldset className="guest-payment-choice">
+            <legend>When do you want it?</legend>
+            <div className="guest-payment-options">
+              <button type="button" aria-pressed={ready === 'now'} className={ready === 'now' ? 'is-active' : ''} onClick={() => setReady('now')}>
+                <b>Ready in about half an hour</b>
+                <small>Held for you at the front desk.</small>
+              </button>
+              <button type="button" aria-pressed={ready === 'departure'} className={ready === 'departure' ? 'is-active' : ''} onClick={() => setReady('departure')}>
+                <b>Hold it for my departure day</b>
+                <small>Kept chilled at the desk until you leave.</small>
+              </button>
+            </div>
+          </fieldset>
           <NotesField name="shop-note" value={note} onChange={setNote} placeholder="Gift wrapping, a card message…" />
           {!priced.ok ? <Notice tone="warning" title="Not available">{priced.message}</Notice> : null}
           {options && !roomOk ? <Notice tone="warning" title="Not on your room">{options.room.why}</Notice> : null}
@@ -108,7 +124,7 @@ function ShopOrderSheet({ product, quote, onClose, onOrder, onAskDesk }: {
           type="button"
           disabled={!priced.ok || !roomOk}
           onClick={() => {
-            const answer = onOrder(product, quantity, note);
+            const answer = onOrder(product, quantity, note, ready);
             if (typeof answer === 'string') setProblem(answer);
           }}
         >

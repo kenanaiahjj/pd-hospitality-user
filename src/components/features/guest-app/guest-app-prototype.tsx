@@ -5926,6 +5926,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             onBack={history.length ? back : () => go('messages')}
             onAskDesk={(text) => { sendChatMessage(`About ${host.pilot.threads('guest', host.pilot.booking(host.pilot.bookings().find((b) => b.threadId === selectedThreadId)?.id ?? '').guestId).find((t) => t.id === selectedThreadId)?.title ?? 'a booking'}: ${text}`); go('chat'); }}
             note={engineNote}
+            deskImage={primaryBooking ? getPropertyImage(primaryBooking.property) : undefined}
             {...cardHandlers}
           />
         ) : null;

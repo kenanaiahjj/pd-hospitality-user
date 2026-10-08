@@ -171,22 +171,47 @@
 
 /* ------------------------------------------------------------------ the conversation */
 
-.pilot-msg { max-width: 86%; }
-.pilot-msg .pilot-sender { display: flex; align-items: baseline; gap: 6px; margin: 0 4px 3px; color: var(--guest-muted); font-size: 12px; font-weight: 600; }
-.pilot-msg .pilot-sender i { padding: 1px 7px; border: 1px solid var(--guest-line-strong); border-radius: 999px; font-size: 11px; font-style: normal; font-weight: 600; }
-.pilot-msg--guest .pilot-sender { justify-content: flex-end; }
-.pilot-msg--vendor p { border-color: oklch(0.86 0.05 85); background: oklch(0.975 0.02 85); }
+/* The front desk chat's bubbles, as they are. A thread has three people in
+   it, so whoever is not the guest is named once per turn, with a photo: the
+   booking's for the vendor, the hotel's for the desk. */
+.pilot-msg { max-width: 82%; }
+.pilot-msg--grouped { margin-bottom: -6px; }
+.pilot-sender {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 6px 0 2px 2px;
+  color: var(--guest-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.pilot-sender__avatar {
+  position: relative;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--guest-sunken);
+  color: var(--guest-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.pilot-sender__avatar img { object-fit: cover; }
+.pilot-msg small { font-variant-numeric: tabular-nums; }
 .pilot-system {
   align-self: center;
-  max-width: 88%;
-  margin: 4px 0;
+  max-width: 82%;
+  margin: 6px 0;
   color: var(--guest-muted);
   font-size: 12.5px;
   line-height: 1.45;
   text-align: center;
   text-wrap: balance;
 }
-.pilot-system b { color: var(--guest-ink); font-weight: 600; }
 
 /* ------------------------------------------------------------------ one booking card, wherever it appears */
 /* The booking as My Stay shows it, then its facts read like the receipt's

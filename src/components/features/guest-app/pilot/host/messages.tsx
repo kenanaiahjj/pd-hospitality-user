@@ -123,9 +123,11 @@ function ThreadRow({ host, thread, imageFor, onOpen }: { host: Host; thread: Thr
 
 const ROLE_WORD = { guest: 'You', desk: 'Front desk', vendor: 'Vendor', system: 'Cabana' } as const;
 
-export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskDesk, note, ...handlers }: {
+export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskDesk, note, deskImage, ...handlers }: {
   host: Host;
   threadId: string;
+  /** The hotel's photograph, beside what the front desk says. */
+  deskImage?: ServiceImageDefinition;
   onBack: () => void;
   /** What the engine said about the last tap on a card, when it is worth saying. */
   note?: { tone: 'warning' | 'positive'; text: string } | null;
@@ -163,9 +165,22 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
         </div>
       </div>
       <div className="guest-messages" aria-label="Conversation" aria-live="polite">
-        {view.messages.map((message) => (
-          <ThreadMessage key={message.id} host={host} message={message} onOpenDesk={onOpenDesk} {...handlers} />
-        ))}
+        {view.messages.map((message, index) => {
+          // Messages from one person in a row read as one turn: named once at the top, timed once at the bottom.
+          const sameAs = (other?: Message) => Boolean(other && other.kind === 'text' && message.kind === 'text' && other.from.role === message.from.role && other.from.name === message.from.name);
+          return (
+            <ThreadMessage
+              key={message.id}
+              host={host}
+              message={message}
+              first={!sameAs(view.messages[index - 1])}
+              last={!sameAs(view.messages[index + 1])}
+              avatar={message.from.role === 'vendor' && bookingId ? handlers.imageFor?.(bookingId) : message.from.role === 'desk' ? deskImage : undefined}
+              onOpenDesk={onOpenDesk}
+              {...handlers}
+            />
+          );
+        })}
       </div>
       {note ? <Notice tone={note.tone} title={note.tone === 'warning' ? 'That did not go through' : 'Done'}>{note.text}</Notice> : null}
       {view.readOnly ? <Notice title="This thread has closed">It closed 48 hours after the service. Anything you send now goes to the front desk.</Notice> : null}
@@ -182,20 +197,27 @@ const vendorName = (host: Host, bookingId: string) => {
   return host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'the vendor';
 };
 
-function ThreadMessage({ host, message, ...handlers }: { host: Host; message: Message } & CardHandlers) {
-  if (message.kind === 'system') return <p className="pilot-system"><b>{message.from.name}</b> · {message.text}</p>;
+function ThreadMessage({ host, message, first, last, avatar, ...handlers }: { host: Host; message: Message; first: boolean; last: boolean; avatar?: ServiceImageDefinition } & CardHandlers) {
+  if (message.kind === 'system') return <p className="pilot-system">{message.text}</p>;
   if (message.kind === 'card' && message.bookingId) {
     return <EngineBookingCard host={host} bookingId={message.bookingId} paymentId={message.paymentId} inThread {...handlers} />;
   }
   const mine = message.from.role === 'guest';
+  const role = message.from.role === 'vendor' || message.from.role === 'desk' ? message.from.role : undefined;
+  // "Marites · Front desk", "Sakay Rentals · Vendor": who, then which side of the booking they are on.
+  const sender = role && message.from.name !== ROLE_WORD[role] ? `${message.from.name} · ${ROLE_WORD[role]}` : message.from.name;
   return (
-    <div className={`guest-message guest-message--${mine ? 'guest' : 'desk'} pilot-msg pilot-msg--${message.from.role}`}>
-      <span className="pilot-sender">
-        {message.from.name}
-        {(message.from.role === 'vendor' || message.from.role === 'desk') && message.from.name !== ROLE_WORD[message.from.role] ? <i>{ROLE_WORD[message.from.role]}</i> : null}
-      </span>
+    <div className={`guest-message guest-message--${mine ? 'guest' : 'desk'} pilot-msg${first ? '' : ' guest-message--continued'}${last ? '' : ' pilot-msg--grouped'}`}>
+      {!mine && first ? (
+        <span className="pilot-sender">
+          <span className="pilot-sender__avatar" aria-hidden="true">
+            {avatar ? <Image src={avatar.src} alt="" fill sizes="24px" style={{ objectPosition: avatar.focalPoint }} /> : message.from.name.charAt(0)}
+          </span>
+          {sender}
+        </span>
+      ) : null}
       <p>{message.text}</p>
-      <small>{clock12(message.at)}</small>
+      {last ? <small>{clock12(message.at)}</small> : null}
     </div>
   );
 }

@@ -189,7 +189,7 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     expect(within(thread).queryByText(/Guest is a regular/)).toBeNull();
 
     await user.click(within(thread).getByRole('button', { name: 'Go back' }));
-    await user.click(screen.getByRole('button', { name: /^Front desk, pinned/ }));
+    await user.click(screen.getByRole('button', { name: /^Front desk chat/ }));
     const desk = screen.getByRole('region', { name: 'Front desk conversation' });
     expect(within(desk).getByText(/added that to your City bicycle booking/)).toBeInTheDocument();
   });
@@ -459,11 +459,11 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     await bookRental(user, 'room');
     await fire(user, /Desk sends a message in the chat/);
     await openMessages(user);
-    expect(screen.getByRole('button', { name: /Front desk, pinned, new message/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Front desk chat, new message/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /City bicycle/ }));
     await user.click(screen.getByRole('button', { name: 'Go back' }));
-    expect(screen.getByRole('button', { name: /Front desk, pinned, new message/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Front desk chat, new message/ })).toBeInTheDocument();
   });
 
   it('shows a refused charge as still owed rather than free', async () => {

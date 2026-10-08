@@ -36,17 +36,52 @@
    words, then where it stands. */
 .pilot-inbox { display: block; margin: 0; padding: 0; list-style: none; }
 .pilot-inbox > li + li { border-top: 1px solid var(--guest-line); }
-/* The front desk: a card above the list, so it reads as always there, not as one more conversation. */
+/* The front desk: a plum card above the list, struck like the booking
+   confirmation -- a brass bell rendered by a shader, light type, a fine gold
+   line along the bottom edge. Plum in both themes: it is the brand's counter,
+   not the page's. */
 .pilot-desk-card {
+  --desk-gold: oklch(0.82 0.11 82);
+  position: relative;
   overflow: hidden;
-  border: 1px solid var(--guest-line);
-  border-radius: 16px;
-  background: var(--guest-paper);
-  box-shadow: 0 6px 18px oklch(0.25 0.02 330 / 0.05);
+  border-radius: 22px;
+  background:
+    radial-gradient(110% 150% at 10% 15%, oklch(0.42 0.085 351) 0%, var(--ds-plum, oklch(0.3 0.07 351)) 45%, oklch(0.2 0.05 351) 100%);
+  box-shadow: 0 14px 34px oklch(0.2 0.05 351 / 0.26);
+  color: oklch(0.97 0.01 80);
+  isolation: isolate;
 }
-.pilot-desk-card .pilot-chat-row--desk { grid-template-columns: 56px minmax(0, 1fr); gap: 14px; padding: 16px 18px 16px 16px; }
-.pilot-desk-card .pilot-faces,
-.pilot-desk-card .pilot-face--desk { width: 56px; height: 56px; font-size: 24px; }
+.pilot-desk-card::after {
+  position: absolute;
+  inset: auto 14% 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--desk-gold), transparent);
+  content: '';
+  opacity: 0.75;
+}
+.pilot-desk-card .pilot-chat-row--desk { grid-template-columns: 72px minmax(0, 1fr); gap: 14px; padding: 16px 18px 18px 12px; color: inherit; }
+.pilot-desk-card .pilot-chat-row--desk:active { background: oklch(1 0 0 / 0.06); }
+.pilot-desk-card .pilot-chat-row--desk:focus-visible { outline-color: var(--desk-gold); }
+.pilot-desk-card .pilot-chat-row__top b { color: oklch(0.98 0.008 80); font-weight: 650; }
+.pilot-desk-card .pilot-chat-row__about { color: var(--desk-gold); }
+.pilot-desk-card .pilot-chat-row__preview { color: oklch(0.9 0.02 351 / 0.86); }
+.pilot-desk-card .pilot-chat-row.is-unread .pilot-chat-row__preview { color: oklch(0.99 0.005 80); }
+.pilot-desk-card .pilot-dot { background: var(--desk-gold); }
+
+.pilot-bell { position: relative; display: grid; width: 72px; height: 72px; place-items: center; }
+.pilot-bell__canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 400ms ease; }
+.pilot-bell[data-gl='on'] .pilot-bell__canvas { opacity: 1; }
+.pilot-bell__fallback {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.1);
+  color: oklch(0.82 0.11 82);
+  font-size: 26px;
+}
+.pilot-bell[data-gl='on'] .pilot-bell__fallback { visibility: hidden; }
 
 .pilot-empty {
   margin: 8px 0 0;
@@ -57,40 +92,38 @@
   text-wrap: balance;
 }
 
-/* Two faces, overlapping: the booking's photo behind, the vendor in front. */
-.pilot-faces { position: relative; display: block; width: 64px; height: 64px; flex: none; }
+/* One face per chat: the vendor's initials on a colour of its own, lit softly from the top left. */
+.pilot-faces { position: relative; display: grid; width: 56px; height: 56px; flex: none; place-items: center; }
 .pilot-face {
-  position: absolute;
   display: grid;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   place-items: center;
   border-radius: 999px;
-  background: var(--guest-sunken);
 }
-.pilot-face img { object-fit: cover; }
-.pilot-face--booking { top: 0; left: 0; width: 44px; height: 44px; }
-.pilot-face--vendor { right: 0; bottom: 0; width: 44px; height: 44px; box-shadow: 0 0 0 3px var(--guest-canvas, var(--guest-surface)); }
 .pilot-face--initials {
-  background: oklch(0.93 0.035 var(--face-hue));
-  color: oklch(0.38 0.08 var(--face-hue));
-  font-size: 15px;
+  background: radial-gradient(120% 120% at 25% 20%, oklch(0.95 0.03 var(--face-hue)) 0%, oklch(0.88 0.06 var(--face-hue)) 100%);
+  box-shadow: inset 0 0 0 1px oklch(0.8 0.05 var(--face-hue) / 0.5);
+  color: oklch(0.36 0.09 var(--face-hue));
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-/* The desk alone, in one large dark face, as a platform's own support is shown. */
-.pilot-face--desk { inset: 0; width: 64px; height: 64px; background: var(--guest-brand); color: var(--guest-on-accent); font-size: 28px; }
-
-.pilot-faces--small { width: 46px; height: 46px; }
-.pilot-faces--small .pilot-face--booking { width: 32px; height: 32px; }
-.pilot-faces--small .pilot-face--vendor { width: 32px; height: 32px; font-size: 11px; box-shadow: 0 0 0 2px var(--guest-canvas, var(--guest-surface)); }
-.pilot-faces--small .pilot-face--desk { width: 46px; height: 46px; font-size: 22px; }
+.pilot-face--desk {
+  background: radial-gradient(120% 120% at 25% 20%, oklch(0.42 0.085 351) 0%, oklch(0.24 0.06 351) 100%);
+  color: oklch(0.82 0.11 82);
+  font-size: 20px;
+}
+.pilot-faces--small { width: 40px; height: 40px; }
+.pilot-faces--small .pilot-face--initials { font-size: 14px; }
 
 .pilot-chat-row {
   display: grid;
   width: 100%;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   padding: 20px 2px;
   border: 0;
   background: transparent;
@@ -118,7 +151,6 @@
 }
 .pilot-chat-row__about { min-width: 0; overflow: hidden; color: var(--guest-muted); font-size: 16px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-chat-row__top time { flex: none; margin-left: auto; padding-left: 8px; color: var(--guest-subtle); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.pilot-chat-row__pin { flex: none; align-self: center; margin-left: auto; color: var(--guest-subtle); font-size: 15px; }
 .pilot-chat-row__preview {
   display: -webkit-box;
   overflow: hidden;

@@ -5929,7 +5929,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             host={host}
             guestId={guest.guestId}
             desk={{ preview: lastDesk?.body ?? 'Ask the front desk anything about your stay.', fromGuest: lastDesk?.from === 'guest', unread: hasUnreadChat, place: primaryBooking?.property }}
-            imageFor={engineImage}
             onOpenDesk={() => go('chat')}
             onOpenThread={(threadId) => { setSelectedThreadId(threadId); go('booking-thread'); }}
           />

@@ -35,9 +35,13 @@ export type EventContext = {
   checkOut: () => void;
   /** An action the engine refused, said where the presenter will see it. */
   refused: (message: string) => void;
+  /** Sample bookings and chats: fill a stay with them, or clear them away. `fillBlocked` says why not, when it cannot. */
+  fillSamples: () => void;
+  clearSamples: () => void;
+  fillBlocked?: string;
 };
 
-export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, cancelStay, deskMessage, deskBooks, moveRoom, checkOut, refused }: EventContext): { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[] } {
+export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, cancelStay, deskMessage, deskBooks, moveRoom, checkOut, refused, fillSamples, clearSamples, fillBlocked }: EventContext): { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[] } {
   const pilot = host.pilot;
   const guest = host.guestOf(stayId);
   const vendor: PrototypeEvent[] = [];
@@ -108,6 +112,10 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     }
     if (LIVE.includes(b.status)) {
       vendor.push({ icon: <ChatCircleDots />, label: `Vendor sends a message about ${name}`, detail: 'It arrives in the booking’s thread, signed by the vendor.', onClick: call('vendor.message', vendorId, b.threadId, 'Hello! We have your booking. Anything we should prepare?') });
+      vendor.push({ icon: <ChatCircleDots />, label: `Vendor says it is running late for ${name}`, detail: 'A message in the booking’s thread: about fifteen minutes behind.', onClick: call('vendor.message', vendorId, b.threadId, 'Sorry, we are running about 15 minutes behind. Thank you for your patience!') });
+      vendor.push({ icon: <ChatCircleDots />, label: `Vendor asks how many are coming for ${name}`, detail: 'A question for the guest to answer in the thread.', onClick: call('vendor.message', vendorId, b.threadId, 'Quick check: how many of you will be coming? And is there anything we should know beforehand?') });
+      desk.push({ icon: <ChatCircleDots />, label: `Desk asks when the guest will arrive for ${name}`, detail: 'A question in the booking’s thread.', onClick: call('desk.messageBooking', b.threadId, 'Do you know roughly what time you will arrive? I will let them know.') });
+      desk.push({ icon: <ChatCircleDots />, label: `Desk says it has passed the request to the vendor of ${name}`, detail: 'A note in the booking’s thread, from the desk.', onClick: call('desk.messageBooking', b.threadId, 'I have passed your request to them and will update you here as soon as they reply.') });
       desk.push({ icon: <ChatCircleDots />, label: `Desk sends a message about ${name}`, detail: 'It arrives in the booking’s thread, signed by the front desk.', onClick: call('desk.messageBooking', b.threadId, 'Noted, I have added that to your booking.') });
       desk.push({ icon: <ChatCircleDots />, label: `Desk leaves a private note for the vendor of ${name}`, detail: 'The guest never sees it.', onClick: call('desk.privateNote', vendorId, 'Guest is a regular, please look after them.', b.id) });
     }
@@ -188,5 +196,40 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
       host.call('pilot.setGuestNotifications', guest.guestId, !pushOn);
     },
   });
-  return { vendor, desk, clock, faults };
+  /*
+    Every trigger is always there. One that has nothing to act on yet stays in
+    the list, greyed, saying what it is waiting for, so the whole set can be
+    seen (and a fresh stay does not look as though the other side of the
+    conversation is missing).
+  */
+  const waiting = (list: PrototypeEvent[], present: (label: string) => boolean, icon: PrototypeEvent['icon'], label: string, reason: string) => {
+    if (!list.some((event) => present(event.label))) list.push({ icon, label, detail: reason, onClick: () => undefined, unavailable: reason });
+  };
+  waiting(vendor, (l) => /^Vendor confirms (?!and)/.test(l), <Check />, 'Vendor confirms a request', 'Needs a request waiting for the vendor: ask for a rental or a tour');
+  waiting(vendor, (l) => l.startsWith('Vendor is not available for'), <X />, 'Vendor is not available for a request', 'Needs a request waiting for the vendor');
+  waiting(vendor, (l) => l.startsWith('Vendor scans'), <QrCode />, 'Vendor scans a booking’s QR', 'Needs a confirmed rental or service');
+  waiting(vendor, (l) => l.includes('marks') && l.includes('done'), <Check />, 'Vendor marks a service done', 'Needs a service that has been scanned');
+  waiting(vendor, (l) => l.includes('extra charge to'), <Receipt />, 'Vendor adds an extra charge', 'Needs a confirmed rental or service');
+  waiting(vendor, (l) => l.includes('a no-show'), <Clock />, 'Vendor marks a booking a no-show', 'Needs a confirmed booking that has passed its start');
+  waiting(vendor, (l) => l.startsWith('Vendor cancels'), <X />, 'Vendor cancels a booking', 'Needs a booking that has not started');
+  waiting(vendor, (l) => l.startsWith('Vendor sends a message about'), <ChatCircleDots />, 'Vendor sends a message', 'Needs a booking: a thread opens as soon as something is asked for');
+  waiting(vendor, (l) => l.startsWith('Restaurant seats'), <Check />, 'Restaurant seats a party', 'Needs a reserved table');
+  waiting(vendor, (l) => l.includes('packs'), <Storefront />, 'Vendor packs an order', 'Needs a confirmed goods order');
+  waiting(desk, (l) => l.startsWith('Desk approves charging'), <Check />, 'Desk approves an over-limit charge', 'Needs a room charge over ₱5,000 waiting for the desk');
+  waiting(desk, (l) => l.startsWith('Desk reinstates'), <Check />, 'Desk reinstates a lapsed request', 'Needs a request the vendor did not answer in time');
+  waiting(desk, (l) => l.includes('marks') && l.includes('ready'), <Check />, 'Desk marks an order ready', 'Needs a confirmed goods order');
+  waiting(desk, (l) => l.startsWith('Desk hands over'), <Check />, 'Desk hands over an order', 'Needs an order that is ready');
+  waiting(desk, (l) => l.startsWith('Desk sends a message about'), <ChatCircleDots />, 'Desk sends a message about a booking', 'Needs a booking: a thread opens as soon as something is asked for');
+  waiting(desk, (l) => l.startsWith('Desk leaves a private note'), <ChatCircleDots />, 'Desk leaves a private note for a vendor', 'Needs a booking');
+
+  desk.push({ icon: <Check />, label: 'Fill Messages with sample bookings and chats', detail: 'A scooter nobody answered, bicycles confirmed with a message from the shop, a tour waiting, a table, an order ready at the desk, a session the desk booked. And a front desk chat to match.', onClick: fillSamples, unavailable: fillBlocked });
+  desk.push({ icon: <X />, label: 'Clear the sample bookings and chats', detail: 'Back to a stay with nothing booked and an empty desk chat.', onClick: clearSamples });
+
+  // Each booking's buttons sit under its own heading, so with a dozen bookings the list can still be read.
+  const titles = [...new Set(bookings.map((b) => pilot.listing(b.listingId).title))].sort((a, b) => b.length - a.length);
+  const sectioned = (event: PrototypeEvent): PrototypeEvent => {
+    const section = event.unavailable ? undefined : titles.find((title) => event.label.includes(title));
+    return section ? { ...event, section } : event;
+  };
+  return { vendor: vendor.map(sectioned), desk: desk.map(sectioned), clock, faults };
 }

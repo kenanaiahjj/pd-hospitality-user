@@ -575,3 +575,53 @@ describe('what the audit asked for', { timeout: 50_000 }, () => {
   });
 });
 
+describe('a stay with a life in it, and every trigger in view', { timeout: 50_000 }, () => {
+  const nav = () => within(screen.getByRole('navigation', { name: 'Primary navigation' }));
+
+  it('lists every vendor and desk trigger on a fresh stay, greyed with the reason when there is nothing to act on', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Events' }));
+
+    const confirm = screen.getByRole('button', { name: 'Vendor confirms a request' });
+    expect(confirm).toBeDisabled();
+    expect(confirm).toHaveAccessibleDescription(/Needs a request waiting for the vendor/);
+    expect(screen.getByRole('button', { name: 'Vendor sends a message' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Desk approves an over-limit charge' })).toBeDisabled();
+    // The ones that need nothing are live from the start.
+    expect(screen.getByRole('button', { name: 'Desk sends a message in the chat' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Fill Messages with sample bookings and chats' })).toBeEnabled();
+  });
+
+  it('fills Messages and the front desk chat with a stay already lived in, then clears it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await fire(user, /Fill Messages with sample bookings and chats/);
+    await openMessages(user);
+
+    for (const title of [/Scooter/, /City bicycle/, /Island day tour/, /Poolside Bar/, /Single-origin/, /Personal training/]) {
+      expect(screen.getByRole('button', { name: title })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('button', { name: /Scooter.*Lapsed/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /City bicycle.*Confirmed.*unread/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Island day tour.*For confirmation/ })).toBeInTheDocument();
+
+    // The front desk chat holds its half of the story, with the desk-made booking as a card.
+    await user.click(screen.getByRole('button', { name: /^Front desk/ }));
+    expect(screen.getByText(/This is Marites at the front desk/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Personal training session, Confirmed/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Go back' }));
+
+    // And every trigger now has something to act on.
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Events' }));
+    expect(screen.getByRole('button', { name: /Vendor confirms Island day tour/ })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Clear the sample bookings and chats' }));
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+    await openMessages(user);
+    expect(screen.queryByRole('button', { name: /City bicycle/ })).toBeNull();
+    expect(nav().getByRole('button', { name: /^Chat/ })).toBeInTheDocument();
+  });
+});
+

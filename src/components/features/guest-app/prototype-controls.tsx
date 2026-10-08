@@ -79,7 +79,7 @@ export type PrototypePage = { group: PrototypePageGroup; label: string; detail: 
 const PAGE_GROUPS = ['Find a hotel', 'Book', 'After booking', 'Profile', 'Empty states', 'Error states'] as const;
 export type PrototypePageGroup = (typeof PAGE_GROUPS)[number];
 /** An event the host app computes, such as the hotel answering a request. */
-export type PrototypeEvent = { icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string };
+export type PrototypeEvent = { icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string; /** A sub-heading within its group, such as the booking it is about. */ section?: string };
 export type PrototypeConditions = { online: boolean; pmsDown: boolean; emptyCatalogue: boolean; booking: boolean; chat: boolean; scan: boolean };
 const CONDITION_ROWS: { group: string; rows: { key: keyof PrototypeConditions; label: string; detail: string; onText: string; icon: ReactNode; once?: boolean }[] }[] = [
   { group: 'Connection', rows: [
@@ -266,8 +266,8 @@ export function PrototypeControls({
     { group: 'PMS events', icon: <Bed />, label: 'Approve upgrade request', detail: 'The front desk confirms the upgrade and assigns the room.', onClick: onSimulateUpgradeApproved, unavailable: offline ?? (canSimulateUpgradeApproved ? undefined : 'No upgrade requested') },
     ...hotelEvents.map((event) => ({ ...event, group: 'Hotel answers' })),
     ...guestEvents.map((event) => ({ ...event, group: 'Guest requests' })),
-    ...(pilotEvents?.vendor ?? []).map((event) => ({ ...event, group: 'Vendor' })),
-    ...(pilotEvents?.desk ?? []).map((event) => ({ ...event, group: 'Front desk' })),
+    ...(pilotEvents?.vendor ?? []).map((event) => ({ ...event, group: event.section ? `Vendor · ${event.section}` : 'Vendor' })),
+    ...(pilotEvents?.desk ?? []).map((event) => ({ ...event, group: event.section ? `Front desk · ${event.section}` : 'Front desk' })),
     ...(pilotEvents?.clock ?? []).map((event) => ({ ...event, group: 'Bookings clock' })),
     ...(pilotEvents?.faults ?? []).map((event) => ({ ...event, group: 'Things going wrong' })),
     { group: 'Gates', icon: <QrCode />, label: roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)', detail: roomVerified ? 'Locks the stay again, so the scan can be run.' : 'Opens on-property services without scanning.', onClick: onToggleRoomVerified, unavailable: canToggleRoomVerified ? undefined : 'Needs a stay with a room' },

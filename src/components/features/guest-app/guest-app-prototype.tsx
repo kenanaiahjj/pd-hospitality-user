@@ -210,6 +210,7 @@ import { LobbyShopScreen, type ShopProduct } from './pilot/host/shop';
 import { BookingThreadScreen, MessagesList } from './pilot/host/messages';
 import { giftListingId } from './pilot/host/catalog';
 import { engineNews } from './pilot/host/notifications';
+import { markSampleCleared, sampleDeskChat, sampleState, seedSample } from './pilot/host/sample';
 import type { PrototypePage } from './prototype-controls';
 import {
   getPropertyImage,
@@ -1495,14 +1496,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   useEffect(() => {
     if (!JSON.parse(pilotStaysKey).length) return;
     const host = hostStore.ensure(hostClock(PROTOTYPE_TODAY, clockHour));
-    for (const stay of JSON.parse(pilotStaysKey) as StayInput[]) host.ensureGuest(stay);
+    for (const stay of JSON.parse(pilotStaysKey) as StayInput[]) {
+      host.ensureGuest(stay);
+      // A stay that is under way opens with a life in it, so Messages and the triggers have something to act on. Never in tests, and never twice.
+      if (persistent && sampleState(host, stay.id) === 'none') seedSample(host, stay);
+    }
     // `hostVersion` is here so a reset (which empties the engine's guests but leaves the stays the same) registers them again.
-  }, [hostStore, pilotStaysKey, clockHour, hostVersion]);
+  }, [hostStore, pilotStaysKey, clockHour, hostVersion, persistent]);
   /*
     One front-desk thread per stay. Requests made for next month's booking
     were showing up in the chat for this one, room number and all.
   */
   const chatMessages = allChatMessages.filter((message) => (message.bookingId ?? contextBooking.id) === contextBooking.id);
+  /* What the sample stay's front desk chat already holds, derived from the engine's record and shown ahead of anything the guest sends. */
+  const deskSeed: ChatMessage[] = hostStore.host ? sampleDeskChat(hostStore.host, contextBooking.id) : [];
   const setChatMessages = (update: (messages: ChatMessage[]) => ChatMessage[]) => {
     const bookingId = contextBooking.id;
     setAllChatMessages((messages) => update(messages).map((message) => (message.bookingId ? message : { ...message, bookingId })));
@@ -1797,6 +1804,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           if (stay) hostStore.host?.call('desk.cancelStay', stay.stayId);
         },
         deskBooks: deskBooksForGuest,
+        fillBlocked: sampleState(hostStore.host, primaryBooking.id) === 'seeded' ? 'Already filled: clear them first' : pilotStays.find((stay) => stay.id === primaryBooking.id)?.status !== 'in-house' || addDays(PROTOTYPE_TODAY, 1) > primaryBooking.checkOut ? 'Needs a stay that is under way with at least a day left' : undefined,
+        fillSamples: () => {
+          const host = hostStore.host;
+          const stay = pilotStays.find((item) => item.id === primaryBooking.id);
+          if (host && stay) seedSample(host, stay);
+        },
+        clearSamples: () => {
+          const host = hostStore.host;
+          if (!host) return;
+          // Everything the engine holds goes, and the stays are registered again with nothing booked.
+          hostStore.reset(hostClock(PROTOTYPE_TODAY, clockHour));
+          for (const stay of pilotStays) host.ensureGuest(stay);
+          markSampleCleared(host, primaryBooking.id);
+          setAllChatMessages([]);
+          setSeenNotificationIds([]);
+          setReadNotificationIds([]);
+          setSelectedThreadId(null);
+          setEnginePay(null);
+        },
         refused: (message) => setPushNotice({ id: 'rig-refused', headline: 'Not allowed', detail: message, screen: 'stay-overview' }),
         moveRoom: () => {
           const host = hostStore.host;
@@ -3305,7 +3331,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       different screen without the quick actions.
     */
     // The guest's own thread, closed or not: a closed chat is read-only, not replaced.
-    const displayedChatMessages: ChatMessage[] = chatMessages;
+    const displayedChatMessages: ChatMessage[] = [...deskSeed, ...chatMessages];
     // The booked hotel's own line when it is a partner the app knows; else the city's Henry.
     const deskContact = findStayHotel(contextBooking.reservation?.hotelId) ?? findStayHotel(contextBooking.city.toLowerCase());
     const chatStarted = displayedChatMessages.some((message) => message.from === 'guest');
@@ -3386,7 +3412,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <ChatMenuGallery images={message.images} onOpen={openChatImagePreview} />
                 ) : null}
                 {message.from === 'guest' && message.state === 'Not sent' ? (
-                  <button type="button" className="guest-message__retry" onClick={() => retryChatMessage(index)}>Not sent · Retry</button>
+                  <button type="button" className="guest-message__retry" onClick={() => retryChatMessage(index - deskSeed.length)}>Not sent · Retry</button>
                 ) : message.from === 'guest' && message.state ? <small>{message.state}</small> : null}
               </div>
             );
@@ -5860,7 +5886,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'messages': {
         const host = hostStore.host;
         const guest = host && primaryBooking ? host.guestOf(primaryBooking.id) : undefined;
-        const lastDesk = chatMessages.at(-1);
+        const lastDesk = [...deskSeed, ...chatMessages].at(-1);
         return host && guest ? (
           <MessagesList
             host={host}

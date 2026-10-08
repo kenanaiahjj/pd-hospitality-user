@@ -49,7 +49,8 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
 
     await fire(user, /Vendor confirms City bicycle/);
     expect(screen.queryByText(/Awaiting provider confirmation/)).toBeNull();
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    // The entry on My Stay, not the banner that just told the guest about it.
+    await user.click(screen.getByRole('button', { name: /City bicycle.*return by/ }));
     expect(screen.getAllByText(/Charged to your room/).length).toBeGreaterThan(0);
   });
 
@@ -64,7 +65,7 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
 
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
     await fire(user, /Vendor confirms City bicycle/);
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: /City bicycle.*return by/ }));
     await user.click(screen.getByRole('button', { name: /^Pay now/ }));
 
     const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
@@ -228,6 +229,57 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     await user.click(within(thread).getByRole('button', { name: 'Send message' }));
     expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
     expect(screen.getByText(/About City bicycle: Did I leave my lock there\?/)).toBeInTheDocument();
+  });
+});
+
+describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
+  const nav = () => within(screen.getByRole('navigation', { name: 'Primary navigation' }));
+
+  it('tells the guest when the vendor says yes: a banner, then the bell', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Vendor confirms City bicycle/);
+
+    expect(screen.getByText('City bicycle confirmed')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
+    expect(screen.getAllByText('City bicycle confirmed').length).toBeGreaterThan(0);
+  });
+
+  it('tells the guest when the vendor cancels, by push and by text', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor cancels City bicycle/);
+
+    await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
+    expect(screen.getAllByText(/City bicycle was cancelled/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Text message/).length).toBeGreaterThan(0);
+    // And it can be rebooked from the card.
+    await user.click(nav().getByRole('button', { name: 'Home' }));
+  });
+
+  it('puts a confirmed room charge on the bill once it is today, and takes it off when it is cancelled', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    // Morning, so today's pickup is still ahead and the charge is due on the bill today.
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Clock' }));
+    await user.click(screen.getByRole('button', { name: /Morning/ }));
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+
+    await bookRental(user, 'room');
+    await fire(user, /Vendor confirms City bicycle/);
+
+    await user.click(nav().getByRole('button', { name: /My Stay/ }));
+    await user.click(screen.getByRole('button', { name: 'Room charges' }));
+    // The stay already has a bicycle on its bill from a day earlier; this is the second.
+    const lines = () => ((document.querySelector('.guest-folio-cards')?.textContent ?? '').match(/City bicycle/g) ?? []).length;
+    expect(lines()).toBe(2);
+
+    await fire(user, /Vendor cancels City bicycle/);
+    expect(lines()).toBe(1);
   });
 });
 

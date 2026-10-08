@@ -200,7 +200,7 @@ import {
   type StayGuestDetails,
   type StaySearch,
 } from './stay-booking';
-import { PMS_LAST_SYNC, PrototypeControls} from './prototype-controls';
+import { PMS_LAST_SYNC, PrototypeControls, type PrototypeEvent } from './prototype-controls';
 import { HostStore, hostClock, type StayInput } from './pilot/host/host';
 import { EngineBookingCard } from './pilot/host/booking-card';
 import type { Draft as EngineDraft } from './pilot/types';
@@ -209,6 +209,7 @@ import { buildPilotEvents } from './pilot/host/events';
 import { LobbyShopScreen, type ShopProduct } from './pilot/host/shop';
 import { BookingThreadScreen, MessagesList } from './pilot/host/messages';
 import { giftListingId } from './pilot/host/catalog';
+import { engineNews } from './pilot/host/notifications';
 import type { PrototypePage } from './prototype-controls';
 import {
   getPropertyImage,
@@ -677,7 +678,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [roomReadyNotificationBookingId, setRoomReadyNotificationBookingId] = useState<string | null>(null);
   const [roomReadyNotificationFocused, setRoomReadyNotificationFocused] = useState(false);
   /* A push banner for anything else the guest is told: the hotel answering a request. */
-  const [pushNotice, setPushNotice] = useState<{ id: string; headline: string; detail: string; screen?: ActiveScreen } | null>(null);
+  const [pushNotice, setPushNotice] = useState<{ id: string; headline: string; detail: string; screen?: ActiveScreen; threadId?: string } | null>(null);
   const [pushFocused, setPushFocused] = useState(false);
   /** The prototype's feed clock; null follows the booking and the prototype's today. */
   const [feedClock, setFeedClock] = useState<FeedClock | null>(null);
@@ -1566,7 +1567,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const stayTab = stayTabChoice ?? (primaryBooking?.status === 'completed' ? 'past' : 'upcoming');
   const visibleStayEntries = stayTab === 'upcoming' ? stayEntries.upcoming : stayEntries.past;
 
-  const notifications = [...chatNotifications, ...getNotifications(session, primaryBooking)];
+  const engineFeed = hostStore.host && primaryBooking && hostStore.host.guestOf(primaryBooking.id)
+    ? engineNews(hostStore.host, hostStore.host.guestOf(primaryBooking.id)!.guestId, session.serviceBookings)
+    : [];
+  const notifications = [...chatNotifications, ...engineFeed.map((item) => item.notification), ...getNotifications(session, primaryBooking)];
   const unreadNotifications = notifications.filter((item) => !seenNotificationIds.includes(item.id)).length;
 
   const openNotifications = () => {
@@ -1755,7 +1759,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     the front desk, the clock and the faults. Present only when there is a stay
     for the engine to know a guest on.
   */
-  const pilotEvents = hostStore.host && primaryBooking && hostStore.host.guestOf(primaryBooking.id)
+  const rawPilotEvents = hostStore.host && primaryBooking && hostStore.host.guestOf(primaryBooking.id)
     ? buildPilotEvents({
         host: hostStore.host,
         stayId: primaryBooking.id,
@@ -1779,6 +1783,39 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           notifyGuestRequest('desk-hello', 'Front desk', 'Good afternoon. Is there anything we can arrange for you today?', { inbox: true, screen: 'chat' });
         },
       })
+    : undefined;
+
+  /*
+    Whatever the vendor or the desk does that reaches the guest arrives as a
+    banner, as it would on their phone: a push for a state change, or a note
+    that a message came in. Taken as the difference before and after the event.
+  */
+  const announcing = (event: PrototypeEvent): PrototypeEvent => ({
+    ...event,
+    onClick: () => {
+      const host = hostStore.host;
+      const guest = host && primaryBooking ? host.guestOf(primaryBooking.id) : undefined;
+      if (!host || !guest) { event.onClick(); return; }
+      const readFeed = () => engineNews(host, guest.guestId, session.serviceBookings);
+      const before = readFeed().length;
+      const unreadBefore = host.pilot.threads('guest', guest.guestId).reduce((sum, thread) => sum + thread.unread, 0);
+      event.onClick();
+      const feed = readFeed();
+      const fresh = feed.slice(0, Math.max(0, feed.length - before)).find((item) => item.channel === 'push');
+      if (fresh) {
+        setPushNotice({ id: fresh.notification.entryId ?? 'messages', headline: fresh.notification.title, detail: fresh.notification.body, ...(fresh.notification.entryId ? {} : { screen: 'messages' as const }) });
+        return;
+      }
+      const threads = host.pilot.threads('guest', guest.guestId).filter((thread) => thread.kind === 'booking' && thread.unread > 0 && thread.last);
+      const unreadAfter = threads.reduce((sum, thread) => sum + thread.unread, 0);
+      const latest = threads.sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0))[0];
+      if (latest && unreadAfter > unreadBefore) {
+        setPushNotice({ id: latest.id, headline: `New message · ${latest.title}`, detail: `${latest.last!.from.name}: ${latest.last!.text}`, screen: 'booking-thread', threadId: latest.id });
+      }
+    },
+  });
+  const pilotEvents = rawPilotEvents
+    ? { vendor: rawPilotEvents.vendor.map(announcing), desk: rawPilotEvents.desk.map(announcing), clock: rawPilotEvents.clock.map(announcing), faults: rawPilotEvents.faults }
     : undefined;
 
   /* A fresh device: no saved hotels, recent searches, saved offer or half-made booking. */
@@ -6208,7 +6245,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           actionLabel="View"
           headline={pushNotice.headline}
           detail={pushNotice.detail}
-          onViewStay={() => { const { id, screen } = pushNotice; setPushNotice(null); setPushFocused(false); if (screen) { go(screen); return; } setSelectedStayEntryId(id); go('stay-entry'); }}
+          onViewStay={() => { const { id, screen, threadId } = pushNotice; setPushNotice(null); setPushFocused(false); if (threadId) setSelectedThreadId(threadId); if (screen) { go(screen); return; } setSelectedStayEntryId(id); go('stay-entry'); }}
           onDismiss={() => { setPushNotice(null); setPushFocused(false); }}
           onFocusChange={setPushFocused}
         />

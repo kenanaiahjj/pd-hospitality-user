@@ -186,7 +186,10 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
   const lastGuestId = [...view.messages].reverse().find((m) => m.kind === 'text' && m.from.role === 'guest')?.id;
   const now = host.now();
   // The booking's own card is the bar at the top; only other cards (an extra charge) sit in the conversation.
-  const messages = view.messages.filter((m) => !(m.kind === 'card' && m.bookingId === bookingId && !m.paymentId));
+  // An extra charge arrives as a receipt card and a note saying the same; the chat keeps the card.
+  const messages = view.messages.filter((m, i, all) =>
+    !(m.kind === 'card' && m.bookingId === bookingId && !m.paymentId)
+    && !(m.kind === 'system' && /^Extra charge ₱/.test(m.text) && all[i - 1]?.kind === 'card' && Boolean(all[i - 1]?.paymentId)));
 
   const send = (text: string) => {
     if (!text.trim()) return;

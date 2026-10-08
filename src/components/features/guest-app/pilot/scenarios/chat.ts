@@ -9,18 +9,18 @@ export const CHAT: Scenario[] = [
   {
     id: 'Q1',
     group: G,
-    title: 'One booking in three threads',
+    title: 'One booking, the same on both sides of its chat',
     run(c) {
       const { p } = c;
       let id = '';
-      const states = () => [p.threads('guest', p.maria.guestId), p.threads('desk'), p.threads('vendor', 'boat-operator')].map((rows) => rows.find((t) => t.bookingId === id)?.cardState);
-      c.step('The booking shows the same state in the guest, desk and vendor threads', () => {
+      const states = () => [p.threads('guest', p.maria.guestId), p.threads('vendor', 'boat-operator')].map((rows) => rows.find((t) => t.bookingId === id)?.cardState);
+      c.step('The booking shows the same state to the guest and the vendor', () => {
         id = c.ask(trip());
-        c.eq(states().join(','), 'for-confirmation,for-confirmation,for-confirmation', 'all three agree');
+        c.eq(states().join(','), 'for-confirmation,for-confirmation', 'both agree');
       });
-      c.step('It changes state: all three show it at once, with no stale copy', () => {
+      c.step('It changes state: both show it at once, with no stale copy', () => {
         c.must(p.vendor('boat-operator').confirm(id));
-        c.eq(states().join(','), 'confirmed,confirmed,confirmed', 'all three show Confirmed');
+        c.eq(states().join(','), 'confirmed,confirmed', 'both show Confirmed');
         const thread = c.must(p.thread(p.booking(id).threadId, 'guest'));
         c.ok(thread.messages.filter((m) => m.kind === 'card').every((m) => m.bookingId === id), 'a card is a view of the record, not a copy');
       });
@@ -113,19 +113,21 @@ export const CHAT: Scenario[] = [
   {
     id: 'Q6',
     group: G,
-    title: 'Booking thread opens with all three',
+    title: 'A booking chat is the guest and the vendor, one to one',
     run(c) {
       const { p } = c;
       c.step('She requests the Apo Island trip', () => {
         const id = c.ask(trip());
         const row = p.threads('guest', p.maria.guestId).find((t) => t.bookingId === id)!;
         c.eq(row.kind, 'booking', 'a booking thread');
-        for (const viewer of ['guest', 'desk', 'vendor'] as const) {
+        for (const viewer of ['guest', 'vendor'] as const) {
           const t = c.must(p.thread(p.booking(id).threadId, viewer));
           c.ok(t.messages.length > 0, `${viewer} can read it`);
           c.ok(t.messages.every((m) => m.from.name.length > 0), 'every message names its sender');
           c.ok(t.messages.some((m) => m.kind === 'card' && m.bookingId === id), `${viewer} sees the same booking card`);
         }
+        c.refused(p.thread(p.booking(id).threadId, 'desk'), 'not-a-participant');
+        c.ok(!p.threads('desk').some((t) => t.bookingId === id && t.kind === 'booking'), 'the desk does not have the chat in its list');
       });
     },
   },
@@ -153,7 +155,7 @@ export const CHAT: Scenario[] = [
     title: 'Vendor answers a guest question',
     run(c) {
       const { p } = c;
-      c.step('Everyone sees the answers in order, each labelled', () => {
+      c.step('The vendor answers in the chat; the desk says its part in its own chat with her', () => {
         const id = c.ask(trip());
         c.must(p.vendor('boat-operator').confirm(id));
         const t = p.booking(id).threadId;
@@ -161,7 +163,9 @@ export const CHAT: Scenario[] = [
         c.must(p.vendor('boat-operator').message(t, 'Yes, we have one. No extra charge.'));
         c.must(p.desk.messageBooking(t, 'Noted. I added the child seat to the booking.'));
         const texts = c.must(p.thread(t, 'guest')).messages.filter((m) => m.kind === 'text');
-        c.eq(texts.map((m) => m.from.role).join(','), 'guest,vendor,desk', 'in order, each labelled');
+        c.eq(texts.map((m) => m.from.role).join(','), 'guest,vendor', 'only the two of them, in order');
+        const desk = c.must(p.thread(p.deskThreadId(p.maria.stayId), 'guest')).messages;
+        c.ok(desk.some((m) => m.from.role === 'desk' && /child seat/.test(m.text) && m.bookingId === id), 'the desk note is in the desk chat, tied to the booking');
         c.eq(p.booking(id).status, 'confirmed', 'the booking status is unchanged');
       });
     },

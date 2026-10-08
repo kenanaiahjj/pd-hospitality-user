@@ -154,16 +154,17 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     await openMessages(user);
     expect(screen.getByRole('heading', { name: 'Messages' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Front desk/ })).toBeInTheDocument();
-    expect(screen.getByText(/its conversation starts here/)).toBeInTheDocument();
+    expect(screen.getByText(/you can message the vendor here/)).toBeInTheDocument();
 
     await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: 'Home' }));
     await bookRental(user, 'room');
     await openMessages(user);
-    const row = screen.getByRole('button', { name: /City bicycle/ });
-    expect(within(row).getByText('For confirmation')).toBeInTheDocument();
+    // Each vendor is a card of its own, and the chat about this booking sits in it.
+    const vendor = screen.getByRole('article', { name: /Sakay Rentals/ });
+    expect(within(vendor).getByRole('button', { name: /City bicycle, For confirmation/ })).toBeInTheDocument();
   });
 
-  it('puts the guest, the desk and the vendor in one thread, each message signed', async () => {
+  it('keeps every chat one to one: the vendor in the booking chat, the desk in its own', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
@@ -171,6 +172,7 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     await user.click(screen.getByRole('button', { name: /City bicycle/ }));
 
     const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
+    expect(within(thread).getByRole('heading', { name: 'Sakay Rentals', level: 1 })).toBeInTheDocument();
     expect(within(thread).getByLabelText(/City bicycle, For confirmation/)).toBeInTheDocument();
 
     await user.type(within(thread).getByRole('textbox'), 'Can we get a helmet too?');
@@ -178,14 +180,18 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     expect(within(thread).getByText('Can we get a helmet too?')).toBeInTheDocument();
 
     await fire(user, /Vendor sends a message about City bicycle/);
-    await fire(user, /Desk sends a message about City bicycle/);
     expect(within(thread).getByText(/Anything we should prepare/)).toBeInTheDocument();
-    expect(within(thread).getAllByText('Sakay Rentals').length).toBeGreaterThan(0);
-    expect(within(thread).getByText(/I have added that to your booking/)).toBeInTheDocument();
 
-    // The desk speaks to the vendor privately; the guest's thread never carries it.
+    // The desk is not in the vendor's chat: what it says about the booking goes to its own chat with the guest.
+    await fire(user, /Desk sends a message about City bicycle/);
+    expect(within(thread).queryByText(/added that to your City bicycle booking/)).toBeNull();
     await fire(user, /Desk leaves a private note for the vendor of City bicycle/);
     expect(within(thread).queryByText(/Guest is a regular/)).toBeNull();
+
+    await user.click(within(thread).getByRole('button', { name: 'Go back' }));
+    await user.click(screen.getByRole('button', { name: /^Front desk, pinned/ }));
+    const desk = screen.getByRole('region', { name: 'Front desk conversation' });
+    expect(within(desk).getByText(/added that to your City bicycle booking/)).toBeInTheDocument();
   });
 
   it('shows one booking in the same state in its thread and on its receipt', async () => {
@@ -340,7 +346,7 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     await fire(user, /Move the clock on an hour/);
 
     await openMessages(user);
-    expect(within(screen.getByRole('button', { name: /City bicycle/ })).getByText('Lapsed')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /City bicycle, Lapsed/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /City bicycle/ }));
     expect(screen.getByLabelText(/City bicycle, Lapsed/)).toBeInTheDocument();
     expect(screen.getAllByText(/did not answer in time/).length).toBeGreaterThan(0);

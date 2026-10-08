@@ -200,7 +200,7 @@ import {
   type StayGuestDetails,
   type StaySearch,
 } from './stay-booking';
-import { PMS_LAST_SYNC, PrototypeControls, type PrototypeEvent } from './prototype-controls';
+import { PMS_LAST_SYNC, PrototypeControls, slug, type PrototypeEvent } from './prototype-controls';
 import { HostStore, hostClock, type StayInput } from './pilot/host/host';
 import { EngineBookingCard } from './pilot/host/booking-card';
 import type { Draft as EngineDraft } from './pilot/types';
@@ -1864,10 +1864,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           // The stay is over: the app's own record of it follows what the desk did.
           setSession((current) => ({ ...current, bookings: current.bookings.map((item) => (item.id === primaryBooking.id ? { ...item, status: 'completed', checkedOutAt: `${PROTOTYPE_TODAY}T${String(clockHour).padStart(2, '0')}:00:00Z` } : item)) }));
         },
-        deskMessage: () => {
-          setChatMessages((messages) => [...messages, { from: 'desk', body: 'Good afternoon. Is there anything we can arrange for you today?', state: 'Seen' }]);
+        deskMessage: (text = 'Good afternoon. Is there anything we can arrange for you today?') => {
+          setChatMessages((messages) => [...messages, { from: 'desk', body: text, state: 'Seen' }]);
           if (activeScreenRef.current !== 'chat') setHasUnreadChat(true);
-          notifyGuestRequest('desk-hello', 'Front desk', 'Good afternoon. Is there anything we can arrange for you today?', { inbox: true, screen: 'chat' });
+          notifyGuestRequest(text.startsWith('Good afternoon') ? 'desk-hello' : `desk-${slug(text).slice(0, 40)}`, 'Front desk', text, { inbox: true, screen: 'chat' });
         },
       })
     : undefined;
@@ -3359,7 +3359,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const showChatWelcome = !chatStarted && !chatDisabled;
     return (
       <div
-        className={`guest-chat${chatDisabled ? ' guest-chat--disabled' : ''} ${chatStarted ? 'guest-chat--conversation' : 'guest-chat--welcome'}`}
+        className={`guest-chat pilot-chat${chatDisabled ? ' guest-chat--disabled' : ''} ${chatStarted ? 'guest-chat--conversation' : 'guest-chat--welcome'}`}
         data-chat-mode={chatStarted ? 'conversation' : 'welcome'}
         role="region"
         aria-label="Front desk conversation"
@@ -3367,6 +3367,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         <div className="guest-chat__context">
           <div className="guest-chat__identity">
             <button className="guest-chat__back" type="button" onClick={history.length ? back : () => go('stay-overview')} aria-label="Go back"><ArrowLeft aria-hidden="true" /></button>
+            {/* The hotel's photo, as the desk's row in Messages has it. */}
+            <span className="pilot-avatar" aria-hidden="true"><Image src={getPropertyImage(contextBooking.property).src} alt="" fill sizes="40px" style={{ objectPosition: getPropertyImage(contextBooking.property).focalPoint }} /></span>
             <div className="guest-chat__identity-copy">
               <h1>Front desk</h1>
               <span>{contextBooking.property}</span>
@@ -5945,7 +5947,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             onBack={history.length ? back : () => go('messages')}
             onAskDesk={(text) => { sendChatMessage(`About ${host.pilot.threads('guest', host.pilot.booking(host.pilot.bookings().find((b) => b.threadId === selectedThreadId)?.id ?? '').guestId).find((t) => t.id === selectedThreadId)?.title ?? 'a booking'}: ${text}`); go('chat'); }}
             note={engineNote}
-            deskImage={primaryBooking ? getPropertyImage(primaryBooking.property) : undefined}
             {...cardHandlers}
           />
         ) : null;

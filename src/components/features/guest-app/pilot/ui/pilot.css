@@ -21,13 +21,12 @@
 .pilot-muted { margin: 4px 0 8px; color: var(--guest-muted); font-size: 13px; line-height: 1.45; }
 
 /* ------------------------------------------------------------------ Messages */
-/* Rows the way My Stay lists a booking: a square photograph, the title over
-   muted lines, one inset surface for the group. An inbox adds when the last
-   message came and how many are new. */
+/* An inbox of people: a round photo, who it is, when they last spoke, what
+   was said. One inset surface, hairlines starting where the words start. */
 
-.pilot-messages { gap: 20px; }
+.pilot-messages { gap: 24px; }
 
-.pilot-section { display: grid; gap: 8px; }
+.pilot-section { display: grid; gap: 10px; }
 .pilot-section__title {
   margin: 0 4px;
   color: var(--guest-muted);
@@ -37,7 +36,7 @@
   text-transform: uppercase;
 }
 
-.pilot-group {
+.pilot-inbox {
   display: block;
   margin: 0;
   padding: 0;
@@ -47,97 +46,135 @@
   background: var(--guest-paper);
   list-style: none;
 }
-.pilot-group > li + li { border-top: 1px solid var(--guest-line); }
+.pilot-inbox > li { position: relative; }
+.pilot-inbox > li + li::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 80px;
+  border-top: 1px solid var(--guest-line);
+  content: '';
+}
 
 .pilot-empty {
   margin: 0;
-  padding: 20px 18px;
-  border: 1px solid var(--guest-line);
-  border-radius: 16px;
-  background: var(--guest-paper);
+  padding: 4px 4px 0;
   color: var(--guest-muted);
   font-size: 14px;
   line-height: 1.5;
-  text-wrap: pretty;
+  text-align: center;
+  text-wrap: balance;
 }
 
-.pilot-row {
+.pilot-avatar {
+  position: relative;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--guest-sunken);
+  color: var(--guest-muted);
+  font-size: 20px;
+  font-weight: 650;
+}
+.pilot-avatar img { object-fit: cover; }
+
+/* Two lines, with room: who and which booking with the time, then what was said. */
+.pilot-chat-row {
   display: grid;
   width: 100%;
-  grid-template-columns: 48px minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
-  padding: 14px 16px 14px 12px;
+  min-height: 84px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 16px 16px 16px 14px;
   border: 0;
   background: transparent;
   color: var(--guest-ink);
   font: inherit;
   text-align: left;
 }
-.pilot-row:active { background: var(--guest-sunken); }
-.pilot-row:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: -2px; }
+.pilot-chat-row:active { background: var(--guest-sunken); }
+.pilot-chat-row:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: -2px; }
 
-.pilot-thumb,
-.pilot-card__thumb {
-  position: relative;
-  display: grid;
-  width: 48px;
-  height: 48px;
+.pilot-chat-row__body { display: grid; min-width: 0; gap: 4px; }
+.pilot-chat-row__top { display: flex; min-width: 0; align-items: baseline; gap: 8px; }
+.pilot-chat-row__top b {
+  flex: none;
+  max-width: 70%;
   overflow: hidden;
-  place-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pilot-chat-row__about {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--guest-subtle);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pilot-chat-row__top time { flex: none; margin-left: auto; color: var(--guest-subtle); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pilot-chat-row__pin { flex: none; align-self: center; margin-left: auto; color: var(--guest-subtle); font-size: 15px; }
+.pilot-chat-row__bottom { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; }
+.pilot-chat-row__preview {
+  overflow: hidden;
+  color: var(--guest-muted);
+  font-size: 14.5px;
+  line-height: 21px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* What is new reads first: the name, the time and the last words step up. */
+.pilot-chat-row.is-unread .pilot-chat-row__top b { font-weight: 700; }
+.pilot-chat-row.is-unread .pilot-chat-row__top time { color: var(--guest-brand); font-weight: 650; }
+.pilot-chat-row.is-unread .pilot-chat-row__preview { color: var(--guest-ink); }
+
+/* A vendor: its own card, so each business reads as itself. Who they are on
+   top, then a chat for each booking with them. */
+.pilot-section { gap: 12px; }
+.pilot-vendor {
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+}
+.pilot-vendor__head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 12px 14px;
+  border-bottom: 1px solid var(--guest-line);
+}
+.pilot-vendor__head .pilot-avatar { width: 44px; height: 44px; font-size: 17px; }
+.pilot-vendor__head > span { display: grid; min-width: 0; gap: 2px; }
+.pilot-vendor__head b { overflow: hidden; font-size: 16px; font-weight: 650; line-height: 21px; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-vendor__head small { color: var(--guest-subtle); font-size: 12.5px; line-height: 17px; }
+.pilot-vendor ul { margin: 0; padding: 0; list-style: none; }
+.pilot-vendor li { position: relative; }
+.pilot-vendor li + li::before { position: absolute; top: 0; right: 0; left: 72px; border-top: 1px solid var(--guest-line); content: ''; }
+
+.pilot-chat-row--booking { min-height: 76px; grid-template-columns: 44px minmax(0, 1fr); padding: 14px 16px 14px 14px; }
+.pilot-chat-row__thumb {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
   border-radius: 10px;
   background: var(--guest-sunken);
-  color: var(--guest-muted);
-  font-size: 20px;
 }
-.pilot-thumb img,
-.pilot-card__thumb img { object-fit: cover; }
+.pilot-chat-row__thumb img { object-fit: cover; }
+.pilot-chat-row--booking .pilot-chat-row__top b { max-width: none; flex: 1 1 auto; font-size: 15px; }
 
-.pilot-row__body { display: grid; min-width: 0; gap: 2px; }
-.pilot-row__top { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 10px; }
-.pilot-row__top b {
-  overflow: hidden;
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 20px;
-  letter-spacing: -0.008em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pilot-row__top time { flex: none; color: var(--guest-subtle); font-size: 12px; font-variant-numeric: tabular-nums; }
-.pilot-row__pin { flex: none; align-self: center; color: var(--guest-subtle); font-size: 14px; }
-.pilot-row__preview {
-  overflow: hidden;
-  color: var(--guest-muted);
-  font-size: 13.5px;
-  line-height: 19px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pilot-row__meta {
-  display: flex;
-  min-height: 20px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 2px;
-  color: var(--guest-subtle);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.pilot-row__meta > span { display: flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; }
-.pilot-row__when { overflow: hidden; text-overflow: ellipsis; }
-.pilot-row__meta .pilot-status + .pilot-row__when::before { margin-right: 6px; color: var(--guest-line-strong); content: '·'; }
-
-/* What is new is read first: the title, the time and the preview step up to full ink. */
-.pilot-row.is-unread .pilot-row__top b { font-weight: 700; }
-.pilot-row.is-unread .pilot-row__top time { color: var(--guest-brand); font-weight: 650; }
-.pilot-row.is-unread .pilot-row__preview { color: var(--guest-ink); }
-/* A booking that did not happen stays listed, one step back. */
-.pilot-row.is-quiet .pilot-thumb { filter: grayscale(1); opacity: 0.6; }
-.pilot-row.is-quiet .pilot-row__top b { color: var(--guest-muted); }
-
-.pilot-dot { width: 8px; height: 8px; flex: none; border-radius: 999px; background: var(--guest-brand); }
+.pilot-dot { width: 10px; height: 10px; flex: none; border-radius: 999px; background: var(--guest-brand); }
 .pilot-badge {
   display: inline-grid;
   min-width: 20px;
@@ -170,42 +207,64 @@
 .pilot-status--bad { color: oklch(0.52 0.15 25); }
 
 /* ------------------------------------------------------------------ the conversation */
+/* Two people, so nobody is named in the stream: the header says who. The
+   booking is a bar under the header; what happens to it is a quiet line in
+   the middle, and each day starts with its date. */
 
-/* The front desk chat's bubbles, as they are. A thread has three people in
-   it, so whoever is not the guest is named once per turn, with a photo: the
-   booking's for the vendor, the hotel's for the desk. */
-.pilot-msg { max-width: 82%; }
-.pilot-msg--grouped { margin-bottom: -6px; }
-.pilot-sender {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 6px 0 2px 2px;
-  color: var(--guest-muted);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-.pilot-sender__avatar {
-  position: relative;
+.pilot-chat .guest-chat__identity { grid-template-columns: auto auto minmax(0, 1fr); gap: 10px; }
+.pilot-chat .guest-chat__identity .pilot-avatar { width: 40px; height: 40px; font-size: 16px; }
+
+.pilot-booking-bar {
   display: grid;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  overflow: hidden;
-  place-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--guest-line);
+  border-radius: 14px;
+  background: var(--guest-paper);
+}
+.pilot-booking-bar__toggle {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--guest-ink);
+  font: inherit;
+  text-align: left;
+}
+.pilot-booking-bar__toggle:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: 2px; border-radius: 6px; }
+.pilot-booking-bar__when { min-width: 0; overflow: hidden; color: var(--guest-muted); font-size: 13px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-booking-bar__when::before { margin-right: 8px; color: var(--guest-line-strong); content: '·'; }
+.pilot-booking-bar__more { display: inline-flex; flex: none; align-items: center; gap: 4px; margin-left: auto; color: var(--guest-brand); font-size: 13px; font-weight: 650; }
+.pilot-booking-bar__more svg { width: 14px; height: 14px; transition: transform var(--duration-fast, 160ms) ease; }
+.pilot-booking-bar.is-open .pilot-booking-bar__more svg { transform: rotate(180deg); }
+.pilot-booking-bar__pay.guest-button { min-height: 40px; font-size: 14px; }
+.pilot-booking-bar { overflow: hidden; }
+/* Opened, the bar already says the status and the chat says the vendor: the card shows only what the bar does not. */
+.pilot-booking-bar .pilot-card { margin: 0 -12px -10px; border: 0; border-radius: 0; }
+.pilot-booking-bar .pilot-card__status-row { display: none; }
+
+.pilot-msg { max-width: 80%; }
+.pilot-msg--grouped { margin-bottom: -6px; }
+.pilot-msg small { font-variant-numeric: tabular-nums; }
+
+.pilot-day {
+  align-self: center;
+  margin: 10px 0 2px;
+  padding: 3px 10px;
   border-radius: 999px;
   background: var(--guest-sunken);
   color: var(--guest-muted);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 650;
 }
-.pilot-sender__avatar img { object-fit: cover; }
-.pilot-msg small { font-variant-numeric: tabular-nums; }
-.pilot-system {
+.pilot-event {
   align-self: center;
   max-width: 82%;
-  margin: 6px 0;
+  margin: 2px 0;
   color: var(--guest-muted);
   font-size: 12.5px;
   line-height: 1.45;

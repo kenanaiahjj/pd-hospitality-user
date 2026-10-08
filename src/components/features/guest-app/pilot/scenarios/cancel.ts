@@ -20,7 +20,8 @@ export const CANCEL: Scenario[] = [
         const slot = p.slot('apo-island-trip', S.fri, '07:30');
         c.eq(slot.held + slot.confirmed, 0, 'slot released');
         c.ok(p.outbox().some((n) => n.to === 'vendor' && n.topic === 'cancelled' && n.bookingId === id), 'the vendor sees it');
-        c.ok(c.must(p.thread(p.booking(id).threadId, 'desk')).messages.some((m) => /cancel/i.test(m.text)), 'the desk sees it');
+        // The desk is not in the booking's chat; it sees the booking itself change.
+        c.ok(p.log().some((l) => l.kind === 'booking-state' && l.entityId === id && l.to === 'cancelled'), 'the desk sees it on the booking');
       });
     },
   },

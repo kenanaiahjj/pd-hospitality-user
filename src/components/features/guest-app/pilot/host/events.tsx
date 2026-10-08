@@ -27,8 +27,8 @@ export type EventContext = {
   canShortenStay: boolean;
   shortenStay: () => void;
   cancelStay: () => void;
-  /** The front desk thread is the app's own chat: the desk speaking there is the app's to write. */
-  deskMessage: () => void;
+  /** The front desk thread is the app's own chat: the desk speaking there is the app's to write. With no words, a greeting. */
+  deskMessage: (text?: string) => void;
   /** The desk books something for the guest, who asked in person. The booking is the app's to record. */
   deskBooks: () => void;
   /** The desk moves the guest to another room: the room is the app's record of the stay, so it is the app's to change. */
@@ -117,13 +117,13 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
       vendor.push({ icon: <X />, label: `Vendor declines the cancellation of ${name}`, detail: 'The booking stands and the front desk is asked to step in.', onClick: call('vendor.answerCancel', vendorId, b.id, false) });
     }
     if (LIVE.includes(b.status)) {
-      vendor.push({ icon: <ChatCircleDots />, label: `Vendor sends a message about ${name}`, detail: 'It arrives in the booking’s thread, signed by the vendor.', onClick: call('vendor.message', vendorId, b.threadId, 'Hello! We have your booking. Anything we should prepare?') });
-      vendor.push({ icon: <ChatCircleDots />, label: `Vendor says it is running late for ${name}`, detail: 'A message in the booking’s thread: about fifteen minutes behind.', onClick: call('vendor.message', vendorId, b.threadId, 'Sorry, we are running about 15 minutes behind. Thank you for your patience!') });
-      vendor.push({ icon: <ChatCircleDots />, label: `Vendor asks how many are coming for ${name}`, detail: 'A question for the guest to answer in the thread.', onClick: call('vendor.message', vendorId, b.threadId, 'Quick check: how many of you will be coming? And is there anything we should know beforehand?') });
-      desk.push({ icon: <ChatCircleDots />, label: `Desk asks when the guest will arrive for ${name}`, detail: 'A question in the booking’s thread.', onClick: call('desk.messageBooking', b.threadId, 'Do you know roughly what time you will arrive? I will let them know.') });
-      desk.push({ icon: <ChatCircleDots />, label: `Desk says it has passed the request to the vendor of ${name}`, detail: 'A note in the booking’s thread, from the desk.', onClick: call('desk.messageBooking', b.threadId, 'I have passed your request to them and will update you here as soon as they reply.') });
-      desk.push({ icon: <ChatCircleDots />, label: `Desk sends a message about ${name}`, detail: 'It arrives in the booking’s thread, signed by the front desk.', onClick: call('desk.messageBooking', b.threadId, 'Noted, I have added that to your booking.') });
-      desk.push({ icon: <ChatCircleDots />, label: `Desk leaves a private note for the vendor of ${name}`, detail: 'The guest never sees it.', onClick: call('desk.privateNote', vendorId, 'Guest is a regular, please look after them.', b.id) });
+      vendor.push({ icon: <ChatCircleDots />, label: `Vendor sends a message about ${name}`, detail: 'It arrives in the guest’s chat with the vendor.', onClick: call('vendor.message', vendorId, b.threadId, 'Hello! We have your booking. Anything we should prepare?') });
+      vendor.push({ icon: <ChatCircleDots />, label: `Vendor says it is running late for ${name}`, detail: 'In the guest’s chat with the vendor: about fifteen minutes behind.', onClick: call('vendor.message', vendorId, b.threadId, 'Sorry, we are running about 15 minutes behind. Thank you for your patience!') });
+      vendor.push({ icon: <ChatCircleDots />, label: `Vendor asks how many are coming for ${name}`, detail: 'A question for the guest to answer in their chat.', onClick: call('vendor.message', vendorId, b.threadId, 'Quick check: how many of you will be coming? And is there anything we should know beforehand?') });
+      desk.push({ icon: <ChatCircleDots />, label: `Desk asks when the guest will arrive for ${name}`, detail: 'In the front desk chat. The desk is not in the vendor’s chat.', onClick: () => deskMessage(`For ${name}: do you know roughly what time you will arrive? I will let ${vendorName} know.`) });
+      desk.push({ icon: <ChatCircleDots />, label: `Desk says it has passed the request to the vendor of ${name}`, detail: 'In the front desk chat, after a word with the vendor in theirs.', onClick: () => deskMessage(`I have passed your request for ${name} to ${vendorName} and will update you here as soon as they reply.`) });
+      desk.push({ icon: <ChatCircleDots />, label: `Desk sends a message about ${name}`, detail: 'It arrives in the front desk chat, about this booking.', onClick: () => deskMessage(`Noted, I have added that to your ${name} booking.`) });
+      desk.push({ icon: <ChatCircleDots />, label: `Desk leaves a private note for the vendor of ${name}`, detail: 'In the desk’s own chat with the vendor. The guest never sees it.', onClick: call('desk.privateNote', vendorId, 'Guest is a regular, please look after them.', b.id) });
     }
     if (b.status === 'needs-approval') {
       desk.push({ icon: <Check />, label: `Desk approves charging ${name} to the room`, detail: 'Over the limit, so it needed the desk.', onClick: call('desk.approve', b.id) });
@@ -150,7 +150,7 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
   }
 
   desk.push({ icon: <Check />, label: 'Desk books a session for the guest, asked in person', detail: 'The guest told the desk, who booked it and noted who. It shows as a card in the front desk chat.', onClick: deskBooks });
-  desk.push({ icon: <ChatCircleDots />, label: 'Desk sends a message in the chat', detail: 'Into the front desk thread, as the desk.', onClick: deskMessage });
+  desk.push({ icon: <ChatCircleDots />, label: 'Desk sends a message in the chat', detail: 'Into the front desk thread, as the desk.', onClick: () => deskMessage() });
   desk.push({ icon: <WarningCircle />, label: 'Desk shortens the stay by a day', detail: 'Bookings after the new checkout can no longer go on the room: the guest is asked to pay in full or cancel.', onClick: shortenStay, unavailable: canShortenStay ? undefined : 'Needs a stay with more than one night' });
   desk.push({ icon: <WarningCircle />, label: 'Desk moves the guest to another room', detail: 'A charge the hotel system refused for the old room is sent again to the new one.', onClick: moveRoom });
   desk.push({ icon: <Check />, label: 'Desk checks the guest out', detail: 'Refused while a charge is in question, unpaid or not yet posted. The reason is shown.', onClick: checkOut });
@@ -218,14 +218,14 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
   waiting(vendor, (l) => l.includes('extra charge to'), <Receipt />, 'Vendor adds an extra charge', 'Needs a confirmed rental or service');
   waiting(vendor, (l) => l.includes('a no-show'), <Clock />, 'Vendor marks a booking a no-show', 'Needs a confirmed booking that has passed its start');
   waiting(vendor, (l) => l.startsWith('Vendor cancels'), <X />, 'Vendor cancels a booking', 'Needs a booking that has not started');
-  waiting(vendor, (l) => l.startsWith('Vendor sends a message about'), <ChatCircleDots />, 'Vendor sends a message', 'Needs a booking: a thread opens as soon as something is asked for');
+  waiting(vendor, (l) => l.startsWith('Vendor sends a message about'), <ChatCircleDots />, 'Vendor sends a message', 'Needs a booking: its chat with the vendor opens as soon as something is asked for');
   waiting(vendor, (l) => l.startsWith('Restaurant seats'), <Check />, 'Restaurant seats a party', 'Needs a reserved table');
   waiting(vendor, (l) => l.includes('packs'), <Storefront />, 'Vendor packs an order', 'Needs a confirmed goods order');
   waiting(desk, (l) => l.startsWith('Desk approves charging'), <Check />, 'Desk approves an over-limit charge', 'Needs a room charge over ₱5,000 waiting for the desk');
   waiting(desk, (l) => l.startsWith('Desk reinstates'), <Check />, 'Desk reinstates a lapsed request', 'Needs a request the vendor did not answer in time');
   waiting(desk, (l) => l.includes('marks') && l.includes('ready'), <Check />, 'Desk marks an order ready', 'Needs a confirmed goods order');
   waiting(desk, (l) => l.startsWith('Desk hands over'), <Check />, 'Desk hands over an order', 'Needs an order that is ready');
-  waiting(desk, (l) => l.startsWith('Desk sends a message about'), <ChatCircleDots />, 'Desk sends a message about a booking', 'Needs a booking: a thread opens as soon as something is asked for');
+  waiting(desk, (l) => l.startsWith('Desk sends a message about'), <ChatCircleDots />, 'Desk sends a message about a booking', 'Needs a booking');
   waiting(desk, (l) => l.startsWith('Desk leaves a private note'), <ChatCircleDots />, 'Desk leaves a private note for a vendor', 'Needs a booking');
 
   desk.push({ icon: <Check />, label: 'Fill Messages with sample bookings and chats', detail: 'A scooter nobody answered, bicycles confirmed with a message from the shop, a tour waiting, a table, an order ready at the desk, a session the desk booked. And a front desk chat to match.', onClick: fillSamples, unavailable: fillBlocked });

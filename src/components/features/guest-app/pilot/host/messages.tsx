@@ -1,22 +1,26 @@
 'use client';
 
-import { ArrowLeft, ChatCircleDots, PushPin } from '@phosphor-icons/react';
+import { ArrowLeft, CaretDown, ChatCircleDots, PushPin } from '@phosphor-icons/react';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
 import type { ServiceImageDefinition } from '../../service-images';
-import { BookingThumb, EngineBookingCard, STATUS_TONE, type CardHandlers } from './booking-card';
+import { EngineBookingCard, STATUS_TONE, type CardHandlers } from './booking-card';
 import { engineStatusLine } from './project';
 import type { Host } from './host';
 import '../ui/pilot.css';
 
 /*
-  Messages: the front desk, pinned, and one thread for every booking that has a
-  request in it, each with the guest, the front desk and the vendor in the room.
-  A message always shows who sent it. What the desk and the vendor say to each
-  other privately never reaches this list: the engine does not hand it over.
+  Messages, as a messaging app has them: people, not records. Every chat is
+  one to one. The guest talks to the front desk in one chat (pinned), and to
+  each vendor in that booking's chat. The desk and the vendor have their own
+  chat, which never reaches the guest: the engine does not hand it over.
+
+  A chat leads with who it is with. The booking it is about is a bar under
+  the header that opens the full card; what happens to it shows in the
+  conversation as a small centred line, the way a messaging app marks an event.
 */
 
 const clock12 = (ms: number) => {
@@ -35,6 +39,23 @@ const shortDate = (ms: number) => new Date(ms).toLocaleDateString('en-US', { wee
 const sentAt = (ms: number, now: number) =>
   dayOf(ms) === dayOf(now) ? clock12(ms) : dayOf(ms) === dayOf(now) - 1 ? 'Yesterday' : shortDate(ms);
 
+/** A day divider in a conversation: "Today", "Yesterday", or the date. */
+const dayLabel = (ms: number, now: number) =>
+  dayOf(ms) === dayOf(now) ? 'Today' : dayOf(ms) === dayOf(now) - 1 ? 'Yesterday' : shortDate(ms);
+
+const vendorOf = (host: Host, bookingId: string) => {
+  const listing = host.pilot.listing(host.pilot.booking(bookingId).listingId);
+  return host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'The vendor';
+};
+
+function Avatar({ image, name, fallback }: { image?: ServiceImageDefinition; name: string; fallback?: ReactNode }) {
+  return (
+    <span className="pilot-avatar" aria-hidden="true">
+      {image ? <Image src={image.src} alt="" fill sizes="52px" style={{ objectPosition: image.focalPoint }} /> : fallback ?? name.charAt(0)}
+    </span>
+  );
+}
+
 export function MessagesList({ host, guestId, desk, deskImage, imageFor, onOpenDesk, onOpenThread }: {
   host: Host;
   guestId: string;
@@ -49,71 +70,102 @@ export function MessagesList({ host, guestId, desk, deskImage, imageFor, onOpenD
   const threads = host.pilot.threads('guest', guestId)
     .filter((thread) => thread.kind === 'booking')
     .sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0));
+  // Each vendor is its own business, so each gets its own card: who they are, then the chats about each booking with them.
+  const byVendor = new Map<string, ThreadSummary[]>();
+  for (const thread of threads) {
+    if (!thread.bookingId) continue;
+    const vendorId = host.pilot.listing(host.pilot.booking(thread.bookingId).listingId).vendorId;
+    byVendor.set(vendorId, [...(byVendor.get(vendorId) ?? []), thread]);
+  }
+
   return (
     <div className="guest-stack pilot-messages">
       <div className="guest-page-title"><h1>Messages</h1></div>
-
-      <div className="pilot-group">
-        <button type="button" className={`pilot-row${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
-          <span className="pilot-thumb pilot-thumb--desk" aria-hidden="true">
-            {deskImage ? <Image src={deskImage.src} alt="" fill sizes="48px" style={{ objectPosition: deskImage.focalPoint }} /> : <ChatCircleDots />}
-          </span>
-          <span className="pilot-row__body">
-            <span className="pilot-row__top">
+      {/* The front desk, on its own and pinned: the one chat that is always there. */}
+      <div className="pilot-inbox" role="group" aria-label="Front desk">
+        <button type="button" className={`pilot-chat-row${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
+          <Avatar image={deskImage} name="Front desk" fallback={<ChatCircleDots />} />
+          <span className="pilot-chat-row__body">
+            <span className="pilot-chat-row__top">
               <b>Front desk</b>
-              <PushPin weight="fill" aria-hidden="true" className="pilot-row__pin" />
+              <PushPin weight="fill" aria-hidden="true" className="pilot-chat-row__pin" />
             </span>
-            <span className="pilot-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
-            <span className="pilot-row__meta">
-              <span>{desk.place ?? 'Your hotel'}</span>
+            <span className="pilot-chat-row__bottom">
+              <span className="pilot-chat-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
               {desk.unread ? <i className="pilot-dot" aria-hidden="true" /> : null}
             </span>
           </span>
         </button>
       </div>
 
-      <section aria-label="Bookings" className="pilot-section">
-        <h2 className="pilot-section__title">Bookings</h2>
-        {threads.length === 0 ? (
-          <p className="pilot-empty">Ask for something in Explore and its conversation starts here, with the front desk and the vendor in it.</p>
-        ) : (
-          <ul className="pilot-group">
-            {threads.map((thread) => <li key={thread.id}><ThreadRow host={host} thread={thread} imageFor={imageFor} onOpen={onOpenThread} /></li>)}
-          </ul>
-        )}
-      </section>
+      {byVendor.size ? (
+        <section className="pilot-section" aria-label="Vendors">
+          <h2 className="pilot-section__title">Vendors</h2>
+          {[...byVendor].map(([vendorId, chats]) => (
+            <VendorCard key={vendorId} host={host} vendorId={vendorId} chats={chats} image={HOTEL_RUN.has(vendorId) ? deskImage : imageFor?.(chats[0]!.bookingId!)} imageFor={imageFor} onOpen={onOpenThread} />
+          ))}
+        </section>
+      ) : null}
+      {threads.length === 0 ? <p className="pilot-empty">Book something in Explore and you can message the vendor here.</p> : null}
     </div>
   );
 }
 
-function ThreadRow({ host, thread, imageFor, onOpen }: { host: Host; thread: ThreadSummary; imageFor?: (bookingId: string) => ServiceImageDefinition | undefined; onOpen: (id: string) => void }) {
-  const last = thread.last;
+/** The hotel's own outlets, as opposed to partners outside it. */
+const HOTEL_RUN = new Set(['the-henry', 'lobby-shop']);
+
+function VendorCard({ host, vendorId, chats, image, imageFor, onOpen }: {
+  host: Host;
+  vendorId: string;
+  chats: ThreadSummary[];
+  image?: ServiceImageDefinition;
+  imageFor?: (bookingId: string) => ServiceImageDefinition | undefined;
+  onOpen: (id: string) => void;
+}) {
+  const name = host.pilot.vendors().find((v) => v.id === vendorId)?.name ?? 'Vendor';
+  const unread = chats.reduce((sum, chat) => sum + chat.unread, 0);
+  const kind = HOTEL_RUN.has(vendorId) ? 'Run by the hotel' : 'Partner';
+  return (
+    <article className={`pilot-vendor${unread ? ' is-unread' : ''}`} aria-label={`${name}, ${chats.length} ${chats.length === 1 ? 'booking' : 'bookings'}`}>
+      <header className="pilot-vendor__head">
+        <Avatar image={image} name={name} />
+        <span>
+          <b>{name}</b>
+          <small>{kind} · {chats.length} {chats.length === 1 ? 'booking' : 'bookings'}</small>
+        </span>
+      </header>
+      <ul>
+        {chats.map((chat) => <li key={chat.id}><ChatRow host={host} thread={chat} vendor={name} image={chat.bookingId ? imageFor?.(chat.bookingId) : undefined} onOpen={onOpen} /></li>)}
+      </ul>
+    </article>
+  );
+}
+
+function ChatRow({ host, thread, vendor, image, onOpen }: { host: Host; thread: ThreadSummary; vendor: string; image?: ServiceImageDefinition; onOpen: (id: string) => void }) {
   const booking = thread.bookingId ? host.pilot.booking(thread.bookingId) : undefined;
-  // A card is where things stand, said in words; a note from Cabana is a line of its own; a person's message names who.
+  // The last thing said, as an inbox shows it. A status change says itself; a person's words name only "You".
+  const last = thread.last;
   const preview = !last ? 'No messages yet.'
-    : last.kind === 'card' ? (booking ? engineStatusLine(booking) : 'Booking card')
+    : last.kind === 'card' ? (booking ? engineStatusLine(booking) : 'Booking')
     : last.kind === 'system' ? last.text
-    : `${last.from.role === 'guest' ? 'You' : last.from.name}: ${last.text}`;
-  const quiet = thread.cardState === 'lapsed' || thread.cardState === 'cancelled';
+    : `${last.from.role === 'guest' ? 'You: ' : ''}${last.text}`;
   return (
     <button
       type="button"
-      className={`pilot-row${thread.unread ? ' is-unread' : ''}${quiet ? ' is-quiet' : ''}`}
+      className={`pilot-chat-row pilot-chat-row--booking${thread.unread ? ' is-unread' : ''}`}
       onClick={() => onOpen(thread.id)}
-      aria-label={`${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}
+      aria-label={`${vendor}, ${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}
     >
-      {booking ? <BookingThumb className="pilot-thumb" image={imageFor?.(booking.id)} kind={booking.kind} /> : <span className="pilot-thumb" aria-hidden="true"><ChatCircleDots /></span>}
-      <span className="pilot-row__body">
-        <span className="pilot-row__top">
+      <span className="pilot-chat-row__thumb" aria-hidden="true">
+        {image ? <Image src={image.src} alt="" fill sizes="44px" style={{ objectPosition: image.focalPoint }} /> : null}
+      </span>
+      <span className="pilot-chat-row__body">
+        <span className="pilot-chat-row__top">
           <b>{thread.title}</b>
           {last ? <time>{sentAt(last.at, host.now())}</time> : null}
         </span>
-        <span className="pilot-row__preview">{preview}</span>
-        <span className="pilot-row__meta">
-          <span>
-            {thread.cardLabel ? <span className={`pilot-status pilot-status--${STATUS_TONE(thread.cardState, thread.cardLabel)}`}>{thread.cardLabel}</span> : null}
-            {booking ? <span className="pilot-row__when">{shortDate(booking.start)}, {clock12(booking.start)}</span> : null}
-          </span>
+        <span className="pilot-chat-row__bottom">
+          <span className="pilot-chat-row__preview">{preview}</span>
           {thread.unread ? <i className="pilot-badge" aria-hidden="true">{thread.unread}</i> : null}
         </span>
       </span>
@@ -121,13 +173,9 @@ function ThreadRow({ host, thread, imageFor, onOpen }: { host: Host; thread: Thr
   );
 }
 
-const ROLE_WORD = { guest: 'You', desk: 'Front desk', vendor: 'Vendor', system: 'Cabana' } as const;
-
-export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskDesk, note, deskImage, ...handlers }: {
+export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskDesk, note, ...handlers }: {
   host: Host;
   threadId: string;
-  /** The hotel's photograph, beside what the front desk says. */
-  deskImage?: ServiceImageDefinition;
   onBack: () => void;
   /** What the engine said about the last tap on a card, when it is worth saying. */
   note?: { tone: 'warning' | 'positive'; text: string } | null;
@@ -135,16 +183,28 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
   onAskDesk: (text: string) => void;
 } & CardHandlers) {
   const [draft, setDraft] = useState('');
+  const [open, setOpen] = useState(false);
   // Looking is not reading: the thread is only marked read by the effect below, which is recorded like any action.
   const view = host.pilot.thread(threadId, 'guest', false);
   const bookingId = threadBookingId(host, threadId);
-  const guestId = bookingId ? host.pilot.booking(bookingId).guestId : undefined;
+  const booking = bookingId ? host.pilot.booking(bookingId) : undefined;
+  const guestId = booking?.guestId;
   const thread = guestId ? host.pilot.threads('guest', guestId).find((t) => t.id === threadId) : undefined;
   const unread = thread?.unread ?? 0;
   useEffect(() => {
     if (unread > 0) host.call('pilot.thread', threadId, 'guest');
   }, [host, threadId, unread]);
   if (!view.ok) return <p className="pilot-muted">{view.message}</p>;
+
+  const name = bookingId ? vendorOf(host, bookingId) : 'The vendor';
+  const card = bookingId ? host.pilot.card(bookingId) : undefined;
+  const tone = card ? STATUS_TONE(card.state, card.label) : 'wait';
+  // Has the vendor read what the guest last said? Their side of the thread knows.
+  const vendorUnread = booking ? host.pilot.threads('vendor', host.pilot.listing(booking.listingId).vendorId).find((t) => t.id === threadId)?.unread ?? 0 : 0;
+  const lastGuestId = [...view.messages].reverse().find((m) => m.kind === 'text' && m.from.role === 'guest')?.id;
+  const now = host.now();
+  // The booking's own card is the bar at the top; only other cards (an extra charge) sit in the conversation.
+  const messages = view.messages.filter((m) => !(m.kind === 'card' && m.bookingId === bookingId && !m.paymentId));
 
   const send = (text: string) => {
     if (!text.trim()) return;
@@ -154,70 +214,79 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
   };
 
   return (
-    <div className="guest-chat guest-chat--conversation" role="region" aria-label={`${thread?.title ?? 'Booking'} conversation`}>
+    <div className="guest-chat guest-chat--conversation pilot-chat" role="region" aria-label={`${thread?.title ?? 'Booking'} conversation`}>
       <div className="guest-chat__context">
         <div className="guest-chat__identity">
           <button className="guest-chat__back" type="button" onClick={onBack} aria-label="Go back"><ArrowLeft aria-hidden="true" /></button>
+          <Avatar image={bookingId ? handlers.imageFor?.(bookingId) : undefined} name={name} />
           <div className="guest-chat__identity-copy">
-            <h1>{thread?.title ?? 'Booking'}</h1>
-            <span>With the front desk and {bookingId ? vendorName(host, bookingId) : 'the vendor'}</span>
+            <h1>{name}</h1>
+            <span>{thread?.title ?? 'Booking'}</span>
           </div>
         </div>
       </div>
+
+      {card && bookingId ? (
+        <div className={`pilot-booking-bar${open ? ' is-open' : ''}`}>
+          <button type="button" className="pilot-booking-bar__toggle" aria-expanded={open} onClick={() => setOpen(!open)} aria-label={open ? 'Hide booking details' : `${card.title}, ${card.label}`}>
+            <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>
+            <span className="pilot-booking-bar__when">{booking ? `${shortDate(booking.start)}, ${clock12(booking.start)}` : ''}</span>
+            <span className="pilot-booking-bar__more">{open ? 'Hide' : 'Details'}<CaretDown aria-hidden="true" /></span>
+          </button>
+          {card.actions.includes('pay') && !open ? (
+            <button type="button" className="guest-button guest-button--primary pilot-booking-bar__pay" onClick={() => handlers.onPay(bookingId)}>
+              Pay {card.cost.amount ? `₱${card.cost.amount.toLocaleString('en-US')}` : 'now'}
+            </button>
+          ) : null}
+          {open ? <EngineBookingCard host={host} bookingId={bookingId} inThread bare {...handlers} onOpenDesk={onOpenDesk} /> : null}
+        </div>
+      ) : null}
+
       <div className="guest-messages" aria-label="Conversation" aria-live="polite">
-        {view.messages.map((message, index) => {
-          // Messages from one person in a row read as one turn: named once at the top, timed once at the bottom.
-          const sameAs = (other?: Message) => Boolean(other && other.kind === 'text' && message.kind === 'text' && other.from.role === message.from.role && other.from.name === message.from.name);
+        {messages.map((message, index) => {
+          const previous = messages[index - 1];
+          const next = messages[index + 1];
+          // Messages from one person in a row, on one day, read as one turn, timed once at the bottom.
+          const sameTurn = (a?: Message, b?: Message) => Boolean(a && b && a.kind === 'text' && b.kind === 'text' && a.from.role === b.from.role && dayOf(a.at) === dayOf(b.at));
+          const newDay = !previous || dayOf(previous.at) !== dayOf(message.at);
           return (
-            <ThreadMessage
-              key={message.id}
-              host={host}
-              message={message}
-              first={!sameAs(view.messages[index - 1])}
-              last={!sameAs(view.messages[index + 1])}
-              avatar={message.from.role === 'vendor' && bookingId ? handlers.imageFor?.(bookingId) : message.from.role === 'desk' ? deskImage : undefined}
-              onOpenDesk={onOpenDesk}
-              {...handlers}
-            />
+            <Fragment key={message.id}>
+              {newDay ? <p className="pilot-day">{dayLabel(message.at, now)}</p> : null}
+              <ThreadMessage
+                host={host}
+                message={message}
+                first={!sameTurn(previous, message)}
+                last={!sameTurn(message, next)}
+                receipt={message.id === lastGuestId ? (vendorUnread > 0 ? 'Delivered' : 'Seen') : undefined}
+                onOpenDesk={onOpenDesk}
+                {...handlers}
+              />
+            </Fragment>
           );
         })}
       </div>
       {note ? <Notice tone={note.tone} title={note.tone === 'warning' ? 'That did not go through' : 'Done'}>{note.text}</Notice> : null}
       {view.readOnly ? <Notice title="This thread has closed">It closed 48 hours after the service. Anything you send now goes to the front desk.</Notice> : null}
       <div className="guest-chat__dock">
-        <ChatComposer draft={draft} onDraftChange={setDraft} onSubmit={({ body }) => send(body)} placeholder={view.readOnly ? 'Ask the front desk' : 'Message everyone in this booking'} />
+        <ChatComposer draft={draft} onDraftChange={setDraft} onSubmit={({ body }) => send(body)} placeholder={view.readOnly ? 'Ask the front desk' : `Message ${name}`} />
       </div>
     </div>
   );
 }
 
 const threadBookingId = (host: Host, threadId: string): string | undefined => host.pilot.bookings().find((b) => b.threadId === threadId)?.id;
-const vendorName = (host: Host, bookingId: string) => {
-  const listing = host.pilot.listing(host.pilot.booking(bookingId).listingId);
-  return host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'the vendor';
-};
 
-function ThreadMessage({ host, message, first, last, avatar, ...handlers }: { host: Host; message: Message; first: boolean; last: boolean; avatar?: ServiceImageDefinition } & CardHandlers) {
-  if (message.kind === 'system') return <p className="pilot-system">{message.text}</p>;
+function ThreadMessage({ host, message, first, last, receipt, ...handlers }: { host: Host; message: Message; first: boolean; last: boolean; receipt?: string } & CardHandlers) {
+  // What happens to the booking is not anyone's message: a quiet line in the middle, as a messaging app marks an event.
+  if (message.kind === 'system') return <p className="pilot-event">{message.text}</p>;
   if (message.kind === 'card' && message.bookingId) {
     return <EngineBookingCard host={host} bookingId={message.bookingId} paymentId={message.paymentId} inThread {...handlers} />;
   }
   const mine = message.from.role === 'guest';
-  const role = message.from.role === 'vendor' || message.from.role === 'desk' ? message.from.role : undefined;
-  // "Marites · Front desk", "Sakay Rentals · Vendor": who, then which side of the booking they are on.
-  const sender = role && message.from.name !== ROLE_WORD[role] ? `${message.from.name} · ${ROLE_WORD[role]}` : message.from.name;
   return (
     <div className={`guest-message guest-message--${mine ? 'guest' : 'desk'} pilot-msg${first ? '' : ' guest-message--continued'}${last ? '' : ' pilot-msg--grouped'}`}>
-      {!mine && first ? (
-        <span className="pilot-sender">
-          <span className="pilot-sender__avatar" aria-hidden="true">
-            {avatar ? <Image src={avatar.src} alt="" fill sizes="24px" style={{ objectPosition: avatar.focalPoint }} /> : message.from.name.charAt(0)}
-          </span>
-          {sender}
-        </span>
-      ) : null}
       <p>{message.text}</p>
-      {last ? <small>{clock12(message.at)}</small> : null}
+      {last ? <small>{clock12(message.at)}{receipt ? ` · ${receipt}` : ''}</small> : null}
     </div>
   );
 }

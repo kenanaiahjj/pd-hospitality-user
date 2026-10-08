@@ -396,6 +396,7 @@ export type DeskActions = {
   approve(bookingId: string): Result;
   declineApproval(bookingId: string): Result;
   message(text: string): void;
+  /** The desk says something about a booking. Booking chats are the guest's and the vendor's, so it goes to the desk's own chat with the guest. */
   messageBooking(threadId: string, text: string): Result;
   privateNote(vendorId: string, text: string, bookingId?: string): Result;
   bookFor(guestId: string, draft: Draft, how: { staffName: string; asked: 'in-person' | 'chat' }): Result<{ bookingId: string }>;

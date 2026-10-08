@@ -243,14 +243,16 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   const privateThreadId = (vendorId: string) => `private-${vendorId}`;
   const ensureDeskThread = (stayId: string) => w.threads.get(deskThreadId(stayId)) ?? makeThread({ id: deskThreadId(stayId), kind: 'desk', stayId, participants: ['guest', 'desk'], messages: [], openedAt: w.now });
   const ensurePrivateThread = (vendorId: string) => w.threads.get(privateThreadId(vendorId)) ?? makeThread({ id: privateThreadId(vendorId), kind: 'desk-vendor', stayId: '', vendorId, participants: ['desk', 'vendor'], messages: [], openedAt: w.now });
-  const post = (thread: Thread, from: Message['from'], text: string, kind: Message['kind'] = 'text', visibleTo: Role[] = thread.participants, extra: Partial<Message> = {}): Message => {
+  // Every chat is between two parties. A line meant for someone outside the thread never lands in it.
+  const post = (thread: Thread, from: Message['from'], text: string, kind: Message['kind'] = 'text', seenBy: Role[] = thread.participants, extra: Partial<Message> = {}): Message => {
+    const visibleTo = seenBy.filter((role) => thread.participants.includes(role));
     const m: Message = { id: nextId('MSG'), at: w.now, from, text, kind, visibleTo, ...extra };
     thread.messages.push(m);
     for (const role of visibleTo) if (role !== from.role) thread.unread[role] += 1;
     return m;
   };
   const SYSTEM = { role: 'system' as const, name: 'Cabana' };
-  const announce = (b: Booking, text: string, visibleTo: Role[] = ['guest', 'desk', 'vendor']) => post(must(w.threads.get(b.threadId), `thread ${b.threadId}`), SYSTEM, text, 'system', visibleTo);
+  const announce = (b: Booking, text: string, visibleTo: Role[] = ['guest', 'vendor']) => post(must(w.threads.get(b.threadId), `thread ${b.threadId}`), SYSTEM, text, 'system', visibleTo);
   const refreshReadOnly = (b: Booking) => {
     const t = w.threads.get(b.threadId);
     if (!t) return;
@@ -785,7 +787,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     w.transitionCount.set(id, 1);
     log('booking-state', `${id} created ${initial}`, { entity: 'booking', entityId: id, from: null, to: initial, actor: guest.firstName });
     b.lastActor = { name: guest.firstName, at: w.now, action: 'asked' };
-    const thread = makeThread({ id: b.threadId, kind: 'booking', stayId: stay.id, bookingId: id, vendorId: listing.vendorId, participants: ['guest', 'desk', 'vendor'], messages: [], openedAt: w.now });
+    const thread = makeThread({ id: b.threadId, kind: 'booking', stayId: stay.id, bookingId: id, vendorId: listing.vendorId, participants: ['guest', 'vendor'], messages: [], openedAt: w.now });
     refreshReadOnly(b);
     const asker = how.origin === 'desk' ? `The front desk (${how.staffName ?? 'staff'})` : guest.firstName;
     post(thread, SYSTEM, `${asker} ${listing.confirm === 'vendor' ? 'asked for' : 'booked'} ${listing.title}: ${draft.qty} ${unitWord(b)}, ${when(start)}.`, 'system');
@@ -1482,12 +1484,12 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         post(ensureDeskThread(stay.id), { role: 'desk', name: deskName }, text);
       });
     },
+    // The desk is not in a booking's chat, which is the guest's and the vendor's. What it says about a booking it says in its own chat with the guest.
     messageBooking(threadId, text) {
       return act(() => {
         const t = w.threads.get(threadId);
         if (!t || t.kind !== 'booking') return refuse('not-found', 'No such thread.');
-        if (t.readOnlyAt !== undefined && w.now >= t.readOnlyAt) return refuse('thread-closed', 'That thread is closed.');
-        post(t, { role: 'desk', name: deskName }, text);
+        post(ensureDeskThread(t.stayId), { role: 'desk', name: deskName }, text, 'text', ['guest', 'desk'], t.bookingId ? { bookingId: t.bookingId } : {});
         return ok();
       });
     },

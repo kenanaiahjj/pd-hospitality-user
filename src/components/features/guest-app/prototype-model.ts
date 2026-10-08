@@ -50,6 +50,8 @@ export type ScreenId =
   | 'cancel-after-cutoff'
   | 'folio'
   | 'chat'
+  | 'messages'
+  | 'booking-thread'
   | 'room-qr-midstay'
   | 'profile'
   | 'stay-history'
@@ -119,6 +121,8 @@ export const SCREENS: PrototypeScreen[] = [
   screen(33, 'Stay', 'cancel-after-cutoff', 'Contact front desk'),
   screen(34, 'Stay', 'folio', 'Room charges'),
   screen(35, 'Stay', 'chat', 'Front desk chat'),
+  screen(81, 'Stay', 'messages', 'Messages'),
+  screen(82, 'Stay', 'booking-thread', 'Booking thread'),
   screen(37, 'Stay', 'room-qr-midstay', 'You are checked in'),
   screen(38, 'Account', 'profile', 'Guest profile'),
   screen(39, 'Account', 'stay-history', 'Stay history'),

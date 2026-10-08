@@ -27,9 +27,11 @@ export type EventContext = {
   cancelStay: () => void;
   /** The front desk thread is the app's own chat: the desk speaking there is the app's to write. */
   deskMessage: () => void;
+  /** The desk books something for the guest, who asked in person. The booking is the app's to record. */
+  deskBooks: () => void;
 };
 
-export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, cancelStay, deskMessage }: EventContext): { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[] } {
+export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, cancelStay, deskMessage, deskBooks }: EventContext): { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[] } {
   const pilot = host.pilot;
   const guest = host.guestOf(stayId);
   const vendor: PrototypeEvent[] = [];
@@ -120,6 +122,7 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     }
   }
 
+  desk.push({ icon: <Check />, label: 'Desk books a session for the guest, asked in person', detail: 'The guest told the desk, who booked it and noted who. It shows as a card in the front desk chat.', onClick: deskBooks });
   desk.push({ icon: <ChatCircleDots />, label: 'Desk sends a message in the chat', detail: 'Into the front desk thread, as the desk.', onClick: deskMessage });
   desk.push({ icon: <WarningCircle />, label: 'Desk shortens the stay by a day', detail: 'Bookings after the new checkout can no longer go on the room: the guest is asked to pay in full or cancel.', onClick: shortenStay, unavailable: canShortenStay ? undefined : 'Needs a stay with more than one night' });
   desk.push({ icon: <X />, label: 'Desk cancels the stay', detail: 'Every booking on it is cancelled and released.', onClick: cancelStay });

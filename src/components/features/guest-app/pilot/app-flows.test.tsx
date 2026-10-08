@@ -140,3 +140,94 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     expect(await screen.findByLabelText(/Confirmed/, {}, { timeout: 4000 })).toBeInTheDocument();
   });
 });
+
+const openMessages = async (user: User) => {
+  await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /^Chat/ }));
+};
+
+describe('messages: the front desk, and a thread for every booking', { timeout: 30_000 }, () => {
+  it('lists the front desk pinned, and a booking thread once a request exists', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+
+    await openMessages(user);
+    expect(screen.getByRole('heading', { name: 'Messages' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Front desk/ })).toBeInTheDocument();
+    expect(screen.getByText(/A thread appears here as soon as you ask for something/)).toBeInTheDocument();
+
+    await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: 'Home' }));
+    await bookRental(user, 'room');
+    await openMessages(user);
+    const row = screen.getByRole('button', { name: /City bicycle/ });
+    expect(within(row).getByText('For confirmation')).toBeInTheDocument();
+  });
+
+  it('puts the guest, the desk and the vendor in one thread, each message signed', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await openMessages(user);
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+
+    const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
+    expect(within(thread).getByLabelText(/City bicycle, For confirmation/)).toBeInTheDocument();
+
+    await user.type(within(thread).getByRole('textbox'), 'Can we get a helmet too?');
+    await user.click(within(thread).getByRole('button', { name: 'Send message' }));
+    expect(within(thread).getByText('Can we get a helmet too?')).toBeInTheDocument();
+
+    await fire(user, /Vendor sends a message about City bicycle/);
+    await fire(user, /Desk sends a message about City bicycle/);
+    expect(within(thread).getByText(/Anything we should prepare/)).toBeInTheDocument();
+    expect(within(thread).getAllByText('Sakay Rentals').length).toBeGreaterThan(0);
+    expect(within(thread).getByText(/I have added that to your booking/)).toBeInTheDocument();
+
+    // The desk speaks to the vendor privately; the guest's thread never carries it.
+    await fire(user, /Desk leaves a private note for the vendor of City bicycle/);
+    expect(within(thread).queryByText(/Guest is a regular/)).toBeNull();
+  });
+
+  it('shows one booking in the same state in its thread and on its receipt', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Vendor confirms City bicycle/);
+    await openMessages(user);
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    expect(screen.getByLabelText(/City bicycle, Confirmed/)).toBeInTheDocument();
+  });
+
+  it('shows a booking the desk made for the guest as a card in the front desk chat', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+
+    await fire(user, /Desk books a session for the guest, asked in person/);
+    await openMessages(user);
+    await user.click(screen.getByRole('button', { name: /Front desk/ }));
+    expect(screen.getByLabelText(/Personal training session, Confirmed/)).toBeInTheDocument();
+    expect(screen.getByText(/Booked by Ana at the front desk/)).toBeInTheDocument();
+  });
+
+  it('closes a thread 48 hours after the booking ends, and sends a late question to the front desk', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+    await fire(user, /Vendor confirms City bicycle/);
+    await user.click(screen.getByRole('button', { name: /^Cancel$/ }));
+    expect(screen.getByLabelText(/City bicycle, Cancelled/)).toBeInTheDocument();
+
+    for (let i = 0; i < 3; i += 1) await fire(user, /Move the clock on a day/);
+    await openMessages(user);
+    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
+    // Still readable, with the Cancelled card on it; no longer a place to reach the vendor.
+    expect(within(thread).getByLabelText(/City bicycle, Cancelled/)).toBeInTheDocument();
+    expect(screen.getByText(/This thread has closed/)).toBeInTheDocument();
+
+    await user.type(within(thread).getByRole('textbox'), 'Did I leave my lock there?');
+    await user.click(within(thread).getByRole('button', { name: 'Send message' }));
+    expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/About City bicycle: Did I leave my lock there\?/)).toBeInTheDocument();
+  });
+});
+

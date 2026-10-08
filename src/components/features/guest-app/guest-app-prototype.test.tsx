@@ -1522,6 +1522,8 @@ describe('my stay', () => {
     */
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     await user.click(within(nav).getByRole('button', { name: /^Chat/ }));
+    // Messages first, the front desk pinned at the top of it.
+    await user.click(screen.getByRole('button', { name: /^Front desk/ }));
 
     expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
   });
@@ -2077,6 +2079,8 @@ describe('a finished stay on My Stay', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     await user.click(within(nav).getByRole('button', { name: /^Chat/ }));
+    // Messages first, the front desk pinned at the top of it.
+    await user.click(screen.getByRole('button', { name: /^Front desk/ }));
 
     expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
   });
@@ -2584,7 +2588,10 @@ describe('lifecycle gates', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
 
+    // The Chat tab opens Messages, with the front desk pinned: the existing chat is one tap in.
     await user.click(screen.getByRole('button', { name: 'Chat' }));
+    expect(screen.getByRole('heading', { name: 'Messages' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Front desk/ }));
 
     expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
   });
@@ -2645,6 +2652,7 @@ describe('lifecycle gates', () => {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={verified} />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Chat' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Front desk/ }));
       fireEvent.click(screen.getByRole('button', { name: /^Room issue/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
 
@@ -2655,6 +2663,7 @@ describe('lifecycle gates', () => {
       expect(unreadChat.querySelector('.guest-bottom-nav__badge')).toBeInTheDocument();
 
       fireEvent.click(unreadChat);
+      fireEvent.click(screen.getByRole('button', { name: /^Front desk/ }));
       expect(screen.getByRole('button', { name: 'Go back' })).toBeInTheDocument();
       expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
       expect(screen.queryByRole('button', { name: 'Chat, new message' })).toBeNull();
@@ -2857,6 +2866,7 @@ describe('lifecycle gates', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={beforeArrival} />);
 
     await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /^Chat/ }));
+    await user.click(screen.getByRole('button', { name: /^Front desk/ }));
 
     expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
   });

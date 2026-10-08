@@ -207,6 +207,7 @@ import type { Draft as EngineDraft } from './pilot/types';
 import { applyEngine, engineCancelLine, engineStatusLine } from './pilot/host/project';
 import { buildPilotEvents } from './pilot/host/events';
 import { LobbyShopScreen, type ShopProduct } from './pilot/host/shop';
+import { BookingThreadScreen, MessagesList } from './pilot/host/messages';
 import { giftListingId } from './pilot/host/catalog';
 import type { PrototypePage } from './prototype-controls';
 import {
@@ -287,13 +288,15 @@ import './guest-app-prototype.css';
 import './promoted/promoted.css';
 import './rewards/rewards.css';
 
-const isChatScreen = (screen: ActiveScreen) => screen === 'chat';
+const isChatScreen = (screen: ActiveScreen) => screen === 'chat' || screen === 'booking-thread';
 
 type ChatMessage = {
   /** The stay this thread belongs to; stamped when the message is added. */
   bookingId?: string;
   from: 'guest' | 'desk';
   body: string;
+  /** A booking the engine holds, shown as its card under this message. One card per booking, the same state wherever it appears. */
+  engineBookingId?: string;
   state?: string;
   images?: string[];
   attachment?: ChatAttachment;
@@ -667,6 +670,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [selectedCategory, setSelectedCategory] = useState<MiniAppCategoryId>('dining');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
   const [selectedNearbyEstablishmentId, setSelectedNearbyEstablishmentId] = useState<string | null>(null);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<string | null>(null);
   const [exploreSubcategory, setExploreSubcategory] = useState('All');
   const [bookingBlockedReason, setBookingBlockedReason] = useState<BlockedReason>('offline');
@@ -1431,7 +1435,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'book-stay', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'vendor-service', 'service-detail', 'restaurant-menu', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'book-stay', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'vendor-service', 'service-detail', 'restaurant-menu', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'messages', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -1479,6 +1483,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     checkOut: booking.checkOut,
     status: booking.status === 'completed' ? 'checked-out' : hasStayStarted(booking) && canUseOnPropertyServices(booking) ? 'in-house' : 'booked',
   }));
+  const engineGuest = hostStore.host && primaryBooking ? hostStore.host.guestOf(primaryBooking.id) : undefined;
+  const engineUnread = hostStore.host && engineGuest ? hostStore.host.pilot.threads('guest', engineGuest.guestId).reduce((sum, thread) => sum + thread.unread, 0) : 0;
   const pilotStaysKey = JSON.stringify(pilotStays);
   useEffect(() => {
     if (!JSON.parse(pilotStaysKey).length) return;
@@ -1685,6 +1691,66 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   });
 
   /*
+    What a booking's card can do, the same wherever the card is drawn: the
+    receipt, the booking's thread, the front desk chat.
+  */
+  const cardHandlers = {
+    onPay: (bookingId: string, paymentId?: string) => payEngineBooking(bookingId, paymentId),
+    onNote: (note: { tone: 'warning' | 'positive'; text: string }) => setEngineNote(note),
+    onOpenDesk: () => go('chat'),
+    onPickAnother: () => go(bookingSlot.screen),
+    onOpenMenu: (listingId: string) => {
+      const venueId = Object.entries(TABLE_VENUE_SERVICE_IDS).find(([, serviceId]) => serviceId === listingId)?.[0];
+      if (venueId) { setSelectedRestaurantId(venueId); go('restaurant-menu'); }
+    },
+    onQuestion: (paymentId: string) => {
+      const reason = hostStore.host?.pilot.payment(paymentId).reason ?? 'extra';
+      setChatDraft(`I have a question about the ${reason} charge.`);
+      go('chat');
+    },
+  };
+
+  /*
+    The front desk books something for a guest who asked in person. The record
+    says who booked it and that the guest asked, before anything is charged, and
+    the guest sees the booking as a card in the front desk chat.
+  */
+  const deskBooksForGuest = () => {
+    const host = hostStore.host;
+    const stay = host?.guestOf(contextBooking.id);
+    const service = SERVICES.find((item) => item.id === 'trainer');
+    if (!host || !stay || !service) return;
+    const day = addDays(PROTOTYPE_TODAY, 1) <= contextBooking.checkOut ? addDays(PROTOTYPE_TODAY, 1) : PROTOTYPE_TODAY;
+    const result = host.call<{ ok: boolean; message?: string; bookingId: string }>('desk.bookFor', stay.guestId, { listingId: service.id, date: day, time: '10:00', qty: 1, payMode: 'room' }, { staffName: 'Ana', asked: 'in-person' });
+    if (!result.ok) {
+      setEngineNote({ tone: 'warning', text: result.message ?? 'That did not go through.' });
+      return;
+    }
+    const engineBooking = host.pilot.booking(result.bookingId);
+    const id = `service-${service.id}-${contextBooking.id}-${day}-10`;
+    const record: ServiceBooking = {
+      id,
+      bookingId: contextBooking.id,
+      engineId: result.bookingId,
+      title: service.name,
+      scheduledFor: `${formatServiceDay(day).long} · 10:00 AM`,
+      scheduledDate: day,
+      scheduledHour: 10,
+      bookedAt: PROTOTYPE_TODAY,
+      serviceId: service.id,
+      partySize: 1,
+      amount: formatPesoAmount(engineBooking.amount),
+      status: 'confirmed',
+      provider: providerFor(service),
+      facts: [{ label: 'Booked by', value: 'Ana at the front desk, as you asked' }],
+    };
+    setSession((current) => ({ ...current, serviceBookings: [...current.serviceBookings.filter((item) => item.id !== id), record] }));
+    setChatMessages((messages) => [...messages, { from: 'desk', body: `Booked by Ana at the front desk, as you asked: ${service.name}, ${record.scheduledFor}.`, state: 'Seen', engineBookingId: result.bookingId }]);
+    if (activeScreenRef.current !== 'chat') setHasUnreadChat(true);
+    notifyGuestRequest(id, 'Front desk', `${service.name} booked for you`, { inbox: true, screen: 'chat' });
+  };
+
+  /*
     The other side of the conversation for what the engine holds: the vendor,
     the front desk, the clock and the faults. Present only when there is a stay
     for the engine to know a guest on.
@@ -1706,6 +1772,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           const stay = hostStore.host?.guestOf(primaryBooking.id);
           if (stay) hostStore.host?.call('desk.cancelStay', stay.stayId);
         },
+        deskBooks: deskBooksForGuest,
         deskMessage: () => {
           setChatMessages((messages) => [...messages, { from: 'desk', body: 'Good afternoon. Is there anything we can arrange for you today?', state: 'Seen' }]);
           if (activeScreenRef.current !== 'chat') setHasUnreadChat(true);
@@ -3165,6 +3232,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 className={`guest-message guest-message--${message.from}${continued ? ' guest-message--continued' : ''}`}
               >
                 <p>{message.body}</p>
+                {message.engineBookingId && hostStore.host ? <EngineBookingCard host={hostStore.host} bookingId={message.engineBookingId} {...cardHandlers} /> : null}
                 {message.attachment ? (
                   message.attachment.kind === 'image' ? (
                     <button
@@ -5653,6 +5721,37 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'chat':
         return renderChatScreen();
 
+      case 'messages': {
+        const host = hostStore.host;
+        const guest = host && primaryBooking ? host.guestOf(primaryBooking.id) : undefined;
+        const lastDesk = chatMessages.at(-1);
+        return host && guest ? (
+          <MessagesList
+            host={host}
+            guestId={guest.guestId}
+            desk={{ preview: lastDesk?.body ?? 'Ask the front desk anything about your stay.', fromGuest: lastDesk?.from === 'guest', unread: hasUnreadChat }}
+            onOpenDesk={() => go('chat')}
+            onOpenThread={(threadId) => { setSelectedThreadId(threadId); go('booking-thread'); }}
+          />
+        ) : (
+          <div className="guest-stack"><div className="guest-page-title"><h1>Messages</h1></div><button type="button" className="guest-list-row" onClick={() => go('chat')}><div><b>Front desk</b><small>Ask anything about your stay</small></div></button></div>
+        );
+      }
+
+      case 'booking-thread': {
+        const host = hostStore.host;
+        return host && selectedThreadId ? (
+          <BookingThreadScreen
+            host={host}
+            threadId={selectedThreadId}
+            onBack={history.length ? back : () => go('messages')}
+            onAskDesk={(text) => { sendChatMessage(`About ${host.pilot.threads('guest', host.pilot.booking(host.pilot.bookings().find((b) => b.threadId === selectedThreadId)?.id ?? '').guestId).find((t) => t.id === selectedThreadId)?.title ?? 'a booking'}: ${text}`); go('chat'); }}
+            note={engineNote}
+            {...cardHandlers}
+          />
+        ) : null;
+      }
+
       case 'room-qr-midstay':
         return (
           <RoomUnlocked
@@ -6227,9 +6326,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   label="Chat"
                   icon={HugeChatIcon}
                   activeIcon={HugeChatSolidIcon}
-                  active={false}
-                  unread={hasUnreadChat}
-                  onClick={() => go('chat')}
+                  active={activeScreen === 'messages'}
+                  unread={hasUnreadChat || engineUnread > 0}
+                  onClick={() => go('messages')}
                 />
               ) : null}
               <NavButton

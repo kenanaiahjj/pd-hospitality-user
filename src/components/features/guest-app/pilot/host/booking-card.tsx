@@ -74,6 +74,34 @@ export function BookingThumb({ image, kind, extra, className }: { image?: Servic
 export const STATUS_TONE = (state: string | undefined, label?: string) =>
   state === 'extra-charge' && label === 'Removed' ? 'bad' : STATE_TONE[state ?? ''] ?? 'wait';
 
+const clockAt = (ms: number) => {
+  const d = new Date(ms);
+  const h = d.getUTCHours();
+  return `${((h + 11) % 12) + 1}:${String(d.getUTCMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+};
+
+/**
+ * How long is left, as a ring that runs down beside the sentence and the time it ends.
+ * Plum when the next move is the guest's (pay, choose); amber while someone else is to answer.
+ */
+function Countdown({ timer, vendor }: { timer: NonNullable<Card['timer']>; vendor: string }) {
+  const theirs = !/^(Pay|Choose)\b/.test(timer.text);
+  const text = vendor ? timer.text.replace(/^Vendor\b/, vendor) : timer.text;
+  const r = 8;
+  const around = 2 * Math.PI * r;
+  const left = Math.max(0, Math.min(1, timer.progress));
+  return (
+    <div className={`pilot-countdown pilot-countdown--${theirs ? 'theirs' : 'yours'}`} role="timer" aria-label={`${text}, until ${clockAt(timer.endsAt)}`}>
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r={r} className="pilot-countdown__track" />
+        <circle cx="10" cy="10" r={r} className="pilot-countdown__left" strokeDasharray={around} strokeDashoffset={around * (1 - left)} transform="rotate(-90 10 10)" />
+      </svg>
+      <span>{text}</span>
+      <time>until {clockAt(timer.endsAt)}</time>
+    </div>
+  );
+}
+
 export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, ...handlers }: {
   host: Host;
   bookingId: string;
@@ -179,12 +207,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
       ) : null}
       {card.note && !inThread ? <p className="pilot-card__note">{card.note}</p> : null}
       <div className="pilot-card__cost"><span>{card.cost.line}</span>{card.cost.amount ? <b>{peso(card.cost.amount)}</b> : null}</div>
-      {card.timer ? (
-        <div className="pilot-timer">
-          <progress max={1} value={card.timer.progress} aria-label="Time left" />
-          <span>{card.timer.text}</span>
-        </div>
-      ) : null}
+      {card.timer ? <Countdown timer={card.timer} vendor={vendorName} /> : null}
       {confirmingCancel && card.actions.includes('cancel') ? (
         <div className="pilot-actions" role="group" aria-label="Confirm cancelling">
           <p className="pilot-muted">{freeToCancel ? 'Cancel this booking? Anything charged is undone.' : 'The free-cancel time has passed. Ask the vendor to cancel? They have to accept.'}</p>

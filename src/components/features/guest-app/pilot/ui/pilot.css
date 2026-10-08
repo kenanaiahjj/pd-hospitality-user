@@ -20,6 +20,11 @@
 .pilot-icon:active { transform: scale(0.96); }
 .pilot-muted { margin: 4px 0 8px; color: var(--guest-muted); font-size: 13px; line-height: 1.45; }
 
+/* Motion: one strong ease-out for anything the guest sets off, short enough
+   to feel like an answer, not a show. Press is instant in, eased out. */
+.pilot-messages,
+.pilot-chat { --pilot-ease: cubic-bezier(0.23, 1, 0.32, 1); }
+
 /* ------------------------------------------------------------------ Messages */
 /* An inbox of people: a round photo, who it is, when they last spoke, what
    was said. One inset surface, hairlines starting where the words start. */
@@ -84,7 +89,10 @@
   font: inherit;
   text-align: left;
 }
-.pilot-chat-row:active { background: var(--guest-sunken); }
+.pilot-chat-row { transition: background-color 200ms var(--pilot-ease); }
+.pilot-chat-row:active { background: var(--guest-sunken); transition-duration: 0ms; }
+.pilot-chat-row:active .pilot-faces { transform: scale(0.96); }
+.pilot-faces { transition: transform 160ms var(--pilot-ease); }
 .pilot-chat-row:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: -2px; border-radius: 12px; }
 
 .pilot-chat-row__body { display: grid; min-width: 0; gap: 3px; }
@@ -111,6 +119,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+.pilot-chat-row__meta--preview .pilot-chat-row__preview { -webkit-line-clamp: 2; }
 .pilot-chat-row__meta {
   display: flex;
   min-height: 20px;
@@ -190,12 +199,16 @@
 .pilot-booking-bar__when { min-width: 0; overflow: hidden; color: var(--guest-muted); font-size: 13px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-booking-bar__when::before { margin-right: 8px; color: var(--guest-line-strong); content: '·'; }
 .pilot-booking-bar__more { display: inline-flex; flex: none; align-items: center; gap: 4px; margin-left: auto; color: var(--guest-brand); font-size: 13px; font-weight: 650; }
-.pilot-booking-bar__more svg { width: 14px; height: 14px; transition: transform var(--duration-fast, 160ms) ease; }
+.pilot-booking-bar__more svg { width: 14px; height: 14px; transition: transform 240ms var(--pilot-ease); }
+.pilot-booking-bar__toggle { transition: opacity 160ms var(--pilot-ease); }
+.pilot-booking-bar__toggle:active { opacity: 0.6; transition-duration: 0ms; }
 .pilot-booking-bar.is-open .pilot-booking-bar__more svg { transform: rotate(180deg); }
 .pilot-booking-bar__pay.guest-button { min-height: 40px; font-size: 14px; }
 .pilot-booking-bar { overflow: hidden; }
 /* Opened, the bar already says the status and the chat says the vendor: the card shows only what the bar does not. */
-.pilot-booking-bar .pilot-card { margin: 0 -12px -10px; border: 0; border-radius: 0; }
+.pilot-booking-bar .pilot-card { margin: 0 -12px -10px; border: 0; border-radius: 0; transform-origin: top center; animation: pilot-details-in 240ms var(--pilot-ease) both; }
+/* The details settle in from just under the bar: they come from it. Closing is instant, as letting go should be. */
+@keyframes pilot-details-in { from { opacity: 0; transform: translateY(-6px) scale(0.98); filter: blur(2px); } }
 .pilot-booking-bar .pilot-card__status-row { display: none; }
 
 .pilot-msg { max-width: 80%; }
@@ -204,7 +217,7 @@
 
 .pilot-day {
   align-self: center;
-  margin: 10px 0 2px;
+  margin: 14px 0 4px;
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--guest-sunken);
@@ -214,8 +227,8 @@
 }
 .pilot-event {
   align-self: center;
-  max-width: 82%;
-  margin: 2px 0;
+  max-width: 78%;
+  margin: 4px 0;
   color: var(--guest-muted);
   font-size: 12.5px;
   line-height: 1.45;
@@ -239,6 +252,19 @@
 .pilot-card > * + * { border-top: 1px solid var(--guest-line); }
 .pilot-card > .pilot-sheet-backdrop { padding: 0; border: 0; }
 
+.pilot-card__thumb {
+  position: relative;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--guest-sunken);
+  color: var(--guest-muted);
+  font-size: 20px;
+}
+.pilot-card__thumb img { object-fit: cover; }
 .pilot-card__head { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px 16px 12px 12px; }
 .pilot-card__title { display: grid; min-width: 0; gap: 3px; }
 .pilot-card__title h3 { margin: 0; font-size: 15px; font-weight: 650; line-height: 20px; letter-spacing: -0.008em; text-wrap: balance; }
@@ -300,3 +326,11 @@
 .pilot-sheet header { display: flex; align-items: center; justify-content: space-between; }
 .pilot-sheet h2 { margin: 0; font-size: 17px; }
 .pilot-qr { display: grid; place-items: center; padding: 16px; border-radius: 16px; background: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pilot-booking-bar .pilot-card { animation: pilot-details-fade 160ms ease both; }
+  .pilot-faces,
+  .pilot-booking-bar__more svg { transition: none; }
+  .pilot-chat-row:active .pilot-faces { transform: none; }
+}
+@keyframes pilot-details-fade { from { opacity: 0; } }

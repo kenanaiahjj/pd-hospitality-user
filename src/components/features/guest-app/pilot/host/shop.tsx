@@ -5,7 +5,7 @@ import { ArrowRight, Minus, Plus, X } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { useState } from 'react';
 import { GIFT_PRODUCTS, LOBBY_SHOP_NAME } from '../../dining';
-import { NotesField, Notice } from '../../guest-ui';
+import { ChoiceList, NotesField, Notice } from '../../guest-ui';
 import { formatPesoAmount, parsePesoAmount } from '../../prototype-model';
 import type { PayOptions, Result } from '../types';
 
@@ -99,19 +99,15 @@ function ShopOrderSheet({ product, quote, onClose, onOrder, onAskDesk }: {
               <button type="button" aria-label="More" disabled={quantity >= 10} onClick={() => setQuantity(quantity + 1)}><Plus aria-hidden="true" /></button>
             </span>
           </div>
-          <fieldset className="guest-payment-choice">
-            <legend>When do you want it?</legend>
-            <div className="guest-payment-options">
-              <button type="button" aria-pressed={ready === 'now'} className={ready === 'now' ? 'is-active' : ''} onClick={() => setReady('now')}>
-                <b>Ready in about half an hour</b>
-                <small>Held for you at the front desk.</small>
-              </button>
-              <button type="button" aria-pressed={ready === 'departure'} className={ready === 'departure' ? 'is-active' : ''} onClick={() => setReady('departure')}>
-                <b>Hold it for my departure day</b>
-                <small>Kept chilled at the desk until you leave.</small>
-              </button>
-            </div>
-          </fieldset>
+          <ChoiceList
+            legend="When do you want it?"
+            value={ready}
+            onChange={setReady}
+            options={[
+              { value: 'now', title: 'Ready in about half an hour', detail: 'Held for you at the front desk.' },
+              { value: 'departure', title: 'Hold it for my departure day', detail: 'Kept chilled at the desk until you leave.' },
+            ]}
+          />
           <NotesField name="shop-note" value={note} onChange={setNote} placeholder="Gift wrapping, a card message…" />
           {!priced.ok ? <Notice tone="warning" title="Not available">{priced.message}</Notice> : null}
           {options && !roomOk ? <Notice tone="warning" title="Not on your room">{options.room.why}</Notice> : null}

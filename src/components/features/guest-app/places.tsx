@@ -9,7 +9,7 @@ import { Button } from '@/components/ui';
 import { ArrowLeft, ArrowRight, Bell, Check, Clock, Copy, Gift, House, MapPin, Minus, NavigationArrow, PersonSimpleWalk, Phone, Plus, Storefront, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { type GatewayMethod } from './gateway-checkout';
-import { Notice } from './guest-ui';
+import { ChoiceList, Notice } from './guest-ui';
 import { formatPesoAmount } from './prototype-model';
 
 import Image from 'next/image';
@@ -358,19 +358,15 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
             <textarea rows={2} maxLength={240} value={requests} placeholder="Anything the provider should know?" onChange={(event) => setRequests(event.currentTarget.value)} />
           </label>
           {payment && roomChargeAvailable ? (
-            <fieldset className="guest-payment-choice">
-              <legend>How would you like to pay?</legend>
-              <div className="guest-payment-options">
-                <button type="button" aria-pressed={paymentChoice === 'room'} className={paymentChoice === 'room' ? 'is-active' : ''} onClick={() => setPaymentChoice('room')}>
-                  <b>{roomNumber ? `Charge to Room ${roomNumber}` : 'Charge to your room'}</b>
-                  <small>{askDesk ? 'Over the limit, so the front desk approves it first.' : waitsForVendor ? 'Added to your room bill once they confirm.' : 'Added to your room bill and settled at checkout.'}</small>
-                </button>
-                <button type="button" aria-pressed={paymentChoice === 'pay-now'} className={paymentChoice === 'pay-now' ? 'is-active' : ''} onClick={() => setPaymentChoice('pay-now')}>
-                  <b>{waitsForVendor ? 'Pay by card once they confirm' : 'Pay now'}</b>
-                  <small>{waitsForVendor ? `Card, GCash or Maya, paid directly to ${establishment.name} after they say yes. No room charge.` : `Card, GCash or Maya, paid directly to ${establishment.name}. No room charge.`}</small>
-                </button>
-              </div>
-            </fieldset>
+            <ChoiceList
+              legend="How would you like to pay?"
+              value={paymentChoice}
+              onChange={setPaymentChoice}
+              options={[
+                { value: 'room', title: roomNumber ? `Charge to Room ${roomNumber}` : 'Charge to your room', detail: askDesk ? 'Over the limit, so the front desk approves it first.' : waitsForVendor ? 'Added to your room bill once they confirm.' : 'Added to your room bill and settled at checkout.' },
+                { value: 'pay-now', title: waitsForVendor ? 'Pay by card once they confirm' : 'Pay now', detail: waitsForVendor ? `Card, GCash or Maya, paid directly to ${establishment.name} after they say yes. No room charge.` : `Card, GCash or Maya, paid directly to ${establishment.name}. No room charge.` },
+              ]}
+            />
           ) : null}
           <p className="guest-table-request__note">{waitsForVendor
             ? payment ? `${establishment.name} confirms first. You are charged only once they do, and you can withdraw until then.` : `${establishment.name} confirms first. Cabana takes no payment; you can withdraw until they do.`

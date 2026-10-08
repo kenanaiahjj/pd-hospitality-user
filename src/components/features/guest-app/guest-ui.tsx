@@ -8,7 +8,7 @@ import { getItemCardImage, getItemThumbnail, getPropertyImage, getServiceImage, 
 import { Button, Input } from '@/components/ui';
 import type { IconSvgElement } from '@hugeicons/react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CaretRight, CheckCircle, House, WarningCircle } from '@phosphor-icons/react';
+import { CaretRight, CheckCircle, CreditCard, House, WarningCircle } from '@phosphor-icons/react';
 import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 
@@ -81,6 +81,66 @@ export function StaleDataNotice({ asOf, onRetry, onAsk }: { asOf: string; onRetr
       </div>
     </div>
   );
+}
+
+/** One answer in a ChoiceList. */
+export type ChoiceOption<T extends string> = {
+  value: T;
+  title: ReactNode;
+  /** What choosing it means, under the title. */
+  detail?: ReactNode;
+  /** A mark before the text: a payment method's glyph, say. */
+  icon?: ReactNode;
+  /** A value after the text: a price, say. */
+  meta?: ReactNode;
+};
+
+/**
+ * Pick one of a few answers, each a row with what it is and what it means.
+ *
+ * The one place this pattern is drawn: the payment choice, the payment method,
+ * when an order is ready, an add-on's setup. Change it here and every one of
+ * them follows. The chosen row lifts onto paper with an ink ring and a filled
+ * radio mark; the rest sit on the soft field surface.
+ */
+export function ChoiceList<T extends string>({ legend, value, options, onChange, disabled, columns = 1, className }: {
+  legend?: ReactNode;
+  /** Nothing chosen yet is allowed: no row is marked. */
+  value: T | null | undefined;
+  options: ChoiceOption<T>[];
+  onChange: (value: T) => void;
+  disabled?: boolean;
+  /** Two short answers can sit side by side. */
+  columns?: 1 | 2;
+  /** For the page around it to style the heading; the rows stay the same everywhere. */
+  className?: string;
+}) {
+  return (
+    <fieldset className={`guest-choice${className ? ` ${className}` : ''}`} disabled={disabled}>
+      {legend ? <legend>{legend}</legend> : null}
+      <div className={`guest-choice__list${columns === 2 ? ' guest-choice__list--two' : ''}`}>
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <button key={option.value} type="button" aria-pressed={active} className={`guest-choice__option${active ? ' is-active' : ''}${option.icon ? ' has-icon' : ''}${option.meta ? ' has-meta' : ''}`} onClick={() => onChange(option.value)}>
+              {option.icon ? <span className="guest-choice__icon" aria-hidden="true">{option.icon}</span> : null}
+              <span className="guest-choice__text">
+                <b>{option.title}</b>
+                {option.detail ? <small>{option.detail}</small> : null}
+              </span>
+              {option.meta ? <span className="guest-choice__meta">{option.meta}</span> : null}
+              <span className="guest-choice__radio" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/** Card, GCash or Maya, drawn the same wherever a payment method is chosen. */
+export function PaymentMethodGlyph({ method }: { method: 'card' | 'gcash' | 'maya' }) {
+  return <span className="guest-method-glyph" data-method={method}>{method === 'card' ? <CreditCard /> : method === 'gcash' ? 'G' : 'M'}</span>;
 }
 
 export function Notice({ icon, title, children, tone = 'neutral' }: { icon?: ReactNode; title: string; children: ReactNode; tone?: 'neutral' | 'positive' | 'warning' | 'offline' }) {

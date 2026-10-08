@@ -682,35 +682,7 @@
 .guest-app .sb-trip__text b { font-size: 16px; }
 .guest-app .sb-trip__text small { color: var(--guest-muted); font-size: 13px; }
 
-.guest-app .sb-methods { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
 .guest-app .sb-methods legend { margin-bottom: 10px; font-family: var(--font-serif); font-size: 22px; font-weight: 400; letter-spacing: -0.01em; }
-.guest-app .sb-method {
-  display: grid;
-  width: 100%;
-  grid-template-columns: 40px minmax(0, 1fr) 22px;
-  align-items: center;
-  gap: 12px;
-  min-height: 64px;
-  padding: 10px 16px 10px 12px;
-  border: 1px solid var(--guest-line);
-  border-radius: var(--guest-radius-lg);
-  background: var(--guest-paper);
-  color: var(--guest-ink);
-  text-align: left;
-  transition: border-color var(--duration-fast) ease, background-color var(--duration-fast) ease, transform var(--duration-press) var(--ease-out);
-}
-.guest-app .sb-method:active:not(:disabled) { transform: scale(0.99); }
-.guest-app .sb-method.is-active { border-color: var(--guest-accent); background: color-mix(in oklch, var(--guest-accent) 5%, var(--guest-paper)); box-shadow: 0 0 0 1px var(--guest-accent); }
-.guest-app .sb-method__glyph { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 12px; background: var(--guest-chip); color: var(--guest-ink); font-size: 17px; font-weight: 800; }
-.guest-app .sb-method__glyph[data-method='gcash'] { background: oklch(0.55 0.17 255); color: oklch(1 0 0); }
-.guest-app .sb-method__glyph[data-method='maya'] { background: oklch(0.2 0.02 160); color: oklch(0.85 0.2 150); }
-.guest-app .sb-method__glyph svg { width: 20px; height: 20px; }
-.guest-app .sb-method__text { display: grid; gap: 1px; }
-.guest-app .sb-method__text b { font-size: 15px; }
-.guest-app .sb-method__text small { color: var(--guest-muted); font-size: 12.5px; }
-.guest-app .sb-method__radio { display: grid; width: 22px; height: 22px; place-items: center; border: 1.5px solid var(--guest-line-strong); border-radius: 50%; color: var(--guest-on-accent); }
-.guest-app .sb-method.is-active .sb-method__radio { border-color: var(--guest-accent); background: var(--guest-accent); }
-.guest-app .sb-method__radio svg { width: 12px; height: 12px; }
 .guest-app .sb-secure { display: flex; align-items: center; justify-content: center; }
 .guest-app .sb-secure__inner { display: inline-flex; align-items: flex-start; justify-content: center; gap: 6px; max-width: 100%; text-align: left; }
 .guest-app .sb-secure__inner > span { min-width: 0; }
@@ -1132,15 +1104,6 @@
 .guest-app .sb-addon__fact small { color: var(--guest-muted); font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .guest-app .sb-addon__fact b { font-size: 15px; }
 .guest-app .sb-addon__fact span { color: var(--guest-muted); font-size: 13px; }
-.guest-app .sb-addon__choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.guest-app .sb-addon__choice {
-  display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--guest-line); border-radius: 14px;
-  background: var(--guest-paper); color: var(--guest-ink); font: inherit; text-align: left; cursor: pointer;
-}
-.guest-app .sb-addon__choice b { font-size: 14px; }
-.guest-app .sb-addon__choice small { color: var(--guest-muted); font-size: 12.5px; line-height: 1.3; }
-.guest-app .sb-addon__choice span { margin-top: 4px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.guest-app .sb-addon__choice.is-active { border-color: var(--guest-ink); box-shadow: inset 0 0 0 1px var(--guest-ink); }
 .guest-app .sb-addon__note { margin: 0; padding-top: 12px; border-top: 1px solid var(--guest-line); color: var(--guest-muted); font-size: 13px; line-height: 1.4; }
 
 /* Extras on the price card, the confirmation and View booking. */

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { ArrowRight, Check, Minus, Plus } from '@phosphor-icons/react';
 import { ITEM_THUMBNAIL_IMAGES, ROOM_IMAGES } from '../service-images';
 import type { AddOnId, CelebrationSetup, StayAddOn, StayHotel, StaySearch } from './model';
-import { NotesField } from '../guest-ui';
+import { ChoiceList, NotesField } from '../guest-ui';
 import { ADD_ON_INFO, CELEBRATION_SETUPS, OCCASIONS, PRIVATE_CAR_PER_DAY, TRANSFER_FARES, VAN_SEATS, addOnAmount, addOnError, addOnLines, addOnsFor, addOnsPayNowTotal, addOnsRoomChargeTotal, airportForCity, newAddOn, peso, pickupBlurb } from './model';
 import { countNightsBetween } from '../prototype-model';
 import { weekdayDate } from './format';
@@ -131,15 +131,13 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
 
               {addOn?.id === 'celebration' ? (
                 <div className="sb-addon__fields">
-                  <div className="sb-addon__choices" role="radiogroup" aria-label="Setup">
-                    {(Object.keys(CELEBRATION_SETUPS) as CelebrationSetup[]).map((setup) => (
-                      <button key={setup} type="button" role="radio" aria-checked={addOn.setup === setup} className={`sb-addon__choice${addOn.setup === setup ? ' is-active' : ''}`} onClick={() => patch(id, { setup })}>
-                        <b>{CELEBRATION_SETUPS[setup].label}</b>
-                        <small>{CELEBRATION_SETUPS[setup].detail}</small>
-                        <span>{peso(CELEBRATION_SETUPS[setup].price)}</span>
-                      </button>
-                    ))}
-                  </div>
+                  <ChoiceList
+                    legend="Setup"
+                    columns={2}
+                    value={addOn.setup}
+                    onChange={(setup) => patch(id, { setup })}
+                    options={(Object.keys(CELEBRATION_SETUPS) as CelebrationSetup[]).map((setup) => ({ value: setup, title: CELEBRATION_SETUPS[setup].label, detail: CELEBRATION_SETUPS[setup].detail, meta: peso(CELEBRATION_SETUPS[setup].price) }))}
+                  />
                   <label className="sb-field">
                     <span>Occasion <small>Optional</small></span>
                     <select value={addOn.occasion ?? ''} onChange={(event) => patch(id, { occasion: event.currentTarget.value })}>

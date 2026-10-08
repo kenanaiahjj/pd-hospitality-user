@@ -1,8 +1,9 @@
 'use client';
 
 import { Button } from '@/components/ui';
-import { ArrowRight, Check, CreditCard, LockSimple, X } from '@phosphor-icons/react';
+import { ArrowRight, LockSimple, X } from '@phosphor-icons/react';
 import { useRef, useState } from 'react';
+import { ChoiceList, PaymentMethodGlyph } from './guest-ui';
 
 /*
   Pay now, for third-party vendors only: a gateway-style checkout that takes
@@ -14,7 +15,7 @@ export type GatewayMethod = 'card' | 'gcash' | 'maya';
 
 export const GATEWAY_METHOD_LABELS: Record<GatewayMethod, string> = { card: 'Card', gcash: 'GCash', maya: 'Maya' };
 
-const METHOD_HINTS: Record<GatewayMethod, string> = {
+export const METHOD_HINTS: Record<GatewayMethod, string> = {
   card: 'Visa, Mastercard, JCB',
   gcash: 'Approve in the GCash app',
   maya: 'Approve in the Maya app',
@@ -64,16 +65,13 @@ export function GatewayCheckout({ merchant, amount, item, onPaid, onClose, hint 
           <small>{item}</small>
           <strong>{amount}</strong>
         </div>
-        <fieldset className="guest-gateway__methods" disabled={processing}>
-          <legend>Pay with</legend>
-          {(Object.keys(GATEWAY_METHOD_LABELS) as GatewayMethod[]).map((option) => (
-            <button key={option} type="button" aria-pressed={method === option} className={method === option ? 'is-active' : ''} onClick={() => setMethod(option)}>
-              {option === 'card' ? <CreditCard aria-hidden="true" /> : <span className="guest-gateway__wallet" aria-hidden="true">{option === 'gcash' ? 'G' : 'M'}</span>}
-              <span><b>{GATEWAY_METHOD_LABELS[option]}</b><small>{METHOD_HINTS[option]}</small></span>
-              {method === option ? <Check aria-hidden="true" /> : null}
-            </button>
-          ))}
-        </fieldset>
+        <ChoiceList
+          legend="Pay with"
+          value={method}
+          onChange={(option: GatewayMethod) => setMethod(option)}
+          disabled={processing}
+          options={(Object.keys(GATEWAY_METHOD_LABELS) as GatewayMethod[]).map((option) => ({ value: option, title: GATEWAY_METHOD_LABELS[option], detail: METHOD_HINTS[option], icon: <PaymentMethodGlyph method={option} /> }))}
+        />
         {hint ? <p className="guest-gateway__note">{hint}</p> : null}
         {problem ? <p className="guest-gateway__note" role="alert"><b>{problem}</b></p> : null}
         <p className="guest-gateway__note"><LockSimple aria-hidden="true" />Paid directly to {merchant} through our payment partner. Not added to your room bill.</p>

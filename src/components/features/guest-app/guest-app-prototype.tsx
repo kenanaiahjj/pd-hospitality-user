@@ -268,7 +268,7 @@ import {
 } from './rewards';
 import { clearStoredSession, readAccountStash, readStoredSession, readStoredStayDraft, writeAccountStash, writeStoredSession, writeStoredStayDraft } from './session-storage';
 import { AccountSignInCard } from './guest-account';
-import { Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, NotesField, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
+import { ChoiceList, Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, NotesField, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
 import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
 import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen, passportDate } from './pre-arrival';
@@ -5180,19 +5180,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     {quote?.ok ? quote.options.room.why : 'This one is paid by card or e-wallet.'} Card, GCash or Maya, paid straight to {merchant}.
                   </Notice>
                 ) : payNowOffered ? (
-                  <fieldset className="guest-payment-choice">
-                    <legend>How would you like to pay?</legend>
-                    <div className="guest-payment-options">
-                      <button type="button" aria-pressed={servicePayChoice === 'room'} className={servicePayChoice === 'room' ? 'is-active' : ''} onClick={() => setServicePayChoice('room')}>
-                        <b>{roomLine}</b>
-                        <small>{needsApproval ? (confirmFirst ? 'Over the limit, so the front desk approves it first, then the vendor confirms.' : 'Over the limit, so the front desk approves it first.') : confirmFirst ? 'Added to your room bill once the vendor confirms.' : contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}</small>
-                      </button>
-                      <button type="button" aria-pressed={servicePayChoice === 'pay-now'} className={servicePayChoice === 'pay-now' ? 'is-active' : ''} onClick={() => setServicePayChoice('pay-now')}>
-                        <b>Pay now</b>
-                        <small>{confirmFirst ? `Card, GCash or Maya, paid straight to ${merchant} once they confirm. Not added to your room bill.` : `Card, GCash or Maya, paid straight to ${merchant}. Not added to your room bill.`}</small>
-                      </button>
-                    </div>
-                  </fieldset>
+                  <ChoiceList
+                    legend="How would you like to pay?"
+                    value={servicePayChoice}
+                    onChange={setServicePayChoice}
+                    options={[
+                      { value: 'room', title: roomLine, detail: needsApproval ? (confirmFirst ? 'Over the limit, so the front desk approves it first, then the vendor confirms.' : 'Over the limit, so the front desk approves it first.') : confirmFirst ? 'Added to your room bill once the vendor confirms.' : contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.' },
+                      { value: 'pay-now', title: 'Pay now', detail: confirmFirst ? `Card, GCash or Maya, paid straight to ${merchant} once they confirm. Not added to your room bill.` : `Card, GCash or Maya, paid straight to ${merchant}. Not added to your room bill.` },
+                    ]}
+                  />
                 ) : (
                   <Notice title={contextBooking.roomNumber ? `Charged to Room ${contextBooking.roomNumber}` : 'Charged to your room'}>
                     {contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.'}

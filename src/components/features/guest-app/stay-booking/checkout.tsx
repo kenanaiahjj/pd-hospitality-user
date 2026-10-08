@@ -1,9 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowRight, CaretRight, Check, CheckCircle, CreditCard, LockSimple, Tag as TagIcon, WifiSlash, X } from '@phosphor-icons/react';
+import { ArrowRight, CaretRight, CheckCircle, LockSimple, Tag as TagIcon, WifiSlash, X } from '@phosphor-icons/react';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { GATEWAY_METHOD_LABELS, type GatewayMethod } from '../gateway-checkout';
+import { GATEWAY_METHOD_LABELS, METHOD_HINTS, type GatewayMethod } from '../gateway-checkout';
+import { ChoiceList, PaymentMethodGlyph } from '../guest-ui';
 import { countNightsBetween } from '../prototype-model';
 import { readPendingVoucher, savePendingVoucher } from './offers';
 import type { CartLine, PromoAccount, RoomAllocation, StayAddOn, StayGuestDetails, StayHotel, StaySearch } from './model';
@@ -174,12 +175,6 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
   );
 }
 
-const METHOD_HINTS: Record<GatewayMethod, string> = {
-  card: 'Visa, Mastercard, JCB',
-  gcash: 'Approve in the GCash app',
-  maya: 'Approve in the Maya app',
-};
-
 /**
  * Step two, a page of its own: what is being bought, what it costs, and how
  * to pay -- chosen right here rather than in a sheet over the form. A
@@ -282,16 +277,14 @@ export function StayPaymentScreen({ hotel, search, cart, details, onDetailsChang
       {/* First, before choosing how to pay: a guest without an account learns it here, not at the end. */}
       {accountGate}
 
-      <fieldset className="sb-methods" disabled={processing}>
-        <legend>Pay with</legend>
-        {(Object.keys(GATEWAY_METHOD_LABELS) as GatewayMethod[]).map((option) => (
-          <button key={option} type="button" aria-pressed={method === option} className={`sb-method${method === option ? ' is-active' : ''}`} onClick={() => onMethodChange(option)}>
-            <span className="sb-method__glyph" data-method={option} aria-hidden="true">{option === 'card' ? <CreditCard /> : option === 'gcash' ? 'G' : 'M'}</span>
-            <span className="sb-method__text"><b>{GATEWAY_METHOD_LABELS[option]}</b><small>{METHOD_HINTS[option]}</small></span>
-            <span className="sb-method__radio" aria-hidden="true">{method === option ? <Check weight="bold" /> : null}</span>
-          </button>
-        ))}
-      </fieldset>
+      <ChoiceList
+        className="sb-methods"
+        legend="Pay with"
+        value={method}
+        onChange={onMethodChange}
+        disabled={processing}
+        options={(Object.keys(GATEWAY_METHOD_LABELS) as GatewayMethod[]).map((option) => ({ value: option, title: GATEWAY_METHOD_LABELS[option], detail: METHOD_HINTS[option], icon: <PaymentMethodGlyph method={option} /> }))}
+      />
 
       <section className="sb-section sb-promo-section" aria-labelledby="sb-voucher-title">
         <h2 id="sb-voucher-title">Voucher</h2>

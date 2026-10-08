@@ -1,5 +1,6 @@
 'use client';
 
+import { Bicycle, ForkKnife, Receipt, ShoppingBag, Sparkle, X } from '@phosphor-icons/react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 import type { Card, CardAction } from '../types';
@@ -25,6 +26,8 @@ const STATE_TONE: Record<string, string> = {
   cancelled: 'bad',
   'extra-charge': 'wait',
 };
+
+const KIND_ICON = { rental: Bicycle, service: Sparkle, table: ForkKnife, goods: ShoppingBag } as const;
 
 const LABEL: Record<CardAction, string> = {
   cancel: 'Cancel',
@@ -54,7 +57,7 @@ export type CardHandlers = {
   onNote?: (note: { tone: 'warning' | 'positive'; text: string }) => void;
 };
 
-export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: { host: Host; bookingId: string; paymentId?: string } & CardHandlers) {
+export function EngineBookingCard({ host, bookingId, paymentId, inThread, ...handlers }: { host: Host; bookingId: string; paymentId?: string; /** In the booking's own thread the guest's note is already a message there. */ inThread?: boolean } & CardHandlers) {
   const [qr, setQr] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const pilot = host.pilot;
@@ -122,24 +125,36 @@ export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: {
     }
   };
 
+  const Icon = paymentId ? Receipt : KIND_ICON[booking.kind];
+  const vendorName = pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? '';
+  // The vendor is the subtitle, so it is not a fact as well. An extra charge says what it was added to.
+  const subtitle = paymentId ? `Added to ${listing.title}` : vendorName;
+  const facts = card.facts.filter((fact) => fact.label !== 'Vendor');
+  const tone = card.state === 'extra-charge' && card.label === 'Removed' ? 'bad' : STATE_TONE[card.state] ?? 'wait';
+
   return (
     <article className={`pilot-card pilot-card--${card.state}`} aria-label={`${card.title}, ${card.label}`}>
-      <header>
-        <small>{card.kindLabel}</small>
-        <span className={`pilot-state pilot-state--${card.state === 'extra-charge' && card.label === 'Removed' ? 'bad' : STATE_TONE[card.state] ?? 'wait'}`}>{card.label}</span>
+      <header className="pilot-card__head">
+        <span className="pilot-card__icon" aria-hidden="true"><Icon weight="regular" /></span>
+        <div className="pilot-card__title">
+          <h3>{card.title}</h3>
+          {subtitle ? <p>{subtitle}</p> : null}
+        </div>
+        <span className={`pilot-state pilot-state--${tone}`}>{card.label}</span>
       </header>
-      <h3>{card.title}</h3>
-      <dl>
-        {card.facts.map((f) => (
-          <div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>
-        ))}
-      </dl>
-      {card.note ? <p className="pilot-card__note">“{card.note}”</p> : null}
-      <p className="pilot-card__cost">{card.cost.amount ? <b>{peso(card.cost.amount)}</b> : null} {card.cost.line}</p>
+      {facts.length ? (
+        <dl className="pilot-card__facts">
+          {facts.map((f) => (
+            <div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>
+          ))}
+        </dl>
+      ) : null}
+      {card.note && !inThread ? <p className="pilot-card__note">“{card.note}”</p> : null}
+      <p className="pilot-card__cost">{card.cost.amount ? <b>{peso(card.cost.amount)}</b> : null}<span>{card.cost.line}</span></p>
       {card.timer ? (
         <div className="pilot-timer">
-          <span>{card.timer.text}</span>
           <progress max={1} value={card.timer.progress} aria-label="Time left" />
+          <span>{card.timer.text}</span>
         </div>
       ) : null}
       {confirmingCancel && card.actions.includes('cancel') ? (
@@ -151,7 +166,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: {
       ) : card.actions.length ? (
         <div className="pilot-actions">
           {card.actions.filter((a) => a !== 'open-menu' || (handlers.hasMenu ? handlers.hasMenu(listing.id) : true)).map((a) => (
-            <button key={a} type="button" className={`guest-button ${PRIMARY.includes(a) ? 'guest-button--primary' : 'guest-button--secondary'}`} onClick={() => act(a)}>
+            <button key={a} type="button" className={`guest-button ${PRIMARY.includes(a) ? 'guest-button--primary' : 'guest-button--secondary'}${PRIMARY.includes(a) ? ' pilot-actions__lead' : ''}`} onClick={() => act(a)}>
               {a === 'pay' && card.cost.amount ? `Pay now ${peso(card.cost.amount)}` : LABEL[a]}
             </button>
           ))}
@@ -160,7 +175,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: {
       {qr ? (
         <div className="pilot-sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setQr(false); }}>
           <div className="pilot-sheet" role="dialog" aria-modal="true" aria-label="Show this at the vendor">
-            <header><h2>Show this at the vendor</h2><button type="button" className="pilot-icon" onClick={() => setQr(false)} aria-label="Close">×</button></header>
+            <header><h2>Show this at the vendor</h2><button type="button" className="pilot-icon" onClick={() => setQr(false)} aria-label="Close"><X aria-hidden="true" /></button></header>
             <div className="pilot-qr"><QRCodeSVG value={`cabana-booking:${bookingId}`} size={176} /></div>
             <p className="pilot-muted">{card.title}. If your phone is dead, the vendor can find this by your name and room.</p>
           </div>

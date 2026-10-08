@@ -788,7 +788,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     const thread = makeThread({ id: b.threadId, kind: 'booking', stayId: stay.id, bookingId: id, vendorId: listing.vendorId, participants: ['guest', 'desk', 'vendor'], messages: [], openedAt: w.now });
     refreshReadOnly(b);
     const asker = how.origin === 'desk' ? `The front desk (${how.staffName ?? 'staff'})` : guest.firstName;
-    post(thread, SYSTEM, `${asker} ${listing.confirm === 'vendor' ? 'asked for' : 'booked'} ${draft.qty} ${unitWord(b)} ${listing.title}, ${when(start)}.`, 'system');
+    post(thread, SYSTEM, `${asker} ${listing.confirm === 'vendor' ? 'asked for' : 'booked'} ${listing.title}: ${draft.qty} ${unitWord(b)}, ${when(start)}.`, 'system');
     post(thread, SYSTEM, '', 'card', undefined, { bookingId: id });
     if (how.origin !== 'app') post(ensureDeskThread(stay.id), SYSTEM, '', 'card', ['guest', 'desk'], { bookingId: id });
     if (draft.note) post(thread, { role: 'guest', name: guest.firstName }, draft.note);

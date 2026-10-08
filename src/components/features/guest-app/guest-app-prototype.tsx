@@ -55,7 +55,7 @@ import {
   MessageCircleMoreIcon as HugeChatSolidIcon,
   UserRoundIcon as HugeProfileSolidIcon,
 } from '@hugeicons-pro/core-solid-rounded';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode} from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode} from 'react';
 import { CabanaLockup} from '@/components/ui/cabana-logo';
 import { type MapClock } from './nearby-map';
 import { CalendarPicker, ExpandableField, StepperField, TimeWheel } from './field-controls';
@@ -3376,12 +3376,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           {displayedChatMessages.map((message, index) => {
             const continued = displayedChatMessages[index - 1]?.from === message.from;
             return (
+              <Fragment key={`${message.body}-${index}`}>
               <div
-                key={`${message.body}-${index}`}
                 className={`guest-message guest-message--${message.from}${continued ? ' guest-message--continued' : ''}`}
               >
                 <p>{message.body}</p>
-                {message.engineBookingId && hostStore.host ? <EngineBookingCard host={hostStore.host} bookingId={message.engineBookingId} {...cardHandlers} /> : null}
                 {message.attachment ? (
                   message.attachment.kind === 'image' ? (
                     <button
@@ -3415,6 +3414,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <button type="button" className="guest-message__retry" onClick={() => retryChatMessage(index - deskSeed.length)}>Not sent · Retry</button>
                 ) : message.from === 'guest' && message.state ? <small>{message.state}</small> : null}
               </div>
+              {/* The booking's card has a row of its own, not a place inside a bubble. */}
+              {message.engineBookingId && hostStore.host ? <EngineBookingCard host={hostStore.host} bookingId={message.engineBookingId} {...cardHandlers} /> : null}
+              </Fragment>
             );
           })}
           {sending ? (

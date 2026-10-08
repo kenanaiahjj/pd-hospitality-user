@@ -1,3 +1,11 @@
+/*
+  Messages and booking cards. They sit inside the guest device frame and use its
+  tokens, so they read as the same app: white surfaces on the grey canvas,
+  hairlines rather than shadows, related rows sharing one inset surface, plum
+  only for the next action and for live state. No hover states: pressed and
+  focus only, as a phone app has.
+*/
+
 .pilot-icon {
   display: grid;
   width: 44px;
@@ -11,6 +19,89 @@
 }
 .pilot-icon:active { transform: scale(0.96); }
 .pilot-muted { margin: 4px 0 8px; color: var(--guest-muted); font-size: 13px; line-height: 1.45; }
+
+/* ------------------------------------------------------------------ Messages */
+
+.pilot-messages { gap: 24px; }
+
+.pilot-group {
+  display: block;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  list-style: none;
+}
+.pilot-group > li + li { border-top: 1px solid var(--guest-line); }
+
+.pilot-section-head { display: flex; align-items: baseline; gap: 8px; margin: 0 4px 10px; }
+.pilot-section-head h2 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -0.005em; }
+.pilot-section-head span { color: var(--guest-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.pilot-empty {
+  margin: 0;
+  padding: 20px 18px;
+  border-radius: 16px;
+  background: var(--guest-sunken);
+  color: var(--guest-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.pilot-row {
+  display: grid;
+  width: 100%;
+  min-height: 76px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px 14px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--guest-ink);
+  text-align: left;
+}
+.pilot-row:active { background: var(--guest-sunken); }
+.pilot-row:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: -2px; }
+
+.pilot-row__icon,
+.pilot-card__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--guest-sunken);
+  color: var(--guest-ink);
+  font-size: 20px;
+}
+
+.pilot-row__body { display: grid; min-width: 0; gap: 3px; }
+.pilot-row__body b { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; line-height: 1.3; letter-spacing: -0.005em; }
+.pilot-row__pin { color: var(--guest-muted); font-size: 13px; }
+.pilot-row__preview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--guest-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+/* What is waiting is read first: bolder title, and the preview at full ink. */
+.pilot-row.is-unread .pilot-row__body b { font-weight: 700; }
+.pilot-row.is-unread .pilot-row__preview { color: var(--guest-ink); }
+
+.pilot-row__end { display: grid; justify-items: end; align-content: center; gap: 8px; }
+.pilot-row__meta { display: flex; align-items: center; gap: 6px; }
+.pilot-row__chevron { color: var(--guest-muted); font-size: 16px; }
+
+.pilot-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--guest-brand); }
 .pilot-badge {
   display: inline-grid;
   min-width: 20px;
@@ -22,71 +113,117 @@
   color: var(--guest-on-accent);
   font-size: 11px;
   font-style: normal;
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
-.pilot-list { display: grid; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
-.pilot-row {
-  display: flex;
-  width: 100%;
-  min-height: 60px;
+
+/* Status, in words and a tint. Green, amber and red mean status and nothing else. */
+.pilot-state {
+  display: inline-flex;
+  min-height: 22px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.1;
+  text-align: center;
+}
+.pilot-state--wait { background: oklch(0.94 0.06 85); color: oklch(0.38 0.08 70); }
+.pilot-state--good { background: oklch(0.93 0.06 160); color: oklch(0.33 0.08 160); }
+.pilot-state--bad { background: oklch(0.93 0.045 25); color: oklch(0.4 0.12 25); }
+
+/* ------------------------------------------------------------------ the conversation */
+
+.pilot-msg { max-width: 86%; }
+.pilot-msg .pilot-sender { display: flex; align-items: baseline; gap: 6px; margin: 0 4px 3px; color: var(--guest-muted); font-size: 12px; font-weight: 600; }
+.pilot-msg .pilot-sender i { padding: 1px 7px; border: 1px solid var(--guest-line-strong); border-radius: 999px; font-size: 11px; font-style: normal; font-weight: 600; }
+.pilot-msg--guest .pilot-sender { justify-content: flex-end; }
+.pilot-msg--vendor p { border-color: oklch(0.86 0.05 85); background: oklch(0.975 0.02 85); }
+.pilot-system {
+  align-self: center;
+  max-width: 88%;
+  margin: 4px 0;
+  color: var(--guest-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+}
+.pilot-system b { color: var(--guest-ink); font-weight: 600; }
+
+/* ------------------------------------------------------------------ one booking card, wherever it appears */
+
+.pilot-card {
+  display: grid;
+  align-self: stretch;
+  gap: 14px;
+  padding: 16px;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
-  background: var(--guest-surface);
-  color: var(--guest-ink);
-  text-align: left;
+  background: var(--guest-paper);
 }
-.pilot-row:active { transform: scale(0.99); background: var(--guest-sunken); }
-.pilot-row b { display: block; font-size: 15px; font-weight: 600; }
-.pilot-row small { display: block; margin-top: 2px; color: var(--guest-muted); font-size: 12px; line-height: 1.35; }
-.pilot-row__end { display: grid; justify-items: end; gap: 6px; }
-.pilot-preview { display: -webkit-box; overflow: hidden; max-width: 200px; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
-.pilot-pin { display: inline; color: var(--guest-muted); font-weight: 500; }
-.pilot-state { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.pilot-state--wait { background: oklch(0.93 0.07 85); color: oklch(0.38 0.08 70); }
-.pilot-state--good { background: oklch(0.92 0.07 160); color: oklch(0.34 0.08 160); }
-.pilot-state--bad { background: oklch(0.92 0.05 25); color: oklch(0.4 0.12 25); }
-.pilot-msg { max-width: 86%; }
-.pilot-msg .pilot-sender { display: flex; align-items: baseline; gap: 6px; margin: 0 4px 2px; color: var(--guest-muted); font-size: 11px; font-weight: 650; }
-.pilot-msg .pilot-sender i { padding: 0 6px; border: 1px solid var(--guest-line-strong); border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 600; }
-.pilot-msg--guest .pilot-sender { justify-content: flex-end; }
-.pilot-msg--vendor p { border-color: oklch(0.8 0.08 85); background: oklch(0.97 0.03 85); }
-.pilot-system { align-self: center; max-width: 88%; margin: 2px 0; color: var(--guest-muted); font-size: 12px; line-height: 1.4; text-align: center; }
-/* one booking card, wherever it appears */
-.pilot-card {
-  align-self: stretch;
+.pilot-card__head { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+.pilot-card__title { min-width: 0; padding-top: 1px; }
+.pilot-card__title h3 { margin: 0; font-size: 17px; font-weight: 650; line-height: 1.25; letter-spacing: -0.012em; text-wrap: balance; }
+.pilot-card__title p { margin: 3px 0 0; color: var(--guest-muted); font-size: 13px; line-height: 1.35; }
+.pilot-card .pilot-state { margin-top: 1px; }
+
+.pilot-card__facts {
   display: grid;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--guest-line);
-  border-radius: 18px;
-  background: var(--guest-surface);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--guest-line);
 }
-.pilot-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.pilot-card header small { color: var(--guest-muted); font-size: 11px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; }
-.pilot-card h3 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
-.pilot-card dl { display: grid; gap: 4px; margin: 0; }
-.pilot-card dl div { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
-.pilot-card dt { color: var(--guest-muted); }
-.pilot-card dd { margin: 0; font-weight: 600; text-align: right; }
-.pilot-card__note { margin: 0; color: var(--guest-muted); font-size: 13px; font-style: italic; }
-.pilot-card__cost { margin: 0; padding-top: 8px; border-top: 1px solid var(--guest-line); font-size: 13px; }
-.pilot-card--cancelled, .pilot-card--lapsed { opacity: 0.85; }
-.pilot-timer { display: grid; gap: 4px; font-size: 12px; color: var(--guest-muted); }
-.pilot-timer progress { width: 100%; height: 6px; accent-color: var(--guest-brand); }
+.pilot-card__facts dt { color: var(--guest-muted); font-size: 12px; line-height: 1.3; }
+.pilot-card__facts dd { margin: 2px 0 0; font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1.3; }
+
+.pilot-card__note { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--guest-sunken); color: var(--guest-muted); font-size: 13px; line-height: 1.45; }
+
+.pilot-card__cost {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--guest-line);
+}
+.pilot-card__cost b { font-size: 17px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.01em; }
+.pilot-card__cost span { color: var(--guest-muted); font-size: 13px; line-height: 1.4; }
+
+/* A booking that did not happen steps back: the title and the icon quiet down, the status says why. */
+.pilot-card--lapsed .pilot-card__title h3,
+.pilot-card--cancelled .pilot-card__title h3 { color: var(--guest-muted); }
+.pilot-card--lapsed .pilot-card__icon,
+.pilot-card--cancelled .pilot-card__icon { color: var(--guest-muted); }
+
+.pilot-timer { display: grid; gap: 6px; }
+.pilot-timer span { color: var(--guest-muted); font-size: 12.5px; line-height: 1.35; }
+.pilot-timer progress {
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  appearance: none;
+  background: var(--guest-sunken);
+}
+.pilot-timer progress::-webkit-progress-bar { background: var(--guest-sunken); }
+.pilot-timer progress::-webkit-progress-value { border-radius: 999px; background: var(--guest-brand); }
+.pilot-timer progress::-moz-progress-bar { border-radius: 999px; background: var(--guest-brand); }
+
+/* One main action on its own row; the rest share the row under it. */
 .pilot-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.pilot-actions .guest-button { min-height: 44px; flex: 1 1 auto; padding: 0 14px; }
-.pilot-actions a.guest-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
-/* sheets */
+.pilot-actions .guest-button { min-height: 44px; flex: 1 1 calc(50% - 4px); padding: 0 16px; font-size: 14px; }
+.pilot-actions .pilot-actions__lead { flex-basis: 100%; order: -1; }
+.pilot-actions .pilot-muted { flex-basis: 100%; margin: 0; }
+
+/* ------------------------------------------------------------------ sheets */
+
 .pilot-sheet-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; background: oklch(0.2 0.02 350 / 0.4); }
-.pilot-sheet { display: grid; width: 100%; gap: 12px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; background: var(--guest-canvas); }
+.pilot-sheet { display: grid; width: 100%; gap: 12px; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--guest-canvas); }
 .pilot-sheet header { display: flex; align-items: center; justify-content: space-between; }
 .pilot-sheet h2 { margin: 0; font-size: 17px; }
 .pilot-qr { display: grid; place-items: center; padding: 16px; border-radius: 16px; background: #fff; }
-
-
-.pilot-row .pilot-state { white-space: normal; text-align: center; }
-.pilot-row__end { max-width: 48%; }

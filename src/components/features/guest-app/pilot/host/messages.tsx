@@ -1,11 +1,12 @@
 'use client';
 
-import { ArrowLeft, CaretRight } from '@phosphor-icons/react';
+import { ArrowLeft, Bicycle, CaretRight, ChatCircleDots, ForkKnife, PushPin, ShoppingBag, Sparkle } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
 import { EngineBookingCard, type CardHandlers } from './booking-card';
+import { engineStatusLine } from './project';
 import type { Host } from './host';
 import '../ui/pilot.css';
 
@@ -35,6 +36,8 @@ const TONE: Record<string, string> = {
 
 export type DeskRow = { preview: string; fromGuest: boolean; unread: boolean };
 
+const KIND_ICON = { rental: Bicycle, service: Sparkle, table: ForkKnife, goods: ShoppingBag } as const;
+
 export function MessagesList({ host, guestId, desk, onOpenDesk, onOpenThread }: {
   host: Host;
   guestId: string;
@@ -46,39 +49,67 @@ export function MessagesList({ host, guestId, desk, onOpenDesk, onOpenThread }: 
   return (
     <div className="guest-stack pilot-messages">
       <div className="guest-page-title"><h1>Messages</h1></div>
-      <ul className="pilot-list">
-        <li>
-          <button type="button" className="pilot-row pilot-row--thread" onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
-            <span>
-              <b>Front desk <small className="pilot-pin">Pinned</small></b>
-              <small className="pilot-preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</small>
+
+      <section aria-label="Front desk">
+        <div className="pilot-group">
+          <button type="button" className={`pilot-row${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
+            <span className="pilot-row__icon" aria-hidden="true"><ChatCircleDots weight="regular" /></span>
+            <span className="pilot-row__body">
+              <b>Front desk <PushPin aria-hidden="true" className="pilot-row__pin" /></b>
+              <span className="pilot-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
             </span>
-            <span className="pilot-row__end">{desk.unread ? <i className="pilot-badge" aria-hidden="true">•</i> : null}<CaretRight aria-hidden="true" /></span>
+            <span className="pilot-row__end">
+              {desk.unread ? <i className="pilot-dot" aria-hidden="true" /> : null}
+              <CaretRight aria-hidden="true" className="pilot-row__chevron" />
+            </span>
           </button>
-        </li>
-      </ul>
-      <h2>Bookings</h2>
-      {threads.length === 0 ? <p className="pilot-muted">A thread appears here as soon as you ask for something, with the front desk and the vendor in it.</p> : null}
-      <ul className="pilot-list">
-        {threads.map((thread) => <li key={thread.id}><ThreadRow thread={thread} onOpen={onOpenThread} /></li>)}
-      </ul>
+        </div>
+      </section>
+
+      <section aria-label="Bookings">
+        <div className="pilot-section-head">
+          <h2>Bookings</h2>
+          {threads.length ? <span>{threads.length}</span> : null}
+        </div>
+        {threads.length === 0 ? (
+          <p className="pilot-empty">A thread appears here as soon as you ask for something, with the front desk and the vendor in it.</p>
+        ) : (
+          <ul className="pilot-group">
+            {threads.map((thread) => <li key={thread.id}><ThreadRow host={host} thread={thread} onOpen={onOpenThread} /></li>)}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
 
-function ThreadRow({ thread, onOpen }: { thread: ThreadSummary; onOpen: (id: string) => void }) {
+function ThreadRow({ host, thread, onOpen }: { host: Host; thread: ThreadSummary; onOpen: (id: string) => void }) {
   const last = thread.last;
-  const preview = last ? (last.kind === 'card' ? 'Booking card' : last.text) : 'No messages yet.';
+  const booking = thread.bookingId ? host.pilot.booking(thread.bookingId) : undefined;
+  const Icon = booking ? KIND_ICON[booking.kind] : ChatCircleDots;
+  // A card is where things stand, said in words; a note from Cabana is a line of its own; a person's message names who.
+  const preview = !last ? 'No messages yet.'
+    : last.kind === 'card' ? (booking ? engineStatusLine(booking) : 'Booking card')
+    : last.kind === 'system' ? last.text
+    : `${last.from.role === 'guest' ? 'You' : last.from.name}: ${last.text}`;
   return (
-    <button type="button" className="pilot-row pilot-row--thread" onClick={() => onOpen(thread.id)} aria-label={`${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}>
-      <span>
+    <button
+      type="button"
+      className={`pilot-row${thread.unread ? ' is-unread' : ''}`}
+      onClick={() => onOpen(thread.id)}
+      aria-label={`${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}
+    >
+      <span className="pilot-row__icon" aria-hidden="true"><Icon weight="regular" /></span>
+      <span className="pilot-row__body">
         <b>{thread.title}</b>
-        <small className="pilot-preview">{last && last.from.role !== 'guest' ? `${last.from.name}: ` : ''}{preview}</small>
+        <span className="pilot-row__preview">{preview}</span>
       </span>
       <span className="pilot-row__end">
         {thread.cardLabel ? <span className={`pilot-state pilot-state--${TONE[thread.cardState ?? ''] ?? 'wait'}`}>{thread.cardLabel}</span> : null}
-        {thread.unread ? <i className="pilot-badge" aria-hidden="true">{thread.unread}</i> : null}
-        <CaretRight aria-hidden="true" />
+        <span className="pilot-row__meta">
+          {thread.unread ? <i className="pilot-badge" aria-hidden="true">{thread.unread}</i> : null}
+          <CaretRight aria-hidden="true" className="pilot-row__chevron" />
+        </span>
       </span>
     </button>
   );
@@ -148,7 +179,7 @@ const vendorName = (host: Host, bookingId: string) => {
 function ThreadMessage({ host, message, ...handlers }: { host: Host; message: Message } & CardHandlers) {
   if (message.kind === 'system') return <p className="pilot-system"><b>{message.from.name}</b> · {message.text}</p>;
   if (message.kind === 'card' && message.bookingId) {
-    return <EngineBookingCard host={host} bookingId={message.bookingId} paymentId={message.paymentId} {...handlers} />;
+    return <EngineBookingCard host={host} bookingId={message.bookingId} paymentId={message.paymentId} inThread {...handlers} />;
   }
   const mine = message.from.role === 'guest';
   return (

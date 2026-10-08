@@ -1583,7 +1583,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const engineFeed = hostStore.host && primaryBooking && hostStore.host.guestOf(primaryBooking.id)
     ? engineNews(hostStore.host, hostStore.host.guestOf(primaryBooking.id)!.guestId, session.serviceBookings)
     : [];
-  const notifications = [...chatNotifications, ...engineFeed.map((item) => item.notification), ...getNotifications(session, primaryBooking)];
+  const engineNotifications = engineFeed.map((item) => item.notification);
+  // A booking the engine holds tells its own news; the app record's "confirmed" for it would say the same thing twice.
+  const engineToldAbout = new Set(engineNotifications.map((item) => item.entryId).filter(Boolean));
+  const notifications = [...chatNotifications, ...engineNotifications, ...getNotifications(session, primaryBooking).filter((item) => !(item.entryId && engineToldAbout.has(item.entryId)))];
   const unreadNotifications = notifications.filter((item) => !seenNotificationIds.includes(item.id)).length;
 
   /* Seen on the phone, so the engine will not text about it ten minutes on. */
@@ -1726,6 +1729,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (!record) return undefined;
     const entry = [...stayEntries.upcoming, ...stayEntries.past].find((item) => item.id === record.id);
     return stayEntryImage(entry ?? { serviceId: record.serviceId, category: record.categoryId ?? 'services', title: record.title });
+  };
+  /** A notification about a booking carries that booking's photograph. */
+  const notificationImage = (item: GuestNotification) => {
+    if (!item.entryId) return undefined;
+    const record = session.serviceBookings.find((service) => service.id === item.entryId);
+    const entry = [...stayEntries.upcoming, ...stayEntries.past].find((candidate) => candidate.id === item.entryId);
+    if (entry) return stayEntryImage(entry);
+    return record ? stayEntryImage({ serviceId: record.serviceId, category: record.categoryId ?? 'services', title: record.title }) : undefined;
   };
   const cardHandlers = {
     imageFor: engineImage,
@@ -5772,8 +5783,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         /*
           Grouped by when, like any inbox: what happened today, and the rest
           of the stay. One card per group with hairlines between rows, not a
-          stack of floating cards. Three lines a row: what, detail, when. The
-          red dot keeps the right edge to itself, centred on the row.
+          stack of floating cards. Each row reads like a Messages row: the
+          booking's photo, what happened with when beside it, then the detail
+          with the unread dot.
         */
         const isToday = (time: string) => /today|now|\d+\s*[mh]\b|min|hour/i.test(time);
         const groups = [
@@ -5798,6 +5810,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 <div className="guest-notifications">
                   {group.items.map((item) => {
                     const unread = !readNotificationIds.includes(item.id);
+                    const image = notificationImage(item);
                     return (
                       <button
                         key={item.id}
@@ -5806,15 +5819,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                         data-unread={unread}
                         onClick={() => openNotification(item)}
                       >
-                        <span className="guest-notification__icon">
-                          <NotificationIcon tone={item.tone} />
+                        {/* The booking's photograph, as Messages and My Stay show it; anything else, its icon on a quiet tile. */}
+                        <span className={`guest-notification__icon${image ? ' guest-notification__icon--photo' : ''}`} aria-hidden="true">
+                          {image ? <Image src={image.src} alt="" fill sizes="48px" style={{ objectPosition: image.focalPoint }} /> : <NotificationIcon tone={item.tone} />}
                         </span>
                         <span className="guest-notification__body">
-                          <b>{item.title}</b>
-                          <span className="guest-notification__text">{item.body}</span>
-                          <small>{item.time}</small>
+                          <span className="guest-notification__top">
+                            <b>{item.title}</b>
+                            <small>{item.time}</small>
+                          </span>
+                          <span className="guest-notification__bottom">
+                            <span className="guest-notification__text">{item.body}</span>
+                            {unread ? <span className="guest-notification__dot"><span className="sr-only">Unread</span></span> : null}
+                          </span>
                         </span>
-                        {unread ? <span className="guest-notification__dot"><span className="sr-only">Unread</span></span> : <span aria-hidden="true" />}
                       </button>
                     );
                   })}

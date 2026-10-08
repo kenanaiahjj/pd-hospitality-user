@@ -36,8 +36,17 @@
    words, then where it stands. */
 .pilot-inbox { display: block; margin: 0; padding: 0; list-style: none; }
 .pilot-inbox > li + li { border-top: 1px solid var(--guest-line); }
-/* The desk's pinned row sits a step apart from the conversations under it: space, not a band. */
-.pilot-inbox > .pilot-inbox__pinned { padding-bottom: 6px; }
+/* The front desk: a card above the list, so it reads as always there, not as one more conversation. */
+.pilot-desk-card {
+  overflow: hidden;
+  border: 1px solid var(--guest-line);
+  border-radius: 16px;
+  background: var(--guest-paper);
+  box-shadow: 0 6px 18px oklch(0.25 0.02 330 / 0.05);
+}
+.pilot-desk-card .pilot-chat-row--desk { grid-template-columns: 56px minmax(0, 1fr); gap: 14px; padding: 16px 18px 16px 16px; }
+.pilot-desk-card .pilot-faces,
+.pilot-desk-card .pilot-face--desk { width: 56px; height: 56px; font-size: 24px; }
 
 .pilot-empty {
   margin: 8px 0 0;

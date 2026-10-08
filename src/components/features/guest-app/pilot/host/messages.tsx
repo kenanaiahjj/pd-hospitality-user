@@ -63,26 +63,26 @@ export function MessagesList({ host, guestId, desk, imageFor, onOpenDesk, onOpen
   return (
     <div className="guest-stack pilot-messages">
       <div className="guest-page-title"><h1>Messages</h1></div>
+      {/* The front desk, as a card of its own above the conversations: the one chat that is always there. */}
+      <div className="pilot-desk-card">
+        <button type="button" className={`pilot-chat-row pilot-chat-row--desk${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
+          <span className="pilot-faces" aria-hidden="true">
+            <span className="pilot-face pilot-face--desk"><CallBell /></span>
+          </span>
+          <span className="pilot-chat-row__body">
+            <span className="pilot-chat-row__top">
+              <b>Front desk</b>
+              {desk.place ? <span className="pilot-chat-row__about">· {desk.place}</span> : null}
+              <PushPin weight="fill" aria-hidden="true" className="pilot-chat-row__pin" />
+            </span>
+            <span className="pilot-chat-row__meta pilot-chat-row__meta--preview">
+              <span className="pilot-chat-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
+              {desk.unread ? <i className="pilot-dot" aria-hidden="true" /> : null}
+            </span>
+          </span>
+        </button>
+      </div>
       <ul className="pilot-inbox">
-        {/* The front desk first and pinned, as Airbnb keeps its own support: the one chat that is always there. */}
-        <li className="pilot-inbox__pinned">
-          <button type="button" className={`pilot-chat-row${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
-            <span className="pilot-faces" aria-hidden="true">
-              <span className="pilot-face pilot-face--desk"><CallBell /></span>
-            </span>
-            <span className="pilot-chat-row__body">
-              <span className="pilot-chat-row__top">
-                <b>Front desk</b>
-                {desk.place ? <span className="pilot-chat-row__about">· {desk.place}</span> : null}
-                <PushPin weight="fill" aria-hidden="true" className="pilot-chat-row__pin" />
-              </span>
-              <span className="pilot-chat-row__meta pilot-chat-row__meta--preview">
-                <span className="pilot-chat-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
-                {desk.unread ? <i className="pilot-dot" aria-hidden="true" /> : null}
-              </span>
-            </span>
-          </button>
-        </li>
         {threads.map((thread) => (
           <li key={thread.id}>
             <ThreadRow host={host} thread={thread} image={thread.bookingId ? imageFor?.(thread.bookingId) : undefined} onOpen={onOpenThread} />

@@ -91,7 +91,7 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     if (['awaiting-payment', 'confirmed', 'reserved', 'ready'].includes(b.status)) {
       vendor.push({ icon: <X />, label: `Vendor cancels ${name}`, detail: 'With a reason. Everything is undone and the guest is told by push and text.', onClick: call('vendor.cancel', vendorId, b.id, 'Equipment breakdown') });
     }
-    if (b.cancelRequested) {
+    if (b.cancelRequested && b.status === 'confirmed') {
       vendor.push({ icon: <Check />, label: `Vendor accepts the cancellation of ${name}`, detail: 'The guest asked past the free-cancel time.', onClick: call('vendor.answerCancel', vendorId, b.id, true) });
       vendor.push({ icon: <X />, label: `Vendor declines the cancellation of ${name}`, detail: 'The booking stands and the front desk is asked to step in.', onClick: call('vendor.answerCancel', vendorId, b.id, false) });
     }

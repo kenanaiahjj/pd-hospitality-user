@@ -179,6 +179,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     w.transitions.push({ entity: 'booking', id: b.id, from, to, ok: allowed });
     if (!allowed) throw new InvariantViolation(['I6'], w.steps, seed, `booking ${b.id}: ${from} to ${to} is not a drawn transition`);
     applyLoad(b, from, -1);
+    // A cancellation asked for belongs to a booking that is confirmed; once it is anything else, the question is moot.
+    if (to !== 'confirmed') b.cancelRequested = false;
     b.status = to;
     applyLoad(b, to, 1);
     b.version += 1;
@@ -260,6 +262,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
 
   const guestName = (b: Booking) => guestRecord(b.guestId).firstName;
   const listingOf = (b: Booking) => must(w.listings.get(b.listingId), `listing ${b.listingId}`);
+  /** Whether this booking's vendor takes a card at all: a room-only vendor cannot be paid in full. */
+  const takesCard = (b: Booking) => (w.listings.get(b.listingId)?.payModes ?? ['room', 'card']).includes('card');
   const stayOf = (b: Booking) => must(w.stays.get(b.stayId), `stay ${b.stayId}`);
   const paysOf = (b: Booking) => b.paymentIds.map((id) => must(w.payments.get(id), id));
   const mainPay = (b: Booking) => paysOf(b).filter((p) => p.purpose === 'booking' && !p.duplicate).at(-1);
@@ -276,7 +280,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (['withdrawn', 'declined', 'lapsed', 'payment-expired'].includes(b.status)) return { amount: 0, line: 'Nothing was charged' };
     if (b.status === 'cancelled') {
       if (!pay) return { amount: 0, line: 'Nothing was charged' };
-      if (pay.mode === 'room') return { amount: 0, line: pay.state === 'refund-due' ? 'Refund due: the desk settles it' : 'Room charge reversed' };
+      if (pay.mode === 'room') return { amount: 0, line: pay.state === 'refund-due' ? 'Refund due: the desk settles it' : ['voided', 'reversed'].includes(pay.state) ? 'Room charge reversed' : 'The hotel is taking the charge off your bill' };
       return { amount: 0, line: pay.state === 'refunded' ? 'Refunded to the same method' : 'Refund on its way' };
     }
     if (!pay) return { amount: b.amount, line: b.payMode === 'room' ? 'Charged to your room' : 'Paid in full' };
@@ -310,7 +314,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     const { state, label } = cardState(b);
     const facts: { label: string; value: string }[] = [];
     if (b.kind === 'goods') {
-      facts.push({ label: 'Collect at', value: 'Front desk, chilled' });
+      facts.push({ label: 'Collect at', value: b.readyFor === stayOf(b).checkOut ? 'Front desk, chilled' : 'Front desk' });
       facts.push({ label: 'Ready for', value: `${stayOf(b).checkOut === b.readyFor ? 'Departure day, ' : ''}${weekday(b.readyFor ?? dateOf(b.start))}` });
       facts.push({ label: 'Boxes', value: String(b.qty) });
     } else {
@@ -329,10 +333,14 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         actions.push('withdraw');
         if (b.holdUntil) timer = { text: `The front desk has ${left(b.holdUntil)} min to answer`, endsAt: b.holdUntil, progress: Math.max(0, (b.holdUntil - w.now) / (settings.deskApprovalMin * MIN)) };
         break;
-      case 'pay-or-cancel': actions.push('pay-in-full', 'cancel'); break;
+      case 'pay-or-cancel':
+        if (takesCard(b)) actions.push('pay-in-full');
+        actions.push('cancel');
+        if (b.holdUntil) timer = { text: `Choose within ${left(b.holdUntil)} min, or it lapses`, endsAt: b.holdUntil, progress: Math.max(0, (b.holdUntil - w.now) / (settings.payOrCancelMin * MIN)) };
+        break;
       case 'requested':
         actions.push('withdraw');
-        if (b.needsPayChange) actions.push('pay-in-full');
+        if (b.needsPayChange && takesCard(b)) actions.push('pay-in-full');
         if (b.deadline) timer = { text: `Vendor has ${left(b.deadline)} min to confirm`, endsAt: b.deadline, progress: Math.max(0, Math.min(1, (b.deadline - w.now) / Math.max(1, b.deadline - b.createdAt))) };
         break;
       case 'awaiting-payment': {
@@ -351,7 +359,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           if (open) {
             actions.push('pay');
             if (open.windowEnd) timer = { text: `Pay within ${left(open.windowEnd)} min to keep this booking`, endsAt: open.windowEnd, progress: Math.max(0, (open.windowEnd - w.now) / (settings.cardWindowMin * MIN)) };
-          } else actions.push('pay-in-full');
+          } else if (takesCard(b)) actions.push('pay-in-full');
         }
         break;
       case 'reserved': actions.push('cancel', 'open-menu', 'running-late'); break;
@@ -672,6 +680,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       log('lapse-deferred', `${b.id}: the vendor has no signal, ${settings.offlineGraceMin} minutes of grace`);
       return;
     }
+    b.reason = 'The vendor did not answer in time';
     move(b, 'lapsed', 'Cabana', 'vendor did not answer in time');
     announce(b, 'The vendor did not answer in time. Nothing was charged.');
     tellGuest(b, 'lapsed');
@@ -706,11 +715,13 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     const stay = must(w.stays.get(guest.stayId), 'stay');
     const listing = w.listings.get(draft.listingId);
     if (!listing) return refuse('not-found', 'That is not on offer.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) return refuse('not-possible', 'Choose a day.');
     const rt = runtime(listing.vendorId);
     const vendor = vendorOf(listing);
     if (rt.removedListings.has(listing.id)) return refuse('unavailable', `${listing.title} is no longer offered.`);
     if (rt.away) return refuse('unavailable', `${vendor.name} is not taking requests right now.`);
-    if (stay.status === 'checked-out' || stay.status === 'cancelled') return refuse('not-possible', 'Your stay is over, so this cannot be booked.');
+    if (stay.status === 'checked-out') return refuse('not-possible', 'Your stay is over, so this cannot be booked.');
+    if (stay.status === 'cancelled') return refuse('not-possible', 'This stay was cancelled, so nothing can be booked on it.');
     if (!Number.isInteger(draft.qty) || draft.qty < 1) return refuse('not-possible', 'Choose at least one.');
     if (listing.kind === 'table') {
       if (!draft.time || !listing.times.includes(draft.time)) return refuse('not-possible', `${listing.title} does not take reservations at that time.`);
@@ -744,7 +755,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (!pl.ok) return pl;
     const { listing, stay, start, end, days, amount, slotKeys, options: opts } = pl.plan;
     const quantity = listing.kind === 'table' ? 1 : draft.qty;
-    const dup = [...w.bookings.values()].find((x) => x.guestId === guestId && x.listingId === listing.id && x.slotKeys.join() === slotKeys.join() && x.start === start && x.qty === draft.qty && !EXIT_STATUSES.includes(x.status) && (['needs-approval', 'pay-or-cancel', 'requested', 'awaiting-payment'].includes(x.status) || w.now - x.createdAt < MIN));
+    const dup = [...w.bookings.values()].find((x) => x.guestId === guestId && x.listingId === listing.id && x.slotKeys.join() === slotKeys.join() && (listing.kind === 'goods' ? x.readyFor === draft.date : x.start === start) && x.qty === draft.qty && !EXIT_STATUSES.includes(x.status) && (['needs-approval', 'pay-or-cancel', 'requested', 'awaiting-payment'].includes(x.status) || w.now - x.createdAt < MIN));
     if (dup) return ok({ bookingId: dup.id, duplicate: true });
     if (!holdOpen(slotKeys, quantity)) return refuse('unavailable', 'Just booked. Pick another time.');
     let payMode: PayMode | null = null;
@@ -813,6 +824,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     tellGuest(b, declined ? 'approval-declined' : 'pay-or-cancel');
     sched(b.holdUntil, 'pay-or-cancel-timeout', b.id, () => {
       if (b.status !== 'pay-or-cancel') return;
+      b.reason = 'No choice was made';
       move(b, 'lapsed', 'Cabana', 'no choice made');
       announce(b, 'No choice was made, so the request lapsed.', ['guest', 'desk']);
     }, b.id);
@@ -835,8 +847,14 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (b.status !== 'requested') return refusedStale(b, 'confirm');
     cancelTimers(b.id);
     b.acceptedAt = w.now;
+    let wantsCard = false;
     // The stay changed while this waited: the room can no longer take it, so it is paid in full instead.
     if (b.needsPayChange && b.amount > 0) {
+      if (!takesCard(b)) {
+        // The room can no longer take it and this vendor takes nothing else: it cannot go ahead.
+        cancelBooking(b, 'Cabana', 'The stay changed and this vendor only takes the room', 'system');
+        return ok();
+      }
       b.payMode = 'card';
       b.needsPayChange = false;
     }
@@ -848,12 +866,13 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       roomCharge(b, b.amount, 'booking');
       announce(b, `${who} confirmed. ${peso(b.amount)} is charged to your room.`);
     } else {
+      wantsCard = true;
       move(b, 'awaiting-payment', who, 'accepted');
       const p = newPayment(b, 'card', b.amount, 'booking');
       startCardWindow(b, p);
       announce(b, `${who} accepted. Pay ${peso(b.amount)} within ${settings.cardWindowMin} minutes to confirm it.`, ['guest', 'desk']);
     }
-    tellGuest(b, 'accepted');
+    tellGuest(b, wantsCard ? 'accepted-pay' : 'accepted');
     return ok();
   };
   const declineBooking = (b: Booking, who: string, reason?: string, quiet = false): Result<object> => {
@@ -991,6 +1010,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         return own(() => {
           const b = mine(bookingId);
           if (!b) return refuse('not-found', 'That booking is not yours.');
+          if (!takesCard(b)) return refuse('not-offered', 'This vendor takes payment by room only, so it cannot be paid in full by card. Cancel it, or ask the front desk.');
+          if (b.status === 'requested' && b.payMode === 'card' && !b.needsPayChange) return ok();
           if (b.status === 'confirmed' && b.needsPayChange) {
             // Asking twice is one payment: the window already open is the one to use.
             const open = paysOf(b).find((x) => x.mode === 'card' && x.purpose === 'booking' && x.state === 'awaiting');
@@ -1010,7 +1031,6 @@ export function createPilot(options: PilotOptions = {}): Pilot {
             return ok();
           }
           if (b.status !== 'pay-or-cancel') return refuse('invalid-state', 'There is nothing to choose.');
-          if (!(listingOf(b).payModes ?? ['room', 'card']).includes('card')) return refuse('not-offered', 'This vendor takes payment by room only, so it cannot be paid in full by card. Cancel it, or ask the front desk.');
           cancelTimers(b.id);
           b.payMode = 'card';
           if (listingOf(b).confirm === 'vendor') {
@@ -1344,7 +1364,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       answerCancel(bookingId, accept) {
         return act(() => {
           const b = owns(bookingId);
-          if (!b || !b.cancelRequested) return refuse('invalid-state', 'There is no cancellation to answer.');
+          if (!b || !b.cancelRequested || b.status !== 'confirmed') return refuse('invalid-state', 'There is no cancellation to answer.');
           b.cancelRequested = false;
           if (accept) {
             cancelBooking(b, vendor.name, 'Cancelled with the vendor’s agreement', 'accepted');
@@ -1500,7 +1520,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         if (!b || b.kind !== 'goods') return refuse('not-found', 'That is not an order.');
         if (b.status !== 'confirmed') return refuse('invalid-state', `This order is ${b.status}.`);
         move(b, 'ready', deskName, 'marked ready');
-        announce(b, 'Your order is at the front desk, held chilled and ready for your departure day.');
+        announce(b, b.readyFor === stayOf(b).checkOut ? 'Your order is at the front desk, held chilled and ready for your departure day.' : 'Your order is at the front desk, ready for you.');
         tellGuest(b, 'ready');
         return ok();
       });
@@ -1580,6 +1600,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         for (const b of [...w.bookings.values()].filter((x) => x.stayId === stayId && !EXIT_STATUSES.includes(x.status) && !['completed', 'collected', 'seated'].includes(x.status))) {
           if (['needs-approval', 'pay-or-cancel', 'requested', 'awaiting-payment'].includes(b.status)) withdrawBooking(b, deskName, 'stay cancelled');
           else if (['confirmed', 'reserved', 'ready'].includes(b.status)) cancelBooking(b, deskName, 'The stay was cancelled', 'desk');
+          tellGuest(b, 'stay-cancelled');
         }
         return ok();
       });
@@ -1710,7 +1731,15 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         switch (t.kind) {
           case 'over-limit-approval': if (b?.status === 'needs-approval') { if (how === 'decline') deskActions.declineApproval(b.id); else deskActions.approve(b.id); } break;
           case 'lapsed-reinstate': if (b?.status === 'lapsed') deskActions.reinstate(b.id); break;
-          case 'pms-failure': if (p && ['pending', 'failed'].includes(p.state)) deskActions.postByHand(p.id); break;
+          case 'pms-failure':
+            if (p && ['pending', 'failed'].includes(p.state)) deskActions.postByHand(p.id);
+            else if (p && p.state === 'posted' && b && ['cancelled', 'declined', 'withdrawn'].includes(b.status)) {
+              // The hotel system would not take it off: the desk takes it off by hand.
+              const entry = w.pms.folio.find((f) => f.ref === p.ref);
+              if (entry) entry.reversed = true;
+              movePay(p, 'reversed');
+            }
+            break;
           case 'failed-refund': case 'refund-due': if (p) deskActions.settleRefund(p.id); break;
           case 'questioned-charge': if (p) deskActions.resolveCharge(p.id, how === 'waive' ? 'waive' : 'uphold'); break;
           case 'checkout-blocker': if (p?.inQuestion) deskActions.resolveCharge(p.id, 'uphold'); else if (p?.state === 'awaiting') deskActions.collectInFull(p.id); else if (p && ['pending', 'failed'].includes(p.state)) deskActions.postByHand(p.id); break;

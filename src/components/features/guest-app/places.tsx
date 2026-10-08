@@ -321,7 +321,7 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
   const rentals = establishment.categoryId === 'rentals';
   const title = rentals ? 'Book a rental' : 'Book ' + establishment.type.toLowerCase();
   const amount = payment ? payment.amount * (payment.basis === 'guest' ? party : payment.basis === 'unit' ? quantity : 1) : 0;
-  const askDesk = Boolean(payment && amount > 0 && roomChargeAvailable && paymentChoice === 'room' && needsApproval?.({ day, time, party, ...(rentals ? { quantity } : {}) }));
+  const askDesk = Boolean(day && time && payment && amount > 0 && roomChargeAvailable && paymentChoice === 'room' && needsApproval?.({ day, time, party, ...(rentals ? { quantity } : {}) }));
   const submit = () => {
     const request = { day, time, party, ...(rentals ? { quantity } : {}), requests: requests.trim() || undefined };
     // The card is taken after the booking is held (or the vendor has said yes), never before.

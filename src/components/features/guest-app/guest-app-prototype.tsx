@@ -204,7 +204,7 @@ import { PMS_LAST_SYNC, PrototypeControls, type PrototypeEvent } from './prototy
 import { HostStore, hostClock, type StayInput } from './pilot/host/host';
 import { EngineBookingCard } from './pilot/host/booking-card';
 import type { Draft as EngineDraft } from './pilot/types';
-import { applyEngine, engineCancelLine, engineStatusLine } from './pilot/host/project';
+import { applyEngine, engineCancelLine, engineStatusLine, withoutEngineRecords } from './pilot/host/project';
 import { buildPilotEvents } from './pilot/host/events';
 import { LobbyShopScreen, type ShopProduct } from './pilot/host/shop';
 import { BookingThreadScreen, MessagesList } from './pilot/host/messages';
@@ -952,7 +952,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     */
     const timer = window.setTimeout(() => {
       hydratedRef.current = true;
-      setSession(stored);
+      // Records that point at engine bookings only make sense with the engine record that went with them.
+      setSession(hostStore.hasRecord() ? stored : withoutEngineRecords(stored));
       if (draft) {
         setStayDraft(draft.draft);
         setStayDetails(draft.details);
@@ -975,7 +976,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [persistent]);
+  }, [persistent, hostStore]);
 
   /*
     Skips its own first run: on mount this fires with the anonymous default,
@@ -1717,13 +1718,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     onNote: (note: { tone: 'warning' | 'positive'; text: string }) => setEngineNote(note),
     onOpenDesk: () => go('chat'),
     onPickAnother: () => go(bookingSlot.screen),
+    hasMenu: (listingId: string) => Object.values(TABLE_VENUE_SERVICE_IDS).includes(listingId),
     onOpenMenu: (listingId: string) => {
       const venueId = Object.entries(TABLE_VENUE_SERVICE_IDS).find(([, serviceId]) => serviceId === listingId)?.[0];
       if (venueId) { setSelectedRestaurantId(venueId); go('restaurant-menu'); }
     },
     onQuestion: (paymentId: string) => {
-      const reason = hostStore.host?.pilot.payment(paymentId).reason ?? 'extra';
-      setChatDraft(`I have a question about the ${reason} charge.`);
+      const reason = hostStore.host?.pilot.payments().find((x) => x.id === paymentId)?.reason;
+      setChatDraft(reason ? `I have a question about the ${reason} charge.` : 'I have a question about a charge on this booking.');
       go('chat');
     },
   };
@@ -4867,6 +4869,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             }}
             waitsForVendor={hostStore.host?.pilot.listings().find((entry) => entry.id === establishment.id)?.confirm === 'vendor'}
             needsApproval={(request) => {
+              if (!request.day || !request.time) return false;
               const host = hostStore.host;
               const stay = host?.guestOf(contextBooking.id);
               if (!host || !stay) return false;
@@ -5151,7 +5154,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const vendorName = engineHost && engineBooking ? engineHost.pilot.vendors().find((v) => v.id === engineHost.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'The vendor' : 'The vendor';
         const engineHeadline = engineBooking?.status === 'requested' ? { title: `Request sent to ${vendorName}`, text: `Nothing is charged until ${vendorName} confirms. You can follow it, and message them, under Messages.`, tag: 'Waiting' }
           : engineBooking?.status === 'needs-approval' ? { title: 'Waiting for the front desk', text: 'The front desk approves charging this to your room. If they do not answer in 10 minutes you can pay in full or cancel.', tag: 'Waiting' }
-          : engineBooking?.status === 'pay-or-cancel' ? { title: 'Pay in full or cancel', text: 'The front desk has not answered. Pay in full instead, or cancel.', tag: 'Waiting' }
+          : engineBooking?.status === 'pay-or-cancel' ? { title: 'Pay in full or cancel', text: 'The front desk could not charge this to your room. Pay in full instead, or cancel.', tag: 'Waiting' }
           : engineBooking?.status === 'awaiting-payment' ? { title: `Pay to confirm ${booked?.title ?? bookedService.name}`, text: 'Your slot is held while you pay. If it is not paid in time it is released.', tag: 'Pay to confirm' }
           : engineBooking && ['cancelled', 'declined', 'lapsed', 'withdrawn', 'payment-expired'].includes(engineBooking.status) ? { title: `${booked?.title ?? bookedService.name} is not booked`, text: engineStatusLine(engineBooking) + '. Nothing was charged.', tag: 'Not booked' }
           : undefined;
@@ -5176,7 +5179,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {engineBooking && engineHeadline ? null : <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />}
             <Notice title="Cancellation">{engineHost && engineBooking ? engineCancelLine(engineHost.pilot, engineBooking) : booked ? describeCancellationWindow(cutoffFor(booked), booked, PROTOTYPE_TODAY, clockHour) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
             {engineHost && engineBooking && booked?.engineId ? (
-              <EngineBookingCard host={engineHost} bookingId={booked.engineId} onPay={payEngineBooking} onNote={setEngineNote} onOpenDesk={() => go('chat')} onPickAnother={() => go(bookingSlot.screen)} />
+              <EngineBookingCard host={engineHost} bookingId={booked.engineId} {...cardHandlers} />
             ) : null}
             {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
             {primary('View my stay', 'my-stay')}
@@ -5592,7 +5595,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </div>
 
             {engineEntryHost && engineEntryBookingId ? (
-              <EngineBookingCard host={engineEntryHost} bookingId={engineEntryBookingId} paymentId={entryExtraId} onPay={payEngineBooking} onNote={setEngineNote} onOpenDesk={() => go('chat')} onPickAnother={() => go(bookingSlot.screen)} onQuestion={(paymentId) => { setChatDraft(`I have a question about the ${engineEntryHost.pilot.payment(paymentId).reason ?? 'extra'} charge.`); go('chat'); }} />
+              <EngineBookingCard host={engineEntryHost} bookingId={engineEntryBookingId} paymentId={entryExtraId} {...cardHandlers} />
             ) : null}
             {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
 

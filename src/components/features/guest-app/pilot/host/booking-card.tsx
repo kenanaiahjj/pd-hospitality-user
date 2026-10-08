@@ -62,6 +62,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: {
   const card: Card = paymentId ? pilot.extraCard(paymentId) : pilot.card(bookingId);
   const listing = pilot.listing(booking.listingId);
   const guestId = booking.guestId;
+  const freeToCancel = booking.kind === 'table' || booking.start - host.now() >= listing.freeCancelHours * 3_600_000;
 
   const doCancel = () => {
     setConfirmingCancel(false);
@@ -141,11 +142,11 @@ export function EngineBookingCard({ host, bookingId, paymentId, ...handlers }: {
           <progress max={1} value={card.timer.progress} aria-label="Time left" />
         </div>
       ) : null}
-      {confirmingCancel ? (
+      {confirmingCancel && card.actions.includes('cancel') ? (
         <div className="pilot-actions" role="group" aria-label="Confirm cancelling">
-          <p className="pilot-muted">Cancel this booking? Anything charged is undone.</p>
+          <p className="pilot-muted">{freeToCancel ? 'Cancel this booking? Anything charged is undone.' : 'The free-cancel time has passed. Ask the vendor to cancel? They have to accept.'}</p>
           <button type="button" className="guest-button guest-button--secondary" onClick={() => setConfirmingCancel(false)}>Keep it</button>
-          <button type="button" className="guest-button guest-button--primary" onClick={doCancel}>Yes, cancel</button>
+          <button type="button" className="guest-button guest-button--primary" onClick={doCancel}>{freeToCancel ? 'Yes, cancel' : 'Yes, ask to cancel'}</button>
         </div>
       ) : card.actions.length ? (
         <div className="pilot-actions">

@@ -118,4 +118,20 @@ describe('the engine on the app’s catalogue', () => {
     p.desk.declineApproval(big.bookingId);
     expect(p.guest().choosePayInFull(big.bookingId).ok).toBe(false);
   });
+
+  it('forgets a late cancellation once the booking moves on, and will not answer it then', () => {
+    const p = make();
+    const id = (p.guest().request({ listingId: 'gift', date: '2026-11-11', qty: 1, payMode: 'room' }) as { bookingId: string }).bookingId;
+    p.guest().cancel(id);
+    expect(p.booking(id).cancelRequested).toBe(true);
+    p.desk.markReady(id);
+    expect(p.booking(id).cancelRequested).toBe(false);
+    expect(p.vendor('hotel').answerCancel(id, true).ok).toBe(false);
+  });
+
+  it('refuses a draft with no day instead of throwing', () => {
+    const p = make();
+    expect(p.guest().quote({ listingId: 'spa', date: '', time: '10:00', qty: 1 }).ok).toBe(false);
+  });
 });
+

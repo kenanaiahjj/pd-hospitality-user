@@ -181,10 +181,13 @@ export class Host {
       return;
     }
     if (this.pilot.bookings().length > 0) return;
-    this.start = ms;
+    // Only what sets the scene is carried back: who is on which stay, and what has been switched. A request the
+    // engine refused is on the record too, and on an earlier clock it would be allowed: it must not be replayed.
+    const scene = new Set(['pilot.addGuest', 'desk.syncStay', 'pilot.setPms', 'pilot.setGateway', 'pilot.setGuestNotifications', 'vendor.setOnline', 'vendor.setAway']);
+    const kept = this.ops.filter((op) => scene.has(op.path));
     const fresh = makePilot(ms);
-    const kept = this.ops.filter((op) => op.path !== 'pilot.advanceTo');
     for (const op of kept) exec(fresh, op.path, op.args);
+    this.start = ms;
     this.pilot = fresh;
     this.ops = kept;
     this.touch();
@@ -224,6 +227,11 @@ export class HostStore {
   private emit() {
     this.version += 1;
     this.listeners.forEach((l) => l());
+  }
+
+  /** Whether a record from an earlier visit is kept and still fits this build's catalogue. */
+  hasRecord(): boolean {
+    return this.persistent && typeof window !== 'undefined' && read() !== null;
   }
 
   ensure(startAt: number): Host {

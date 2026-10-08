@@ -444,7 +444,7 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     await openCategory(user, 'Rentals');
     await user.click(screen.getByRole('button', { name: /City bicycle/ }));
     await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
-    expect(screen.getByText(/Your stay is over/)).toBeInTheDocument();
+    expect(screen.getByText(/This stay was cancelled/)).toBeInTheDocument();
   });
 
   it('does not clear the front desk’s unread while the guest reads a booking thread', async () => {
@@ -472,6 +472,22 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     // Never "complimentary": it is on the bill, waiting for the hotel system.
     expect(screen.queryByText(/Complimentary/)).toBeNull();
     expect(screen.getAllByText(/Charged to room|Charged to your room/).length).toBeGreaterThan(0);
+  });
+
+  it('opens a nearby sheet late on the last day, when no slot is left, without breaking', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="nearby-establishment" initialSession={applyPrototypeStayState('checkout-day')} />);
+    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+    await user.click(screen.getByRole('tab', { name: 'Clock' }));
+    await user.click(screen.getByRole('button', { name: /Late/ }));
+    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+    const open = screen.queryByRole('button', { name: 'Reserve a table' });
+    if (open) {
+      await user.click(open);
+      expect(screen.getByText(/No tables left/)).toBeInTheDocument();
+      expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reserve table' })).toBeDisabled();
+    }
+    expect(screen.getByRole('button', { name: 'Open prototype controls' })).toBeInTheDocument();
   });
 });
 

@@ -61,4 +61,15 @@ describe('the pilot host', () => {
     host.ensureGuest({ ...stay, checkOut: '2026-11-13', room: '512' });
     expect(host.pilot.stay(stayId)).toMatchObject({ checkOut: '2026-11-13', room: '512' });
   });
+
+  it('does not replay a refused request on an earlier clock when the day is begun again', () => {
+    const host = new Host(start, null, true);
+    const { guestId } = host.ensureGuest(stay);
+    // 2 PM now: this morning's slot has gone, so the engine refuses it, and the refusal is on the record.
+    const refused = host.call<{ ok: boolean }>('guest.request', guestId, { listingId: 'cafe', date: '2026-11-11', time: '09:00', qty: 2 });
+    expect(refused.ok).toBe(false);
+    host.setTime(hostClock('2026-11-11', 8));
+    expect(host.pilot.bookings()).toHaveLength(0);
+  });
 });
+

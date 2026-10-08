@@ -43,7 +43,7 @@ export function engineStatusLine(eb: EngineBooking): string {
     case 'no-show': return 'No-show';
     case 'withdrawn': return 'Withdrawn';
     case 'declined': return 'The vendor is not available';
-    case 'lapsed': return 'The vendor did not answer in time';
+    case 'lapsed': return eb.reason ?? 'The vendor did not answer in time';
     case 'payment-expired': return 'Payment expired';
     case 'cancelled': return 'Cancelled';
   }
@@ -52,8 +52,8 @@ export function engineStatusLine(eb: EngineBooking): string {
 /** What the guest may do about cancelling, in the engine's own rule: free in the window, the vendor's say after it. */
 export function engineCancelLine(pilot: Pilot, eb: EngineBooking): string {
   const listing = pilot.listing(eb.listingId);
-  if (eb.kind === 'table') return 'Free to cancel any time before you are seated. The table is held 15 minutes past your time.';
   if (['cancelled', 'declined', 'lapsed', 'withdrawn', 'payment-expired', 'no-show', 'completed', 'collected', 'seated'].includes(eb.status)) return 'This booking is closed.';
+  if (eb.kind === 'table') return 'Free to cancel any time before you are seated. The table is held 15 minutes past your time.';
   if (['requested', 'needs-approval', 'pay-or-cancel', 'awaiting-payment'].includes(eb.status)) return 'Withdraw any time before it is confirmed. Nothing is charged until then.';
   const until = eb.start - listing.freeCancelHours * 3_600_000;
   if (until <= pilot.now()) return 'The free-cancel time has passed. You can ask to cancel, and the vendor has to accept.';
@@ -69,7 +69,8 @@ function present(pilot: Pilot, host: Host, eb: EngineBooking, appBookingId: stri
   const pays = pilot.payments(eb.id).filter((p) => p.purpose === 'booking' && !p.duplicate);
   const room = pays.find(roomLive);
   const card = pays.filter((p) => p.mode === 'card').at(-1);
-  const refunded = pays.some((p) => p.mode === 'card' && ['refunded', 'refund-pending', 'refund-failed'].includes(p.state));
+  const refunded = pays.some((p) => p.mode === 'card' && p.state === 'refunded');
+  const refunding = pays.find((p) => p.mode === 'card' && ['refund-pending', 'refund-failed'].includes(p.state));
   const method = card ? (host.meta[`method:${card.id}`] as ServiceBooking['paymentMethod'] | undefined) ?? 'card' : undefined;
 
   let status: ServiceBooking['status'] = 'confirmed';
@@ -84,7 +85,7 @@ function present(pilot: Pilot, host: Host, eb: EngineBooking, appBookingId: stri
     bookingConfirmation = 'awaiting-provider';
   } else if (eb.status === 'awaiting-payment' || (card?.state === 'awaiting' && !room)) paymentStatus = 'payment-pending';
   else if (refunded) paymentStatus = 'refunded';
-  else if (card?.state === 'paid') paymentStatus = 'paid';
+  else if (card?.state === 'paid' || refunding) paymentStatus = 'paid';
   else if (room) paymentStatus = 'charged-to-room';
   else if (eb.amount === 0 || eb.kind === 'table') paymentStatus = 'complimentary';
   else paymentStatus = existing?.paymentStatus ?? 'complimentary';
@@ -95,6 +96,7 @@ function present(pilot: Pilot, host: Host, eb: EngineBooking, appBookingId: stri
   const paymentLine = paymentStatus === 'paid' ? `Paid · ${PAYMENT_METHOD_NAMES[(method ?? 'card') as 'card' | 'gcash' | 'maya']}`
     : paymentStatus === 'charged-to-room' ? 'Charged to your room'
     : paymentStatus === 'refunded' ? 'Refunded'
+    : refunding ? (refunding.state === 'refund-failed' ? 'The hotel is handling your refund' : 'Refund on its way')
     : undefined;
   const facts = [...(existing?.facts ?? []).filter((fact) => fact.label !== 'Status' && fact.label !== 'Payment'), ...(paymentLine ? [{ label: 'Payment', value: paymentLine }] : []), statusFact];
 
@@ -225,4 +227,22 @@ export function applyEngine(session: GuestSession, host: Host): GuestSession {
   // Points staged against a booking come back when it does not happen. Returning is a no-op the second time.
   const ended = bookings.filter((service) => service.engineId && service.status === 'cancelled').map((service) => service.id);
   return ended.length ? returnPoints(projected, ended) : projected;
+}
+
+/**
+  Records that point at engine bookings, when the engine they pointed at is gone
+  (its record was dropped, or this is a build whose catalogue it no longer fits).
+  The engine numbers its bookings from 1 again, so a stale record could be taken
+  for a new booking; they are removed instead, and any points staged on them
+  come back.
+*/
+export function withoutEngineRecords(session: GuestSession): GuestSession {
+  const gone = session.serviceBookings.filter((service) => service.engineId || service.engineExtraId).map((service) => service.id);
+  if (!gone.length && !(session.payments ?? []).some((payment) => payment.id.startsWith('pay-PAY-'))) return session;
+  const stripped: GuestSession = {
+    ...session,
+    serviceBookings: session.serviceBookings.filter((service) => !gone.includes(service.id)),
+    ...(session.payments ? { payments: session.payments.filter((payment) => !payment.id.startsWith('pay-PAY-')) } : {}),
+  };
+  return returnPoints(stripped, gone);
 }

@@ -159,9 +159,9 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: 'Home' }));
     await bookRental(user, 'room');
     await openMessages(user);
-    // Each vendor is a card of its own, and the chat about this booking sits in it.
-    const vendor = screen.getByRole('article', { name: /Sakay Rentals/ });
-    expect(within(vendor).getByRole('button', { name: /City bicycle, For confirmation/ })).toBeInTheDocument();
+    // A conversation is with a vendor, about a booking: both are in its name.
+    const row = screen.getByRole('button', { name: /^Sakay Rentals, City bicycle, For confirmation/ });
+    expect(within(row).getByText('SR')).toBeInTheDocument();
   });
 
   it('keeps every chat one to one: the vendor in the booking chat, the desk in its own', async () => {

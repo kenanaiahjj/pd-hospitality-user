@@ -34,6 +34,7 @@ import {
   X,
   WarningCircle,
   Heart,
+  CallBell,
 } from '@phosphor-icons/react';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
@@ -3367,8 +3368,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         <div className="guest-chat__context">
           <div className="guest-chat__identity">
             <button className="guest-chat__back" type="button" onClick={history.length ? back : () => go('stay-overview')} aria-label="Go back"><ArrowLeft aria-hidden="true" /></button>
-            {/* The hotel's photo, as the desk's row in Messages has it. */}
-            <span className="pilot-avatar" aria-hidden="true"><Image src={getPropertyImage(contextBooking.property).src} alt="" fill sizes="40px" style={{ objectPosition: getPropertyImage(contextBooking.property).focalPoint }} /></span>
+            {/* The desk's face, as its pinned row in Messages has it. */}
+            <span className="pilot-faces pilot-faces--small" aria-hidden="true"><span className="pilot-face pilot-face--desk"><CallBell /></span></span>
             <div className="guest-chat__identity-copy">
               <h1>Front desk</h1>
               <span>{contextBooking.property}</span>
@@ -5928,7 +5929,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             host={host}
             guestId={guest.guestId}
             desk={{ preview: lastDesk?.body ?? 'Ask the front desk anything about your stay.', fromGuest: lastDesk?.from === 'guest', unread: hasUnreadChat, place: primaryBooking?.property }}
-            deskImage={primaryBooking ? getPropertyImage(primaryBooking.property) : undefined}
             imageFor={engineImage}
             onOpenDesk={() => go('chat')}
             onOpenThread={(threadId) => { setSelectedThreadId(threadId); go('booking-thread'); }}

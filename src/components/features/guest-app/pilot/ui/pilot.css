@@ -24,41 +24,18 @@
 /* An inbox of people: a round photo, who it is, when they last spoke, what
    was said. One inset surface, hairlines starting where the words start. */
 
-.pilot-messages { gap: 24px; }
+.pilot-messages { gap: 8px; }
 
-.pilot-section { display: grid; gap: 10px; }
-.pilot-section__title {
-  margin: 0 4px;
-  color: var(--guest-muted);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.pilot-inbox {
-  display: block;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--guest-line);
-  border-radius: 16px;
-  background: var(--guest-paper);
-  list-style: none;
-}
-.pilot-inbox > li { position: relative; }
-.pilot-inbox > li + li::before {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 80px;
-  border-top: 1px solid var(--guest-line);
-  content: '';
-}
+/* Airbnb's inbox, in this app's type: one flat list, no boxes, a hairline
+   between conversations. Each one is a face, who and what about, the last
+   words, then where it stands. */
+.pilot-inbox { display: block; margin: 0; padding: 0; list-style: none; }
+.pilot-inbox > li + li { border-top: 1px solid var(--guest-line); }
+/* The desk's pinned row sits a step apart from the conversations under it. */
+.pilot-inbox > .pilot-inbox__pinned + li { border-top: 6px solid var(--guest-sunken); }
 
 .pilot-empty {
-  margin: 0;
-  padding: 4px 4px 0;
+  margin: 8px 0 0;
   color: var(--guest-muted);
   font-size: 14px;
   line-height: 1.5;
@@ -66,31 +43,41 @@
   text-wrap: balance;
 }
 
-.pilot-avatar {
-  position: relative;
+/* Two faces, overlapping: the booking's photo behind, the vendor in front. */
+.pilot-faces { position: relative; display: block; width: 64px; height: 64px; flex: none; }
+.pilot-face {
+  position: absolute;
   display: grid;
-  width: 52px;
-  height: 52px;
-  flex: none;
   overflow: hidden;
   place-items: center;
   border-radius: 999px;
   background: var(--guest-sunken);
-  color: var(--guest-muted);
-  font-size: 20px;
-  font-weight: 650;
 }
-.pilot-avatar img { object-fit: cover; }
+.pilot-face img { object-fit: cover; }
+.pilot-face--booking { top: 0; left: 0; width: 44px; height: 44px; }
+.pilot-face--vendor { right: 0; bottom: 0; width: 44px; height: 44px; box-shadow: 0 0 0 3px var(--guest-canvas, var(--guest-surface)); }
+.pilot-face--initials {
+  background: oklch(0.93 0.035 var(--face-hue));
+  color: oklch(0.38 0.08 var(--face-hue));
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+/* The desk alone, in one large dark face, as a platform's own support is shown. */
+.pilot-face--desk { inset: 0; width: 64px; height: 64px; background: var(--guest-brand); color: var(--guest-on-accent); font-size: 28px; }
 
-/* Two lines, with room: who and which booking with the time, then what was said. */
+.pilot-faces--small { width: 46px; height: 46px; }
+.pilot-faces--small .pilot-face--booking { width: 32px; height: 32px; }
+.pilot-faces--small .pilot-face--vendor { width: 32px; height: 32px; font-size: 11px; box-shadow: 0 0 0 2px var(--guest-canvas, var(--guest-surface)); }
+.pilot-faces--small .pilot-face--desk { width: 46px; height: 46px; font-size: 22px; }
+
 .pilot-chat-row {
   display: grid;
   width: 100%;
-  min-height: 84px;
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
-  padding: 16px 16px 16px 14px;
+  gap: 16px;
+  padding: 20px 2px;
   border: 0;
   background: transparent;
   color: var(--guest-ink);
@@ -98,81 +85,46 @@
   text-align: left;
 }
 .pilot-chat-row:active { background: var(--guest-sunken); }
-.pilot-chat-row:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: -2px; }
+.pilot-chat-row:focus-visible { outline: 2px solid var(--guest-brand); outline-offset: -2px; border-radius: 12px; }
 
-.pilot-chat-row__body { display: grid; min-width: 0; gap: 4px; }
-.pilot-chat-row__top { display: flex; min-width: 0; align-items: baseline; gap: 8px; }
+.pilot-chat-row__body { display: grid; min-width: 0; gap: 3px; }
+.pilot-chat-row__top { display: flex; min-width: 0; align-items: baseline; gap: 5px; }
 .pilot-chat-row__top b {
   flex: none;
-  max-width: 70%;
+  max-width: 62%;
   overflow: hidden;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 22px;
-  letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pilot-chat-row__about {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--guest-subtle);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.pilot-chat-row__top time { flex: none; margin-left: auto; color: var(--guest-subtle); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.pilot-chat-row__about { min-width: 0; overflow: hidden; color: var(--guest-muted); font-size: 16px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-chat-row__top time { flex: none; margin-left: auto; padding-left: 8px; color: var(--guest-subtle); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pilot-chat-row__pin { flex: none; align-self: center; margin-left: auto; color: var(--guest-subtle); font-size: 15px; }
-.pilot-chat-row__bottom { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 12px; }
 .pilot-chat-row__preview {
+  display: -webkit-box;
   overflow: hidden;
-  color: var(--guest-muted);
-  font-size: 14.5px;
-  line-height: 21px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--guest-ink);
+  font-size: 16px;
+  line-height: 22px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
-/* What is new reads first: the name, the time and the last words step up. */
-.pilot-chat-row.is-unread .pilot-chat-row__top b { font-weight: 700; }
-.pilot-chat-row.is-unread .pilot-chat-row__top time { color: var(--guest-brand); font-weight: 650; }
-.pilot-chat-row.is-unread .pilot-chat-row__preview { color: var(--guest-ink); }
-
-/* A vendor: its own card, so each business reads as itself. Who they are on
-   top, then a chat for each booking with them. */
-.pilot-section { gap: 12px; }
-.pilot-vendor {
-  overflow: hidden;
-  border: 1px solid var(--guest-line);
-  border-radius: 16px;
-  background: var(--guest-paper);
-}
-.pilot-vendor__head {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+.pilot-chat-row__meta {
+  display: flex;
+  min-height: 20px;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px 12px 14px;
-  border-bottom: 1px solid var(--guest-line);
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--guest-muted);
+  font-size: 14px;
+  line-height: 20px;
 }
-.pilot-vendor__head .pilot-avatar { width: 44px; height: 44px; font-size: 17px; }
-.pilot-vendor__head > span { display: grid; min-width: 0; gap: 2px; }
-.pilot-vendor__head b { overflow: hidden; font-size: 16px; font-weight: 650; line-height: 21px; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
-.pilot-vendor__head small { color: var(--guest-subtle); font-size: 12.5px; line-height: 17px; }
-.pilot-vendor ul { margin: 0; padding: 0; list-style: none; }
-.pilot-vendor li { position: relative; }
-.pilot-vendor li + li::before { position: absolute; top: 0; right: 0; left: 72px; border-top: 1px solid var(--guest-line); content: ''; }
-
-.pilot-chat-row--booking { min-height: 76px; grid-template-columns: 44px minmax(0, 1fr); padding: 14px 16px 14px 14px; }
-.pilot-chat-row__thumb {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  overflow: hidden;
-  border-radius: 10px;
-  background: var(--guest-sunken);
-}
-.pilot-chat-row__thumb img { object-fit: cover; }
-.pilot-chat-row--booking .pilot-chat-row__top b { max-width: none; flex: 1 1 auto; font-size: 15px; }
+/* What is new reads first, as Airbnb marks it: the name and the last words go bold. */
+.pilot-chat-row.is-unread .pilot-chat-row__top b { font-weight: 700; }
+.pilot-chat-row.is-unread .pilot-chat-row__preview { font-weight: 650; }
+.pilot-chat-row.is-unread .pilot-chat-row__top time { color: var(--guest-brand); font-weight: 650; }
 
 .pilot-dot { width: 10px; height: 10px; flex: none; border-radius: 999px; background: var(--guest-brand); }
 .pilot-badge {
@@ -212,7 +164,6 @@
    the middle, and each day starts with its date. */
 
 .pilot-chat .guest-chat__identity { grid-template-columns: auto auto minmax(0, 1fr); gap: 10px; }
-.pilot-chat .guest-chat__identity .pilot-avatar { width: 40px; height: 40px; font-size: 16px; }
 
 .pilot-booking-bar {
   display: grid;

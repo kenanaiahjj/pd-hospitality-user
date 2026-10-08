@@ -1,8 +1,8 @@
 'use client';
 
-import { ArrowLeft, CaretDown, ChatCircleDots, PushPin } from '@phosphor-icons/react';
+import { ArrowLeft, CaretDown, CallBell, PushPin } from '@phosphor-icons/react';
 import Image from 'next/image';
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties } from 'react';
 import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
@@ -48,20 +48,10 @@ const vendorOf = (host: Host, bookingId: string) => {
   return host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'The vendor';
 };
 
-function Avatar({ image, name, fallback }: { image?: ServiceImageDefinition; name: string; fallback?: ReactNode }) {
-  return (
-    <span className="pilot-avatar" aria-hidden="true">
-      {image ? <Image src={image.src} alt="" fill sizes="52px" style={{ objectPosition: image.focalPoint }} /> : fallback ?? name.charAt(0)}
-    </span>
-  );
-}
-
-export function MessagesList({ host, guestId, desk, deskImage, imageFor, onOpenDesk, onOpenThread }: {
+export function MessagesList({ host, guestId, desk, imageFor, onOpenDesk, onOpenThread }: {
   host: Host;
   guestId: string;
   desk: DeskRow;
-  /** The hotel's photograph, for the front desk's row. */
-  deskImage?: ServiceImageDefinition;
   imageFor?: (bookingId: string) => ServiceImageDefinition | undefined;
   onOpenDesk: () => void;
   onOpenThread: (threadId: string) => void;
@@ -70,79 +60,56 @@ export function MessagesList({ host, guestId, desk, deskImage, imageFor, onOpenD
   const threads = host.pilot.threads('guest', guestId)
     .filter((thread) => thread.kind === 'booking')
     .sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0));
-  // Each vendor is its own business, so each gets its own card: who they are, then the chats about each booking with them.
-  const byVendor = new Map<string, ThreadSummary[]>();
-  for (const thread of threads) {
-    if (!thread.bookingId) continue;
-    const vendorId = host.pilot.listing(host.pilot.booking(thread.bookingId).listingId).vendorId;
-    byVendor.set(vendorId, [...(byVendor.get(vendorId) ?? []), thread]);
-  }
-
   return (
     <div className="guest-stack pilot-messages">
       <div className="guest-page-title"><h1>Messages</h1></div>
-      {/* The front desk, on its own and pinned: the one chat that is always there. */}
-      <div className="pilot-inbox" role="group" aria-label="Front desk">
-        <button type="button" className={`pilot-chat-row${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
-          <Avatar image={deskImage} name="Front desk" fallback={<ChatCircleDots />} />
-          <span className="pilot-chat-row__body">
-            <span className="pilot-chat-row__top">
-              <b>Front desk</b>
-              <PushPin weight="fill" aria-hidden="true" className="pilot-chat-row__pin" />
+      <ul className="pilot-inbox">
+        {/* The front desk first and pinned, as Airbnb keeps its own support: the one chat that is always there. */}
+        <li className="pilot-inbox__pinned">
+          <button type="button" className={`pilot-chat-row${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk, pinned${desk.unread ? ', new message' : ''}`}>
+            <span className="pilot-faces" aria-hidden="true">
+              <span className="pilot-face pilot-face--desk"><CallBell /></span>
             </span>
-            <span className="pilot-chat-row__bottom">
+            <span className="pilot-chat-row__body">
+              <span className="pilot-chat-row__top">
+                <b>Front desk</b>
+                {desk.place ? <span className="pilot-chat-row__about">· {desk.place}</span> : null}
+                <PushPin weight="fill" aria-hidden="true" className="pilot-chat-row__pin" />
+              </span>
               <span className="pilot-chat-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
-              {desk.unread ? <i className="pilot-dot" aria-hidden="true" /> : null}
+              <span className="pilot-chat-row__meta">Any time during your stay{desk.unread ? <i className="pilot-dot" aria-hidden="true" /> : null}</span>
             </span>
-          </span>
-        </button>
-      </div>
-
-      {byVendor.size ? (
-        <section className="pilot-section" aria-label="Vendors">
-          <h2 className="pilot-section__title">Vendors</h2>
-          {[...byVendor].map(([vendorId, chats]) => (
-            <VendorCard key={vendorId} host={host} vendorId={vendorId} chats={chats} image={HOTEL_RUN.has(vendorId) ? deskImage : imageFor?.(chats[0]!.bookingId!)} imageFor={imageFor} onOpen={onOpenThread} />
-          ))}
-        </section>
-      ) : null}
+          </button>
+        </li>
+        {threads.map((thread) => (
+          <li key={thread.id}>
+            <ThreadRow host={host} thread={thread} image={thread.bookingId ? imageFor?.(thread.bookingId) : undefined} onOpen={onOpenThread} />
+          </li>
+        ))}
+      </ul>
       {threads.length === 0 ? <p className="pilot-empty">Book something in Explore and you can message the vendor here.</p> : null}
     </div>
   );
 }
 
-/** The hotel's own outlets, as opposed to partners outside it. */
-const HOTEL_RUN = new Set(['the-henry', 'lobby-shop']);
+/* Each partner gets a face of its own: its initials on a colour taken from its name, so two vendors never look alike. */
+const FACE_HUES = [250, 200, 300, 175, 225, 330, 280, 215];
+const faceHue = (name: string) => FACE_HUES[[...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % FACE_HUES.length]!;
+const initials = (name: string) => name.replace(/^The\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]!.toUpperCase()).join('');
 
-function VendorCard({ host, vendorId, chats, image, imageFor, onOpen }: {
-  host: Host;
-  vendorId: string;
-  chats: ThreadSummary[];
-  image?: ServiceImageDefinition;
-  imageFor?: (bookingId: string) => ServiceImageDefinition | undefined;
-  onOpen: (id: string) => void;
-}) {
-  const name = host.pilot.vendors().find((v) => v.id === vendorId)?.name ?? 'Vendor';
-  const unread = chats.reduce((sum, chat) => sum + chat.unread, 0);
-  const kind = HOTEL_RUN.has(vendorId) ? 'Run by the hotel' : 'Partner';
+/** Who, and what about: the vendor's face in front, the booking's photo behind it. */
+function Faces({ name, image, small }: { name: string; image?: ServiceImageDefinition; small?: boolean }) {
   return (
-    <article className={`pilot-vendor${unread ? ' is-unread' : ''}`} aria-label={`${name}, ${chats.length} ${chats.length === 1 ? 'booking' : 'bookings'}`}>
-      <header className="pilot-vendor__head">
-        <Avatar image={image} name={name} />
-        <span>
-          <b>{name}</b>
-          <small>{kind} · {chats.length} {chats.length === 1 ? 'booking' : 'bookings'}</small>
-        </span>
-      </header>
-      <ul>
-        {chats.map((chat) => <li key={chat.id}><ChatRow host={host} thread={chat} vendor={name} image={chat.bookingId ? imageFor?.(chat.bookingId) : undefined} onOpen={onOpen} /></li>)}
-      </ul>
-    </article>
+    <span className={`pilot-faces${small ? ' pilot-faces--small' : ''}`} aria-hidden="true">
+      <span className="pilot-face pilot-face--booking">{image ? <Image src={image.src} alt="" fill sizes="44px" style={{ objectPosition: image.focalPoint }} /> : null}</span>
+      <span className="pilot-face pilot-face--vendor pilot-face--initials" style={{ '--face-hue': faceHue(name) } as CSSProperties}>{initials(name)}</span>
+    </span>
   );
 }
 
-function ChatRow({ host, thread, vendor, image, onOpen }: { host: Host; thread: ThreadSummary; vendor: string; image?: ServiceImageDefinition; onOpen: (id: string) => void }) {
+function ThreadRow({ host, thread, image, onOpen }: { host: Host; thread: ThreadSummary; image?: ServiceImageDefinition; onOpen: (id: string) => void }) {
   const booking = thread.bookingId ? host.pilot.booking(thread.bookingId) : undefined;
+  const name = booking ? vendorOf(host, booking.id) : thread.title;
   // The last thing said, as an inbox shows it. A status change says itself; a person's words name only "You".
   const last = thread.last;
   const preview = !last ? 'No messages yet.'
@@ -152,20 +119,20 @@ function ChatRow({ host, thread, vendor, image, onOpen }: { host: Host; thread: 
   return (
     <button
       type="button"
-      className={`pilot-chat-row pilot-chat-row--booking${thread.unread ? ' is-unread' : ''}`}
+      className={`pilot-chat-row${thread.unread ? ' is-unread' : ''}`}
       onClick={() => onOpen(thread.id)}
-      aria-label={`${vendor}, ${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}
+      aria-label={`${name}, ${thread.title}${thread.cardLabel ? `, ${thread.cardLabel}` : ''}${thread.unread ? `, ${thread.unread} unread` : ''}`}
     >
-      <span className="pilot-chat-row__thumb" aria-hidden="true">
-        {image ? <Image src={image.src} alt="" fill sizes="44px" style={{ objectPosition: image.focalPoint }} /> : null}
-      </span>
+      <Faces name={name} image={image} />
       <span className="pilot-chat-row__body">
         <span className="pilot-chat-row__top">
-          <b>{thread.title}</b>
+          <b>{name}</b>
+          <span className="pilot-chat-row__about">· {thread.title}</span>
           {last ? <time>{sentAt(last.at, host.now())}</time> : null}
         </span>
-        <span className="pilot-chat-row__bottom">
-          <span className="pilot-chat-row__preview">{preview}</span>
+        <span className="pilot-chat-row__preview">{preview}</span>
+        <span className="pilot-chat-row__meta">
+          {[thread.cardLabel, booking ? shortDate(booking.start) : undefined].filter(Boolean).join(' · ')}
           {thread.unread ? <i className="pilot-badge" aria-hidden="true">{thread.unread}</i> : null}
         </span>
       </span>
@@ -218,7 +185,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
       <div className="guest-chat__context">
         <div className="guest-chat__identity">
           <button className="guest-chat__back" type="button" onClick={onBack} aria-label="Go back"><ArrowLeft aria-hidden="true" /></button>
-          <Avatar image={bookingId ? handlers.imageFor?.(bookingId) : undefined} name={name} />
+          <Faces small name={name} image={bookingId ? handlers.imageFor?.(bookingId) : undefined} />
           <div className="guest-chat__identity-copy">
             <h1>{name}</h1>
             <span>{thread?.title ?? 'Booking'}</span>

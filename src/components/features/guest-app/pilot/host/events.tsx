@@ -1,5 +1,7 @@
 import { Bell, Check, ChatCircleDots, Clock, QrCode, Receipt, Storefront, WarningCircle, WifiSlash, X } from '@phosphor-icons/react';
-import type { PrototypeEvent } from '../../prototype-controls';
+import type { PrototypeEvent, PrototypeSection } from '../../prototype-controls';
+import type { ServiceImageDefinition } from '../../service-images';
+import { STATUS_TONE } from './booking-card';
 import type { Booking, Result } from '../types';
 import type { Host } from './host';
 
@@ -39,16 +41,20 @@ export type EventContext = {
   fillSamples: () => void;
   clearSamples: () => void;
   fillBlocked?: string;
+  /** A booking's photograph, for its heading in the controls. */
+  imageFor?: (bookingId: string) => ServiceImageDefinition | undefined;
 };
 
-export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, cancelStay, deskMessage, deskBooks, moveRoom, checkOut, refused, fillSamples, clearSamples, fillBlocked }: EventContext): { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[] } {
+export type PilotEvents = { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[]; sections: PrototypeSection[] };
+
+export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, cancelStay, deskMessage, deskBooks, moveRoom, checkOut, refused, fillSamples, clearSamples, fillBlocked, imageFor }: EventContext): PilotEvents {
   const pilot = host.pilot;
   const guest = host.guestOf(stayId);
   const vendor: PrototypeEvent[] = [];
   const desk: PrototypeEvent[] = [];
   const clock: PrototypeEvent[] = [];
   const faults: PrototypeEvent[] = [];
-  if (!guest) return { vendor, desk, clock, faults };
+  if (!guest) return { vendor, desk, clock, faults, sections: [] };
 
   /** Run one engine action; if it is refused, say so, rather than leaving the presenter with a button that did nothing. */
   const call = (path: string, ...args: unknown[]) => () => {
@@ -169,8 +175,8 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     if (seen.has(listing.id)) continue;
     seen.add(listing.id);
     const vendorId = listing.vendorId;
-    vendor.push({ icon: <X />, label: `Vendor blocks the slot of ${listing.title}`, detail: 'Refused while bookings are on it, and the guest sees how many.', onClick: call('vendor.blockSlot', listing.id, b.slotKeys[0]) });
-    vendor.push({ icon: <X />, label: `Vendor removes ${listing.title}`, detail: 'Refused while bookings are open on it. Once gone, nobody can ask for it.', onClick: call('vendor.removeListing', listing.id) });
+    vendor.push({ icon: <X />, label: `Vendor blocks the booked slot of ${listing.title}`, detail: 'Refused while bookings are on it, and the guest sees how many.', onClick: call('vendor.blockSlot', listing.id, b.slotKeys[0]) });
+    vendor.push({ icon: <X />, label: `Vendor removes the listing ${listing.title}`, detail: 'Refused while bookings are open on it. Once gone, nobody can ask for it.', onClick: call('vendor.removeListing', listing.id) });
     void vendorId;
   }
 
@@ -203,7 +209,7 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     conversation is missing).
   */
   const waiting = (list: PrototypeEvent[], present: (label: string) => boolean, icon: PrototypeEvent['icon'], label: string, reason: string) => {
-    if (!list.some((event) => present(event.label))) list.push({ icon, label, detail: reason, onClick: () => undefined, unavailable: reason });
+    if (!list.some((event) => present(event.label))) list.push({ icon, label, detail: reason, onClick: () => undefined, unavailable: reason, placeholder: true });
   };
   waiting(vendor, (l) => /^Vendor confirms (?!and)/.test(l), <Check />, 'Vendor confirms a request', 'Needs a request waiting for the vendor: ask for a rental or a tour');
   waiting(vendor, (l) => l.startsWith('Vendor is not available for'), <X />, 'Vendor is not available for a request', 'Needs a request waiting for the vendor');
@@ -228,8 +234,17 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
   // Each booking's buttons sit under its own heading, so with a dozen bookings the list can still be read.
   const titles = [...new Set(bookings.map((b) => pilot.listing(b.listingId).title))].sort((a, b) => b.length - a.length);
   const sectioned = (event: PrototypeEvent): PrototypeEvent => {
-    const section = event.unavailable ? undefined : titles.find((title) => event.label.includes(title));
+    const section = event.placeholder ? undefined : titles.find((title) => event.label.includes(title));
     return section ? { ...event, section } : event;
   };
-  return { vendor: vendor.map(sectioned), desk: desk.map(sectioned), clock, faults };
+  // The headings, in the order Messages lists the bookings: newest conversation first.
+  const lastAt = new Map(pilot.threads('guest', guest.guestId).map((thread) => [thread.bookingId, thread.last?.at ?? 0]));
+  const sections: PrototypeSection[] = [];
+  for (const b of [...bookings].sort((x, y) => (lastAt.get(y.id) ?? 0) - (lastAt.get(x.id) ?? 0))) {
+    const title = pilot.listing(b.listingId).title;
+    if (sections.some((section) => section.title === title)) continue;
+    const card = pilot.card(b.id);
+    sections.push({ title, status: card.label, tone: STATUS_TONE(card.state, card.label), image: imageFor?.(b.id) });
+  }
+  return { vendor: vendor.map(sectioned), desk: desk.map(sectioned), clock, faults, sections };
 }

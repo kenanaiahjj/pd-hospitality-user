@@ -1812,6 +1812,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           if (stay) hostStore.host?.call('desk.cancelStay', stay.stayId);
         },
         deskBooks: deskBooksForGuest,
+        imageFor: engineImage,
         fillBlocked: sampleState(hostStore.host, primaryBooking.id) === 'seeded' ? 'Already filled: clear them first' : pilotStays.find((stay) => stay.id === primaryBooking.id)?.status !== 'in-house' || addDays(PROTOTYPE_TODAY, 1) > primaryBooking.checkOut ? 'Needs a stay that is under way with at least a day left' : undefined,
         fillSamples: () => {
           const host = hostStore.host;
@@ -1891,7 +1892,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     },
   });
   const pilotEvents = rawPilotEvents
-    ? { vendor: rawPilotEvents.vendor.map(announcing), desk: rawPilotEvents.desk.map(announcing), clock: rawPilotEvents.clock.map(announcing), faults: rawPilotEvents.faults }
+    ? { vendor: rawPilotEvents.vendor.map(announcing), desk: rawPilotEvents.desk.map(announcing), clock: rawPilotEvents.clock.map(announcing), faults: rawPilotEvents.faults, sections: rawPilotEvents.sections }
     : undefined;
 
   /* A fresh device: no saved hotels, recent searches, saved offer or half-made booking. */

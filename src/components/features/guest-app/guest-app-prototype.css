@@ -8981,35 +8981,99 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-prototype-toolbar .guest-prototype-chips button.is-active small { color: inherit; opacity: 0.75; }
 .guest-prototype-empty { margin: 0; color: var(--ds-ink-muted); font-size: 13px; line-height: 1.45; }
 
-/* Events: rows that say what they do, or why they cannot. */
-.guest-prototype-events { display: grid; gap: 6px; }
-.guest-prototype-events h3 { margin: 0 0 2px; color: var(--ds-ink-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+/* Events, Conditions, Pages: Messages' grouped rows. One inset surface per
+   group with hairlines between, the group named once above it. Each booking
+   gets the photo and status Messages gives it, so the presenter finds the
+   booking they are looking at in the app. */
+.guest-prototype-jump {
+  position: sticky;
+  top: -1px;
+  z-index: 2;
+  display: flex;
+  min-height: 44px;
+  gap: 6px;
+  padding: 2px 0 8px;
+  overflow-x: auto;
+  background: oklch(1 0 0);
+  scrollbar-width: none;
+}
+.guest-prototype-jump::-webkit-scrollbar { display: none; }
+.guest-prototype-toolbar .guest-prototype-jump button {
+  flex: none;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--ds-line);
+  border-radius: 999px;
+  background: oklch(1 0 0);
+  color: var(--ds-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.guest-prototype-toolbar .guest-prototype-jump button:active { background: var(--ds-surface-sunken); }
+
+.guest-prototype-area { display: grid; gap: 16px; scroll-margin-top: 48px; }
+.guest-prototype-area + .guest-prototype-area { margin-top: 12px; }
+.guest-prototype-area__title { margin: 0; color: var(--ds-ink); font-size: 17px; font-weight: 700; letter-spacing: -0.014em; }
+
+.guest-prototype-events { display: grid; gap: 8px; }
+.guest-prototype-events + .guest-prototype-events { margin-top: 8px; }
+.guest-prototype-events h4 {
+  margin: 0 4px;
+  color: var(--ds-ink-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.guest-prototype-events__list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--ds-line);
+  border-radius: 16px;
+  background: oklch(1 0 0);
+}
+
+.guest-prototype-booking { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 10px; margin: 0 4px; }
+.guest-prototype-booking__thumb {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--ds-surface-sunken);
+}
+.guest-prototype-booking__thumb img { object-fit: cover; }
+.guest-prototype-booking > span:last-child { display: grid; min-width: 0; gap: 2px; }
+.guest-prototype-booking b { overflow: hidden; font-size: 14px; font-weight: 650; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+
 .guest-prototype-toolbar .guest-prototype-event {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  width: 100%;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
   justify-content: stretch;
   gap: 12px;
   min-height: 56px;
-  padding: 10px 12px;
-  border: 1px solid var(--ds-line);
-  border-radius: 14px;
-  background: oklch(1 0 0);
+  padding: 11px 14px 11px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--ds-ink);
   text-align: left;
 }
-.guest-prototype-event__icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: var(--ds-surface-sunken); }
+.guest-prototype-toolbar .guest-prototype-event + .guest-prototype-event { border-top: 1px solid var(--ds-line); }
+.guest-prototype-toolbar .guest-prototype-event:active:not(:disabled) { background: var(--ds-surface-sunken); }
+.guest-prototype-toolbar .guest-prototype-event:focus-visible { outline: 2px solid var(--ds-accent-strong); outline-offset: -2px; }
+.guest-prototype-event__icon { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: var(--ds-surface-sunken); font-size: 16px; }
 .guest-prototype-event__copy { display: grid; gap: 2px; min-width: 0; }
-.guest-prototype-event__copy b { font-size: 13.5px; font-weight: 650; }
-.guest-prototype-event__copy small { color: var(--ds-ink-muted); font-size: 12px; font-weight: 500; line-height: 1.35; }
-.guest-prototype-toolbar .guest-prototype-event:disabled { opacity: 1; background: var(--ds-surface-sunken); }
+.guest-prototype-event__copy b { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.guest-prototype-event__copy small { color: var(--ds-ink-muted); font-size: 12.5px; font-weight: 450; line-height: 1.4; }
+/* Nothing to act on yet: the row stays to say why, one step back. */
+.guest-prototype-toolbar .guest-prototype-event:disabled { opacity: 1; background: transparent; cursor: default; }
+.guest-prototype-toolbar .guest-prototype-event:disabled .guest-prototype-event__icon { opacity: 0.5; }
 .guest-prototype-toolbar .guest-prototype-event:disabled b { color: var(--ds-ink-muted); }
-.guest-prototype-toolbar .guest-prototype-event:disabled small { color: oklch(0.55 0.11 60); }
-.guest-prototype-stage .guest-prototype-toolbar__reset { justify-self: center; margin-top: 4px; color: oklch(0.55 0.19 25); }
-
-@media (hover: hover) and (pointer: fine) {
-  .guest-prototype-toolbar .guest-prototype-event:hover:not(:disabled),
-  .guest-prototype-toolbar .guest-prototype-states__option:hover { border-color: var(--ds-line-strong); }
-}
+.guest-prototype-toolbar .guest-prototype-event:disabled small { color: var(--ds-ink-muted); font-style: italic; }
+.guest-prototype-stage .guest-prototype-toolbar__reset { justify-self: center; margin-top: 8px; color: oklch(0.55 0.19 25); }
 
 /* On a phone: a bottom sheet, full width, with a grip to swipe it away. */
 @media (max-width: 719px) {
@@ -9079,7 +9143,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-message__retry { justify-self: end; padding: 0; border: 0; background: none; color: var(--guest-warning); font-size: 12px; font-weight: 700; cursor: pointer; }
 
 /* Condition switches in the prototype controls: a plain On/Off on the right. */
-.guest-prototype-event__state { margin-left: auto; color: var(--guest-muted); font-size: 12px; font-weight: 700; }
+.guest-prototype-event__state { color: var(--guest-muted); font-size: 12px; font-weight: 700; }
 .guest-prototype-event.is-on .guest-prototype-event__state { color: var(--guest-warning); }
 
 /* Pay now: the gateway checkout for third-party vendors. */

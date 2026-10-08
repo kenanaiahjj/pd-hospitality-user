@@ -22,6 +22,7 @@ import {
   Wrench,
   X,
 } from '@phosphor-icons/react';
+import Image from 'next/image';
 import { PROTOTYPE_STAY_STATES } from './prototype-model';
 import type { PrototypeStayState } from './prototype-model';
 import type { FeedClock } from './promoted';
@@ -79,7 +80,31 @@ export type PrototypePage = { group: PrototypePageGroup; label: string; detail: 
 const PAGE_GROUPS = ['Find a hotel', 'Book', 'After booking', 'Profile', 'Empty states', 'Error states'] as const;
 export type PrototypePageGroup = (typeof PAGE_GROUPS)[number];
 /** An event the host app computes, such as the hotel answering a request. */
-export type PrototypeEvent = { icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string; /** A sub-heading within its group, such as the booking it is about. */ section?: string };
+export type PrototypeEvent = { icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string; /** A sub-heading within its group, such as the booking it is about. */ section?: string; /** Stands in for a trigger that has nothing to act on yet. */ placeholder?: boolean };
+/** A booking's heading in the Events tab: what it is and where it stands, as Messages lists it. */
+export type PrototypeSection = { title: string; status?: string; tone?: string; image?: { src: string; focalPoint: string } };
+
+/** "Vendor cancels City bicycle" under the City bicycle heading reads "Vendor cancels". */
+const withoutTitle = (label: string, title?: string) => {
+  if (!title) return label;
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const short = label.replace(new RegExp(`\\s*\\b(?:(for|about|to|on|of)\\s*)?(the vendor of\\s*)?${escaped}`), (match: string, word: string | undefined, vendorOf: string | undefined, at: number) => (vendorOf ? ` ${word ?? ''} the vendor` : !word && at + match.length < label.length ? ' it' : '')).replace(/\s+/g, ' ').trim();
+  return short || label;
+};
+
+/** One trigger: what it does, or why it cannot yet. */
+function EventRow({ event, label }: { event: PrototypeEvent; label?: string }) {
+  return (
+    <button type="button" className="guest-prototype-event" onClick={event.onClick} disabled={Boolean(event.unavailable)} aria-label={event.label} aria-describedby={`prototype-event-${slug(event.label)}`}>
+      <span className="guest-prototype-event__icon" aria-hidden="true">{event.icon}</span>
+      <span className="guest-prototype-event__copy">
+        <b>{label ?? event.label}</b>
+        <small id={`prototype-event-${slug(event.label)}`}>{event.unavailable ?? event.detail}</small>
+      </span>
+    </button>
+  );
+}
+
 export type PrototypeConditions = { online: boolean; pmsDown: boolean; emptyCatalogue: boolean; booking: boolean; chat: boolean; scan: boolean };
 const CONDITION_ROWS: { group: string; rows: { key: keyof PrototypeConditions; label: string; detail: string; onText: string; icon: ReactNode; once?: boolean }[] }[] = [
   { group: 'Connection', rows: [
@@ -180,7 +205,7 @@ export function PrototypeControls({
   /** Forgets what this device kept: saved hotels, recent searches, a saved offer, a booking draft. */
   onClearDeviceData?: () => void;
   /** The other side of the conversation: the vendor, the front desk, the clock, and what can go wrong. */
-  pilotEvents?: { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[] };
+  pilotEvents?: { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[]; sections?: PrototypeSection[] };
 }) {
   /*
     Collapsed by default. This is scaffolding, not part of the product, and as
@@ -264,12 +289,10 @@ export function PrototypeControls({
     ...(onSimulateFreeUpgrade ? [{ group: 'PMS events', icon: <Bed />, label: 'Assign with a free upgrade', detail: 'The booked type is full; the hotel gives the next one up at no cost.', onClick: onSimulateFreeUpgrade, unavailable: offline ?? (canSimulateRoomAssignment ? undefined : 'Needs a stay still waiting for a room') }] : []),
     { group: 'PMS events', icon: <BellRinging />, label: 'Simulate room ready', detail: 'Housekeeping marks the assigned room ready.', onClick: onSimulateRoomReady, unavailable: offline ?? (canSimulateRoomReady ? undefined : 'Needs a room that is being prepared') },
     { group: 'PMS events', icon: <Bed />, label: 'Approve upgrade request', detail: 'The front desk confirms the upgrade and assigns the room.', onClick: onSimulateUpgradeApproved, unavailable: offline ?? (canSimulateUpgradeApproved ? undefined : 'No upgrade requested') },
+    // The desk's moves on the stay itself, ahead of the hotel system's.
+    ...(pilotEvents?.desk ?? []).filter((event) => !event.section && !event.placeholder).map((event) => ({ ...event, group: 'Front desk' })),
     ...hotelEvents.map((event) => ({ ...event, group: 'Hotel answers' })),
     ...guestEvents.map((event) => ({ ...event, group: 'Guest requests' })),
-    ...(pilotEvents?.vendor ?? []).map((event) => ({ ...event, group: event.section ? `Vendor · ${event.section}` : 'Vendor' })),
-    ...(pilotEvents?.desk ?? []).map((event) => ({ ...event, group: event.section ? `Front desk · ${event.section}` : 'Front desk' })),
-    ...(pilotEvents?.clock ?? []).map((event) => ({ ...event, group: 'Bookings clock' })),
-    ...(pilotEvents?.faults ?? []).map((event) => ({ ...event, group: 'Things going wrong' })),
     { group: 'Gates', icon: <QrCode />, label: roomVerified ? 'Clear room verification' : 'Verify room (skip the scan)', detail: roomVerified ? 'Locks the stay again, so the scan can be run.' : 'Opens on-property services without scanning.', onClick: onToggleRoomVerified, unavailable: canToggleRoomVerified ? undefined : 'Needs a stay with a room' },
     { group: 'Gates', icon: <ClockCountdown />, label: simulatePostStayExpired ? 'Reset 24-hour chat window' : 'Simulate 24 hours after checkout', detail: simulatePostStayExpired ? 'Reopens the front desk after checkout.' : 'The desk closes and the stay moves to Profile: Home has no booking.', onClick: onTogglePostStayExpired },
     { group: 'Data', icon: <Receipt />, label: hasHistory ? 'Clear stay history' : 'Seed stay history', detail: hasHistory ? 'As a first-time guest, with no past stays.' : 'Adds past stays to the profile.', onClick: onToggleHistory },
@@ -282,6 +305,13 @@ export function PrototypeControls({
     { group: 'Demo', icon: <Ticket />, label: strictLookup ? 'Lookup: only real references' : 'Lookup: accepts anything', detail: 'Tap to switch.', onClick: onToggleStrictLookup },
   ];
   const groups = [...new Set(events.map((event) => event.group))];
+  // Bookings: each one's vendor and desk triggers under its own heading, then what applies to every vendor, then what has nothing to act on yet.
+  const bookingTriggers = [...(pilotEvents?.vendor ?? []), ...(pilotEvents?.desk ?? [])];
+  const sections = (pilotEvents?.sections ?? []).filter((section) => bookingTriggers.some((event) => event.section === section.title));
+  const vendorWide = (pilotEvents?.vendor ?? []).filter((event) => !event.section && !event.placeholder);
+  const notYet = bookingTriggers.filter((event) => event.placeholder);
+  const AREAS = [['bookings', 'Bookings'], ['stay', 'Stay'], ['clock', 'Clock'], ['problems', 'Problems']] as const;
+  const jump = (area: string) => document.getElementById(`prototype-area-${area}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 
   return (
     <div
@@ -386,20 +416,73 @@ export function PrototypeControls({
 
         {tab === 'events' ? (
           <>
-            {groups.map((group) => (
-              <section key={group} className="guest-prototype-events" aria-label={group}>
-                <h3>{group}</h3>
-                {events.filter((event) => event.group === group).map((event) => (
-                  <button key={event.label} type="button" className="guest-prototype-event" onClick={event.onClick} disabled={Boolean(event.unavailable)} aria-label={event.label} aria-describedby={`prototype-event-${slug(event.label)}`}>
-                    <span className="guest-prototype-event__icon" aria-hidden="true">{event.icon}</span>
-                    <span className="guest-prototype-event__copy">
-                      <b>{event.label}</b>
-                      <small id={`prototype-event-${slug(event.label)}`}>{event.unavailable ?? event.detail}</small>
-                    </span>
-                  </button>
+            {pilotEvents ? (
+              <nav className="guest-prototype-jump" aria-label="Jump to">
+                {AREAS.map(([id, label]) => <button key={id} type="button" onClick={() => jump(id)}>{label}</button>)}
+              </nav>
+            ) : null}
+
+            {pilotEvents ? (
+              <div className="guest-prototype-area" id="prototype-area-bookings">
+                <h3 className="guest-prototype-area__title">Bookings</h3>
+                {sections.length === 0 ? <p className="guest-prototype-empty">Nothing booked yet. Ask for something in Explore, or fill the stay with samples under Stay.</p> : null}
+                {sections.map((section) => (
+                  <section key={section.title} className="guest-prototype-events" aria-label={section.title}>
+                    <header className="guest-prototype-booking">
+                      <span className="guest-prototype-booking__thumb" aria-hidden="true">
+                        {section.image ? <Image src={section.image.src} alt="" fill sizes="36px" style={{ objectPosition: section.image.focalPoint }} /> : null}
+                      </span>
+                      <span><b>{section.title}</b>{section.status ? <small className={`pilot-status pilot-status--${section.tone ?? 'wait'}`}>{section.status}</small> : null}</span>
+                    </header>
+                    <div className="guest-prototype-events__list">
+                      {bookingTriggers.filter((event) => event.section === section.title).sort((a, b) => Number(Boolean(a.unavailable)) - Number(Boolean(b.unavailable))).map((event) => <EventRow key={event.label} event={event} label={withoutTitle(event.label, section.title)} />)}
+                    </div>
+                  </section>
                 ))}
-              </section>
-            ))}
+                {vendorWide.length ? (
+                  <section className="guest-prototype-events" aria-label="Every vendor">
+                    <h4>Every vendor</h4>
+                    <div className="guest-prototype-events__list">{vendorWide.map((event) => <EventRow key={event.label} event={event} />)}</div>
+                  </section>
+                ) : null}
+                {notYet.length ? (
+                  <section className="guest-prototype-events" aria-label="Not possible yet">
+                    <h4>Not possible yet</h4>
+                    <div className="guest-prototype-events__list">{notYet.map((event) => <EventRow key={event.label} event={event} />)}</div>
+                  </section>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="guest-prototype-area" id="prototype-area-stay">
+              {pilotEvents ? <h3 className="guest-prototype-area__title">Stay</h3> : null}
+              {groups.map((group) => (
+                <section key={group} className="guest-prototype-events" aria-label={group}>
+                  <h4>{group}</h4>
+                  <div className="guest-prototype-events__list">
+                    {events.filter((event) => event.group === group).map((event) => <EventRow key={event.label} event={event} />)}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            {pilotEvents ? (
+              <>
+                <div className="guest-prototype-area" id="prototype-area-clock">
+                  <h3 className="guest-prototype-area__title">Clock</h3>
+                  <section className="guest-prototype-events" aria-label="Bookings clock">
+                    <div className="guest-prototype-events__list">{pilotEvents.clock.map((event) => <EventRow key={event.label} event={event} />)}</div>
+                  </section>
+                </div>
+                <div className="guest-prototype-area" id="prototype-area-problems">
+                  <h3 className="guest-prototype-area__title">Problems</h3>
+                  <section className="guest-prototype-events" aria-label="Things going wrong">
+                    <div className="guest-prototype-events__list">{pilotEvents.faults.map((event) => <EventRow key={event.label} event={event} />)}</div>
+                  </section>
+                </div>
+              </>
+            ) : null}
+
             <button className="guest-prototype-toolbar__reset" type="button" onClick={onReset}>
               Reset saved session
             </button>
@@ -410,7 +493,8 @@ export function PrototypeControls({
           <>
             {CONDITION_ROWS.map((group) => (
               <section key={group.group} className="guest-prototype-events" aria-label={group.group}>
-                <h3>{group.group}</h3>
+                <h4>{group.group}</h4>
+                <div className="guest-prototype-events__list">
                 {group.rows.map((row) => {
                   const on = row.key === 'online' ? !conditions.online : conditions[row.key];
                   return (
@@ -424,10 +508,12 @@ export function PrototypeControls({
                     </button>
                   );
                 })}
+                </div>
               </section>
             ))}
             <section className="guest-prototype-events" aria-label="Data">
-              <h3>Data</h3>
+              <h4>Data</h4>
+              <div className="guest-prototype-events__list">
               <button type="button" className="guest-prototype-event" onClick={() => { onEmptyAccount(); setOpen(false); }}>
                 <span className="guest-prototype-event__icon" aria-hidden="true"><Sparkle /></span>
                 <span className="guest-prototype-event__copy"><b>Empty account</b><small>Signed in, with no bookings, charges, badges or stays.</small></span>
@@ -438,6 +524,7 @@ export function PrototypeControls({
                   <span className="guest-prototype-event__copy"><b>Clear device data</b><small>Saved hotels, recent searches, a saved offer and any half-made booking.</small></span>
                 </button>
               ) : null}
+              </div>
             </section>
           </>
         ) : null}
@@ -446,13 +533,15 @@ export function PrototypeControls({
           <>
             {PAGE_GROUPS.map((group) => (
               <section key={group} className="guest-prototype-events" aria-label={group}>
-                <h3>{group}</h3>
+                <h4>{group}</h4>
+                <div className="guest-prototype-events__list">
                 {pages.filter((page) => page.group === group).map((page) => (
                   <button key={page.label} type="button" className="guest-prototype-event" onClick={() => { page.open(); setOpen(false); }}>
                     <span className="guest-prototype-event__icon" aria-hidden="true">{group === 'Empty states' ? <Sparkle /> : group === 'Error states' ? <WarningCircle /> : <Bed />}</span>
                     <span className="guest-prototype-event__copy"><b>{page.label}</b><small>{page.detail}</small></span>
                   </button>
                 ))}
+                </div>
               </section>
             ))}
           </>

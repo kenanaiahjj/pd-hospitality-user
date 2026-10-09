@@ -1,4 +1,5 @@
 import { giftListingId } from './catalog';
+import { WORST, worstCaseOn } from './worst-case';
 import type { Host, StayInput } from './host';
 
 /*
@@ -50,14 +51,19 @@ export function seedSample(host: Host, stay: StayInput): boolean {
   if (scooter.ok) host.call('pilot.advanceTo', pilot.now() + 31 * 60_000);
 
   // Two bicycles, confirmed, with a word from the shop. (The desk's word on it is in the desk's own chat.)
-  const bikes = request({ listingId: 'rental', date: tomorrow, time: '13:30', qty: 2, payMode: 'room', note: 'One with a child seat, if you have it.' });
+  const worst = worstCaseOn();
+  const bikes = request({ listingId: 'rental', date: tomorrow, time: '13:30', qty: 2, payMode: 'room', note: worst ? WORST.bikeNote : 'One with a child seat, if you have it.' });
   if (bikes.ok) {
     host.call('vendor.confirm', vendorOf('rental'), bikes.bookingId);
-    host.call('vendor.message', vendorOf('rental'), pilot.booking(bikes.bookingId).threadId, 'Two bikes are set for you. The child seat is on the second one, and helmets are in the basket.');
+    for (const text of worst ? WORST.bikeMessages : ['Two bikes are set for you. The child seat is on the second one, and helmets are in the basket.']) {
+      host.call('vendor.message', vendorOf('rental'), pilot.booking(bikes.bookingId).threadId, text);
+    }
   }
 
   // An island tour still waiting on the operator.
-  request({ listingId: 'tour', date: tomorrow, time: '10:00', qty: 2, payMode: 'room', note: 'The early boat, if there is a choice.' });
+  const tour = request({ listingId: 'tour', date: tomorrow, time: '10:00', qty: 2, payMode: 'room', note: worst ? WORST.tourNote : 'The early boat, if there is a choice.' });
+  // In the worst case the operator says yes too, so a long-named tour has a chat to look at.
+  if (worst && tour.ok) host.call('vendor.confirm', vendorOf('tour'), tour.bookingId);
 
   // A table by the pool.
   request({ listingId: 'poolside-bar', date: tomorrow, time: '12:00', qty: 4 });

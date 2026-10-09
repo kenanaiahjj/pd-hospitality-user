@@ -649,3 +649,55 @@
   padding-block-start: 16px;
   mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
 }
+
+/* ------------------------------------------------------------------ worst-case data (break-ui pass) */
+
+/* Messages keep the line breaks they were written with, and a link with no spaces breaks inside the bubble instead of running past it. Both chats. */
+.guest-messages .guest-message p { white-space: pre-line; overflow-wrap: anywhere; }
+
+/* A long partner name in the chat header: smaller, two lines at most, never pushing the header off the top. */
+.guest-chat .guest-chat__identity-copy h1 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+.guest-chat .guest-chat__identity-copy h1.is-long { font-size: 22px; line-height: 1.12; }
+
+/* In Messages, the partner's name is what tells two chats apart: it may take a second line rather than lose its end. */
+.pilot-inbox .pilot-chat-row__top { align-items: start; }
+.pilot-inbox .pilot-chat-row__top b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Opened, the booking bar is the only place the facts are said: they wrap instead of ending in "Back by 8:00 …". */
+.pilot-booking-bar.is-open .pilot-booking-bar__when { white-space: normal; }
+
+/* The call button carries the partner's name and number: it wraps, and never widens the card past the screen. */
+.pilot-actions > * { min-inline-size: 0; }
+.pilot-actions__call { white-space: normal; text-align: center; text-wrap: balance; }
+.pilot-actions__call span, .pilot-actions__call small { overflow-wrap: anywhere; }
+
+/* The composer's hint stays one line on a narrow phone. */
+.guest-composer__text-input::placeholder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The countdown names the partner, and some names are long: the "until" time drops to its own line instead of squeezing the sentence into a column. */
+.pilot-countdown { display: flex; flex-wrap: wrap; column-gap: 10px; row-gap: 2px; }
+.pilot-countdown > svg { flex: none; }
+.pilot-countdown > span { flex: 1 1 18ch; min-inline-size: 0; }
+.pilot-countdown > time { margin-inline-start: auto; }
+
+/* The pill stays one line on a 320px phone: a little smaller, and the bell column gives way first. */
+.pilot-desk-card__cta { max-inline-size: 100%; white-space: nowrap; }
+@media (max-width: 359px) {
+  .pilot-desk-card .pilot-chat-row--desk { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; }
+  .pilot-desk-card .pilot-bell { inline-size: 56px; block-size: 56px; }
+  .pilot-desk-card__cta { padding-inline: 11px 10px; font-size: 13px; }
+}

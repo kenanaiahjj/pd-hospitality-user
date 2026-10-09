@@ -1,4 +1,5 @@
 import { GIFT_PRODUCTS, LOBBY_SHOP_NAME } from '../../dining';
+import { applyWorstCatalog, worstCaseOn } from './worst-case';
 import { NEARBY_ESTABLISHMENTS, tableTimes } from '../../places';
 import { acceptsPayNow, cancellationCutoffHours, parseClockTime, parsePesoAmount, rentalUnitFor, SERVICES, SERVICE_SCHEDULES } from '../../prototype-model';
 import { SERVICE_VENUES } from '../../promoted/service-venues';
@@ -134,7 +135,9 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
     });
   });
 
-  return { vendors: [...vendors.values()], listings };
+  const built = { vendors: [...vendors.values()], listings };
+  // The break-ui worst case, in dev with ?data=worst: the same catalogue under realistic worst-case names.
+  return worstCaseOn() ? applyWorstCatalog(built) : built;
 }
 
 /** The listing id for a lobby-shop product. */

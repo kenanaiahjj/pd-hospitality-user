@@ -214,7 +214,9 @@ import { LobbyShopScreen, type ShopProduct } from './pilot/host/shop';
 import { BookingThreadScreen, MessagesList, useStickToLatest } from './pilot/host/messages';
 import { giftListingId } from './pilot/host/catalog';
 import { engineNews } from './pilot/host/notifications';
-import { markSampleCleared, sampleDeskChat, sampleState, seedSample } from './pilot/host/sample';
+import { SAMPLE_STAFF, markSampleCleared, sampleDeskChat, sampleState, seedSample } from './pilot/host/sample';
+import { WORST, worstCaseOn } from './pilot/host/worst-case';
+import { WorstCaseToggle } from './pilot/host/worst-case-toggle';
 import type { PrototypePage } from './prototype-controls';
 import {
   getPropertyImage,
@@ -604,7 +606,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const session = useMemo(() => {
     // The engine changes in place, so its version is what says the projection is stale.
     void hostVersion;
-    return hostStore.host ? applyEngine(rawSession, hostStore.host) : rawSession;
+    const projected = hostStore.host ? applyEngine(rawSession, hostStore.host) : rawSession;
+    // The break-ui worst case (dev, ?data=worst): the guest is Aleksandra Wiśniewska-Kowalczyk.
+    return worstCaseOn() ? { ...projected, guestName: WORST.guestName } : projected;
   }, [rawSession, hostStore, hostVersion]);
   /* The selected badge is rendered by the full-page achievement detail route. */
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
@@ -1286,7 +1290,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const openRestaurantChat = (venue: RestaurantVenue) => {
     const room = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'my room folio';
     const guestMessage = `I’d like to order from ${venue.name}. Please add the confirmed total to ${room} for settlement at checkout.`;
-    const genericWelcome = 'Good afternoon, Ana. How can we help with your stay?';
+    const genericWelcome = `Good afternoon, ${session.guestName.trim().split(/\s+/)[0] || 'there'}. How can we help with your stay?`;
     setChatOrderVenue(venue.name);
     setChatDraft('');
     setChatMessages((messages) => [
@@ -1525,7 +1529,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const pilotStays = rawSession.bookings.map((booking): StayInput => ({
     id: booking.id,
-    firstName: rawSession.guestName.split(' ')[0] || 'Guest',
+    firstName: (worstCaseOn() ? WORST.guestName : rawSession.guestName).trim().split(/\s+/)[0] || 'Guest',
     room: booking.roomNumber ?? '',
     checkIn: booking.checkIn,
     checkOut: booking.checkOut,
@@ -1889,7 +1893,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const service = SERVICES.find((item) => item.id === 'trainer');
     if (!host || !stay || !service) return;
     const day = addDays(PROTOTYPE_TODAY, 1) <= contextBooking.checkOut ? addDays(PROTOTYPE_TODAY, 1) : PROTOTYPE_TODAY;
-    const result = host.call<{ ok: boolean; message?: string; bookingId: string }>('desk.bookFor', stay.guestId, { listingId: service.id, date: day, time: '10:00', qty: 1, payMode: 'room' }, { staffName: 'Ana', asked: 'in-person' });
+    const result = host.call<{ ok: boolean; message?: string; bookingId: string }>('desk.bookFor', stay.guestId, { listingId: service.id, date: day, time: '10:00', qty: 1, payMode: 'room' }, { staffName: SAMPLE_STAFF, asked: 'in-person' });
     if (!result.ok) {
       // The presenter is on whatever screen they were on, so say it where it will be seen.
       setPushNotice({ id: 'desk-booking-refused', headline: 'The desk could not book it', detail: result.message ?? 'That did not go through.', screen: 'chat' });
@@ -1914,7 +1918,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       facts: [{ label: 'Booked by', value: 'Ana at the front desk, as you asked' }],
     };
     setSession((current) => ({ ...current, serviceBookings: [...current.serviceBookings.filter((item) => item.id !== id), record] }));
-    setChatMessages((messages) => [...messages, { from: 'desk', body: `Booked by Ana at the front desk, as you asked: ${service.name}, ${record.scheduledFor}.`, state: 'Seen', engineBookingId: result.bookingId }]);
+    setChatMessages((messages) => [...messages, { from: 'desk', body: `Booked by ${SAMPLE_STAFF} at the front desk, as you asked: ${service.name}, ${record.scheduledFor}.`, state: 'Seen', engineBookingId: result.bookingId }]);
     if (activeScreenRef.current !== 'chat') setHasUnreadChat(true);
     notifyGuestRequest(id, 'Front desk', `${service.name} booked for you`, { inbox: true, screen: 'chat' });
   };
@@ -3528,7 +3532,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         <div ref={deskListRef} className="guest-messages" aria-label="Conversation" aria-live="polite">
           {showChatWelcome ? (
             <div className="guest-chat__welcome" aria-labelledby="guest-chat-welcome-title">
-              <p>Good afternoon, Ana.</p>
+              <p>Good afternoon, {session.guestName.trim().split(/\s+/)[0] || 'there'}.</p>
               <h2 id="guest-chat-welcome-title">How can we help with your stay?</h2>
               {/* Before the first message the requests answer the question
                   above them; once the thread starts they dock by the composer. */}
@@ -6541,6 +6545,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         {roomReadyNotification ? `${roomReadyNotification.headline}. ${roomReadyNotification.detail}` : ''}
       </div>
 
+      {/* Dev only: Demo data / Worst case, for the break-ui audit. */}
+      <WorstCaseToggle />
       <PrototypeControls
         online={online}
         // "Simulate 24 hours after checkout" closes the window without changing the stay, so it is read here too.

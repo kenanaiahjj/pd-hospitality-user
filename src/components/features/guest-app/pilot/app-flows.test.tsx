@@ -256,7 +256,7 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     await openMessages(user);
     await user.click(screen.getByRole('button', { name: /Front desk/ }));
     expect(screen.getByLabelText(/Personal training session, Confirmed/)).toBeInTheDocument();
-    expect(screen.getByText(/Booked by Ana at the front desk/)).toBeInTheDocument();
+    expect(screen.getByText(/Booked by Marites at the front desk/)).toBeInTheDocument();
   });
 
   it('closes a thread 48 hours after the booking ends, and sends a late question to the front desk', async () => {

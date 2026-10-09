@@ -230,8 +230,9 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
           <button className="guest-chat__back" type="button" onClick={onBack} aria-label="Go back"><ArrowLeft aria-hidden="true" /></button>
           {bookingId ? <ChatTile small image={handlers.imageFor?.(bookingId)} kind={kindOf(host, bookingId, categoryFor)} /> : null}
           <div className="guest-chat__identity-copy">
-            <h1>{name}</h1>
-            <span>{thread?.title ?? 'Booking'}</span>
+            {/* A partner's name can be long ("Lakbay Island Tours & Heritage Experiences Corp."): smaller, two lines at most, the whole of it on a long press. */}
+            <h1 className={name.length > 20 ? 'is-long' : undefined} title={name}>{name}</h1>
+            <span title={thread?.title}>{thread?.title ?? 'Booking'}</span>
           </div>
         </div>
       </div>

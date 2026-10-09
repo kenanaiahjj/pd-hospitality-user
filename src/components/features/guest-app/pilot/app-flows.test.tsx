@@ -299,7 +299,7 @@ describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
     const banner = screen.getByText('Your chat with Sakay Rentals is open. Tap to message them.');
     await user.click(banner);
     const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
-    expect(within(thread).getByText(/Only you and Sakay Rentals are in it/)).toBeInTheDocument();
+    expect(within(thread).getByText(/Only you and them are in this chat/)).toBeInTheDocument();
     // The bell keeps a note of it. (The bell is outside the chat; back out first.)
     await user.click(within(thread).getByRole('button', { name: 'Go back' }));
     await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));

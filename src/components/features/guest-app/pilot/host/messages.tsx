@@ -8,6 +8,7 @@ import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
 import { DeskBell } from './desk-bell';
+import { Linkified } from './linkified';
 import { EngineBookingCard, STATUS_TONE, factPhrase, type CardHandlers } from './booking-card';
 import { engineStatusLine } from './project';
 import type { Host } from './host';
@@ -309,7 +310,7 @@ function ThreadMessage({ host, message, first, last, receipt, ...handlers }: { h
   const mine = message.from.role === 'guest';
   return (
     <div className={`guest-message guest-message--${mine ? 'guest' : 'desk'} pilot-msg${first ? '' : ' guest-message--continued'}${last ? '' : ' pilot-msg--grouped'}`}>
-      <p>{message.text}</p>
+      <p><Linkified text={message.text} /></p>
       {/* Sent for the vendor, not typed by them: it says so, as a business chat does. */}
       {last ? <small>{message.auto ? <span className="pilot-msg__auto">Auto-reply · </span> : null}{clock12(message.at)}{receipt ? ` · ${receipt}` : ''}</small> : null}
     </div>

@@ -701,3 +701,13 @@
   .pilot-desk-card .pilot-bell { inline-size: 56px; block-size: 56px; }
   .pilot-desk-card__cta { padding-inline: 11px 10px; font-size: 13px; }
 }
+
+/* A run of messages from one side reads as one turn: tight spacing, and the corners facing the next bubble are squared on the sender's side. */
+.guest-messages .pilot-msg--grouped { margin-block-end: -8px; }
+.guest-messages .pilot-msg--grouped.guest-message--desk p { border-end-start-radius: 6px; }
+.guest-messages .pilot-msg--grouped.guest-message--guest p { border-end-end-radius: 6px; }
+.guest-messages .guest-message--continued.guest-message--desk p { border-start-start-radius: 6px; }
+.guest-messages .guest-message--continued.guest-message--guest p { border-start-end-radius: 6px; }
+
+/* A link in a bubble reads as one, at rest. */
+.guest-message__link { color: inherit; font-weight: 550; text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }

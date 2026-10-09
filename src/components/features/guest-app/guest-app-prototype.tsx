@@ -216,7 +216,7 @@ import { giftListingId } from './pilot/host/catalog';
 import { engineNews } from './pilot/host/notifications';
 import { SAMPLE_STAFF, markSampleCleared, sampleDeskChat, sampleState, seedSample } from './pilot/host/sample';
 import { WORST, worstCaseOn } from './pilot/host/worst-case';
-import { WorstCaseToggle } from './pilot/host/worst-case-toggle';
+import { Linkified } from './pilot/host/linkified';
 import type { PrototypePage } from './prototype-controls';
 import {
   getPropertyImage,
@@ -3545,12 +3545,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               return <EngineBookingCard key={message.engineMessageId ?? `pay-${index}`} host={hostStore.host} bookingId={message.engineBookingId} paymentId={message.enginePaymentId} inThread inDesk {...cardHandlers} />;
             }
             const continued = displayedChatMessages[index - 1]?.from === message.from && !displayedChatMessages[index - 1]?.enginePaymentId;
+            // A run from one side reads as one turn: joined corners, tight spacing. An automatic note and a card end the run.
+            const following = displayedChatMessages[index + 1];
+            const grouped = following?.from === message.from && !following.enginePaymentId && !message.auto && !following.auto && !message.engineBookingId && !message.attachment && !(message.from === 'guest' && message.state);
             return (
               <Fragment key={`${message.body}-${index}`}>
               <div
-                className={`guest-message guest-message--${message.from}${continued ? ' guest-message--continued' : ''}`}
+                className={`guest-message guest-message--${message.from}${continued ? ' guest-message--continued' : ''}${grouped ? ' pilot-msg--grouped' : ''}`}
               >
-                <p>{message.body}</p>
+                <p><Linkified text={message.body} /></p>
                 {message.attachment ? (
                   message.attachment.kind === 'image' ? (
                     <button
@@ -6108,7 +6111,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'messages': {
         const host = hostStore.host;
         const guest = host && primaryBooking ? host.guestOf(primaryBooking.id) : undefined;
-        const lastDesk = [...deskSeed, ...chatMessages].at(-1);
+        // The last thing a person said: an outlet's automatic note is not the desk talking.
+        const lastDesk = [...deskSeed, ...chatMessages].filter((m) => !m.auto && m.body).at(-1);
         return host && guest ? (
           <MessagesList
             host={host}
@@ -6545,8 +6549,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         {roomReadyNotification ? `${roomReadyNotification.headline}. ${roomReadyNotification.detail}` : ''}
       </div>
 
-      {/* Dev only: Demo data / Worst case, for the break-ui audit. */}
-      <WorstCaseToggle />
       <PrototypeControls
         online={online}
         // "Simulate 24 hours after checkout" closes the window without changing the stay, so it is read here too.

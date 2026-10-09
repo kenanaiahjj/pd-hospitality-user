@@ -301,13 +301,13 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   const openChat = (b: Booking) => {
     if (w.threads.has(b.threadId)) return;
     const listing = listingOf(b);
-    const vendorName = vendorOf(listing).name;
     const thread = makeThread({ id: b.threadId, kind: 'booking', stayId: b.stayId, bookingId: b.id, vendorId: listing.vendorId, participants: ['guest', 'vendor'], messages: [], openedAt: w.now });
     refreshReadOnly(b);
     if (b.requestLine) post(thread, SYSTEM, b.requestLine, 'system');
     post(thread, SYSTEM, '', 'card', undefined, { bookingId: b.id });
     if (b.note) post(thread, { role: 'guest', name: guestRecord(b.guestId).firstName }, b.note);
-    post(thread, SYSTEM, `Your chat with ${vendorName} is open. Only you and ${vendorName} are in it.`, 'system', ['guest']);
+    // Short on purpose: the header already names them, and a long partner name said twice took four lines.
+    post(thread, SYSTEM, 'Only you and them are in this chat.', 'system', ['guest']);
     greet(b);
   };
   /*

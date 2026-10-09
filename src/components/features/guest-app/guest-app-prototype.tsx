@@ -211,7 +211,7 @@ import type { Draft as EngineDraft } from './pilot/types';
 import { applyEngine, engineCancelLine, engineStatusLine, withoutEngineRecords } from './pilot/host/project';
 import { buildPilotEvents } from './pilot/host/events';
 import { LobbyShopScreen, type ShopProduct } from './pilot/host/shop';
-import { BookingThreadScreen, MessagesList } from './pilot/host/messages';
+import { BookingThreadScreen, MessagesList, useStickToLatest } from './pilot/host/messages';
 import { giftListingId } from './pilot/host/catalog';
 import { engineNews } from './pilot/host/notifications';
 import { markSampleCleared, sampleDeskChat, sampleState, seedSample } from './pilot/host/sample';
@@ -276,7 +276,7 @@ import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
 import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen, passportDate } from './pre-arrival';
 import type { PassportFields } from './pre-arrival';
-import { EmptyStayHome, HotelBrowse, RoomReadyNotification, StayCard, StayEntryCard, StayOverviewHome, stayEntryImage, UpcomingBookingCard, VendorFolioQrDialog, airportFor, countNights, defaultFeedClock, describeParty, formatCheckoutDate, formatStayDateRange, getVendorFolioQrValue, listBookingGuests } from './stay-home';
+import { EmptyStayHome, FloatingResumeBooking, HotelBrowse, RoomReadyNotification, StayCard, StayEntryCard, StayOverviewHome, stayEntryImage, UpcomingBookingCard, VendorFolioQrDialog, airportFor, countNights, defaultFeedClock, describeParty, formatCheckoutDate, formatStayDateRange, getVendorFolioQrValue, listBookingGuests } from './stay-home';
 import { EARLY_CHECK_IN, earlyCheckInBookingId } from './guest-shared';
 import type { ActiveScreen } from './guest-shared';
 import { NEARBY_ESTABLISHMENTS, NearbyDiscoverySection, NearbyEstablishmentScreen, NearbyRecommendations, NearbyRecommendationsPage, nearbyFeedInputs, type NearbyBookingRequest } from './places';
@@ -701,6 +701,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const [stayDraft, setStayDraft] = useState<StayBookingDraft>({ search: DEFAULT_STAY_SEARCH, cart: [], allocation: [] });
   const [resultsView, setResultsView] = useState<ResultsView>(DEFAULT_RESULTS_VIEW);
+  /* The half-finished booking the guest swiped away: a different one, or more rooms in it, brings the card back. */
+  const [dismissedResumeKey, setDismissedResumeKey] = useState<string | null>(null);
   const [stayDetails, setStayDetails] = useState<StayGuestDetails | null>(null);
   const [stayGatewayMethod, setStayGatewayMethod] = useState<GatewayMethod | null>(null);
   const [confirmedStayId, setConfirmedStayId] = useState<string | null>(null);
@@ -1515,6 +1517,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const chatMessages = allChatMessages.filter((message) => (message.bookingId ?? contextBooking.id) === contextBooking.id);
   /* What the sample stay's front desk chat already holds, derived from the engine's record and shown ahead of anything the guest sends. */
   const deskSeed: ChatMessage[] = hostStore.host ? sampleDeskChat(hostStore.host, contextBooking.id) : [];
+  // The desk chat opens at its newest message, and follows each new one.
+  const deskListRef = useRef<HTMLDivElement>(null);
+  useStickToLatest(deskListRef, activeScreen === 'chat' ? deskSeed.length + chatMessages.length : -1);
   const setChatMessages = (update: (messages: ChatMessage[]) => ChatMessage[]) => {
     const bookingId = contextBooking.id;
     setAllChatMessages((messages) => update(messages).map((message) => (message.bookingId ? message : { ...message, bookingId })));
@@ -3401,7 +3406,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         ) : null}
         {!online ? <Notice tone="offline" title="Messages will send when connected">Your chat history is available. New requests wait on this device.</Notice> : null}
 
-        <div className="guest-messages" aria-label="Conversation" aria-live="polite">
+        <div ref={deskListRef} className="guest-messages" aria-label="Conversation" aria-live="polite">
           {showChatWelcome ? (
             <div className="guest-chat__welcome" aria-labelledby="guest-chat-welcome-title">
               <p>Good afternoon, Ana.</p>
@@ -3519,7 +3524,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           guestName={session.guestName}
           pastStays={pastStays}
           onNavigate={go}
-          resumeBooking={resumeBooking}
         />
       );
     }
@@ -3652,6 +3656,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       onResume: () => go('book-stay-hotel'),
     }
     : undefined;
+  const resumeKey = draftHotel ? `${draftHotel.id}|${draftRooms}|${stayDraft.search.checkIn}|${stayDraft.search.checkOut}` : null;
+  /* Signed in with no stay: the card floats over Home and Explore. With a stay, Hotels keeps it inline. */
+  const resumeFloats = session.auth === 'authenticated' && !hasCurrentStay;
+  const showFloatingResume = Boolean(resumeBooking) && resumeFloats && showPrimaryNav && (activeScreen === 'stay-overview' || activeScreen === 'partner-hotels') && dismissedResumeKey !== resumeKey;
 
   /* Partner hotels to look at, save and send to someone: one browse, wherever it opens. */
   const renderHotelBrowse = () => (
@@ -3664,7 +3672,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         staySearch={stayDraft.search}
         onSearchStay={startStaySearch}
         onOpenHotel={openPartnerHotel}
-        resumeBooking={showNoBookingExplore ? undefined : resumeBooking}
+        resumeBooking={resumeFloats ? undefined : resumeBooking}
         promoAccount={promoAccount}
         showOffers={!showNoBookingExplore}
         showSaved={!showNoBookingExplore}
@@ -4086,7 +4094,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               </div>
             ) : null}
             <StayOverviewHome
-              resumeBooking={resumeBooking}
               session={session}
               pastStays={pastStays}
               reviews={session.reviews}
@@ -5402,7 +5409,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               guestName={session.guestName}
               pastStays={pastStays}
               onNavigate={go}
-              resumeBooking={resumeBooking}
             />
           );
         }
@@ -5662,7 +5668,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               guestName={session.guestName}
               pastStays={pastStays}
               onNavigate={go}
-              resumeBooking={resumeBooking}
             />
           );
         }
@@ -5685,7 +5690,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const cardFactLabels = engineEntryHost && engineEntryBookingId
           ? new Set(['Status', ...(entryExtraId ? engineEntryHost.pilot.extraCard(entryExtraId) : engineEntryHost.pilot.card(engineEntryBookingId)).facts.map((fact) => fact.label)])
           : undefined;
-        const entryDetails = (entry.facts ?? []).filter((fact) => !cardFactLabels?.has(fact.label));
+        // A room charge is already the card's price line; a card payment's method (GCash, Maya) is not, so that row stays.
+        const entryDetails = (entry.facts ?? []).filter((fact) => !cardFactLabels?.has(fact.label) && !(cardFactLabels && fact.label === 'Payment' && /room/i.test(fact.value)));
 
         return (
           <div className="guest-stack">
@@ -6484,7 +6490,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           </header> : null}
 
           <div
-            className={`guest-screen ${showPrimaryNav ? 'has-nav' : ''} ${isWelcome ? 'guest-screen--welcome' : ''} ${isChatScreen(activeScreen) ? 'guest-screen--chat' : ''} ${activeScreen === 'restaurant-menu' || activeScreen === 'nearby-establishment' ? 'guest-screen--hero' : ''} ${reelsOnScreen ? 'guest-screen--reels' : ''}`}
+            className={`guest-screen ${showPrimaryNav ? 'has-nav' : ''} ${showFloatingResume ? 'has-resume-float' : ''} ${isWelcome ? 'guest-screen--welcome' : ''} ${isChatScreen(activeScreen) ? 'guest-screen--chat' : ''} ${activeScreen === 'restaurant-menu' || activeScreen === 'nearby-establishment' ? 'guest-screen--hero' : ''} ${reelsOnScreen ? 'guest-screen--reels' : ''}`}
             key={activeScreen}
             data-entrance={passEntranceScreen === activeScreen ? 'pass' : undefined}
             onScroll={(event) => {
@@ -6525,6 +6531,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               />
             );
           })() : null}
+
+          {showFloatingResume && resumeBooking ? <FloatingResumeBooking resumeBooking={resumeBooking} onDismiss={() => setDismissedResumeKey(resumeKey)} /> : null}
 
           {showPrimaryNav ? (
             <nav className={`guest-bottom-nav${reelsOnScreen && !feedSheet ? ' guest-bottom-nav--dark' : ''}`} aria-label="Primary navigation">

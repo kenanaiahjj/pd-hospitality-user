@@ -3,7 +3,7 @@
 import { ArrowLeft, Bicycle, CaretDown, Compass, ForkKnife, ShoppingBag, Sparkle } from '@phosphor-icons/react';
 import Image from 'next/image';
 import type { ServiceImageDefinition } from '../../service-images';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
@@ -44,6 +44,17 @@ const sentAt = (ms: number, now: number) =>
 const dayLabel = (ms: number, now: number) =>
   dayOf(ms) === dayOf(now) ? 'Today' : dayOf(ms) === dayOf(now) - 1 ? 'Yesterday' : shortDate(ms);
 
+/**
+ * A conversation opens at its newest message and follows each new one, as any
+ * messaging app does. It used to open at the top, with the latest out of sight.
+ */
+export function useStickToLatest(ref: RefObject<HTMLElement | null>, count: number) {
+  useLayoutEffect(() => {
+    const list = ref.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [ref, count]);
+}
+
 const vendorOf = (host: Host, bookingId: string) => {
   const listing = host.pilot.listing(host.pilot.booking(bookingId).listingId);
   return host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'The vendor';
@@ -73,7 +84,6 @@ export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpe
           <span className="pilot-chat-row__body">
             <span className="pilot-chat-row__top">
               <b>Front desk</b>
-              {desk.place ? <span className="pilot-chat-row__about">· {desk.place}</span> : null}
             </span>
             <span className="pilot-chat-row__meta pilot-chat-row__meta--preview">
               <span className="pilot-chat-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
@@ -141,12 +151,12 @@ function ThreadRow({ host, thread, image, categoryFor, onOpen }: { host: Host; t
       <span className="pilot-chat-row__body">
         <span className="pilot-chat-row__top">
           <b>{name}</b>
-          <span className="pilot-chat-row__about">· {thread.title}</span>
           {last ? <time>{sentAt(last.at, host.now())}</time> : null}
         </span>
         <span className="pilot-chat-row__preview">{preview}</span>
         <span className="pilot-chat-row__meta">
-          {[thread.cardLabel, booking ? shortDate(booking.start) : undefined].filter(Boolean).join(' · ')}
+          {/* Which booking, where it stands, and when: one quiet line that may be cut, under the two that may not. */}
+          <span className="pilot-chat-row__meta-text">{[thread.title, thread.cardLabel, booking ? shortDate(booking.start) : undefined].filter(Boolean).join(' · ')}</span>
           {thread.unread ? <i className="pilot-badge" aria-hidden="true">{thread.unread}</i> : null}
         </span>
       </span>
@@ -166,6 +176,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
 } & CardHandlers) {
   const [draft, setDraft] = useState('');
   const [open, setOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
   // Looking is not reading: the thread is only marked read by the effect below, which is recorded like any action.
   const view = host.pilot.thread(threadId, 'guest', false);
   const bookingId = threadBookingId(host, threadId);
@@ -176,6 +187,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
   useEffect(() => {
     if (unread > 0) host.call('pilot.thread', threadId, 'guest');
   }, [host, threadId, unread]);
+  useStickToLatest(listRef, view.ok ? view.messages.length : 0);
   if (!view.ok) return <p className="pilot-muted">{view.message}</p>;
 
   const name = bookingId ? vendorOf(host, bookingId) : 'The vendor';
@@ -222,7 +234,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
             ) : null}
             <span className="pilot-booking-bar__text">
               <span className={`pilot-status pilot-status--${tone}`}>{card.label}</span>
-              <span className="pilot-booking-bar__when">{booking ? [booking.kind === 'goods' ? undefined : clock12(booking.start), ...card.facts.filter((f) => !['When', 'Vendor', 'Cancellation', 'Collect at'].includes(f.label)).map((f) => factPhrase(f.label, f.value))].filter(Boolean).join(' · ') : ''}</span>
+              <span className="pilot-booking-bar__when">{booking ? [booking.kind === 'goods' ? undefined : clock12(booking.start), ...card.facts.filter((f) => !['When', 'Vendor', 'Cancellation', 'Collect at'].includes(f.label) && !(['lapsed', 'cancelled'].includes(card.state) && ['Return', 'Held until'].includes(f.label))).map((f) => factPhrase(f.label, f.value))].filter(Boolean).join(' · ') : ''}</span>
             </span>
             <span className="pilot-booking-bar__chevron" aria-hidden="true"><CaretDown weight="bold" /></span>
           </button>
@@ -235,7 +247,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
         </div>
       ) : null}
 
-      <div className="guest-messages" aria-label="Conversation" aria-live="polite">
+      <div ref={listRef} className="guest-messages" aria-label="Conversation" aria-live="polite">
         {messages.map((message, index) => {
           const previous = messages[index - 1];
           const next = messages[index + 1];
@@ -261,7 +273,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
       {note ? <Notice tone={note.tone} title={note.tone === 'warning' ? 'That did not go through' : 'Done'}>{note.text}</Notice> : null}
       {view.readOnly ? <Notice title="This thread has closed">It closed 48 hours after the service. Anything you send now goes to the front desk.</Notice> : null}
       <div className="guest-chat__dock">
-        <ChatComposer draft={draft} onDraftChange={setDraft} onSubmit={({ body }) => send(body)} placeholder={view.readOnly ? 'Ask the front desk' : `Message ${name}`} />
+        <ChatComposer draft={draft} onDraftChange={setDraft} onSubmit={({ body }) => send(body)} placeholder={view.readOnly ? 'Ask the front desk' : name.length <= 16 ? `Message ${name}` : 'Message'} />
       </div>
     </div>
   );

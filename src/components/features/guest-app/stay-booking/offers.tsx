@@ -34,32 +34,38 @@ export function savePendingVoucher(code: string | null) {
   }
 }
 
-/** A row of offer cards: the ones this guest can use, and with a hotel, only those that stay qualifies for. */
-export function OffersStrip({ hotel, nights, title = 'Offers', account = NEW_ACCOUNT, untitled, only, except }: { hotel?: StayHotel; nights: number; title?: string; account?: PromoAccount; /** Show just these codes. */ only?: string[]; /** Leave these out: they are shown elsewhere on the page. */ except?: string[]; /** The page gives it a heading of its own. */ untitled?: boolean }) {
+/**
+ * A row of offer cards: the ones this guest can use, and with a hotel, only those that stay qualifies for.
+ * `lead` names the one that matters most to this guest: it sits first, full width and larger, above the rail.
+ */
+export function OffersStrip({ hotel, nights, title = 'Offers', account = NEW_ACCOUNT, untitled, only, except, lead }: { hotel?: StayHotel; nights: number; title?: string; account?: PromoAccount; /** Show just these codes. */ only?: string[]; /** Leave these out: they are shown elsewhere on the page. */ except?: string[]; /** The page gives it a heading of its own. */ untitled?: boolean; /** Lead with this code, when the guest can use it. */ lead?: string }) {
   const [saved, setSaved] = useState(readPendingVoucher);
   const offers = offersFor(hotel, nights, account).filter(({ code }) => (!only || only.includes(code)) && !except?.includes(code));
   if (!offers.length) return null;
+  const leading = lead ? offers.find(({ code }) => code === lead) : undefined;
+  const rest = offers.filter((offer) => offer !== leading);
+  const card = ({ code, promo }: { code: string; promo: (typeof offers)[number]['promo'] }, isLead: boolean) => {
+    const isSaved = saved === code;
+    return (
+      <article key={code} className={`sb-offer-card${isLead ? ' sb-offer-card--lead' : ''}${isSaved ? ' is-saved' : ''}`} aria-label={promo.title} data-offer-code={code}>
+        {isLead ? <span className="sb-offer-card__figure" aria-hidden="true">{promo.label}</span> : null}
+        <b>{promo.title}</b>
+        <small>{promo.terms}</small>
+        <span className="sb-offer-card__foot">
+          <code>{code}</code>
+          {/* Short enough to sit beside the code; the label says the rest. */}
+          <button type="button" onClick={() => { const next = isSaved ? null : code; savePendingVoucher(next); setSaved(next ?? ''); }} aria-pressed={isSaved} aria-label={isSaved ? `${code} saved for checkout. Tap to remove` : `Use ${code} at checkout`}>
+            {isSaved ? <><Check aria-hidden="true" />Saved</> : 'Use code'}
+          </button>
+        </span>
+      </article>
+    );
+  };
   return (
     <section className="sb-offers-strip" aria-label={title}>
       {untitled ? null : <p className="sb-offers-strip__title"><TagIcon weight="fill" aria-hidden="true" />{title}</p>}
-      <div className="sb-rail sb-offers-strip__rail">
-        {offers.map(({ code, promo }) => {
-          const isSaved = saved === code;
-          return (
-            <article key={code} className={`sb-offer-card${isSaved ? ' is-saved' : ''}`} aria-label={promo.title} data-offer-code={code}>
-              <b>{promo.title}</b>
-              <small>{promo.terms}</small>
-              <span className="sb-offer-card__foot">
-                <code>{code}</code>
-                {/* Short enough to sit beside the code; the label says the rest. */}
-                <button type="button" onClick={() => { const next = isSaved ? null : code; savePendingVoucher(next); setSaved(next ?? ''); }} aria-pressed={isSaved} aria-label={isSaved ? `${code} saved for checkout. Tap to remove` : `Use ${code} at checkout`}>
-                  {isSaved ? <><Check aria-hidden="true" />Saved</> : 'Use code'}
-                </button>
-              </span>
-            </article>
-          );
-        })}
-      </div>
+      {leading ? card(leading, true) : null}
+      {rest.length ? <div className="sb-rail sb-offers-strip__rail">{rest.map((offer) => card(offer, false))}</div> : null}
     </section>
   );
 }

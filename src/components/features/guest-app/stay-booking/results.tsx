@@ -124,9 +124,9 @@ export function StayResultsScreen({ search, view, onViewChange, onSearch, onOpen
   );
 }
 
-export function HotelResultCard({ result, search, onOpen, compact }: { result: HotelResult; search: StaySearch; onOpen: () => void; compact?: boolean }) {
+export function HotelResultCard({ result, search, onOpen, compact, reason }: { result: HotelResult; search: StaySearch; onOpen: () => void; compact?: boolean; /** Why this one is shown, for a row picked for the guest. */ reason?: string }) {
   const { hotel } = result;
-  if (compact) return <CompactHotelCard result={result} onOpen={onOpen} />;
+  if (compact) return <CompactHotelCard result={result} onOpen={onOpen} reason={reason} />;
   return (
     <div className="sb-card-wrap">
     <button type="button" className={`sb-hotel-card${compact ? ' sb-hotel-card--compact' : ''}${result.soldOut ? ' is-sold-out' : ''}`} onClick={onOpen} aria-label={`${hotel.name}, ${hotel.area}${result.fromPrice !== undefined && !result.soldOut ? `, from ${peso(result.fromPrice)} a night` : ', sold out on your dates'}`}>
@@ -168,7 +168,7 @@ export function HotelResultCard({ result, search, onOpen, compact }: { result: H
   to the edge and clipped the price, so this one carries four facts only:
   the photo with its rating on it, the name, one reason to go, the price.
 */
-function CompactHotelCard({ result, onOpen }: { result: HotelResult; onOpen: () => void }) {
+function CompactHotelCard({ result, onOpen, reason }: { result: HotelResult; onOpen: () => void; reason?: string }) {
   const { hotel } = result;
   // Time first: a narrow card truncates the end, and the place name can lose letters where the minutes cannot.
   const sight = bestSight(hotel.id);
@@ -185,6 +185,7 @@ function CompactHotelCard({ result, onOpen }: { result: HotelResult; onOpen: () 
       <span className="sb-mini-card__body">
         <b className="sb-mini-card__name">{hotel.name}</b>
         <small className="sb-mini-card__area">{hotel.area}</small>
+        {reason ? <small className="sb-mini-card__why">{reason}</small> : null}
         {nearby ? <small className="sb-mini-card__near"><MapPin weight="fill" aria-hidden="true" />{nearby}</small> : null}
         {price !== undefined ? <span className="sb-mini-card__price"><small>from</small> <b>{peso(price)}</b> <small>/ night</small></span> : null}
       </span>

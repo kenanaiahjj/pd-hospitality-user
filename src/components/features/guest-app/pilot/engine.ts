@@ -825,7 +825,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     const thread = makeThread({ id: b.threadId, kind: 'booking', stayId: stay.id, bookingId: id, vendorId: listing.vendorId, participants: ['guest', 'vendor'], messages: [], openedAt: w.now });
     refreshReadOnly(b);
     const asker = how.origin === 'desk' ? `The front desk (${how.staffName ?? 'staff'})` : guest.firstName;
-    post(thread, SYSTEM, `${asker} ${listing.confirm === 'vendor' ? 'asked for' : 'booked'} ${listing.title}: ${draft.qty} ${unitWord(b)}, ${when(start)}.`, 'system');
+    post(thread, SYSTEM, `${asker} ${listing.confirm === 'vendor' ? 'asked for' : 'booked'} ${listing.title}: ${b.kind === 'table' ? `table for ${draft.qty}` : `${draft.qty} ${unitWord(b)}`}, ${b.kind === 'goods' ? `for ${weekday(b.readyFor ?? dateOf(start))}` : when(start)}.`, 'system');
     post(thread, SYSTEM, '', 'card', undefined, { bookingId: id });
     // Said once, to the guest: who this chat is with, and that it is only the two of them.
     post(thread, SYSTEM, `Your chat with ${vendorOf(listing).name} is open. Only you and ${vendorOf(listing).name} are in it.`, 'system', ['guest']);

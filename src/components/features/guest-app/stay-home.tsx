@@ -3,7 +3,7 @@
 import { Notice, PropertyImage, SectionHeading, Tag } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { ANYWHERE, HotelResultCard, ExploreRails, OffersStrip, RegionTrail, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, ExploreRails, OffersStrip, RegionTrail, recommendFromStays, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry, StayReview } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, ITEM_THUMBNAIL_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
@@ -152,8 +152,6 @@ export type StayOverviewHomeProps = {
   onOpenPick: (entry: FeedEntry) => void;
   onOpenStay: (id: string) => void;
   onOpenHotel: (id: string) => void;
-  /** A hotel booking the guest left part-way, to pick back up from Home. */
-  resumeBooking?: ResumeBooking;
   /* A ride with both ends set: to the hotel before the stay, to the airport after it. */
   onRequestRide?: (direction: 'arrival' | 'departure') => void;
   /** Whether the front desk still answers after checkout: the 24-hour window. */
@@ -165,7 +163,7 @@ export type StayOverviewHomeProps = {
   onRatePreviousStay?: (stayId: string) => void;
 };
 
-export function StayOverviewHome({ session, pastStays = session.pastStays, reviews = session.reviews, booking, staySearch, onSearchStay, promoAccount, onNavigate, picks, onOpenPick, onOpenHotel, resumeBooking, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19, onRatePreviousStay }: StayOverviewHomeProps) {
+export function StayOverviewHome({ session, pastStays = session.pastStays, reviews = session.reviews, booking, staySearch, onSearchStay, promoAccount, onNavigate, picks, onOpenPick, onOpenHotel, onRequestRide, deskOpen = false, onOpenEntry, clockHour = 19, onRatePreviousStay }: StayOverviewHomeProps) {
   const variant = getHomeVariant(session.bookings, session.activeBookingId);
   const upcomingBookings = session.bookings
     .filter((item) => item.status === 'upcoming')
@@ -181,7 +179,6 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
         onRatePreviousStay={onRatePreviousStay}
         returning={pastStays.length > 0 || session.bookings.some((item) => item.status === 'completed')}
         onNavigate={onNavigate}
-        resumeBooking={resumeBooking}
         discovery={showNoBookingDiscovery ? { staySearch, onSearchStay, onOpenHotel } : undefined}
         offers={showNoBookingDiscovery ? {
           nights: countNightsBetween(staySearch.checkIn, staySearch.checkOut),
@@ -808,7 +805,6 @@ export function EmptyStayHome({
   reviews = [],
   onRatePreviousStay,
   onNavigate,
-  resumeBooking,
   discovery,
   offers,
   returning = pastStays.length > 0,
@@ -820,7 +816,6 @@ export function EmptyStayHome({
   /** Has stayed before -- a finished stay not yet moved into `pastStays` counts. */
   returning?: boolean;
   onNavigate: (screen: ActiveScreen) => void;
-  resumeBooking?: ResumeBooking;
   discovery?: { staySearch: StaySearch; onSearchStay: (search: StaySearch) => void; onOpenHotel: (id: string) => void };
   offers?: { nights: number; account?: PromoAccount };
 }) {
@@ -841,8 +836,14 @@ export function EmptyStayHome({
         </h1>
       </div>
       {discovery ? <StaySearchAndDestinations value={discovery.staySearch} onSearch={discovery.onSearchStay} /> : null}
-      {/* A guest who has stayed before is welcomed back with a code for the next one. */}
-      {offers && returning ? <OffersStrip nights={offers.nights} account={offers.account} only={['COMEBACK30']} title="Welcome back" /> : null}
+      {/* One Offers row. A guest who has stayed before leads with the code for the next stay; the rest follow it. */}
+      {offers ? (
+        <section className="guest-empty-hotels">
+          <SectionHeading title="Offers" />
+          <OffersStrip nights={offers.nights} account={offers.account} untitled lead={returning ? 'COMEBACK30' : undefined} />
+        </section>
+      ) : null}
+      {discovery && returning ? <YouMightLikeRail pastStays={pastStays} search={discovery.staySearch} onOpenHotel={discovery.onOpenHotel} /> : null}
       {/*
         Keep external booking lookup available on Home for reservations made
         outside Cabana. No scan here: without a stay, the guest has no room and
@@ -864,17 +865,32 @@ export function EmptyStayHome({
         </div>
         <ArrowRight aria-hidden="true" />
       </button>
-      {resumeBooking ? <ResumeBookingCard resumeBooking={resumeBooking} /> : null}
       {discovery ? <SavedHotelsRail search={discovery.staySearch} onOpenHotel={discovery.onOpenHotel} /> : null}
-      {offers ? (
-        <section className="guest-empty-hotels">
-          <SectionHeading title="Offers" />
-          <OffersStrip nights={offers.nights} account={offers.account} except={['COMEBACK30']} untitled />
-        </section>
-      ) : null}
       {/* The last stay is a reminder further down, not the first thing on Home: search leads. */}
       {previousStay && (previousStayReview || onRatePreviousStay) ? <PreviousStayReviewCard stay={previousStay} review={previousStayReview} onRate={onRatePreviousStay} /> : null}
     </div>
+  );
+}
+
+/**
+ * Hotels like the ones this guest has stayed at: same brand, same stars, a spa
+ * if they booked one. Each card says why it is here.
+ */
+function YouMightLikeRail({ pastStays, search, onOpenHotel }: { pastStays: PastStay[]; search: StaySearch; onOpenHotel: (id: string) => void }) {
+  const newestFirst = [...pastStays].sort((a, b) => b.checkOut.localeCompare(a.checkOut));
+  const { basedOn, picks } = recommendFromStays(
+    newestFirst.map((stay) => ({ property: stay.property, city: stay.city, guestCount: stay.guestCount, categories: stay.charges.map((charge) => charge.category) })),
+    searchHotels({ ...search, location: ANYWHERE }),
+  );
+  if (!picks.length) return null;
+  return (
+    <section className="guest-empty-hotels sb-you-might-like" aria-label="You might like">
+      <SectionHeading title="You might like" />
+      {basedOn ? <p className="sb-small">Based on your stay at {basedOn}</p> : null}
+      <div className="sb-rail">
+        {picks.map(({ result, reason }) => <HotelResultCard key={result.hotel.id} result={result} search={search} compact reason={reason} onOpen={() => onOpenHotel(result.hotel.id)} />)}
+      </div>
+    </section>
   );
 }
 
@@ -894,6 +910,23 @@ function PreviousStayReviewCard({ stay, review, onRate }: { stay: PastStay; revi
         </button>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * The booking a guest left part-way, floated above the tab bar so it is there on
+ * Home and Explore without taking a row of either. Dismissing hides it; the
+ * caller decides when a different booking brings it back.
+ */
+export function FloatingResumeBooking({ resumeBooking, onDismiss }: { resumeBooking: ResumeBooking; onDismiss: () => void }) {
+  return (
+    <aside className="guest-resume-float" aria-label="Continue your booking" data-testid="guest-resume-float">
+      <button type="button" className="guest-resume-float__open" onClick={resumeBooking.onResume}>
+        <span className="guest-resume-float__text"><small>Continue your booking</small><b>{resumeBooking.title}</b><span>{resumeBooking.detail}</span></span>
+        <ArrowRight aria-hidden="true" />
+      </button>
+      <button type="button" className="guest-resume-float__dismiss" onClick={onDismiss} aria-label="Dismiss, I'll finish this later"><X aria-hidden="true" /></button>
+    </aside>
   );
 }
 

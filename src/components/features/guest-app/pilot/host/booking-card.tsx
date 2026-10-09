@@ -4,6 +4,7 @@ import { Bicycle, ForkKnife, Receipt, ShoppingBag, Sparkle, X } from '@phosphor-
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ServiceImageDefinition } from '../../service-images';
 import type { Card, CardAction } from '../types';
 import type { Host } from './host';
@@ -135,7 +136,12 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
   /** Opened from a chat's booking bar, which already says the status, the day, the time and the facts. */
   inBar?: boolean;
 } & CardHandlers) {
-  const [qr, setQr] = useState(false);
+  /*
+    The QR sheet is drawn at the top of the app, not inside the card: a card
+    that is animating, or sits in a chat's booking bar, would otherwise box the
+    sheet in and cut it off. Where it goes is found when it is opened.
+  */
+  const [qr, setQr] = useState<Element | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const pilot = host.pilot;
   const booking = pilot.booking(bookingId);
@@ -175,7 +181,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
         break;
       }
       case 'show-qr':
-        setQr(true);
+        setQr(document.querySelector('.guest-app') ?? document.body);
         break;
       case 'running-late': {
         const r = host.call<{ ok: boolean; message?: string }>('guest.runningLate', guestId, bookingId);
@@ -291,14 +297,15 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
           ))}
         </div>
       ) : null}
-      {qr ? (
-        <div className="pilot-sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setQr(false); }}>
+      {qr ? createPortal(
+        <div className="pilot-sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setQr(null); }}>
           <div className="pilot-sheet" role="dialog" aria-modal="true" aria-label="Show this at the vendor">
-            <header><h2>Show this at the vendor</h2><button type="button" className="pilot-icon" onClick={() => setQr(false)} aria-label="Close"><X aria-hidden="true" /></button></header>
-            <div className="pilot-qr"><QRCodeSVG value={`cabana-booking:${bookingId}`} size={176} /></div>
+            <header><h2>Show this at the vendor</h2><button type="button" className="pilot-icon" onClick={() => setQr(null)} aria-label="Close"><X aria-hidden="true" /></button></header>
+            <div className="pilot-qr"><QRCodeSVG value={`cabana-booking:${bookingId}`} size={200} /></div>
             <p className="pilot-muted">{card.title}. If your phone is dead, the vendor can find this by your name and room.</p>
           </div>
-        </div>
+        </div>,
+        qr,
       ) : null}
     </article>
   );

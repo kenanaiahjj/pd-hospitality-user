@@ -793,6 +793,7 @@
 .guest-app .sb-mini-card__name { overflow: hidden; font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
 .guest-app .sb-mini-card__area,
 .guest-app .sb-mini-card__near { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-app .sb-mini-card__why { display: -webkit-box; overflow: hidden; color: var(--guest-accent-strong); font-size: 12.5px; font-weight: 650; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .guest-app .sb-mini-card__near { display: flex; align-items: center; gap: 4px; }
 .guest-app .sb-mini-card__near svg { flex: 0 0 12px; width: 12px; height: 12px; color: var(--guest-accent-strong); }
 .guest-app .sb-mini-card__price { margin-top: 4px; font-size: 13px; }
@@ -1066,6 +1067,9 @@
     radial-gradient(78% 84% at 60% 58%, rgb(250 219 132 / 46%) 0%, transparent 70%),
     linear-gradient(135deg, #effaf5, #f8fcf5 54%, #f1f8ff);
 }
+.guest-app .sb-offer-card--lead { gap: 6px; padding: 18px; border-style: solid; }
+.guest-app .sb-offer-card--lead .sb-offer-card__figure { color: #a4452d; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+.guest-app .sb-offer-card--lead b { font-size: 16px; }
 .guest-app .sb-offer-card.is-saved { border-style: solid; border-color: color-mix(in oklch, var(--guest-positive) 45%, var(--guest-line)); }
 .guest-app .sb-offer-card b { font-size: 15px; line-height: 1.3; }
 .guest-app .sb-offer-card small { color: var(--guest-muted); font-size: 12.5px; line-height: 1.4; }

@@ -140,7 +140,7 @@ function ThreadRow({ host, thread, image, categoryFor, onOpen }: { host: Host; t
   const last = thread.last;
   const preview = !last ? 'No messages yet.'
     : last.kind === 'card' ? (booking ? engineStatusLine(booking) : 'Booking')
-    : last.kind === 'system' ? last.text
+    : last.kind === 'system' ? asGuestReads(last.text)
     : `${last.from.role === 'guest' ? 'You: ' : ''}${last.text}`;
   return (
     <button
@@ -194,7 +194,7 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
   if (!view.ok) {
     return (
       <div className="guest-stack">
-        <div className="guest-page-title"><h1>No chat yet</h1><p>{booking && booking.status === 'requested' ? 'A chat with the vendor opens once they accept your request. Until then, call them from the booking or ask the front desk.' : 'This chat is not available.'}</p></div>
+        <div className="guest-page-title"><h1>No chat yet</h1><p>{booking && booking.status === 'requested' ? `A chat with ${vendorOf(host, booking.id)} opens once they accept your ${host.pilot.listing(booking.listingId).title} request. Until then, call them or ask the front desk from the booking.` : 'This chat is not available.'}</p></div>
         <button type="button" className="guest-button guest-button--secondary" onClick={onBack}>Back</button>
       </div>
     );
@@ -257,12 +257,13 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
         </div>
       ) : null}
 
-      <div ref={listRef} className="guest-messages" aria-label="Conversation" aria-live="polite">
+      <div ref={listRef} className="guest-messages" role="log" aria-label="Conversation">
         {messages.map((message, index) => {
           const previous = messages[index - 1];
           const next = messages[index + 1];
           // Messages from one person in a row, on one day, read as one turn, timed once at the bottom.
-          const sameTurn = (a?: Message, b?: Message) => Boolean(a && b && a.kind === 'text' && b.kind === 'text' && a.from.role === b.from.role && dayOf(a.at) === dayOf(b.at));
+          // An automatic message stands alone: it is not the vendor talking, so it never joins their turn.
+          const sameTurn = (a?: Message, b?: Message) => Boolean(a && b && a.kind === 'text' && b.kind === 'text' && !a.auto && !b.auto && a.from.role === b.from.role && dayOf(a.at) === dayOf(b.at));
           const newDay = !previous || dayOf(previous.at) !== dayOf(message.at);
           return (
             <Fragment key={message.id}>
@@ -289,12 +290,15 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
   );
 }
 
+/** A status line as the guest reads it: the line that opens a chat says "You asked", not their own name. */
+const asGuestReads = (text: string) => text.replace(/^(?!The front desk)\S+ (asked for|booked|questioned|disputed) /, 'You $1 ');
+
 const threadBookingId = (host: Host, threadId: string): string | undefined => host.pilot.bookings().find((b) => b.threadId === threadId)?.id;
 
 function ThreadMessage({ host, message, first, last, receipt, ...handlers }: { host: Host; message: Message; first: boolean; last: boolean; receipt?: string } & CardHandlers) {
   // What happens to the booking is not anyone's message: a quiet line in the middle, as a messaging app marks an event.
   // The guest is reading: the line that opens the chat says "You asked", not their own name.
-  if (message.kind === 'system') return <p className="pilot-event">{message.text.replace(/^(?!The front desk)\S+ (asked for|booked|questioned|disputed) /, 'You $1 ')}</p>;
+  if (message.kind === 'system') return <p className="pilot-event">{asGuestReads(message.text)}</p>;
   if (message.kind === 'card' && message.bookingId) {
     return <EngineBookingCard host={host} bookingId={message.bookingId} paymentId={message.paymentId} inThread {...handlers} />;
   }
@@ -303,7 +307,7 @@ function ThreadMessage({ host, message, first, last, receipt, ...handlers }: { h
     <div className={`guest-message guest-message--${mine ? 'guest' : 'desk'} pilot-msg${first ? '' : ' guest-message--continued'}${last ? '' : ' pilot-msg--grouped'}`}>
       <p>{message.text}</p>
       {/* Sent for the vendor, not typed by them: it says so, as a business chat does. */}
-      {last || message.auto ? <small>{message.auto ? <span className="pilot-msg__auto">Auto-reply</span> : null}{last ? `${message.auto ? ' · ' : ''}${clock12(message.at)}${receipt ? ` · ${receipt}` : ''}` : null}</small> : null}
+      {last ? <small>{message.auto ? <span className="pilot-msg__auto">Auto-reply · </span> : null}{clock12(message.at)}{receipt ? ` · ${receipt}` : ''}</small> : null}
     </div>
   );
 }

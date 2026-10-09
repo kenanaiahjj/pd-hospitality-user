@@ -52,6 +52,8 @@ export type Vendor = {
   close: number;
   /** How a guest reaches them before there is a chat: shown on the listing and the booking. Demo numbers. */
   phone?: string;
+  /** Run by the hotel itself (its outlets, the lobby shop): it speaks as the hotel the guest is staying in, not a business she chose. */
+  hotel?: boolean;
 };
 
 export type Listing = {
@@ -87,6 +89,8 @@ export type Listing = {
   readyAt?: string;
   /** Where the guest meets the vendor: "Driveway, ground floor". Said in the vendor's greeting. */
   meetAt?: string;
+  /** What to bring, as the listing says it: "Driver's licence shown at pickup". */
+  bring?: string;
 };
 
 export type StayStatus = 'booked' | 'in-house' | 'checked-out' | 'cancelled';

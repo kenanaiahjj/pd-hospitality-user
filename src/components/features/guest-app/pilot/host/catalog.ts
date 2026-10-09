@@ -59,6 +59,7 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
   };
   // The hotel's own outlets answer on the front desk's line.
   const hotelId = vendor('the-henry', 'The Henry', 0, 24, HOTEL_PHONE);
+  vendors.get(hotelId)!.hotel = true;
 
   // Services, tables and rentals the hotel lists.
   for (const service of SERVICES) {
@@ -73,6 +74,7 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
       freeCancelHours: cancelHours(service.cutoff),
       capacity: 12,
       meetAt: venue?.location,
+      bring: 'requires' in service ? service.requires : undefined,
     };
     if (isReservation(service.id)) {
       const listing = listingFor(service.id);
@@ -112,6 +114,7 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
 
   // The lobby shop: each product is a goods listing, held for the guest at the desk.
   const shopId = vendor('lobby-shop', LOBBY_SHOP_NAME, 0, 24, HOTEL_PHONE);
+  vendors.get(shopId)!.hotel = true;
   GIFT_PRODUCTS.forEach((product, index) => {
     listings.push({
       id: `gift-${index}`,

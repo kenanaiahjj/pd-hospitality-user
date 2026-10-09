@@ -304,7 +304,7 @@
 .pilot-msg { max-inline-size: 80%; }
 .pilot-msg--grouped { margin-block-end: -6px; }
 .pilot-msg small { font-variant-numeric: tabular-nums; }
-.pilot-msg__auto { font-weight: 600; letter-spacing: 0.01em; }
+.pilot-msg__auto { font-weight: 600; }
 
 .pilot-day {
   align-self: center;
@@ -625,3 +625,9 @@
 .pilot-dispute__decide { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .pilot-dispute__decide--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pilot-dispute__decide .guest-button { min-block-size: 46px; padding-inline: 10px; font-size: 14px; }
+
+/* Messages scrolling up meet the booking bar softly, not as a sliced line of text. The padding keeps the first line clear of the fade at rest. */
+.pilot-chat .guest-messages {
+  padding-block-start: 16px;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+}

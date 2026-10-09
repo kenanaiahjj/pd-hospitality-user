@@ -412,7 +412,8 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     expect(screen.queryByRole('button', { name: /City bicycle/ })).toBeNull();
     // The desk can reinstate it; it waits again, still with no chat until the vendor accepts.
     await fire(user, /Desk reinstates City bicycle/);
-    expect(screen.queryByRole('button', { name: /City bicycle/ })).toBeNull();
+    expect(screen.getByText(/sent your request back to the vendor/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Sakay Rentals, City bicycle/ })).toBeNull();
     await fire(user, /Vendor confirms City bicycle/);
     expect(screen.getByRole('button', { name: /^Sakay Rentals, City bicycle/ })).toBeInTheDocument();
   });

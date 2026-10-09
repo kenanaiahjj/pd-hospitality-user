@@ -1125,15 +1125,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     it opens, a banner says so and taps through to it, and the bell keeps a note.
     A request still waiting gets a banner that says what happens next.
   */
-  const announceChatOpened = (engineBookingId: string, headline: string) => {
+  const announceChatOpened = (engineBookingId: string, headline: string, banner = true) => {
     const host = hostStore.host;
     const engineBooking = host?.pilot.bookings().find((b) => b.id === engineBookingId);
     if (!host || !engineBooking) return;
     const listing = host.pilot.listing(engineBooking.listingId);
     const vendor = host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'the vendor';
-    notifyGuestRequest(`chat-${engineBookingId}`, headline, `Your chat with ${vendor} is open. Tap to message them.`, { screen: 'booking-thread', threadId: engineBooking.threadId });
+    // With push off there is no banner, but the bell still keeps the note.
+    if (banner) notifyGuestRequest(`chat-${engineBookingId}`, headline, `Your chat with ${vendor} is open. Tap to message them.`, { screen: 'booking-thread', threadId: engineBooking.threadId });
     setChatNotifications((current) => [
-      { id: `notification-chat-${engineBookingId}`, tone: 'desk', title: `Chat open with ${vendor}`, body: `About ${listing.title}. Ask them anything.`, time: 'Just now', screen: 'messages' },
+      { id: `notification-chat-${engineBookingId}`, tone: 'desk', title: `Chat open with ${vendor}`, body: `About ${listing.title}. Ask them anything.`, time: 'Just now', screen: 'booking-thread', threadId: engineBooking.threadId },
       ...current.filter((item) => item.id !== `notification-chat-${engineBookingId}`),
     ]);
   };
@@ -1632,6 +1633,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     readEngineNews(engineFeed.filter((news) => news.notification.id === item.id));
     setReadNotificationIds((current) => current.includes(item.id) ? current : [...current, item.id]);
     if (item.entryId) setSelectedStayEntryId(item.entryId);
+    if (item.threadId) setSelectedThreadId(item.threadId);
     go(item.screen);
   };
 
@@ -1933,8 +1935,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       const fresh = feed.slice(0, Math.max(0, feed.length - before)).find((item) => item.channel === 'push');
       // The vendor said yes: their chat with the guest is open now, and the banner takes her to it.
       const opened = host.pilot.threads('guest', guest.guestId).find((thread) => thread.kind === 'booking' && thread.bookingId && !chatsBefore.has(thread.id));
-      if (opened?.bookingId && host.meta[`push:${guest.guestId}`] !== 'off') {
-        announceChatOpened(opened.bookingId, fresh?.notification.title ?? `${opened.title} confirmed`);
+      if (opened?.bookingId) {
+        announceChatOpened(opened.bookingId, fresh?.notification.title ?? `${opened.title} confirmed`, host.meta[`push:${guest.guestId}`] !== 'off');
         return;
       }
       if (fresh) {
@@ -2043,11 +2045,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     };
     setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings.filter((item) => item.id !== record.id)] }));
     const waits = engineBooking.status === 'requested';
-    announceBookingChat(result.bookingId, record.id, shape.table ? 'Table reserved' : waits ? `${place.name} asked` : 'Booking confirmed');
     setEngineNote(null);
     setSelectedStayEntryId(record.id);
     if (engineBooking.status === 'awaiting-payment') payEngineBooking(result.bookingId);
     go('stay-entry');
+    // After the move: going to a screen clears the banner of the one before.
+    announceBookingChat(result.bookingId, record.id, shape.table ? 'Table reserved' : waits ? `${place.name} asked` : 'Booking confirmed');
   };
 
   /* The lobby shop: each product is something the engine sells to the room and holds at the desk. */
@@ -2098,10 +2101,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ...(note.trim() ? { facts: noteFact(note) } : {}),
     };
     setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings] }));
-    announceBookingChat(result.bookingId, id, engineBooking.status === 'needs-approval' ? 'Waiting for the front desk' : 'Order placed');
     setEngineNote(null);
     setSelectedStayEntryId(id);
     go('stay-entry');
+    // After the move: going to a screen clears the banner of the one before.
+    announceBookingChat(result.bookingId, id, engineBooking.status === 'needs-approval' ? 'Waiting for the front desk' : 'Order placed');
   };
 
   const reserveNearbyTable = (place: (typeof NEARBY_ESTABLISHMENTS)[number], request: { day: string; time: string; party: number; requests?: string }) => {

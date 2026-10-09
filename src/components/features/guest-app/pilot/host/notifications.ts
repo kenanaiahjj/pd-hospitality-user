@@ -27,6 +27,7 @@ function wordsFor(topic: string, title: string): Words | undefined {
     case 'approved': return { title: `${title} approved`, body: 'The front desk approved charging it to your room.' };
     case 'ready': return { title: `${title} is ready`, body: 'Held for you at the front desk.' };
     case 'stay-changed': return { title: 'Your stay changed', body: `${title} can no longer go on your room. Pay in full or cancel.` };
+    case 'reinstated': return { title: `${title} asked again`, body: 'The front desk sent your request back to the vendor. Nothing is charged until they say yes.' };
     case 'cancel-declined': return { title: 'Cancellation not accepted', body: `The vendor could not cancel ${title}. The booking stands.` };
     default: return undefined;
   }

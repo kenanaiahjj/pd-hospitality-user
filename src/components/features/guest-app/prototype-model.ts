@@ -2966,6 +2966,8 @@ export type GuestNotification = {
   screen: ScreenId;
   /** The booking it is about, so the tap opens that booking rather than the list. */
   entryId?: string;
+  /** A chat it is about, so the tap opens that chat rather than Messages. */
+  threadId?: string;
 };
 
 /*

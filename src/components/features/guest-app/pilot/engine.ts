@@ -184,6 +184,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (to !== 'confirmed') b.cancelRequested = false;
     b.status = to;
     applyLoad(b, to, 1);
+    // The vendor has committed: from now on there is a chat (a request that never gets here never gets one).
+    if (['confirmed', 'awaiting-payment', 'reserved', 'ready', 'in-progress'].includes(to)) openChat(b);
     b.version += 1;
     w.transitionCount.set(b.id, (w.transitionCount.get(b.id) ?? 0) + 1);
     b.lastActor = { name: who, at: w.now, action };
@@ -281,7 +283,28 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     return m;
   };
   const SYSTEM = { role: 'system' as const, name: 'Cabana' };
-  const announce = (b: Booking, text: string, visibleTo: Role[] = ['guest', 'vendor']) => post(must(w.threads.get(b.threadId), `thread ${b.threadId}`), SYSTEM, text, 'system', visibleTo);
+  // A line about the booking, in its chat. Before the vendor commits there is no chat: the guest hears by push and sees the booking page.
+  const announce = (b: Booking, text: string, visibleTo: Role[] = ['guest', 'vendor']) => {
+    const t = w.threads.get(b.threadId);
+    return t ? post(t, SYSTEM, text, 'system', visibleTo) : undefined;
+  };
+  /*
+    The guest and vendor chat opens once the vendor has committed: as the guest
+    books an instant listing or a table, when the vendor accepts a confirm-first
+    one. It starts with the request as it was put, the booking's card, the
+    guest's note, and a word on who is in it.
+  */
+  const openChat = (b: Booking) => {
+    if (w.threads.has(b.threadId)) return;
+    const listing = listingOf(b);
+    const vendorName = vendorOf(listing).name;
+    const thread = makeThread({ id: b.threadId, kind: 'booking', stayId: b.stayId, bookingId: b.id, vendorId: listing.vendorId, participants: ['guest', 'vendor'], messages: [], openedAt: w.now });
+    refreshReadOnly(b);
+    if (b.requestLine) post(thread, SYSTEM, b.requestLine, 'system');
+    post(thread, SYSTEM, '', 'card', undefined, { bookingId: b.id });
+    if (b.note) post(thread, { role: 'guest', name: guestRecord(b.guestId).firstName }, b.note);
+    post(thread, SYSTEM, `Your chat with ${vendorName} is open. Only you and ${vendorName} are in it.`, 'system', ['guest']);
+  };
   const refreshReadOnly = (b: Booking) => {
     const t = w.threads.get(b.threadId);
     if (!t) return;
@@ -371,7 +394,9 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         if (b.holdUntil) timer = { text: `Choose within ${left(b.holdUntil)} min, or it lapses`, endsAt: b.holdUntil, progress: Math.max(0, (b.holdUntil - w.now) / (settings.payOrCancelMin * MIN)) };
         break;
       case 'requested':
-        actions.push('withdraw');
+        // No chat until the vendor says yes: the guest can call them, ask the desk, or withdraw.
+        if (vendor.phone) actions.push('call-vendor');
+        actions.push('message-desk', 'withdraw');
         if (b.needsPayChange && takesCard(b)) actions.push('pay-in-full');
         if (b.deadline) timer = { text: `Vendor has ${left(b.deadline)} min to confirm`, endsAt: b.deadline, progress: Math.max(0, Math.min(1, (b.deadline - w.now) / Math.max(1, b.deadline - b.createdAt))) };
         break;
@@ -822,15 +847,12 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     w.transitionCount.set(id, 1);
     log('booking-state', `${id} created ${initial}`, { entity: 'booking', entityId: id, from: null, to: initial, actor: guest.firstName });
     b.lastActor = { name: guest.firstName, at: w.now, action: 'asked' };
-    const thread = makeThread({ id: b.threadId, kind: 'booking', stayId: stay.id, bookingId: id, vendorId: listing.vendorId, participants: ['guest', 'vendor'], messages: [], openedAt: w.now });
-    refreshReadOnly(b);
     const asker = how.origin === 'desk' ? `The front desk (${how.staffName ?? 'staff'})` : guest.firstName;
-    post(thread, SYSTEM, `${asker} ${listing.confirm === 'vendor' ? 'asked for' : 'booked'} ${listing.title}: ${b.kind === 'table' ? `table for ${draft.qty}` : `${draft.qty} ${unitWord(b)}`}, ${b.kind === 'goods' ? `for ${weekday(b.readyFor ?? dateOf(start))}` : when(start)}.`, 'system');
-    post(thread, SYSTEM, '', 'card', undefined, { bookingId: id });
-    // Said once, to the guest: who this chat is with, and that it is only the two of them.
-    post(thread, SYSTEM, `Your chat with ${vendorOf(listing).name} is open. Only you and ${vendorOf(listing).name} are in it.`, 'system', ['guest']);
+    b.requestLine = `${asker} ${listing.confirm === 'vendor' ? 'asked for' : 'booked'} ${listing.title}: ${b.kind === 'table' ? `table for ${draft.qty}` : `${draft.qty} ${unitWord(b)}`}, ${b.kind === 'goods' ? `for ${weekday(b.readyFor ?? dateOf(start))}` : when(start)}.`;
+    refreshReadOnly(b);
+    // An instant listing or a table is the vendor's yes already: its chat opens now. A request waits for the vendor's.
+    if (listing.confirm !== 'vendor') openChat(b);
     if (how.origin !== 'app') post(ensureDeskThread(stay.id), SYSTEM, '', 'card', ['guest', 'desk'], { bookingId: id });
-    if (draft.note) post(thread, { role: 'guest', name: guest.firstName }, draft.note);
     if (initial === 'needs-approval') {
       b.holdUntil = w.now + settings.deskApprovalMin * MIN;
       raise('over-limit-approval', id, `${guest.firstName} wants ${peso(amount)} charged to the room, over the ${peso(settings.perOrderLimit)} limit. Approve, or ask them to pay in full.`, b.holdUntil, { bookingId: id });
@@ -1163,6 +1185,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       send(threadId, text) {
         return own(() => {
           const t = w.threads.get(threadId);
+          // A request the vendor has not accepted yet has no chat: the guest calls them or asks the front desk.
+          if (!t && [...w.bookings.values()].some((b) => b.threadId === threadId && b.guestId === guestId)) return refuse('not-possible', 'This request has no chat yet. It opens when the vendor accepts. Call them or ask the front desk.');
           if (!t || !t.participants.includes('guest')) return refuse('not-a-participant', 'That thread is not yours.');
           const stay = must(w.stays.get(guestRecord(guestId).stayId), 'stay');
           if (t.stayId !== stay.id) return refuse('not-a-participant', 'That thread is not yours.');
@@ -1486,6 +1510,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       message(threadId, text) {
         return act(() => {
           const t = w.threads.get(threadId);
+          // No chat until the vendor says yes: a request is answered with Confirm, not a message.
+          if (!t && [...w.bookings.values()].some((b) => b.threadId === threadId && listingOf(b).vendorId === vendorId)) return refuse('not-possible', 'There is no chat until you accept. Tap Confirm.');
           if (!t || !t.participants.includes('vendor') || t.vendorId !== vendorId) return refuse('not-a-participant', 'That thread is not yours.');
           if (t.readOnlyAt !== undefined && w.now >= t.readOnlyAt) return refuse('thread-closed', 'That thread is closed.');
           post(t, { role: 'vendor', name: vendor.name }, text);
@@ -1628,7 +1654,12 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         if (!stay) return refuse('not-found', 'No such stay.');
         stay.room = room;
         for (const f of w.pms.folio) if (f.stayId === stayId) f.room = room;
-        for (const b of w.bookings.values()) if (b.stayId === stayId && holdKind(b.status)) announce(b, `The guest moved to ${room}.`, ['desk', 'vendor']);
+        for (const b of w.bookings.values()) {
+          if (b.stayId !== stayId || !holdKind(b.status)) continue;
+          // In the chat if there is one; a request still waiting has none, so the vendor is told directly.
+          if (w.threads.has(b.threadId)) announce(b, `The guest moved to ${room}.`, ['desk', 'vendor']);
+          else notify('vendor', 'push', 'guest-moved', b.id);
+        }
         log('room-move', `${stayId} to ${room}`);
         return ok();
       });
@@ -1744,13 +1775,13 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         const d = openDisputeFor(b.id);
         // No dispute, no reading: the desk sees the booking and its tasks, never the chat.
         if (!d) return refuse('no-dispute', 'There is no open dispute on this booking. The front desk can see the booking and its tasks, not the chat.');
-        const t = must(w.threads.get(b.threadId), 'thread');
+        const t = w.threads.get(b.threadId);
         d.reads.push(w.now);
         log('dispute-read', `${deskName} read the chat of ${b.id} for ${d.id} (${d.kind})`, { entity: 'booking', entityId: b.id, actor: deskName });
         // What the two of them said, as they see it; reading marks nothing read for either side.
-        const messages = t.messages.filter((m) => m.visibleTo.includes('guest') || m.visibleTo.includes('vendor'));
+        const messages = t ? t.messages.filter((m) => m.visibleTo.includes('guest') || m.visibleTo.includes('vendor')) : [];
         // Both are told, in this chat, that the desk read it. The desk is still not a member and cannot write here.
-        post(t, SYSTEM, 'The front desk read this chat to settle the dispute.', 'system', ['guest', 'vendor']);
+        if (t) post(t, SYSTEM, 'The front desk read this chat to settle the dispute.', 'system', ['guest', 'vendor']);
         return ok({ dispute: { ...d, reads: [...d.reads] }, messages });
       });
     },

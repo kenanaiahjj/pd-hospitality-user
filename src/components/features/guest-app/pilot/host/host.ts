@@ -82,6 +82,9 @@ function makePilot(start: number): Pilot {
     // The engine always seeds one guest; this one is parked in the past and never used.
     guestName: 'Placeholder',
     mariaStay: { checkIn: '2026-01-01', checkOut: '2026-01-02', status: 'checked-out', room: '' },
+    // No room-bill limits in the app for now: the proof of concept charges any amount to the room, with no desk approval.
+    // The engine keeps the rule (and its scenarios); set these back to turn it on.
+    settings: { perOrderLimit: Number.POSITIVE_INFINITY, perStayLimit: Number.POSITIVE_INFINITY },
   });
 }
 

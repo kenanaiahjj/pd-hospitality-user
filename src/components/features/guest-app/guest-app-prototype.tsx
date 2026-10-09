@@ -590,6 +590,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const [hostStore] = useState(() => new HostStore(!initialSession));
   const hostVersion = useSyncExternalStore(hostStore.subscribe, hostStore.getVersion, () => 0);
+  const vendorPhoneFor = (listingId: string) => {
+    const pilot = hostStore.host?.pilot;
+    const listing = pilot?.listings().find((l) => l.id === listingId);
+    return listing ? pilot?.vendors().find((v) => v.id === listing.vendorId)?.phone : undefined;
+  };
   const session = useMemo(() => {
     // The engine changes in place, so its version is what says the projection is stale.
     void hostVersion;
@@ -1115,20 +1120,31 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   /*
-    Every booking starts a chat with its vendor, and nothing said so: it was found
-    only by going to Messages. The banner says it is open and its tap opens it;
-    the bell keeps a note of it.
+    A booking's chat with its vendor opens once the vendor commits: as the guest
+    books an instant listing or a table, when the vendor accepts a request. When
+    it opens, a banner says so and taps through to it, and the bell keeps a note.
+    A request still waiting gets a banner that says what happens next.
   */
-  const announceBookingChat = (engineBookingId: string, recordId: string, headline: string, about: string) => {
+  const announceChatOpened = (engineBookingId: string, headline: string) => {
     const host = hostStore.host;
     const engineBooking = host?.pilot.bookings().find((b) => b.id === engineBookingId);
     if (!host || !engineBooking) return;
-    const vendor = host.pilot.vendors().find((v) => v.id === host.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'the vendor';
-    notifyGuestRequest(recordId, headline, `Your chat with ${vendor} is open. Tap to message them.`, { screen: 'booking-thread', threadId: engineBooking.threadId });
+    const listing = host.pilot.listing(engineBooking.listingId);
+    const vendor = host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'the vendor';
+    notifyGuestRequest(`chat-${engineBookingId}`, headline, `Your chat with ${vendor} is open. Tap to message them.`, { screen: 'booking-thread', threadId: engineBooking.threadId });
     setChatNotifications((current) => [
-      { id: `notification-chat-${engineBookingId}`, tone: 'desk', title: `Chat open with ${vendor}`, body: `About ${about}. Ask them anything.`, time: 'Just now', screen: 'messages' },
+      { id: `notification-chat-${engineBookingId}`, tone: 'desk', title: `Chat open with ${vendor}`, body: `About ${listing.title}. Ask them anything.`, time: 'Just now', screen: 'messages' },
       ...current.filter((item) => item.id !== `notification-chat-${engineBookingId}`),
     ]);
+  };
+  const announceBookingChat = (engineBookingId: string, recordId: string, headline: string) => {
+    const host = hostStore.host;
+    const engineBooking = host?.pilot.bookings().find((b) => b.id === engineBookingId);
+    if (!host || !engineBooking) return;
+    if (host.pilot.thread(engineBooking.threadId, 'guest', false).ok) { announceChatOpened(engineBookingId, headline); return; }
+    const vendor = host.pilot.vendors().find((v) => v.id === host.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'The vendor';
+    // Still a request: no chat yet. The tap opens the booking, where the guest can call the vendor or ask the desk.
+    notifyGuestRequest(recordId, headline, `${vendor} confirms first. A chat with them opens once they accept.`);
   };
 
   const sendChatMessage = (body: string, attachment?: ChatAttachment) => {
@@ -1911,9 +1927,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       const readFeed = () => engineNews(host, guest.guestId, session.serviceBookings);
       const before = readFeed().length;
       const unreadBefore = host.pilot.threads('guest', guest.guestId).reduce((sum, thread) => sum + thread.unread, 0);
+      const chatsBefore = new Set(host.pilot.threads('guest', guest.guestId).map((thread) => thread.id));
       event.onClick();
       const feed = readFeed();
       const fresh = feed.slice(0, Math.max(0, feed.length - before)).find((item) => item.channel === 'push');
+      // The vendor said yes: their chat with the guest is open now, and the banner takes her to it.
+      const opened = host.pilot.threads('guest', guest.guestId).find((thread) => thread.kind === 'booking' && thread.bookingId && !chatsBefore.has(thread.id));
+      if (opened?.bookingId && host.meta[`push:${guest.guestId}`] !== 'off') {
+        announceChatOpened(opened.bookingId, fresh?.notification.title ?? `${opened.title} confirmed`);
+        return;
+      }
       if (fresh) {
         setPushNotice({ id: fresh.notification.entryId ?? 'messages', headline: fresh.notification.title, detail: fresh.notification.body, ...(fresh.notification.entryId ? {} : { screen: 'messages' as const }) });
         return;
@@ -2020,7 +2043,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     };
     setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings.filter((item) => item.id !== record.id)] }));
     const waits = engineBooking.status === 'requested';
-    announceBookingChat(result.bookingId, record.id, shape.table ? 'Table reserved' : waits ? `${place.name} asked` : 'Booking confirmed', `${record.title}, ${record.scheduledFor}`);
+    announceBookingChat(result.bookingId, record.id, shape.table ? 'Table reserved' : waits ? `${place.name} asked` : 'Booking confirmed');
     setEngineNote(null);
     setSelectedStayEntryId(record.id);
     if (engineBooking.status === 'awaiting-payment') payEngineBooking(result.bookingId);
@@ -2075,7 +2098,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ...(note.trim() ? { facts: noteFact(note) } : {}),
     };
     setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings] }));
-    announceBookingChat(result.bookingId, id, engineBooking.status === 'needs-approval' ? 'Waiting for the front desk' : 'Order placed', `${product.name}, ${record.amount}`);
+    announceBookingChat(result.bookingId, id, engineBooking.status === 'needs-approval' ? 'Waiting for the front desk' : 'Order placed');
     setEngineNote(null);
     setSelectedStayEntryId(id);
     go('stay-entry');
@@ -2764,7 +2787,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setJustEarned(earnedBadges(applyEngine(next, host)).filter((row) => !held.has(row.definition.id)).map((row) => row.definition.id));
     setSession(next);
 
-    announceBookingChat(result.bookingId, serviceBooking.id, waitsForVendor ? `${serviceBooking.title} requested` : `${serviceBooking.title} booked`, `${serviceBooking.title}, ${serviceBooking.scheduledFor}`);
+    announceBookingChat(result.bookingId, serviceBooking.id, waitsForVendor ? `${serviceBooking.title} requested` : `${serviceBooking.title} booked`);
     setLastServiceBookingId(recordId);
     setAppliedPoints(0);
     setServiceNote('');
@@ -5073,6 +5096,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             service={selectedService}
             booking={contextBooking}
             provider={providerFor(selectedService)}
+            phone={vendorPhoneFor(selectedService.id)}
             highlights={serviceHighlights?.serviceId === selectedService.id ? serviceHighlights.lines : []}
             online={online}
             onBook={() => openServiceBooking(selectedService.id)}
@@ -5247,7 +5271,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // A record whose engine booking is gone (the demo was reset) reads as an ordinary booking, never as an error.
         const engineBooking = engineHost && booked?.engineId ? engineHost.pilot.bookings().find((b) => b.id === booked.engineId) : undefined;
         const vendorName = engineHost && engineBooking ? engineHost.pilot.vendors().find((v) => v.id === engineHost.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'The vendor' : 'The vendor';
-        const engineHeadline = engineBooking?.status === 'requested' ? { title: `Request sent to ${vendorName}`, text: `Nothing is charged until ${vendorName} confirms. You can follow it, and message them, under Messages.`, tag: 'Waiting' }
+        const engineHeadline = engineBooking?.status === 'requested' ? { title: `Request sent to ${vendorName}`, text: `Nothing is charged until ${vendorName} confirms. A chat with them opens once they accept; until then, call them or ask the front desk.`, tag: 'Waiting' }
           : engineBooking?.status === 'needs-approval' ? { title: 'Waiting for the front desk', text: 'The front desk approves charging this to your room. If they do not answer in 10 minutes you can pay in full or cancel.', tag: 'Waiting' }
           : engineBooking?.status === 'pay-or-cancel' ? { title: 'Pay in full or cancel', text: 'The front desk could not charge this to your room. Pay in full instead, or cancel.', tag: 'Waiting' }
           : engineBooking?.status === 'awaiting-payment' ? { title: `Pay to confirm ${booked?.title ?? bookedService.name}`, text: 'Your slot is held while you pay. If it is not paid in time it is released.', tag: 'Pay to confirm' }
@@ -5277,8 +5301,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <EngineBookingCard host={engineHost} bookingId={booked.engineId} {...cardHandlers} />
             ) : null}
             {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
-            {/* The booking opened a chat with the vendor: the way into it, where the guest is looking. */}
-            {engineHost && engineBooking ? (
+            {/* Once the vendor has committed there is a chat with them: the way into it, where the guest is looking. */}
+            {engineHost && engineBooking && engineHost.pilot.thread(engineBooking.threadId, 'guest', false).ok ? (
               <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineBooking.threadId); go('booking-thread'); }}>
                 <span><ChatCircleDots /></span>
                 <div><b>Message {vendorName}</b><small>Your chat with them is open. Ask anything about this booking.</small></div>
@@ -5704,6 +5728,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {engineEntryHost && engineEntryBookingId ? (
               <EngineBookingCard host={engineEntryHost} bookingId={engineEntryBookingId} paymentId={entryExtraId} bare {...cardHandlers} />
             ) : null}
+            {/* A request still waiting has no chat: say when it comes. */}
+            {engineEntryHost && engineEntryBookingId && !entryExtraId && engineEntryHost.pilot.booking(engineEntryBookingId).status === 'requested' ? (
+              <p className="pilot-event">A chat with {engineEntryHost.pilot.vendors().find((v) => v.id === engineEntryHost.pilot.listing(engineEntryHost.pilot.booking(engineEntryBookingId).listingId).vendorId)?.name ?? 'the vendor'} opens once they accept.</p>
+            ) : null}
             {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
 
             {/* What differs by kind: a rental's pick-up and return, a tour's meeting point and guide. */}
@@ -5773,8 +5801,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </>
             )}
 
-            {/* The booking's chat with its vendor, one tap from the booking. */}
-            {engineEntryHost && engineEntryBookingId ? (
+            {/* The booking's chat with its vendor, one tap from the booking, once the vendor has committed. */}
+            {engineEntryHost && engineEntryBookingId && engineEntryHost.pilot.thread(engineEntryHost.pilot.booking(engineEntryBookingId).threadId, 'guest', false).ok ? (
               <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineEntryHost.pilot.booking(engineEntryBookingId).threadId); go('booking-thread'); }}>
                 <span><ChatCircleDots /></span>
                 <div><b>Message {engineEntryHost.pilot.vendors().find((v) => v.id === engineEntryHost.pilot.listing(engineEntryHost.pilot.booking(engineEntryBookingId).listingId).vendorId)?.name ?? 'the vendor'}</b><small>Your chat about this booking</small></div>

@@ -66,7 +66,7 @@ export function RoomReadyNotification({
         if (from !== null && event.clientY - from < -24) onDismiss();
       }}
     >
-      <button type="button" className="guest-push__body" onClick={onViewStay} aria-label={`${headline}. ${detail}. Open`}>
+      <button type="button" className="guest-push__body" onClick={onViewStay} aria-label={`${headline}. ${detail.replace(/\.$/, '')}. Open`}>
         <span className="guest-push__icon" aria-hidden="true"><CabanaMark /></span>
         <span className="guest-push__text">
           <span className="guest-push__meta"><b>Cabana</b><small>now</small></span>

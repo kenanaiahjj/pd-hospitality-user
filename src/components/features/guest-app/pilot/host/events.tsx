@@ -122,9 +122,12 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
       vendor.push({ icon: <X />, label: `Vendor declines the cancellation of ${name}`, detail: 'The booking stands and the front desk is asked to step in.', onClick: call('vendor.answerCancel', vendorId, b.id, false) });
     }
     if (LIVE.includes(b.status)) {
-      vendor.push({ icon: <ChatCircleDots />, label: `Vendor sends a message about ${name}`, detail: 'It arrives in the guest’s chat with the vendor.', onClick: call('vendor.message', vendorId, b.threadId, 'Hello! We have your booking. Anything we should prepare?') });
-      vendor.push({ icon: <ChatCircleDots />, label: `Vendor says it is running late for ${name}`, detail: 'In the guest’s chat with the vendor: about fifteen minutes behind.', onClick: call('vendor.message', vendorId, b.threadId, 'Sorry, we are running about 15 minutes behind. Thank you for your patience!') });
-      vendor.push({ icon: <ChatCircleDots />, label: `Vendor asks how many are coming for ${name}`, detail: 'A question for the guest to answer in their chat.', onClick: call('vendor.message', vendorId, b.threadId, 'Quick check: how many of you will be coming? And is there anything we should know beforehand?') });
+      // The vendor can only write once there is a chat: it opens when they commit.
+      if (pilot.thread(b.threadId, 'vendor', false).ok) {
+        vendor.push({ icon: <ChatCircleDots />, label: `Vendor sends a message about ${name}`, detail: 'It arrives in the guest’s chat with the vendor.', onClick: call('vendor.message', vendorId, b.threadId, 'Hello! We have your booking. Anything we should prepare?') });
+        vendor.push({ icon: <ChatCircleDots />, label: `Vendor says it is running late for ${name}`, detail: 'In the guest’s chat with the vendor: about fifteen minutes behind.', onClick: call('vendor.message', vendorId, b.threadId, 'Sorry, we are running about 15 minutes behind. Thank you for your patience!') });
+        vendor.push({ icon: <ChatCircleDots />, label: `Vendor asks how many are coming for ${name}`, detail: 'A question for the guest to answer in their chat.', onClick: call('vendor.message', vendorId, b.threadId, 'Quick check: how many of you will be coming? And is there anything we should know beforehand?') });
+      }
       desk.push({ icon: <ChatCircleDots />, label: `Desk asks when the guest will arrive for ${name}`, detail: 'In the front desk chat. The desk is not in the vendor’s chat.', onClick: () => deskMessage(`For ${name}: do you know roughly what time you will arrive? I will let ${vendorName} know.`) });
       desk.push({ icon: <ChatCircleDots />, label: `Desk says it has passed the request to the vendor of ${name}`, detail: 'In the front desk chat, after a word with the vendor in theirs.', onClick: () => deskMessage(`I have passed your request for ${name} to ${vendorName} and will update you here as soon as they reply.`) });
       desk.push({ icon: <ChatCircleDots />, label: `Desk sends a message about ${name}`, detail: 'It arrives in the front desk chat, about this booking.', onClick: () => deskMessage(`Noted, I have added that to your ${name} booking.`) });
@@ -232,10 +235,10 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
   waiting(vendor, (l) => l.includes('extra charge to'), <Receipt />, 'Vendor adds an extra charge', 'Needs a confirmed rental or service');
   waiting(vendor, (l) => l.includes('a no-show'), <Clock />, 'Vendor marks a booking a no-show', 'Needs a confirmed booking that has passed its start');
   waiting(vendor, (l) => l.startsWith('Vendor cancels'), <X />, 'Vendor cancels a booking', 'Needs a booking that has not started');
-  waiting(vendor, (l) => l.startsWith('Vendor sends a message about'), <ChatCircleDots />, 'Vendor sends a message', 'Needs a booking: its chat with the vendor opens as soon as something is asked for');
+  waiting(vendor, (l) => l.startsWith('Vendor sends a message about'), <ChatCircleDots />, 'Vendor sends a message', 'Needs a chat: it opens when the vendor accepts a request, or as an instant booking is made');
   waiting(vendor, (l) => l.startsWith('Restaurant seats'), <Check />, 'Restaurant seats a party', 'Needs a reserved table');
   waiting(vendor, (l) => l.includes('packs'), <Storefront />, 'Vendor packs an order', 'Needs a confirmed goods order');
-  waiting(desk, (l) => l.startsWith('Desk approves charging'), <Check />, 'Desk approves an over-limit charge', 'Needs a room charge over ₱5,000 waiting for the desk');
+  waiting(desk, (l) => l.startsWith('Desk approves charging'), <Check />, 'Desk approves an over-limit charge', 'Room-bill limits are off in this prototype, so nothing needs the desk to approve it');
   waiting(desk, (l) => l.startsWith('Desk reinstates'), <Check />, 'Desk reinstates a lapsed request', 'Needs a request the vendor did not answer in time');
   waiting(desk, (l) => l.includes('marks') && l.includes('ready'), <Check />, 'Desk marks an order ready', 'Needs a confirmed goods order');
   waiting(desk, (l) => l.startsWith('Desk hands over'), <Check />, 'Desk hands over an order', 'Needs an order that is ready');

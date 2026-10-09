@@ -106,7 +106,8 @@ export const PMS: Scenario[] = [
         c.must(p.desk.moveRoom(p.maria.stayId, 'Villa 14'));
         c.eq(p.pms.folio.find((f) => f.ref === posted)!.room, 'Villa 14', 'the posted charge moves with the folio');
         c.eq(p.stay(p.maria.stayId).room, 'Villa 14', 'vendors see Villa 14 on open bookings');
-        c.ok(c.must(p.thread(p.booking(open).threadId, 'vendor')).messages.some((m) => /Villa 14/.test(m.text)), 'the vendor is told');
+        // The bikes are still a request, so there is no chat yet: the shop is told directly.
+        c.ok(p.outbox().some((n) => n.to === 'vendor' && n.topic === 'guest-moved' && n.bookingId === open), 'the vendor is told');
       });
       c.step('New charges post to Villa 14', () => {
         c.must(p.vendor('bike-shop').confirm(open));

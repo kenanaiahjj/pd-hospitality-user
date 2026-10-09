@@ -15,11 +15,13 @@ import { ArrowRight, Sparkle, WifiSlash } from '@phosphor-icons/react';
 
 export type ServicePageService = (typeof SERVICES)[number];
 
-export function ServicePage({ service, booking, provider, highlights, online, onBook, onChat }: {
+export function ServicePage({ service, booking, provider, phone, highlights, online, onBook, onChat }: {
   service: ServicePageService;
   booking: Booking;
   /** Who the guest is dealing with, said the way the booking form says it. */
   provider: string;
+  /** The provider's number, for calling while a request waits. */
+  phone?: string;
   /** What to expect, in the venue's own words. */
   highlights: string[];
   online: boolean;
@@ -48,6 +50,7 @@ export function ServicePage({ service, booking, provider, highlights, online, on
       <div className="guest-summary">
         <SummaryRow label="Price" value={service.price} strong />
         <SummaryRow label="Provider" value={provider} />
+        {phone ? <SummaryRow label="Phone" value={phone} /> : null}
         <SummaryRow label="When" value={schedule ? schedule.label : `Daily · ${listingFor(service.id).times.join(', ')}`} />
         <SummaryRow label="Cancellation" value={service.cutoff} />
         {requires ? <SummaryRow label="Bring" value={requires} /> : null}

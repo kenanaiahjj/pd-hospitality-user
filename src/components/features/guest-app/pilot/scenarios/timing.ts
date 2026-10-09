@@ -73,7 +73,8 @@ export const TIMING: Scenario[] = [
         c.eq(b.bookingId, a.bookingId, 'one active request');
         c.eq(b.duplicate, true, 'the second is ignored');
         c.eq(p.bookings().length, 1, 'one booking');
-        c.eq(p.threads('guest', p.maria.guestId).filter((t) => t.kind === 'booking').length, 1, 'one card in one thread');
+        // A request has no chat until the operator accepts; a double tap does not make one either.
+        c.eq(p.threads('guest', p.maria.guestId).filter((t) => t.kind === 'booking').length, 0, 'no chat while it waits');
       });
     },
   },

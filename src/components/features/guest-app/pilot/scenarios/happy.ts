@@ -126,13 +126,14 @@ export const HAPPY: Scenario[] = [
         id = c.ask(draft('apo-island-trip', S.fri, 2, { time: '07:30', payMode: 'room', origin: 'guest-chat' }));
         c.eq(p.booking(id).status, 'requested', 'the request goes straight to the operator');
         c.ok(p.outbox().some((n) => n.to === 'vendor' && n.bookingId === id), 'the operator was told');
-        c.must(p.thread(p.booking(id).threadId, 'vendor'));
+        c.refused(p.thread(p.booking(id).threadId, 'vendor'), 'not-found');
         const desk = c.must(p.thread(p.deskThreadId(p.maria.stayId), 'guest'));
         c.ok(desk.messages.some((m) => m.kind === 'card' && m.bookingId === id), 'the card is in the desk thread');
       });
       c.step('It ends on the same Confirmed card as H4', () => {
         c.must(p.vendor('boat-operator').confirm(id));
         c.eq(p.card(id).state, 'confirmed', 'Confirmed card');
+        c.must(p.thread(p.booking(id).threadId, 'guest'));
       });
     },
   },

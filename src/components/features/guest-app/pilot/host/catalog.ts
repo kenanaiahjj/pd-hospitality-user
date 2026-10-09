@@ -45,14 +45,20 @@ const NOT_BOOKABLE_HERE = new Set(['dining', 'transfer', 'private-car']);
 
 const cancelHours = (cutoff: string): number => cancellationCutoffHours(cutoff) ?? 2;
 
+/** The Henry Manila's front desk, as the stay's own record has it. */
+const HOTEL_PHONE = '+63 2 8807 8888';
+/** A demo number for a partner with none on file: in the fictional 555 range the nearby places use, steady for each partner. */
+const demoPhone = (id: string) => `+63 917 555 ${String(2000 + ([...id].reduce((sum, ch) => sum * 31 + ch.charCodeAt(0), 7) % 7000)).padStart(4, '0')}`;
+
 export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
   const vendors = new Map<string, Vendor>();
   const listings: Listing[] = [];
-  const vendor = (id: string, name: string, open: number, close: number, simulated = false) => {
-    if (!vendors.has(id)) vendors.set(id, { id, name, simulated, ...hours(open, close) });
+  const vendor = (id: string, name: string, open: number, close: number, phone?: string, simulated = false) => {
+    if (!vendors.has(id)) vendors.set(id, { id, name, simulated, ...hours(open, close), phone: phone ?? demoPhone(id) });
     return id;
   };
-  const hotelId = vendor('the-henry', 'The Henry', 0, 24);
+  // The hotel's own outlets answer on the front desk's line.
+  const hotelId = vendor('the-henry', 'The Henry', 0, 24, HOTEL_PHONE);
 
   // Services, tables and rentals the hotel lists.
   for (const service of SERVICES) {
@@ -86,7 +92,7 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
   // Nearby places that take bookings through Cabana.
   for (const place of NEARBY_ESTABLISHMENTS) {
     if (place.categoryId === 'gifts') continue;
-    const vendorId = vendor(place.id, place.name, 7, 22);
+    const vendorId = vendor(place.id, place.name, 7, 22, place.contact);
     const integration = place.paymentIntegration;
     const times = tableTimes(place.hours).map(HH);
     const base = { id: place.id, vendorId, title: place.name, capacity: 8, times: times.length ? times : ['10:00'], freeCancelHours: 2 };
@@ -104,7 +110,7 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
   }
 
   // The lobby shop: each product is a goods listing, held for the guest at the desk.
-  const shopId = vendor('lobby-shop', LOBBY_SHOP_NAME, 0, 24);
+  const shopId = vendor('lobby-shop', LOBBY_SHOP_NAME, 0, 24, HOTEL_PHONE);
   GIFT_PRODUCTS.forEach((product, index) => {
     listings.push({
       id: `gift-${index}`,

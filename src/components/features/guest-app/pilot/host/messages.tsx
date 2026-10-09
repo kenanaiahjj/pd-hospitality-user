@@ -70,10 +70,12 @@ export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpe
   onOpenDesk: () => void;
   onOpenThread: (threadId: string) => void;
 }) {
-  // Newest conversation first, as any inbox.
+  // Newest conversation first, as any inbox. On a tie in the clock, the chat opened later goes first.
   const threads = host.pilot.threads('guest', guestId)
     .filter((thread) => thread.kind === 'booking')
-    .sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0));
+    .map((thread, opened) => ({ thread, opened }))
+    .sort((a, b) => (b.thread.last?.at ?? 0) - (a.thread.last?.at ?? 0) || b.opened - a.opened)
+    .map(({ thread }) => thread);
   return (
     <div className="guest-stack pilot-messages">
       <div className="guest-page-title"><h1>Messages</h1></div>
@@ -188,7 +190,15 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
     if (unread > 0) host.call('pilot.thread', threadId, 'guest');
   }, [host, threadId, unread]);
   useStickToLatest(listRef, view.ok ? view.messages.length : 0);
-  if (!view.ok) return <p className="pilot-muted">{view.message}</p>;
+  // A request the vendor has not accepted yet has no chat; anything else missing is a chat that is gone.
+  if (!view.ok) {
+    return (
+      <div className="guest-stack">
+        <div className="guest-page-title"><h1>No chat yet</h1><p>{booking && booking.status === 'requested' ? 'A chat with the vendor opens once they accept your request. Until then, call them from the booking or ask the front desk.' : 'This chat is not available.'}</p></div>
+        <button type="button" className="guest-button guest-button--secondary" onClick={onBack}>Back</button>
+      </div>
+    );
+  }
 
   const name = bookingId ? vendorOf(host, bookingId) : 'The vendor';
   const card = bookingId ? host.pilot.card(bookingId) : undefined;

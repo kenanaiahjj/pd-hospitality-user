@@ -14,9 +14,10 @@ export const CHAT: Scenario[] = [
       const { p } = c;
       let id = '';
       const states = () => [p.threads('guest', p.maria.guestId), p.threads('vendor', 'boat-operator')].map((rows) => rows.find((t) => t.bookingId === id)?.cardState);
-      c.step('The booking shows the same state to the guest and the vendor', () => {
+      c.step('While the request waits there is no chat on either side', () => {
         id = c.ask(trip());
-        c.eq(states().join(','), 'for-confirmation,for-confirmation', 'both agree');
+        c.eq(states().join(','), ',', 'no chat for the guest or the operator');
+        c.eq(p.card(id).state, 'for-confirmation', 'the booking itself waits');
       });
       c.step('It changes state: both show it at once, with no stale copy', () => {
         c.must(p.vendor('boat-operator').confirm(id));
@@ -55,18 +56,15 @@ export const CHAT: Scenario[] = [
   {
     id: 'Q3',
     group: G,
-    title: 'Vendor types "ok" instead of tapping Confirm',
+    title: 'Vendor tries to answer in chat instead of tapping Confirm',
     run(c) {
       const { p } = c;
-      c.step('Only the buttons change a status', () => {
+      c.step('There is no chat before the vendor accepts: only Confirm commits', () => {
         const id = c.ask(trip());
         const threadId = p.booking(id).threadId;
-        c.must(p.vendor('boat-operator').message(threadId, 'ok'));
+        c.refused(p.vendor('boat-operator').message(threadId, 'ok'), 'not-possible', 'Tap Confirm');
         c.eq(p.booking(id).status, 'requested', 'status unchanged');
-        const vendorView = c.must(p.thread(threadId, 'vendor'));
-        c.ok(vendorView.messages.some((m) => m.kind === 'system' && /tap confirm/i.test(m.text)), 'the card reminds the vendor to tap Confirm');
-        const guestView = c.must(p.thread(threadId, 'guest'));
-        c.ok(!guestView.messages.some((m) => /tap confirm/i.test(m.text)), 'the reminder is for the vendor');
+        c.refused(p.guest().send(threadId, 'Is it on?'), 'not-possible', 'no chat yet');
       });
     },
   },
@@ -113,11 +111,14 @@ export const CHAT: Scenario[] = [
   {
     id: 'Q6',
     group: G,
-    title: 'A booking chat is the guest and the vendor, one to one',
+    title: 'No chat while the request waits; it opens one to one when the vendor accepts',
     run(c) {
       const { p } = c;
-      c.step('She requests the Apo Island trip', () => {
+      c.step('She requests the Apo Island trip: no chat yet', () => {
         const id = c.ask(trip());
+        c.ok(!p.threads('guest', p.maria.guestId).some((t) => t.bookingId === id), 'not in her list');
+        c.refused(p.thread(p.booking(id).threadId, 'guest'), 'not-found');
+        c.must(p.vendor('boat-operator').confirm(id));
         const row = p.threads('guest', p.maria.guestId).find((t) => t.bookingId === id)!;
         c.eq(row.kind, 'booking', 'a booking thread');
         for (const viewer of ['guest', 'vendor'] as const) {
@@ -139,6 +140,7 @@ export const CHAT: Scenario[] = [
       const { p } = c;
       c.step('A private note never reaches the guest or the booking thread', () => {
         const id = c.ask(trip());
+        c.must(p.vendor('boat-operator').confirm(id));
         const before = c.must(p.thread(p.booking(id).threadId, 'guest')).messages.length;
         c.must(p.desk.privateNote('boat-operator', 'Guest is a regular, hold the front seats', id));
         c.refused(p.thread(p.privateThreadId('boat-operator'), 'guest'), 'not-a-participant');

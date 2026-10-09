@@ -50,6 +50,8 @@ export type Vendor = {
   /** Minutes after midnight, hotel time. */
   open: number;
   close: number;
+  /** How a guest reaches them before there is a chat: shown on the listing and the booking. Demo numbers. */
+  phone?: string;
 };
 
 export type Listing = {
@@ -137,7 +139,15 @@ export type Booking = {
   amount: number;
   payMode: PayMode | null;
   paymentIds: string[];
+  /**
+   * The guest and vendor chat's id. The chat itself exists only once the
+   * vendor has committed: at booking for an instant listing or a table, when
+   * the vendor accepts for a confirm-first one. A request that never gets a yes
+   * never gets a chat.
+   */
   threadId: string;
+  /** How the request was put, said again as the chat's first line when the chat opens. */
+  requestLine?: string;
   createdAt: number;
   /** When a vendor's silence turns the request into a lapse. */
   deadline?: number;
@@ -322,6 +332,7 @@ export type CardAction =
   | 'view-booking'
   | 'pick-another'
   | 'message-desk'
+  | 'call-vendor'
   | 'question'
   | 'dispute-cancel'
   | 'running-late';

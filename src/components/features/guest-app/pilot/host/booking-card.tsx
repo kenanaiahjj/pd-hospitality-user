@@ -41,7 +41,8 @@ const LABEL: Record<CardAction, string> = {
   'open-menu': 'Open menu',
   'view-booking': 'View booking',
   'pick-another': 'Pick another',
-  'message-desk': 'Message the front desk',
+  'message-desk': 'Ask the front desk',
+  'call-vendor': 'Call the vendor',
   question: 'Question this charge',
   'dispute-cancel': 'Dispute this cancellation',
   'running-late': 'Running late',
@@ -213,7 +214,9 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
     }
   };
 
-  const vendorName = pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? '';
+  const vendorRecord = pilot.vendors().find((v) => v.id === listing.vendorId);
+  const vendorName = vendorRecord?.name ?? '';
+  const vendorPhone = vendorRecord?.phone;
   // The vendor is the subtitle, so it is not a fact as well. An extra charge says what it was added to.
   const subtitle = paymentId ? `From ${vendorName} · ${listing.title}` : vendorName;
   const tone = card.label === 'In question' ? 'wait' : STATUS_TONE(card.state, card.label);
@@ -290,7 +293,12 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
         </div>
       ) : card.actions.length ? (
         <div className={`pilot-actions${card.actions.some((a) => PRIMARY.includes(a)) ? '' : ' pilot-actions--minor-only'}`}>
-          {card.actions.filter((a) => a !== 'open-menu' || (handlers.hasMenu ? handlers.hasMenu(listing.id) : true)).map((a) => (
+          {card.actions.filter((a) => a !== 'open-menu' || (handlers.hasMenu ? handlers.hasMenu(listing.id) : true)).map((a) => a === 'call-vendor' ? (
+            // A request has no chat yet: the vendor is a phone call away, number and all.
+            <a key={a} className="pilot-actions__minor pilot-actions__call" href={`tel:${(vendorPhone ?? '').replace(/\s/g, '')}`}>
+              <span>Call {vendorName}</span><small>{vendorPhone}</small>
+            </a>
+          ) : (
             <button key={a} type="button" className={PRIMARY.includes(a) ? 'guest-button guest-button--primary pilot-actions__lead' : `pilot-actions__minor${a === 'cancel' || a === 'withdraw' ? ' pilot-actions__minor--quiet' : ''}`} onClick={() => act(a)}>
               {a === 'pay' && card.cost.amount ? `Pay now ${peso(card.cost.amount)}` : LABEL[a]}
             </button>

@@ -305,6 +305,12 @@ type ChatMessage = {
   body: string;
   /** A booking the engine holds, shown as its card under this message. One card per booking, the same state wherever it appears. */
   engineBookingId?: string;
+  /** Copied from a hotel outlet's booking thread: the engine message it came from, so it is copied once. */
+  engineMessageId?: string;
+  /** An extra charge's receipt, shown as its card in place of a bubble. */
+  enginePaymentId?: string;
+  /** Sent for the outlet automatically, and labelled so. */
+  auto?: boolean;
   state?: string;
   images?: string[];
   attachment?: ChatAttachment;
@@ -1014,7 +1020,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   useEffect(() => {
     if (!pushNotice || pushFocused) return;
-    const timeout = window.setTimeout(() => setPushNotice(null), 8_000);
+    // Long enough to read twice: a banner is the one place some news shows up.
+    const timeout = window.setTimeout(() => setPushNotice(null), 12_000);
     return () => window.clearTimeout(timeout);
   }, [pushNotice, pushFocused]);
 
@@ -1142,10 +1149,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const host = hostStore.host;
     const engineBooking = host?.pilot.bookings().find((b) => b.id === engineBookingId);
     if (!host || !engineBooking) return;
-    if (host.pilot.thread(engineBooking.threadId, 'guest', false).ok) { announceChatOpened(engineBookingId, headline); return; }
+    const opened = host.pilot.thread(engineBooking.threadId, 'guest', false);
+    // The hotel's own outlet: its words land in the front desk chat, and the banner takes her there.
+    if (opened.ok && host.pilot.threads('guest', engineBooking.guestId).find((t) => t.id === engineBooking.threadId)?.hotel) {
+      const mine = new Set(opened.messages.map((m) => m.id));
+      mirrorHotelChats(new Set([...hotelMessageIds()].filter((id) => !mine.has(id))));
+      notifyGuestRequest(`chat-${engineBookingId}`, headline, 'The details are in your front desk chat. Tap to open it.', { screen: 'chat' });
+      return;
+    }
+    if (opened.ok) { announceChatOpened(engineBookingId, headline); return; }
     const vendor = host.pilot.vendors().find((v) => v.id === host.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'The vendor';
-    // Still a request: no chat yet. The tap opens the booking, where the guest can call the vendor or ask the desk.
-    notifyGuestRequest(recordId, headline, `${vendor} confirms first. A chat with them opens once they accept.`);
+    // Still a request: no chat yet. Say who has it, how long they have, and what happens next; the tap opens the booking.
+    const endsAt = host.pilot.card(engineBookingId).timer?.endsAt;
+    const minutes = endsAt ? Math.max(1, Math.round((endsAt - host.now()) / 60_000)) : undefined;
+    notifyGuestRequest(recordId, `Request sent to ${vendor}`, `${minutes ? `They have ${minutes} min to say yes. ` : ''}Your chat with them opens when they do.`);
   };
 
   const sendChatMessage = (body: string, attachment?: ChatAttachment) => {
@@ -1515,7 +1532,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     status: booking.status === 'completed' ? 'checked-out' : hasStayStarted(booking) && canUseOnPropertyServices(booking) ? 'in-house' : 'booked',
   }));
   const engineGuest = hostStore.host && primaryBooking ? hostStore.host.guestOf(primaryBooking.id) : undefined;
-  const engineUnread = hostStore.host && engineGuest ? hostStore.host.pilot.threads('guest', engineGuest.guestId).reduce((sum, thread) => sum + thread.unread, 0) : 0;
+  // The hotel's own outlets talk in the front desk chat; their engine threads are never opened, so they do not count.
+  const engineUnread = hostStore.host && engineGuest ? hostStore.host.pilot.threads('guest', engineGuest.guestId).filter((thread) => !thread.hotel).reduce((sum, thread) => sum + thread.unread, 0) : 0;
   const pilotStaysKey = JSON.stringify(pilotStays);
   useEffect(() => {
     if (!JSON.parse(pilotStaysKey).length) return;
@@ -1533,7 +1551,66 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const chatMessages = allChatMessages.filter((message) => (message.bookingId ?? contextBooking.id) === contextBooking.id);
   /* What the sample stay's front desk chat already holds, derived from the engine's record and shown ahead of anything the guest sends. */
-  const deskSeed: ChatMessage[] = hostStore.host ? sampleDeskChat(hostStore.host, contextBooking.id) : [];
+  /*
+    The hotel's own outlets (the Poolside Bar, the gym, the lobby shop) are the
+    hotel the guest is staying in, so they talk in the front desk chat rather
+    than a chat of their own. The engine still keeps each booking's thread; what
+    the guest would read there (the outlet's words, and any extra charge) is
+    copied into the desk chat, once, with the booking's card on the first line.
+  */
+  const hotelChatLines = (host: NonNullable<typeof hostStore.host>, guestId: string, isNew: (messageId: string) => boolean, carded: Set<string | undefined> = new Set()): ChatMessage[] => {
+    const lines: ChatMessage[] = [];
+    for (const thread of host.pilot.threads('guest', guestId)) {
+      if (!thread.hotel || !thread.bookingId) continue;
+      const view = host.pilot.thread(thread.id, 'guest', false);
+      if (!view.ok) continue;
+      const said = view.messages.filter((m) => (m.kind === 'text' && m.from.role === 'vendor') || (m.kind === 'card' && m.paymentId));
+      said.forEach((m, index) => {
+        if (!isNew(m.id)) return;
+        lines.push(m.kind === 'card'
+          ? { from: 'desk', body: '', state: 'Seen', engineMessageId: m.id, engineBookingId: thread.bookingId, enginePaymentId: m.paymentId }
+          // The card once: not again for a booking the desk chat already shows (one the desk made for her).
+          : { from: 'desk', body: m.text, state: 'Seen', engineMessageId: m.id, auto: m.auto, ...(index === 0 && !carded.has(thread.bookingId) ? { engineBookingId: thread.bookingId } : {}) });
+      });
+    }
+    return lines;
+  };
+  /* Copy what the hotel's outlets said since `before` into the desk chat, and read their threads, which nobody opens. Returns what was copied. */
+  const mirrorHotelChats = (before?: Set<string>): ChatMessage[] => {
+    const host = hostStore.host;
+    const guest = host?.guestOf(contextBooking.id);
+    if (!host || !guest) return [];
+    const copied = new Set(allChatMessages.map((m) => m.engineMessageId).filter(Boolean));
+    const carded = new Set([...sampleDeskChat(host, contextBooking.id), ...allChatMessages].map((m) => m.engineBookingId));
+    const lines = hotelChatLines(host, guest.guestId, (id) => !copied.has(id) && (!before || !before.has(id)), carded);
+    if (!lines.length) return [];
+    // Checked against the messages as they are now: the desk may have put the booking's card in this same moment.
+    setChatMessages((messages) => {
+      const shown = new Set(messages.map((m) => m.engineBookingId));
+      const fresh = lines.filter((line) => !messages.some((m) => m.engineMessageId === line.engineMessageId));
+      return [...messages, ...fresh.map((line) => (line.engineBookingId && !line.enginePaymentId && shown.has(line.engineBookingId) ? { ...line, engineBookingId: undefined } : line))];
+    });
+    // New words in the desk chat while she is elsewhere: its row says so.
+    if (activeScreenRef.current !== 'chat') setHasUnreadChat(true);
+    for (const thread of host.pilot.threads('guest', guest.guestId)) if (thread.hotel && thread.unread > 0) host.call('pilot.thread', thread.id, 'guest');
+    return lines;
+  };
+  /* Every hotel-outlet message the engine holds for this guest: the "before" a later copy compares against. */
+  const hotelMessageIds = (): Set<string> => {
+    const host = hostStore.host;
+    const guest = host?.guestOf(contextBooking.id);
+    return new Set(host && guest ? hotelChatLines(host, guest.guestId, () => true).map((m) => m.engineMessageId!) : []);
+  };
+  const deskSeed: ChatMessage[] = (() => {
+    const host = hostStore.host;
+    if (!host) return [];
+    const guest = host.guestOf(contextBooking.id);
+    // What the outlets said before anything was copied (a stay already lived in): the desk chat's history, ahead of the guest's own.
+    const copied = new Set(allChatMessages.map((m) => m.engineMessageId).filter(Boolean));
+    const sample = sampleDeskChat(host, contextBooking.id);
+    const carded = new Set([...sample, ...allChatMessages].map((m) => m.engineBookingId));
+    return [...sample, ...(guest ? hotelChatLines(host, guest.guestId, (id) => !copied.has(id), carded) : [])];
+  })();
   // The desk chat opens at its newest message, and follows each new one.
   const deskListRef = useRef<HTMLDivElement>(null);
   useStickToLatest(deskListRef, activeScreen === 'chat' ? deskSeed.length + chatMessages.length : -1);
@@ -1778,7 +1855,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     onPay: (bookingId: string, paymentId?: string) => payEngineBooking(bookingId, paymentId),
     onNote: (note: { tone: 'warning' | 'positive'; text: string }) => setEngineNote(note),
     onOpenDesk: () => go('chat'),
-    onPickAnother: () => go(bookingSlot.screen),
+    // Book again: straight to booking the same thing, not back to a list to find it.
+    onPickAnother: (engineBookingId: string) => {
+      const listingId = hostStore.host?.pilot.bookings().find((b) => b.id === engineBookingId)?.listingId;
+      if (listingId && SERVICES.some((service) => service.id === listingId)) { openServiceBooking(listingId); return; }
+      if (listingId && NEARBY_ESTABLISHMENTS.some((place) => place.id === listingId)) { setSelectedNearbyEstablishmentId(listingId); go('nearby-establishment'); return; }
+      if (listingId?.startsWith('gift-')) { go('gifts-souvenirs'); return; }
+      go(bookingSlot.screen);
+    },
     hasMenu: (listingId: string) => Object.values(TABLE_VENUE_SERVICE_IDS).includes(listingId),
     onOpenMenu: (listingId: string) => {
       const venueId = Object.entries(TABLE_VENUE_SERVICE_IDS).find(([, serviceId]) => serviceId === listingId)?.[0];
@@ -1928,13 +2012,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       if (!host || !guest) { event.onClick(); return; }
       const readFeed = () => engineNews(host, guest.guestId, session.serviceBookings);
       const before = readFeed().length;
-      const unreadBefore = host.pilot.threads('guest', guest.guestId).reduce((sum, thread) => sum + thread.unread, 0);
+      const unreadBefore = host.pilot.threads('guest', guest.guestId).filter((thread) => !thread.hotel).reduce((sum, thread) => sum + thread.unread, 0);
       const chatsBefore = new Set(host.pilot.threads('guest', guest.guestId).map((thread) => thread.id));
+      const hotelBefore = hotelMessageIds();
       event.onClick();
+      // Whatever a hotel outlet said goes in the front desk chat.
+      const toDesk = mirrorHotelChats(hotelBefore);
       const feed = readFeed();
       const fresh = feed.slice(0, Math.max(0, feed.length - before)).find((item) => item.channel === 'push');
       // The vendor said yes: their chat with the guest is open now, and the banner takes her to it.
-      const opened = host.pilot.threads('guest', guest.guestId).find((thread) => thread.kind === 'booking' && thread.bookingId && !chatsBefore.has(thread.id));
+      const opened = host.pilot.threads('guest', guest.guestId).find((thread) => thread.kind === 'booking' && !thread.hotel && thread.bookingId && !chatsBefore.has(thread.id));
       if (opened?.bookingId) {
         announceChatOpened(opened.bookingId, fresh?.notification.title ?? `${opened.title} confirmed`, host.meta[`push:${guest.guestId}`] !== 'off');
         return;
@@ -1943,7 +2030,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         setPushNotice({ id: fresh.notification.entryId ?? 'messages', headline: fresh.notification.title, detail: fresh.notification.body, ...(fresh.notification.entryId ? {} : { screen: 'messages' as const }) });
         return;
       }
-      const threads = host.pilot.threads('guest', guest.guestId).filter((thread) => thread.kind === 'booking' && thread.unread > 0 && thread.last);
+      const pushOffNow = host.meta[`push:${guest.guestId}`] === 'off';
+      if (toDesk.length && !pushOffNow) {
+        const said = toDesk.filter((line) => line.body).at(-1);
+        if (said) { setPushNotice({ id: 'messages', headline: 'Front desk', detail: said.body, screen: 'chat' }); return; }
+      }
+      const threads = host.pilot.threads('guest', guest.guestId).filter((thread) => thread.kind === 'booking' && !thread.hotel && thread.unread > 0 && thread.last);
       const unreadAfter = threads.reduce((sum, thread) => sum + thread.unread, 0);
       const latest = threads.sort((a, b) => (b.last?.at ?? 0) - (a.last?.at ?? 0))[0];
       const pushOff = host.meta[`push:${guest.guestId}`] === 'off';
@@ -3444,7 +3536,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </div>
           ) : null}
           {displayedChatMessages.map((message, index) => {
-            const continued = displayedChatMessages[index - 1]?.from === message.from;
+            // A hotel outlet's extra charge: its receipt card, not a bubble.
+            if (message.enginePaymentId && message.engineBookingId && hostStore.host) {
+              return <EngineBookingCard key={message.engineMessageId ?? `pay-${index}`} host={hostStore.host} bookingId={message.engineBookingId} paymentId={message.enginePaymentId} inThread inDesk {...cardHandlers} />;
+            }
+            const continued = displayedChatMessages[index - 1]?.from === message.from && !displayedChatMessages[index - 1]?.enginePaymentId;
             return (
               <Fragment key={`${message.body}-${index}`}>
               <div
@@ -3482,10 +3578,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 ) : null}
                 {message.from === 'guest' && message.state === 'Not sent' ? (
                   <button type="button" className="guest-message__retry" onClick={() => retryChatMessage(index - deskSeed.length)}>Not sent · Retry</button>
-                ) : message.from === 'guest' && message.state ? <small>{message.state}</small> : null}
+                ) : message.from === 'guest' && message.state ? <small>{message.state}</small> : message.auto ? <small><span className="pilot-msg__auto">Auto-reply</span></small> : null}
               </div>
               {/* The booking's card has a row of its own, not a place inside a bubble. */}
-              {message.engineBookingId && hostStore.host ? <EngineBookingCard host={hostStore.host} bookingId={message.engineBookingId} {...cardHandlers} /> : null}
+              {message.engineBookingId && hostStore.host ? <EngineBookingCard host={hostStore.host} bookingId={message.engineBookingId} inDesk {...cardHandlers} /> : null}
               </Fragment>
             );
           })}
@@ -5307,11 +5403,20 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
             {/* Once the vendor has committed there is a chat with them: the way into it, where the guest is looking. */}
             {engineHost && engineBooking && engineHost.pilot.thread(engineBooking.threadId, 'guest', false).ok ? (
-              <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineBooking.threadId); go('booking-thread'); }}>
-                <span><ChatCircleDots /></span>
-                <div><b>Message {vendorName}</b><small>Your chat with them is open. Ask anything about this booking.</small></div>
-                <CaretRight />
-              </button>
+              engineHost.pilot.vendors().find((v) => v.id === engineHost.pilot.listing(engineBooking.listingId).vendorId)?.hotel ? (
+                // The hotel's own outlet: the front desk chat is where it talks.
+                <button type="button" className="guest-list-row" onClick={() => go('chat')}>
+                  <span><ChatCircleDots /></span>
+                  <div><b>Message the front desk</b><small>This booking is in your chat with them.</small></div>
+                  <CaretRight />
+                </button>
+              ) : (
+                <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineBooking.threadId); go('booking-thread'); }}>
+                  <span><ChatCircleDots /></span>
+                  <div><b>Message {vendorName}</b><small>Your chat with them is open. Ask anything about this booking.</small></div>
+                  <CaretRight />
+                </button>
+              )
             ) : null}
             {primary('View my stay', 'my-stay')}
             {/* Back to the catalogue this guest can use: arrival services before the stay, Explore during it. */}
@@ -5806,13 +5911,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             )}
 
             {/* The booking's chat with its vendor, one tap from the booking, once the vendor has committed. */}
-            {engineEntryHost && engineEntryBookingId && engineEntryHost.pilot.thread(engineEntryHost.pilot.booking(engineEntryBookingId).threadId, 'guest', false).ok ? (
-              <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineEntryHost.pilot.booking(engineEntryBookingId).threadId); go('booking-thread'); }}>
-                <span><ChatCircleDots /></span>
-                <div><b>Message {engineEntryHost.pilot.vendors().find((v) => v.id === engineEntryHost.pilot.listing(engineEntryHost.pilot.booking(engineEntryBookingId).listingId).vendorId)?.name ?? 'the vendor'}</b><small>Your chat about this booking</small></div>
-                <CaretRight />
-              </button>
-            ) : null}
+            {engineEntryHost && engineEntryBookingId && engineEntryHost.pilot.thread(engineEntryHost.pilot.booking(engineEntryBookingId).threadId, 'guest', false).ok ? (() => {
+              const entryVendor = engineEntryHost.pilot.vendors().find((v) => v.id === engineEntryHost.pilot.listing(engineEntryHost.pilot.booking(engineEntryBookingId).listingId).vendorId);
+              // The hotel's own outlet talks in the front desk chat.
+              return entryVendor?.hotel ? (
+                <button type="button" className="guest-list-row" onClick={() => go('chat')}>
+                  <span><ChatCircleDots /></span>
+                  <div><b>Message the front desk</b><small>This booking is in your chat with them</small></div>
+                  <CaretRight />
+                </button>
+              ) : (
+                <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineEntryHost.pilot.booking(engineEntryBookingId).threadId); go('booking-thread'); }}>
+                  <span><ChatCircleDots /></span>
+                  <div><b>Message {entryVendor?.name ?? 'the vendor'}</b><small>Your chat about this booking</small></div>
+                  <CaretRight />
+                </button>
+              );
+            })() : null}
 
             {/*
               Cancelling is an action on the booking, reached from the booking

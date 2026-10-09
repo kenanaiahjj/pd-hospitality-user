@@ -29,7 +29,7 @@ export const GIFT_PRODUCTS = [
 ] as const;
 
 /** One name for the hotel's shop, in the feed and on its own page. */
-export const LOBBY_SHOP_NAME = 'The lobby shop';
+export const LOBBY_SHOP_NAME = 'The Lobby Shop';
 
 /*
   What a chat message orders: the venue's own items it names, with a quantity

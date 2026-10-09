@@ -119,7 +119,7 @@ const MOMENTS: Moment[] = [
   {
     id: 'moment-pasalubong',
     title: 'Pasalubong to take home',
-    subtitle: 'The lobby shop',
+    subtitle: 'The Lobby Shop',
     price: 'From ₱280',
     cta: 'Browse the shop',
     slides: [

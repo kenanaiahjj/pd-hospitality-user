@@ -489,6 +489,8 @@ export type ThreadSummary = {
   cardLabel?: string;
   readOnly: boolean;
   bookingId?: string;
+  /** A booking thread with one of the hotel's own outlets: the app shows it in the front desk chat, not as a chat of its own. */
+  hotel?: boolean;
 };
 
 export type Pilot = {

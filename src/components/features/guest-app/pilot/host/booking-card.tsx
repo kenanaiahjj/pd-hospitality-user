@@ -40,7 +40,7 @@ const LABEL: Record<CardAction, string> = {
   'show-qr': 'Show QR',
   'open-menu': 'Open menu',
   'view-booking': 'View booking',
-  'pick-another': 'Pick another',
+  'pick-another': 'Book again',
   'message-desk': 'Ask the front desk',
   'call-vendor': 'Call the vendor',
   question: 'Question this charge',
@@ -126,7 +126,7 @@ function Countdown({ timer, vendor }: { timer: NonNullable<Card['timer']>; vendo
   );
 }
 
-export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, inBar, ...handlers }: {
+export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, inBar, inDesk, ...handlers }: {
   host: Host;
   bookingId: string;
   paymentId?: string;
@@ -136,6 +136,8 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
   bare?: boolean;
   /** Opened from a chat's booking bar, which already says the status, the day, the time and the facts. */
   inBar?: boolean;
+  /** In the front desk chat: "Ask the front desk" would only point at where she already is. */
+  inDesk?: boolean;
 } & CardHandlers) {
   /*
     The QR sheet is drawn at the top of the app, not inside the card: a card
@@ -143,7 +145,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
     sheet in and cut it off. Where it goes is found when it is opened.
   */
   const [qr, setQr] = useState<Element | null>(null);
-  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [confirming, setConfirming] = useState<'cancel' | 'withdraw' | null>(null);
   const pilot = host.pilot;
   const booking = pilot.booking(bookingId);
   const card: Card = paymentId ? pilot.extraCard(paymentId) : pilot.card(bookingId);
@@ -151,27 +153,23 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
   const guestId = booking.guestId;
   const freeToCancel = booking.kind === 'table' || booking.start - host.now() >= listing.freeCancelHours * 3_600_000;
 
+  // Cancelling and withdrawing are the same call; the engine says which it was.
+  const shownActions = card.actions.filter((a) => !(inDesk && a === 'message-desk'));
   const doCancel = () => {
-    setConfirmingCancel(false);
+    setConfirming(null);
     const r = host.call<{ ok: boolean; message?: string; outcome?: string }>('guest.cancel', guestId, bookingId);
     if (!r.ok) handlers.onNote?.({ tone: 'warning', text: r.message ?? 'That did not go through.' });
     else if (r.outcome === 'requested') handlers.onNote?.({ tone: 'positive', text: 'You asked to cancel. It is past the free-cancel time, so the vendor has to accept.' });
-    else handlers.onNote?.({ tone: 'positive', text: 'Cancelled.' });
+    else handlers.onNote?.({ tone: 'positive', text: r.outcome === 'withdrawn' ? 'Withdrawn. Nothing was charged.' : 'Cancelled.' });
   };
 
   const act = (action: CardAction) => {
     switch (action) {
+      // Neither a booking nor a request goes away on one stray tap: there is no undo.
       case 'cancel':
-        // A booking that is confirmed (and maybe paid) is not cancelled by one stray tap.
-        setConfirmingCancel(true);
+      case 'withdraw':
+        setConfirming(action);
         break;
-      case 'withdraw': {
-        const r = host.call<{ ok: boolean; message?: string; outcome?: string }>('guest.cancel', guestId, bookingId);
-        if (!r.ok) handlers.onNote?.({ tone: 'warning', text: r.message ?? 'That did not go through.' });
-        else if (r.outcome === 'requested') handlers.onNote?.({ tone: 'positive', text: 'You asked to cancel. It is past the free-cancel time, so the vendor has to accept.' });
-        else handlers.onNote?.({ tone: 'positive', text: action === 'withdraw' ? 'Withdrawn. Nothing was charged.' : 'Cancelled.' });
-        break;
-      }
       case 'pay':
         handlers.onPay(bookingId, paymentId);
         break;
@@ -285,15 +283,21 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
       {card.note && !inThread ? <p className="pilot-card__note">{card.note}</p> : null}
       <div className="pilot-card__cost"><span>{card.cost.line}</span>{card.cost.amount && !paymentId ? <b>{peso(card.cost.amount)}</b> : null}</div>
       {card.timer ? <Countdown timer={card.timer} vendor={vendorName} /> : null}
-      {confirmingCancel && card.actions.includes('cancel') ? (
+      {confirming === 'withdraw' && card.actions.includes('withdraw') ? (
+        <div className="pilot-actions" role="group" aria-label="Confirm withdrawing">
+          <p className="pilot-muted">Withdraw this request? {vendorName} stops holding it. Nothing is charged.</p>
+          <button type="button" className="guest-button guest-button--secondary" onClick={() => setConfirming(null)}>Keep it</button>
+          <button type="button" className="guest-button guest-button--primary" onClick={doCancel}>Yes, withdraw</button>
+        </div>
+      ) : confirming === 'cancel' && card.actions.includes('cancel') ? (
         <div className="pilot-actions" role="group" aria-label="Confirm cancelling">
           <p className="pilot-muted">{freeToCancel ? 'Cancel this booking? Anything charged is undone.' : 'The free-cancel time has passed. Ask the vendor to cancel? They have to accept.'}</p>
-          <button type="button" className="guest-button guest-button--secondary" onClick={() => setConfirmingCancel(false)}>Keep it</button>
+          <button type="button" className="guest-button guest-button--secondary" onClick={() => setConfirming(null)}>Keep it</button>
           <button type="button" className="guest-button guest-button--primary" onClick={doCancel}>{freeToCancel ? 'Yes, cancel' : 'Yes, ask to cancel'}</button>
         </div>
-      ) : card.actions.length ? (
-        <div className={`pilot-actions${card.actions.some((a) => PRIMARY.includes(a)) ? '' : ' pilot-actions--minor-only'}`}>
-          {card.actions.filter((a) => a !== 'open-menu' || (handlers.hasMenu ? handlers.hasMenu(listing.id) : true)).map((a) => a === 'call-vendor' ? (
+      ) : shownActions.length ? (
+        <div className={`pilot-actions${shownActions.some((a) => PRIMARY.includes(a)) ? '' : ' pilot-actions--minor-only'}`}>
+          {shownActions.filter((a) => a !== 'open-menu' || (handlers.hasMenu ? handlers.hasMenu(listing.id) : true)).map((a) => a === 'call-vendor' ? (
             // A request has no chat yet: the vendor is a phone call away, number and all.
             <a key={a} className="pilot-actions__minor pilot-actions__call" href={`tel:${(vendorPhone ?? '').replace(/\s/g, '')}`}>
               <span>Call {vendorName}</span><small>{vendorPhone}</small>

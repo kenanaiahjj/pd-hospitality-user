@@ -82,6 +82,8 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
     await user.click(screen.getByRole('button', { name: /City bicycle/ }));
     await user.click(screen.getByRole('button', { name: /Withdraw request/ }));
+    // One more tap: there is no undo.
+    await user.click(screen.getByRole('button', { name: 'Yes, withdraw' }));
     expect(screen.getAllByText(/Nothing was charged/).length).toBeGreaterThan(0);
   });
 });
@@ -671,8 +673,10 @@ describe('a stay with a life in it, and every trigger in view', { timeout: 50_00
     await fire(user, /Fill Messages with sample bookings and chats/);
     await openMessages(user);
 
-    for (const title of [/City bicycle/, /Poolside Bar/, /Single-origin/, /Personal training/]) {
-      expect(screen.getByRole('button', { name: title })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /City bicycle/ })).toBeInTheDocument();
+    // The hotel's own outlets (the Poolside Bar, the lobby shop, the trainer) talk in the front desk chat, not rows of their own.
+    for (const title of [/Poolside Bar/, /Single-origin/, /Personal training/]) {
+      expect(screen.queryByRole('button', { name: title })).toBeNull();
     }
     expect(screen.getByRole('button', { name: /City bicycle.*Confirmed.*unread/ })).toBeInTheDocument();
     // The lapsed scooter and the tour still waiting never got a chat.
@@ -683,6 +687,8 @@ describe('a stay with a life in it, and every trigger in view', { timeout: 50_00
     await user.click(screen.getByRole('button', { name: /^Front desk/ }));
     expect(screen.getByText(/This is Marites at the front desk/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Personal training session, Confirmed/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/The Poolside Bar & Lounge, Reserved/)).toBeInTheDocument();
+    expect(screen.getByText(/We hold the table for/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Go back' }));
 
     // And every trigger now has something to act on.

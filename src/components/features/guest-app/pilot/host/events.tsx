@@ -82,7 +82,7 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     if (b.status === 'lapsed') {
       vendor.push({ icon: <Check />, label: `Vendor taps Confirm on the lapsed request for ${name}`, detail: 'Too late: it is refused, and the desk gets a task to reinstate it if the slot is free.', onClick: call('vendor.confirm', vendorId, b.id) });
     }
-    if (b.status === 'confirmed' && b.kind !== 'goods') {
+    if (b.status === 'confirmed' && b.kind !== 'goods' && b.kind !== 'table') {
       vendor.push({ icon: <QrCode />, label: `Vendor scans ${name}`, detail: 'The guest’s QR is read. The booking is in progress.', onClick: call('vendor.scan', vendorId, b.id) });
     }
     if (b.status === 'in-progress') {
@@ -102,10 +102,10 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     if (b.kind === 'table' && b.status === 'reserved') {
       vendor.push({ icon: <Check />, label: `Restaurant seats the party for ${name}`, detail: 'The table is taken; the hold ends.', onClick: call('vendor.seat', vendorId, b.id) });
     }
-    if (b.kind === 'goods' && b.status === 'confirmed') {
+    if (b.kind === 'goods' && b.status === 'confirmed' && !b.packed) {
       vendor.push({ icon: <Storefront />, label: `Vendor packs ${name} and sends it to the desk`, detail: 'The front desk can then mark it ready.', onClick: call('vendor.sendToDesk', vendorId, b.id) });
     }
-    if (['confirmed', 'reserved'].includes(b.status)) {
+    if (b.kind !== 'goods' && (b.kind === 'table' ? b.status === 'reserved' : b.status === 'confirmed')) {
       vendor.push({
         icon: <Clock />,
         label: `Vendor marks ${name} a no-show`,
@@ -114,7 +114,8 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
         unavailable: started && host.now() >= b.start + noShowAfter ? undefined : `Not until ${noShowAfter / MIN} minutes after the start`,
       });
     }
-    if (['awaiting-payment', 'confirmed', 'reserved', 'ready'].includes(b.status)) {
+    // The engine refuses a cancel once the booking has started, unless it is an order waiting at the desk.
+    if (['awaiting-payment', 'confirmed', 'reserved', 'ready'].includes(b.status) && (!started || b.status === 'ready')) {
       vendor.push({ icon: <X />, label: `Vendor cancels ${name}`, detail: 'With a reason. Everything is undone and the guest is told by push and text.', onClick: call('vendor.cancel', vendorId, b.id, 'Equipment breakdown') });
     }
     if (b.cancelRequested && b.status === 'confirmed') {
@@ -125,11 +126,23 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
       // The vendor can only write once there is a chat: it opens when they commit.
       if (pilot.thread(b.threadId, 'vendor', false).ok) {
         vendor.push({ icon: <ChatCircleDots />, label: `Vendor sends a message about ${name}`, detail: 'It arrives in the guest’s chat with the vendor.', onClick: call('vendor.message', vendorId, b.threadId, 'Hello! We have your booking. Anything we should prepare?') });
-        vendor.push({ icon: <ChatCircleDots />, label: `Vendor says it is running late for ${name}`, detail: 'In the guest’s chat with the vendor: about fifteen minutes behind.', onClick: call('vendor.message', vendorId, b.threadId, 'Sorry, we are running about 15 minutes behind. Thank you for your patience!') });
-        vendor.push({ icon: <ChatCircleDots />, label: `Vendor asks how many are coming for ${name}`, detail: 'A question for the guest to answer in their chat.', onClick: call('vendor.message', vendorId, b.threadId, 'Quick check: how many of you will be coming? And is there anything we should know beforehand?') });
+        // Lateness and headcount only mean something before a visit begins; an order is not "attended".
+        const upcoming = !started && ['confirmed', 'reserved'].includes(b.status) && b.kind !== 'goods';
+        if (upcoming) {
+          vendor.push({ icon: <ChatCircleDots />, label: `${b.kind === 'table' ? 'Restaurant' : 'Vendor'} says it is running late for ${name}`, detail: b.kind === 'table' ? 'In the guest’s chat with the restaurant: the table will be about fifteen minutes late.' : 'In the guest’s chat with the vendor: about fifteen minutes behind.', onClick: call('vendor.message', vendorId, b.threadId, b.kind === 'table' ? 'Sorry, your table is running about 15 minutes behind. Thank you for your patience!' : 'Sorry, we are running about 15 minutes behind. Thank you for your patience!') });
+        }
+        if (upcoming && (b.kind === 'table' || b.kind === 'service')) {
+          vendor.push({ icon: <ChatCircleDots />, label: `${b.kind === 'table' ? 'Restaurant' : 'Vendor'} asks how many are coming for ${name}`, detail: 'A question for the guest to answer in their chat.', onClick: call('vendor.message', vendorId, b.threadId, 'Quick check: how many of you will be coming? And is there anything we should know beforehand?') });
+        }
       }
-      desk.push({ icon: <ChatCircleDots />, label: `Desk asks when the guest will arrive for ${name}`, detail: 'In the front desk chat. The desk is not in the vendor’s chat.', onClick: () => deskMessage(`For ${name}: do you know roughly what time you will arrive? I will let ${vendorName} know.`) });
-      desk.push({ icon: <ChatCircleDots />, label: `Desk says it has passed the request to the vendor of ${name}`, detail: 'In the front desk chat, after a word with the vendor in theirs.', onClick: () => deskMessage(`I have passed your request for ${name} to ${vendorName} and will update you here as soon as they reply.`) });
+      if (b.kind === 'goods') {
+        if (['confirmed', 'ready'].includes(b.status)) desk.push({ icon: <ChatCircleDots />, label: `Desk asks when the guest will collect ${name}`, detail: 'In the front desk chat. The order waits at the desk.', onClick: () => deskMessage(`For ${name}: do you know roughly when you will collect it from the desk?`) });
+      } else if (!started && ['confirmed', 'reserved'].includes(b.status)) {
+        desk.push({ icon: <ChatCircleDots />, label: `Desk asks when the guest will arrive for ${name}`, detail: 'In the front desk chat. The desk is not in the vendor’s chat.', onClick: () => deskMessage(`For ${name}: do you know roughly what time you will arrive? I will let ${vendorName} know.`) });
+      }
+      if (['requested', 'awaiting-payment'].includes(b.status)) {
+        desk.push({ icon: <ChatCircleDots />, label: `Desk says it has passed the request to the vendor of ${name}`, detail: 'In the front desk chat, after a word with the vendor in theirs.', onClick: () => deskMessage(`I have passed your request for ${name} to ${vendorName} and will update you here as soon as they reply.`) });
+      }
       desk.push({ icon: <ChatCircleDots />, label: `Desk sends a message about ${name}`, detail: 'It arrives in the front desk chat, about this booking.', onClick: () => deskMessage(`Noted, I have added that to your ${name} booking.`) });
       desk.push({ icon: <ChatCircleDots />, label: `Desk leaves a private note for the vendor of ${name}`, detail: 'In the desk’s own chat with the vendor. The guest never sees it.', onClick: call('desk.privateNote', vendorId, 'Guest is a regular, please look after them.', b.id) });
     }
@@ -192,7 +205,8 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
     if (seen.has(listing.id)) continue;
     seen.add(listing.id);
     const vendorId = listing.vendorId;
-    vendor.push({ icon: <X />, label: `Vendor blocks the booked slot of ${listing.title}`, detail: 'Refused while bookings are on it, and the guest sees how many.', onClick: call('vendor.blockSlot', listing.id, b.slotKeys[0]) });
+    // Goods have no time slot to block.
+    if (b.kind !== 'goods') vendor.push({ icon: <X />, label: `Vendor blocks the booked slot of ${listing.title}`, detail: 'Refused while bookings are on it, and the guest sees how many.', onClick: call('vendor.blockSlot', listing.id, b.slotKeys[0]) });
     vendor.push({ icon: <X />, label: `Vendor removes the listing ${listing.title}`, detail: 'Refused while bookings are open on it. Once gone, nobody can ask for it.', onClick: call('vendor.removeListing', listing.id) });
     void vendorId;
   }

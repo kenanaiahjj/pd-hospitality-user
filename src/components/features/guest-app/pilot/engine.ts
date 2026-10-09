@@ -1368,7 +1368,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
             return ok({ queued: true });
           }
           move(b, 'in-progress', vendor.name, 'scanned');
-          announce(b, `${vendor.name} scanned the QR. In progress.`);
+          // The guest hears it from the vendor ("You're all set"); the status line is the vendor's record.
+          announce(b, `${vendor.name} scanned the QR. In progress.`, ['vendor']);
           return ok();
         });
       },
@@ -1385,7 +1386,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           if (!rt.online) return offline();
           if (b.status !== 'in-progress') return refuse('invalid-state', 'It has not started.');
           move(b, 'completed', vendor.name, 'completed');
-          announce(b, 'Completed.');
+          announce(b, 'Completed.', ['vendor']);
           return ok();
         });
       },
@@ -1707,7 +1708,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
         if (!b || b.kind !== 'goods') return refuse('not-found', 'That is not an order.');
         if (b.status !== 'ready') return refuse('invalid-state', 'The order is not ready yet.');
         move(b, 'collected', deskName, 'handed over');
-        announce(b, 'Handed over. Thank you.');
+        announce(b, 'Handed over. Thank you.', ['vendor']);
         return ok();
       });
     },
@@ -2003,7 +2004,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       if (t.kind === 'desk-vendor') return must(w.vendors.find((v) => v.id === t.vendorId), 'vendor').name;
       return b ? listingOf(b).title : 'Booking';
     };
-    return { id: t.id, kind: t.kind, title: titleFor(), last: visible.at(-1), unread: t.unread[viewer], cardState: card?.state, cardLabel: card?.label, readOnly: t.readOnlyAt !== undefined && w.now >= t.readOnlyAt, bookingId: t.bookingId };
+    return { id: t.id, kind: t.kind, title: titleFor(), last: visible.at(-1), unread: t.unread[viewer], cardState: card?.state, cardLabel: card?.label, readOnly: t.readOnlyAt !== undefined && w.now >= t.readOnlyAt, bookingId: t.bookingId, hotel: t.kind === 'booking' && t.vendorId ? w.vendors.find((v) => v.id === t.vendorId)?.hotel === true : undefined };
   };
 
   const pilot: Pilot = {

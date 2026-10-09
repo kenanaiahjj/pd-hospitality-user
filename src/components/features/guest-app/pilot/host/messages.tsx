@@ -72,7 +72,8 @@ export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpe
 }) {
   // Newest conversation first, as any inbox. On a tie in the clock, the chat opened later goes first.
   const threads = host.pilot.threads('guest', guestId)
-    .filter((thread) => thread.kind === 'booking')
+    // The hotel's own outlets talk in the front desk chat, so they have no row of their own.
+    .filter((thread) => thread.kind === 'booking' && !thread.hotel)
     .map((thread, opened) => ({ thread, opened }))
     .sort((a, b) => (b.thread.last?.at ?? 0) - (a.thread.last?.at ?? 0) || b.opened - a.opened)
     .map(({ thread }) => thread);

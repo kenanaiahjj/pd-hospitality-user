@@ -5,7 +5,7 @@ import { slug } from './prototype-controls';
 import type { Booking, RestaurantVenue, ServiceBooking } from './prototype-model';
 import { PROTOTYPE_TODAY, RESTAURANTS, formatPesoAmount, getRoomCharges, parsePesoAmount } from './prototype-model';
 import { getServiceImageKey } from './service-images';
-import { ArrowLeft, ArrowRight, Bell, CalendarPlus, CaretRight, ForkKnife, House, MapPin, Sparkle, Storefront, WifiSlash, X } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Bell, CalendarPlus, CaretRight, ForkKnife, House, MapPin, Sparkle, Storefront, WifiSlash, X } from '@/components/ui/huge-icons';
 import type { ReactNode, TouchEvent as ReactTouchEvent } from 'react';
 import { useRef, useState } from 'react';
 

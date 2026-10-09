@@ -1,6 +1,6 @@
 'use client';
 
-import { CaretRight } from '@phosphor-icons/react';
+import { CaretRight } from '@/components/ui/huge-icons';
 
 import { POINTS_FLOOR_BLOCK, POINTS_FLOOR_PESOS } from './points-model';
 import type { Reward } from './points-model';

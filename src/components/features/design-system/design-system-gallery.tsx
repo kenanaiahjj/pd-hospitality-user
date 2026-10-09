@@ -27,7 +27,7 @@ import {
   UserCircle,
   Wallet,
   Waves,
-} from '@phosphor-icons/react';
+} from '@/components/ui/huge-icons';
 import {
   designSystemCategories,
   designSystemComponents,

@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Heart, ShareNetwork } from '@phosphor-icons/react';
+import { Check, Heart, ShareNetwork } from '@/components/ui/huge-icons';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import type { StayHotel, StaySearch } from './model';
 import { ANYWHERE, fromPrice, peso, searchHotels } from './model';

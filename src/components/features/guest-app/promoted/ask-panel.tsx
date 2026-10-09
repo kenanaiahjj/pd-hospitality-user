@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Sparkle } from '@phosphor-icons/react';
+import { ArrowRight, Sparkle } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import type { IntentResult } from './intent-model';
 import { INTENTS } from './intent-model';

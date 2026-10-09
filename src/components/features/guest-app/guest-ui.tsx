@@ -8,7 +8,7 @@ import { getItemCardImage, getItemThumbnail, getPropertyImage, getServiceImage, 
 import { Button, Input } from '@/components/ui';
 import type { IconSvgElement } from '@hugeicons/react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CaretRight, CheckCircle, CreditCard, House, WarningCircle } from '@phosphor-icons/react';
+import { CaretRight, CheckCircle, CreditCard, House, WarningCircle } from '@/components/ui/huge-icons';
 import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 

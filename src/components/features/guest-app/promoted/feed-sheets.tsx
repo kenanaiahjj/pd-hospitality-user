@@ -1,6 +1,6 @@
 'use client';
 
-import { CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { CaretRight, MagnifyingGlass, X } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import { useState } from 'react';
 import type { ServiceImageDefinition } from '../service-images';

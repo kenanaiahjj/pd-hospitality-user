@@ -1,6 +1,6 @@
 'use client';
 
-import { Bicycle, ForkKnife, Receipt, ShoppingBag, Sparkle, X } from '@phosphor-icons/react';
+import { Bicycle, ForkKnife, HandHeart, Receipt, ShoppingBag, X } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
@@ -30,7 +30,7 @@ const STATE_TONE: Record<string, string> = {
   'extra-charge': 'wait',
 };
 
-const KIND_ICON = { rental: Bicycle, service: Sparkle, table: ForkKnife, goods: ShoppingBag } as const;
+const KIND_ICON = { rental: Bicycle, service: HandHeart, table: ForkKnife, goods: ShoppingBag } as const;
 
 const LABEL: Record<CardAction, string> = {
   cancel: 'Cancel',

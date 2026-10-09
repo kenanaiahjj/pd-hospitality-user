@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Tag as TagIcon } from '@phosphor-icons/react';
+import { Check, Tag as TagIcon } from '@/components/ui/huge-icons';
 import { useState } from 'react';
 import type { PromoAccount, StayHotel } from './model';
 import { NEW_ACCOUNT, offersFor } from './model';

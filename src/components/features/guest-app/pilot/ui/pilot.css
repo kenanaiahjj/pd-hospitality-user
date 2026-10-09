@@ -67,6 +67,26 @@
 .pilot-desk-card .pilot-chat-row__preview { color: oklch(0.9 0.02 351 / 0.86); }
 .pilot-desk-card .pilot-chat-row.is-unread .pilot-chat-row__preview { color: oklch(0.99 0.005 80); }
 .pilot-desk-card .pilot-dot { background: var(--desk-gold); }
+/* The way in, said at rest: a gold pill under the preview, so the card reads as something to tap. */
+.pilot-desk-card__cta {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  gap: 6px;
+  margin-block-start: 10px;
+  padding: 7px 12px 7px 14px;
+  border-radius: 999px;
+  background: var(--desk-gold);
+  color: oklch(0.24 0.06 351);
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+.pilot-desk-card__cta svg { inline-size: 1em; block-size: 1em; }
+.pilot-desk-card .pilot-chat-row--desk:active .pilot-desk-card__cta { scale: 0.97; }
+@media (prefers-reduced-motion: no-preference) {
+  .pilot-desk-card__cta { transition: scale 160ms var(--ease-out); }
+}
 
 .pilot-bell { position: relative; display: grid; inline-size: 72px; block-size: 72px; place-items: center; }
 .pilot-bell__canvas { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; opacity: 0; transition: opacity 250ms var(--ease-out); }

@@ -536,9 +536,9 @@ The current guest app uses:
 - A light neutral canvas with white layered surfaces, ink text, and one accent,
   Cabana plum (`#462133`), used only for the primary action, the current
   selection and live state. There is no pink. See `DESIGN.md`.
-- `.guest-*` class contracts. Icons are mid-migration from Phosphor
-  (`@phosphor-icons/react`, still imported in most files) to Hugeicons (see
-  `docs/superpowers/plans/2026-09-22-hugeicons-migration.md`).
+- `.guest-*` class contracts. Icons are Hugeicons only, through the catalog
+  `src/components/ui/huge-icons.tsx` (stroke rounded, solid rounded for
+  `weight="fill"`). Phosphor is removed; never add it back.
 - A 4px spacing base, restrained borders, soft depth, and a calm arrival
   companion rather than a discovery feed.
 - State-specific booking cards: the same card pattern changes meaning for

@@ -1,6 +1,6 @@
 'use client';
 
-import { CaretRight } from '@phosphor-icons/react';
+import { CaretRight } from '@/components/ui/huge-icons';
 import { formatPesoAmount } from '../prototype-model';
 import { BadgeMedal } from './badge-medal';
 import type { BadgeProgress } from './badge-model';

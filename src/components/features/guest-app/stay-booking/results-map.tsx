@@ -2,7 +2,7 @@
 
 import 'leaflet/dist/leaflet.css';
 import Image from 'next/image';
-import { Star } from '@phosphor-icons/react';
+import { Star } from '@/components/ui/huge-icons';
 import { useEffect, useRef, useState } from 'react';
 import type { LayerGroup, Map as LeafletMap } from 'leaflet';
 import { addCredit, addTiles, groupByCollision } from '../nearby-map';

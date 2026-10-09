@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui';
-import { ArrowRight, Minus, Plus, X } from '@phosphor-icons/react';
+import { ArrowRight, Minus, Plus, X } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import { useState } from 'react';
 import { GIFT_PRODUCTS, LOBBY_SHOP_NAME } from '../../dining';

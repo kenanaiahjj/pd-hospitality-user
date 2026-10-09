@@ -6,7 +6,7 @@ import { directionsUrl, openStatus, walkLabel } from './nearby-place';
 import type { MiniAppCategoryId } from './prototype-model';
 import { getPropertyImage } from './service-images';
 import { Button } from '@/components/ui';
-import { ArrowLeft, ArrowRight, Bell, Check, Clock, Copy, Gift, House, MapPin, Minus, NavigationArrow, PersonSimpleWalk, Phone, Plus, Storefront, X } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Bell, Check, Clock, Copy, Gift, House, MapPin, Minus, NavigationArrow, PersonSimpleWalk, Phone, Plus, Storefront, X } from '@/components/ui/huge-icons';
 import { useEffect, useRef, useState } from 'react';
 import { type GatewayMethod } from './gateway-checkout';
 import { ChoiceList, Notice } from './guest-ui';

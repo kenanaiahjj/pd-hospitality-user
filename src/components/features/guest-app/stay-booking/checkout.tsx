@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowRight, CaretRight, CheckCircle, LockSimple, Tag as TagIcon, WifiSlash, X } from '@phosphor-icons/react';
+import { ArrowRight, CaretRight, CheckCircle, LockSimple, Tag as TagIcon, WifiSlash, X } from '@/components/ui/huge-icons';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { GATEWAY_METHOD_LABELS, METHOD_HINTS, type GatewayMethod } from '../gateway-checkout';
 import { ChoiceList, PaymentMethodGlyph } from '../guest-ui';

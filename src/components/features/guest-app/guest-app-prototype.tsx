@@ -35,7 +35,7 @@ import {
   WarningCircle,
   Heart,
   CallBell,
-} from '@phosphor-icons/react';
+} from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { HugeiconsIcon} from '@hugeicons/react';

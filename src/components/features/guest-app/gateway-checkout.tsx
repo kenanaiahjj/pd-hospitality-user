@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui';
-import { ArrowRight, LockSimple, X } from '@phosphor-icons/react';
+import { ArrowRight, LockSimple, X } from '@/components/ui/huge-icons';
 import { useRef, useState } from 'react';
 import { ChoiceList, PaymentMethodGlyph } from './guest-ui';
 

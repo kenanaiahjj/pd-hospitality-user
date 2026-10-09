@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Path } from '@phosphor-icons/react';
+import { ArrowRight, Path } from '@/components/ui/huge-icons';
 import type { StayHotel, StaySearch } from './model';
 import { ANYWHERE, allRegionTrails, searchHotels } from './model';
 import { HotelResultCard } from './results';

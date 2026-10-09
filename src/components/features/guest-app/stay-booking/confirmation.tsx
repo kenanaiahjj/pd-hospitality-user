@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, CalendarPlus, Car, Check, CheckCircle, NavigationArrow, Receipt, ShareNetwork, Tag as TagIcon, X } from '@phosphor-icons/react';
+import { ArrowRight, CalendarPlus, Car, Check, CheckCircle, NavigationArrow, Receipt, ShareNetwork, Tag as TagIcon, X } from '@/components/ui/huge-icons';
 import { useState } from 'react';
 import type { Booking } from '../prototype-model';
 import { BookingMedallion } from './medallion';

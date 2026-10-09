@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ArrowRight } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight } from '@/components/ui/huge-icons';
 import { useState, type ReactNode } from 'react';
 import { GuestTabs } from '../guest-tabs';
 import { PointsActivity, PointsWallet } from './points-wallet';

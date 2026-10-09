@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowRight, Check, Minus, Plus } from '@phosphor-icons/react';
+import { ArrowRight, Check, Minus, Plus } from '@/components/ui/huge-icons';
 import { ITEM_THUMBNAIL_IMAGES, ROOM_IMAGES } from '../service-images';
 import type { AddOnId, CelebrationSetup, StayAddOn, StayHotel, StaySearch } from './model';
 import { ChoiceList, NotesField } from '../guest-ui';

@@ -7,7 +7,7 @@ import { PROPERTY_IMAGES } from './service-images';
 import { Button } from '@/components/ui';
 import { CabanaFullLockup } from '@/components/ui/cabana-logo';
 import { usePrefersReducedMotion } from '@/lib/hooks';
-import { WifiSlash } from '@phosphor-icons/react';
+import { WifiSlash } from '@/components/ui/huge-icons';
 import { useEffect, useRef, useState } from 'react';
 
 import Image from 'next/image';

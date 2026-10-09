@@ -1,6 +1,6 @@
 'use client';
 
-import { CallBell } from '@phosphor-icons/react';
+import { CallBell } from '@/components/ui/huge-icons';
 import { useEffect, useRef } from 'react';
 
 /*

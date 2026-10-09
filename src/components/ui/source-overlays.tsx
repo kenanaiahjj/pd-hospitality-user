@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
-import { CaretDown, X } from '@phosphor-icons/react';
+import { CaretDown, X } from '@/components/ui/huge-icons';
 import { cn } from '@/lib/utils/cn';
 import { useEscapeKey, useFocusRestoration } from './source-primitives';
 import { SourceButton } from './source-controls';

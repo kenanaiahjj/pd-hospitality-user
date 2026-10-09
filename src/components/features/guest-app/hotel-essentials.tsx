@@ -4,7 +4,7 @@ import { ESSENTIALS } from './stay-home';
 import { CHECK_OUT_BY, PROPERTY_ANNOUNCEMENTS, isAnnouncementLive } from './prototype-model';
 import type { Booking } from './prototype-model';
 import { Button } from '@/components/ui';
-import { CaretRight, Check, Coffee, Copy, SignOut, SwimmingPool, WifiHigh, X } from '@phosphor-icons/react';
+import { CaretRight, Check, Coffee, Copy, SignOut, SwimmingPool, WifiHigh, X } from '@/components/ui/huge-icons';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 

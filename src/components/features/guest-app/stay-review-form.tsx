@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ArrowRight, CheckCircle, Star } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CheckCircle, Star } from '@/components/ui/huge-icons';
 import { useState, type FormEvent } from 'react';
 import type { StayReview } from './prototype-model';
 

@@ -21,7 +21,7 @@ import {
   WifiSlash,
   Wrench,
   X,
-} from '@phosphor-icons/react';
+} from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import { PROTOTYPE_STAY_STATES } from './prototype-model';
 import type { PrototypeStayState } from './prototype-model';

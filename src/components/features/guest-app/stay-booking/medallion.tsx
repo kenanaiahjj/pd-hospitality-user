@@ -1,6 +1,6 @@
 'use client';
 
-import { Check } from '@phosphor-icons/react';
+import { Check } from '@/components/ui/huge-icons';
 import { useEffect, useRef } from 'react';
 
 /*

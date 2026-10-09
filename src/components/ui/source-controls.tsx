@@ -2,7 +2,7 @@
 
 import { forwardRef, useId } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
-import { CaretDown, Check, MagnifyingGlass, Plus, Star } from '@phosphor-icons/react';
+import { CaretDown, Check, MagnifyingGlass, Plus, Star } from '@/components/ui/huge-icons';
 import { cn } from '@/lib/utils/cn';
 import { DEFAULT_COLOR_PICKER_VALUE } from '@/lib/design-system';
 import { useControllableState } from './source-primitives';

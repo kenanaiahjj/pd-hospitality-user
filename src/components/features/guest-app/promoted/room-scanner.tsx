@@ -1,6 +1,6 @@
 'use client';
 
-import { Image as ImageIcon, X } from '@phosphor-icons/react';
+import { Image as ImageIcon, X } from '@/components/ui/huge-icons';
 import NextImage from 'next/image';
 import { useEffect, useRef } from 'react';
 import { QrCodeGraphic } from './qr-code-graphic';

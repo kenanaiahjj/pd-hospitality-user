@@ -8,8 +8,8 @@ import {
   Lightning, Lock, MapTrifold, Martini, MoonStars, Mountains, NavigationArrow, QrCode,
   Repeat, Scissors, SealCheck, Sparkle, Star, Storefront, SunHorizon, Tray, User,
   Users, UsersThree, Waves,
-} from '@phosphor-icons/react';
-import type { Icon } from '@phosphor-icons/react';
+} from '@/components/ui/huge-icons';
+import type { Icon } from '@/components/ui/huge-icons';
 
 import { BADGE_FAMILIES, BADGE_STAMP_GOLD } from './badge-model';
 import type { BadgeDefinition } from './badge-model';

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { CalendarBlank, CheckCircle, FadersHorizontal, MagnifyingGlass, MapPin, ListBullets, MapTrifold, Star, Users, Warning, X } from '@phosphor-icons/react';
+import { CalendarBlank, CheckCircle, FadersHorizontal, MagnifyingGlass, MapPin, ListBullets, MapTrifold, Star, Users, Warning, X } from '@/components/ui/huge-icons';
 import { useState } from 'react';
 import type { Amenity, HeldRooms, HotelResult, PriceBand, PromoAccount, StayFilters, StaySearch, StaySort } from './model';
 import { AMENITY_LABELS, ANYWHERE, NO_FILTERS, PRICE_BANDS, countFilters, findLocation, partyLabel, peso, searchHotels } from './model';

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { CaretRight } from '@phosphor-icons/react';
+import { CaretRight } from '@/components/ui/huge-icons';
 import type { StaySearch } from './model';
 import { fromPrice, peso, regionTrailFor } from './model';
 

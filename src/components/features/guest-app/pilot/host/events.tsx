@@ -1,4 +1,4 @@
-import { Bell, Check, ChatCircleDots, Clock, QrCode, Receipt, Storefront, WarningCircle, WifiSlash, X } from '@phosphor-icons/react';
+import { Bell, Check, ChatCircleDots, Clock, QrCode, Receipt, Storefront, WarningCircle, WifiSlash, X } from '@/components/ui/huge-icons';
 import type { PrototypeEvent, PrototypeSection } from '../../prototype-controls';
 import type { ServiceImageDefinition } from '../../service-images';
 import { STATUS_TONE } from './booking-card';

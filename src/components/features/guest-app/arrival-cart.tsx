@@ -7,7 +7,7 @@ import { cartAmountLabel } from './arrival-cart-model';
 import type { CartLine, ServiceBooking } from './prototype-model';
 import { parsePesoAmount } from './prototype-model';
 import { Button } from '@/components/ui';
-import { ArrowRight, Check, ShoppingCartSimple, X } from '@phosphor-icons/react';
+import { ArrowRight, Check, ShoppingCartSimple, X } from '@/components/ui/huge-icons';
 import { useState } from 'react';
 
 /*

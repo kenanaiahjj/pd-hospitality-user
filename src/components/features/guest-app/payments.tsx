@@ -5,7 +5,7 @@ import type { GuestSession, PaymentRecord } from './prototype-model';
 import { formatPesoAmount } from './prototype-model';
 import { Notice, StatePanel, SummaryRow, Tag } from './guest-ui';
 import { Button } from '@/components/ui';
-import { ArrowRight, CaretRight, Receipt } from '@phosphor-icons/react';
+import { ArrowRight, CaretRight, Receipt } from '@/components/ui/huge-icons';
 
 /*
   Payments: what went through the gateway, and what came back. Room charges

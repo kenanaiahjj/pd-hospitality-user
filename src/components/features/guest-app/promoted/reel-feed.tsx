@@ -1,6 +1,6 @@
 'use client';
 
-import { CaretDown, SquaresFour, X } from '@phosphor-icons/react';
+import { CaretDown, SquaresFour, X } from '@/components/ui/huge-icons';
 import { useEffect, useRef, useState } from 'react';
 import type { FeedEntry } from './feed-model';
 import { ReelView } from './reel-view';

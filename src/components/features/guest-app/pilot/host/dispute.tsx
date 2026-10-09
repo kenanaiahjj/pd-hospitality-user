@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from '@phosphor-icons/react';
+import { X } from '@/components/ui/huge-icons';
 import type { Dispute, Message } from '../types';
 import { EngineBookingCard, type CardHandlers } from './booking-card';
 import type { Host } from './host';

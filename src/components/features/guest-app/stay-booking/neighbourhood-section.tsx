@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { AirplaneTilt, Anchor, MapPin, Sparkle, Bank, Basket, Church, Coffee, FirstAidKit, ForkKnife, Martini, Money, ShoppingBag, Storefront, Tree, Umbrella, Buildings } from '@phosphor-icons/react';
+import { AirplaneTilt, Anchor, MapPin, Sparkle, Bank, Basket, Church, Coffee, FirstAidKit, ForkKnife, Martini, Money, ShoppingBag, Storefront, Tree, Umbrella, Buildings } from '@/components/ui/huge-icons';
 import { useState, type ReactNode } from 'react';
 import type { StayHotel } from './model';
 import type { NearbyIcon, NearbyKind } from './neighbourhood';

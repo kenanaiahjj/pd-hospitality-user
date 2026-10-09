@@ -5,7 +5,7 @@ import { Field, FormScreen, Notice, TextButton } from './guest-ui';
 import type { GuestRecord, RoomPreferences, SavedCompanion } from './prototype-model';
 import { ROOM_PREFERENCE_OPTIONS, isCompleteCompanion } from './prototype-model';
 import { Button } from '@/components/ui';
-import { ArrowRight, Camera, Check, CheckCircle, PencilSimple, Plus, UploadSimple, X } from '@phosphor-icons/react';
+import { ArrowRight, Camera, Check, CheckCircle, PencilSimple, Plus, UploadSimple, X } from '@/components/ui/huge-icons';
 import type { FormEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 

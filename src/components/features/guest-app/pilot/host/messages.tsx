@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Bicycle, CaretDown, Compass, ForkKnife, ShoppingBag, Sparkle } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Bicycle, CaretDown, Compass, ForkKnife, ShoppingBag, HandHeart } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import type { ServiceImageDefinition } from '../../service-images';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
@@ -92,6 +92,8 @@ export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpe
               <span className="pilot-chat-row__preview">{desk.fromGuest ? 'You: ' : ''}{desk.preview}</span>
               {desk.unread ? <i className="pilot-dot" aria-hidden="true" /> : null}
             </span>
+            {/* The whole card opens the chat; this says so, as a button would. */}
+            <span className="pilot-desk-card__cta" aria-hidden="true">Chat with the front desk<ArrowRight weight="bold" /></span>
           </span>
         </button>
       </div>
@@ -112,7 +114,7 @@ export type ChatKind = 'rental' | 'tour' | 'service' | 'table' | 'goods';
 const KIND = {
   rental: { Icon: Bicycle, word: 'Rental' },
   tour: { Icon: Compass, word: 'Tour' },
-  service: { Icon: Sparkle, word: 'Service' },
+  service: { Icon: HandHeart, word: 'Service' },
   table: { Icon: ForkKnife, word: 'Table' },
   goods: { Icon: ShoppingBag, word: 'Goods' },
 } as const;

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { ArrowRight, CaretLeft, CaretRight, CheckCircle, X } from '@phosphor-icons/react';
+import { ArrowRight, CaretLeft, CaretRight, CheckCircle, X } from '@/components/ui/huge-icons';
 import { cn } from '@/lib/utils/cn';
 
 export interface SourceBadgeProps {

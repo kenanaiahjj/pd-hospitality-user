@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Buildings, CalendarBlank, ClockCounterClockwise, Globe, MagnifyingGlass, MapPin, Minus, Plus, Users, X } from '@phosphor-icons/react';
+import { Buildings, CalendarBlank, ClockCounterClockwise, Globe, MagnifyingGlass, MapPin, Minus, Plus, Users, X } from '@/components/ui/huge-icons';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { PROTOTYPE_TODAY, countNightsBetween } from '../prototype-model';
 import type { StayLocation, StaySearch } from './model';

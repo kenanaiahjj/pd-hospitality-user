@@ -1,6 +1,6 @@
 'use client';
 
-import { Minus, Plus } from '@phosphor-icons/react';
+import { Minus, Plus } from '@/components/ui/huge-icons';
 import { useEffect, useRef, type ReactNode } from 'react';
 
 /*

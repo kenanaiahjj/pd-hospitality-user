@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowUp, Camera, CaretRight, Images, MapPin, Microphone, Plus, Stop, TrashSimple, Waveform } from '@phosphor-icons/react';
+import { ArrowUp, Camera, CaretRight, Images, MapPin, Microphone, Plus, Stop, TrashSimple, Waveform } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 

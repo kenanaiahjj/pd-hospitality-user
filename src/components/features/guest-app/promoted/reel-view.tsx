@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, SealCheck } from '@phosphor-icons/react';
+import { ArrowRight, SealCheck } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { usePrefersReducedMotion } from '@/lib/hooks';

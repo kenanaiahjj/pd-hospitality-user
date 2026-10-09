@@ -1,6 +1,6 @@
 'use client';
 
-import { Minus, Plus } from '@phosphor-icons/react';
+import { Minus, Plus } from '@/components/ui/huge-icons';
 
 import { formatPesoAmount, parsePesoAmount } from '../prototype-model';
 import { POINTS_FLOOR_BLOCK, POINTS_FLOOR_PESOS, pointsAsPesos } from './points-model';

@@ -4,7 +4,7 @@ import { Notice, ServiceImage, SummaryRow, TextButton } from './guest-ui';
 import type { Booking } from './prototype-model';
 import { SERVICES, SERVICE_SCHEDULES, acceptsPayNow, canUseOnPropertyServices } from './prototype-model';
 import { listingFor } from './vendor-listings';
-import { ArrowRight, Sparkle, WifiSlash } from '@phosphor-icons/react';
+import { ArrowRight, Sparkle, WifiSlash } from '@/components/ui/huge-icons';
 
 /*
   A service's own page: what it is, who runs it, what it costs and when, before

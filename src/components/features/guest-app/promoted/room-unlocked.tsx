@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Barbell, CaretRight, House } from '@phosphor-icons/react';
+import { ArrowRight, Barbell, CaretRight, House } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui';

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ArrowRight, Bed, CaretRight, Check, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Phone, Plus, Ruler, Star, Users, Warning, X } from '@phosphor-icons/react';
+import { ArrowRight, Bed, CaretRight, Check, CheckCircle, Coffee, EnvelopeSimple, MapPin, Minus, Phone, Plus, Ruler, Star, Users, Warning, X } from '@/components/ui/huge-icons';
 import { useState } from 'react';
 import type { CartLine, HeldRooms, PromoAccount, RatePlanId, RoomFilter, RoomOffer, StayHotel, StaySearch } from './model';
 import { AMENITY_LABELS, RATE_PLAN_LABELS, cancellationOpen, ROOM_FILTER_LABELS, cartFit, cartRooms, describeRooms, isHotelFull, peso, quoteStay, roomMatches, roomOffers, suggestRooms, validSearchDates } from './model';

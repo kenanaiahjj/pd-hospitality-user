@@ -1,6 +1,6 @@
 import { GIFT_PRODUCTS, LOBBY_SHOP_NAME } from '../../dining';
 import { NEARBY_ESTABLISHMENTS, tableTimes } from '../../places';
-import { acceptsPayNow, cancellationCutoffHours, parseClockTime, parsePesoAmount, SERVICES, SERVICE_SCHEDULES } from '../../prototype-model';
+import { acceptsPayNow, cancellationCutoffHours, parseClockTime, parsePesoAmount, rentalUnitFor, SERVICES, SERVICE_SCHEDULES } from '../../prototype-model';
 import { SERVICE_VENUES } from '../../promoted/service-venues';
 import { isReservation, listingFor } from '../../vendor-listings';
 import type { Listing, Vendor } from '../types';
@@ -76,7 +76,8 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
     const times = schedule ? [HH(schedule.time)] : listingFor(service.id).times.map(HH);
     const payModes = acceptsPayNow(service) ? (['room', 'card'] as const) : (['room'] as const);
     if (service.categoryId === 'rentals') {
-      listings.push({ ...base, kind: 'rental', confirm: 'vendor', unitPrice: price, priceBasis: 'unit', times, durationMin: 600, returnBy: '20:00', capacity: 8, payModes: [...payModes] });
+      const unit = rentalUnitFor(service.id);
+      listings.push({ ...base, unit: { one: unit.singular, many: unit.plural }, kind: 'rental', confirm: 'vendor', unitPrice: price, priceBasis: 'unit', times, durationMin: 600, returnBy: '20:00', capacity: 8, payModes: [...payModes] });
     } else {
       listings.push({ ...base, kind: 'service', confirm: CONFIRM_FIRST_SERVICES.has(service.id) ? 'vendor' : 'instant', unitPrice: price, priceBasis: 'booking', times, durationMin: 90, payModes: [...payModes] });
     }

@@ -103,6 +103,7 @@ import {
   MOCK_SESSION,
   RESTAURANTS,
   SERVICES,
+  rentalUnitFor,
   ssoSession,
   signOutSession,
   getRewards,
@@ -575,24 +576,6 @@ function ChatMenuGallery({ images, onOpen }: { images: string[]; onOpen: (image:
   );
 }
 
-function rentalUnitFor(serviceId: string): { singular: string; plural: string } {
-  switch (serviceId) {
-    case 'rental':
-      return { singular: 'bike', plural: 'bikes' };
-    case 'e-bike':
-      return { singular: 'e-bike', plural: 'e-bikes' };
-    case 'scooter':
-      return { singular: 'scooter', plural: 'scooters' };
-    case 'motorcycle':
-      return { singular: 'motorcycle', plural: 'motorcycles' };
-    case 'car-rental':
-      return { singular: 'car', plural: 'cars' };
-    case 'suv-rental':
-      return { singular: 'SUV', plural: 'SUVs' };
-    default:
-      return { singular: 'rental', plural: 'rentals' };
-  }
-}
 
 export function GuestAppPrototype({ initialSession, initialScreen, initialOnline }: GuestAppPrototypeProps = {}) {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
@@ -1114,7 +1097,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const notifyGuestRequest = (id: string, headline: string, detail: string, options: { inbox?: boolean; screen?: GuestNotification['screen'] } = {}) => {
+  const notifyGuestRequest = (id: string, headline: string, detail: string, options: { inbox?: boolean; screen?: GuestNotification['screen']; threadId?: string } = {}) => {
     if (options.inbox) {
       const notification: GuestNotification = {
         id: `notification-request-${id}`,
@@ -1126,7 +1109,24 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       };
       setChatNotifications((current) => [notification, ...current.filter((item) => item.id !== notification.id)]);
     }
-    setPushNotice({ id, headline, detail, screen: options.screen });
+    setPushNotice({ id, headline, detail, screen: options.screen, threadId: options.threadId });
+  };
+
+  /*
+    Every booking starts a chat with its vendor, and nothing said so: it was found
+    only by going to Messages. The banner says it is open and its tap opens it;
+    the bell keeps a note of it.
+  */
+  const announceBookingChat = (engineBookingId: string, recordId: string, headline: string, about: string) => {
+    const host = hostStore.host;
+    const engineBooking = host?.pilot.bookings().find((b) => b.id === engineBookingId);
+    if (!host || !engineBooking) return;
+    const vendor = host.pilot.vendors().find((v) => v.id === host.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'the vendor';
+    notifyGuestRequest(recordId, headline, `Your chat with ${vendor} is open. Tap to message them.`, { screen: 'booking-thread', threadId: engineBooking.threadId });
+    setChatNotifications((current) => [
+      { id: `notification-chat-${engineBookingId}`, tone: 'desk', title: `Chat open with ${vendor}`, body: `About ${about}. Ask them anything.`, time: 'Just now', screen: 'messages' },
+      ...current.filter((item) => item.id !== `notification-chat-${engineBookingId}`),
+    ]);
   };
 
   const sendChatMessage = (body: string, attachment?: ChatAttachment) => {
@@ -2015,12 +2015,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     };
     setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings.filter((item) => item.id !== record.id)] }));
     const waits = engineBooking.status === 'requested';
-    notifyGuestRequest(
-      record.id,
-      shape.table ? 'Table reserved' : waits ? `${place.name} asked` : 'Booking confirmed',
-      shape.table ? `${place.name} · ${request.time}` : waits ? 'Nothing is charged until they confirm.' : record.amount ? `${record.amount} · ${place.name}` : `Pay ${place.name} directly when you arrive.`,
-      { screen: 'stay-entry' },
-    );
+    announceBookingChat(result.bookingId, record.id, shape.table ? 'Table reserved' : waits ? `${place.name} asked` : 'Booking confirmed', `${record.title}, ${record.scheduledFor}`);
     setEngineNote(null);
     setSelectedStayEntryId(record.id);
     if (engineBooking.status === 'awaiting-payment') payEngineBooking(result.bookingId);
@@ -2075,7 +2070,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ...(note.trim() ? { facts: noteFact(note) } : {}),
     };
     setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings] }));
-    notifyGuestRequest(id, engineBooking.status === 'needs-approval' ? 'Waiting for the front desk' : 'Order placed', `${product.name} · ${record.amount}`, { screen: 'stay-entry' });
+    announceBookingChat(result.bookingId, id, engineBooking.status === 'needs-approval' ? 'Waiting for the front desk' : 'Order placed', `${product.name}, ${record.amount}`);
     setEngineNote(null);
     setSelectedStayEntryId(id);
     go('stay-entry');
@@ -2764,7 +2759,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setJustEarned(earnedBadges(applyEngine(next, host)).filter((row) => !held.has(row.definition.id)).map((row) => row.definition.id));
     setSession(next);
 
-    notifyGuestRequest(serviceBooking.id, waitsForVendor ? `${serviceBooking.title} requested` : `${serviceBooking.title} booked`, `${serviceBooking.scheduledFor}${serviceBooking.amount ? ` · ${serviceBooking.amount}` : ''}`);
+    announceBookingChat(result.bookingId, serviceBooking.id, waitsForVendor ? `${serviceBooking.title} requested` : `${serviceBooking.title} booked`, `${serviceBooking.title}, ${serviceBooking.scheduledFor}`);
     setLastServiceBookingId(recordId);
     setAppliedPoints(0);
     setServiceNote('');
@@ -5275,6 +5270,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <EngineBookingCard host={engineHost} bookingId={booked.engineId} {...cardHandlers} />
             ) : null}
             {engineNote ? <Notice tone={engineNote.tone === 'warning' ? 'warning' : 'positive'} title={engineNote.tone === 'warning' ? 'That did not go through' : 'Done'}>{engineNote.text}</Notice> : null}
+            {/* The booking opened a chat with the vendor: the way into it, where the guest is looking. */}
+            {engineHost && engineBooking ? (
+              <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineBooking.threadId); go('booking-thread'); }}>
+                <span><ChatCircleDots /></span>
+                <div><b>Message {vendorName}</b><small>Your chat with them is open. Ask anything about this booking.</small></div>
+                <CaretRight />
+              </button>
+            ) : null}
             {primary('View my stay', 'my-stay')}
             {/* Back to the catalogue this guest can use: arrival services before the stay, Explore during it. */}
             <TextButton onClick={() => go(bookingSlot.screen)}>Book another service</TextButton>
@@ -5763,6 +5766,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </Notice>}
             </>
             )}
+
+            {/* The booking's chat with its vendor, one tap from the booking. */}
+            {engineEntryHost && engineEntryBookingId ? (
+              <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineEntryHost.pilot.booking(engineEntryBookingId).threadId); go('booking-thread'); }}>
+                <span><ChatCircleDots /></span>
+                <div><b>Message {engineEntryHost.pilot.vendors().find((v) => v.id === engineEntryHost.pilot.listing(engineEntryHost.pilot.booking(engineEntryBookingId).listingId).vendorId)?.name ?? 'the vendor'}</b><small>Your chat about this booking</small></div>
+                <CaretRight />
+              </button>
+            ) : null}
 
             {/*
               Cancelling is an action on the booking, reached from the booking

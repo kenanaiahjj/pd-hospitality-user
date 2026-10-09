@@ -4299,3 +4299,23 @@ export const getFeaturedServices = () =>
   FEATURED_SERVICE_IDS.map((id) => SERVICES.find((service) => service.id === id)!);
 
 export const screenTitle = (id: ScreenId) => SCREENS.find((item) => item.id === id)?.title ?? 'Guest app';
+
+/** What one rental is called: a bike, a scooter, a car. The pilot engine's cards and chat say it too. */
+export function rentalUnitFor(serviceId: string): { singular: string; plural: string } {
+  switch (serviceId) {
+    case 'rental':
+      return { singular: 'bike', plural: 'bikes' };
+    case 'e-bike':
+      return { singular: 'e-bike', plural: 'e-bikes' };
+    case 'scooter':
+      return { singular: 'scooter', plural: 'scooters' };
+    case 'motorcycle':
+      return { singular: 'motorcycle', plural: 'motorcycles' };
+    case 'car-rental':
+      return { singular: 'car', plural: 'cars' };
+    case 'suv-rental':
+      return { singular: 'SUV', plural: 'SUVs' };
+    default:
+      return { singular: 'rental', plural: 'rentals' };
+  }
+}

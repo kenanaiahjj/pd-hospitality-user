@@ -280,6 +280,24 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
 describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
   const nav = () => within(screen.getByRole('navigation', { name: 'Primary navigation' }));
 
+  it('tells the guest a chat with the vendor opened when she books, and the banner opens it', async () => {
+    const user = userEvent.setup();
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
+    await bookRental(user, 'room');
+
+    // On the confirmation, a way straight into the chat.
+    expect(screen.getByRole('button', { name: /Message Sakay Rentals/ })).toBeInTheDocument();
+    // A banner says the chat is open, and tapping it opens the chat.
+    const banner = screen.getByText('Your chat with Sakay Rentals is open. Tap to message them.');
+    await user.click(banner);
+    const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
+    expect(within(thread).getByText(/Only you and Sakay Rentals are in it/)).toBeInTheDocument();
+    // The bell keeps a note of it. (The bell is outside the chat; back out first.)
+    await user.click(within(thread).getByRole('button', { name: 'Go back' }));
+    await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
+    expect(screen.getByText('Chat open with Sakay Rentals')).toBeInTheDocument();
+  });
+
   it('tells the guest when the vendor says yes: a banner, then the bell', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);

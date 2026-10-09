@@ -338,7 +338,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       case 'no-show': return { state: 'cancelled', label: 'No-show' };
     }
   };
-  const unitWord = (b: Booking) => (b.kind === 'rental' ? (b.qty === 1 ? 'bike' : 'bikes') : b.kind === 'goods' ? (b.qty === 1 ? 'box' : 'boxes') : b.kind === 'table' ? 'party of' : b.qty === 1 ? 'guest' : 'guests');
+  const capitalise = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+  const unitWord = (b: Booking) => (b.kind === 'rental' ? (b.qty === 1 ? listingOf(b).unit?.one ?? 'bike' : listingOf(b).unit?.many ?? 'bikes') : b.kind === 'goods' ? (b.qty === 1 ? 'box' : 'boxes') : b.kind === 'table' ? 'party of' : b.qty === 1 ? 'guest' : 'guests');
   const cardOf = (b: Booking): Card => {
     const listing = listingOf(b);
     const vendor = vendorOf(listing);
@@ -350,7 +351,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       facts.push({ label: 'Boxes', value: String(b.qty) });
     } else {
       facts.push({ label: 'When', value: when(b.start) });
-      facts.push({ label: b.kind === 'rental' ? 'Bikes' : b.kind === 'table' ? 'Party' : 'Guests', value: String(b.qty) });
+      facts.push({ label: b.kind === 'rental' ? capitalise(listing.unit?.many ?? 'bikes') : b.kind === 'table' ? 'Party' : 'Guests', value: String(b.qty) });
       if (b.kind === 'rental') facts.push({ label: 'Return', value: clock12(b.end) });
       if (b.kind === 'table') facts.push({ label: 'Held until', value: clock12(b.start + settings.tableHoldMin * MIN) });
       facts.push({ label: 'Vendor', value: vendor.name });
@@ -826,6 +827,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     const asker = how.origin === 'desk' ? `The front desk (${how.staffName ?? 'staff'})` : guest.firstName;
     post(thread, SYSTEM, `${asker} ${listing.confirm === 'vendor' ? 'asked for' : 'booked'} ${listing.title}: ${draft.qty} ${unitWord(b)}, ${when(start)}.`, 'system');
     post(thread, SYSTEM, '', 'card', undefined, { bookingId: id });
+    // Said once, to the guest: who this chat is with, and that it is only the two of them.
+    post(thread, SYSTEM, `Your chat with ${vendorOf(listing).name} is open. Only you and ${vendorOf(listing).name} are in it.`, 'system', ['guest']);
     if (how.origin !== 'app') post(ensureDeskThread(stay.id), SYSTEM, '', 'card', ['guest', 'desk'], { bookingId: id });
     if (draft.note) post(thread, { role: 'guest', name: guest.firstName }, draft.note);
     if (initial === 'needs-approval') {

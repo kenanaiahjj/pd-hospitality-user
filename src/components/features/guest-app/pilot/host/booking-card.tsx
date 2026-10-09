@@ -89,6 +89,12 @@ export const factPhrase = (label: string, value: string) => {
     case 'Bikes': return count('bike', 'bikes');
     case 'Guests': return count('guest', 'guests');
     case 'Boxes': return count('box', 'boxes');
+    case 'E-bikes': return count('e-bike', 'e-bikes');
+    case 'Scooters': return count('scooter', 'scooters');
+    case 'Motorcycles': return count('motorcycle', 'motorcycles');
+    case 'Cars': return count('car', 'cars');
+    case 'SUVs': return count('SUV', 'SUVs');
+    case 'Rentals': return count('rental', 'rentals');
     case 'Party': return `Table for ${value}`;
     case 'Return': return `Back by ${value}`;
     case 'Held until': return `Held until ${value}`;

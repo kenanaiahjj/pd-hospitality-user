@@ -57,6 +57,8 @@ export type Listing = {
   vendorId: string;
   kind: Kind;
   title: string;
+  /** What one is called, for rentals: a bike, a scooter, a car. Defaults to a bike. */
+  unit?: { one: string; many: string };
   confirm: ConfirmMode;
   /** Pesos per unit: per bike per day, per guest, per box. Zero for a table. */
   unitPrice: number;

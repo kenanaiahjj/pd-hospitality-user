@@ -302,7 +302,8 @@ function ThreadMessage({ host, message, first, last, receipt, ...handlers }: { h
   return (
     <div className={`guest-message guest-message--${mine ? 'guest' : 'desk'} pilot-msg${first ? '' : ' guest-message--continued'}${last ? '' : ' pilot-msg--grouped'}`}>
       <p>{message.text}</p>
-      {last ? <small>{clock12(message.at)}{receipt ? ` · ${receipt}` : ''}</small> : null}
+      {/* Sent for the vendor, not typed by them: it says so, as a business chat does. */}
+      {last || message.auto ? <small>{message.auto ? <span className="pilot-msg__auto">Auto-reply</span> : null}{last ? `${message.auto ? ' · ' : ''}${clock12(message.at)}${receipt ? ` · ${receipt}` : ''}` : null}</small> : null}
     </div>
   );
 }

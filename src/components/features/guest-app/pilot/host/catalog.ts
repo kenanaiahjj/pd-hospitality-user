@@ -72,6 +72,7 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
       title: service.name,
       freeCancelHours: cancelHours(service.cutoff),
       capacity: 12,
+      meetAt: venue?.location,
     };
     if (isReservation(service.id)) {
       const listing = listingFor(service.id);

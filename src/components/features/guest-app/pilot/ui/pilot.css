@@ -304,6 +304,7 @@
 .pilot-msg { max-inline-size: 80%; }
 .pilot-msg--grouped { margin-block-end: -6px; }
 .pilot-msg small { font-variant-numeric: tabular-nums; }
+.pilot-msg__auto { font-weight: 600; letter-spacing: 0.01em; }
 
 .pilot-day {
   align-self: center;

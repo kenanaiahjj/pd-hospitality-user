@@ -164,7 +164,9 @@ export const CHAT: Scenario[] = [
         c.must(p.guest().send(t, 'Can we bring a child seat? Our son is 4.'));
         c.must(p.vendor('boat-operator').message(t, 'Yes, we have one. No extra charge.'));
         c.must(p.desk.messageBooking(t, 'Noted. I added the child seat to the booking.'));
-        const texts = c.must(p.thread(t, 'guest')).messages.filter((m) => m.kind === 'text');
+        const all = c.must(p.thread(t, 'guest')).messages.filter((m) => m.kind === 'text');
+        c.ok(all[0]?.auto === true && all[0].from.role === 'vendor' && /^Hi /.test(all[0].text), 'the vendor greeted her automatically as the chat opened');
+        const texts = all.filter((m) => !m.auto);
         c.eq(texts.map((m) => m.from.role).join(','), 'guest,vendor', 'only the two of them, in order');
         const desk = c.must(p.thread(p.deskThreadId(p.maria.stayId), 'guest')).messages;
         c.ok(desk.some((m) => m.from.role === 'desk' && /child seat/.test(m.text) && m.bookingId === id), 'the desk note is in the desk chat, tied to the booking');

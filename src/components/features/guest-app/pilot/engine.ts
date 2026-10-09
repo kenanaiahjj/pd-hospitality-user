@@ -186,6 +186,10 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     applyLoad(b, to, 1);
     // The vendor has committed: from now on there is a chat (a request that never gets here never gets one).
     if (['confirmed', 'awaiting-payment', 'reserved', 'ready', 'in-progress'].includes(to)) openChat(b);
+    if (to === 'in-progress') autoSay(b, 'started');
+    if (to === 'ready') autoSay(b, 'ready');
+    if (to === 'completed' || to === 'collected') autoSay(b, 'done');
+    if (to === 'cancelled' && b.cancelledBy === 'vendor') autoSay(b, 'vendor-cancelled');
     b.version += 1;
     w.transitionCount.set(b.id, (w.transitionCount.get(b.id) ?? 0) + 1);
     b.lastActor = { name: who, at: w.now, action };
@@ -304,6 +308,56 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     post(thread, SYSTEM, '', 'card', undefined, { bookingId: b.id });
     if (b.note) post(thread, { role: 'guest', name: guestRecord(b.guestId).firstName }, b.note);
     post(thread, SYSTEM, `Your chat with ${vendorName} is open. Only you and ${vendorName} are in it.`, 'system', ['guest']);
+    autoSay(b, 'greeting');
+    // A reminder an hour before, unless the chat opened within that hour (a greeting and a reminder at once is noise).
+    if (b.kind !== 'goods' && b.start - HOUR > w.now) {
+      sched(b.start - HOUR, 'auto-reminder', b.id, () => { if (['confirmed', 'reserved'].includes(b.status)) autoSay(b, 'reminder'); }, b.id);
+    }
+  };
+  /*
+    The vendor's automatic messages: a greeting as the chat opens, a reminder,
+    a word as it starts, a thank-you, an apology. They are queued and posted as
+    the action ends, so they follow the booking's own lines ("Sakay Rentals
+    confirmed") instead of coming before them. Each is marked as automatic.
+  */
+  type AutoEvent = 'greeting' | 'reminder' | 'started' | 'ready' | 'done' | 'vendor-cancelled' | 'extra';
+  const autoQueue: { b: Booking; event: AutoEvent; extra?: { amount: number; reason: string } }[] = [];
+  const autoSay = (b: Booking, event: AutoEvent, extra?: { amount: number; reason: string }) => { autoQueue.push({ b, event, extra }); };
+  const autoText = (b: Booking, event: AutoEvent, extra?: { amount: number; reason: string }): string | undefined => {
+    const listing = listingOf(b);
+    const vendor = vendorOf(listing).name;
+    const first = guestName(b);
+    const meet = listing.meetAt ? ` Where: ${listing.meetAt}.` : '';
+    const them = b.qty === 1 ? 'it' : 'them';
+    const ask = 'Message us here if you need anything.';
+    switch (event) {
+      case 'greeting':
+        if (b.kind === 'rental') return `Hi ${first}, thanks for booking with ${vendor}! Your ${b.qty === 1 ? '' : `${b.qty} `}${unitWord(b)} ${b.qty === 1 ? 'is' : 'are'} set for ${when(b.start)}.${meet} Please bring an ID. ${ask}`;
+        if (b.kind === 'table') return `Hi ${first}, your table for ${b.qty} is reserved for ${when(b.start)}. We hold it for ${settings.tableHoldMin} minutes. Message us here if your plans change.`;
+        if (b.kind === 'goods') return `Hi ${first}, thanks for your order! Your ${listing.title} will be ready at the front desk from ${when(b.start)}. ${ask}`;
+        return `Hi ${first}, thanks for booking with ${vendor}! You're set for ${listing.title} on ${when(b.start)}${b.qty > 1 && listing.priceBasis === 'unit' ? `, ${b.qty} guests` : ''}.${meet} ${ask}`;
+      case 'reminder':
+        return b.kind === 'table' ? `See you at ${clock12(b.start)}! Your table is ready for you.` : `See you at ${clock12(b.start)}! Show your QR code when you arrive.`;
+      case 'started':
+        return b.kind === 'rental' ? `You're all set, enjoy! Please have ${them} back by ${clock12(b.end)}.` : `You're checked in. Enjoy your ${listing.title}!`;
+      case 'ready':
+        return `Your order is ready at the front desk. Show your QR code to collect it.`;
+      case 'done':
+        return b.kind === 'goods' ? `Thanks for your order, ${first}. Enjoy!` : `Thanks for choosing ${vendor}, ${first}. Hope to see you again!`;
+      case 'vendor-cancelled':
+        return `Sorry, ${first}, we had to cancel this one. The front desk can help you find another option.`;
+      case 'extra':
+        return extra ? `We've added ${peso(extra.amount)} for ${extra.reason.charAt(0).toLowerCase()}${extra.reason.slice(1)}. Message us here if anything looks wrong.` : undefined;
+    }
+  };
+  const flushAuto = () => {
+    while (autoQueue.length) {
+      const { b, event, extra } = autoQueue.shift()!;
+      const thread = w.threads.get(b.threadId);
+      const text = autoText(b, event, extra);
+      if (!thread || !text || (thread.readOnlyAt !== undefined && w.now >= thread.readOnlyAt)) continue;
+      post(thread, { role: 'vendor', name: vendorOf(listingOf(b)).name }, text, 'text', thread.participants, { auto: true });
+    }
   };
   const refreshReadOnly = (b: Booking) => {
     const t = w.threads.get(b.threadId);
@@ -1003,6 +1057,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   const act = <T,>(fn: () => T): T => {
     w.steps += 1;
     const result = fn();
+    flushAuto();
     reconcileTasks();
     if (paranoid) assertInvariants();
     return result;
@@ -1397,6 +1452,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
           }
           post(must(w.threads.get(b.threadId), 'thread'), SYSTEM, `Extra charge ${peso(amount)}: ${reason}. ${room ? 'Charged to your room.' : 'Pay in full to settle it.'}`, 'card', ['guest', 'desk', 'vendor'], { bookingId: b.id, paymentId: p.id });
           post(must(w.threads.get(b.threadId), 'thread'), SYSTEM, `Extra charge ${peso(amount)}: ${reason}.`, 'system');
+          autoSay(b, 'extra', { amount, reason });
           return ok({ paymentId: p.id });
         });
       },

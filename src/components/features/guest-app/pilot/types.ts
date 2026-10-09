@@ -85,6 +85,8 @@ export type Listing = {
   leadMin?: number;
   /** Goods: when the order is ready on a later date, "HH:MM". Default 17:00. */
   readyAt?: string;
+  /** Where the guest meets the vendor: "Driveway, ground floor". Said in the vendor's greeting. */
+  meetAt?: string;
 };
 
 export type StayStatus = 'booked' | 'in-house' | 'checked-out' | 'cancelled';
@@ -263,6 +265,8 @@ export type Message = {
   bookingId?: string;
   /** For an extra-charge card: the payment it shows. */
   paymentId?: string;
+  /** Sent for the vendor by Cabana (a greeting, a reminder, a thank-you), not typed by a person. */
+  auto?: boolean;
   visibleTo: Role[];
 };
 

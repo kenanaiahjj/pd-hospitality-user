@@ -36,7 +36,8 @@ export type BookingStatus =
 
 /** Diagram I, one record per payment. */
 export type RoomPayState = 'pending' | 'posting' | 'posted' | 'settled' | 'voided' | 'reversed' | 'failed' | 'refund-due';
-export type CardPayState = 'awaiting' | 'paid' | 'expired' | 'refund-pending' | 'refunded' | 'refund-failed';
+/** `held`: authorised on the card or wallet but not taken, waiting for the vendor; `released`: the hold dropped, nothing was ever charged. */
+export type CardPayState = 'awaiting' | 'held' | 'paid' | 'released' | 'expired' | 'refund-pending' | 'refunded' | 'refund-failed';
 export type PayState = RoomPayState | CardPayState;
 
 /** The eight states a booking card can show. */
@@ -175,6 +176,8 @@ export type Booking = {
   holdUntil?: number;
   /** For a vendor-confirm booking: when the vendor accepted it. */
   acceptedAt?: number;
+  /** Paid by card for a confirm-first listing: the money is held at booking, taken when the vendor accepts, released if not. */
+  hold?: boolean;
   /** The stay changed under a room-paid booking: the guest pays in full or cancels. */
   needsPayChange?: boolean;
   /** Goods: the vendor has packed it and sent it to the desk. */

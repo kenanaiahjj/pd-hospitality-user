@@ -401,8 +401,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     const pay = pays.at(-1);
     if (['needs-approval'].includes(b.status)) return { amount: b.amount, line: 'Waiting for the front desk' };
     if (b.status === 'pay-or-cancel') return { amount: b.amount, line: 'Pay in full or cancel' };
-    if (b.status === 'requested') return { amount: b.amount, line: b.payMode === 'room' ? 'Charged once confirmed' : 'Paid in full once confirmed' };
-    if (b.status === 'awaiting-payment') return { amount: b.amount, line: 'Paid in full, by card or e-wallet' };
+    if (b.status === 'requested') return { amount: b.amount, line: b.payMode === 'room' ? 'Charged once confirmed' : b.hold ? 'Held, not charged · taken only if they confirm' : 'Paid in full once confirmed' };
+    if (b.status === 'awaiting-payment') return { amount: b.amount, line: b.hold ? 'Hold it to send the request · released if they say no' : 'Paid in full, by card or e-wallet' };
     if (b.status === 'no-show') return { amount: b.amount, line: 'No-show: the charge stands' };
     // One label, "Not booked", for every way a booking falls through: the line under it says which, and that nothing was taken.
     if (b.status === 'declined') return { amount: 0, line: "The vendor wasn't available · nothing charged" };
@@ -658,6 +658,13 @@ export function createPilot(options: PilotOptions = {}): Pilot {
 
   // card and gateway
   const reconcile = (p: Payment) => {
+    // A hold whose callback was lost: apply it now, or let it go if the window already closed.
+    const auth = w.txns.find((t) => t.paymentId === p.id && t.state === 'authorized' && !t.seen);
+    if (auth) {
+      auth.seen = true;
+      if (p.state === 'awaiting' && isHold(p)) { applyHeld(p); return; }
+      if (p.state === 'expired') { movePay(p, 'held'); movePay(p, 'released'); auth.state = 'voided'; return; }
+    }
     const txn = w.txns.find((t) => t.paymentId === p.id && t.state === 'paid' && !t.seen);
     if (txn) {
       txn.seen = true;
@@ -671,7 +678,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       }
       if (p.state === 'awaiting') applyPaid(p);
     }
-    if (p.state === 'awaiting' || w.txns.some((t) => t.paymentId === p.id && t.state === 'paid' && !t.seen)) sched(w.now + settings.gatewayReconcileMin * MIN, 'reconcile', p.id, () => reconcile(p), p.id);
+    if (p.state === 'awaiting' || w.txns.some((t) => t.paymentId === p.id && (t.state === 'paid' || t.state === 'authorized') && !t.seen)) sched(w.now + settings.gatewayReconcileMin * MIN, 'reconcile', p.id, () => reconcile(p), p.id);
   };
   const refundCard = (p: Payment) => {
     if (p.state !== 'paid') return;
@@ -719,6 +726,8 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   };
   /** A payment the gateway took but whose callback was lost: apply it before anything else touches the payment. */
   const absorbUnseen = (p: Payment) => {
+    const auth = w.txns.find((t) => t.paymentId === p.id && t.state === 'authorized' && !t.seen);
+    if (auth && p.state === 'awaiting' && isHold(p)) { auth.seen = true; applyHeld(p); return; }
     const txn = w.txns.find((t) => t.paymentId === p.id && t.state === 'paid' && !t.seen);
     if (!txn) return;
     txn.seen = true;
@@ -739,9 +748,41 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       move(b, 'payment-expired', 'Cabana', why);
       announce(b, `${why}. The slot was released.`);
       tellGuest(b, 'payment-expired');
-      notify('vendor', 'push', 'slot-free', b.id);
+      // A hold that never went through never reached the vendor: there is nothing to tell them.
+      if (b.acceptedAt !== undefined || !b.hold) notify('vendor', 'push', 'slot-free', b.id);
     } else if (b.status === 'confirmed' && b.needsPayChange) {
       cancelBooking(b, 'Cabana', 'Payment not made after the stay changed', 'system');
+    }
+  };
+  /*
+    Holds, as Grab does it: a confirm-first booking paid by card is authorised
+    at booking (held, not taken), captured when the vendor accepts, released
+    when it does not go ahead. Nothing is charged and nothing is refunded for
+    a request that falls through.
+  */
+  const isHold = (p: Payment) => p.purpose === 'booking' && Boolean(w.bookings.get(p.bookingId)?.hold) && w.bookings.get(p.bookingId)?.status === 'awaiting-payment';
+  const applyHeld = (p: Payment) => {
+    const b = must(w.bookings.get(p.bookingId), 'booking');
+    movePay(p, 'held');
+    cancelTimers(p.id, ['card-expiry', 'reconcile']);
+    b.holdUntil = undefined;
+    move(b, 'requested', guestName(b), 'held the payment');
+    startVendorTimer(b);
+  };
+  const captureHold = (b: Booking): Payment | undefined => {
+    const p = paysOf(b).find((x) => x.mode === 'card' && x.state === 'held');
+    if (!p) return undefined;
+    movePay(p, 'paid');
+    const txn = w.txns.find((t) => t.paymentId === p.id && t.state === 'authorized');
+    if (txn) txn.state = 'paid';
+    w.gateway.net += p.amount;
+    return p;
+  };
+  const releaseHolds = (b: Booking) => {
+    for (const p of paysOf(b)) {
+      if (p.mode !== 'card' || p.state !== 'held') continue;
+      movePay(p, 'released');
+      for (const t of w.txns) if (t.paymentId === p.id && t.state === 'authorized') t.state = 'voided';
     }
   };
   const startCardWindow = (b: Booking, p: Payment) => {
@@ -753,19 +794,24 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   const gatewayAttempt = (p: Payment): { outcome: 'paid' | 'failed' | 'abandoned'; triesLeft: number } => {
     const left = () => Math.max(0, settings.cardTries - p.tries);
     if (w.gateway.mode === 'abandon') return { outcome: 'abandoned', triesLeft: left() };
-    const txn: GatewayTxn = { id: nextId('TXN'), paymentId: p.id, amount: p.amount, state: w.gateway.mode === 'ok' ? 'paid' : 'failed', seen: false };
+    const holding = isHold(p);
+    const txn: GatewayTxn = { id: nextId('TXN'), paymentId: p.id, amount: p.amount, state: w.gateway.mode === 'ok' ? (holding ? 'authorized' : 'paid') : 'failed', seen: false };
     w.txns.push(txn);
     if (txn.state === 'failed') {
       p.tries += 1;
       if (p.purpose === 'booking' && p.tries >= settings.cardTries) expireCard(p, 'Three payment tries failed');
       return { outcome: 'failed', triesLeft: left() };
     }
-    w.gateway.net += p.amount;
+    // A hold is not money: the gateway's takings move only when it is captured.
+    if (!holding) w.gateway.net += p.amount;
     if (w.gateway.loseCallbacks) return { outcome: 'abandoned', triesLeft: left() };
     for (let i = 0; i < 1 + w.gateway.duplicateCallbacks; i++) {
       if (i === 0) {
         txn.seen = true;
-        if (p.state === 'awaiting') applyPaid(p);
+        if (p.state === 'awaiting') {
+          if (holding) applyHeld(p);
+          else applyPaid(p);
+        }
       } else {
         log('duplicate-callback-ignored', `${p.id} ${txn.id}`);
       }
@@ -773,6 +819,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     return { outcome: 'paid', triesLeft: left() };
   };
   const undoPayments = (b: Booking) => {
+    releaseHolds(b);
     for (const p of paysOf(b)) {
       if (p.mode === 'room') undoRoom(p);
       else if (p.state === 'paid') refundCard(p);
@@ -825,6 +872,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     }
     b.reason = 'The vendor did not answer in time';
     move(b, 'lapsed', 'Cabana', 'vendor did not answer in time');
+    releaseHolds(b);
     announce(b, 'The vendor did not answer in time. Nothing was charged.');
     tellGuest(b, 'lapsed');
     if (b.start - b.createdAt <= settings.nearServiceHours * HOUR || b.origin === 'desk') {
@@ -917,10 +965,13 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     const id = how.preId ?? nextId('BK');
     const guest = guestRecord(guestId);
     const needsApproval = payMode === 'room' && opts.room.needsApproval;
-    const initial: BookingStatus = listing.kind === 'table' ? 'reserved' : needsApproval ? 'needs-approval' : listing.confirm === 'vendor' ? 'requested' : free || payMode === 'room' ? 'confirmed' : 'awaiting-payment';
+    // Paid by card for a confirm-first listing: the money is held first (as Grab does), and the request goes to the vendor once it is.
+    const hold = listing.confirm === 'vendor' && payMode === 'card' && !needsApproval;
+    const initial: BookingStatus = listing.kind === 'table' ? 'reserved' : needsApproval ? 'needs-approval' : hold ? 'awaiting-payment' : listing.confirm === 'vendor' ? 'requested' : free || payMode === 'room' ? 'confirmed' : 'awaiting-payment';
     const b: Booking = {
       id, listingId: listing.id, stayId: stay.id, guestId, kind: listing.kind, status: initial, qty: draft.qty, days, start, end, amount, payMode, paymentIds: [], threadId: `thread-${id}`, createdAt: w.now,
       note: draft.note, origin: how.origin, staffName: how.staffName, vendorOpened: false, slotKeys, version: 1, readyFor: listing.kind === 'goods' ? draft.date : undefined,
+      hold: hold || undefined,
     };
     w.bookings.set(id, b);
     applyLoad(b, initial, 1);
@@ -945,6 +996,10 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       if (!free) roomCharge(b, amount, 'booking');
       notify('vendor', 'push', 'new-booking', id);
       announce(b, free ? 'Confirmed. Nothing to pay.' : `Confirmed. ${peso(amount)} is charged to the room.`);
+    } else if (initial === 'awaiting-payment' && hold) {
+      // The hold comes first: the vendor hears nothing until the money is held.
+      const p = newPayment(b, 'card', amount, 'booking');
+      startCardWindow(b, p);
     } else if (initial === 'awaiting-payment') {
       const p = newPayment(b, 'card', amount, 'booking');
       startCardWindow(b, p);
@@ -1007,6 +1062,11 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       move(b, 'confirmed', who, 'accepted');
       roomCharge(b, b.amount, 'booking');
       announce(b, `${who} confirmed. ${peso(b.amount)} is charged to your room.`);
+    } else if (b.hold && paysOf(b).some((x) => x.state === 'held')) {
+      // The hold is taken now: confirmed in one step, nothing more for the guest to do.
+      move(b, 'confirmed', who, 'accepted');
+      captureHold(b);
+      announce(b, `${who} confirmed. ${peso(b.amount)} is paid.`);
     } else {
       wantsCard = true;
       move(b, 'awaiting-payment', who, 'accepted');
@@ -1020,6 +1080,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   const declineBooking = (b: Booking, who: string, reason?: string, quiet = false): Result<object> => {
     if (b.status !== 'requested') return refusedStale(b, 'decline');
     move(b, 'declined', who, 'declined');
+    releaseHolds(b);
     b.reason = reason;
     announce(b, `${who} is not available${reason ? `: ${reason}` : ''}. Nothing was charged.`);
     if (!quiet) tellGuest(b, 'declined');
@@ -1049,6 +1110,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
 
   const withdrawBooking = (b: Booking, who: string, action: string) => {
     for (const p of paysOf(b)) if (p.mode === 'card' && p.state === 'awaiting') { movePay(p, 'expired'); cancelTimers(p.id, ['card-expiry']); }
+    releaseHolds(b);
     move(b, 'withdrawn', who, action);
     announce(b, `${who} withdrew the request. Nothing was charged.`);
     notify('vendor', 'push', 'withdrawn', b.id);
@@ -1209,6 +1271,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
             announce(b, 'You paid twice. The second payment is being refunded.', ['guest', 'desk']);
             return ok({ outcome: 'paid' as const, triesLeft: Math.max(0, settings.cardTries - pay.tries) });
           }
+          if (pay.state === 'held') return refuse('invalid-state', 'This is already held. It is taken only if the vendor confirms.');
           if (pay.state !== 'awaiting' || (pay.windowEnd && w.now >= pay.windowEnd)) return refuse('invalid-state', 'The payment window closed.');
           return ok(gatewayAttempt(pay));
         });

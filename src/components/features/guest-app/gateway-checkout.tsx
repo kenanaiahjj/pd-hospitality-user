@@ -28,7 +28,7 @@ export const METHOD_HINTS: Record<GatewayMethod, string> = {
   they had paid. `hint` is a line the caller wants above the button, such as
   how long the slot is held.
 */
-export function GatewayCheckout({ merchant, amount, item, onPaid, onClose, hint }: { merchant: string; amount: string; item: string; onPaid: (method: GatewayMethod) => string | void; onClose: () => void; hint?: string }) {
+export function GatewayCheckout({ merchant, amount, item, onPaid, onClose, hint, hold = false }: { merchant: string; amount: string; item: string; onPaid: (method: GatewayMethod) => string | void; onClose: () => void; hint?: string; /** A hold for a request (as Grab does): authorised now, taken only when the vendor confirms. */ hold?: boolean }) {
   const [method, setMethod] = useState<GatewayMethod | null>(null);
   const [processing, setProcessing] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export function GatewayCheckout({ merchant, amount, item, onPaid, onClose, hint 
         <header className="guest-order-tray__header">
           <div>
             <h2 id="gateway-title">Secure checkout</h2>
-            <p>Paying {merchant}</p>
+            <p>{hold ? `Holding for ${merchant}` : `Paying ${merchant}`}</p>
           </div>
           <button className="guest-order-tray__close" type="button" onClick={close} disabled={processing} aria-label="Close"><X /></button>
         </header>
@@ -74,10 +74,12 @@ export function GatewayCheckout({ merchant, amount, item, onPaid, onClose, hint 
         />
         {hint ? <p className="guest-gateway__note">{hint}</p> : null}
         {problem ? <p className="guest-gateway__note" role="alert"><b>{problem}</b></p> : null}
-        <p className="guest-gateway__note"><LockSimple aria-hidden="true" />Paid directly to {merchant} through our payment partner. Not added to your room bill.</p>
+        <p className="guest-gateway__note"><LockSimple aria-hidden="true" />{hold
+          ? `Held, not charged. Taken only when ${merchant} confirms; released if they don't, so there is nothing to refund. Not added to your room bill.`
+          : `Paid directly to ${merchant} through our payment partner. Not added to your room bill.`}</p>
         <footer className="guest-order-tray__footer">
           <Button className="guest-button guest-button--primary" type="button" disabled={!method || processing} onClick={pay}>
-            {processing ? 'Processing payment…' : `Pay ${amount}`}{processing ? null : <ArrowRight aria-hidden="true" />}
+            {processing ? (hold ? 'Placing the hold…' : 'Processing payment…') : hold ? `Hold ${amount}` : `Pay ${amount}`}{processing ? null : <ArrowRight aria-hidden="true" />}
           </Button>
         </footer>
       </section>

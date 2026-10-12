@@ -31,7 +31,7 @@ const bookRental = async (user: User, pay: 'room' | 'pay-now') => {
   await user.click(screen.getByRole('button', { name: /City bicycle/ }));
   await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
   if (pay === 'pay-now') await user.click(screen.getByRole('button', { name: /Pay now/ }));
-  await user.click(screen.getByRole('button', { name: /^Send request/ }));
+  await user.click(screen.getByRole('button', { name: /^(Send request|Hold ₱)/ }));
 };
 
 describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
@@ -54,24 +54,25 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
     expect(screen.getAllByText(/Charged to your room/).length).toBeGreaterThan(0);
   });
 
-  it('takes the card only after the vendor accepts', async () => {
+  it('holds the payment at booking, and takes it only when the vendor accepts', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
 
     await bookRental(user, 'pay-now');
+    // The payment page opens at once, for a hold, not a charge.
+    const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
+    expect(within(gateway).getByText(/Held, not charged/)).toBeInTheDocument();
+    await user.click(within(gateway).getByRole('button', { name: /GCash/ }));
+    await user.click(within(gateway).getByRole('button', { name: /^Hold ₱/ }));
+    expect(await screen.findByText(/is held, not charged/, {}, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Request sent/ })).toBeInTheDocument();
-    // No gateway yet: the vendor has not said yes.
-    expect(screen.queryByRole('dialog', { name: 'Secure checkout' })).toBeNull();
 
+    // The vendor says yes: the hold is taken, and it is confirmed with nothing more to do.
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
     await fire(user, /Vendor confirms City bicycle/);
     await user.click(screen.getByRole('button', { name: /City bicycle.*return by/ }));
-    await user.click(screen.getByRole('button', { name: /^Pay now/ }));
-
-    const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
-    await user.click(within(gateway).getByRole('button', { name: /GCash/ }));
-    await user.click(within(gateway).getByRole('button', { name: /^Pay ₱/ }));
-    expect(await screen.findByText(/Paid · GCash/, {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText(/Paid · GCash/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Pay now/ })).toBeNull();
   });
 
   it('lets the guest withdraw while the vendor has not answered', async () => {
@@ -120,7 +121,7 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     expect(screen.getByLabelText(/Ready/)).toBeInTheDocument();
   });
 
-  it('asks a nearby rental shop, and takes the card only once it says yes', async () => {
+  it('asks a nearby rental shop, holding the payment until it says yes', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
 
@@ -128,19 +129,17 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     await user.click(screen.getByRole('button', { name: /City Bike Rentals/ }));
     await user.click(screen.getByRole('button', { name: /Request with City Bike Rentals/ }));
     const sheet = screen.getByRole('dialog');
-    await user.click(within(sheet).getByRole('button', { name: /Pay by card once they confirm/ }));
+    await user.click(within(sheet).getByRole('button', { name: /^Pay now/ }));
     await user.click(within(sheet).getByRole('button', { name: 'Send request' }));
 
-    // On the booking, waiting; no gateway yet.
-    expect(screen.getByLabelText(/Awaiting confirmation/)).toBeInTheDocument();
-    expect(screen.queryByRole('dialog', { name: 'Secure checkout' })).toBeNull();
-
-    await fire(user, /Vendor confirms City Bike Rentals/);
-    await user.click(screen.getByRole('button', { name: /^Pay now/ }));
+    // The hold first, then the request goes to the shop.
     const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
     await user.click(within(gateway).getByRole('button', { name: /GCash/ }));
-    await user.click(within(gateway).getByRole('button', { name: /^Pay ₱/ }));
-    expect(await screen.findByLabelText(/Confirmed/, {}, { timeout: 4000 })).toBeInTheDocument();
+    await user.click(within(gateway).getByRole('button', { name: /^Hold ₱/ }));
+    expect(await screen.findByLabelText(/Awaiting confirmation/, {}, { timeout: 4000 })).toBeInTheDocument();
+
+    await fire(user, /Vendor confirms City Bike Rentals/);
+    expect(screen.getByLabelText(/Confirmed/)).toBeInTheDocument();
   });
 });
 

@@ -364,7 +364,7 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
               onChange={setPaymentChoice}
               options={[
                 { value: 'room', title: roomNumber ? `Charge to Room ${roomNumber}` : 'Charge to your room', detail: askDesk ? 'Over the limit, so the front desk approves it first.' : waitsForVendor ? 'Added to your room bill once they confirm.' : 'Added to your room bill and settled at checkout.' },
-                { value: 'pay-now', title: waitsForVendor ? 'Pay by card once they confirm' : 'Pay now', detail: waitsForVendor ? `Card, GCash or Maya, paid directly to ${establishment.name} after they say yes. No room charge.` : `Card, GCash or Maya, paid directly to ${establishment.name}. No room charge.` },
+                { value: 'pay-now', title: 'Pay now', detail: waitsForVendor ? `Card, GCash or Maya. Held now, taken only when ${establishment.name} confirms, released if they don't. No room charge.` : `Card, GCash or Maya, paid directly to ${establishment.name}. No room charge.` },
               ]}
             />
           ) : null}

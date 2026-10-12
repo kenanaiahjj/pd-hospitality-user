@@ -171,8 +171,8 @@ export const STRESS: Scenario[] = [
       c.step('The same callback arrives 5 times', () => {
         p.setGateway({ duplicateCallbacks: 5 });
         const id = c.ask(trip({ qty: 2, payMode: 'card' }));
-        c.must(p.vendor('boat-operator').confirm(id));
         c.must(p.guest().payCard(id));
+        c.must(p.vendor('boat-operator').confirm(id));
         const pays = p.payments(id);
         c.eq(pays.filter((x) => x.state === 'paid').length, 1, 'one Paid payment');
         c.eq(pays.length, 1, 'no extra payment records');
@@ -191,8 +191,8 @@ export const STRESS: Scenario[] = [
       let table = '';
       c.step('Open requests, payment windows, a table waiting and a charge being retried', () => {
         open = c.ask(draft('apo-island-trip', S.fri, 1, { time: '07:30', payMode: 'room' }));
+        // Paid by card: waiting on its hold, which never comes.
         awaiting = c.ask(draft('bike-rental', S.sat, 1, { time: '08:00', days: 1, payMode: 'card' }));
-        c.must(p.vendor('bike-shop').confirm(awaiting));
         table = c.ask(draft('si-senor', S.today, 2, { time: '19:00' }));
         p.setPms({ mode: 'down' });
         const y = c.ask(draft('yoga-class', S.sat, 1, { time: '06:30', payMode: 'room' }));
@@ -232,8 +232,8 @@ export const STRESS: Scenario[] = [
           const mode = i % 2 === 0 ? 'room' : 'card';
           const r = p.guest(g.guestId).request(trip({ payMode: mode }));
           if (!r.ok) continue;
-          p.vendor('boat-operator').confirm(r.bookingId);
           if (mode === 'card') p.guest(g.guestId).payCard(r.bookingId);
+          p.vendor('boat-operator').confirm(r.bookingId);
           made.push({ id: r.bookingId, guestId: g.guestId });
         }
         c.eq(made.length, 40, '40 bookings');

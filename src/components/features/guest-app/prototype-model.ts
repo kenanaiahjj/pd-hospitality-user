@@ -32,6 +32,7 @@ export type ScreenId =
   | 'prereg-queued'
   | 'marketplace'
   | 'category-listing'
+  | 'browse'
   | 'nearby-recommendations'
   | 'nearby-establishment'
   | 'gifts-souvenirs'
@@ -104,6 +105,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(22, 'Pre-arrival', 'prereg-queued', 'Ready to send'),
   screen(23, 'Stay', 'marketplace', 'Explore'),
   screen(24, 'Stay', 'category-listing', 'Explore services'),
+  screen(83, 'Stay', 'browse', 'Browse'),
   screen(62, 'Stay', 'nearby-recommendations', 'Nearby recommendations'),
   screen(59, 'Stay', 'nearby-establishment', 'Nearby recommendation'),
   screen(60, 'Account', 'rewards', 'Achievements'),

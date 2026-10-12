@@ -368,6 +368,7 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
   'arrival-cart-confirmation',
   'marketplace',
   'category-listing',
+  'browse',
   'nearby-recommendations',
   'nearby-establishment',
   'gifts-souvenirs',
@@ -1153,6 +1154,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const host = hostStore.host;
     const engineBooking = host?.pilot.bookings().find((b) => b.id === engineBookingId);
     if (!host || !engineBooking) return;
+    // A card booking waiting on its hold has not gone to the vendor yet: the payment page is up, and the banner comes once it is held.
+    if (engineBooking.hold && engineBooking.status === 'awaiting-payment') return;
     const opened = host.pilot.thread(engineBooking.threadId, 'guest', false);
     // The hotel's own outlet: its words land in the front desk chat, and the banner takes her there.
     if (opened.ok && host.pilot.threads('guest', engineBooking.guestId).find((t) => t.id === engineBooking.threadId)?.hotel) {
@@ -1487,7 +1490,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     });
   };
 
-  const showNav = ['stay-overview', 'partner-hotels', 'book-stay', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'vendor-service', 'service-detail', 'restaurant-menu', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'messages', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'book-stay', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-checkout', 'book-stay-payment', 'book-stay-vouchers', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'browse', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'vendor-service', 'service-detail', 'restaurant-menu', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'messages', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -2823,6 +2826,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     }
     if (!['booking-confirmation', 'stay-entry'].includes(activeScreenRef.current)) go('stay-entry');
     // After the move: going somewhere clears the note, and this one is for where the guest lands.
+    const after = host.pilot.booking(eb.id);
+    if (after.hold && after.status === 'requested') {
+      // A hold, not a payment: the request has gone to the vendor, and nothing is taken until they say yes.
+      setEngineNote({ tone: 'positive', text: 'Held, not charged. Your request is with the vendor.' });
+      if (paidFor) announceBookingChat(eb.id, paidFor.id, `${paidFor.title} requested`);
+      return;
+    }
     setEngineNote({ tone: 'positive', text: 'Paid. Your booking is confirmed.' });
   };
 
@@ -4947,6 +4957,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
       }
 
+      case 'browse':
+        return (
+          <BrowseSheet
+            variant="page"
+            categories={BROWSE_CATEGORIES}
+            index={EXPLORE_SEARCH_INDEX}
+            recommendations={recommendedPicks(emptyCatalogue ? [] : stayFeed(contextBooking), { limit: 4 })}
+            onOpenItem={(id) => openExploreItem(id)}
+            onOpenRecommendation={(entry) => runFeedAction(entry.action)}
+            onOpen={openBrowseCategory}
+            onOpenHotels={() => go('partner-hotels')}
+            onClose={back}
+          />
+        );
+
       case 'category-listing': {
         const categoryData = MINI_APP_CATEGORIES.find((cat) => cat.id === selectedCategory) ?? MINI_APP_CATEGORIES[0];
         const categoryServices = stayServices.filter((s) => s.categoryId === selectedCategory);
@@ -5274,6 +5299,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           : servicePayment === 'complimentary'
           ? `Book ${selectedService.name}`
           : viaEngine && needsApproval && !payingNow ? 'Ask the front desk to approve'
+          : confirmFirst && payingNow ? `Hold ${serviceCharge} and send request`
           : confirmFirst ? 'Send request'
           : payingNow ? `Continue to pay ${serviceCharge}`
           : chargeToRoom ? `Confirm and charge ${serviceCharge} to room` : `Charge ${serviceCharge} to room`;
@@ -5350,7 +5376,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     onChange={setServicePayChoice}
                     options={[
                       { value: 'room', title: roomLine, detail: needsApproval ? (confirmFirst ? 'Over the limit, so the front desk approves it first, then the vendor confirms.' : 'Over the limit, so the front desk approves it first.') : confirmFirst ? 'Added to your room bill once the vendor confirms.' : contextBooking.roomNumber ? 'Added to your room bill and settled at the front desk at checkout.' : 'Added to the room you are given on arrival, and settled at the front desk at checkout.' },
-                      { value: 'pay-now', title: 'Pay now', detail: confirmFirst ? `Card, GCash or Maya, paid straight to ${merchant} once they confirm. Not added to your room bill.` : `Card, GCash or Maya, paid straight to ${merchant}. Not added to your room bill.` },
+                      { value: 'pay-now', title: 'Pay now', detail: confirmFirst ? `Card, GCash or Maya. Held now, taken only when ${merchant} confirms, released if they don't. Not added to your room bill.` : `Card, GCash or Maya, paid straight to ${merchant}. Not added to your room bill.` },
                     ]}
                   />
                 ) : (
@@ -5396,7 +5422,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         // A record whose engine booking is gone (the demo was reset) reads as an ordinary booking, never as an error.
         const engineBooking = engineHost && booked?.engineId ? engineHost.pilot.bookings().find((b) => b.id === booked.engineId) : undefined;
         const vendorName = engineHost && engineBooking ? engineHost.pilot.vendors().find((v) => v.id === engineHost.pilot.listing(engineBooking.listingId).vendorId)?.name ?? 'The vendor' : 'The vendor';
-        const engineHeadline = engineBooking?.status === 'requested' ? { title: `Request sent to ${vendorName}`, text: `Nothing is charged until ${vendorName} confirms. A chat with them opens once they accept; until then, call them or ask the front desk.`, tag: 'Waiting' }
+        const engineHeadline = engineBooking?.status === 'requested' ? { title: `Request sent to ${vendorName}`, text: engineBooking.hold ? `${formatPesoAmount(engineBooking.amount)} is held, not charged. It's taken only when ${vendorName} confirms, and released if they don't. A chat with them opens once they accept.` : `Nothing is charged until ${vendorName} confirms. A chat with them opens once they accept; until then, call them or ask the front desk.`, tag: 'Waiting' }
           : engineBooking?.status === 'needs-approval' ? { title: 'Waiting for the front desk', text: 'The front desk approves charging this to your room. If they do not answer in 10 minutes you can pay in full or cancel.', tag: 'Waiting' }
           : engineBooking?.status === 'pay-or-cancel' ? { title: 'Pay in full or cancel', text: 'The front desk could not charge this to your room. Pay in full instead, or cancel.', tag: 'Waiting' }
           : engineBooking?.status === 'awaiting-payment' ? { title: `Pay to confirm ${booked?.title ?? bookedService.name}`, text: 'Your slot is held while you pay. If it is not paid in time it is released.', tag: 'Pay to confirm' }
@@ -5418,7 +5444,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-summary">
               <SummaryRow label="Provider" value={booked?.provider ?? providerFor(bookedService)} />
               {booked?.facts?.find((fact) => fact.label === 'Your note') ? <SummaryRow label="Your note" value={booked.facts.find((fact) => fact.label === 'Your note')!.value} /> : null}
-              <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={engineHeadline && engineBooking && ['requested', 'needs-approval', 'pay-or-cancel'].includes(engineBooking.status) ? (engineBooking.payMode === 'card' ? 'Paid in full once confirmed' : 'Charged to room once confirmed') : engineHeadline?.tag === 'Pay to confirm' ? 'Paid in full, by card or e-wallet' : paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? (isReservation(bookedService.id) ? 'No charge to reserve' : 'Complimentary') : 'Charged to room'} />
+              <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={engineHeadline && engineBooking && ['requested', 'needs-approval', 'pay-or-cancel'].includes(engineBooking.status) ? (engineBooking.payMode === 'card' ? (engineBooking.hold ? `Held on ${methodLabel} · taken when confirmed` : 'Paid in full once confirmed') : 'Charged to room once confirmed') : engineHeadline?.tag === 'Pay to confirm' ? 'Paid in full, by card or e-wallet' : paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? (isReservation(bookedService.id) ? 'No charge to reserve' : 'Complimentary') : 'Charged to room'} />
             </div>
             {engineBooking && engineHeadline ? null : <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />}
             <Notice title="Cancellation">{engineHost && engineBooking ? engineCancelLine(engineHost.pilot, engineBooking) : booked ? describeCancellationWindow(cutoffFor(booked), booked, PROTOTYPE_TODAY, clockHour) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
@@ -5445,7 +5471,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : null}
             {primary('View my stay', 'my-stay')}
             {/* Back to the catalogue this guest can use: arrival services before the stay, Explore during it. */}
-            <TextButton onClick={() => go(bookingSlot.screen)}>Book another service</TextButton>
+            {/* Everything bookable, as a page: search, picks and the categories, not back to the reel. */}
+            <TextButton onClick={() => go(bookingSlot.screen === 'marketplace' ? 'browse' : bookingSlot.screen)}>Book another service</TextButton>
           </ScreenIntro>
         );
       }
@@ -6719,7 +6746,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 merchant={vendor}
                 amount={formatPesoAmount(pay?.amount ?? eb.amount)}
                 item={`${pay?.purpose === 'extra' ? pay.reason ?? 'Extra charge' : listing.title}`}
-                hint={left !== undefined ? `Your slot is held for ${left} more ${left === 1 ? 'minute' : 'minutes'}.` : undefined}
+                hold={Boolean(eb.hold && eb.status === 'awaiting-payment' && pay?.purpose === 'booking')}
+                hint={left === undefined ? undefined : eb.hold && eb.status === 'awaiting-payment' ? `Finish within ${left} ${left === 1 ? 'minute' : 'minutes'} to send your request.` : `Your slot is held for ${left} more ${left === 1 ? 'minute' : 'minutes'}.`}
                 onPaid={takeEnginePayment}
                 onClose={() => setEnginePay(null)}
               />

@@ -10,7 +10,8 @@ export const BOOKING_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   'needs-approval': ['requested', 'confirmed', 'pay-or-cancel', 'withdrawn', 'cancelled'],
   'pay-or-cancel': ['requested', 'awaiting-payment', 'withdrawn', 'lapsed', 'cancelled'],
   requested: ['confirmed', 'awaiting-payment', 'declined', 'lapsed', 'withdrawn', 'cancelled'],
-  'awaiting-payment': ['confirmed', 'payment-expired', 'withdrawn', 'cancelled'],
+  // A hold placed before the vendor answers sends the request on: awaiting-payment to requested.
+  'awaiting-payment': ['confirmed', 'requested', 'payment-expired', 'withdrawn', 'cancelled'],
   confirmed: ['in-progress', 'ready', 'cancelled', 'no-show'],
   reserved: ['seated', 'no-show', 'cancelled'],
   'in-progress': ['completed'],
@@ -41,9 +42,11 @@ export const ROOM_TRANSITIONS: Record<RoomPayState, RoomPayState[]> = {
 };
 
 export const CARD_TRANSITIONS: Record<CardPayState, CardPayState[]> = {
-  awaiting: ['paid', 'expired'],
+  awaiting: ['paid', 'held', 'expired'],
+  held: ['paid', 'released'],
   paid: ['refund-pending'],
-  expired: ['paid'],
+  released: [],
+  expired: ['paid', 'held'],
   'refund-pending': ['refunded', 'refund-failed'],
   'refund-failed': ['refunded'],
   refunded: [],

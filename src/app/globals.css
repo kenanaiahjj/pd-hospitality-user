@@ -32,7 +32,7 @@ nextjs-portal,
 :root {
   /* --- Layer 1: primitives ------------------------------------------------ */
   --ds-ink: oklch(0.16 0.016 351);
-  --ds-paper: oklch(1 0 0);
+  --ds-paper: oklch(1 0 none);
   /* The logo plum: #462133. The neutral ramp below sits on its hue (351)
      rather than on a cool grey. */
   --ds-plum: oklch(0.305 0.062 351);
@@ -455,7 +455,7 @@ img { border-radius: inherit; }
 .overlay-demo--dark { padding: 20px; border-radius: var(--radius-md); background: var(--ds-ink-card); color: var(--ds-on-ink); }
 .overlay-demo--dark p { color: var(--ds-on-ink-muted); }
 .overlay-demo--dark > svg { width: 30px; height: 30px; color: var(--ds-on-ink); }
-.overlay-demo--dark .source-button[data-variant="secondary"] { border-color: oklch(1 0 0 / 0.28); background: transparent; color: var(--ds-on-ink); }
+.overlay-demo--dark .source-button[data-variant="secondary"] { border-color: oklch(1 0 none / 0.28); background: transparent; color: var(--ds-on-ink); }
 @media (hover: hover) and (pointer: fine) {
   .overlay-demo--dark .source-button[data-variant="secondary"]:hover:not(:disabled) { border-color: transparent; background: var(--ds-on-ink); color: var(--ds-ink); }
 }
@@ -1005,7 +1005,7 @@ img { border-radius: inherit; }
 
 /* --- Imagery -------------------------------------------------------------- */
 
-.source-avatar { position: relative; display: inline-grid; place-items: center; overflow: clip; min-inline-size: 0; flex: 0 0 auto; border-radius: 50%; background: var(--source-accent); color: var(--source-accent-contrast); outline: 1px solid oklch(0 0 0 / 0.1); outline-offset: -1px; }
+.source-avatar { position: relative; display: inline-grid; place-items: center; overflow: clip; min-inline-size: 0; flex: 0 0 auto; border-radius: 50%; background: var(--source-accent); color: var(--source-accent-contrast); outline: 1px solid oklch(0 0 none / 0.1); outline-offset: -1px; }
 .source-avatar--sm { width: 32px; height: 32px; }
 .source-avatar--md { width: 46px; height: 46px; }
 .source-avatar--lg { width: 62px; height: 62px; }
@@ -1031,7 +1031,7 @@ img { border-radius: inherit; }
 .source-logo__name { font-size: 14px; font-weight: 650; }
 
 .source-photo { width: min(100%, 300px); margin: 0; }
-.source-photo__frame { display: grid; min-height: 170px; place-items: center; overflow: clip; min-inline-size: 0; border-radius: var(--radius-md); background: var(--source-accent-soft); outline: 1px solid oklch(0 0 0 / 0.08); outline-offset: -1px; }
+.source-photo__frame { display: grid; min-height: 170px; place-items: center; overflow: clip; min-inline-size: 0; border-radius: var(--radius-md); background: var(--source-accent-soft); outline: 1px solid oklch(0 0 none / 0.08); outline-offset: -1px; }
 .source-photo__image { width: 100%; height: 170px; object-fit: cover; }
 .source-photo__placeholder { position: relative; display: block; width: 66px; height: 66px; border-radius: 50%; background: var(--source-accent); }
 .source-photo__placeholder::after { position: absolute; inset-inline-end: -24px; inset-block-end: -14px; width: 40px; height: 40px; border: 1px solid var(--source-accent-strong); border-radius: 50%; content: ""; opacity: 0.6; }

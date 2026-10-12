@@ -646,7 +646,7 @@
 /* Messages scrolling up meet the booking bar softly, not as a sliced line of text. The padding keeps the first line clear of the fade at rest. */
 .pilot-chat .guest-messages {
   padding-block-start: 16px;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+  mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 none) 16px);
 }
 
 /* ------------------------------------------------------------------ worst-case data (break-ui pass) */

@@ -3832,7 +3832,7 @@ describe('floating tab bar styling', () => {
 
   it('uses a translucent frosted surface for the floating capsule', () => {
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav\s*\{[^}]*background:\s*rgb\(255\s+255\s+255\s*\/\s*0\.58\)/,
+      /\.guest-bottom-nav\s*\{[^}]*background:\s*oklch\(1 0 none \/ 0\.58\)/,
     );
     expect(guestStyles).toMatch(
       /\.guest-bottom-nav\s*\{[^}]*backdrop-filter:\s*blur\(24px\)\s+saturate\(1\.22\)/,

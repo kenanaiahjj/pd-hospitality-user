@@ -56,7 +56,7 @@
   border-radius: var(--guest-radius-pill);
   background: var(--guest-paper);
   color: var(--guest-ink);
-  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0.2 0.02 330 / 0.08);
+  box-shadow: 0 1px 2px oklch(0 0 none / 0.04), 0 8px 24px oklch(0.2 0.02 330 / 0.08);
 }
 .guest-app .sb-summary button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: start; cursor: pointer; }
 .guest-app .sb-summary .sb-summary__icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 50%; background: var(--guest-accent); color: var(--guest-on-accent); }
@@ -121,7 +121,7 @@
 .guest-app .sb-hotel-card:active { transform: scale(0.985); }
 .guest-app .sb-hotel-card__photo { position: relative; display: block; aspect-ratio: 16 / 9; background: var(--guest-placeholder); }
 .guest-app .sb-hotel-card__photo img { object-fit: cover; }
-.guest-app .sb-hotel-card__badge { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; padding: 4px 10px; border-radius: var(--guest-radius-pill); background: oklch(1 0 0 / 0.92); color: var(--guest-ink); font-size: 12px; font-weight: 700; }
+.guest-app .sb-hotel-card__badge { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; padding: 4px 10px; border-radius: var(--guest-radius-pill); background: oklch(1 0 none / 0.92); color: var(--guest-ink); font-size: 12px; font-weight: 700; }
 .guest-app .sb-hotel-card__body { display: grid; gap: 4px; padding: 12px 14px 14px; }
 .guest-app .sb-hotel-card__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .guest-app .sb-hotel-card__name { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
@@ -187,7 +187,7 @@
   border-radius: var(--guest-radius-pill);
   background: var(--guest-paper);
   color: var(--guest-ink);
-  box-shadow: 0 2px 8px oklch(0 0 0 / 0.2);
+  box-shadow: 0 2px 8px oklch(0 0 none / 0.2);
   font: 700 13px/1.2 var(--font-sans, system-ui);
   white-space: nowrap;
   cursor: pointer;
@@ -393,8 +393,8 @@
   display: grid; justify-items: center; gap: 2px; margin: 10px 0 0; padding: 10px 22px;
   border: 1px solid color-mix(in oklch, var(--sb-gold) 55%, transparent);
   border-radius: 14px;
-  background: oklch(1 0 0 / 0.06);
-  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.08);
+  background: oklch(1 0 none / 0.06);
+  box-shadow: inset 0 1px 0 oklch(1 0 none / 0.08);
 }
 .guest-app .sb-confirmation .sb-reference small { color: var(--sb-gold); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
 .guest-app .sb-confirmation .sb-reference b { color: oklch(0.98 0.008 80); font-family: var(--font-mono); font-size: 22px; letter-spacing: 0.08em; }
@@ -475,7 +475,7 @@
   border-radius: var(--guest-radius-pill);
   background: var(--guest-paper);
   color: var(--guest-ink);
-  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0.2 0.02 330 / 0.08);
+  box-shadow: 0 1px 2px oklch(0 0 none / 0.04), 0 8px 24px oklch(0.2 0.02 330 / 0.08);
   text-align: start;
   transition: transform var(--duration-press) var(--ease-out), box-shadow var(--duration-fast) ease;
 }
@@ -533,7 +533,7 @@
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-xl);
   background: var(--guest-paper);
-  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 12px 32px oklch(0.2 0.02 330 / 0.1);
+  box-shadow: 0 1px 2px oklch(0 0 none / 0.04), 0 12px 32px oklch(0.2 0.02 330 / 0.1);
   animation: sb-card-in var(--duration-base) var(--ease-out) both;
 }
 @keyframes sb-card-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
@@ -596,16 +596,16 @@
   border: 0;
   border-radius: var(--guest-radius-lg);
   background: var(--guest-placeholder);
-  color: oklch(1 0 0);
+  color: oklch(1 0 none);
   text-align: start;
   transition: transform var(--duration-press) var(--ease-out);
 }
 .guest-app .sb-destination:active { transform: scale(0.97); }
 .guest-app .sb-destination img { object-fit: cover; }
-.guest-app .sb-destination__scrim { position: absolute; inset: 0; background: linear-gradient(to top, oklch(0 0 0 / 0.62), oklch(0 0 0 / 0) 60%); }
+.guest-app .sb-destination__scrim { position: absolute; inset: 0; background: linear-gradient(to top, oklch(0 0 none / 0.62), oklch(0 0 none / 0) 60%); }
 .guest-app .sb-destination__text { position: absolute; inset-inline-end: 10px; inset-block-end: 10px; inset-inline-start: 10px; display: grid; gap: 1px; }
 .guest-app .sb-destination__text b { font-size: 15px; font-weight: 700; }
-.guest-app .sb-destination__text small { overflow: clip; min-inline-size: 0; color: oklch(1 0 0 / 0.82); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-app .sb-destination__text small { overflow: clip; min-inline-size: 0; color: oklch(1 0 none / 0.82); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
   .guest-app .sb-sheet, .guest-app .sb-sheet__card { animation: none; }
@@ -622,7 +622,7 @@
 
 .guest-app .sb-hood-pin[data-kind='food']::before { background: oklch(0.66 0.15 55); }
 .guest-app .sb-hood-pin[data-kind='essential']::before { background: oklch(0.6 0.12 160); }
-.guest-app .sb-hood-hotel { display: block; width: 22px; height: 22px; border: 3px solid var(--guest-paper); border-radius: 50%; background: var(--guest-ink); box-shadow: 0 2px 8px oklch(0 0 0 / 0.3); }
+.guest-app .sb-hood-hotel { display: block; width: 22px; height: 22px; border: 3px solid var(--guest-paper); border-radius: 50%; background: var(--guest-ink); box-shadow: 0 2px 8px oklch(0 0 none / 0.3); }
 .guest-app .sb-hood__tabs { justify-self: start; }
 .guest-app .sb-hood__list { display: grid; margin: 0; padding: 0; list-style: none; }
 .guest-app .sb-hood__list li { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 0; }
@@ -651,7 +651,7 @@
   border-radius: var(--guest-radius-pill);
   background: var(--guest-paper);
   color: var(--guest-ink);
-  box-shadow: 0 1px 6px oklch(0 0 0 / 0.18);
+  box-shadow: 0 1px 6px oklch(0 0 none / 0.18);
   font: 650 11.5px/1.2 system-ui, sans-serif;
   white-space: nowrap;
   max-width: 124px;
@@ -726,7 +726,7 @@
   overscroll-behavior: contain;
   scrollbar-width: none;
   /* Soft edges tell you it scrolls, without a scrollbar strip in the card. */
-  mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 none) 14px, oklch(0 0 none) calc(100% - 22px), transparent 100%);
 }
 .guest-app .sb-calendar__months::-webkit-scrollbar { display: none; }
 .guest-app .sb-calendar__label { margin: 0 0 8px; padding-inline-start: 4px; font-size: 15.5px; font-weight: 700; }
@@ -790,8 +790,8 @@
 .guest-app .sb-mini-card:active { transform: scale(0.98); }
 .guest-app .sb-mini-card__photo { position: relative; display: block; overflow: clip; min-inline-size: 0; aspect-ratio: 4 / 3; border-radius: var(--guest-radius-lg); background: var(--guest-placeholder); }
 .guest-app .sb-mini-card__photo img { object-fit: cover; }
-.guest-app .sb-mini-card__badge { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; padding: 3px 9px; border-radius: var(--guest-radius-pill); background: oklch(1 0 0 / 0.92); font-size: 11.5px; font-weight: 700; }
-.guest-app .sb-mini-card__rating { position: absolute; inset-inline-end: 10px; inset-block-end: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--guest-radius-pill); background: oklch(0.18 0.02 330 / 0.72); color: oklch(1 0 0); font-size: 12.5px; font-variant-numeric: tabular-nums; font-weight: 700; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.guest-app .sb-mini-card__badge { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; padding: 3px 9px; border-radius: var(--guest-radius-pill); background: oklch(1 0 none / 0.92); font-size: 11.5px; font-weight: 700; }
+.guest-app .sb-mini-card__rating { position: absolute; inset-inline-end: 10px; inset-block-end: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: var(--guest-radius-pill); background: oklch(0.18 0.02 330 / 0.72); color: oklch(1 0 none); font-size: 12.5px; font-variant-numeric: tabular-nums; font-weight: 700; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .guest-app .sb-mini-card__rating svg { width: 12px; height: 12px; color: oklch(0.82 0.15 80); }
 .guest-app .sb-mini-card__body { display: grid; gap: 2px; min-width: 0; padding: 0 2px; }
 .guest-app .sb-mini-card__name { overflow: clip; min-inline-size: 0; font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
@@ -1057,11 +1057,11 @@
   border: 1px solid color-mix(in oklch, var(--offer-metal) 45%, var(--offer-base));
   border-radius: var(--guest-radius-lg);
   background:
-    linear-gradient(112deg, transparent 18%, rgb(255 255 255 / 0.075) 42%, transparent 63%),
+    linear-gradient(112deg, transparent 18%, oklch(1 0 none / 0.075) 42%, transparent 63%),
     radial-gradient(110% 90% at 100% 0%, color-mix(in oklch, var(--offer-metal) 22%, transparent), transparent 68%),
     linear-gradient(148deg, color-mix(in oklch, var(--offer-base) 86%, var(--offer-metal)) 0%, var(--offer-base) 58%, color-mix(in oklch, var(--offer-base) 84%, black) 100%);
   color: var(--offer-ink);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 -1px 0 rgb(0 0 0 / 0.22), 0 5px 12px -7px oklch(0.16 0.025 275 / 0.56);
+  box-shadow: inset 0 1px 0 oklch(1 0 none / 0.18), inset 0 -1px 0 oklch(0 0 none / 0.22), 0 5px 12px -7px oklch(0.16 0.025 275 / 0.56);
 }
 .guest-app .sb-offer-card[data-offer-code='WELCOME500'] {
   --offer-metal: oklch(0.86 0.035 280);
@@ -1075,8 +1075,8 @@
 .guest-app .sb-offer-card small { color: var(--offer-muted); font-size: 12.5px; line-height: 1.4; }
 /* Title and terms together; the code and its button at the foot, wrapping rather than spilling out of the card. */
 .guest-app .sb-offer-card__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-block-start: auto; padding-block-start: 10px; }
-.guest-app .sb-offer-card code { min-width: 0; overflow: clip; text-overflow: ellipsis; padding: 4px 9px; border: 1px solid color-mix(in oklch, var(--offer-metal) 42%, transparent); border-radius: 7px; background: rgb(255 255 255 / 0.07); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14); color: var(--offer-metal); font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.055em; }
-.guest-app .sb-offer-card button { position: relative; display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 4px; min-inline-size: 84px; min-height: 40px; padding: 0 13px; border: 1px solid color-mix(in oklch, var(--offer-metal) 65%, black); border-radius: var(--guest-radius-pill); background: linear-gradient(155deg, color-mix(in oklch, var(--offer-metal) 80%, white), var(--offer-metal) 58%, color-mix(in oklch, var(--offer-metal) 80%, black)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.48), 0 2px 4px rgb(0 0 0 / 0.2); color: color-mix(in oklch, var(--offer-base) 88%, black); font-size: 13px; font-weight: 700; white-space: nowrap; transition: filter var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease; }
+.guest-app .sb-offer-card code { min-width: 0; overflow: clip; text-overflow: ellipsis; padding: 4px 9px; border: 1px solid color-mix(in oklch, var(--offer-metal) 42%, transparent); border-radius: 7px; background: oklch(1 0 none / 0.07); box-shadow: inset 0 1px 0 oklch(1 0 none / 0.14); color: var(--offer-metal); font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.055em; }
+.guest-app .sb-offer-card button { position: relative; display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 4px; min-inline-size: 84px; min-height: 40px; padding: 0 13px; border: 1px solid color-mix(in oklch, var(--offer-metal) 65%, black); border-radius: var(--guest-radius-pill); background: linear-gradient(155deg, color-mix(in oklch, var(--offer-metal) 80%, white), var(--offer-metal) 58%, color-mix(in oklch, var(--offer-metal) 80%, black)); box-shadow: inset 0 1px 0 oklch(1 0 none / 0.48), 0 2px 4px oklch(0 0 none / 0.2); color: color-mix(in oklch, var(--offer-base) 88%, black); font-size: 13px; font-weight: 700; white-space: nowrap; transition: filter var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease; }
 .guest-app .sb-offer-card button:focus-visible { outline: 2px solid var(--offer-metal); outline-offset: 2px; }
 .guest-app .sb-offer-card button svg { width: 14px; height: 14px; }
 .guest-app .sb-offer-card button:active:not(:disabled) { filter: brightness(0.94); }
@@ -1095,7 +1095,7 @@
   inset: 0;
   border: 1px solid color-mix(in oklch, var(--offer-metal) 68%, transparent);
   border-radius: inherit;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 0 0 1px oklch(1 0 none / 0.1);
   content: '';
   pointer-events: none;
   animation: sb-offer-edge 700ms var(--ease-out) both;
@@ -1181,22 +1181,22 @@
   border: 1px solid color-mix(in oklch, var(--lead-gold) 50%, transparent);
   background:
     radial-gradient(130% 80% at 100% 0%, color-mix(in oklch, var(--lead-gold) 24%, transparent) 0%, transparent 60%),
-    linear-gradient(112deg, transparent 22%, rgb(255 255 255 / 0.09) 45%, transparent 62%),
+    linear-gradient(112deg, transparent 22%, oklch(1 0 none / 0.09) 45%, transparent 62%),
     linear-gradient(165deg, color-mix(in oklch, var(--guest-brand) 86%, white) 0%, var(--guest-brand) 100%);
-  box-shadow: 0 3px 8px -4px color-mix(in oklch, var(--guest-brand) 70%, transparent), inset 0 1px rgb(255 255 255 / 0.22), inset 0 -1px rgb(0 0 0 / 0.12);
-  color: #fbf4e6;
+  box-shadow: 0 3px 8px -4px color-mix(in oklch, var(--guest-brand) 70%, transparent), inset 0 1px oklch(1 0 none / 0.22), inset 0 -1px oklch(0 0 none / 0.12);
+  color: oklch(0.9688 0.02 84.59);
 }
 .guest-app .sb-offer-card--lead::before { position: absolute; inset-block-start: 0; inset-inline: 18px; block-size: 1px; background: linear-gradient(90deg, transparent, var(--lead-gold), transparent); content: ''; }
-.guest-app .sb-offer-card--lead b { color: #fffaf0; font-family: var(--font-serif), Georgia, 'Times New Roman', serif; font-size: 17px; font-weight: 600; line-height: 1.25; }
-.guest-app .sb-offer-card--lead small { color: rgb(251 244 230 / 0.7); }
+.guest-app .sb-offer-card--lead b { color: oklch(0.9862 0.0142 84.58); font-family: var(--font-serif), Georgia, 'Times New Roman', serif; font-size: 17px; font-weight: 600; line-height: 1.25; }
+.guest-app .sb-offer-card--lead small { color: oklch(0.9688 0.02 84.59 / 0.7); }
 /* The tear-off: a dashed line with a notch bitten out of each edge, like a ticket. */
-.guest-app .sb-offer-card--lead .sb-offer-card__foot { position: relative; margin-block-start: auto; padding-block-start: 14px; border-block-start: 1px dashed rgb(251 244 230 / 0.28); }
+.guest-app .sb-offer-card--lead .sb-offer-card__foot { position: relative; margin-block-start: auto; padding-block-start: 14px; border-block-start: 1px dashed oklch(0.9688 0.02 84.59 / 0.28); }
 .guest-app .sb-offer-card--lead .sb-offer-card__foot::before,
 .guest-app .sb-offer-card--lead .sb-offer-card__foot::after { position: absolute; inset-block-start: -6px; inline-size: 11px; block-size: 11px; border-radius: 50%; background: var(--guest-canvas); content: ''; }
 .guest-app .sb-offer-card--lead .sb-offer-card__foot::before { inset-inline-start: -22px; }
 .guest-app .sb-offer-card--lead .sb-offer-card__foot::after { inset-inline-end: -22px; }
-.guest-app .sb-offer-card--lead code { background: rgb(255 255 255 / 0.08); color: #fbf4e6; letter-spacing: 0.06em; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16); }
-.guest-app .sb-offer-card--lead button { border-color: color-mix(in oklch, var(--lead-gold) 60%, black); background: linear-gradient(155deg, color-mix(in oklch, var(--lead-gold) 70%, white), var(--lead-gold) 60%, color-mix(in oklch, var(--lead-gold) 80%, black)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.58), 0 1px 2px rgb(0 0 0 / 0.18); color: color-mix(in oklch, var(--guest-brand) 85%, black); }
+.guest-app .sb-offer-card--lead code { background: oklch(1 0 none / 0.08); color: oklch(0.9688 0.02 84.59); letter-spacing: 0.06em; box-shadow: inset 0 0 0 1px oklch(1 0 none / 0.16); }
+.guest-app .sb-offer-card--lead button { border-color: color-mix(in oklch, var(--lead-gold) 60%, black); background: linear-gradient(155deg, color-mix(in oklch, var(--lead-gold) 70%, white), var(--lead-gold) 60%, color-mix(in oklch, var(--lead-gold) 80%, black)); box-shadow: inset 0 1px 0 oklch(1 0 none / 0.58), 0 1px 2px oklch(0 0 none / 0.18); color: color-mix(in oklch, var(--guest-brand) 85%, black); }
 .guest-app .sb-offer-card--lead:active button { filter: brightness(0.94); }
 .guest-app .sb-promo-section .sb-offers { margin-block-start: 2px; }
 
@@ -1244,7 +1244,7 @@
 .guest-app .sb-save {
   position: absolute; inset-block-start: 8px; inset-inline-end: 8px; z-index: 1;
   display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0;
-  border: 0; border-radius: 50%; background: oklch(1 0 0 / 0.92); color: var(--guest-ink);
+  border: 0; border-radius: 50%; background: oklch(1 0 none / 0.92); color: var(--guest-ink);
   box-shadow: var(--shadow-xs); cursor: pointer;
 }
 .guest-app .sb-save svg { width: 18px; height: 18px; }

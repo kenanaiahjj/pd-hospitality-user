@@ -51,7 +51,7 @@
   place-items: center;
   width: 100%;
   aspect-ratio: 3 / 4;
-  max-height: 52vh;
+  max-height: 52svh;
   border-radius: 24px;
   overflow: hidden;
 }
@@ -149,9 +149,11 @@
   color: var(--guest-ink);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
 }
-.scanner__button:hover { background: var(--guest-line); }
+@media (hover: hover) and (pointer: fine) {
+  .scanner__button:hover { background: var(--guest-line); }
+}
 .scanner__button svg { width: 24px; height: 24px; }
-.scanner__button:active { transform: scale(0.96); }
+.scanner__button:active { background: var(--guest-line); transform: scale(0.96); }
 
 /* --------------------------------------------------------------------------
    Room unlocked
@@ -269,7 +271,10 @@
   font-weight: 600;
   cursor: pointer;
 }
-.unlocked__quiet:hover { color: var(--guest-ink); }
+@media (hover: hover) and (pointer: fine) {
+  .unlocked__quiet:hover { color: var(--guest-ink); }
+}
+.unlocked__quiet:active { color: var(--guest-ink); }
 
 /* --- What's open now: places to go, not a menu to read ------------------ */
 .unlocked__open { display: grid; gap: 12px; }
@@ -488,7 +493,7 @@
 }
 .discover__story-ring.is-expiring { background: var(--guest-warning); }
 .discover__story:active .discover__story-ring { transform: scale(0.95); }
-.discover__story:focus-visible { outline: none; }
+.discover__story:focus-visible { outline: 2px solid transparent; }
 .discover__story:focus-visible .discover__story-ring {
   outline: 2px solid var(--guest-accent-strong);
   outline-offset: 2px;
@@ -845,7 +850,7 @@
   opacity: 0;
   transition:
     transform var(--deck-recycle-dur) var(--deck-recycle-ease),
-    opacity var(--deck-recycle-dur) ease-in;
+    opacity var(--deck-recycle-dur) var(--ease-in-out);
 }
 
 /*
@@ -1005,7 +1010,7 @@
   color: var(--guest-ink);
   font: inherit;
 }
-.discover__search input:focus { outline: none; }
+.discover__search input:focus { outline: 2px solid transparent; }
 /* The browser's own clear affordance, replaced with one that matches. */
 .discover__search input::-webkit-search-cancel-button { display: none; }
 .discover__search button {

@@ -100,7 +100,9 @@ function present(pilot: Pilot, host: Host, eb: EngineBooking, appBookingId: stri
     : undefined;
   const facts = [...(existing?.facts ?? []).filter((fact) => fact.label !== 'Status' && fact.label !== 'Payment'), ...(paymentLine ? [{ label: 'Payment', value: paymentLine }] : []), statusFact];
 
-  const unit = eb.kind === 'rental' ? (eb.qty === 1 ? 'bike' : 'bikes') : eb.kind === 'goods' ? (eb.qty === 1 ? 'item' : 'items') : eb.kind === 'table' ? 'guests' : 'guests';
+  // A rental is called what it is: a scooter, a car, not always "bike".
+  const rentalUnit = eb.kind === 'rental' ? listing.unit : undefined;
+  const unit = eb.kind === 'rental' ? (eb.qty === 1 ? rentalUnit?.one ?? 'bike' : rentalUnit?.many ?? 'bikes') : eb.kind === 'goods' ? (eb.qty === 1 ? 'item' : 'items') : eb.kind === 'table' ? 'guests' : 'guests';
   const summary = existing?.summary
     ?? (eb.kind === 'table' ? `${time12(eb.start)} · Table for ${eb.qty} · order at the venue`
       : eb.kind === 'rental' ? `${time12(eb.start)} · return by ${time12(eb.end)} · ${eb.qty} ${unit}`

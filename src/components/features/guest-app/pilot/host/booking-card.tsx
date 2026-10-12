@@ -75,7 +75,7 @@ export function BookingThumb({ image, kind, extra, className }: { image?: Servic
 }
 
 export const STATUS_TONE = (state: string | undefined, label?: string) =>
-  state === 'extra-charge' && label === 'Removed' ? 'bad' : STATE_TONE[state ?? ''] ?? 'wait';
+  state === 'extra-charge' && label === 'Removed' ? 'bad' : label === 'In progress' ? 'live' : STATE_TONE[state ?? ''] ?? 'wait';
 
 const clockAt = (ms: number) => {
   const d = new Date(ms);

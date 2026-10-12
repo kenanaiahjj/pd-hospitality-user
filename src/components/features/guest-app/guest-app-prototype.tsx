@@ -204,7 +204,7 @@ import {
 } from './stay-booking';
 import { PMS_LAST_SYNC, PrototypeControls, slug, type PrototypeEvent } from './prototype-controls';
 import { HostStore, hostClock, type StayInput } from './pilot/host/host';
-import { EngineBookingCard } from './pilot/host/booking-card';
+import { EngineBookingCard, STATUS_TONE } from './pilot/host/booking-card';
 import { DisputeSheet } from './pilot/host/dispute';
 import type { Dispute, Message as EngineMessage } from './pilot/types';
 import type { Draft as EngineDraft } from './pilot/types';
@@ -1853,6 +1853,23 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const listingId = hostStore.host?.pilot.bookings().find((b) => b.id === engineBookingId)?.listingId;
     // The engine's listing is the app's service by id, so the catalogue answers when the record does not say.
     return record?.categoryId ?? SERVICES.find((service) => service.id === (record?.serviceId ?? listingId))?.categoryId;
+  };
+  /*
+    Where a booking stands, for My Stay's rows: the engine's own card label when
+    it holds the booking (the same words its card and its chat bar use), and
+    otherwise read from the booking the app keeps.
+  */
+  const entryStatus = (entry: StayEntry): { label: string; tone: string; action: boolean } => {
+    const engineId = session.serviceBookings.find((service) => service.id === entry.id)?.engineId;
+    const host = hostStore.host;
+    if (engineId && host && host.pilot.bookings().some((b) => b.id === engineId)) {
+      const card = host.pilot.card(engineId);
+      return { label: card.label, tone: STATUS_TONE(card.state, card.label), action: card.state === 'pay-to-confirm' || card.label === 'Pay in full or cancel' };
+    }
+    if (entry.cancelled) return { label: 'Cancelled', tone: 'bad', action: false };
+    if (entry.status === 'completed') return { label: 'Completed', tone: 'good', action: false };
+    if (entry.settlement === 'Awaiting provider confirmation' || entry.settlement === 'Awaiting hotel confirmation') return { label: 'Awaiting confirmation', tone: 'wait', action: false };
+    return { label: entry.kind === 'dining' ? 'Reserved' : 'Confirmed', tone: 'good', action: false };
   };
   const cardHandlers = {
     imageFor: engineImage,
@@ -5738,13 +5755,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                         }, {})).map(([date, entries]) => (
                           <section className="guest-stay-entries__date-group" key={date}>
                             <h2>{date === PROTOTYPE_TODAY ? 'Today' : new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</h2>
-                            <div className="guest-stay-entries__date-group-cards">{entries.map((entry) => <StayEntryCard key={entry.id} entry={entry} showWhen={false} homeProperty={contextBooking.property} onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }} />)}</div>
+                            {/* What needs the guest to act (pay to confirm) leads its day; the rest keep their order. */}
+                            <div className="guest-stay-entries__date-group-cards">{[...entries].sort((a, b) => Number(entryStatus(b).action) - Number(entryStatus(a).action)).map((entry) => <StayEntryCard key={entry.id} entry={entry} status={entryStatus(entry)} showWhen={false} homeProperty={contextBooking.property} onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }} />)}</div>
                           </section>
                         ))
                       : visibleStayEntries.map((entry) => (
                           <StayEntryCard
                             key={entry.id}
                             entry={entry}
+                            status={entryStatus(entry)}
                             homeProperty={contextBooking.property}
                             onOpen={() => { setSelectedStayEntryId(entry.id); go('stay-entry'); }}
                           />

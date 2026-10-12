@@ -624,7 +624,7 @@ export function stayEntryImage(entry: Pick<StayEntry, 'serviceId' | 'category' |
  * that was; "The Henry Manila · Ninth floor terrace" answers it before they
  * ask.
  */
-export function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: { entry: StayEntry; onOpen?: () => void; showWhen?: boolean; homeProperty?: string }) {
+export function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty, status }: { entry: StayEntry; onOpen?: () => void; showWhen?: boolean; homeProperty?: string; status?: { label: string; tone: string } }) {
   const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
   const day = entry.date === PROTOTYPE_TODAY ? ((entry.hour ?? 0) >= 17 ? 'Tonight' : 'Today') : date;
@@ -638,6 +638,9 @@ export function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: 
   // A booking that knows its own best line (a rental's window, a transfer's route) says it.
   const line = [showWhen ? day : undefined, ...(entry.summary ? [entry.summary] : [time, place])].filter(Boolean).join(' · ');
   const image = stayEntryImage(entry);
+  const settlement = !status || !entry.settlement ? entry.settlement
+    : /^Awaiting /.test(entry.settlement) ? undefined
+      : entry.settlement.replace(/^(Cancelled|Completed) · (.)/, (_, _word, first: string) => first.toUpperCase());
   const body = (
     <>
       {/* A square photograph, as Places lists a saved place. */}
@@ -647,7 +650,10 @@ export function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty }: 
       <span className="guest-stay-entry__body">
         <h3>{entry.title}</h3>
         {line ? <span className="guest-stay-entry__line">{line}</span> : null}
-        {entry.settlement && !(entry.paidBy === 'complimentary' && !entry.cancelled) ? <span className="guest-stay-entry__settlement">{entry.settlement}</span> : null}
+        {/* Where it stands, in the words the booking card and the chat use: its own line, so the details above are not cut short. */}
+        {status ? <span className={`guest-stay-entry__status pilot-status pilot-status--${status.tone}`}>{status.label}</span> : null}
+        {/* With the status said above, the settlement says only the money: "Charged to room 304", not "Completed · charged to room 304". */}
+        {settlement && !(entry.paidBy === 'complimentary' && !entry.cancelled) ? <span className="guest-stay-entry__settlement">{settlement}</span> : null}
       </span>
       <strong className="guest-stay-entry__amount">{entry.amount}</strong>
     </>

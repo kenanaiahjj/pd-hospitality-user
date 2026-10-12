@@ -45,7 +45,7 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
 
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
     expect(screen.getByRole('button', { name: /City bicycle/ })).toBeInTheDocument();
-    expect(screen.getByText(/Awaiting provider confirmation/)).toBeInTheDocument();
+    expect(screen.getByText(/Awaiting confirmation/)).toBeInTheDocument();
 
     await fire(user, /Vendor confirms City bicycle/);
     expect(screen.queryByText(/Awaiting provider confirmation/)).toBeNull();
@@ -132,7 +132,7 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     await user.click(within(sheet).getByRole('button', { name: 'Send request' }));
 
     // On the booking, waiting; no gateway yet.
-    expect(screen.getByLabelText(/For confirmation/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Awaiting confirmation/)).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Secure checkout' })).toBeNull();
 
     await fire(user, /Vendor confirms City Bike Rentals/);
@@ -372,9 +372,9 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     expect(screen.queryByRole('heading', { name: /Waiting for the front desk/ })).toBeNull();
     // The vendor's turn, and nothing is charged yet.
     await user.click(screen.getByRole('button', { name: 'View my stay' }));
-    expect(screen.getByText(/Awaiting provider confirmation/)).toBeInTheDocument();
+    expect(screen.getByText(/Awaiting confirmation/)).toBeInTheDocument();
     await fire(user, /Vendor confirms Compact car/);
-    expect(screen.queryByText(/Awaiting provider confirmation/)).toBeNull();
+    expect(screen.queryByText(/Awaiting confirmation/)).toBeNull();
   });
 
   it('lets the slot go after three failed card payments', async () => {

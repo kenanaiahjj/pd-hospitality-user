@@ -3405,13 +3405,6 @@
   backdrop-filter: blur(12px);
   font-weight: 600;
 }
-.guest-stay-hero-card--photo .guest-stay-hero-card__status--positive::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #4ade80;
-}
 .guest-stay-hero-card__overlay {
   position: absolute;
   inset: auto 0 0;

@@ -584,10 +584,10 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: /hilom signature massage/i }));
     await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
     await user.click(screen.getByRole('button', { name: /cancel service/i }));
-    // Cancelling moves the booking out of Upcoming and into Past, where the
-    // settlement line reports the state now that the chip is gone.
+    // Cancelling moves the booking out of Upcoming and into Past: the status says
+    // Cancelled, and the line under it says only the money.
     await user.click(screen.getByRole('tab', { name: /Past/ }));
-    expect(screen.getByText('Cancelled · not charged')).toBeInTheDocument();
+    expect(screen.getByText('Not charged')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Home' }));
     await user.click(screen.getByRole('button', { name: 'My Stay' }));
@@ -3648,7 +3648,7 @@ describe('orders and requests that go through the front desk', () => {
 
     expect(screen.getByRole('heading', { name: 'Upgrade requested' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'View on My Stay' }));
-    expect(screen.getByRole('button', { name: /Room upgrade/ })).toHaveTextContent('Awaiting hotel confirmation');
+    expect(screen.getByRole('button', { name: /Room upgrade/ })).toHaveTextContent('Awaiting confirmation');
   });
 });
 

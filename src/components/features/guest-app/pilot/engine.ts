@@ -415,9 +415,9 @@ export function createPilot(options: PilotOptions = {}): Pilot {
   };
   const cardState = (b: Booking): { state: CardState; label: string } => {
     switch (b.status) {
-      case 'needs-approval': return { state: 'for-confirmation', label: 'Waiting for the front desk' };
+      case 'needs-approval': return { state: 'for-confirmation', label: 'Awaiting confirmation' };
       case 'pay-or-cancel': return { state: 'for-confirmation', label: 'Pay in full or cancel' };
-      case 'requested': return { state: 'for-confirmation', label: 'For confirmation' };
+      case 'requested': return { state: 'for-confirmation', label: 'Awaiting confirmation' };
       case 'awaiting-payment': return { state: 'pay-to-confirm', label: 'Pay to confirm' };
       case 'confirmed': return { state: 'confirmed', label: 'Confirmed' };
       case 'in-progress': return { state: 'confirmed', label: 'In progress' };
@@ -425,11 +425,11 @@ export function createPilot(options: PilotOptions = {}): Pilot {
       case 'collected': return { state: 'confirmed', label: 'Collected' };
       case 'seated': return { state: 'confirmed', label: 'Seated' };
       case 'reserved': return { state: 'reserved', label: 'Reserved' };
-      case 'ready': return { state: 'ready', label: 'Ready' };
+      case 'ready': return { state: 'ready', label: 'Ready to collect' };
       case 'withdrawn': return { state: 'lapsed', label: 'Withdrawn' };
       case 'declined': return { state: 'lapsed', label: 'Not available' };
-      case 'lapsed': return { state: 'lapsed', label: 'Lapsed' };
-      case 'payment-expired': return { state: 'lapsed', label: 'Payment expired' };
+      case 'lapsed': return { state: 'lapsed', label: 'Not answered' };
+      case 'payment-expired': return { state: 'lapsed', label: 'Not booked' };
       case 'cancelled': return { state: 'cancelled', label: 'Cancelled' };
       case 'no-show': return { state: 'cancelled', label: 'No-show' };
     }

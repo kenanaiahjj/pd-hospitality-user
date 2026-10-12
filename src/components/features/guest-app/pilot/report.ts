@@ -8,7 +8,7 @@ import { INVARIANT_IDS, type RunSummary, type ScenarioResult } from './run';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const INVARIANT_NAMES: Record<string, string> = {
+export const INVARIANT_NAMES: Record<string, string> = {
   I1: 'No overbooking',
   I2: 'No double charge',
   I3: 'Nothing charged without a yes',

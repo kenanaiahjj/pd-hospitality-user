@@ -330,7 +330,7 @@
   gap: 12px;
   margin: 0;
   padding: 0 0 9px;
-  border-bottom: 1px solid var(--guest-line);
+  border-block-end: 1px solid var(--guest-line);
   font-size: 22px;
   font-weight: 400;
   letter-spacing: -0.01em;
@@ -1100,7 +1100,7 @@
 /* A plain count, not a status pill: the page header already says "Earned". */
 .guest-badge-detail__section-head > strong {
   flex: 0 0 auto;
-  padding-bottom: 3px;
+  padding-block-end: 3px;
   color: var(--guest-muted);
   font-size: 13px;
   font-weight: 600;
@@ -1158,7 +1158,7 @@
   font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: end;
 }
 
 .guest-journey__node {
@@ -1535,7 +1535,7 @@
 
 .guest-achievements-page {
   gap: 18px;
-  padding-bottom: 8px;
+  padding-block-end: 8px;
 }
 
 .guest-achievements-intro { gap: 5px; }
@@ -1623,8 +1623,8 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  padding-top: 15px;
-  border-top: 1px solid rgb(255 255 255 / 0.18);
+  padding-block-start: 15px;
+  border-block-start: 1px solid rgb(255 255 255 / 0.18);
 }
 
 .guest-achievements-overview__stats div { display: grid; gap: 3px; }
@@ -1764,7 +1764,7 @@
 
 .guest-achievements-section-title > strong {
   flex: 0 0 auto;
-  padding-top: 1px;
+  padding-block-start: 1px;
   color: var(--guest-brand);
   font-size: 13px;
   font-weight: 700;
@@ -1795,7 +1795,7 @@
 .guest-achievements-points .points-wallet__nearest { background: var(--guest-soft); }
 
 .guest-achievements-points .points-wallet__heading {
-  margin-top: 7px;
+  margin-block-start: 7px;
   font-size: 15px;
   font-weight: 700;
 }
@@ -1862,7 +1862,7 @@
 
 .guest-achievements-page {
   gap: 24px;
-  padding-bottom: 16px;
+  padding-block-end: 16px;
 }
 
 .guest-achievements-intro__eyebrow,
@@ -1886,8 +1886,8 @@
 
 .guest-achievements-page .reward-menu__heading,
 .guest-achievements-page .estate-map__heading {
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--guest-line);
+  padding-block-end: 12px;
+  border-block-end: 1px solid var(--guest-line);
 }
 
 .guest-achievements-points {
@@ -1920,8 +1920,8 @@
 }
 
 .guest-achievements-points .points-wallet__heading {
-  padding-top: 16px;
-  border-top: 1px solid var(--guest-line);
+  padding-block-start: 16px;
+  border-block-start: 1px solid var(--guest-line);
 }
 
 .guest-achievements-page .reward-menu {
@@ -2009,13 +2009,13 @@
 .guest-achievements-header { gap: 6px; }
 .guest-achievements-header__meta { font-size: 14px; line-height: 1.4; }
 .guest-achievement-sections { gap: 18px; }
-.guest-achievements-panel { padding-top: 1px; }
+.guest-achievements-panel { padding-block-start: 1px; }
 
 .guest-achievements-points { gap: 22px; }
 .guest-achievements-section-title {
   align-items: center;
-  padding-bottom: 0;
-  border-bottom: 0;
+  padding-block-end: 0;
+  border-block-end: 0;
 }
 .guest-achievements-section-title h2 {
   font-family: inherit;
@@ -2053,7 +2053,7 @@
 .guest-achievements-points .points-wallet__balance {
   gap: 3px;
   padding: 2px 0 18px;
-  border-bottom: 1px solid var(--guest-line);
+  border-block-end: 1px solid var(--guest-line);
 }
 .guest-achievements-points .points-wallet__balance b {
   font-size: 34px;
@@ -2085,7 +2085,7 @@
   background: var(--guest-paper);
 }
 .guest-achievements-points .points-wallet__opportunities > * + * {
-  border-top: 1px solid var(--guest-line);
+  border-block-start: 1px solid var(--guest-line);
 }
 .guest-achievements-points .points-wallet__buys,
 .guest-achievements-points .points-wallet__next {
@@ -2152,8 +2152,8 @@
 .guest-achievements-page .reward-menu { gap: 14px; }
 .guest-achievements-page .reward-menu__heading {
   margin: 0;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--guest-line);
+  padding-block-end: 12px;
+  border-block-end: 1px solid var(--guest-line);
   font-family: inherit;
   font-size: 16px;
   font-weight: 600;

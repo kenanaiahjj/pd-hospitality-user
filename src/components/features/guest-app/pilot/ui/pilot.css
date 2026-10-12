@@ -174,7 +174,7 @@
   background: transparent;
   color: var(--guest-ink);
   font: inherit;
-  text-align: left;
+  text-align: start;
   transition: background-color 200ms var(--ease-out);
 }
 .pilot-chat-row:active { background: var(--guest-sunken); transition-duration: 0ms; }
@@ -281,7 +281,7 @@
   background: transparent;
   color: var(--guest-ink);
   font: inherit;
-  text-align: left;
+  text-align: start;
   transition: opacity 160ms var(--ease-out);
 }
 .pilot-booking-bar__toggle:active { opacity: 0.6; transition-duration: 0ms; }

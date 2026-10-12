@@ -115,10 +115,10 @@
   height: 32px;
   border: 2.5px solid oklch(1 0 0 / 0.92);
 }
-.scanner__bracket--tl { top: 18px; left: 18px; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
-.scanner__bracket--tr { top: 18px; right: 18px; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
-.scanner__bracket--bl { bottom: 18px; left: 18px; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
-.scanner__bracket--br { bottom: 18px; right: 18px; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
+.scanner__bracket--tl { inset-block-start: 18px; inset-inline-start: 18px; border-inline-end: 0; border-block-end: 0; border-start-start-radius: 8px; }
+.scanner__bracket--tr { inset-block-start: 18px; inset-inline-end: 18px; border-inline-start: 0; border-block-end: 0; border-start-end-radius: 8px; }
+.scanner__bracket--bl { inset-block-end: 18px; inset-inline-start: 18px; border-inline-end: 0; border-block-start: 0; border-end-start-radius: 8px; }
+.scanner__bracket--br { inset-block-end: 18px; inset-inline-end: 18px; border-inline-start: 0; border-block-start: 0; border-end-end-radius: 8px; }
 
 .scanner__hint {
   margin: 0;
@@ -132,7 +132,7 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  margin-top: auto;
+  margin-block-start: auto;
 }
 
 .scanner__button {
@@ -168,13 +168,13 @@
   gap: 14px;
   align-content: start;
   margin: -12px -16px -36px;
-  padding-bottom: 36px;
+  padding-block-end: 36px;
 }
 /* Only the stage reaches the edges. */
 .unlocked > :not(.unlocked__stage) { margin-inline: 16px; }
 /* Varied, not uniform: the celebration needs air after it, the two cards
    belong together. */
-.unlocked__hero { margin-bottom: 6px; }
+.unlocked__hero { margin-block-end: 6px; }
 
 /*
   No tab rail on this screen.
@@ -207,7 +207,7 @@
 }
 
 /* Editorial: the words sit left under the centred key, like a caption. */
-.unlocked__say { display: grid; gap: 8px; justify-items: start; width: 100%; text-align: left; }
+.unlocked__say { display: grid; gap: 8px; justify-items: start; width: 100%; text-align: start; }
 .unlocked__eyebrow {
   margin: 0;
   color: oklch(0.58 0.09 75);
@@ -242,7 +242,7 @@
   width: 100%;
   margin: 10px 0 0;
   padding: 12px 0 2px;
-  border-top: 1px solid var(--guest-line);
+  border-block-start: 1px solid var(--guest-line);
   color: var(--guest-ink);
   font-size: 14.5px;
   font-variant-numeric: tabular-nums;
@@ -314,13 +314,13 @@
   box-shadow: inset 0 0 0 1px var(--guest-line), var(--shadow-xs);
   color: var(--guest-ink);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition: transform var(--duration-press) var(--ease-out);
 }
 .unlocked__tile:active { transform: scale(0.98); }
 /* Concentric: the tile's 20px radius is the photo's 14px plus its 6px inset. */
-.unlocked__tile-photo { position: relative; display: block; aspect-ratio: 4 / 3; margin-bottom: 8px; overflow: hidden; border-radius: 14px; }
+.unlocked__tile-photo { position: relative; display: block; aspect-ratio: 4 / 3; margin-block-end: 8px; overflow: hidden; border-radius: 14px; }
 .unlocked__tile-photo img { object-fit: cover; }
 .unlocked__tile b, .unlocked__tile-row b { padding-inline: 6px; font-size: 14.5px; font-weight: 650; letter-spacing: -0.006em; }
 .unlocked__tile small, .unlocked__tile-row small { padding-inline: 6px; color: var(--guest-muted); font-size: 12.5px; line-height: 1.35; }
@@ -337,7 +337,7 @@
   box-shadow: inset 0 0 0 1px var(--guest-line), var(--shadow-xs);
   color: var(--guest-ink);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 .unlocked__tile-row > span:last-child { display: grid; gap: 2px; min-width: 0; }
@@ -358,7 +358,7 @@
 }
 .confetti__piece {
   position: absolute;
-  top: -24px;
+  inset-block-start: -24px;
   border-radius: 2px;
   opacity: 0;
   animation-name: confetti-fall;
@@ -406,16 +406,16 @@
   gap: 18px;
   align-content: start;
 }
-.discover__section { position: relative; padding-top: 32px; }
+.discover__section { position: relative; padding-block-start: 32px; }
 .discover__section::before { display: none; }
-.discover__section--stories { padding-top: 0; padding-bottom: 24px; }
+.discover__section--stories { padding-block-start: 0; padding-block-end: 24px; }
 .discover__section--stories::before { display: none; }
-.discover__section--promotions { display: grid; gap: 12px; margin-top: 16px; }
-.discover__section--all { margin-top: 0; }
+.discover__section--promotions { display: grid; gap: 12px; margin-block-start: 16px; }
+.discover__section--all { margin-block-start: 0; }
 .discover__label { color: var(--guest-accent-strong); font-size: 11px; font-weight: 600; letter-spacing: .09em; line-height: 1.2; text-transform: uppercase; }
 .discover__heading-row { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .discover__heading-row > div { min-width: 0; }
-.discover__view-all { flex: 0 0 auto; margin-bottom: 2px; border: 0; background: none; color: var(--guest-accent-strong); font: inherit; font-size: 13px; font-weight: 650; }
+.discover__view-all { flex: 0 0 auto; margin-block-end: 2px; border: 0; background: none; color: var(--guest-accent-strong); font: inherit; font-size: 13px; font-weight: 650; }
 /*
   DESIGN.md's screen title, finally applied in full: 30px / 700 / -0.022em,
   balanced, and set at display leading.
@@ -562,7 +562,7 @@
   border: 0;
   border-radius: var(--guest-radius-lg);
   overflow: hidden;
-  text-align: left;
+  text-align: start;
   transition: transform var(--duration-press) var(--ease-out);
 }
 .discover__hero { aspect-ratio: 4 / 3; }
@@ -638,7 +638,7 @@
   border-radius: var(--guest-radius-lg);
   overflow: hidden;
   color: oklch(1 0 0);
-  text-align: left;
+  text-align: start;
   isolation: isolate;
   transition: transform var(--duration-press) var(--ease-out);
 }
@@ -745,7 +745,7 @@
   The rail is what venues posted, the deck is what the hotel picked, the grid
   is the catalogue. Same typography, different claim.
 */
-.discover__head { display: grid; gap: 2px; margin-bottom: 12px; }
+.discover__head { display: grid; gap: 2px; margin-block-end: 12px; }
 .discover__head--catalog { gap: 8px; }
 .discover__head h2 {
   margin: 0;
@@ -797,7 +797,7 @@
   /* 58, not 46: a rotated card's bounding box is wider than the card, so
      the reserve has to cover the lean as well as the offset. */
   width: calc(100% - 58px);
-  margin-bottom: 26px;
+  margin-block-end: 26px;
   /* The exiting card leaves the frame; nothing should clip it mid-flight. */
   overflow: visible;
   touch-action: pan-y;
@@ -924,8 +924,8 @@
 */
 .deck__reason {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  inset-block-start: 16px;
+  inset-inline-start: 16px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -946,7 +946,7 @@
 /* Verdict marks: the answer, before the finger commits to it. */
 .deck__mark {
   position: absolute;
-  top: 18px;
+  inset-block-start: 18px;
   padding: 6px 14px;
   border-radius: var(--radius-pill);
   font-size: 14px;
@@ -955,8 +955,8 @@
   text-transform: uppercase;
   color: oklch(1 0 0);
 }
-.deck__mark--save { right: 18px; background: oklch(0.55 0.16 155); }
-.deck__mark--pass { left: 18px; background: oklch(0.55 0.19 25); }
+.deck__mark--save { inset-inline-end: 18px; background: oklch(0.55 0.16 155); }
+.deck__mark--pass { inset-inline-start: 18px; background: oklch(0.55 0.19 25); }
 
 
 
@@ -976,7 +976,7 @@
 .deck__done-copy { display: grid; gap: 4px; }
 .deck__done-copy b { font-size: 17px; font-weight: 700; }
 .deck__done-copy small { color: var(--guest-subtle); font-size: 13px; line-height: 1.45; }
-.deck__dots { display: flex; justify-content: center; gap: 6px; margin-top: 2px; }
+.deck__dots { display: flex; justify-content: center; gap: 6px; margin-block-start: 2px; }
 .deck__dots button { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 999px; background: var(--guest-line-strong); }
 .deck__dots button.is-active { width: 20px; background: var(--guest-accent-strong); }
 
@@ -1099,7 +1099,7 @@
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   box-shadow: var(--shadow-xs);
-  text-align: left;
+  text-align: start;
   transition: transform var(--duration-press) var(--ease-out);
 }
 .ask__pick:active { transform: scale(0.99); }
@@ -1149,7 +1149,7 @@
   border: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
-  text-align: left;
+  text-align: start;
 }
 .discover__result:active { transform: scale(0.99); }
 .discover__result-art {
@@ -1195,7 +1195,7 @@
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   box-shadow: var(--shadow-xs);
-  text-align: left;
+  text-align: start;
 }
 .discover__all span { display: grid; gap: 2px; }
 .discover__all b { font-size: 15px; font-weight: 650; }
@@ -1215,14 +1215,14 @@
 }
 
 .guest-screen:not(.guest-screen--chat) .discover__section {
-  padding-top: 24px;
-  border-top: 1px solid var(--guest-line);
+  padding-block-start: 24px;
+  border-block-start: 1px solid var(--guest-line);
 }
 
 .guest-screen:not(.guest-screen--chat) .discover__section--stories {
-  padding-top: 0;
-  padding-bottom: 0;
-  border-top: 0;
+  padding-block-start: 0;
+  padding-block-end: 0;
+  border-block-start: 0;
 }
 
 .guest-screen:not(.guest-screen--chat) .discover__search {
@@ -1254,7 +1254,7 @@
 .guest-screen:not(.guest-screen--chat) .deck__stack {
   width: 100%;
   aspect-ratio: 4 / 3;
-  margin-bottom: 14px;
+  margin-block-end: 14px;
 }
 
 .guest-screen:not(.guest-screen--chat) .deck__card {
@@ -1454,7 +1454,7 @@
   width: 36px;
   height: 36px;
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-inline-start: auto;
   place-items: center;
   border: 0;
   border-radius: var(--radius-pill);
@@ -1498,9 +1498,9 @@
   font-size: 15px;
   font-weight: 700;
 }
-.story__cta svg { width: 18px; height: 18px; margin-left: auto; }
-.story__price { margin-left: auto; font-variant-numeric: tabular-nums; opacity: 0.72; }
-.story__cta svg { margin-left: 0; }
+.story__cta svg { width: 18px; height: 18px; margin-inline-start: auto; }
+.story__price { margin-inline-start: auto; font-variant-numeric: tabular-nums; opacity: 0.72; }
+.story__cta svg { margin-inline-start: 0; }
 .story__cta:active { transform: scale(0.98); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1546,7 +1546,7 @@
   opacity: 0.86;
 }
 .story__detail {
-  margin-top: 18px;
+  margin-block-start: 18px;
   max-width: 34ch;
   font-size: 15px;
   line-height: 1.42;
@@ -1560,7 +1560,7 @@
 /* One word and an icon, the size of Places' Save: the photo does the selling. */
 .story__cta {
   align-self: flex-end;
-  margin-top: auto;
+  margin-block-start: auto;
   gap: 6px;
   min-height: 44px;
   padding: 0 16px 0 13px;
@@ -1574,10 +1574,10 @@
   font-weight: 500;
 }
 .story__cta svg { width: 17px; height: 17px; margin: 0; }
-.swipe-stories__hint { align-self: center; margin-top: 12px; }
+.swipe-stories__hint { align-self: center; margin-block-start: 12px; }
 .swipe-stories__restart { align-self: center; }
 /* The clip control takes the corner opposite the booking action. */
-.swipe-stories__play { top: auto; right: auto; bottom: max(26px, env(safe-area-inset-bottom)); left: 20px; }
+.swipe-stories__play { inset-block-start: auto; inset-inline-end: auto; inset-block-end: max(26px, env(safe-area-inset-bottom)); inset-inline-start: 20px; }
 
 
 /* The scan's own earn, stated at the moment it happened. */
@@ -1604,7 +1604,7 @@
 
 .guest-screen.has-nav:not(.guest-screen--chat) .deck__stack {
   width: 100%;
-  margin-bottom: 0;
+  margin-block-end: 0;
   aspect-ratio: 4 / 3;
 }
 

@@ -3561,7 +3561,7 @@ describe('premium Home styling', () => {
     expect(guestStyles).toMatch(/\.guest-home-story\s*\{[^}]*transition:\s*transform\s+220ms/);
     expect(guestStyles).toMatch(/\.guest-home-story \.discover__story-ring\s*\{[^}]*padding:\s*1px/);
     expect(guestStyles).toMatch(/\.guest-home-story \.discover__story-art\s*\{[\s\S]*?border:\s*1px solid var\(--guest-paper\)/);
-    expect(guestStyles).toMatch(/\.guest-stay-hero-card__booking\s*\{[\s\S]*?border-top:\s*1px solid var\(--guest-line\)/);
+    expect(guestStyles).toMatch(/\.guest-stay-hero-card__booking\s*\{[\s\S]*?border-block-start:\s*1px solid var\(--guest-line\)/);
     expect(guestStyles).toMatch(/\.guest-stay-card--compact[^}]*animation:\s*guest-home-rise/);
     expect(guestStyles).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.guest-stay-card--compact/);
   });
@@ -3571,7 +3571,7 @@ describe('signed-in shell surfaces', () => {
   it('keeps shell content quiet and explicitly excludes Chat', () => {
     expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-profile-action-list\s*\{[\s\S]*?box-shadow:\s*none/);
     expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entry\s*\{[\s\S]*?box-shadow:\s*none/);
-    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-announcement\s*\{[\s\S]*?border-bottom:\s*1px solid var\(--guest-line\)/);
+    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-announcement\s*\{[\s\S]*?border-block-end:\s*1px solid var\(--guest-line\)/);
     expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.discover__search\s*\{[\s\S]*?box-shadow:\s*none/);
     expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.deck__stack\s*\{[\s\S]*?aspect-ratio:\s*4 \/ 3/);
     expect(promotedStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.discover__story-ring\s*\{[\s\S]*?padding:\s*1px/);
@@ -3871,10 +3871,10 @@ describe('floating tab bar styling', () => {
       /\.guest-device\s*\{[^}]*position:\s*relative[^}]*\}/,
     );
     expect(guestStyles).toMatch(
-      /\.guest-screen\.has-nav\s*\{[^}]*--guest-screen-pad-bottom:\s*calc\(var\(--guest-nav-h\)\s*\+\s*env\(safe-area-inset-bottom\)\s*\+\s*24px\)[^}]*padding-bottom:\s*var\(--guest-screen-pad-bottom\)/,
+      /\.guest-screen\.has-nav\s*\{[^}]*--guest-screen-pad-bottom:\s*calc\(var\(--guest-nav-h\)\s*\+\s*env\(safe-area-inset-bottom\)\s*\+\s*24px\)[^}]*padding-block-end:\s*var\(--guest-screen-pad-bottom\)/,
     );
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav\s*\{[^}]*position:\s*absolute[^}]*bottom:\s*calc\(8px\s*\+\s*env\(safe-area-inset-bottom\)\)[^}]*left:\s*50%[^}]*transform:\s*translateX\(-50%\)/,
+      /\.guest-bottom-nav\s*\{[^}]*position:\s*absolute[^}]*inset-block-end:\s*calc\(8px\s*\+\s*env\(safe-area-inset-bottom\)\)[^}]*inset-inline-start:\s*50%[^}]*transform:\s*translateX\(-50%\)/,
     );
     expect(guestStyles).not.toMatch(
       /\.guest-bottom-nav\s*\{[^}]*flex:\s*0 0 auto/,

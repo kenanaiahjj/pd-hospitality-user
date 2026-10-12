@@ -24,7 +24,7 @@ export function UserList({
             <button
               type="button"
               onClick={() => onSelect(user)}
-              className="w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
+              className="w-full rounded-lg text-start focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-neutral-400"
             >
               <UserCard user={user} />
             </button>

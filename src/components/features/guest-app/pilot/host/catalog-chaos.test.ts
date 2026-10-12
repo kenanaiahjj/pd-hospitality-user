@@ -11,7 +11,7 @@ import { hostClock } from './host';
 */
 
 const MIN = 60_000;
-const LISTINGS = ['rental', 'e-bike', 'cafe', 'rooftop', 'spa', 'hot-stone', 'tour', 'sunset-cruise', 'laundry', 'luggage', 'music', 'film-night', 'city-bike-rentals', 'hilot-house', 'bayleaf-kitchen', 'gift-0', 'gift-5', 'trainer', 'car-rental'];
+const LISTINGS = ['bike-rental', 'scooter-rental', 'coffee-collective', 'si-senor', 'spa', 'hot-stone', 'tour', 'sunset-cruise', 'laundry', 'luggage', 'music', 'film-night', 'calindagan-car-hire', 'hilot-studio-daro', 'boulevard-seafood-grill', 'gift-0', 'gift-5', 'trainer', 'car-rental'];
 
 describe('the engine on the app’s catalogue, every rule checked after every action', () => {
   for (const seed of [3, 11, 99, 1234]) {

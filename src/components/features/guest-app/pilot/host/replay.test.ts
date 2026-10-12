@@ -25,7 +25,7 @@ const snapshot = (p: Pilot) => ({
   folio: p.bookings().map((b) => p.foliosTotal(b.stayId)),
 });
 
-const LISTINGS = ['rental', 'cafe', 'rooftop', 'spa', 'tour', 'laundry', 'city-bike-rentals', 'gift-0', 'trainer', 'music'];
+const LISTINGS = ['bike-rental', 'coffee-collective', 'si-senor', 'spa', 'tour', 'laundry', 'calindagan-car-hire', 'gift-0', 'trainer', 'music'];
 
 function session(seed: number, steps: number) {
   const rng = makeRng(seed);

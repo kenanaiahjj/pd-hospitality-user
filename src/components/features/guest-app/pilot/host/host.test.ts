@@ -18,9 +18,9 @@ describe('the pilot host', () => {
   it('rebuilds the same bookings from its record', () => {
     const host = new Host(start, null, true);
     const { guestId } = host.ensureGuest(stay);
-    const made = host.call<{ ok: true; bookingId: string }>('guest.request', guestId, { listingId: 'rental', date: '2026-11-12', time: '10:00', qty: 2, payMode: 'room' });
+    const made = host.call<{ ok: true; bookingId: string }>('guest.request', guestId, { listingId: 'bike-rental', date: '2026-11-12', time: '10:00', qty: 2, payMode: 'room' });
     expect(made.ok).toBe(true);
-    host.call('vendor.confirm', host.pilot.listing('rental').vendorId, made.bookingId);
+    host.call('vendor.confirm', host.pilot.listing('bike-rental').vendorId, made.bookingId);
     host.setTime(hostClock('2026-11-11', 15));
 
     const again = new Host(start, stored(), false);
@@ -42,7 +42,7 @@ describe('the pilot host', () => {
   it('does not rewrite the past once something is booked', () => {
     const host = new Host(start, null, true);
     const { guestId } = host.ensureGuest(stay);
-    host.call('guest.request', guestId, { listingId: 'cafe', date: '2026-11-12', time: '09:00', qty: 2 });
+    host.call('guest.request', guestId, { listingId: 'coffee-collective', date: '2026-11-12', time: '10:00', qty: 2 });
     host.setTime(hostClock('2026-11-11', 8));
     expect(host.now()).toBe(start);
     expect(host.pilot.bookings()).toHaveLength(1);
@@ -66,7 +66,7 @@ describe('the pilot host', () => {
     const host = new Host(start, null, true);
     const { guestId } = host.ensureGuest(stay);
     // 2 PM now: this morning's slot has gone, so the engine refuses it, and the refusal is on the record.
-    const refused = host.call<{ ok: boolean }>('guest.request', guestId, { listingId: 'cafe', date: '2026-11-11', time: '09:00', qty: 2 });
+    const refused = host.call<{ ok: boolean }>('guest.request', guestId, { listingId: 'coffee-collective', date: '2026-11-11', time: '10:00', qty: 2 });
     expect(refused.ok).toBe(false);
     host.setTime(hostClock('2026-11-11', 8));
     expect(host.pilot.bookings()).toHaveLength(0);

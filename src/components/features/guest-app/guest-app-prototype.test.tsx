@@ -25,8 +25,8 @@ const urlMethodDescriptors = {
 const makeBooking = (overrides: Partial<Booking> = {}): Booking => ({
   id: 'booking-default',
   guestName: 'Ana Santos',
-  property: 'The Henry Manila',
-  city: 'Manila',
+  property: 'The Henry Resort Dumaguete',
+  city: 'Dumaguete',
   status: 'upcoming',
   checkIn: '2026-11-09',
   checkOut: '2026-11-12',
@@ -1362,7 +1362,7 @@ describe('my stay', () => {
   it('keeps the running room-charge total off the My Stay overview', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={activeSession} />);
 
-    expect(screen.getByRole('heading', { name: 'The Henry Manila', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'The Henry Resort Dumaguete', level: 1 })).toBeInTheDocument();
     const card = document.querySelector('.guest-stay-hero-card') as HTMLElement;
     expect(within(card).getByText('Checked in')).toBeInTheDocument();
     expect(within(card).getByText(/^Room \d+/)).toBeInTheDocument();
@@ -1415,21 +1415,21 @@ describe('my stay', () => {
 
   it('names the parent property on each booking card', () => {
     const session = sessionFor(
-      [makeBooking({ id: 'active', property: 'The Henry Manila', status: 'active', roomNumber: '304', folioTotal: '₱3,050' })],
+      [makeBooking({ id: 'active', status: 'active', roomNumber: '304', folioTotal: '₱3,050' })],
       {
         activeBookingId: 'active',
         folioTotal: '₱3,050',
         serviceBookings: [{
           id: 'service-dining-1',
           bookingId: 'active',
-          title: 'Azotea Rooftop',
+          title: 'The Poolside Bar',
           scheduledFor: 'Tonight · 7:30 PM',
           scheduledDate: '2026-11-11',
           amount: '₱2,400',
           status: 'confirmed',
           diningOrder: {
-            venueId: 'rooftop',
-            venueName: 'Azotea Rooftop',
+            venueId: 'poolside-bar',
+            venueName: 'The Poolside Bar',
             items: [{ id: 'x', name: 'Tasting menu', unitPrice: '₱2,400', quantity: 1 }],
             fulfillment: { method: 'pickup', timing: 'scheduled', scheduledFor: '7:30 PM' },
           },
@@ -1443,8 +1443,8 @@ describe('my stay', () => {
     // building a venue was in -- but on a stay at that same hotel, naming it
     // on every card is noise, so the line gives the spot inside it instead.
     const line = document.querySelector('.guest-stay-entry__line');
-    expect(line?.textContent).toContain('Ninth floor terrace');
-    expect(line?.textContent).not.toContain('The Henry Manila');
+    expect(line?.textContent).toContain('Pool deck');
+    expect(line?.textContent).not.toContain('The Henry Resort Dumaguete');
   });
 
   it('switches between upcoming and past without losing either', async () => {
@@ -1700,7 +1700,7 @@ describe('home mini-apps and browsable restaurant menu', () => {
     // full card, with View booking and Upgrade room, is My Stay's.
     expect(document.querySelector('.guest-home-active-hero')).toBeNull();
     expect(document.querySelector('.guest-stay-card--compact')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /The Henry Manila, .* view booking/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /The Henry Resort Dumaguete, .* view booking/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Upgrade room/ })).toBeNull();
     expect(document.querySelector('.guest-home-discovery')).toBeInTheDocument();
     expect(document.querySelector('.recommended__rail')).toBeInTheDocument();
@@ -2214,7 +2214,7 @@ describe('rentals', () => {
     expect(screen.getByRole('heading', { name: 'Rentals', level: 1 })).toBeInTheDocument();
     const chips = within(screen.getByLabelText('Explore subcategories')).getAllByRole('button').map((chip) => chip.textContent);
     expect(chips).toEqual(['All', 'Two wheels', 'Cars']);
-    for (const name of ['City bicycle', 'E-bike', 'Scooter', 'Motorcycle', 'Compact car', 'SUV']) {
+    for (const name of ['Bike rental', 'Scooter', 'Compact car', 'Van']) {
       expect(screen.getByRole('heading', { name: new RegExp(name) })).toBeInTheDocument();
     }
 
@@ -2227,7 +2227,7 @@ describe('rentals', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     await openCategory(user, 'Hotel Services');
-    expect(screen.queryByRole('heading', { name: /City bicycle|Scooter/ })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Bike rental|Scooter/ })).toBeNull();
     expect(screen.getByRole('heading', { name: /Private car/ })).toBeInTheDocument();
   });
 
@@ -2236,11 +2236,11 @@ describe('rentals', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     await openCategory(user, 'Rentals');
-    await user.click(screen.getByRole('button', { name: /Motorcycle/ }));
+    await user.click(screen.getByRole('button', { name: /Scooter/ }));
     expect(screen.getByText(/driver.s licence/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Go back' }));
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: /Bike rental/ }));
     expect(screen.queryByText(/driver.s licence/i)).toBeNull();
   });
 
@@ -2251,7 +2251,7 @@ describe('rentals', () => {
 
     const box = screen.getByRole('searchbox', { name: 'Search' });
     await user.type(box, 'motorbike');
-    expect(screen.getByRole('button', { name: /Motorcycle/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Scooter/ })).toBeInTheDocument();
     await user.clear(box);
     await user.type(box, 'car rental');
     expect(screen.getByRole('button', { name: /Compact car/ })).toBeInTheDocument();
@@ -2697,7 +2697,7 @@ describe('lifecycle gates', () => {
     const sheet = screen.getByRole('dialog', { name: 'Hotel essentials' });
     // An overlay on the app, not a child of the frosted card the row sits in: that card traps `position: fixed`.
     expect(sheet.closest('.guest-checkout-card')).toBeNull();
-    expect(within(sheet).getByTestId('wifi-password')).toHaveTextContent('manila2026');
+    expect(within(sheet).getByTestId('wifi-password')).toHaveTextContent('dumaguete2026');
     expect(within(sheet).getByText(/Breakfast/)).toBeInTheDocument();
     expect(within(sheet).getByText(/Pool/)).toBeInTheDocument();
     // The password is one tap away; the sheet says what happened either way.

@@ -44,10 +44,7 @@ export type StorySlide = {
 */
 const STORY_FRAMES: Record<string, string[]> = {
   'poolside-bar': ['poolside-bar', 'rooftop', 'dining'],
-  'apartment-1b': ['apartment-1b', 'dining', 'cafe'],
-  dining: ['dining', 'apartment-1b', 'cafe'],
-  cafe: ['cafe', 'dining', 'apartment-1b'],
-  rooftop: ['rooftop', 'poolside-bar', 'dining'],
+  dining: ['dining', 'noelles-brunch-bar', 'coffee-collective'],
   spa: ['spa', 'couples-massage', 'hot-stone'],
   scrub: ['scrub', 'facial', 'spa'],
   'hot-stone': ['hot-stone', 'spa', 'scrub'],
@@ -56,16 +53,11 @@ const STORY_FRAMES: Record<string, string[]> = {
   reflexology: ['rooftop', 'spa', 'poolside-bar'],
   barber: ['facial', 'couples-massage', 'scrub'],
   'mani-pedi': ['facial', 'scrub', 'spa'],
-  tour: ['tour', 'sunset-cruise', 'heritage-walk'],
-  diving: ['sunset-cruise', 'tour', 'heritage-walk'],
-  'sunset-cruise': ['sunset-cruise', 'tour', 'food-crawl'],
-  'heritage-walk': ['heritage-walk', 'food-crawl', 'tour'],
-  'food-crawl': ['food-crawl', 'heritage-walk', 'cafe'],
-  'museum-pass': ['heritage-walk', 'tour', 'food-crawl'],
-  rental: ['rental', 'e-bike'],
-  'e-bike': ['e-bike', 'rental'],
-  scooter: ['scooter', 'motorcycle'],
-  motorcycle: ['motorcycle', 'scooter'],
+  tour: ['tour', 'sunset-cruise', 'apo-island-trip'],
+  diving: ['sunset-cruise', 'tour', 'apo-island-trip'],
+  'sunset-cruise': ['sunset-cruise', 'tour', 'apo-island-trip'],
+  'food-crawl': ['food-crawl', 'walking-tour', 'coffee-collective'],
+  'museum-pass': ['walking-tour', 'tour', 'food-crawl'],
   'car-rental': ['car-rental', 'suv-rental'],
   'suv-rental': ['suv-rental', 'car-rental'],
   'the-dining-room': ['the-dining-room', 'popolo-pizzeria', 'si-senor'],
@@ -176,11 +168,9 @@ export function storyExpiryLabel(story: Story): string | undefined {
 */
 const POSTED_HOURS_AGO: Record<string, number> = {
   'poolside-bar': 0.4,
-  rooftop: 2,
   dining: 3,
   spa: 5,
   facial: 6,
-  'apartment-1b': 9,
   scrub: 11,
   'hot-stone': 14,
   'couples-massage': 17,
@@ -189,9 +179,7 @@ const POSTED_HOURS_AGO: Record<string, number> = {
   'mani-pedi': 10,
   diving: 12,
   'museum-pass': 15,
-  'heritage-walk': 18,
   tour: 19,
-  cafe: 21,
   'food-crawl': 22.5,
   'sunset-cruise': 30,
   'si-senor': 1.2,
@@ -510,7 +498,7 @@ export type FeaturedCard = {
   its own and a reason someone wrote. A test holds both.
 */
 const FEATURED: Array<{ id: string; title?: string; reason: FeaturedReason }> = [
-  { id: 'rooftop', title: 'Sunset on the ninth floor', reason: { kind: 'hotel-pick', label: 'Tonight at the resort' } },
+  { id: 'apo-island-trip', title: 'Turtles off Apo Island', reason: { kind: 'hotel-pick', label: 'Picked by the resort' } },
   { id: 'spa', title: 'Ninety minutes to yourself', reason: { kind: 'popular', label: 'Most booked this week' } },
   { id: 'sunset-cruise', reason: { kind: 'stay-context', label: 'Tomorrow, before checkout' } },
   { id: 'hot-stone', reason: { kind: 'popular', label: 'Books out by Friday' } },
@@ -518,7 +506,7 @@ const FEATURED: Array<{ id: string; title?: string; reason: FeaturedReason }> = 
   { id: 'scrub', reason: { kind: 'stay-context', label: 'Time for one before dinner' } },
   { id: 'tour', reason: { kind: 'stay-context', label: 'A half day from your room' } },
   { id: 'facial', reason: { kind: 'popular', label: 'Booked twelve times today' } },
-  { id: 'heritage-walk', reason: { kind: 'hotel-pick', label: 'Picked by the hotel' } },
+  { id: 'walking-tour', reason: { kind: 'hotel-pick', label: 'Picked by the hotel' } },
   { id: 'couples-massage', reason: { kind: 'hotel-pick', label: 'Picked by the hotel' } },
 ];
 
@@ -535,7 +523,7 @@ export function buildFeaturedDeck(): FeaturedCard[] {
       category: service.category,
       price: service.price,
       /* The account that runs it. "Third-party on property" is a contract
-         term the guest has no use for; "Lakbay Island Tours" is a name they
+         term the guest has no use for; "Hilom Spa & Wellness" is a name they
          can decide about. */
       detail: venueForService(service.id).name,
       image: storyImage(service.id),
@@ -558,22 +546,22 @@ export type DiscoverBanner = {
 
   Every category listing already opens onto its own Places nearby rail, so
   presenting off-property as a bucket of its own said the same thing a second
-  time -- and the Binondo crawl it pointed at is in the featured deck anyway.
+  time -- and the food crawl it pointed at is in the featured deck anyway.
   "Off property" was also the last of the operator's vocabulary left on this
   screen.
 */
 export function buildBanners(): DiscoverBanner[] {
-  const rooftop = SERVICES.find((s) => s.id === 'rooftop');
+  const sunset = SERVICES.find((s) => s.id === 'sunset-cruise');
   const spa = SERVICES.find((s) => s.id === 'spa');
 
   const banners: DiscoverBanner[] = [];
-  if (rooftop) {
+  if (sunset) {
     banners.push({
-      id: rooftop.id,
+      id: sunset.id,
       eyebrow: 'Tonight',
-      headline: 'Sunset on the ninth floor',
-      meta: `${rooftop.name} · ${rooftop.price}`,
-      image: storyImage(rooftop.id),
+      headline: 'Sunset on the boulevard',
+      meta: `${sunset.name} · ${sunset.price}`,
+      image: storyImage(sunset.id),
     });
   }
   if (spa) {

@@ -647,7 +647,7 @@ export const RULE_GROUPS: RuleGroup[] = [
         text: "A few vendors only, so alerts stay under control.",
         from: "Meeting",
         status: "Not built",
-        note: "The scenarios have 10 vendors. The app's Dumaguete stay shows 20 on Cabana and 2 independents, on purpose, to cover every kind of listing. Alerts are not modelled.",
+        note: "The scenarios have 10 vendors. The app's Dumaguete stay shows 22 on Cabana and 2 independents, on purpose, to cover every kind of listing. Alerts are not modelled.",
         drawn: "Pilot"
       },
       {
@@ -776,7 +776,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "APP-8",
-        text: "The app and the scenarios share the pilot property. The demo stay is Ana in Room 304 at The Henry Resort Dumaguete. Its Explore holds one of every kind of listing: partner tables, Sans Rival goods, a confirm-first boat and bikes, instant resort activities, a pay-now spa, hotel services, nearby partners and call-to-reserve independents. Manila and Cebu remain as Ana's past stays and as hotels to book.",
+        text: "The app and the scenarios share the pilot property. The demo stay is Ana in Room 304 at The Henry Resort Dumaguete. Its Explore holds one of every kind of listing: partner tables, Sans Rival goods, a confirm-first boat and bikes, instant resort activities, a pay-now spa, hotel services, nearby partners and call-to-reserve independents. The engine and Explore hold no Manila listings any more. Manila and Cebu remain only as Ana's past stays and as hotels to book.",
         from: "App",
         status: "Built",
         drawn: "Pilot"

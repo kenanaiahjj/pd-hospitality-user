@@ -19,17 +19,14 @@ export const worstCaseOn = (): boolean =>
 export const WORST = {
   guestName: 'Aleksandra Wiśniewska-Kowalczyk',
   vendors: {
-    'sakay-rentals': 'Sakay Motorbike, Scooter & E-bike Rentals Manila',
-    'lakbay-tours': 'Lakbay Island Tours & Heritage Experiences Corp.',
     'hilom-spa': 'Lá',
-    'kalye-walks': 'Kalye Manila Walks — Intramuros, Binondo & Escolta',
+    'partner-local-guide': 'Dumaguete Local Guides — Food Crawls, Museums & Old Town Walks',
     'partner-boat-operator': 'Apo Island & Twin Reefs Boat Operators Cooperative of Dauin',
     'partner-bike-shop': 'Bisikleta',
     'cafe-sans-rival': 'Cafe Sans Rival — Pasalubong, Silvanas & Sans Rival Cakes',
   } as Record<string, string>,
   listings: {
-    rental: 'City bicycle (with child seat, helmet & lock)',
-    tour: 'Private sunset island-hopping tour with snorkelling, lunch & hotel transfer',
+    tour: 'Private Bais dolphin and whale watching with sandbar lunch & resort transfer',
     'bike-rental': 'Bike rental (with child seat, helmet & lock)',
     'apo-island-trip': 'Apo Island boat trip with snorkelling, turtle watching, lunch & resort transfer',
   } as Record<string, string>,
@@ -38,7 +35,7 @@ export const WORST = {
   tourNote: 'The early boat, if there is a choice. My mother (78) uses a cane — is there a ramp at the pier?',
   bikeMessages: [
     'Two bikes are set for you. The child seat is on the second one, and helmets are in the basket.',
-    'Track your booking here: https://example.com/sakay/bookings/9f8e7d6c-5b4a-4c3d-8e2f-1a0b9c8d7e6f?ref=cabana&lang=en',
+    'Track your booking here: https://example.com/bike-shop/bookings/9f8e7d6c-5b4a-4c3d-8e2f-1a0b9c8d7e6f?ref=cabana&lang=en',
     '9 PM is fine 👍',
     'ok',
     'Please bring your ID or passport.\nIf you are late, message us here.\nSalamat po!',
@@ -55,7 +52,7 @@ export const WORST = {
 /** The catalogue with the worst-case names laid on: the same ids, the same everything else. */
 export function applyWorstCatalog(catalog: { vendors: Vendor[]; listings: Listing[] }): { vendors: Vendor[]; listings: Listing[] } {
   return {
-    vendors: catalog.vendors.map((v) => ({ ...v, name: WORST.vendors[v.id] ?? v.name, phone: v.id === 'sakay-rentals' ? WORST.phone : v.phone })),
+    vendors: catalog.vendors.map((v) => ({ ...v, name: WORST.vendors[v.id] ?? v.name, phone: v.id === 'partner-bike-shop' ? WORST.phone : v.phone })),
     listings: catalog.listings.map((l) => ({ ...l, title: WORST.listings[l.id] ?? l.title })),
   };
 }

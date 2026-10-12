@@ -683,7 +683,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const [sending, setSending] = useState(false);
   const chatObjectUrlsRef = useRef(new Set<string>());
   const [selectedCategory, setSelectedCategory] = useState<MiniAppCategoryId>('dining');
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('apartment-1b');
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('the-dining-room');
   const [selectedNearbyEstablishmentId, setSelectedNearbyEstablishmentId] = useState<string | null>(null);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<string | null>(null);

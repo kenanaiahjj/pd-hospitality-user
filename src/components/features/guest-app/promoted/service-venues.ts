@@ -55,24 +55,17 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     operates: ['mani-pedi', 'barber'],
     image: storyImage('facial'),
   },
-  {
-    id: 'lakbay-tours',
-    name: 'Lakbay Island Tours',
-    location: 'Tour desk, lobby',
-    kind: 'venue',
-    operates: ['tour', 'sunset-cruise'],
-    image: storyImage('tour'),
-  },
   /*
-    The Henry Resort Dumaguete's two outside partners. They are simulated in
-    the pilot, so they carry placeholder names rather than real-sounding ones.
+    The Henry Resort Dumaguete's outside partners. They are simulated in the
+    pilot, so they carry placeholder names rather than real-sounding ones.
   */
   {
     id: 'partner-boat-operator',
     name: 'Partner boat operator',
     location: 'Resort jetty',
     kind: 'venue',
-    operates: ['apo-island-trip'],
+    // Every boat: Apo Island, the Bais dolphins and the sunset run.
+    operates: ['apo-island-trip', 'tour', 'sunset-cruise'],
     image: storyImage('tour'),
   },
   {
@@ -84,25 +77,17 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     image: storyImage('food-crawl'),
   },
   {
-    id: 'kalye-walks',
-    name: 'Kalye Manila Walks',
+    id: 'partner-local-guide',
+    name: 'Partner local guide',
     location: 'Meets at the lobby doors',
     kind: 'venue',
-    operates: ['heritage-walk', 'food-crawl', 'museum-pass'],
+    operates: ['food-crawl', 'museum-pass'],
     image: storyImage('heritage-walk'),
   },
   {
-    id: 'sakay-rentals',
-    name: 'Sakay Rentals',
-    location: 'Driveway, ground floor',
-    kind: 'venue',
-    operates: ['scooter', 'motorcycle', 'e-bike', 'rental'],
-    image: storyImage('food-crawl'),
-  },
-  {
-    id: 'byahe-car-rental',
-    name: 'Byahe Car Rental',
-    location: 'Driveway, ground floor',
+    id: 'partner-car-rental',
+    name: 'Partner car rental',
+    location: 'Resort driveway',
     kind: 'venue',
     operates: ['car-rental', 'suv-rental'],
     image: PROPERTY_IMAGE,
@@ -174,7 +159,7 @@ const SERVICE_SPOTS: Record<string, string> = {
   'walking-tour': 'Meets at the lobby doors',
   diving: 'Dive centre, by the jetty',
   music: 'Lobby lounge',
-  'cooking-class': 'Apartment 1B kitchen',
+  'cooking-class': 'Resort kitchen',
   reflexology: 'Hilom Spa, garden wing',
   trainer: 'Fitness centre',
   gym: 'Fitness centre',

@@ -137,12 +137,9 @@ export function RestaurantMenuScreen({ venue, onOrder, onReserve, onBack, onNoti
   const menuImages = getRestaurantMenuImages(venue);
   const currentImage = menuImages[page] ?? menuImages[0];
   // The garden line only fits a room you sit down in; it was being added to room service too.
-  // Each venue's own description. A shared "garden atmosphere, morning plates" line fit only Apartment 1B.
   const aboutText = /room/i.test(venue.location)
     ? `${venue.description} Order from the menu and it comes up to your door, day or night.`
-    : venue.id === 'apartment-1b'
-      ? `${venue.description} Settle in for an unhurried meal surrounded by the hotel’s signature garden atmosphere, with thoughtful service and a menu that moves easily from morning plates to evening drinks.`
-      : venue.description;
+    : venue.description;
 
   const openPreview = () => {
     if (suppressPreview.current) {
@@ -178,7 +175,7 @@ export function RestaurantMenuScreen({ venue, onOrder, onReserve, onBack, onNoti
         <div className="guest-restaurant-hero__copy">
           <h1>{venue.name}</h1>
           <div className="guest-restaurant-top-tags" aria-label="Restaurant details">
-            <span>{venue.category}</span>{venue.id === 'apartment-1b' ? <span>Breakfast</span> : null}<span>{venue.operator}</span>
+            <span>{venue.category}</span><span>{venue.operator}</span>
           </div>
         </div>
       </section>

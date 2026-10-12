@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { GIFT_PRODUCTS, LOBBY_SHOP_NAME, SANS_RIVAL_NAME, SANS_RIVAL_PRODUCTS, type GiftProduct } from '../../dining';
 import { ChoiceList, NotesField, Notice } from '../../guest-ui';
-import { formatPesoAmount, parsePesoAmount } from '../../prototype-model';
+import { formatPesoAmount, parsePesoAmount, PILOT_CITY } from '../../prototype-model';
 import type { PayOptions, Result } from '../types';
 
 /*
@@ -31,7 +31,7 @@ const LOBBY_SHOP: Shop = { name: LOBBY_SHOP_NAME, products: GIFT_PRODUCTS, partn
 const SANS_RIVAL: Shop = { name: SANS_RIVAL_NAME, products: SANS_RIVAL_PRODUCTS, partner: true, cap: 50, readyNow: 'Ready today at 5:00 PM', details: ['Partner on the resort', 'Collect at the front desk', 'Daily · 8:00 AM–6:00 PM'], blurb: 'Pasalubong from the resort’s own café. Charge it to your room or pay now; the café packs it and the front desk holds it chilled.' };
 
 /** The shops this hotel has: Cafe Sans Rival only where it is. */
-const shopsIn = (city: string): Shop[] => (city === 'Dumaguete' ? [SANS_RIVAL, LOBBY_SHOP] : [LOBBY_SHOP]);
+const shopsIn = (city: string): Shop[] => (city === PILOT_CITY ? [SANS_RIVAL, LOBBY_SHOP] : [LOBBY_SHOP]);
 const shopOf = (product: ShopProduct): Shop => (SANS_RIVAL_PRODUCTS.some((p) => p.name === product.name) ? SANS_RIVAL : LOBBY_SHOP);
 /** Who an order is placed with, for its card and record. */
 export const shopNameOf = (product: ShopProduct): string => shopOf(product).name;

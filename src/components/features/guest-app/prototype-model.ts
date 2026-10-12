@@ -3723,131 +3723,6 @@ export type RestaurantVenue = {
 
 export const RESTAURANTS: RestaurantVenue[] = [
   {
-    id: 'apartment-1b',
-    listedOn: '2021-04-12',
-    name: 'Apartment 1B',
-    city: 'Manila',
-    category: 'Restaurant & Bar',
-    operator: 'Hotel operated',
-    hours: '6:30 AM – 11:00 PM',
-    property: 'The Henry Manila',
-    location: 'Ground floor courtyard',
-    description: 'Gourmet comfort food, artisan breakfast, and hand-crafted cocktails in a lush garden setting.',
-    cutoff: 'Table reservation or walk-in',
-    tone: 'clay',
-    menu: [
-      {
-        id: 'a1b-calamari',
-        name: 'Crispy Calamari',
-        description: 'Crisp hand-cut squid, spiced sea salt, zesty calamansi garlic aioli.',
-        price: '₱480',
-        category: 'starters',
-        tag: 'Popular',
-        dietary: ['seafood'],
-      },
-      {
-        id: 'a1b-ribeye',
-        name: 'Grilled Angus Ribeye',
-        description: '300g Australian Angus ribeye, truffle butter, roasted garlic mashed potato.',
-        price: '₱1,850',
-        category: 'mains',
-        tag: 'Chef’s Special',
-      },
-      {
-        id: 'a1b-1',
-        name: 'Truffle Parmesan Fries',
-        description: 'Crisp hand-cut potatoes, white truffle oil, shaved 24-month parmesan, garlic aioli.',
-        price: '₱380',
-        category: 'starters',
-        tag: 'Popular',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'a1b-2',
-        name: 'Classic Caesar Salad',
-        description: 'Romaine hearts, double-smoked bacon lardons, sourdough croutons, house dressing.',
-        price: '₱440',
-        category: 'starters',
-      },
-      {
-        id: 'a1b-3',
-        name: 'Wild Mushroom Bisque',
-        description: 'Slow-simmered forest mushrooms, herb croutons, white truffle foam.',
-        price: '₱360',
-        category: 'starters',
-        tag: 'Vegetarian',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'a1b-4',
-        name: 'Henry Wagyu Burger',
-        description: 'Custom brioche bun, 180g Australian wagyu patty, aged cheddar, tomato relish, fries.',
-        price: '₱720',
-        category: 'mains',
-        tag: 'Chef’s Special',
-      },
-      {
-        id: 'a1b-5',
-        name: 'Crispy Pork Belly Adobo',
-        description: 'Twice-cooked pork belly, sweet garlic soy reduction, pickled quail eggs, jasmine rice.',
-        price: '₱650',
-        category: 'mains',
-        tag: 'Heritage',
-      },
-      {
-        id: 'a1b-6',
-        name: 'Truffle Mushroom Risotto',
-        description: 'Carnaroli rice, wild porcini, white truffle oil, 24-month Parmigiano-Reggiano.',
-        price: '₱680',
-        category: 'mains',
-        tag: 'Vegetarian',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'a1b-7',
-        name: 'Pan-Roasted Sea Bass',
-        description: 'Wild local sea bass, crushed potato purée, caper lemon butter emulsion.',
-        price: '₱850',
-        category: 'mains',
-        dietary: ['seafood'],
-      },
-      {
-        id: 'a1b-8',
-        name: 'Warm Calamansi Pie',
-        description: 'Zesty Philippine calamansi curd, browned butter graham crust, toasted meringue.',
-        price: '₱320',
-        category: 'desserts',
-        tag: 'Signature',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'a1b-9',
-        name: 'Davao Chocolate Lava Cake',
-        description: '70% single-origin dark chocolate, molten center, Madagascar vanilla bean gelato.',
-        price: '₱380',
-        category: 'desserts',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'a1b-10',
-        name: 'Sampaguita Gin & Tonic',
-        description: 'Locally distilled botanical gin, fresh calamansi, sampaguita floral mist.',
-        price: '₱420',
-        category: 'drinks',
-        tag: 'Signature Cocktail',
-        dietary: ['vegetarian', 'vegan'],
-      },
-      {
-        id: 'a1b-11',
-        name: 'Fresh Guimaras Mango Shake',
-        description: 'Sweet Guimaras mangoes, crushed ice, touch of honey.',
-        price: '₱260',
-        category: 'drinks',
-        dietary: ['vegetarian'],
-      },
-    ],
-  },
-  {
     id: 'dining',
     listedOn: '2019-03-01',
     name: 'In-Room Dining',
@@ -3973,163 +3848,6 @@ export const RESTAURANTS: RestaurantVenue[] = [
       },
     ],
   },
-  {
-    id: 'cafe',
-    listedOn: '2020-11-03',
-    name: 'Kape Manila Café',
-    city: 'Manila',
-    category: 'Café & Bakery',
-    operator: 'Hotel operated',
-    hours: '6:00 AM – 8:00 PM',
-    property: 'The Henry Manila',
-    location: 'Lobby, beside reception',
-    description: 'Single-origin Philippine coffee, morning pastries, and all-day light plates by the lobby garden.',
-    cutoff: 'Walk-in & takeaway',
-    tone: 'sand',
-    menu: [
-      {
-        id: 'cafe-1',
-        name: 'Pandesal & Kesong Puti',
-        description: 'Warm stone-baked pandesal, fresh carabao milk cheese, calamansi marmalade.',
-        price: '₱220',
-        category: 'starters',
-        tag: 'Heritage',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'cafe-2',
-        name: 'Longganisa Breakfast Bowl',
-        description: 'Vigan longganisa, garlic rice, sunny egg, pickled papaya.',
-        price: '₱420',
-        category: 'mains',
-        tag: 'All Day',
-      },
-      {
-        id: 'cafe-3',
-        name: 'Smoked Tuna Panini',
-        description: 'General Santos smoked tuna, gruyère, caramelised onion on sourdough.',
-        price: '₱390',
-        category: 'mains',
-        dietary: ['seafood'],
-      },
-      {
-        id: 'cafe-4',
-        name: 'Ube Cheese Croissant',
-        description: 'Laminated croissant, purple yam custard, salted cheese crumble.',
-        price: '₱280',
-        category: 'desserts',
-        tag: 'Popular',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'cafe-5',
-        name: 'Bibingka Waffles',
-        description: 'Rice flour waffles, salted duck egg, coconut caramel, queso de bola.',
-        price: '₱320',
-        category: 'desserts',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'cafe-6',
-        name: 'Barako Cold Brew',
-        description: 'Sixteen-hour cold brew from Batangas barako beans, over clear ice.',
-        price: '₱210',
-        category: 'drinks',
-        tag: 'Signature',
-        dietary: ['vegetarian', 'vegan'],
-      },
-      {
-        id: 'cafe-7',
-        name: 'Tsokolate de Batirol',
-        description: 'Stone-ground tablea whisked to a froth, toasted pinipig on the side.',
-        price: '₱240',
-        category: 'drinks',
-        dietary: ['vegetarian'],
-      },
-    ],
-  },
-  {
-    id: 'rooftop',
-    listedOn: '2026-10-20',
-    name: 'Azotea Rooftop',
-    city: 'Manila',
-    category: 'Fine Dining',
-    operator: 'Hotel operated',
-    hours: '5:30 PM – 12:00 MN',
-    property: 'The Henry Manila',
-    location: 'Ninth floor terrace',
-    description: 'A tasting-led rooftop kitchen working Philippine produce over live fire, with the bay on three sides.',
-    cutoff: '24-hour cancellation cutoff',
-    tone: 'clay',
-    menu: [
-      {
-        id: 'roof-1',
-        name: 'Kinilaw na Tanigue',
-        description: 'Line-caught mackerel cured in coconut vinegar, ginger, chili, and burnt coconut cream.',
-        price: '₱520',
-        category: 'starters',
-        tag: 'Signature',
-        dietary: ['seafood'],
-      },
-      {
-        id: 'roof-2',
-        name: 'Charred Octopus',
-        description: 'Live-fire octopus, smoked paprika oil, adlai grain, pickled shallot.',
-        price: '₱680',
-        category: 'starters',
-        dietary: ['seafood'],
-      },
-      {
-        id: 'roof-3',
-        name: 'Heirloom Tomato & Kamias',
-        description: 'Benguet heirloom tomatoes, kamias granita, basil oil, toasted pili nut crumb.',
-        price: '₱420',
-        category: 'starters',
-        dietary: ['vegetarian', 'vegan'],
-      },
-      {
-        id: 'roof-4',
-        name: 'Slow-Roast Lamb Belly',
-        description: 'Twelve-hour lamb belly, burnt eggplant purée, pickled mustard seed, jus.',
-        price: '₱1,450',
-        category: 'mains',
-        tag: 'Chef’s Special',
-      },
-      {
-        id: 'roof-5',
-        name: 'Seared Palawan Scallops',
-        description: 'Day-boat scallops, brown butter, cauliflower cream, calamansi beurre blanc.',
-        price: '₱1,280',
-        category: 'mains',
-        dietary: ['seafood'],
-      },
-      {
-        id: 'roof-6',
-        name: 'Kalabasa Gnocchi',
-        description: 'Squash gnocchi, sage brown butter, aged kesong puti, crisp malunggay.',
-        price: '₱780',
-        category: 'mains',
-        dietary: ['vegetarian'],
-      },
-      {
-        id: 'roof-7',
-        name: 'Calamansi Sorbet',
-        description: 'Sharp calamansi sorbet, basil syrup, candied zest.',
-        price: '₱280',
-        category: 'desserts',
-        dietary: ['vegetarian', 'vegan'],
-      },
-      {
-        id: 'roof-8',
-        name: 'Lambanog Negroni',
-        description: 'Coconut lambanog, Philippine bitter aperitivo, sweet vermouth, orange oil.',
-        price: '₱480',
-        category: 'drinks',
-        tag: 'Cocktail',
-        dietary: ['vegetarian', 'vegan'],
-      },
-    ],
-  },
 ];
 
 
@@ -4172,6 +3890,7 @@ RESTAURANTS.push(
     { id: 'tdr-1', name: 'Grilled Tanigue Steak', description: 'Spanish mackerel, calamansi butter, garlic rice.', price: '₱620', category: 'mains', dietary: ['seafood'] },
     { id: 'tdr-2', name: 'Chicken Inasal', description: 'Annatto-basted chicken, atchara, rice.', price: '₱480', category: 'mains' },
     { id: 'tdr-3', name: 'Ensaladang Talong', description: 'Charred eggplant, tomato, salted egg.', price: '₱280', category: 'starters', dietary: ['vegetarian'] },
+    { id: 'tdr-4', name: 'Laing', description: 'Taro leaves slow-cooked in coconut milk, chili.', price: '₱360', category: 'mains', dietary: ['vegetarian', 'vegan'] },
   ]),
   pilotVenue('si-senor', 'Si Señor', 'Restaurant & bar', '10:00 AM – 10:00 PM', 'Latin-inspired plates and drinks for long evenings.', 'clay', [
     { id: 'ss-1', name: 'Pork Belly Tacos', description: 'Three tacos, pickled onion, lime.', price: '₱420', category: 'mains' },
@@ -4203,11 +3922,14 @@ RESTAURANTS.push(
 /**
  * Whether a catalogue row exists at the hotel a stay is in.
  *
- * The fixtures hold one full catalogue, The Henry Manila's. Most of it is the
- * brand's -- an in-room menu, a pool bar, a rooftop -- and every Henry offers
- * it. A row tagged with a city (a café named for Manila, a Binondo crawl, a
- * Manila Bay cruise) exists only there, so a Cebu stay does not list it.
+ * The fixtures hold one catalogue, The Henry Resort Dumaguete's (the pilot).
+ * A row without a city is the brand's -- in-room dining, the pool bar, the
+ * spa, hotel services -- and every Henry offers it. A row tagged with a city
+ * exists only there, so a stay elsewhere does not list it.
  */
+/** The pilot resort's city: the catalogue's own venues are there. */
+export const PILOT_CITY = 'Dumaguete';
+
 export const offeredIn = (city: string) => (row: { id: string; city?: string }) => !row.city || row.city === city;
 
 /** "1 item", "3 items". */
@@ -4217,10 +3939,7 @@ export const SERVICES = [
   /* Dining -- the venues themselves live in RESTAURANTS; these are the rows
      the Home rail and cross-category search read. */
   { id: 'dining', name: 'In-room dining', category: 'Dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱450', cutoff: '2-hour cancellation cutoff', tone: 'sand' },
-  { id: 'restaurant', name: 'Apartment 1B', city: 'Manila', category: 'Restaurant & bar', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱550', cutoff: '2-hour cancellation cutoff', tone: 'clay' },
   { id: 'poolside-bar', name: 'The Poolside Bar & Lounge', category: 'Bar & Lounge', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱350', cutoff: 'Walk-in & lounge', tone: 'clay' },
-  { id: 'cafe', name: 'Kape Manila Café', city: 'Manila', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
-  { id: 'rooftop', name: 'Azotea Rooftop', city: 'Manila', category: 'Fine dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱1,200', cutoff: '24-hour cancellation cutoff', tone: 'clay' },
   /* The Henry Resort Dumaguete's restaurants and cafés: partners on the
      resort, tables free to hold. Their venue pages are in RESTAURANTS. */
   { id: 'the-dining-room', name: 'The Dining Room', city: 'Dumaguete', category: 'Restaurant', categoryId: 'dining', operator: 'Partner on property', price: 'Free to reserve', cutoff: 'Table reservation', tone: 'clay' },
@@ -4232,28 +3951,27 @@ export const SERVICES = [
 
   /* Spa & wellness */
   { id: 'spa', name: 'Hilom signature massage', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,400', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
-  { id: 'scrub', name: 'Herbal body scrub & wrap', city: 'Manila', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,800', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
-  { id: 'hot-stone', name: 'Hot stone therapy', city: 'Manila', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱3,200', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
+  { id: 'scrub', name: 'Herbal body scrub & wrap', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,800', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
+  { id: 'hot-stone', name: 'Hot stone therapy', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱3,200', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'couples-massage', name: 'Couples massage suite', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱4,600', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'reflexology', name: 'Express foot reflexology', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱1,200', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
   { id: 'facial', name: 'Calamansi brightening facial', category: 'Facial & skin', categoryId: 'spa', operator: 'Third-party on property', price: '₱1,950', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   /* The resort's own class: instant, charged as the guest confirms. */
   { id: 'yoga-class', name: 'Sunrise yoga', city: 'Dumaguete', category: 'Movement', categoryId: 'spa', operator: 'Hotel operated', price: '₱500', cutoff: '12-hour cancellation cutoff', tone: 'sage' },
   { id: 'mani-pedi', name: 'Manicure & pedicure', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱900', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
-  { id: 'barber', name: 'Barber & blow-dry bar', city: 'Manila', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱1,100', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
+  { id: 'barber', name: 'Barber & blow-dry bar', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱1,100', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
 
   /* Entertainment & tours */
-  { id: 'tour', name: 'Island day tour', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱3,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'tour', name: 'Bais dolphin watching', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱2,200', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   /* Dumaguete. The boat trip waits for the (simulated) partner boat operator
      to confirm; the walking tour is the resort's own and instant. */
   { id: 'apo-island-trip', name: 'Apo Island boat trip', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱1,600', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   { id: 'walking-tour', name: 'Dumaguete walking tour', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱800', cutoff: '12-hour cancellation cutoff', tone: 'sun' },
-  { id: 'heritage-walk', name: 'Old Manila cultural walk', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱1,500', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
-  { id: 'food-crawl', name: 'Binondo food crawl', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱2,200', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
-  { id: 'sunset-cruise', name: 'Manila Bay sunset cruise', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱2,600', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'food-crawl', name: 'Dumaguete food crawl', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱1,400', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'sunset-cruise', name: 'Rizal Boulevard sunset boat', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱1,200', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   { id: 'diving', name: 'Discover scuba dive', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱3,500', cutoff: '48-hour cancellation cutoff', tone: 'sun' },
-  { id: 'museum-pass', name: 'Museum & gallery pass', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱850', cutoff: 'Same-day service', tone: 'sun' },
-  { id: 'cooking-class', name: 'Filipino cooking class', city: 'Manila', category: 'Workshops', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱1,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'museum-pass', name: 'Silliman anthropology museum pass', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱300', cutoff: 'Same-day service', tone: 'sun' },
+  { id: 'cooking-class', name: 'Negrense cooking class', city: 'Dumaguete', category: 'Workshops', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱1,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   { id: 'music', name: 'Sunset acoustic sessions', category: 'Live entertainment', categoryId: 'entertainment', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Friday–Sunday · 6 PM', tone: 'sun' },
   { id: 'film-night', name: 'Poolside film night', category: 'Live entertainment', categoryId: 'entertainment', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Saturday · 8 PM', tone: 'sun' },
 
@@ -4267,12 +3985,8 @@ export const SERVICES = [
      the pilot set; the scooter up to 2 hours, and needs a licence at pickup. */
   { id: 'bike-rental', name: 'Bike rental', city: 'Dumaguete', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱450 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
   { id: 'scooter-rental', name: 'Scooter · 125cc', city: 'Dumaguete', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱800 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
-  { id: 'rental', name: 'City bicycle', city: 'Manila', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
-  { id: 'e-bike', name: 'E-bike', city: 'Manila', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱600 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
-  { id: 'scooter', name: 'Scooter · 125cc', city: 'Manila', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱900 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
-  { id: 'motorcycle', name: 'Motorcycle · 150cc', city: 'Manila', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱1,500 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
-  { id: 'car-rental', name: 'Compact car · self-drive', city: 'Manila', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱2,800 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
-  { id: 'suv-rental', name: 'SUV · 7 seats, self-drive', city: 'Manila', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱4,200 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'car-rental', name: 'Compact car · self-drive', city: 'Dumaguete', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱2,500 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'suv-rental', name: 'Van · 10 seats, with driver', city: 'Dumaguete', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱4,500 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
   { id: 'laundry', name: 'Express laundry & pressing', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'From ₱250', cutoff: 'Same-day service', tone: 'blue' },
   { id: 'luggage', name: 'Luggage storage & delivery', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Same-day service', tone: 'blue' },
   { id: 'celebration', name: 'Flowers & celebration setup', category: 'Hotel services', categoryId: 'services', operator: 'Curated guide', price: 'From ₱1,600', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
@@ -4366,10 +4080,10 @@ export function filterServices<T extends { operator: string; category: string; p
  */
 export const LISTING_SUBCATEGORIES: Record<MiniAppCategoryId, ReadonlyArray<{ label: string; ids: readonly string[] }>> = {
   dining: [
-    { label: 'Breakfast & Brunch', ids: ['apartment-1b', 'dining', 'cafe', 'noelles-brunch-bar', 'coffee-collective'] },
-    { label: 'Filipino & International', ids: ['dining', 'rooftop', 'apartment-1b', 'the-dining-room', 'popolo-pizzeria', 'the-red-kitchen'] },
-    { label: 'Bars & Lounges', ids: ['poolside-bar', 'apartment-1b', 'rooftop', 'si-senor'] },
-    { label: 'Desserts & Café', ids: ['cafe', 'coffee-collective'] },
+    { label: 'Breakfast & Brunch', ids: ['dining', 'noelles-brunch-bar', 'coffee-collective'] },
+    { label: 'Filipino & International', ids: ['dining', 'the-dining-room', 'popolo-pizzeria', 'the-red-kitchen'] },
+    { label: 'Bars & Lounges', ids: ['poolside-bar', 'si-senor'] },
+    { label: 'Desserts & Café', ids: ['coffee-collective'] },
   ],
   spa: [
     { label: 'Massage', ids: ['spa', 'hot-stone', 'couples-massage', 'reflexology'] },
@@ -4378,15 +4092,14 @@ export const LISTING_SUBCATEGORIES: Record<MiniAppCategoryId, ReadonlyArray<{ la
     { label: 'Mind & Movement', ids: ['yoga-class'] },
   ],
   entertainment: [
-    { label: 'Manila Highlights', ids: ['heritage-walk', 'food-crawl', 'sunset-cruise', 'museum-pass'] },
-    { label: 'Culture & Heritage', ids: ['heritage-walk', 'food-crawl', 'museum-pass', 'cooking-class', 'walking-tour'] },
-    { label: 'Dumaguete Highlights', ids: ['apo-island-trip', 'walking-tour'] },
-    { label: 'Islands & Marine Life', ids: ['tour', 'diving', 'apo-island-trip'] },
-    { label: 'Day Trips', ids: ['tour', 'apo-island-trip'] },
+    { label: 'Dumaguete Highlights', ids: ['apo-island-trip', 'walking-tour', 'food-crawl', 'museum-pass'] },
+    { label: 'Culture & Heritage', ids: ['walking-tour', 'food-crawl', 'museum-pass', 'cooking-class'] },
+    { label: 'Islands & Marine Life', ids: ['apo-island-trip', 'tour', 'diving', 'sunset-cruise'] },
+    { label: 'Day Trips', ids: ['apo-island-trip', 'tour'] },
     { label: 'Live Entertainment', ids: ['music', 'film-night'] },
   ],
   rentals: [
-    { label: 'Two wheels', ids: ['rental', 'e-bike', 'scooter', 'motorcycle', 'bike-rental', 'scooter-rental'] },
+    { label: 'Two wheels', ids: ['bike-rental', 'scooter-rental'] },
     { label: 'Cars', ids: ['car-rental', 'suv-rental'] },
   ],
   services: [
@@ -4419,20 +4132,14 @@ export const screenTitle = (id: ScreenId) => SCREENS.find((item) => item.id === 
 /** What one rental is called: a bike, a scooter, a car. The pilot engine's cards and chat say it too. */
 export function rentalUnitFor(serviceId: string): { singular: string; plural: string } {
   switch (serviceId) {
-    case 'rental':
     case 'bike-rental':
       return { singular: 'bike', plural: 'bikes' };
-    case 'e-bike':
-      return { singular: 'e-bike', plural: 'e-bikes' };
-    case 'scooter':
     case 'scooter-rental':
       return { singular: 'scooter', plural: 'scooters' };
-    case 'motorcycle':
-      return { singular: 'motorcycle', plural: 'motorcycles' };
     case 'car-rental':
       return { singular: 'car', plural: 'cars' };
     case 'suv-rental':
-      return { singular: 'SUV', plural: 'SUVs' };
+      return { singular: 'van', plural: 'vans' };
     default:
       return { singular: 'rental', plural: 'rentals' };
   }

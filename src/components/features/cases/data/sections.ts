@@ -138,7 +138,7 @@ export const SECTIONS: Section[] = [
         items: [
           {
             title: "Two data sets",
-            text: "The app and the 80 scenarios now share the pilot property. The demo stay is Ana in Room 304 at The Henry Resort Dumaguete, and its Explore lists only what that resort has: the six restaurants and cafés, Cafe Sans Rival, the Apo Island boat, the bike shop and the resort's own activities, plus extra listings of each kind to stress-test the app (the Hilom spa, a scooter, the Poolside Bar, hotel services, and nearby partners and independents)."
+            text: "The app and the 80 scenarios now share the pilot property. The demo stay is Ana in Room 304 at The Henry Resort Dumaguete, and its Explore lists only what that resort has: the six restaurants and cafés, Cafe Sans Rival, the Apo Island boat, the bike shop and the resort's own activities, plus extra listings of each kind to stress-test the app: the Hilom spa, a scooter, a self-drive car and a van with driver, Bais dolphin watching, a sunset boat, a food crawl, a museum pass, a cooking class, the Poolside Bar, hotel services, and nearby partners and independents. The engine holds no Manila listings."
           },
           {
             title: "No vendor app, no desk app",

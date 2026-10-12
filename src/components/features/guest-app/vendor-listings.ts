@@ -22,12 +22,9 @@ export type VendorListing = {
   maxParty?: number;
 };
 
-/** A restaurant's id is not its catalogue id: the venue page is `apartment-1b`, its bookable row is `restaurant`. */
+/** A restaurant's venue id and its bookable catalogue row: the same for every venue today, kept as a map in case they part. */
 export const TABLE_VENUE_SERVICE_IDS: Record<string, string> = {
-  'apartment-1b': 'restaurant',
   'poolside-bar': 'poolside-bar',
-  cafe: 'cafe',
-  rooftop: 'rooftop',
   'the-dining-room': 'the-dining-room',
   'si-senor': 'si-senor',
   'popolo-pizzeria': 'popolo-pizzeria',
@@ -37,10 +34,7 @@ export const TABLE_VENUE_SERVICE_IDS: Record<string, string> = {
 };
 
 const LISTINGS: Record<string, VendorListing> = {
-  restaurant: { kind: 'reservation', times: ['7:00 AM', '8:30 AM', '12:00 PM', '1:30 PM', '6:00 PM', '7:30 PM', '9:00 PM'], maxParty: 10 },
   'poolside-bar': { kind: 'reservation', times: ['12:00 PM', '3:00 PM', '6:00 PM', '8:00 PM', '10:00 PM'], maxParty: 8 },
-  cafe: { kind: 'reservation', times: ['7:00 AM', '9:00 AM', '12:00 PM', '3:00 PM', '5:00 PM'], maxParty: 6 },
-  rooftop: { kind: 'reservation', times: ['6:00 PM', '7:30 PM', '9:00 PM', '10:30 PM'], maxParty: 8 },
   // The Henry Resort Dumaguete's restaurants: the times and party sizes the pilot set.
   'the-dining-room': { kind: 'reservation', times: ['12:00 PM', '6:00 PM', '7:00 PM', '8:00 PM'], maxParty: 10 },
   'si-senor': { kind: 'reservation', times: ['6:00 PM', '7:00 PM', '8:00 PM'], maxParty: 10 },
@@ -57,8 +51,6 @@ const LISTINGS: Record<string, VendorListing> = {
   'scooter-rental': { kind: 'booking', times: ['9:00 AM', '10:00 AM', '1:30 PM'], maxParty: 4 },
   // Partners nearby, publishing their own tables through the vendor app.
   'boulevard-seafood-grill': { kind: 'reservation', times: ['11:30 AM', '1:00 PM', '5:30 PM', '7:00 PM'], maxParty: 8 },
-  'bayleaf-kitchen': { kind: 'reservation', times: ['11:30 AM', '1:00 PM', '6:00 PM', '7:30 PM', '9:00 PM'], maxParty: 8 },
-  'sunset-roasters': { kind: 'reservation', times: ['8:00 AM', '10:00 AM', '12:00 PM', '3:00 PM', '5:00 PM'], maxParty: 6 },
 };
 
 export const listingFor = (serviceId: string): VendorListing => LISTINGS[serviceId] ?? { kind: 'booking', times: SERVICE_TIMES };

@@ -214,20 +214,20 @@ describe('guest app prototype model', () => {
   });
 
   it('calculates a venue cart from menu item quantities', () => {
-    const menu = RESTAURANTS[0]!.menu;
+    const menu = RESTAURANTS.find((venue) => venue.id === 'the-dining-room')!.menu;
     const summary = getVenueCartSummary(menu, {
-      'a1b-calamari': 2,
-      'a1b-ribeye': 1,
-      'a1b-1': 0,
+      'tdr-1': 2,
+      'tdr-2': 1,
+      'tdr-3': 0,
     });
 
     expect(parsePesoAmount('₱1,850')).toBe(1850);
     expect(summary.itemCount).toBe(3);
-    expect(summary.total).toBe(2810);
-    expect(summary.formattedTotal).toBe('₱2,810');
+    expect(summary.total).toBe(1720);
+    expect(summary.formattedTotal).toBe('₱1,720');
     expect(summary.items).toEqual([
-      expect.objectContaining({ id: 'a1b-calamari', quantity: 2 }),
-      expect.objectContaining({ id: 'a1b-ribeye', quantity: 1 }),
+      expect.objectContaining({ id: 'tdr-1', quantity: 2 }),
+      expect.objectContaining({ id: 'tdr-2', quantity: 1 }),
     ]);
   });
 });
@@ -424,7 +424,7 @@ describe('mini-app categories and restaurant menus', () => {
 });
 
 describe('listing controls', () => {
-  const menu = RESTAURANTS[0]!.menu;
+  const menu = RESTAURANTS.find((venue) => venue.id === 'the-dining-room')!.menu;
 
   it('derives dietary facets from the menu, so no pill can match nothing', () => {
     expect(availableDietaryTags(menu)).toEqual(['vegetarian', 'vegan', 'seafood']);

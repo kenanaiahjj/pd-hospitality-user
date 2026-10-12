@@ -43,7 +43,7 @@ const opensAt = (range: string) => parseClockTime(range.split(/[–-]/)[0]!.trim
 const closesAt = (range: string) => { const hour = parseClockTime(range.split(/[–-]/)[1]?.trim() ?? '10:00 PM').hour; return hour === 0 ? 24 : hour; };
 
 /** Services that wait for the operator to say yes, besides every rental: boat and island trips, and outside guides. */
-const CONFIRM_FIRST_SERVICES = new Set(['tour', 'sunset-cruise', 'sunset-bay-cruises', 'manila-heritage-walks', 'apo-island-trip', 'casaroro-falls-guide']);
+const CONFIRM_FIRST_SERVICES = new Set(['tour', 'sunset-cruise', 'apo-island-trip', 'casaroro-falls-guide']);
 /** Not bookings: rides have their own flow, and an in-room dining order is a chat order. */
 const NOT_BOOKABLE_HERE = new Set(['dining', 'transfer', 'private-car']);
 

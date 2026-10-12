@@ -38,6 +38,21 @@ const HOTEL_POSITIONS: Record<string, LatLng> = {
   "280 m away" on the card and the pin on the map say the same thing.
 */
 const PLACE_DIRECTIONS: Record<string, LatLng> = {
+  'kape-lab-manila': [14.5700, 120.9830],
+  'bayleaf-kitchen': [14.5755, 120.9800],
+  'sunset-roasters': [14.5650, 120.9850],
+  'hilot-house': [14.5700, 120.9860],
+  'bamboo-wellness': [14.5745, 120.9890],
+  'quiet-corner-yoga': [14.5710, 120.9930],
+  'manila-heritage-walks': [14.5915, 120.9737],
+  'sunset-bay-cruises': [14.5530, 120.9830],
+  'intramuros-cycling': [14.5890, 120.9750],
+  'escolta-craft-market': [14.5985, 120.9780],
+  'manila-laundry-co': [14.5520, 120.9960],
+  'city-bike-rentals': [14.5720, 120.9820],
+  'manila-makers-market': [14.5982, 120.9790],
+  'binondo-pasalubong': [14.6010, 120.9745],
+  'artisan-home-studio': [14.5978, 120.9800],
   'boulevard-seafood-grill': [9.3080, 123.3090],
   'silliman-avenue-cafe': [9.3110, 123.3060],
   'hilot-studio-daro': [9.3250, 123.2990],

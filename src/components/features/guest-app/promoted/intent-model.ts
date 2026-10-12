@@ -38,9 +38,9 @@ export type Intent = {
 };
 
 /*
-  Picks from the resort's catalogue. The answer keeps the first three this
-  hotel actually has (see `resolveIntent`), so a stay elsewhere is only
-  offered the brand's own services.
+  Picks for both hotels in the catalogue, the resort's first. The answer keeps
+  the first three this hotel actually has (see `resolveIntent`), so a
+  Dumaguete guest never gets Manila Bay and the other way round.
 */
 export const INTENTS: Intent[] = [
   {
@@ -52,6 +52,8 @@ export const INTENTS: Intent[] = [
       { id: 'si-senor', why: 'On the resort, tables from 6 PM' },
       { id: 'the-dining-room', why: 'The main restaurant, open until 10 PM' },
       { id: 'the-red-kitchen', why: 'Dinner only, sittings at 6 and 7 PM' },
+      { id: 'apartment-1b', why: 'Downstairs, no booking needed' },
+      { id: 'rooftop', why: 'Ninth floor — worth the lift for the view' },
       { id: 'poolside-bar', why: 'Lightest option, walk in' },
     ],
   },
@@ -63,6 +65,7 @@ export const INTENTS: Intent[] = [
     picks: [
       { id: 'spa', why: '90 minutes, and you never step outside' },
       { id: 'cooking-class', why: 'Negrense classics, in the resort kitchen' },
+      { id: 'manila-cooking-class', why: 'Filipino classics, hotel kitchen' },
       { id: 'facial', why: 'Shorter, if you want the afternoon back' },
       { id: 'mani-pedi', why: 'An hour, and you stay dry' },
     ],
@@ -87,6 +90,7 @@ export const INTENTS: Intent[] = [
       { id: 'film-night', why: 'Poolside, Saturdays, complimentary' },
       { id: 'popolo-pizzeria', why: 'Pizza works for everyone' },
       { id: 'museum-pass', why: 'Silliman’s anthropology museum, ten minutes away' },
+      { id: 'manila-museum-pass', why: 'Ten minutes away, good for a morning' },
       { id: 'babysitting', why: 'If you want dinner without them' },
     ],
   },
@@ -98,6 +102,7 @@ export const INTENTS: Intent[] = [
     picks: [
       { id: 'meeting-room', why: 'Bookable by the half day' },
       { id: 'coffee-collective', why: 'On the resort, open from 7 AM' },
+      { id: 'cafe', why: 'Lobby level, open from 6 AM' },
       { id: 'laundry', why: 'Same-day, so tomorrow is handled' },
     ],
   },
@@ -111,17 +116,21 @@ export const INTENTS: Intent[] = [
       { id: 'couples-massage', why: 'The suite takes two' },
       { id: 'spa', why: 'Book two side by side' },
       { id: 'si-senor', why: 'Reserve a table for the evening' },
+      { id: 'rooftop', why: 'Book the terrace before 6 PM' },
     ],
   },
   {
     id: 'first-time',
     prompt: 'First time here',
-    cues: ['dumaguete', 'city', 'explore', 'tour', 'sightsee', 'first time', 'local'],
+    cues: ['dumaguete', 'manila', 'city', 'explore', 'tour', 'sightsee', 'first time', 'local'],
     answer: 'Start on foot, then get on the water.',
     picks: [
       { id: 'walking-tour', why: 'Rizal Boulevard and the old town, with the resort’s own guide' },
       { id: 'apo-island-trip', why: 'Turtles and reef, by boat — the operator confirms first' },
       { id: 'diving', why: 'A first dive, no certificate needed' },
+      { id: 'heritage-walk', why: 'Old Manila, guided, half a day' },
+      { id: 'binondo-food-crawl', why: 'Binondo — the oldest Chinatown anywhere' },
+      { id: 'manila-sunset-cruise', why: 'Manila Bay, and the sunset is the point' },
     ],
   },
 ];

@@ -22,6 +22,9 @@ import { PROPERTY_IMAGE, storyImage } from './story-imagery';
 type TagsWithoutId = Omit<FeedTags, 'itemId' | 'category'>;
 
 const RESTAURANT_TAGS: Record<string, TagsWithoutId> = {
+  'apartment-1b': { dayparts: ['morning', 'evening'] },
+  cafe: { dayparts: ['morning'] },
+  rooftop: { dayparts: ['evening'], fits: 'couple', whenLabel: 'Tonight · 7:30 PM' },
   dining: { dayparts: ['late'], whenLabel: 'Still open late · to your room' },
   'poolside-bar': { dayparts: ['afternoon', 'evening'] },
   'the-dining-room': { dayparts: ['afternoon', 'evening'] },
@@ -46,6 +49,18 @@ const SERVICE_TAGS: Record<string, TagsWithoutId> = {
   'sunset-cruise': { dayparts: ['afternoon'], fits: 'couple', whenLabel: 'Sunset · 5:30 PM' },
   diving: { phases: ['mid-stay'], dayparts: ['morning'] },
   // Mid-stay, never ahead of breakfast: the afternoon boat is the one a morning reel would push.
+  'manila-island-tour': { phases: ['mid-stay'], dayparts: ['morning'] },
+  'heritage-walk': { phases: ['mid-stay'], dayparts: ['morning'] },
+  'binondo-food-crawl': { dayparts: ['afternoon'], follows: ['heritage-walk'] },
+  'manila-sunset-cruise': { dayparts: ['afternoon'], fits: 'couple', whenLabel: 'Sunset · 5:30 PM' },
+  'manila-museum-pass': { dayparts: ['afternoon'] },
+  'manila-cooking-class': { phases: ['mid-stay'], fits: 'family' },
+  rental: { phases: ['mid-stay'] },
+  'e-bike': { phases: ['mid-stay'], dayparts: ['morning'] },
+  scooter: { onlyIn: ['arrival-day', 'first-night', 'mid-stay'] },
+  motorcycle: { phases: ['mid-stay'] },
+  'manila-car-rental': { phases: ['mid-stay'], onlyIn: ['arrival-day', 'first-night', 'mid-stay'] },
+  'manila-suv-rental': { phases: ['mid-stay'], fits: 'group', onlyIn: ['arrival-day', 'first-night', 'mid-stay'] },
   'apo-island-trip': { phases: ['mid-stay'], dayparts: ['afternoon'], whenLabel: 'Boats at 7:30 AM and 1:30 PM' },
   'walking-tour': { phases: ['mid-stay'], dayparts: ['morning'], whenLabel: 'Tomorrow · 8:00 AM' },
   'yoga-class': { dayparts: ['morning', 'evening'], whenLabel: 'Tomorrow · 6:30 AM' },
@@ -91,6 +106,8 @@ type Moment = {
   tags: FeedTags;
   action: FeedAction;
   postedHoursAgo: number;
+  /** Only at this hotel: a moment about its own venues. */
+  city?: string;
 };
 
 const MOMENTS: Moment[] = [
@@ -121,6 +138,7 @@ const MOMENTS: Moment[] = [
     tags: { itemId: 'moment-breakfast', category: 'dining', phases: ['mid-stay'], dayparts: ['morning'], whenLabel: 'This morning · until 3:00 PM' },
     action: { kind: 'item', id: 'noelles-brunch-bar' },
     postedHoursAgo: 2.5,
+    city: 'Dumaguete',
   },
   {
     id: 'moment-pasalubong',
@@ -135,6 +153,37 @@ const MOMENTS: Moment[] = [
     tags: { itemId: 'moment-pasalubong', category: 'gifts', phases: ['last-day', 'checkout-day'], dayparts: ['morning', 'afternoon'] },
     action: { kind: 'screen', screen: 'gifts-souvenirs' },
     postedHoursAgo: 3,
+    city: 'Dumaguete',
+  },
+  {
+    id: 'moment-breakfast',
+    title: 'Breakfast in the courtyard',
+    subtitle: 'Apartment 1B',
+    price: 'From ₱650',
+    cta: 'See the menu',
+    slides: [
+      { headline: 'Breakfast is on', detail: 'Artisan breakfast in the garden until 10:30.', image: storyImage('apartment-1b') },
+      { headline: 'Or at the café', detail: 'Kape Manila opens at 6:00 AM.', image: storyImage('cafe') },
+    ],
+    tags: { itemId: 'moment-breakfast', category: 'dining', phases: ['mid-stay'], dayparts: ['morning'], whenLabel: 'This morning · until 10:30' },
+    action: { kind: 'item', id: 'apartment-1b' },
+    postedHoursAgo: 2.5,
+    city: 'Manila',
+  },
+  {
+    id: 'moment-pasalubong',
+    title: 'Pasalubong to take home',
+    subtitle: 'The Lobby Shop',
+    price: 'From ₱280',
+    cta: 'Browse the shop',
+    slides: [
+      { headline: 'Something for home', detail: 'Dried mango, cacao and local coffee.', image: remote('photo-1606313564200-e75d5e30476c', 'Treats to take home') },
+      { headline: 'Made here', detail: 'Handwoven totes and ceramic keepsakes.', image: remote('photo-1594223274512-ad4803739b7c', 'Handwoven market tote') },
+    ],
+    tags: { itemId: 'moment-pasalubong', category: 'gifts', phases: ['last-day', 'checkout-day'], dayparts: ['morning', 'afternoon'] },
+    action: { kind: 'screen', screen: 'gifts-souvenirs' },
+    postedHoursAgo: 3,
+    city: 'Manila',
   },
   {
     id: 'moment-transfer-home',
@@ -164,9 +213,6 @@ const MOMENTS: Moment[] = [
     postedHoursAgo: 6,
   },
 ];
-
-/** Moments that name the resort's own venues. */
-const RESORT_MOMENTS = new Set(['moment-breakfast', 'moment-pasalubong']);
 
 const momentStory = (moment: Moment, property?: string): Story => ({
   id: moment.id,
@@ -219,6 +265,10 @@ export function nearbyStory(place: NearbyStoryInput): Story {
  * venues and services and the moments about them. The hotel's own posts sign
  * with `property`.
  */
+/** A post the hotel makes in its own voice signs with the stay's hotel, Manila or Dumaguete. */
+const signedHere = (story: Story, property?: string): Story =>
+  property && story.author.kind === 'property' ? { ...story, author: { ...story.author, name: property } } : story;
+
 export function buildFeedCandidates(input: { nearby: NearbyStoryInput[]; city?: string; property?: string }): FeedCandidate[] {
   const here = input.city ? offeredIn(input.city) : () => true;
   const venues: FeedCandidate[] = RESTAURANTS.filter(here).map((venue) => ({
@@ -230,14 +280,14 @@ export function buildFeedCandidates(input: { nearby: NearbyStoryInput[]; city?: 
     .filter(here)
     .filter((service) => service.categoryId === 'spa' || service.categoryId === 'entertainment' || service.categoryId === 'rentals')
     .map((service) => ({
-      story: stills(serviceStory(service)),
+      story: signedHere(stills(serviceStory(service)), input.property),
       tags: { itemId: service.id, category: service.categoryId as FeedTags['category'], ...SERVICE_TAGS[service.id] },
       action: { kind: 'item', id: service.id },
     }));
-  // The moments speak about the resort's own venues: only a stay there gets them.
-  const resortMoments = !input.city || input.city === PILOT_CITY;
+  // A moment about one hotel's venues shows only there; without a city, the resort's.
+  const city = input.city ?? PILOT_CITY;
   const moments: FeedCandidate[] = MOMENTS
-    .filter((moment) => resortMoments || !RESORT_MOMENTS.has(moment.id))
+    .filter((moment) => !moment.city || moment.city === city)
     .map((moment) => ({ story: momentStory(moment, input.property), tags: moment.tags, action: moment.action }));
   const nearby: FeedCandidate[] = input.nearby.map((place) => ({
     story: nearbyStory(place),

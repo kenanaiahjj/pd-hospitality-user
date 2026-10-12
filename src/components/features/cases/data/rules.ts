@@ -776,7 +776,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "APP-8",
-        text: "The app and the scenarios share the pilot property. The demo stay is Ana in Room 304 at The Henry Resort Dumaguete. Its Explore holds one of every kind of listing: partner tables, Sans Rival goods, a confirm-first boat and bikes, instant resort activities, a pay-now spa, hotel services, nearby partners and call-to-reserve independents. The engine and Explore hold no Manila listings any more. Manila and Cebu remain only as Ana's past stays and as hotels to book.",
+        text: "The app and the scenarios share the pilot property. The demo stay is Ana in Room 304 at The Henry Resort Dumaguete. Its Explore holds one of every kind of listing: partner tables, Sans Rival goods, a confirm-first boat and bikes, instant resort activities, a pay-now spa, hotel services, nearby partners and call-to-reserve independents. A stay booked at The Henry Manila gets its own mock catalogue (Apartment 1B, Azotea, the Sakay rentals, Manila tours and 15 nearby places), shown only for a Manila stay; the two never mix.",
         from: "App",
         status: "Built",
         drawn: "Pilot"

@@ -81,6 +81,17 @@ export const STORY_IMAGERY: Record<string, ServiceImageDefinition> = {
     .map((id) => [id, getItemCardImage(id, 'rentals')])),
 };
 
+/* The Henry Manila's own listings share their twin's photograph. */
+for (const [manila, twin] of Object.entries({
+  'manila-island-tour': 'tour',
+  'binondo-food-crawl': 'food-crawl',
+  'manila-sunset-cruise': 'sunset-cruise',
+  'manila-museum-pass': 'museum-pass',
+  'manila-cooking-class': 'cooking-class',
+  'manila-car-rental': 'car-rental',
+  'manila-suv-rental': 'suv-rental',
+})) STORY_IMAGERY[manila] = STORY_IMAGERY[twin] ?? STORY_IMAGERY.tour!;
+
 /* The property itself. Also the fallback, because a shot of the hotel is the
    one picture that is never wrong for something on it. */
 export const PROPERTY_IMAGE = shot('photo-1566073771259-6a8506099945', 'The property at dusk');

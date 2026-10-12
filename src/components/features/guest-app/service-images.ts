@@ -569,8 +569,19 @@ const BORROWED_RENTALS: Record<string, { from: string; alt: string }> = {
   'bike-rental': { from: 'rental', alt: 'A bicycle ready to ride' },
   'scooter-rental': { from: 'scooter', alt: 'A scooter parked by the road' },
 };
+/** The Manila listings that share an id-less photo with their Dumaguete twin. */
+const MANILA_TWINS: Record<string, string> = {
+  'manila-island-tour': 'tour',
+  'binondo-food-crawl': 'food-crawl',
+  'manila-sunset-cruise': 'sunset-cruise',
+  'manila-museum-pass': 'museum-pass',
+  'manila-cooking-class': 'cooking-class',
+  'manila-car-rental': 'car-rental',
+  'manila-suv-rental': 'suv-rental',
+};
 const borrowed = (map: Record<string, ServiceImageDefinition>, id: string): ServiceImageDefinition | undefined => {
   if (DUMAGUETE_IMAGES[id]) return DUMAGUETE_IMAGES[id];
+  if (MANILA_TWINS[id]) return map[MANILA_TWINS[id]];
   const entry = BORROWED_RENTALS[id];
   const image = entry ? map[entry.from] : undefined;
   return entry && image ? { ...image, alt: entry.alt } : undefined;

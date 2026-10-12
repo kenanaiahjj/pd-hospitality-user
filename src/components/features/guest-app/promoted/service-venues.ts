@@ -92,6 +92,39 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     operates: ['car-rental', 'suv-rental'],
     image: PROPERTY_IMAGE,
   },
+  // The Henry Manila's partners (mock): they run its own listings.
+  {
+    id: 'lakbay-tours',
+    name: 'Lakbay Island Tours',
+    location: 'Tour desk, lobby',
+    kind: 'venue',
+    operates: ['manila-island-tour', 'manila-sunset-cruise'],
+    image: storyImage('tour'),
+  },
+  {
+    id: 'sakay-rentals',
+    name: 'Sakay Rentals',
+    location: 'Driveway, ground floor',
+    kind: 'venue',
+    operates: ['scooter', 'motorcycle', 'e-bike', 'rental'],
+    image: storyImage('food-crawl'),
+  },
+  {
+    id: 'kalye-walks',
+    name: 'Kalye Manila Walks',
+    location: 'Meets at the lobby doors',
+    kind: 'venue',
+    operates: ['heritage-walk', 'binondo-food-crawl', 'manila-museum-pass'],
+    image: storyImage('heritage-walk'),
+  },
+  {
+    id: 'byahe-car-rental',
+    name: 'Byahe Car Rental',
+    location: 'Driveway, ground floor',
+    kind: 'venue',
+    operates: ['manila-car-rental', 'manila-suv-rental'],
+    image: PROPERTY_IMAGE,
+  },
   {
     id: 'bantay-care',
     name: 'Bantay Care',
@@ -122,7 +155,7 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     kind: 'property',
     operates: [
       // The resort's own activities: instant, charged as the guest confirms.
-      'yoga-class', 'walking-tour', 'diving',
+      'yoga-class', 'walking-tour', 'diving', 'manila-cooking-class',
       'cooking-class', 'music', 'film-night',
       'transfer', 'private-car', 'laundry', 'luggage',
       'trainer', 'meeting-room', 'gym', 'pool', 'business-centre',
@@ -160,6 +193,7 @@ const SERVICE_SPOTS: Record<string, string> = {
   diving: 'Dive centre, by the jetty',
   music: 'Lobby lounge',
   'cooking-class': 'Resort kitchen',
+  'manila-cooking-class': 'Apartment 1B kitchen',
   reflexology: 'Hilom Spa, garden wing',
   trainer: 'Fitness centre',
   gym: 'Fitness centre',

@@ -69,6 +69,20 @@ const STORY_FRAMES: Record<string, string[]> = {
   'apo-island-trip': ['apo-island-trip', 'sunset-cruise'],
   'walking-tour': ['walking-tour', 'food-crawl'],
   'yoga-class': ['yoga-class', 'spa'],
+  'apartment-1b': ['apartment-1b', 'dining', 'cafe'],
+  cafe: ['cafe', 'dining', 'apartment-1b'],
+  rooftop: ['rooftop', 'poolside-bar', 'dining'],
+  'heritage-walk': ['heritage-walk', 'food-crawl', 'tour'],
+  'manila-island-tour': ['tour', 'sunset-cruise', 'heritage-walk'],
+  'binondo-food-crawl': ['food-crawl', 'heritage-walk', 'cafe'],
+  'manila-sunset-cruise': ['sunset-cruise', 'tour', 'food-crawl'],
+  'manila-museum-pass': ['heritage-walk', 'tour', 'food-crawl'],
+  rental: ['rental', 'e-bike'],
+  'e-bike': ['e-bike', 'rental'],
+  scooter: ['scooter', 'motorcycle'],
+  motorcycle: ['motorcycle', 'scooter'],
+  'manila-car-rental': ['car-rental', 'suv-rental'],
+  'manila-suv-rental': ['suv-rental', 'car-rental'],
   'bike-rental': ['bike-rental', 'e-bike'],
   'scooter-rental': ['scooter-rental', 'motorcycle'],
 };
@@ -182,6 +196,14 @@ const POSTED_HOURS_AGO: Record<string, number> = {
   tour: 19,
   'food-crawl': 22.5,
   'sunset-cruise': 30,
+  'apartment-1b': 9,
+  rooftop: 2,
+  cafe: 21,
+  'heritage-walk': 18,
+  'manila-island-tour': 19,
+  'binondo-food-crawl': 22.5,
+  'manila-museum-pass': 15,
+  'manila-sunset-cruise': 30,
   'si-senor': 1.2,
   'the-dining-room': 3.5,
   'noelles-brunch-bar': 4.5,
@@ -354,7 +376,7 @@ export function describeCancellation(cutoff: string): string {
 }
 
 /** Everything a guest can search for; with a city, only what that hotel has. */
-export function buildSearchIndex(city?: string): SearchableItem[] {
+export function buildSearchIndex(city?: string, property?: string): SearchableItem[] {
   const here = city ? offeredIn(city) : () => true;
   return [
     ...RESTAURANTS.filter(here).map((venue) => ({
@@ -373,7 +395,9 @@ export function buildSearchIndex(city?: string): SearchableItem[] {
     })),
     // A restaurant's own row is the venue above; its catalogue twin would list it twice.
     ...SERVICES.filter(here).filter((service) => !RESTAURANTS.some((venue) => venue.id === service.id)).map((service) => {
-      const house = venueForService(service.id);
+      const account = venueForService(service.id);
+      // The hotel's own services sign with the stay's hotel, not the resort the house account is named for.
+      const house = property && account.kind === 'property' ? { ...account, name: property } : account;
       return {
         id: service.id,
         title: service.name,

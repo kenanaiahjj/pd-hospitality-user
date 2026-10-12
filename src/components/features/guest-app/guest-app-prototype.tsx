@@ -395,9 +395,10 @@ const SCAN_DETECT_MS = 2000;
 
 /** Each hotel's own search index, built once per city. */
 const SEARCH_INDEXES = new Map<string, ReturnType<typeof buildSearchIndex>>();
-const searchIndexFor = (city: string) => {
-  if (!SEARCH_INDEXES.has(city)) SEARCH_INDEXES.set(city, buildSearchIndex(city));
-  return SEARCH_INDEXES.get(city)!;
+const searchIndexFor = (city: string, property: string) => {
+  const key = `${city}|${property}`;
+  if (!SEARCH_INDEXES.has(key)) SEARCH_INDEXES.set(key, buildSearchIndex(city, property));
+  return SEARCH_INDEXES.get(key)!;
 };
 
 /** One line under each arrival card, in the guest's terms. */
@@ -4991,7 +4992,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {feedSheet === 'browse' ? (
               <BrowseSheet
                 categories={BROWSE_CATEGORIES}
-                index={searchIndexFor(contextBooking.city)}
+                index={searchIndexFor(contextBooking.city, contextBooking.property)}
                 recommendations={recommendedPicks(feedEntries, { limit: 4 })}
                 onOpenItem={(id) => { setFeedSheet(null); openExploreItem(id); }}
                 onOpenRecommendation={(entry) => runFeedAction(entry.action)}
@@ -5009,7 +5010,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <BrowseSheet
             variant="page"
             categories={BROWSE_CATEGORIES}
-            index={searchIndexFor(contextBooking.city)}
+            index={searchIndexFor(contextBooking.city, contextBooking.property)}
             recommendations={recommendedPicks(emptyCatalogue ? [] : stayFeed(contextBooking), { limit: 4 })}
             onOpenItem={(id) => openExploreItem(id)}
             onOpenRecommendation={(entry) => runFeedAction(entry.action)}

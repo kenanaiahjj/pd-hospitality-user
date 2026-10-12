@@ -2247,7 +2247,7 @@ describe('rentals', () => {
   it('finds rentals by the words a guest would type', async () => {
     const user = userEvent.setup();
     // Search lives in the Browse sheet.
-    render(<BrowseSheet categories={[]} index={buildSearchIndex()} onOpenItem={() => {}} onOpen={() => {}} onClose={() => {}} />);
+    render(<BrowseSheet categories={[]} index={buildSearchIndex('Dumaguete')} onOpenItem={() => {}} onOpen={() => {}} onClose={() => {}} />);
 
     const box = screen.getByRole('searchbox', { name: 'Search' });
     await user.type(box, 'motorbike');

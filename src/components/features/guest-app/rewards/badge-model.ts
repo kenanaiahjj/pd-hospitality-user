@@ -294,25 +294,19 @@ export const ARTWORK_READY: readonly string[] = [
   'venue-regular', 'venue-opener', 'menu-explorer',
 ];
 
-/*
-  `qualifyingIds` are what the catalogue sells today (the Dumaguete resort's).
-  `evidence` also counts ids from stays elsewhere -- Apartment 1B, a Manila
-  café, the Cebu rooftop -- because a past stay's history does not change
-  when the catalogue does.
-*/
 const DEFINITIONS: BadgeDefinition[] = [
   /* Taste — what the feed and story rail should lead with. */
   { id: 'foodie', name: 'Foodie', family: 'taste', threshold: 3, glyph: 'ForkKnife',
     requirement: 'Three meals booked',
-    qualifyingIds: ['dining', 'poolside-bar', 'the-dining-room', 'si-senor', 'popolo-pizzeria', 'the-red-kitchen', 'noelles-brunch-bar', 'coffee-collective'],
+    qualifyingIds: ['dining', 'poolside-bar', 'restaurant', 'cafe', 'rooftop', 'the-dining-room', 'si-senor', 'popolo-pizzeria', 'the-red-kitchen', 'noelles-brunch-bar', 'coffee-collective'],
     evidence: ofServices(['dining', 'restaurant', 'poolside-bar', 'cafe', 'rooftop', 'the-dining-room', 'si-senor', 'popolo-pizzeria', 'the-red-kitchen', 'noelles-brunch-bar', 'coffee-collective']) },
   { id: 'caffeine', name: 'Caffeine', family: 'taste', threshold: 3, glyph: 'Coffee',
-    requirement: 'Three visits to the café', qualifyingIds: ['coffee-collective'],
+    requirement: 'Three visits to the café', qualifyingIds: ['coffee-collective', 'cafe'],
     evidence: ofServices(['cafe', 'coffee-collective']) },
   { id: 'sundowner', name: 'Sundowner', family: 'taste', threshold: 3, glyph: 'Martini',
     requirement: 'Three evenings at a bar or rooftop',
-    qualifyingIds: ['poolside-bar', 'sunset-cruise', 'music', 'si-senor'],
-    evidence: ofServices(['poolside-bar', 'rooftop', 'sunset-cruise', 'music', 'si-senor']) },
+    qualifyingIds: ['poolside-bar', 'sunset-cruise', 'music', 'si-senor', 'rooftop', 'manila-sunset-cruise'],
+    evidence: ofServices(['poolside-bar', 'rooftop', 'sunset-cruise', 'music', 'si-senor', 'manila-sunset-cruise']) },
   { id: 'night-owl', name: 'Night owl', family: 'taste', threshold: 3, glyph: 'MoonStars',
     requirement: 'Three bookings after 7 PM', evidence: atHour((hour) => hour >= 19) },
   { id: 'early-riser', name: 'Early riser', family: 'taste', threshold: 3, glyph: 'SunHorizon',
@@ -322,8 +316,8 @@ const DEFINITIONS: BadgeDefinition[] = [
     evidence: ofServices(['dining']) },
   { id: 'homegrown', name: 'Homegrown', family: 'taste', threshold: 3, glyph: 'CookingPot',
     requirement: 'Three Filipino experiences',
-    qualifyingIds: ['food-crawl', 'cooking-class', 'walking-tour'],
-    evidence: ofServices(['food-crawl', 'cooking-class', 'heritage-walk', 'walking-tour']) },
+    qualifyingIds: ['food-crawl', 'cooking-class', 'walking-tour', 'heritage-walk', 'binondo-food-crawl', 'manila-cooking-class'],
+    evidence: ofServices(['food-crawl', 'cooking-class', 'heritage-walk', 'walking-tour', 'binondo-food-crawl', 'manila-cooking-class']) },
   { id: 'wellness', name: 'Wellness', family: 'taste', threshold: 3, glyph: 'Flower',
     requirement: 'Three spa treatments',
     qualifyingIds: ['spa', 'scrub', 'hot-stone', 'couples-massage', 'reflexology'],
@@ -343,16 +337,16 @@ const DEFINITIONS: BadgeDefinition[] = [
     evidence: ofServices(['trainer', 'yoga-class']) },
   { id: 'culture', name: 'Culture', family: 'taste', threshold: 2, glyph: 'Bank',
     requirement: 'Two museums or heritage walks',
-    qualifyingIds: ['museum-pass', 'walking-tour'],
-    evidence: ofServices(['heritage-walk', 'museum-pass', 'walking-tour']) },
+    qualifyingIds: ['museum-pass', 'walking-tour', 'heritage-walk', 'manila-museum-pass'],
+    evidence: ofServices(['heritage-walk', 'museum-pass', 'walking-tour', 'manila-museum-pass']) },
   { id: 'outdoors', name: 'Outdoors', family: 'taste', threshold: 3, glyph: 'Mountains',
     requirement: 'Three tours or activities',
-    qualifyingIds: ['tour', 'diving', 'sunset-cruise', 'apo-island-trip'],
-    evidence: ofServices(['tour', 'diving', 'sunset-cruise', 'apo-island-trip']) },
+    qualifyingIds: ['tour', 'diving', 'sunset-cruise', 'apo-island-trip', 'manila-island-tour', 'manila-sunset-cruise'],
+    evidence: ofServices(['tour', 'diving', 'sunset-cruise', 'apo-island-trip', 'manila-island-tour', 'manila-sunset-cruise']) },
   { id: 'sea-legs', name: 'Sea legs', family: 'taste', threshold: 3, glyph: 'Waves',
     requirement: 'Three days on or in the water',
-    qualifyingIds: ['sunset-cruise', 'diving', 'apo-island-trip'],
-    evidence: ofServices(['sunset-cruise', 'diving', 'apo-island-trip']) },
+    qualifyingIds: ['sunset-cruise', 'diving', 'apo-island-trip', 'manila-sunset-cruise'],
+    evidence: ofServices(['sunset-cruise', 'diving', 'apo-island-trip', 'manila-sunset-cruise']) },
   { id: 'maker', name: 'Maker', family: 'taste', threshold: 2, glyph: 'Hammer',
     requirement: 'Two workshops or classes', qualifyingIds: ['cooking-class'],
     evidence: ofServices(['cooking-class']) },

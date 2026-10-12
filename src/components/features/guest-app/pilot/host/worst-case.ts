@@ -20,6 +20,9 @@ export const WORST = {
   guestName: 'Aleksandra Wiśniewska-Kowalczyk',
   vendors: {
     'hilom-spa': 'Lá',
+    'sakay-rentals': 'Sakay Motorbike, Scooter & E-bike Rentals Manila',
+    'lakbay-tours': 'Lakbay Island Tours & Heritage Experiences Corp.',
+    'kalye-walks': 'Kalye Manila Walks — Intramuros, Binondo & Escolta',
     'partner-local-guide': 'Dumaguete Local Guides — Food Crawls, Museums & Old Town Walks',
     'partner-boat-operator': 'Apo Island & Twin Reefs Boat Operators Cooperative of Dauin',
     'partner-bike-shop': 'Bisikleta',

@@ -711,3 +711,6 @@
 
 /* A link in a bubble reads as one, at rest. */
 .guest-message__link { color: inherit; font-weight: 550; text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+
+/* A list row's trailing slot holding an unread count and the chevron together. */
+.pilot-row-end { display: inline-flex; align-items: center; gap: 8px; font-style: normal; }

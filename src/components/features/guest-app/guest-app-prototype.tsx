@@ -5414,7 +5414,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 // The hotel's own outlet: the front desk chat is where it talks.
                 <button type="button" className="guest-list-row" onClick={() => go('chat')}>
                   <span><ChatCircleDots /></span>
-                  <div><b>Message the front desk</b><small>This booking is in your chat with them.</small></div>
+                  <div><b>Message the front desk</b><small>To ask about or change this booking</small></div>
                   <CaretRight />
                 </button>
               ) : (
@@ -5917,46 +5917,65 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             </>
             )}
 
-            {/* The booking's chat with its vendor, one tap from the booking, once the vendor has committed. */}
-            {engineEntryHost && engineEntryBookingId && engineEntryHost.pilot.thread(engineEntryHost.pilot.booking(engineEntryBookingId).threadId, 'guest', false).ok ? (() => {
-              const entryVendor = engineEntryHost.pilot.vendors().find((v) => v.id === engineEntryHost.pilot.listing(engineEntryHost.pilot.booking(engineEntryBookingId).listingId).vendorId);
-              // The hotel's own outlet talks in the front desk chat.
-              return entryVendor?.hotel ? (
-                <button type="button" className="guest-list-row" onClick={() => go('chat')}>
+            {/*
+              One way to talk about this booking, decided by who it is with:
+              - a partner that has committed: their chat, with what is unread, and the desk as a quieter fallback;
+              - the hotel's own outlet: the front desk chat, once (it is where the outlet talks);
+              - a request still waiting: nothing here, the card's own Call and Ask the front desk say it;
+              - anything else: the front desk.
+            */}
+            {(() => {
+              const engineEntry = engineEntryHost && engineEntryBookingId ? engineEntryHost.pilot.booking(engineEntryBookingId) : undefined;
+              const entryVendor = engineEntry && engineEntryHost ? engineEntryHost.pilot.vendors().find((v) => v.id === engineEntryHost.pilot.listing(engineEntry.listingId).vendorId) : undefined;
+              const entryThread = engineEntry && engineEntryHost ? engineEntryHost.pilot.threads('guest', engineEntry.guestId).find((t) => t.id === engineEntry.threadId) : undefined;
+              const deskRow = (detail: string) => (
+                <button className="guest-list-row" onClick={() => go('chat')} type="button">
                   <span><ChatCircleDots /></span>
-                  <div><b>Message the front desk</b><small>This booking is in your chat with them</small></div>
-                  <CaretRight />
-                </button>
-              ) : (
-                <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineEntryHost.pilot.booking(engineEntryBookingId).threadId); go('booking-thread'); }}>
-                  <span><ChatCircleDots /></span>
-                  <div><b>Message {entryVendor?.name ?? 'the vendor'}</b><small>Your chat about this booking</small></div>
+                  <div><b>Ask the front desk</b><small>{detail}</small></div>
                   <CaretRight />
                 </button>
               );
-            })() : null}
-
-            {/*
-              Cancelling is an action on the booking, reached from the booking
-              -- not the thing an ordinary tap does.
-            */}
-            {entry.canCancel && !engineEntryHost ? (
-              <>
-                {/*
-                  Which screen is decided by this booking's own cutoff. Every
-                  cancel used to open the self-service screen, and cancel the
-                  Hilom massage whichever booking had been opened.
-                */}
-                {primary(tableWaiting || entry.settlement === 'Awaiting hotel confirmation' || entry.settlement === 'Awaiting provider confirmation' ? 'Withdraw request' : 'Change or cancel', canCancelYourself(entry.id) ? 'cancel-before-cutoff' : 'cancel-after-cutoff')}
-                <TextButton onClick={() => go('chat')}>Ask the front desk</TextButton>
-              </>
-            ) : (
-              <button className="guest-list-row" onClick={() => go('chat')} type="button">
-                <span><ChatCircleDots /></span>
-                <div><b>Ask the front desk</b><small>{entry.status === 'confirmed' ? 'To change or cancel this' : entryCancelled ? 'About this booking' : 'About this charge'}</small></div>
-                <CaretRight />
-              </button>
-            )}
+              if (engineEntry && entryThread && entryVendor?.hotel) {
+                return (
+                  <button type="button" className="guest-list-row" onClick={() => go('chat')}>
+                    <span><ChatCircleDots /></span>
+                    <div><b>Message the front desk</b><small>To ask about or change this booking</small></div>
+                    <CaretRight />
+                  </button>
+                );
+              }
+              if (engineEntry && entryThread) {
+                return (
+                  <>
+                    <button type="button" className="guest-list-row" onClick={() => { setSelectedThreadId(engineEntry.threadId); go('booking-thread'); }} aria-label={`Message ${entryVendor?.name ?? 'the vendor'}${entryThread.unread ? `, ${entryThread.unread} unread` : ''}`}>
+                      <span><ChatCircleDots /></span>
+                      <div><b>Message {entryVendor?.name ?? 'the vendor'}</b><small>{entryThread.unread ? `${entryThread.unread} new ${entryThread.unread === 1 ? 'message' : 'messages'}` : 'Your chat about this booking'}</small></div>
+                      {/* The count and the chevron share the row's last slot, so the row keeps its three columns. */}
+                      <em className="pilot-row-end">{entryThread.unread ? <i className="pilot-badge" aria-hidden="true">{entryThread.unread}</i> : null}<CaretRight /></em>
+                    </button>
+                    {/* If the partner goes quiet, the desk can step in. */}
+                    <TextButton onClick={() => go('chat')}>Ask the front desk instead</TextButton>
+                  </>
+                );
+              }
+              // A waiting request's card already offers Call and Ask the front desk.
+              if (engineEntry && engineEntryHost?.pilot.card(engineEntry.id).actions.includes('message-desk')) return null;
+              if (engineEntry) return deskRow(entryCancelled ? 'About this booking' : 'About this booking or a charge');
+              if (entry.canCancel) {
+                return (
+                  <>
+                    {/*
+                      Which screen is decided by this booking's own cutoff. Every
+                      cancel used to open the self-service screen, and cancel the
+                      Hilom massage whichever booking had been opened.
+                    */}
+                    {primary(tableWaiting || entry.settlement === 'Awaiting hotel confirmation' || entry.settlement === 'Awaiting provider confirmation' ? 'Withdraw request' : 'Change or cancel', canCancelYourself(entry.id) ? 'cancel-before-cutoff' : 'cancel-after-cutoff')}
+                    <TextButton onClick={() => go('chat')}>Ask the front desk</TextButton>
+                  </>
+                );
+              }
+              return deskRow(entry.status === 'confirmed' ? 'To change or cancel this' : entryCancelled ? 'About this booking' : 'About this charge');
+            })()}
           </div>
         );
       }

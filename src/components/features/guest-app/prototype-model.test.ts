@@ -944,7 +944,7 @@ describe('profile lookup and re-entry', () => {
   it('matches a reference the guest still has a live reservation for', () => {
     const match = findProfileByLookup('HEN-241109');
 
-    expect(match?.property).toBe('The Henry Manila');
+    expect(match?.property).toBe('The Henry Resort Dumaguete');
     expect(match?.booking?.id).toBe('HEN-241109');
     expect(match?.pastStay).toBeUndefined();
   });
@@ -1054,7 +1054,7 @@ describe('prototype stay-state switch', () => {
     const session = applyPrototypeStayState('closed');
 
     expect(getHomeVariant(session.bookings)).toBe('completed');
-    expect(session.bookings[0]!.property).toBe('The Henry Manila');
+    expect(session.bookings[0]!.property).toBe('The Henry Resort Dumaguete');
     expect(session.auth).toBe('authenticated');
   });
 
@@ -1137,10 +1137,10 @@ describe('a finished stay read as a receipt', () => {
   it('counts the room itself, not only what was charged against it', () => {
     const stay = toFinishedStay(session, booking);
 
-    expect(stay.roomRate).toBe('₱18,600');
-    // ₱18,600 room + ₱22,750 charged against it: what the property posted plus
-    // everything the guest booked in the app during the stay.
-    expect(stay.total).toBe('₱41,350');
+    expect(stay.roomRate).toBe('₱14,700');
+    // ₱14,700 room (three Dumaguete deluxe nights) + ₱16,380 charged against it:
+    // what the property posted plus everything the guest booked in the app.
+    expect(stay.total).toBe('₱31,080');
     expect(stay.nights).toBe(3);
   });
 
@@ -1168,7 +1168,7 @@ describe('a finished stay read as a receipt', () => {
 
     expect(titles).toContain('Hilom signature massage');
     expect(stay.charges.find((c) => c.id === 'svc-1')?.category).toBe('Spa & wellness');
-    expect(stay.total).toBe('₱24,050');
+    expect(stay.total).toBe('₱20,150');
   });
 
   it('keeps app-booked room changes visible and rewardable', () => {
@@ -1203,14 +1203,14 @@ describe('a finished stay read as a receipt', () => {
       }],
     };
 
-    expect(toFinishedStay(withCancelled, booking).total).toBe('₱21,650');
+    expect(toFinishedStay(withCancelled, booking).total).toBe('₱17,750');
   });
 
   it('groups the way the stay-detail receipt already does', () => {
     const summary = summarisePastStay(toFinishedStay(session, booking));
 
     expect(summary.groups.map((group) => group.category)).toContain('Hotel services');
-    expect(summary.extras).toBe('₱22,750');
+    expect(summary.extras).toBe('₱16,380');
   });
 });
 
@@ -1452,7 +1452,9 @@ describe('listing subcategory chips', () => {
         expect(rows.some((row) => matchesListingSubcategory(categoryId, chip, row)), `${categoryId} › ${chip}`).toBe(true);
       }
     }
-    expect(listingSubcategories('spa', SERVICES.filter((service) => service.categoryId === 'spa'))).not.toContain('Mind & Movement');
+    // Mind & Movement holds the Dumaguete yoga class; a hotel without one shows no such chip.
+    expect(listingSubcategories('spa', SERVICES.filter((service) => service.categoryId === 'spa'))).toContain('Mind & Movement');
+    expect(listingSubcategories('spa', SERVICES.filter((service) => service.categoryId === 'spa' && service.id !== 'yoga-class'))).not.toContain('Mind & Movement');
   });
 });
 

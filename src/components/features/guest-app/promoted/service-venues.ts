@@ -42,7 +42,7 @@ export const SERVICE_VENUES: ServiceVenue[] = [
   {
     id: 'hilom-spa',
     name: 'Hilom Spa & Wellness',
-    location: 'Fourth floor, east wing',
+    location: 'Garden wing',
     kind: 'venue',
     operates: ['spa', 'scrub', 'hot-stone', 'couples-massage', 'reflexology', 'facial', 'sauna'],
     image: storyImage('spa'),
@@ -60,8 +60,28 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     name: 'Lakbay Island Tours',
     location: 'Tour desk, lobby',
     kind: 'venue',
-    operates: ['tour', 'sunset-cruise', 'diving'],
+    operates: ['tour', 'sunset-cruise'],
     image: storyImage('tour'),
+  },
+  /*
+    The Henry Resort Dumaguete's two outside partners. They are simulated in
+    the pilot, so they carry placeholder names rather than real-sounding ones.
+  */
+  {
+    id: 'partner-boat-operator',
+    name: 'Partner boat operator',
+    location: 'Resort jetty',
+    kind: 'venue',
+    operates: ['apo-island-trip'],
+    image: storyImage('tour'),
+  },
+  {
+    id: 'partner-bike-shop',
+    name: 'Partner bike shop',
+    location: 'Resort driveway',
+    kind: 'venue',
+    operates: ['bike-rental', 'scooter-rental'],
+    image: storyImage('food-crawl'),
   },
   {
     id: 'kalye-walks',
@@ -111,11 +131,13 @@ export const SERVICE_VENUES: ServiceVenue[] = [
     different accounts learns an org chart, not a hotel.
   */
   {
-    id: 'the-henry-manila',
-    name: 'The Henry Manila',
+    id: 'the-henry',
+    name: 'The Henry Resort Dumaguete',
     location: 'Front desk, lobby',
     kind: 'property',
     operates: [
+      // The resort's own activities: instant, charged as the guest confirms.
+      'yoga-class', 'walking-tour', 'diving',
       'cooking-class', 'music', 'film-night',
       'transfer', 'private-car', 'laundry', 'luggage',
       'trainer', 'meeting-room', 'gym', 'pool', 'business-centre',
@@ -147,13 +169,16 @@ export const venueForService = (serviceId: string): ServiceVenue =>
   its location sent guests to the lobby for it.
 */
 const SERVICE_SPOTS: Record<string, string> = {
-  'film-night': 'Pool deck, second floor',
+  'film-night': 'Pool deck',
+  'yoga-class': 'Beach lawn, by the pool',
+  'walking-tour': 'Meets at the lobby doors',
+  diving: 'Dive centre, by the jetty',
   music: 'Lobby lounge',
   'cooking-class': 'Apartment 1B kitchen',
-  reflexology: 'Hilom Spa, fourth floor',
+  reflexology: 'Hilom Spa, garden wing',
   trainer: 'Fitness centre',
   gym: 'Fitness centre',
-  pool: 'Rooftop pool',
+  pool: 'Main pool',
   'meeting-room': 'Mezzanine, meeting rooms',
 };
 

@@ -28,7 +28,7 @@ const fire = async (user: User, eventName: string | RegExp) => {
 
 const bookRental = async (user: User, pay: 'room' | 'pay-now') => {
   await openCategory(user, 'Rentals');
-  await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+  await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
   await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
   if (pay === 'pay-now') await user.click(screen.getByRole('button', { name: /Pay now/ }));
   await user.click(screen.getByRole('button', { name: /^(Send request|Hold ₱)/ }));
@@ -44,13 +44,13 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
     expect(screen.getAllByText(/Nothing is charged until/).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: 'View My Stay' }));
-    expect(screen.getByRole('button', { name: /City bicycle/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Scooter · 125cc/ })).toBeInTheDocument();
     expect(screen.getByText(/Awaiting confirmation/)).toBeInTheDocument();
 
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
     expect(screen.queryByText(/Awaiting provider confirmation/)).toBeNull();
     // The entry on My Stay, not the banner that just told the guest about it.
-    await user.click(screen.getByRole('button', { name: /City bicycle.*return by/ }));
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc.*return by/ }));
     expect(screen.getAllByText(/Charged to your room/).length).toBeGreaterThan(0);
   });
 
@@ -69,8 +69,8 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
 
     // The vendor says yes: the hold is taken, and it is confirmed with nothing more to do.
     await user.click(screen.getByRole('button', { name: 'View My Stay' }));
-    await fire(user, /Vendor confirms City bicycle/);
-    await user.click(screen.getByRole('button', { name: /City bicycle.*return by/ }));
+    await fire(user, /Vendor confirms Scooter · 125cc/);
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc.*return by/ }));
     expect(screen.getByText(/Paid · GCash/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Pay now/ })).toBeNull();
   });
@@ -81,7 +81,7 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
 
     await bookRental(user, 'room');
     await user.click(screen.getByRole('button', { name: 'View My Stay' }));
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
     await user.click(screen.getByRole('button', { name: /Withdraw request/ }));
     // One more tap: there is no undo.
     await user.click(screen.getByRole('button', { name: 'Yes, withdraw' }));
@@ -100,8 +100,8 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     expect(within(sheet).queryByRole('button', { name: 'Today' })).toBeNull();
     await user.click(within(sheet).getByRole('button', { name: 'Reserve table' }));
 
-    expect(screen.getByRole('heading', { name: /Table at Kape Lab Manila/ })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Kape Lab Manila, Confirmed/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Table at Seafood grill · Rizal Boulevard/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Seafood grill · Rizal Boulevard, Confirmed/)).toBeInTheDocument();
     expect(screen.getAllByText(/Bill settled at the restaurant/).length).toBeGreaterThan(0);
   });
 
@@ -126,8 +126,8 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
 
     await openCategory(user, 'Rentals');
-    await user.click(screen.getByRole('button', { name: /City Bike Rentals/ }));
-    await user.click(screen.getByRole('button', { name: /Request with City Bike Rentals/ }));
+    await user.click(screen.getByRole('button', { name: /Car hire · Calindagan/ }));
+    await user.click(screen.getByRole('button', { name: /Request with Car hire · Calindagan/ }));
     const sheet = screen.getByRole('dialog');
     await user.click(within(sheet).getByRole('button', { name: /^Pay now/ }));
     await user.click(within(sheet).getByRole('button', { name: /^Hold ₱.* and send request$/ }));
@@ -138,7 +138,7 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     await user.click(within(gateway).getByRole('button', { name: /^Hold ₱/ }));
     expect(await screen.findByLabelText(/Awaiting confirmation/, {}, { timeout: 4000 })).toBeInTheDocument();
 
-    await fire(user, /Vendor confirms City Bike Rentals/);
+    await fire(user, /Vendor confirms Car hire · Calindagan/);
     expect(screen.getByLabelText(/Confirmed/)).toBeInTheDocument();
   });
 });
@@ -161,49 +161,49 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     await bookRental(user, 'room');
     // A request still waiting has no chat.
     await openMessages(user);
-    expect(screen.queryByRole('button', { name: /City bicycle/ })).toBeNull();
-    await fire(user, /Vendor confirms City bicycle/);
+    expect(screen.queryByRole('button', { name: /Scooter · 125cc/ })).toBeNull();
+    await fire(user, /Vendor confirms Scooter · 125cc/);
     await openMessages(user);
     // A conversation is with a vendor, about a booking, of a kind: all three are in its name.
-    expect(screen.getByRole('button', { name: /^Sakay Rentals, City bicycle, .*Rental/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Partner bike shop, Scooter · 125cc, .*Rental/ })).toBeInTheDocument();
   });
 
   it('keeps every chat one to one: the vendor in the booking chat, the desk in its own', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
     await openMessages(user);
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
 
-    const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
-    expect(within(thread).getByRole('heading', { name: 'Sakay Rentals', level: 1 })).toBeInTheDocument();
+    const thread = screen.getByRole('region', { name: /Scooter · 125cc conversation/ });
+    expect(within(thread).getByRole('heading', { name: 'Partner bike shop', level: 1 })).toBeInTheDocument();
 
     await user.type(within(thread).getByRole('textbox'), 'Can we get a helmet too?');
     await user.click(within(thread).getByRole('button', { name: 'Send message' }));
     expect(within(thread).getByText('Can we get a helmet too?')).toBeInTheDocument();
 
-    await fire(user, /Vendor sends a message about City bicycle/);
+    await fire(user, /Vendor sends a message about Scooter · 125cc/);
     expect(within(thread).getByText(/Anything we should prepare/)).toBeInTheDocument();
 
     // The desk is not in the vendor's chat: what it says about the booking goes to its own chat with the guest.
-    await fire(user, /Desk sends a message about City bicycle/);
-    expect(within(thread).queryByText(/added that to your City bicycle booking/)).toBeNull();
-    await fire(user, /Desk leaves a private note for the vendor of City bicycle/);
+    await fire(user, /Desk sends a message about Scooter · 125cc/);
+    expect(within(thread).queryByText(/added that to your Scooter · 125cc booking/)).toBeNull();
+    await fire(user, /Desk leaves a private note for the vendor of Scooter · 125cc/);
     expect(within(thread).queryByText(/Guest is a regular/)).toBeNull();
 
     await user.click(within(thread).getByRole('button', { name: 'Go back' }));
     await user.click(screen.getByRole('button', { name: /^Front desk chat/ }));
     const desk = screen.getByRole('region', { name: 'Front desk conversation' });
-    expect(within(desk).getByText(/added that to your City bicycle booking/)).toBeInTheDocument();
+    expect(within(desk).getByText(/added that to your Scooter · 125cc booking/)).toBeInTheDocument();
   });
 
   it('lets the front desk read a guest and vendor chat only during a dispute, read only, and tells both', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
-    await fire(user, /Vendor adds a ₱300 extra charge to City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
+    await fire(user, /Vendor adds a ₱300 extra charge to Scooter · 125cc/);
 
     // No dispute yet: the desk has nothing it may read.
     await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
@@ -213,9 +213,9 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
 
     // She questions the charge: a dispute opens, and the desk may read.
     await openMessages(user);
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
     await user.click(screen.getByRole('button', { name: 'Question this charge' }));
-    await fire(user, /Desk reads the City bicycle chat for the dispute/);
+    await fire(user, /Desk reads the Scooter · 125cc chat for the dispute/);
     const sheet = screen.getByRole('dialog', { name: /Dispute, Extra charge, read only/ });
     expect(within(sheet).getByText('You are not part of this chat')).toBeInTheDocument();
     expect(within(sheet).queryByRole('textbox')).toBeNull();
@@ -225,14 +225,14 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     expect(screen.queryByRole('dialog', { name: /Dispute/ })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
     await user.click(screen.getByRole('tab', { name: 'Events' }));
-    expect(screen.queryByRole('button', { name: /Desk reads the City bicycle chat/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Desk reads the Scooter · 125cc chat/ })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
     // She was told in her chat with the shop, and of the outcome. (Questioning took her to the desk chat; back out first.)
     for (let i = 0; i < 3 && !screen.queryByRole('navigation', { name: 'Primary navigation' }); i += 1) await user.click(screen.getAllByRole('button', { name: 'Go back' })[0]!);
     await openMessages(user);
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
-    const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
+    const thread = screen.getByRole('region', { name: /Scooter · 125cc conversation/ });
     expect(within(thread).getByText('The front desk read this chat to settle the dispute.')).toBeInTheDocument();
     expect(within(thread).getByText(/upheld the ₱300 charge/)).toBeInTheDocument();
   });
@@ -241,10 +241,10 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
     await openMessages(user);
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
-    expect(screen.getByLabelText(/City bicycle, Confirmed/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
+    expect(screen.getByLabelText(/Scooter · 125cc, Confirmed/)).toBeInTheDocument();
   });
 
   it('shows a booking the desk made for the guest as a card in the front desk chat', async () => {
@@ -262,23 +262,23 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
     await user.click(screen.getByRole('button', { name: /^Cancel$/ }));
     await user.click(screen.getByRole('button', { name: 'Yes, cancel' }));
-    expect(screen.getByLabelText(/City bicycle, Cancelled/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Scooter · 125cc, Cancelled/)).toBeInTheDocument();
 
     for (let i = 0; i < 3; i += 1) await fire(user, /Move the clock on a day/);
     await openMessages(user);
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
-    const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
+    const thread = screen.getByRole('region', { name: /Scooter · 125cc conversation/ });
     // Still readable, with the Cancelled card on it; no longer a place to reach the vendor.
-    expect(within(thread).getByLabelText(/City bicycle, Cancelled/)).toBeInTheDocument();
+    expect(within(thread).getByLabelText(/Scooter · 125cc, Cancelled/)).toBeInTheDocument();
     expect(screen.getByText(/This thread has closed/)).toBeInTheDocument();
 
     await user.type(within(thread).getByRole('textbox'), 'Did I leave my lock there?');
     await user.click(within(thread).getByRole('button', { name: 'Send message' }));
     expect(screen.getByRole('heading', { name: 'Front desk', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/About City bicycle: Did I leave my lock there\?/)).toBeInTheDocument();
+    expect(screen.getByText(/About Scooter · 125cc: Did I leave my lock there\?/)).toBeInTheDocument();
   });
 });
 
@@ -291,40 +291,40 @@ describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
     await bookRental(user, 'room');
 
     // A request waits with no chat: the confirmation says when one comes.
-    expect(screen.queryByRole('button', { name: /Message Sakay Rentals/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Message Partner bike shop/ })).toBeNull();
     expect(screen.getAllByText(/A chat with them opens once they accept/).length).toBeGreaterThan(0);
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
     // A banner says the chat is open, and tapping it opens the chat.
-    const banner = screen.getByText('Your chat with Sakay Rentals is open. Tap to message them.');
+    const banner = screen.getByText('Your chat with Partner bike shop is open. Tap to message them.');
     await user.click(banner);
-    const thread = screen.getByRole('region', { name: /City bicycle conversation/ });
+    const thread = screen.getByRole('region', { name: /Scooter · 125cc conversation/ });
     expect(within(thread).getByText(/Only you and them are in this chat/)).toBeInTheDocument();
     // The bell keeps a note of it. (The bell is outside the chat; back out first.)
     await user.click(within(thread).getByRole('button', { name: 'Go back' }));
     await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
-    expect(screen.getByText('Chat open with Sakay Rentals')).toBeInTheDocument();
+    expect(screen.getByText('Chat open with Partner bike shop')).toBeInTheDocument();
   });
 
   it('tells the guest when the vendor says yes: a banner, then the bell', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
 
-    expect(screen.getByText('City bicycle confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Scooter · 125cc confirmed')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
-    expect(screen.getAllByText('City bicycle confirmed').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Scooter · 125cc confirmed').length).toBeGreaterThan(0);
   });
 
   it('tells the guest when the vendor cancels, by push and by text', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
-    await fire(user, /Vendor cancels City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
+    await fire(user, /Vendor cancels Scooter · 125cc/);
 
     await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
-    expect(screen.getAllByText(/City bicycle was cancelled/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Scooter · 125cc was cancelled/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Text message/).length).toBeGreaterThan(0);
     // And it can be rebooked from the card.
     await user.click(nav().getByRole('button', { name: 'Home' }));
@@ -342,19 +342,19 @@ describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
     // Morning: today's 1:30 PM pickup is still ahead.
     await setClock(/Morning/);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
 
-    // The stay already has a bicycle on its bill from a day earlier; today's is not on it yet.
-    const lines = () => ((document.querySelector('.guest-folio-cards')?.textContent ?? '').match(/City bicycle/g) ?? []).length;
+    // Today's scooter is not on the bill yet.
+    const lines = () => ((document.querySelector('.guest-folio-cards')?.textContent ?? '').match(/Scooter · 125cc/g) ?? []).length;
     await user.click(nav().getByRole('button', { name: /My Stay/ }));
     await user.click(screen.getByRole('button', { name: 'Room charges' }));
-    expect(lines()).toBe(1);
+    expect(lines()).toBe(0);
 
     // Afternoon: the pickup's hour has come, and it is on the bill.
     await setClock(/Afternoon/);
     await user.click(nav().getByRole('button', { name: /My Stay/ }));
     await user.click(screen.getByRole('button', { name: 'Room charges' }));
-    expect(lines()).toBe(2);
+    expect(lines()).toBe(1);
   });
 });
 
@@ -366,10 +366,10 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
 
     await openCategory(user, 'Rentals');
-    await user.click(screen.getByRole('button', { name: /Compact car/ }));
+    await user.click(screen.getByRole('button', { name: /Bike rental/ }));
     await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
-    // Two cars is ₱5,600. Room-bill limits are off in this prototype, so it goes straight to the vendor.
-    await user.click(screen.getByRole('button', { name: /^More cars/i }));
+    // Several bikes on the room. Room-bill limits are off in this prototype, so it goes straight to the vendor.
+    await user.click(screen.getByRole('button', { name: /^More bikes/i }));
     expect(screen.queryByText(/Over the limit, so the front desk approves it first/)).toBeNull();
     await user.click(screen.getByRole('button', { name: /^(Send request|Request|Book)/ }));
 
@@ -377,7 +377,7 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     // The vendor's turn, and nothing is charged yet.
     await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     expect(screen.getByText(/Awaiting confirmation/)).toBeInTheDocument();
-    await fire(user, /Vendor confirms Compact car/);
+    await fire(user, /Vendor confirms Bike rental/);
     expect(screen.queryByText(/Awaiting confirmation/)).toBeNull();
   });
 
@@ -388,7 +388,7 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     // The gateway is set to fail before the guest pays.
     await fire(user, /Payment gateway: working/);
     await openCategory(user, 'Spa & Wellness');
-    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(screen.getByRole('button', { name: /Calamansi brightening facial/ }));
     await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
     await user.click(screen.getByRole('button', { name: /Pay now/ }));
     await user.click(screen.getByRole('button', { name: /^Continue to pay/ }));
@@ -402,7 +402,7 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     await user.click(within(gateway).getByRole('button', { name: /^Pay ₱/ }));
     expect(await within(gateway).findByText(/failed three times, so the slot was released/, {}, { timeout: 4000 })).toBeInTheDocument();
     await user.click(within(gateway).getByRole('button', { name: 'Close' }));
-    expect(screen.getByRole('heading', { name: /Hot stone therapy is not booked/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Calamansi brightening facial is not booked/ })).toBeInTheDocument();
   });
 
   it('lapses a request the vendor never answers, and says nothing was charged', async () => {
@@ -415,13 +415,13 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     expect(screen.getAllByText(/(did not answer|no answer[^.]*) in time/i).length).toBeGreaterThan(0);
     // A lapsed request never had a chat.
     await openMessages(user);
-    expect(screen.queryByRole('button', { name: /City bicycle/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Scooter · 125cc/ })).toBeNull();
     // The desk can reinstate it; it waits again, still with no chat until the vendor accepts.
-    await fire(user, /Desk reinstates City bicycle/);
+    await fire(user, /Desk reinstates Scooter · 125cc/);
     expect(screen.getByText(/sent your request back to the vendor/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Sakay Rentals, City bicycle/ })).toBeNull();
-    await fire(user, /Vendor confirms City bicycle/);
-    expect(screen.getByRole('button', { name: /^Sakay Rentals, City bicycle/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Partner bike shop, Scooter · 125cc/ })).toBeNull();
+    await fire(user, /Vendor confirms Scooter · 125cc/);
+    expect(screen.getByRole('button', { name: /^Partner bike shop, Scooter · 125cc/ })).toBeInTheDocument();
   });
 
   it('books a nearby table before the stay has started', async () => {
@@ -431,8 +431,8 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'Reserve a table' }));
     const sheet = screen.getByRole('dialog');
     await user.click(within(sheet).getByRole('button', { name: 'Reserve table' }));
-    expect(screen.getByRole('heading', { name: /Table at Kape Lab Manila/ })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Kape Lab Manila, Confirmed/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Table at Seafood grill · Rizal Boulevard/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Seafood grill · Rizal Boulevard, Confirmed/)).toBeInTheDocument();
   });
 
   it('keeps one booking when the same slot is asked for twice', async () => {
@@ -440,10 +440,10 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
 
     await openMessages(user);
-    expect(screen.getAllByRole('button', { name: /^Sakay Rentals, City bicycle/ })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /^Partner bike shop, Scooter · 125cc/ })).toHaveLength(1);
     expect(nav().getByRole('button', { name: /^Chat/ })).toBeInTheDocument();
   });
 });
@@ -478,22 +478,22 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor is not available for City bicycle/);
+    await fire(user, /Vendor is not available for Scooter · 125cc/);
     await bookRental(user, 'room');
     // The new one is live and waiting; the old one is still there, declined.
     expect(screen.getByRole('heading', { name: /Request sent/ })).toBeInTheDocument();
     // Neither has a chat: one was declined, the other still waits.
     await openMessages(user);
-    expect(screen.queryByRole('button', { name: /City bicycle/ })).toBeNull();
-    await fire(user, /Vendor confirms City bicycle/);
-    expect(screen.getAllByRole('button', { name: /^Sakay Rentals, City bicycle/ })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /Scooter · 125cc/ })).toBeNull();
+    await fire(user, /Vendor confirms Scooter · 125cc/);
+    expect(screen.getAllByRole('button', { name: /^Partner bike shop, Scooter · 125cc/ })).toHaveLength(1);
   });
 
   it('survives the presenter resetting the demo while the gateway is open, and keeps working', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await openCategory(user, 'Spa & Wellness');
-    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(screen.getByRole('button', { name: /Calamansi brightening facial/ }));
     await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
     await user.click(screen.getByRole('button', { name: /Pay now/ }));
     await user.click(screen.getByRole('button', { name: /^Continue to pay/ }));
@@ -518,7 +518,7 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     await fire(user, /Move the clock on an hour/);
 
     await openCategory(user, 'Rentals');
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
     await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
     expect(screen.getByText(/This stay was cancelled/)).toBeInTheDocument();
   });
@@ -527,12 +527,12 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
     await fire(user, /Desk sends a message in the chat/);
     await openMessages(user);
     expect(screen.getByRole('button', { name: /Front desk chat, new message/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /City bicycle/ }));
+    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
     await user.click(screen.getByRole('button', { name: 'Go back' }));
     expect(screen.getByRole('button', { name: /Front desk chat, new message/ })).toBeInTheDocument();
   });
@@ -543,7 +543,7 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     await fire(user, /Hotel system: working/);
     await fire(user, /Hotel system: down/);
     await openCategory(user, 'Spa & Wellness');
-    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(screen.getByRole('button', { name: /Calamansi brightening facial/ }));
     await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
     await user.click(screen.getByRole('button', { name: /Confirm and charge/ }));
     // Never "complimentary": it is on the bill, waiting for the hotel system.
@@ -581,9 +581,9 @@ describe('what the audit asked for', { timeout: 50_000 }, () => {
     await user.click(screen.getByRole('button', { name: /Morning/ }));
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
-    await fire(user, /Vendor scans City bicycle/);
-    await fire(user, /Vendor adds a ₱300 extra charge to City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
+    await fire(user, /Vendor scans Scooter · 125cc/);
+    await fire(user, /Vendor adds a ₱300 extra charge to Scooter · 125cc/);
 
     // The guest questions it from its card.
     await user.click(nav().getByRole('button', { name: /My Stay/ }));
@@ -594,7 +594,7 @@ describe('what the audit asked for', { timeout: 50_000 }, () => {
     expect(screen.getByText(/The desk cannot check them out/)).toBeInTheDocument();
     expect(screen.getAllByText(/in question/).length).toBeGreaterThan(0);
 
-    await fire(user, /Desk upholds the ₱300 charge on City bicycle/);
+    await fire(user, /Desk upholds the ₱300 charge on Scooter · 125cc/);
     await fire(user, /Desk checks the guest out/);
     expect(screen.queryByText(/The desk cannot check them out/)).toBeNull();
   });
@@ -616,12 +616,12 @@ describe('what the audit asked for', { timeout: 50_000 }, () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Sakay Rentals loses signal/);
+    await fire(user, /Partner bike shop loses signal/);
     await fire(user, /Move the clock on an hour/);
     // The request lapsed with the vendor offline: the switch back is still there.
     await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
     await user.click(screen.getByRole('tab', { name: 'Events' }));
-    expect(screen.getByRole('button', { name: /Sakay Rentals is back online/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Partner bike shop is back online/ })).toBeInTheDocument();
   });
 
   it('books through a hotel system that is down: the engine queues the charge instead of blocking', async () => {
@@ -633,20 +633,20 @@ describe('what the audit asked for', { timeout: 50_000 }, () => {
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 
     await openCategory(user, 'Spa & Wellness');
-    await user.click(screen.getByRole('button', { name: /Hot stone therapy/ }));
+    await user.click(screen.getByRole('button', { name: /Calamansi brightening facial/ }));
     await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
     await user.click(screen.getByRole('button', { name: /Confirm and charge/ }));
-    expect(screen.getByRole('heading', { name: 'Hot stone therapy is booked' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Calamansi brightening facial is booked' })).toBeInTheDocument();
   });
 
   it('tells the presenter when the engine refuses what they asked of it', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
-    await fire(user, /Vendor confirms City bicycle/);
+    await fire(user, /Vendor confirms Scooter · 125cc/);
     // No signal and nothing saved on the shop's phone: the scan is refused, and the presenter is told why.
-    await fire(user, /Sakay Rentals loses signal/);
-    await fire(user, /Vendor scans City bicycle/);
+    await fire(user, /Partner bike shop loses signal/);
+    await fire(user, /Vendor scans Scooter · 125cc/);
     expect(screen.getByText('Not allowed')).toBeInTheDocument();
     expect(screen.getByText(/No signal and no saved bookings/)).toBeInTheDocument();
   });
@@ -677,15 +677,18 @@ describe('a stay with a life in it, and every trigger in view', { timeout: 50_00
     await fire(user, /Fill Chat with sample bookings and messages/);
     await openMessages(user);
 
-    expect(screen.getByRole('button', { name: /City bicycle/ })).toBeInTheDocument();
-    // The hotel's own outlets (the Poolside Bar, the lobby shop, the trainer) talk in the front desk chat, not rows of their own.
-    for (const title of [/Poolside Bar/, /Single-origin/, /Personal training/]) {
+    expect(screen.getByRole('button', { name: /Bike rental/ })).toBeInTheDocument();
+    // The hotel's own outlets (the Poolside Bar, the trainer) talk in the front desk chat, not rows of their own.
+    for (const title of [/Poolside Bar/, /Personal training/]) {
       expect(screen.queryByRole('button', { name: title })).toBeNull();
     }
-    expect(screen.getByRole('button', { name: /City bicycle.*Confirmed.*unread/ })).toBeInTheDocument();
-    // The lapsed scooter and the tour still waiting never got a chat.
+    // Partners on the resort have chats of their own: the restaurant and the pasalubong café.
+    expect(screen.getByRole('button', { name: /Si Señor/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sans rival cake/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Bike rental.*Confirmed.*unread/ })).toBeInTheDocument();
+    // The lapsed scooter and the boat trip still waiting never got a chat.
     expect(screen.queryByRole('button', { name: /Scooter/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Island day tour/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Apo Island boat trip/ })).toBeNull();
 
     // The front desk chat holds its half of the story, with the desk-made booking as a card.
     await user.click(screen.getByRole('button', { name: /^Front desk/ }));
@@ -698,11 +701,11 @@ describe('a stay with a life in it, and every trigger in view', { timeout: 50_00
     // And every trigger now has something to act on.
     await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
     await user.click(screen.getByRole('tab', { name: 'Events' }));
-    expect(screen.getByRole('button', { name: /Vendor confirms Island day tour/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Vendor confirms Apo Island boat trip/ })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Clear the sample bookings and chats' }));
     await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
     await openMessages(user);
-    expect(screen.queryByRole('button', { name: /City bicycle/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Bike rental/ })).toBeNull();
     expect(nav().getByRole('button', { name: /^Chat/ })).toBeInTheDocument();
   });
 });

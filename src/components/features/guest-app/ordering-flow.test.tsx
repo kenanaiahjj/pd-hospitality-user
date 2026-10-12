@@ -14,10 +14,11 @@ describe('Explore → ordering', { timeout: 15_000 }, () => {
 
     await user.click(screen.getByRole('button', { name: 'Browse' }));
     await user.click(screen.getByRole('button', { name: /Food & Drinks/ }));
-    await user.click(screen.getAllByRole('button', { name: /Apartment 1B/ })[0]!);
+    // The hotel's own bar: ordering is a question for the desk.
+    await user.click(screen.getAllByRole('button', { name: /The Poolside Bar/ })[0]!);
 
     // the browse screen, with the menu photographs
-    expect(screen.getByRole('heading', { level: 1, name: 'Apartment 1B' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'The Poolside Bar' })).toBeInTheDocument();
     const imgs = [...document.querySelectorAll('img')].map((i) => i.getAttribute('src') || '');
     expect(imgs.some((s) => s.includes('restaurant-menu-page'))).toBe(true);
     // named as the menu, above the practical details rather than buried under them
@@ -28,7 +29,7 @@ describe('Explore → ordering', { timeout: 15_000 }, () => {
     // a table is reserved; ordering is a question for the desk, already about this venue
     expect(screen.getByRole('button', { name: 'Reserve a table' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Ask the front desk about the menu/ }));
-    expect(document.body.textContent).toMatch(/Apartment 1B/);
+    expect(document.body.textContent).toMatch(/The Poolside Bar/);
   });
 
   it('reserves a table at a restaurant: its slots, its party size, nothing to pay', async () => {
@@ -37,19 +38,19 @@ describe('Explore → ordering', { timeout: 15_000 }, () => {
 
     await user.click(screen.getByRole('button', { name: 'Browse' }));
     await user.click(screen.getByRole('button', { name: /Food & Drinks/ }));
-    await user.click(screen.getAllByRole('button', { name: /Azotea Rooftop/ })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /Si Señor/ })[0]!);
     await user.click(screen.getByRole('button', { name: 'Reserve a table' }));
 
-    // The rooftop opens in the evening: the form offers its slots, not a lunchtime default.
-    // It is 7 PM in the live stay, so 6:00 PM has gone: the first table still ahead is 7:30 PM.
+    // Si Señor publishes evening tables: the form offers its slots, not a lunchtime default.
+    // It is 7 PM in the live stay, so 6:00 and 7:00 PM have gone: the first table still ahead is 8:00 PM.
     expect(screen.getByRole('heading', { name: 'Reserve a table' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Time/ })).toHaveTextContent('7:30 PM');
+    expect(screen.getByRole('button', { name: /^Time/ })).toHaveTextContent('8:00 PM');
     expect(screen.getByText('Free to reserve')).toBeInTheDocument();
     expect(screen.getByText('Nothing to pay now')).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: /How would you like to pay/ })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Reserve a table' }));
-    expect(screen.getByRole('heading', { name: /Table reserved at Azotea Rooftop/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Table reserved at Si Señor/ })).toBeInTheDocument();
     expect(screen.getByText(/Order and pay at the venue/)).toBeInTheDocument();
     // Free to hold: nothing lands on the room bill.
     expect(screen.getByText('No charge to reserve')).toBeInTheDocument();
@@ -62,12 +63,12 @@ describe('Explore → ordering', { timeout: 15_000 }, () => {
 
     await user.click(screen.getByRole('button', { name: 'Browse' }));
     await user.click(screen.getByRole('button', { name: /Activities & Tours/ }));
-    await user.click(screen.getAllByRole('button', { name: /Old Manila cultural walk/ })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /Dumaguete walking tour/ })[0]!);
 
     const page = screen.getByTestId('service-page');
-    expect(within(page).getByRole('heading', { name: 'Old Manila cultural walk', level: 1 })).toBeInTheDocument();
+    expect(within(page).getByRole('heading', { name: 'Dumaguete walking tour', level: 1 })).toBeInTheDocument();
     await user.click(within(page).getByRole('button', { name: 'Choose a time' }));
-    expect(screen.getByText(/Live availability is shown for Old Manila cultural walk/)).toBeInTheDocument();
+    expect(screen.getByText(/Live availability is shown for Dumaguete walking tour/)).toBeInTheDocument();
   });
 
   /*
@@ -83,6 +84,6 @@ describe('Explore → ordering', { timeout: 15_000 }, () => {
 
     const body = document.body.textContent || '';
     expect(body).not.toMatch(/From ₱/);
-    expect(body).toMatch(/Apartment 1B/);
+    expect(body).toMatch(/Si Señor/);
   });
 });

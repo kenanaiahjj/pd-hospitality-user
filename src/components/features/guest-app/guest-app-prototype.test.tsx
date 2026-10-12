@@ -305,7 +305,7 @@ describe('GuestAppPrototype', () => {
     fireEvent.submit(screen.getByRole('button', { name: 'Find booking' }).closest('form')!);
 
     expect(screen.getByRole('heading', { name: 'We found your stay!' })).toBeInTheDocument();
-    expect(screen.getByText('The Henry Manila')).toBeInTheDocument();
+    expect(screen.getByText('The Henry Resort Dumaguete')).toBeInTheDocument();
     expect(screen.getByText('Booked via')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue with this booking' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Use a different booking' })).toBeInTheDocument();
@@ -1239,14 +1239,15 @@ describe('booking receipt', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
 
-    // The card can only say "3 items"; a guest checking what a charge was for
+    // The card can only say "2 items"; a guest checking what a charge was for
     // needs the order read back.
-    await user.click(screen.getByRole('button', { name: /Azotea Rooftop/ }));
+    await user.click(screen.getByRole('tab', { name: /Past/ }));
+    await user.click(screen.getByRole('button', { name: /In-Room Dining/ }));
 
-    expect(screen.getByRole('heading', { name: 'Azotea Rooftop', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/Chef.s tasting menu · 2 × ₱1,200/)).toBeInTheDocument();
-    expect(screen.getByText('Wine pairing')).toBeInTheDocument();
-    expect(screen.getByText('₱2,400')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'In-Room Dining', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/Filipino Breakfast Tocino Set · 2 × ₱480/)).toBeInTheDocument();
+    expect(screen.getByText('Seasonal Tropical Fruit Platter')).toBeInTheDocument();
+    expect(screen.getAllByText('₱1,280').length).toBeGreaterThan(0);
     expect(screen.getByText('Total')).toBeInTheDocument();
   });
 
@@ -1255,11 +1256,11 @@ describe('booking receipt', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={MOCK_SESSION} />);
 
     await user.click(screen.getByRole('tab', { name: /Past/ }));
-    await user.click(screen.getByRole('button', { name: /Kape Manila Caf/ }));
+    await user.click(screen.getByRole('button', { name: /Coffee Collective/ }));
 
-    expect(screen.getByRole('heading', { name: /Kape Manila Caf/, level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Coffee Collective/, level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Cancelled')).toBeInTheDocument();
-    expect(screen.getByText(/Nothing was charged to room/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing was charged/)).toBeInTheDocument();
     expect(screen.queryByText('Charged to your room')).toBeNull();
     // Nothing to cancel on a cancelled booking.
     expect(screen.queryByRole('button', { name: /Change or cancel/ })).toBeNull();
@@ -2056,14 +2057,14 @@ describe('a finished stay on My Stay', () => {
 
   /*
     The room line is the point. Before this the screen could only report what
-    was charged *against* the room, so a stay that cost ₱18,600 to sleep in
+    was charged *against* the room, so a stay that cost ₱14,700 to sleep in
     showed a room of nothing.
   */
   it('counts the room itself in the list', () => {
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={finished} />);
 
-    expect(screen.getByText('King room · 3 nights')).toBeInTheDocument();
-    expect(screen.getByText('₱18,600')).toBeInTheDocument();
+    expect(screen.getByText('Deluxe room · 3 nights')).toBeInTheDocument();
+    expect(screen.getByText('₱14,700')).toBeInTheDocument();
     expect(screen.getByText('Total settled')).toBeInTheDocument();
   });
 
@@ -3015,7 +3016,7 @@ describe('post-stay front desk window', () => {
 
     // The receipt is the point of the screen once the conversation is over.
     expect(screen.getByText('This stay')).toBeInTheDocument();
-    expect(screen.getByText(/King room · 3 nights/)).toBeInTheDocument();
+    expect(screen.getByText(/Deluxe room · 3 nights/)).toBeInTheDocument();
     expect(screen.getByText('Spa & wellness')).toBeInTheDocument();
   });
 
@@ -3523,13 +3524,13 @@ describe('scan discoverability', () => {
 
     // The live stay's clock is 7 PM: the morning pool closure is over, so the
     // evening's update leads.
-    expect(screen.queryByRole('button', { name: /Rooftop pool closed/ })).toBeNull();
-    await user.click(screen.getByRole('button', { name: /Azotea Rooftop: last seating 10:30 PM/ }));
+    expect(screen.queryByRole('button', { name: /Main pool closed/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Si Señor: last seating 8:00 PM/ }));
 
     const sheet = screen.getByRole('dialog');
     expect(sheet).toBeInTheDocument();
-    expect(within(sheet).getByRole('heading', { name: 'Azotea Rooftop: last seating 10:30 PM' })).toBeInTheDocument();
-    expect(within(sheet).getByText(/The bar keeps pouring until midnight/)).toBeInTheDocument();
+    expect(within(sheet).getByRole('heading', { name: 'Si Señor: last seating 8:00 PM' })).toBeInTheDocument();
+    expect(within(sheet).getByText(/The bar keeps pouring until 10:00 PM/)).toBeInTheDocument();
   });
 
   it('places Next up before Explore Nearby on the live home', () => {
@@ -3538,8 +3539,8 @@ describe('scan discoverability', () => {
     const nextUp = screen.getByRole('heading', { name: 'Next up' });
     const nearby = screen.getByRole('heading', { name: 'Recommended for you' });
     expect(nextUp.compareDocumentPosition(nearby) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The soonest booking: tonight's dinner, ahead of tomorrow's massage.
-    expect(screen.getByRole('button', { name: 'View details for Azotea Rooftop' })).toBeInTheDocument();
+    // The soonest booking: tonight's table, ahead of tomorrow's massage.
+    expect(screen.getByRole('button', { name: 'View details for Si Señor' })).toBeInTheDocument();
   });
 
   it('uses the catalog layout in the live home state', () => {
@@ -3623,16 +3624,16 @@ describe('orders and requests that go through the front desk', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live()} />);
 
     await openCategory(user, 'Food & Drinks');
-    await user.click(screen.getAllByRole('button', { name: /Apartment 1B/ })[0]!);
+    await user.click(screen.getAllByRole('button', { name: /The Poolside Bar/ })[0]!);
     await user.click(screen.getByRole('button', { name: /Ask the front desk about the menu/ }));
     await act(async () => { vi.advanceTimersByTime(1000); });
     // Entered from a menu, it is still the ordinary chat: quick actions and all.
     expect(screen.getByRole('button', { name: /Towels/ })).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Message the front desk'), '2 grilled calamari and one ribeye please');
+    await user.type(screen.getByLabelText('Message the front desk'), '2 gambas and one yakitori please');
     await user.click(screen.getByRole('button', { name: 'Send message' }));
     await act(async () => { vi.advanceTimersByTime(1000); });
-    expect(screen.getByText(/2 × Crispy Calamari, 1 × Grilled Angus Ribeye/)).toBeInTheDocument();
+    expect(screen.getByText(/2 × Gambas al Ajillo, 1 × Grilled Chicken Yakitori Skewers/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Go back' }));
     await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /My Stay/ }));

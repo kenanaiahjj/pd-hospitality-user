@@ -1125,6 +1125,7 @@ export function UnlockTeaser({ onScan }: { onScan?: () => void }) {
 /** The house facts a guest asks the desk for first, by property. */
 export const ESSENTIALS: Record<string, { wifi: string; password: string; breakfast: string; pool: string }> = {
   Manila: { wifi: 'HenryGuest', password: 'manila2026', breakfast: '6:00–10:30 AM · Kape Manila Café', pool: 'Rooftop · 7:00 AM–10:00 PM' },
+  Dumaguete: { wifi: 'HenryGuest', password: 'dumaguete2026', breakfast: '7:00 AM–3:00 PM · Noelle’s Brunch Bar', pool: 'Main pool · 7:00 AM–9:00 PM' },
   Cebu: { wifi: 'HenryGuest', password: 'cebu2026', breakfast: '6:30–10:30 AM · The Garden', pool: 'Garden pool · 7:00 AM–9:00 PM' },
 };
 

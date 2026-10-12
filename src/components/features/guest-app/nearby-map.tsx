@@ -29,6 +29,7 @@ type LatLng = [number, number];
 const HOTEL_POSITIONS: Record<string, LatLng> = {
   Manila: [14.5436, 120.9953],
   Cebu: [10.3181, 123.9790],
+  Dumaguete: [9.2960, 123.3070],
 };
 
 /*
@@ -52,6 +53,13 @@ const PLACE_DIRECTIONS: Record<string, LatLng> = {
   'manila-makers-market': [14.5982, 120.9790],
   'binondo-pasalubong': [14.6010, 120.9745],
   'artisan-home-studio': [14.5978, 120.9800],
+  'boulevard-seafood-grill': [9.3080, 123.3090],
+  'silliman-avenue-cafe': [9.3110, 123.3060],
+  'hilot-studio-daro': [9.3250, 123.2990],
+  'casaroro-falls-guide': [9.2930, 123.2470],
+  'calindagan-car-hire': [9.2930, 123.2850],
+  'piapi-wash-and-fold': [9.3030, 123.2990],
+  'public-market-pasalubong': [9.3100, 123.3020],
 };
 
 const METRES_PER_DEGREE = 111_320;

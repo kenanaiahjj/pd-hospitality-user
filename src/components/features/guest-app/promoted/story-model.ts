@@ -1,4 +1,4 @@
-import { MINI_APP_CATEGORIES, RESTAURANTS, SERVICES } from '../prototype-model';
+import { MINI_APP_CATEGORIES, offeredIn, RESTAURANTS, SERVICES } from '../prototype-model';
 import type { MiniAppCategoryId } from '../prototype-model';
 import type { ServiceImageDefinition } from '../service-images';
 import { hasStoryImage, storyImage, storyVideo } from './story-imagery';
@@ -68,6 +68,17 @@ const STORY_FRAMES: Record<string, string[]> = {
   motorcycle: ['motorcycle', 'scooter'],
   'car-rental': ['car-rental', 'suv-rental'],
   'suv-rental': ['suv-rental', 'car-rental'],
+  'the-dining-room': ['the-dining-room', 'popolo-pizzeria', 'si-senor'],
+  'si-senor': ['si-senor', 'the-dining-room', 'the-red-kitchen'],
+  'popolo-pizzeria': ['popolo-pizzeria', 'the-dining-room', 'coffee-collective'],
+  'the-red-kitchen': ['the-red-kitchen', 'si-senor', 'the-dining-room'],
+  'noelles-brunch-bar': ['noelles-brunch-bar', 'coffee-collective', 'popolo-pizzeria'],
+  'coffee-collective': ['coffee-collective', 'noelles-brunch-bar', 'popolo-pizzeria'],
+  'apo-island-trip': ['apo-island-trip', 'sunset-cruise'],
+  'walking-tour': ['walking-tour', 'food-crawl'],
+  'yoga-class': ['yoga-class', 'spa'],
+  'bike-rental': ['bike-rental', 'e-bike'],
+  'scooter-rental': ['scooter-rental', 'motorcycle'],
 };
 
 /**
@@ -183,6 +194,17 @@ const POSTED_HOURS_AGO: Record<string, number> = {
   cafe: 21,
   'food-crawl': 22.5,
   'sunset-cruise': 30,
+  'si-senor': 1.2,
+  'the-dining-room': 3.5,
+  'noelles-brunch-bar': 4.5,
+  'coffee-collective': 5.5,
+  'popolo-pizzeria': 6.5,
+  'the-red-kitchen': 13,
+  'apo-island-trip': 0.8,
+  'walking-tour': 16,
+  'yoga-class': 2.2,
+  'bike-rental': 7.5,
+  'scooter-rental': 20,
 };
 
 /*
@@ -211,7 +233,8 @@ export const restaurantStory = (venue: (typeof RESTAURANTS)[number]): Story => {
     title: venue.name,
     subtitle: venue.location,
     ...(venue.priceRange ? { price: venue.priceRange } : {}),
-    cta: 'See the menu',
+    // A partner restaurant takes no orders in the app: its reel's one action is the table.
+    cta: venue.operator === 'Partner on property' ? 'Reserve a table' : 'See the menu',
     /* The opening frame, not `storyImage(id)`. The ring should show what the
        story actually starts on -- and an id with no art of its own fell back
        to the house shot, which is why three rings were the same picture. */
@@ -342,9 +365,11 @@ export function describeCancellation(cutoff: string): string {
   return cutoff;
 }
 
-export function buildSearchIndex(): SearchableItem[] {
+/** Everything a guest can search for; with a city, only what that hotel has. */
+export function buildSearchIndex(city?: string): SearchableItem[] {
+  const here = city ? offeredIn(city) : () => true;
   return [
-    ...RESTAURANTS.map((venue) => ({
+    ...RESTAURANTS.filter(here).map((venue) => ({
       id: venue.id,
       title: venue.name,
       category: venue.category,
@@ -358,7 +383,8 @@ export function buildSearchIndex(): SearchableItem[] {
       },
       cutoff: venue.cutoff,
     })),
-    ...SERVICES.map((service) => {
+    // A restaurant's own row is the venue above; its catalogue twin would list it twice.
+    ...SERVICES.filter(here).filter((service) => !RESTAURANTS.some((venue) => venue.id === service.id)).map((service) => {
       const house = venueForService(service.id);
       return {
         id: service.id,

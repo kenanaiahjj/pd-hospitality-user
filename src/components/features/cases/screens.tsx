@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 /*
   Static drawings of the chat screens, redrawn from the running app with its
-  demo data (Ana, Room 304, The Henry Manila). Photos are colour blocks. These
+  demo data (Ana, Room 304, The Henry Resort Dumaguete). Photos are colour blocks. These
   are the one part of /cases that is drawn by hand: when a screen changes in
   the app, change it here.
 */
@@ -85,7 +85,7 @@ const Receipt = ({ status = 'In question' }: { status?: string }) => (
       <span className="ca-ic"><Glyph name="receipt" /></span>
       <div className="ca-rcpt-t">
         <b>Late return fee</b>
-        <span>From Sakay Rentals · City bicycle</span>
+        <span>From Partner bike shop · Bike rental</span>
       </div>
       <div className="ca-amt">
         <b>₱300</b>
@@ -149,7 +149,7 @@ function BookingCard({ tone, chip, chipClass, title, vendor, line, amount, prima
 
 export function Screens() {
   const rows: [Kind, string, string, string][] = [
-    ['bike', 'Sakay Rentals', 'Ana questioned the ₱300 charge. The front desk will settle it before checkout.', 'City bicycle · Confirmed · Thu, Nov 12'],
+    ['bike', 'Partner bike shop', 'Ana questioned the ₱300 charge. The front desk will settle it before checkout.', 'Bike rental · Confirmed · Thu, Nov 12'],
     ['table', 'The Poolside Bar & Lounge', 'See you at 12:00! Your table is ready for you.', 'Table for 4 · Confirmed · Today'],
     ['goods', 'Artisan pasalubong', 'Your order is at the front desk, held for you.', 'Pasalubong · Ready to collect'],
   ];
@@ -182,7 +182,7 @@ export function Screens() {
 
       <Fig label="Vendor chat for a confirmed bike rental with an automatic greeting and an extra charge in question" title="Guest and vendor" caption="One to one, opened when the vendor committed. It starts with the request, the note and who is in it. The vendor's greeting is an automatic message and says so. It arrives once the booking is confirmed, so a card hold waits for its payment first. The booking bar keeps the booking in view, and the extra charge is a receipt card with its status.">
         <Status>7:31</Status>
-        <Head kind="bike" title="Sakay Rentals" sub="City bicycle" />
+        <Head kind="bike" title="Partner bike shop" sub="Bike rental" />
         <div className="ca-bar">
           <div className="ca-l1">
             <Stub />
@@ -191,38 +191,38 @@ export function Screens() {
           </div>
         </div>
         <div className="ca-thread">
-          <Sys>You asked for City bicycle: 2 bikes, Thu 12 Nov, 1:30 PM.</Sys>
+          <Sys>You asked for Bike rental: 2 bikes, Thu 12 Nov, 1:30 PM.</Sys>
           <div className="ca-bub ca-bub--me">One with a child seat, if you have it.</div>
           <Sys>Only you and them are in this chat.</Sys>
-          <div className="ca-bub ca-bub--them">Hi Ana, thanks for booking with Sakay Rentals! Your 2 bikes are set for Thu 12 Nov, 1:30 PM. Please bring an ID.<span className="ca-auto">Auto-reply</span></div>
+          <div className="ca-bub ca-bub--them">Hi Ana, thanks for booking with us! Your 2 bikes are set for Thu 12 Nov, 1:30 PM. Please bring an ID.<span className="ca-auto">Auto-reply</span></div>
           <div className="ca-bub ca-bub--them">The child seat is on the second one, and helmets are in the basket.</div>
           <Receipt />
           <Sys>You questioned the ₱300 charge. The front desk will settle it before checkout.</Sys>
         </div>
-        <Composer placeholder="Message Sakay Rentals" />
+        <Composer placeholder="Message Partner bike shop" />
       </Fig>
 
       <Fig label="Booking page for a request waiting for the vendor, with no chat yet" title="Waiting for the vendor" caption="There is no chat yet. The guest sees the price, a quiet countdown, the note they sent and three actions: call the vendor, ask the front desk, or withdraw. Nothing is charged, and a card is only held. The chat opens when the vendor accepts.">
         <Status>7:31</Status>
-        <Head title="Island day tour" sub="Lakbay Island Tours" />
+        <Head title="Apo Island boat trip" sub="Partner boat operator" />
         <div className="ca-bk">
           <div className="ca-ph ca-ph--tall" style={{ background: TONE.tour }}><span className="ca-chip ca-chip--warn">Awaiting confirmation</span></div>
           <div className="ca-bd">
             <div className="ca-tk"><Stub /><div><b>10:00 AM</b><span>2 guests</span></div></div>
             <div className="ca-price"><span>Held, not charged · taken only if they confirm</span><b>₱3,800</b></div>
-            <div className="ca-count"><i />Lakbay Island Tours has 30 min to confirm<u>until 8:01 PM</u></div>
+            <div className="ca-count"><i />Partner boat operator has 30 min to confirm<u>until 8:01 PM</u></div>
             <div className="ca-note">Your note: The early boat, if there is a choice.</div>
-            <button type="button" className="ca-btn ca-btn--line"><Glyph name="phone" />Call Lakbay Island Tours</button>
+            <button type="button" className="ca-btn ca-btn--line"><Glyph name="phone" />Call Partner boat operator</button>
             <button type="button" className="ca-btn">Ask the front desk</button>
             <button type="button" className="ca-btn ca-btn--ghost">Withdraw request</button>
           </div>
         </div>
-        <Sys>A chat with Lakbay Island Tours opens once they accept.</Sys>
+        <Sys>A chat with Partner boat operator opens once they accept.</Sys>
       </Fig>
 
       <Fig label="Front desk chat with an outlet's automatic message and a booking card" title="Guest and front desk" caption="The app's own desk chat. The hotel's outlets talk here instead of in a chat of their own, labelled Auto-reply. A booking the desk made is a card with a photo, a status chip, a date stub, the price line, one main action and a quiet Cancel. Quick actions stay under it.">
         <Status>7:31</Status>
-        <Head title="Front desk" sub="The Henry Manila" />
+        <Head title="Front desk" sub="The Henry Resort Dumaguete" />
         <div className="ca-thread ca-thread--tight">
           <div className="ca-bub ca-bub--them">Booked by Marites at the front desk, as you asked.</div>
         </div>
@@ -244,9 +244,9 @@ export function Screens() {
 
       <Fig label="Front desk dispute sheet showing the guest and vendor chat read only" title="Front desk reads a dispute" caption="A sheet opened from the prototype controls. It has a Read only tag, no composer, and the three decisions. A disputed vendor cancellation shows Cancellation stands and Reinstate instead.">
         <Status>2:15</Status>
-        <div className="ca-head"><span className="ca-circ"><Glyph name="back" /></span><div><div className="ca-ttl ca-ttl--sm">Late return fee</div><div className="ca-sub">Ana · Room 304 · Sakay Rentals</div></div><span className="ca-tagpill">Read only</span></div>
+        <div className="ca-head"><span className="ca-circ"><Glyph name="back" /></span><div><div className="ca-ttl ca-ttl--sm">Late return fee</div><div className="ca-sub">Ana · Room 304 · Partner bike shop</div></div><span className="ca-tagpill">Read only</span></div>
         <div className="ca-thread">
-          <Sys>The front desk is reading this chat because a dispute is open. Ana and Sakay Rentals were told.</Sys>
+          <Sys>The front desk is reading this chat because a dispute is open. Ana and Partner bike shop were told.</Sys>
           <div className="ca-bub ca-bub--me">I returned the bikes at 5:50, not 6:10.</div>
           <div className="ca-bub ca-bub--them">Our log says 6:10. That is 70 minutes late.</div>
           <div className="ca-bub ca-bub--me">Can you check again?</div>
@@ -264,7 +264,7 @@ export function Screens() {
         <Head title="Prototype controls" sub="Events" />
         <div className="ca-ctl">
           <div className="ca-tabs"><span className="on">Bookings</span><span>Stay</span><span>Clock</span><span>Problems</span></div>
-          <div className="ca-grp">City bicycle · Sakay Rentals</div>
+          <div className="ca-grp">Bike rental · Partner bike shop</div>
           <div className="ca-grp2">Vendor</div>
           <div className="ca-acts">{['Confirm', 'Decline', 'Scan QR', 'Mark done', 'Add ₱300 charge', 'Claim ₱500 damage', 'Running late', 'Cancel'].map((a) => <span key={a}>{a}</span>)}</div>
           <div className="ca-grp2">Front desk</div>
@@ -280,13 +280,13 @@ export function Screens() {
 }
 
 const STATES: { title: string; text: string; where: string; card: ReactNode }[] = [
-  { title: 'Awaiting confirmation', text: 'The request waits for the vendor. A quiet countdown shows how long they have. Nothing is charged: a card is only held, and a room charge is made on accept. There is no chat yet, and the guest can call the vendor.', where: 'Booking page and desk chat. No vendor chat yet.', card: <BookingCard tone="tour" chip="Awaiting confirmation" chipClass="warn" title="Island day tour" vendor="Lakbay Island Tours" line="Held, not charged · taken only if they confirm" amount="₱3,800" secondary="Withdraw request" count={['Lakbay Island Tours has 30 min to confirm', 'until 8:01 PM']} /> },
-  { title: 'Pay to confirm', text: 'An instant listing paid in full is waiting for the payment to finish. The slot is held for 15 minutes. A confirm-first vendor never shows this: its money is held at booking, so there is no second payment.', where: 'Desk chat, vendor chat.', card: <BookingCard tone="bike" chip="Pay to confirm" chipClass="warn" title="City bicycle" vendor="Sakay Rentals" line="Pay in full" amount="₱700" primary="Pay now" secondary="Cancel" count={['Pay within 15 min to keep it', 'until 7:46 PM']} /> },
-  { title: 'Confirmed', text: 'Charged as chosen. The main button is what the guest needs next, here the QR. Tables read Confirmed too, with nothing charged.', where: 'Everywhere the booking shows.', card: <BookingCard tone="bike" chip="Confirmed" chipClass="ok" title="City bicycle" vendor="Sakay Rentals" line="Charged to your room" amount="₱700" primary="Show QR" secondary="Cancel" /> },
+  { title: 'Awaiting confirmation', text: 'The request waits for the vendor. A quiet countdown shows how long they have. Nothing is charged: a card is only held, and a room charge is made on accept. There is no chat yet, and the guest can call the vendor.', where: 'Booking page and desk chat. No vendor chat yet.', card: <BookingCard tone="tour" chip="Awaiting confirmation" chipClass="warn" title="Apo Island boat trip" vendor="Partner boat operator" line="Held, not charged · taken only if they confirm" amount="₱3,800" secondary="Withdraw request" count={['Partner boat operator has 30 min to confirm', 'until 8:01 PM']} /> },
+  { title: 'Pay to confirm', text: 'An instant listing paid in full is waiting for the payment to finish. The slot is held for 15 minutes. A confirm-first vendor never shows this: its money is held at booking, so there is no second payment.', where: 'Desk chat, vendor chat.', card: <BookingCard tone="bike" chip="Pay to confirm" chipClass="warn" title="Bike rental" vendor="Partner bike shop" line="Pay in full" amount="₱700" primary="Pay now" secondary="Cancel" count={['Pay within 15 min to keep it', 'until 7:46 PM']} /> },
+  { title: 'Confirmed', text: 'Charged as chosen. The main button is what the guest needs next, here the QR. Tables read Confirmed too, with nothing charged.', where: 'Everywhere the booking shows.', card: <BookingCard tone="bike" chip="Confirmed" chipClass="ok" title="Bike rental" vendor="Partner bike shop" line="Charged to your room" amount="₱700" primary="Show QR" secondary="Cancel" /> },
   { title: 'Ready to collect', text: 'Goods are marked ready by the desk and held. The card says where to collect.', where: 'Vendor chat, desk chat.', card: <BookingCard tone="goods" chip="Ready to collect" chipClass="ok" title="Single-origin coffee, 2" vendor="The lobby shop" line="Charged to your room" amount="₱840" secondary="Message the front desk" note="At the front desk, held for you." /> },
-  { title: 'In progress', text: 'The vendor scanned the QR. The only thing left for the guest is to question a charge.', where: 'Vendor chat.', card: <BookingCard tone="bike" chip="In progress" chipClass="live" title="City bicycle" vendor="Sakay Rentals" line="Charged to your room" amount="₱700" note="Back by 8:00 PM." /> },
-  { title: 'Not booked', text: 'Withdrawn, declined, lapsed or not paid in time. The line under it says which, and nothing was charged. The guest can book again.', where: 'Booking page and desk chat.', card: <BookingCard tone="bike" chip="Not booked" chipClass="mute" title="Scooter" vendor="Sakay Rentals" primary="Book again" secondary="Message the front desk" note="No answer in time · nothing charged" /> },
-  { title: 'Cancelled', text: 'It says what happened to the money. A card payment says the refund is on its way.', where: 'Everywhere the booking shows.', card: <BookingCard tone="tour" chip="Cancelled" chipClass="bad" title="Island day tour" vendor="Lakbay Island Tours" note="Your room charge was undone." /> },
+  { title: 'In progress', text: 'The vendor scanned the QR. The only thing left for the guest is to question a charge.', where: 'Vendor chat.', card: <BookingCard tone="bike" chip="In progress" chipClass="live" title="Bike rental" vendor="Partner bike shop" line="Charged to your room" amount="₱700" note="Back by 8:00 PM." /> },
+  { title: 'Not booked', text: 'Withdrawn, declined, lapsed or not paid in time. The line under it says which, and nothing was charged. The guest can book again.', where: 'Booking page and desk chat.', card: <BookingCard tone="bike" chip="Not booked" chipClass="mute" title="Scooter" vendor="Partner bike shop" primary="Book again" secondary="Message the front desk" note="No answer in time · nothing charged" /> },
+  { title: 'Cancelled', text: 'It says what happened to the money. A card payment says the refund is on its way.', where: 'Everywhere the booking shows.', card: <BookingCard tone="tour" chip="Cancelled" chipClass="bad" title="Apo Island boat trip" vendor="Partner boat operator" note="Your room charge was undone." /> },
   { title: 'Extra charge', text: 'A receipt card with who added it, a large amount and its status: Added, In question or Removed. The guest can question it.', where: 'Vendor chat.', card: <div className="ca-pad"><Receipt /></div> },
 ];
 

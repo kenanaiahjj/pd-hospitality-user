@@ -28,13 +28,17 @@ export type NearbyEstablishment = {
   hours: string;
   contact?: string;
   image: string;
-  /** All nearby listings are connected to their vendor for direct booking. */
-  bookingIntegration: true;
+  /**
+   * A partner on Cabana, booked directly in the app. False for an independent
+   * that is not on Cabana: the guest calls to reserve, and the front desk is
+   * the fallback.
+   */
+  bookingIntegration: boolean;
   /** Present only when the connected vendor can quote and collect payment in Cabana. */
   paymentIntegration?: { amount: number; basis: 'booking' | 'guest' | 'unit' };
 };
 
-const nearbyVendors: Omit<NearbyEstablishment, 'bookingIntegration'>[] = [
+const nearbyVendors: (Omit<NearbyEstablishment, 'bookingIntegration'> & { independent?: true })[] = [
   { id: 'kape-lab-manila', city: 'Manila', categoryId: 'dining' as const, name: 'Kape Lab Manila', type: 'Coffee & bakery', distance: '280 m away', description: 'Small-batch coffee, pastries, and early breakfast.', address: '142 Roxas Boulevard, Manila', hours: 'Daily · 6:00 AM–9:00 PM', contact: '+63 917 555 0142', image: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=80' },
   { id: 'bayleaf-kitchen', city: 'Manila', categoryId: 'dining', name: 'Bayleaf Kitchen', type: 'Filipino restaurant', distance: '600 m away', description: 'Neighborhood dining with regional Filipino comfort food.', address: '9 Mabini Street, Manila', hours: 'Tue–Sun · 11:00 AM–10:00 PM', contact: '+63 917 555 0161', image: '/experiments/bayleaf-kitchen.jpg' },
   { id: 'sunset-roasters', city: 'Manila', categoryId: 'dining', name: 'Sunset Roasters', type: 'Coffee shop', distance: '850 m away', description: 'A relaxed café for coffee, tea, and light bites.', address: '77 Roxas Boulevard, Manila', hours: 'Daily · 7:00 AM–8:00 PM', contact: '+63 917 555 0187', image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80' },
@@ -50,9 +54,28 @@ const nearbyVendors: Omit<NearbyEstablishment, 'bookingIntegration'>[] = [
   { id: 'manila-makers-market', city: 'Manila', categoryId: 'gifts', name: 'Manila Makers Market', type: 'Local crafts & souvenirs', distance: '750 m away', description: 'Independent makers offering keepsakes, home décor, and pasalubong.', address: '33 Escolta Street, Manila', hours: 'Tue–Sun · 10:00 AM–7:00 PM', contact: '+63 917 555 0116', image: 'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=900&q=80' },
   { id: 'binondo-pasalubong', city: 'Manila', categoryId: 'gifts', name: 'Binondo Pasalubong House', type: 'Local delicacies', distance: '1.4 km away', description: 'Independent shop for regional snacks, sweets, and take-home treats.', address: '168 Ongpin Street, Binondo, Manila', hours: 'Daily · 9:00 AM–8:00 PM', contact: '+63 917 555 0128', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80' },
   { id: 'artisan-home-studio', city: 'Manila', categoryId: 'gifts', name: 'Artisan Home Studio', type: 'Home décor & crafts', distance: '1.6 km away', description: 'Independent local artists’ studio with ceramics, candles, and small décor.', address: '52 Escolta Street, Manila', hours: 'Wed–Sun · 10:00 AM–6:00 PM', contact: '+63 917 555 0170', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=900&q=80' },
+  /*
+    Around The Henry Resort Dumaguete: one of each kind a nearby place can be,
+    so every path is exercised. Placeholder names (a kind and a street), demo
+    numbers in the 555 range, demo prices.
+    - a partner restaurant publishing its own tables
+    - an independent café, not on Cabana: call to reserve
+    - a partner spa paid per guest, room or pay now
+    - a partner guide who confirms first, paid per guest
+    - a partner car hire, confirm-first, paid per car
+    - a partner service with no payment in Cabana: pay the vendor there
+    - an independent pasalubong market, call only
+  */
+  { id: 'boulevard-seafood-grill', city: 'Dumaguete', categoryId: 'dining', name: 'Seafood grill · Rizal Boulevard', type: 'Seafood restaurant', distance: '650 m away', description: 'Grilled catch of the day along the seafront. A partner on Cabana: it publishes its own tables.', address: 'Rizal Boulevard, Dumaguete City', hours: 'Daily · 11:00 AM–10:00 PM', contact: '+63 917 555 0311', image: '/experiments/bayleaf-kitchen.jpg' },
+  { id: 'silliman-avenue-cafe', city: 'Dumaguete', categoryId: 'dining', name: 'Café · Silliman Avenue', type: 'Coffee & bakery', distance: '900 m away', description: 'A student-town café for coffee and pastries. Not on Cabana yet: call them to reserve.', address: 'Silliman Avenue, Dumaguete City', hours: 'Daily · 7:00 AM–9:00 PM', contact: '+63 917 555 0322', image: 'https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=900&q=80', independent: true },
+  { id: 'hilot-studio-daro', city: 'Dumaguete', categoryId: 'spa', name: 'Hilot studio · Daro', type: 'Massage & wellness', distance: '1.8 km away', description: 'Traditional hilot and foot massage. Charge it to your room, or pay now in the app.', address: 'National Highway, Daro, Dumaguete City', hours: 'Daily · 10:00 AM–9:00 PM', contact: '+63 917 555 0333', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=900&q=80', paymentIntegration: { amount: 1500, basis: 'guest' } },
+  { id: 'casaroro-falls-guide', city: 'Dumaguete', categoryId: 'entertainment', name: 'Casaroro Falls guide', type: 'Guided hike', distance: '14 km away', description: 'A half-day hike to the falls in Valencia. The guide confirms each request before anything is charged.', address: 'Valencia, Negros Oriental', hours: 'Tours daily · 7:00 AM–3:00 PM', contact: '+63 917 555 0344', image: 'https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?auto=format&fit=crop&w=900&q=80', paymentIntegration: { amount: 900, basis: 'guest' } },
+  { id: 'calindagan-car-hire', city: 'Dumaguete', categoryId: 'rentals', name: 'Car hire · Calindagan', type: 'Car rental', distance: '2.6 km away', description: 'Self-drive cars by the day. The shop confirms each request; a licence is shown at pickup.', address: 'Calindagan, Dumaguete City', hours: 'Daily · 7:00 AM–7:00 PM', contact: '+63 917 555 0355', image: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=900&q=80', paymentIntegration: { amount: 2500, basis: 'unit' } },
+  { id: 'piapi-wash-and-fold', city: 'Dumaguete', categoryId: 'services', name: 'Wash-and-fold · Piapi', type: 'Laundry service', distance: '1.2 km away', description: 'Wash-and-fold with pickup from the resort. Book in the app; pay the shop on delivery.', address: 'Piapi, Dumaguete City', hours: 'Daily · 8:00 AM–8:00 PM', contact: '+63 917 555 0366', image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?auto=format&fit=crop&w=900&q=80' },
+  { id: 'public-market-pasalubong', city: 'Dumaguete', categoryId: 'gifts', name: 'Pasalubong stalls · public market', type: 'Local delicacies', distance: '1.5 km away', description: 'Budbud kabog, peanut kisses and dried fish to take home. Not on Cabana: call ahead or just walk in.', address: 'Dumaguete Public Market, Real Street', hours: 'Daily · 6:00 AM–6:00 PM', contact: '+63 917 555 0377', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80', independent: true },
 ];
 
-export const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = nearbyVendors.map((vendor) => ({ ...vendor, bookingIntegration: true }));
+export const NEARBY_ESTABLISHMENTS: NearbyEstablishment[] = nearbyVendors.map(({ independent, ...vendor }) => ({ ...vendor, bookingIntegration: !independent }));
 
 const NEARBY_CATEGORIES: { id: MiniAppCategoryId; title: string; description: string }[] = [
   { id: 'dining', title: 'Food & drink', description: 'Restaurants, cafés and local favorites' },
@@ -115,7 +138,7 @@ export function nearbyFeedInputs(city: string) {
 }
 
 export function NearbyRecommendationCard({ item, onSelect }: { item: NearbyEstablishment; onSelect: (id: string) => void }) {
-  return <button className="guest-catalog-option-card guest-catalog-option-card--nearby" type="button" onClick={() => onSelect(item.id)}><div className="guest-catalog-option-card__media"><Image src={item.image} alt="" fill sizes="(max-width: 720px) 84vw, 540px" /><span className="guest-catalog-option-card__name">{item.name}</span></div><div className="guest-catalog-option-card__details"><p>{item.type}</p>{item.distance ? <small>{item.distance}</small> : null}<small>{item.address}</small></div></button>;
+  return <button className="guest-catalog-option-card guest-catalog-option-card--nearby" type="button" onClick={() => onSelect(item.id)}><div className="guest-catalog-option-card__media"><Image src={item.image} alt="" fill sizes="(max-width: 720px) 84vw, 540px" /><span className="guest-catalog-option-card__name">{item.name}</span></div><div className="guest-catalog-option-card__details"><p>{item.type}</p>{item.distance ? <small>{item.distance}</small> : null}<small>{item.bookingIntegration ? item.address : 'Not on Cabana · call to reserve'}</small></div></button>;
 }
 
 export function NearbyRecommendations({ categoryId, city, description, onViewAll, onSelect }: { categoryId: MiniAppCategoryId; city: string; description: string; onViewAll: () => void; onSelect: (id: string) => void }) {
@@ -140,7 +163,7 @@ export function NearbyRecommendationsPage({ categoryId, city, property, now, onS
   const [view, setView] = useState<'list' | 'map'>('list');
   return (
     <div className="guest-stack guest-nearby-page">
-      <div className="guest-page-title"><h1>{title}</h1><p>Book directly with local vendors near {property}.</p></div>
+      <div className="guest-page-title"><h1>{title}</h1><p>Book local partners near {property} directly. Places not on Cabana show their number to call.</p></div>
       {recommendations.length ? (
         <div className="guest-nearby-view" role="group" aria-label="Show as">
           <button type="button" aria-pressed={view === 'list'} className={view === 'list' ? 'is-active' : ''} onClick={() => setView('list')}>List</button>
@@ -394,7 +417,7 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
   );
 }
 
-export function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide, onReserveTable, onBookNearby, partnerTables, reserveDays = [], dayLabel = (day) => day, defaultParty = 2, roomChargeAvailable = false, roomNumber, slotAhead, waitsForVendor, needsApproval, notice }: {
+export function NearbyEstablishmentScreen({ establishment, city, property, now, onBack, onNotifications, onBookRide, onAskDesk, onReserveTable, onBookNearby, partnerTables, reserveDays = [], dayLabel = (day) => day, defaultParty = 2, roomChargeAvailable = false, roomNumber, slotAhead, waitsForVendor, needsApproval, notice }: {
   establishment: NearbyEstablishment;
   city: string;
   property: string;
@@ -402,6 +425,8 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
   onBack: () => void;
   onNotifications: () => void;
   onBookRide: () => void;
+  /** A place not on Cabana: the front desk can call for the guest. */
+  onAskDesk?: () => void;
   /** Restaurants and cafes: reserve a table through the vendor integration. */
   onReserveTable?: (request: TableRequest) => void;
   onBookNearby?: (request: NearbyBookingRequest) => void;
@@ -423,8 +448,9 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
   const [reserving, setReserving] = useState(false);
   const [booking, setBooking] = useState(false);
   const dining = establishment.categoryId === 'dining';
-  // Every nearby vendor is connected for direct booking; payment is optional per vendor.
-  const bookable = dining && Boolean(onReserveTable) && reserveDays.length > 0;
+  // A partner is booked in the app, payment optional per vendor. An independent is not on Cabana: call to reserve.
+  const independent = !establishment.bookingIntegration;
+  const bookable = !independent && dining && Boolean(onReserveTable) && reserveDays.length > 0;
   const phone = establishment.contact?.replace(/\s/g, '');
   return <div className="guest-stack guest-nearby-detail">
     {notice ? <Notice tone="warning" title="That did not go through">{notice}</Notice> : null}
@@ -435,7 +461,7 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
       <button className="guest-nearby-detail__control guest-nearby-detail__notifications" type="button" onClick={onNotifications} aria-label="Notifications"><Bell /></button>
       <div className="guest-nearby-detail__hero-copy">
         <h1>{establishment.name}</h1>
-        <div className="guest-nearby-detail__tags" aria-label="Recommendation details"><span>{establishment.type}</span><span>Local vendor</span></div>
+        <div className="guest-nearby-detail__tags" aria-label="Recommendation details"><span>{establishment.type}</span><span>{independent ? 'Not on Cabana' : 'Local partner'}</span></div>
       </div>
     </section>
 
@@ -450,9 +476,11 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
     <section className="guest-nearby-detail__good-to-know">
       <h2>Good to know</h2>
       <div className="guest-nearby-detail__facts">
-        <span><Storefront aria-hidden="true" /><b>Book directly with this local vendor</b></span>
+        <span><Storefront aria-hidden="true" /><b>{independent ? 'Call to reserve · not bookable in the app' : 'Book directly with this local partner'}</b></span>
         <span><House aria-hidden="true" /><b>Outside the hotel</b></span>
-        {establishment.paymentIntegration
+        {independent
+          ? <span><Check aria-hidden="true" /><b>Pay the venue directly · no room charge</b></span>
+          : establishment.paymentIntegration
           ? <span><Check aria-hidden="true" /><b>{roomChargeAvailable ? 'Charge to room or pay now' : 'Pay through Cabana · no room charge'}</b></span>
           : <span><Check aria-hidden="true" /><b>{dining ? 'Pay at the restaurant · no room charge' : 'Pay the vendor directly · no room charge'}</b></span>}
         {establishment.categoryId === 'gifts' ? <span><Gift aria-hidden="true" /><b>Local handicrafts and gifts</b></span> : null}
@@ -461,7 +489,13 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
     </section>
 
     <div className="guest-nearby-detail__cta">
-      {bookable ? (
+      {independent ? (
+        <>
+          <a className="guest-button guest-button--primary" href={`tel:${phone}`}><Phone aria-hidden="true" />Call to reserve</a>
+          {onAskDesk ? <button type="button" className="guest-nearby-detail__alt" onClick={onAskDesk}>Ask the front desk to call</button> : null}
+          <button type="button" className="guest-nearby-detail__alt" onClick={onBookRide}>Arrange a ride there</button>
+        </>
+      ) : bookable ? (
         <Button className="guest-button guest-button--primary" type="button" onClick={() => setReserving(true)}>Reserve a table<ArrowRight /></Button>
       ) : onBookNearby ? (
         <>

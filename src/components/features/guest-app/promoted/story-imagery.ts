@@ -39,6 +39,13 @@ export const STORY_IMAGERY: Record<string, ServiceImageDefinition> = {
   cafe: shot('photo-1494346480775-936a9f0d0877', 'Cafe counter'),
   rooftop: shot('photo-1613066697157-e8345495b665', 'Rooftop terrace at dusk'),
   dining: shot('photo-1551632436-cbf8dd35adfa', 'Plated dish'),
+  // The Henry Resort Dumaguete's restaurants, on borrowed photographs until the resort's own arrive.
+  'the-dining-room': shot('photo-1517248135467-4c7edcad34c4', 'Restaurant interior'),
+  'si-senor': shot('photo-1692261920240-a3c88f29e25f', 'Bar at sunset'),
+  'popolo-pizzeria': shot('photo-1551632436-cbf8dd35adfa', 'Plated dish'),
+  'the-red-kitchen': shot('photo-1508424757105-b6d5ad9329d0', 'Dishes to share'),
+  'noelles-brunch-bar': shot('photo-1613066697157-e8345495b665', 'Terrace in the morning'),
+  'coffee-collective': shot('photo-1494346480775-936a9f0d0877', 'Cafe counter'),
 
   // Spa and the facilities beside it
   spa: shot('photo-1544161515-4ab6ce6db874', 'Massage treatment'),
@@ -64,10 +71,13 @@ export const STORY_IMAGERY: Record<string, ServiceImageDefinition> = {
   tour: shot('photo-1570560258879-af7f8e1447ac', 'Island shoreline'),
   'sunset-cruise': shot('photo-1689239719024-8f0866438b46', 'Boat at sunset'),
   'heritage-walk': shot('photo-1636405189493-181ecf851006', 'Old city street'),
+  'apo-island-trip': shot('photo-1570560258879-af7f8e1447ac', 'Island shoreline'),
+  'walking-tour': shot('photo-1636405189493-181ecf851006', 'Old city street'),
+  'yoga-class': shot('photo-1600334129128-685c5582fd35', 'A calm room for a class'),
 
   /* Rentals borrow the listing's own photographs, which are still remote --
      the one exception to the rule above until they are copied in too. */
-  ...Object.fromEntries(['rental', 'e-bike', 'scooter', 'motorcycle', 'car-rental', 'suv-rental']
+  ...Object.fromEntries(['rental', 'e-bike', 'scooter', 'motorcycle', 'car-rental', 'suv-rental', 'bike-rental', 'scooter-rental']
     .map((id) => [id, getItemCardImage(id, 'rentals')])),
 };
 

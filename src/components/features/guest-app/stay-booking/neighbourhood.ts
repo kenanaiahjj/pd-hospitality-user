@@ -103,7 +103,14 @@ export const NEIGHBOURHOODS: Record<string, Neighbourhood> = {
       spot('essential', 'pharmacy', 'Mercury Drug', 'Pharmacy', 7),
       spot('essential', 'airport', 'Sibulan Airport', 'Airport', 15, 'drive'),
     ],
-    partners: [partner('lakbay-tours', 'Lakbay Island Tours', 'Tours', 'Apo Island day trips', 'tour'), ...HENRY_PARTNERS.slice(0, 1), partner('dumaguete-pool', 'Poolside Bar', 'Bar', 'Shakes and cocktails by the pool', 'poolside-bar', 'hotel')],
+    // The pilot resort: its own partners, as its Explore lists them.
+    partners: [
+      partner('si-senor', 'Si Señor', 'Restaurant', 'One of six restaurants and cafés on the resort', 'si-senor'),
+      partner('cafe-sans-rival', 'Cafe Sans Rival', 'Pasalubong', 'Sans rival and silvanas, held at the desk for your flight', 'coffee-collective'),
+      partner('partner-boat-operator', 'Partner boat operator', 'Tours', 'Apo Island boat trips, twice a day', 'apo-island-trip'),
+      ...HENRY_PARTNERS.slice(0, 1),
+      partner('dumaguete-pool', 'Poolside Bar', 'Bar', 'Shakes and cocktails by the pool', 'poolside-bar', 'hotel'),
+    ],
   },
   'valencia-forest-lodge': {
     spots: [

@@ -46,32 +46,33 @@ export function seedSample(host: Host, stay: StayInput): boolean {
   const request = (draft: Record<string, unknown>) => host.call<{ ok: boolean; bookingId: string }>('guest.request', guest.guestId, { origin: 'app', ...draft });
   const meta: SampleMeta = {};
 
-  // A scooter nobody answered: the vendor's half hour ran out.
-  const scooter = request({ listingId: 'scooter', date: tomorrow, time: '10:00', qty: 1, payMode: 'room' });
+  // A scooter nobody answered: the bike shop's half hour ran out.
+  const scooter = request({ listingId: 'scooter-rental', date: tomorrow, time: '10:00', qty: 1, payMode: 'room' });
   if (scooter.ok) host.call('pilot.advanceTo', pilot.now() + 31 * 60_000);
 
   // Two bicycles, confirmed, with a word from the shop. (The desk's word on it is in the desk's own chat.)
   const worst = worstCaseOn();
-  const bikes = request({ listingId: 'rental', date: tomorrow, time: '13:30', qty: 2, payMode: 'room', note: worst ? WORST.bikeNote : 'One with a child seat, if you have it.' });
+  const bikes = request({ listingId: 'bike-rental', date: tomorrow, time: '13:30', qty: 2, payMode: 'room', note: worst ? WORST.bikeNote : 'One with a child seat, if you have it.' });
   if (bikes.ok) {
-    host.call('vendor.confirm', vendorOf('rental'), bikes.bookingId);
+    host.call('vendor.confirm', vendorOf('bike-rental'), bikes.bookingId);
     for (const text of worst ? WORST.bikeMessages : ['Two bikes are set for you. The child seat is on the second one, and helmets are in the basket.']) {
-      host.call('vendor.message', vendorOf('rental'), pilot.booking(bikes.bookingId).threadId, text);
+      host.call('vendor.message', vendorOf('bike-rental'), pilot.booking(bikes.bookingId).threadId, text);
     }
   }
 
-  // An island tour still waiting on the operator.
-  const tour = request({ listingId: 'tour', date: tomorrow, time: '10:00', qty: 2, payMode: 'room', note: worst ? WORST.tourNote : 'The early boat, if there is a choice.' });
+  // The Apo Island boat, still waiting on the operator.
+  const tour = request({ listingId: 'apo-island-trip', date: tomorrow, time: '07:30', qty: 2, payMode: 'room', note: worst ? WORST.tourNote : 'The early boat, if there is a choice.' });
   // In the worst case the operator says yes too, so a long-named tour has a chat to look at.
-  if (worst && tour.ok) host.call('vendor.confirm', vendorOf('tour'), tour.bookingId);
+  if (worst && tour.ok) host.call('vendor.confirm', vendorOf('apo-island-trip'), tour.bookingId);
 
-  // A table by the pool.
+  // A table by the pool (the hotel's own bar, so it talks in the desk chat), and one at Si Señor (a partner, with a chat of its own).
   request({ listingId: 'poolside-bar', date: tomorrow, time: '12:00', qty: 4 });
+  request({ listingId: 'si-senor', date: tomorrow, time: '19:00', qty: 2 });
 
-  // Coffee to take home, held for the day they leave, and ready at the desk.
-  const coffee = giftListingId('Single-origin Philippine coffee');
-  if (coffee) {
-    const order = request({ listingId: coffee, date: stay.checkOut, qty: 2, payMode: 'room' });
+  // Pasalubong from Cafe Sans Rival, held for the day they leave, and ready at the desk.
+  const pasalubong = giftListingId('Sans rival cake, whole');
+  if (pasalubong) {
+    const order = request({ listingId: pasalubong, date: stay.checkOut, qty: 2, payMode: 'room' });
     if (order.ok) host.call('desk.markReady', order.bookingId);
   }
 
@@ -96,10 +97,10 @@ export function sampleDeskChat(host: Host, appBookingId: string): SampleChatMess
     meta = {};
   }
   const lines: SampleChatMessage[] = [
-    { from: 'desk', body: `Good afternoon, and welcome to The Henry Manila. This is ${SAMPLE_STAFF} at the front desk. Message me any time.`, state: 'Seen' },
+    { from: 'desk', body: `Good afternoon, and welcome to The Henry Resort Dumaguete. This is ${SAMPLE_STAFF} at the front desk. Message me any time.`, state: 'Seen' },
     { from: 'guest', body: 'Hi! Could we have a late checkout on Thursday, if it is possible?', state: 'Seen' },
     { from: 'desk', body: 'Of course. I have noted it. I can offer 2:00 PM at no charge, and I will confirm tomorrow morning.', state: 'Seen' },
-    { from: 'desk', body: 'Your bicycles from Sakay Rentals are set for tomorrow. I also passed on the child seat request.', state: 'Seen' },
+    { from: 'desk', body: 'Your bicycles from the bike shop are set for tomorrow. I also passed on the child seat request.', state: 'Seen' },
   ];
   if (meta.trainer) {
     lines.push({ from: 'guest', body: 'Could you also book me a training session? I asked at the desk earlier.', state: 'Seen' });

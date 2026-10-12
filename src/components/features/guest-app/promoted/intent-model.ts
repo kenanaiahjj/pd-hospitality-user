@@ -37,13 +37,21 @@ export type Intent = {
   picks: IntentPick[];
 };
 
+/*
+  Picks for every hotel in the catalogue, the stay's own first. The answer
+  keeps the first three this hotel actually has (see `resolveIntent`), so a
+  Dumaguete guest never gets Manila Bay and the other way round.
+*/
 export const INTENTS: Intent[] = [
   {
     id: 'dinner',
     prompt: 'Somewhere for dinner tonight',
     cues: ['dinner', 'eat', 'food', 'hungry', 'restaurant', 'tonight'],
-    answer: 'Three open tonight, closest first.',
+    answer: 'Three open tonight. Tables are free to reserve.',
     picks: [
+      { id: 'si-senor', why: 'On the resort, tables from 6 PM' },
+      { id: 'the-dining-room', why: 'The main restaurant, open until 10 PM' },
+      { id: 'the-red-kitchen', why: 'Dinner only, sittings at 6 and 7 PM' },
       { id: 'apartment-1b', why: 'Downstairs, no booking needed' },
       { id: 'rooftop', why: 'Ninth floor — worth the lift for the view' },
       { id: 'poolside-bar', why: 'Lightest option, walk in' },
@@ -58,6 +66,7 @@ export const INTENTS: Intent[] = [
       { id: 'spa', why: '90 minutes, and you never step outside' },
       { id: 'cooking-class', why: 'Filipino classics, hotel kitchen' },
       { id: 'facial', why: 'Shorter, if you want the afternoon back' },
+      { id: 'mani-pedi', why: 'An hour, and you stay dry' },
     ],
   },
   {
@@ -78,6 +87,7 @@ export const INTENTS: Intent[] = [
     answer: 'Two that work with children, and one that buys you an evening.',
     picks: [
       { id: 'film-night', why: 'Poolside, Saturdays, complimentary' },
+      { id: 'popolo-pizzeria', why: 'Pizza works for everyone' },
       { id: 'museum-pass', why: 'Ten minutes away, good for a morning' },
       { id: 'babysitting', why: 'If you want dinner without them' },
     ],
@@ -89,6 +99,7 @@ export const INTENTS: Intent[] = [
     answer: 'Quiet first, then the things that clear your evening.',
     picks: [
       { id: 'meeting-room', why: 'Bookable by the half day' },
+      { id: 'coffee-collective', why: 'On the resort, open from 7 AM' },
       { id: 'cafe', why: 'Lobby level, open from 6 AM' },
       { id: 'laundry', why: 'Same-day, so tomorrow is handled' },
     ],
@@ -101,15 +112,20 @@ export const INTENTS: Intent[] = [
     picks: [
       { id: 'celebration', why: 'Flowers and setup, 24 hours ahead' },
       { id: 'couples-massage', why: 'The suite takes two' },
+      { id: 'spa', why: 'Book two side by side' },
+      { id: 'si-senor', why: 'Reserve a table for the evening' },
       { id: 'rooftop', why: 'Book the terrace before 6 PM' },
     ],
   },
   {
     id: 'first-time',
-    prompt: 'First time in Manila',
-    cues: ['manila', 'city', 'explore', 'tour', 'sightsee', 'first time', 'local'],
-    answer: 'Start on foot, then eat, then get on the water.',
+    prompt: 'First time here',
+    cues: ['dumaguete', 'manila', 'city', 'explore', 'tour', 'sightsee', 'first time', 'local'],
+    answer: 'Start on foot, then get on the water.',
     picks: [
+      { id: 'walking-tour', why: 'Rizal Boulevard and the old town, with the resort’s own guide' },
+      { id: 'apo-island-trip', why: 'Turtles and reef, by boat — the operator confirms first' },
+      { id: 'diving', why: 'A first dive, no certificate needed' },
       { id: 'heritage-walk', why: 'Old Manila, guided, half a day' },
       { id: 'food-crawl', why: 'Binondo — the oldest Chinatown anywhere' },
       { id: 'sunset-cruise', why: 'Manila Bay, and the sunset is the point' },
@@ -146,19 +162,24 @@ function describe(id: string) {
   return undefined;
 }
 
-export function resolveIntent(intent: Intent): IntentResult {
+/**
+ * The answer for one situation. `available` is what this hotel has (the ids
+ * in its own catalogue); without it every pick is a candidate.
+ */
+export function resolveIntent(intent: Intent, available?: ReadonlySet<string>): IntentResult {
   return {
     intent,
     /*
-      A pick that no longer exists in the catalogue is dropped rather than
-      rendered blank -- an answer that lists something the property cannot
-      sell is worse than a shorter answer.
+      A pick that no longer exists in the catalogue, or not at this hotel, is
+      dropped rather than rendered blank -- an answer that lists something the
+      property cannot sell is worse than a shorter answer.
     */
     items: intent.picks.flatMap((pick) => {
+      if (available && !available.has(pick.id)) return [];
       const described = describe(pick.id);
       if (!described) return [];
       return [{ id: pick.id, ...described, why: pick.why, image: storyImage(pick.id) }];
-    }),
+    }).slice(0, 3),
   };
 }
 

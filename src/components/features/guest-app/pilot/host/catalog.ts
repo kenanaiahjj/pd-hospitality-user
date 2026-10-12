@@ -1,7 +1,7 @@
-import { GIFT_PRODUCTS, LOBBY_SHOP_NAME } from '../../dining';
+import { GIFT_PRODUCTS, LOBBY_SHOP_NAME, SANS_RIVAL_NAME, SANS_RIVAL_PRODUCTS } from '../../dining';
 import { applyWorstCatalog, worstCaseOn } from './worst-case';
 import { NEARBY_ESTABLISHMENTS, tableTimes } from '../../places';
-import { acceptsPayNow, cancellationCutoffHours, parseClockTime, parsePesoAmount, rentalUnitFor, SERVICES, SERVICE_SCHEDULES } from '../../prototype-model';
+import { acceptsPayNow, RESTAURANTS, cancellationCutoffHours, parseClockTime, parsePesoAmount, rentalUnitFor, SERVICES, SERVICE_SCHEDULES } from '../../prototype-model';
 import { SERVICE_VENUES } from '../../promoted/service-venues';
 import { isReservation, listingFor } from '../../vendor-listings';
 import type { Listing, Vendor } from '../types';
@@ -38,16 +38,19 @@ const HH = (time: string): string => {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 };
 const hours = (open: number, close: number) => ({ open: open * 60, close: close * 60 });
+/** "7:00 AM – 3:00 PM" → 7 and 15: a venue's own hours, as its page shows them. */
+const opensAt = (range: string) => parseClockTime(range.split(/[–-]/)[0]!.trim()).hour;
+const closesAt = (range: string) => { const hour = parseClockTime(range.split(/[–-]/)[1]?.trim() ?? '10:00 PM').hour; return hour === 0 ? 24 : hour; };
 
-/** Services that wait for the operator to say yes, besides every rental. */
-const CONFIRM_FIRST_SERVICES = new Set(['tour', 'sunset-cruise', 'sunset-bay-cruises', 'manila-heritage-walks']);
+/** Services that wait for the operator to say yes, besides every rental: boat and island trips, and outside guides. */
+const CONFIRM_FIRST_SERVICES = new Set(['tour', 'sunset-cruise', 'sunset-bay-cruises', 'manila-heritage-walks', 'apo-island-trip', 'casaroro-falls-guide']);
 /** Not bookings: rides have their own flow, and an in-room dining order is a chat order. */
 const NOT_BOOKABLE_HERE = new Set(['dining', 'transfer', 'private-car']);
 
 const cancelHours = (cutoff: string): number => cancellationCutoffHours(cutoff) ?? 2;
 
-/** The Henry Manila's front desk, as the stay's own record has it. */
-const HOTEL_PHONE = '+63 2 8807 8888';
+/** The Henry Resort Dumaguete's front desk, the demo stay's hotel, as the estate record has it. */
+const HOTEL_PHONE = '+63 35 422 0100';
 /** A demo number for a partner with none on file: in the fictional 555 range the nearby places use, steady for each partner. */
 const demoPhone = (id: string) => `+63 917 555 ${String(2000 + ([...id].reduce((sum, ch) => sum * 31 + ch.charCodeAt(0), 7) % 7000)).padStart(4, '0')}`;
 
@@ -66,7 +69,11 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
   for (const service of SERVICES) {
     if (NOT_BOOKABLE_HERE.has(service.id)) continue;
     const venue = SERVICE_VENUES.find((v) => v.operates.includes(service.id));
-    const vendorId = venue && venue.kind === 'venue' ? vendor(venue.id, venue.name, 8, 21) : hotelId;
+    // A partner restaurant on the resort is its own vendor, with its own chat; the hotel's outlets answer at the desk.
+    const restaurant = service.operator === 'Partner on property' ? RESTAURANTS.find((r) => r.id === service.id) : undefined;
+    const vendorId = restaurant
+      ? vendor(restaurant.id, restaurant.name, opensAt(restaurant.hours), closesAt(restaurant.hours))
+      : venue && venue.kind === 'venue' ? vendor(venue.id, venue.name, 8, 21) : hotelId;
     const price = parsePesoAmount(service.price);
     const base = {
       id: service.id,
@@ -79,7 +86,7 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
     };
     if (isReservation(service.id)) {
       const listing = listingFor(service.id);
-      listings.push({ ...base, kind: 'table', confirm: 'instant', unitPrice: 0, times: listing.times.map(HH), maxParty: listing.maxParty ?? 10, durationMin: 90, capacity: 6, freeCancelHours: Number.POSITIVE_INFINITY, payModes: ['room'] });
+      listings.push({ ...base, kind: 'table', confirm: 'instant', unitPrice: 0, times: listing.times.map(HH), maxParty: listing.maxParty ?? 10, durationMin: 90, capacity: 6, freeCancelHours: Number.POSITIVE_INFINITY, payModes: ['room'], ...(restaurant?.menuPdf ? { menuPdf: restaurant.menuPdf } : {}) });
       continue;
     }
     const schedule = SERVICE_SCHEDULES[service.id];
@@ -95,7 +102,8 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
 
   // Nearby places that take bookings through Cabana.
   for (const place of NEARBY_ESTABLISHMENTS) {
-    if (place.categoryId === 'gifts') continue;
+    // Gifts are browsed, not booked; an independent is not on Cabana, so the guest calls it.
+    if (place.categoryId === 'gifts' || !place.bookingIntegration) continue;
     const vendorId = vendor(place.id, place.name, 7, 22, place.contact);
     const integration = place.paymentIntegration;
     const times = tableTimes(place.hours).map(HH);
@@ -135,6 +143,26 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
     });
   });
 
+  // Cafe Sans Rival: a partner on the resort, so it has its own chat. Room or card, ready at 17:00, 50 to an order.
+  const sansRivalId = vendor('cafe-sans-rival', SANS_RIVAL_NAME, 8, 18);
+  SANS_RIVAL_PRODUCTS.forEach((product, index) => {
+    listings.push({
+      id: `sans-rival-${index}`,
+      vendorId: sansRivalId,
+      kind: 'goods',
+      title: product.name,
+      confirm: 'instant',
+      unitPrice: parsePesoAmount(product.price),
+      capacity: 120,
+      times: [],
+      orderCap: 50,
+      freeCancelHours: 24,
+      durationMin: 0,
+      readyAt: '17:00',
+      payModes: ['room', 'card'],
+    });
+  });
+
   const built = { vendors: [...vendors.values()], listings };
   // The break-ui worst case, in dev with ?data=worst: the same catalogue under realistic worst-case names.
   return worstCaseOn() ? applyWorstCatalog(built) : built;
@@ -143,5 +171,7 @@ export function buildCatalog(): { vendors: Vendor[]; listings: Listing[] } {
 /** The listing id for a lobby-shop product. */
 export const giftListingId = (productName: string): string | undefined => {
   const index = GIFT_PRODUCTS.findIndex((p) => p.name === productName);
-  return index >= 0 ? `gift-${index}` : undefined;
+  if (index >= 0) return `gift-${index}`;
+  const pasalubong = SANS_RIVAL_PRODUCTS.findIndex((p) => p.name === productName);
+  return pasalubong >= 0 ? `sans-rival-${pasalubong}` : undefined;
 };

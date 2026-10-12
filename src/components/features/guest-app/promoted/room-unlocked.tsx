@@ -78,7 +78,7 @@ const BANNER = PROPERTY_IMAGE;
 
 export function RoomUnlocked({
   roomNumber,
-  property = 'The Henry Manila',
+  property = 'The Henry Resort Dumaguete',
   guestName,
   dates,
   onExplore,

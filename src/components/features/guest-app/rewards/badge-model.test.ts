@@ -56,10 +56,10 @@ describe('derivation', () => {
     expect(progressFor('foodie').earned).toBe(true);
   });
 
-  /* She cancelled the café booking. It cannot earn her anything. */
+  /* She cancelled the Coffee Collective table. It cannot earn her anything. */
   it('ignores a booking the guest cancelled', () => {
     const cancelled = MOCK_SESSION.serviceBookings.find((entry) => entry.status === 'cancelled')!;
-    expect(cancelled.serviceId).toBe('cafe');
+    expect(cancelled.serviceId).toBe('coffee-collective');
 
     const withOnlyTheCancelled = {
       ...MOCK_SESSION,
@@ -87,17 +87,17 @@ describe('derivation', () => {
 
   it('holds twelve badges for the reference guest', () => {
     // Tomorrow's massage has not happened, so Wellness waits one step away.
+    // The demo stay is at the Dumaguete resort, opened 1 Sept: New opening, not Homecoming.
     expect(earnedBadges(MOCK_SESSION).map((row) => row.definition.id)).toEqual([
       'foodie', 'sundowner', 'night-owl', 'pair', 'weekender',
-      'direct-booker', 'switched', 'regular', 'island-hopper', 'homecoming',
+      'direct-booker', 'switched', 'regular', 'island-hopper', 'new-opening',
       'self-sufficient', 'venue-regular',
     ]);
   });
 
-  it('puts six badges within one step, nearest first', () => {
+  it('puts the badges within one step, nearest first', () => {
     expect(nearlyEarnedBadges(MOCK_SESSION).map((row) => row.definition.id)).toEqual([
-      // All six are one event away, so they hold their declaration order.
-      'wellness', 'culture', 'solo', 'spontaneous', 'pre-checked', 'luzon-to-mindanao',
+      'early-riser', 'wellness', 'culture', 'outdoors', 'solo', 'spontaneous', 'pre-checked', 'estate-explorer', 'luzon-to-mindanao',
     ]);
   });
 

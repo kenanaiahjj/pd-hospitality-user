@@ -88,7 +88,7 @@ export const PROPERTY_IMAGES: Record<PropertyImageKey, ServiceImageDefinition> =
   },
   dumaguete: {
     src: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=82',
-    alt: 'The Henry Manila tropical coastal resort and grounds',
+    alt: 'The Henry Resort Dumaguete, a tropical coastal resort and grounds',
     focalPoint: '50% 55%',
   },
   default: {
@@ -547,7 +547,38 @@ export function getArrivalServiceImage(service: { id: string; categoryId: string
   return getItemCardImage(service.id, service.categoryId);
 }
 
+/*
+  The Dumaguete catalogue uses photographs already in the set until the
+  resort's own arrive: the local copies the reels use (public/experiments),
+  each a picture of the same kind of thing, with alt text that never names
+  another venue. Rentals borrow the rental cards.
+*/
+const local = (id: string, alt: string): ServiceImageDefinition => ({ src: `/experiments/${id}.jpg`, alt, focalPoint: '50% 50%' });
+const DUMAGUETE_IMAGES: Record<string, ServiceImageDefinition> = {
+  'the-dining-room': local('photo-1517248135467-4c7edcad34c4', 'A restaurant dining room'),
+  'si-senor': local('photo-1692261920240-a3c88f29e25f', 'A bar at sunset'),
+  'popolo-pizzeria': local('photo-1551632436-cbf8dd35adfa', 'A plated dish'),
+  'the-red-kitchen': local('photo-1508424757105-b6d5ad9329d0', 'Dishes to share'),
+  'noelles-brunch-bar': local('photo-1613066697157-e8345495b665', 'A terrace in the morning'),
+  'coffee-collective': local('photo-1494346480775-936a9f0d0877', 'A café counter'),
+  'apo-island-trip': local('photo-1570560258879-af7f8e1447ac', 'An island shoreline'),
+  'walking-tour': local('photo-1636405189493-181ecf851006', 'An old town street'),
+  'yoga-class': local('photo-1600334129128-685c5582fd35', 'A calm room for a class'),
+};
+const BORROWED_RENTALS: Record<string, { from: string; alt: string }> = {
+  'bike-rental': { from: 'rental', alt: 'A bicycle ready to ride' },
+  'scooter-rental': { from: 'scooter', alt: 'A scooter parked by the road' },
+};
+const borrowed = (map: Record<string, ServiceImageDefinition>, id: string): ServiceImageDefinition | undefined => {
+  if (DUMAGUETE_IMAGES[id]) return DUMAGUETE_IMAGES[id];
+  const entry = BORROWED_RENTALS[id];
+  const image = entry ? map[entry.from] : undefined;
+  return entry && image ? { ...image, alt: entry.alt } : undefined;
+};
+
 export function getItemThumbnail(id: string, categoryId?: string): ServiceImageDefinition {
+  const lent = borrowed(ITEM_THUMBNAIL_IMAGES, id);
+  if (lent) return lent;
   if (ITEM_THUMBNAIL_IMAGES[id]) {
     return ITEM_THUMBNAIL_IMAGES[id];
   }
@@ -556,6 +587,8 @@ export function getItemThumbnail(id: string, categoryId?: string): ServiceImageD
 }
 
 export function getItemCardImage(id: string, categoryId?: string): ServiceImageDefinition {
+  const lent = borrowed(ITEM_CARD_IMAGES, id) ?? borrowed(ITEM_THUMBNAIL_IMAGES, id);
+  if (lent) return lent;
   if (ITEM_CARD_IMAGES[id]) {
     return ITEM_CARD_IMAGES[id];
   }

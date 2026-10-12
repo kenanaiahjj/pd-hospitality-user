@@ -25,11 +25,27 @@ export const GIFT_PRODUCTS = [
   { group: 'Crafts & Keepsakes', name: 'Handmade ceramic keepsake', price: '₱980', availability: 'Limited stock', image: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=700&q=80' },
   { group: 'Crafts & Keepsakes', name: 'Postcard & magnet set', price: '₱280', availability: 'Available today', image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?auto=format&fit=crop&w=700&q=80' },
   { group: 'Gift Sets', name: 'Wellness bath set', price: '₱1,100', availability: 'Available today', image: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&w=700&q=80' },
-  { group: 'Gift Sets', name: 'Seasonal Manila bundle', price: '₱1,450', availability: 'Limited edition', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Gift Sets', name: 'Seasonal gift bundle', price: '₱1,450', availability: 'Limited edition', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=700&q=80' },
 ] as const;
 
 /** One name for the hotel's shop, in the feed and on its own page. */
 export const LOBBY_SHOP_NAME = 'The Lobby Shop';
+
+/*
+  Pasalubong at The Henry Resort Dumaguete comes from Cafe Sans Rival only, a
+  partner on the resort. Orders are instant: stock is checked and the charge is
+  taken as the guest confirms. The café packs the order and sends it to the
+  front desk, which holds it chilled. Prices are demo values.
+*/
+export const SANS_RIVAL_NAME = 'Cafe Sans Rival';
+export const SANS_RIVAL_PRODUCTS = [
+  { group: 'Cafe Sans Rival', name: 'Sans rival cake, whole', price: '₱450', availability: 'Ready at 5:00 PM', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Cafe Sans Rival', name: 'Silvanas, box of 10', price: '₱380', availability: 'Ready at 5:00 PM', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=700&q=80' },
+  { group: 'Cafe Sans Rival', name: 'Sans rival slices, box of 6', price: '₱420', availability: 'Ready at 5:00 PM', image: 'https://images.unsplash.com/photo-1599599810694-57a3e2b5b2b2?auto=format&fit=crop&w=700&q=80' },
+] as const;
+
+/** A product either shop sells. */
+export type GiftProduct = { readonly group: string; readonly name: string; readonly price: string; readonly availability: string; readonly image: string };
 
 /*
   What a chat message orders: the venue's own items it names, with a quantity
@@ -94,7 +110,7 @@ void ActionTile;
 export function ServiceDetail({ kind, booking, online, onBook, onChat }: { kind: 'hotel' | 'vendor'; booking: Booking; online: boolean; onBook: () => void; onChat: () => void }) {
   const vendor = kind === 'vendor';
   const roomLabel = booking.roomNumber ? `room ${booking.roomNumber}` : 'your assigned room';
-  return <div className="guest-stack guest-service-detail"><ServiceImage imageKey={vendor ? 'spa' : 'dining'} itemId={vendor ? 'spa' : 'dining'} variant="card" tone={vendor ? 'sage' : 'sand'} icon={vendor ? <Sparkle size={38} /> : <ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{vendor ? 'Hilom signature massage' : 'In-room dining'}</h1><p>{vendor ? 'A 90-minute traditional Filipino therapeutic massage, delivered in the on-property spa.' : `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`}</p></div><div className="guest-summary"><SummaryRow label="Price" value={vendor ? '₱2,400' : 'From ₱450'} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Provider" value={vendor ? 'Run by Hilom Spa & Wellness' : 'Operated by the hotel'} /><SummaryRow label="Location" value={vendor ? 'Spa & wellness · The Henry Manila' : booking.property} /><SummaryRow label="Operating hours" value={vendor ? 'Daily · 9:00 AM–10:00 PM' : 'Daily · 6:30 AM–11:00 PM'} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Cancellation" value={vendor ? 'Up to 24 hours before' : 'Up to 2 hours before'} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" onClick={onBook}>{online ? (vendor ? 'Choose a time' : 'View menu and order') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}</div>;
+  return <div className="guest-stack guest-service-detail"><ServiceImage imageKey={vendor ? 'spa' : 'dining'} itemId={vendor ? 'spa' : 'dining'} variant="card" tone={vendor ? 'sage' : 'sand'} icon={vendor ? <Sparkle size={38} /> : <ForkKnife size={38} />} decorative /><div className="guest-page-title"><h1>{vendor ? 'Hilom signature massage' : 'In-room dining'}</h1><p>{vendor ? 'A 90-minute traditional Filipino therapeutic massage, delivered in the on-property spa.' : `Comforting Filipino favorites and all-day classics delivered to ${roomLabel}.`}</p></div><div className="guest-summary"><SummaryRow label="Price" value={vendor ? '₱2,400' : 'From ₱450'} /><SummaryRow label="Availability" value={online ? 'Today · 3 times' : 'Connect to check'} /><SummaryRow label="Provider" value={vendor ? 'Run by Hilom Spa & Wellness' : 'Operated by the hotel'} /><SummaryRow label="Location" value={vendor ? `Spa & wellness · ${booking.property}` : booking.property} /><SummaryRow label="Operating hours" value={vendor ? 'Daily · 9:00 AM–10:00 PM' : 'Daily · 6:30 AM–11:00 PM'} /><SummaryRow label="Room" value={booking.roomNumber ? `Room ${booking.roomNumber}` : 'Assigned at arrival'} /><SummaryRow label="Cancellation" value={vendor ? 'Up to 24 hours before' : 'Up to 2 hours before'} /></div>{!online ? <Notice tone="offline" icon={<WifiSlash />} title="Live booking is unavailable">Capacity and price are never queued. Connect to see current times.</Notice> : null}<button className="guest-button guest-button--primary" onClick={onBook}>{online ? (vendor ? 'Choose a time' : 'View menu and order') : 'See connection options'}<ArrowRight /></button>{!online ? <TextButton onClick={onChat}>Message the front desk instead</TextButton> : null}</div>;
 }
 
 export const RESTAURANT_MENU_IMAGE_PAGES = [
@@ -178,6 +194,7 @@ export function RestaurantMenuScreen({ venue, onOrder, onReserve, onBack, onNoti
       <section className="guest-restaurant-menu-image-section guest-restaurant-additional-info">
         <h2>Menu</h2>
         <p>The latest menu and information from {venue.name}. Tap a page to enlarge it.</p>
+        {venue.menuPdf ? <a className="guest-button guest-button--secondary" href={venue.menuPdf} target="_blank" rel="noreferrer">Open the PDF menu<ArrowRight aria-hidden="true" /></a> : null}
         <div className="guest-restaurant-menu-carousel"><button type="button" className="guest-restaurant-menu-image" onClick={openPreview} onTouchStart={handleMenuTouchStart} onTouchEnd={handleMenuTouchEnd} aria-label={`Open menu page ${page + 1}; swipe left or right to change page`}><Image src={currentImage} alt={`${venue.name} information page ${page + 1}`} fill sizes="(max-width: 720px) calc(100vw - 32px), 688px" /></button>{menuImages.length > 1 ? <div className="guest-restaurant-menu-pagination"><div className="guest-restaurant-menu-dots" aria-label="Information pages">{menuImages.map((image, index) => <button key={image} type="button" aria-label={`Show information page ${index + 1}`} aria-current={page === index} className={page === index ? 'is-active' : ''} onClick={() => setPage(index)} />)}</div></div> : null}</div>
       </section>
 
@@ -185,6 +202,7 @@ export function RestaurantMenuScreen({ venue, onOrder, onReserve, onBack, onNoti
         <h2>Good to know</h2>
         <div className="guest-restaurant-good-to-know__grid">
           {venue.operator.includes('Hotel') ? <span><Storefront aria-hidden="true" /><b>Hotel operated</b></span> : null}
+          {venue.operator === 'Partner on property' ? <span><Storefront aria-hidden="true" /><b>Partner on the resort · pay at the table</b></span> : null}
           {venue.cutoff.includes('reservation') || venue.cutoff.includes('24-hour') ? <span><CalendarPlus aria-hidden="true" /><b>Reservations recommended</b></span> : null}
           {venue.menu.some((item) => item.dietary?.length) ? <span><Sparkle aria-hidden="true" /><b>Dietary requests available</b></span> : null}
           {venue.description.toLowerCase().includes('garden') ? <span><House aria-hidden="true" /><b>Garden seating</b></span> : null}
@@ -194,8 +212,14 @@ export function RestaurantMenuScreen({ venue, onOrder, onReserve, onBack, onNoti
       {onReserve ? (
         <section className="guest-restaurant-good-to-know">
           <h2>Ordering</h2>
-          <p>Reserve a table and order when you sit down, or send the front desk your order and they will bring it up.</p>
-          <TextButton onClick={onOrder}>Ask the front desk about the menu</TextButton>
+          {venue.operator === 'Partner on property' ? (
+            <p>Reserve a table, then order when you sit down and settle there: to your room or in full. Nothing is ordered ahead in the app.</p>
+          ) : (
+            <>
+              <p>Reserve a table and order when you sit down, or send the front desk your order and they will bring it up.</p>
+              <TextButton onClick={onOrder}>Ask the front desk about the menu</TextButton>
+            </>
+          )}
         </section>
       ) : null}
 
@@ -217,13 +241,13 @@ export function describeRoomCharges(charges: ReturnType<typeof getRoomCharges>) 
   return `${charges.length} ${charges.length === 1 ? 'charge' : 'charges'} · Latest: ${latest.title}`;
 }
 
-export function RoomChargeDetails({ charge, service, roomLabel, onQuestion }: { charge: ReturnType<typeof getRoomCharges>[number]; service?: ServiceBooking; roomLabel: string; onQuestion: (message: string) => void }) {
+export function RoomChargeDetails({ charge, service, roomLabel, property = 'The hotel', onQuestion }: { charge: ReturnType<typeof getRoomCharges>[number]; service?: ServiceBooking; roomLabel: string; /** The stay's hotel, where an arrival transfer ends. */ property?: string; onQuestion: (message: string) => void }) {
   const isDining = Boolean(service?.diningOrder);
   const isTransfer = /airport transfer/i.test(charge.title);
   const rows = isTransfer
     ? [
         ['Pickup location', 'Airport'],
-        ['Destination', 'The Henry Manila'],
+        ['Destination', property],
         ['Pickup date and time', charge.detail],
         ['Vehicle type', 'Hotel sedan'],
         ['Passengers', '2 guests'],

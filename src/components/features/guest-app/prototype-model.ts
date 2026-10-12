@@ -633,12 +633,12 @@ export type HomeVariant =
 export const UPCOMING_BOOKING_FIXTURE: Booking = {
   id: 'HEN-241109',
   guestName: 'Ana Santos',
-  property: 'The Henry Manila',
-  city: 'Manila',
+  property: 'The Henry Resort Dumaguete',
+  city: 'Dumaguete',
   status: 'upcoming',
   checkIn: '2026-11-09',
   checkOut: '2026-11-12',
-  roomType: 'King room',
+  roomType: 'Deluxe room',
   guestCount: 2,
   source: 'Agoda',
   preArrivalCompleted: 1,
@@ -791,10 +791,11 @@ export const MOCK_SESSION: GuestSession = {
   /*
     A populated stay, so the relationships are visible without having to book
     eleven things by hand first. One of every kind of booking, each carrying
-    the facts that kind needs: hotel restaurants and in-room dining, a spa run
-    by a partner on property, rentals (on-property partner and hotel-run), a
-    hotel transfer, tours off property, a partner shop charged by room QR, and
-    complimentary services. Everything is charged to the room, bar the free
+    the facts that kind needs, at The Henry Resort Dumaguete: a table at one of
+    its restaurants and in-room dining, a spa run by a partner on property, a
+    bike rental the shop confirmed, a hotel transfer, the Apo Island boat trip,
+    the resort's own walking tour, pasalubong from Cafe Sans Rival, a partner
+    shop charged by room QR, and complimentary services. Everything is charged to the room, bar the free
     services. The set is chosen so the rewards demo still
     reads as designed: nothing here completes Homegrown, Culture or
     Spontaneous, which the reference guest stands one step from. All of it settles at the front desk at checkout.
@@ -805,78 +806,73 @@ export const MOCK_SESSION: GuestSession = {
   serviceBookings: [
     /* ---- Upcoming: tonight and checkout day ---------------------------- */
     {
-      id: 'service-rooftop-1',
+      id: 'service-table-tonight',
       bookingId: 'HEN-241109',
-      serviceId: 'rooftop',
+      serviceId: 'si-senor',
       scheduledHour: 19,
       bookedAt: '2026-11-11',
-      title: 'Azotea Rooftop',
-      scheduledFor: 'Tonight · November 11 · 7:30 PM',
+      title: 'Si Señor',
+      scheduledFor: 'Tonight · November 11 · 7:00 PM',
       scheduledDate: '2026-11-11',
-      amount: '₱2,850',
+      // A table is free to hold: the meal is ordered and settled at the venue.
+      amount: '',
       status: 'confirmed',
-      diningOrder: {
-        venueId: 'rooftop',
-        venueName: 'Azotea Rooftop',
-        items: [
-          { id: 'tasting', name: 'Chef’s tasting menu', unitPrice: '₱1,200', quantity: 2 },
-          { id: 'wine', name: 'Wine pairing', unitPrice: '₱450', quantity: 1 },
-        ],
-        fulfillment: { method: 'pickup', timing: 'scheduled', scheduledFor: 'November 11 · 7:30 PM' },
-      },
-      // A hotel restaurant: the table and the room it is in.
+      paymentStatus: 'pay-at-provider',
+      partySize: 2,
+      provider: 'Si Señor',
+      placeDetail: 'Si Señor, on the resort',
+      summary: '7:00 PM · Table for 2',
       facts: [
         { label: 'Party', value: '2 guests' },
-        { label: 'Table', value: 'Terrace, by the railing' },
-        { label: 'Dress code', value: 'Smart casual' },
+        { label: 'Menu', value: 'PDF menu on the booking' },
+        { label: 'Pay', value: 'At the restaurant, to your room or in full' },
       ],
     },
     {
       id: 'service-tour-1',
       bookingId: 'HEN-241109',
-      serviceId: 'food-crawl',
-      scheduledHour: 9,
+      serviceId: 'walking-tour',
+      scheduledHour: 8,
       bookedAt: '2026-11-02',
-      title: 'Binondo food crawl',
+      title: 'Dumaguete walking tour',
       // Checkout morning, not the day after: a booking has to fall inside the
       // stay it belongs to.
-      scheduledFor: 'Thursday · November 12 · 9:00 AM',
+      scheduledFor: 'Thursday · November 12 · 8:00 AM',
       scheduledDate: '2026-11-12',
       partySize: 2,
-      amount: '₱4,400',
+      amount: '₱1,600',
       status: 'confirmed',
-      provider: 'Kalye Manila Walks',
-      place: 'Binondo Church',
+      provider: 'Henry’s activities',
+      place: 'Rizal Boulevard',
       facts: [
-        { label: 'Meeting point', value: 'Binondo Church, main steps' },
-        { label: 'Duration', value: 'About 2 hours' },
+        { label: 'Meeting point', value: 'Resort lobby' },
+        { label: 'Duration', value: 'About 2½ hours' },
         { label: 'Guests', value: '2' },
-        { label: 'Guide', value: 'Lito Santos' },
-        { label: 'Run by', value: 'Kalye Manila Walks' },
-        { label: 'Bring', value: 'Comfortable shoes and an appetite' },
+        { label: 'Run by', value: 'The resort’s own activities team' },
+        { label: 'Bring', value: 'Comfortable shoes and a hat' },
       ],
     },
     {
       id: 'service-ebike-1',
       bookingId: 'HEN-241109',
-      serviceId: 'e-bike',
-      scheduledHour: 11,
+      serviceId: 'bike-rental',
+      scheduledHour: 9,
       bookedAt: '2026-11-11',
-      title: 'E-bike',
-      scheduledFor: 'Thursday · November 12 · 11:00 AM',
+      title: 'Bike rental',
+      scheduledFor: 'Thursday · November 12 · 9:00 AM',
       scheduledDate: '2026-11-12',
       rentalQuantity: 2,
-      amount: '₱1,200',
+      amount: '₱900',
       status: 'confirmed',
-      provider: 'Sakay Rentals',
+      provider: 'Partner bike shop',
       // A rental is a window and a count, not a moment.
-      summary: '11:00 AM – 12:00 PM · 2 e-bikes',
+      summary: '9:00 AM – 12:00 PM · 2 bikes',
       facts: [
-        { label: 'Pick up', value: 'Concierge desk, lobby' },
-        { label: 'Return', value: 'By 12:00 PM, same desk' },
+        { label: 'Pick up', value: 'Bike shop, resort driveway' },
+        { label: 'Return', value: 'By 12:00 PM, same shop' },
         { label: 'Included', value: '2 helmets and a lock' },
         { label: 'Bring', value: 'A valid ID, held until return' },
-        { label: 'Run by', value: 'Sakay Rentals, on property' },
+        { label: 'Run by', value: 'Partner bike shop (demo vendor)' },
       ],
     },
     {
@@ -893,7 +889,7 @@ export const MOCK_SESSION: GuestSession = {
       paymentStatus: 'complimentary',
       summary: '12:00 – 4:00 PM · 3 bags',
       facts: [
-        { label: 'Drop off', value: 'Concierge desk, at checkout' },
+        { label: 'Drop off', value: 'Front desk, at checkout' },
         { label: 'Collect', value: 'Brought to your car at 4:00 PM' },
         { label: 'Bags', value: '3, tagged at drop-off' },
       ],
@@ -910,8 +906,8 @@ export const MOCK_SESSION: GuestSession = {
       amount: '₱2,400',
       status: 'confirmed',
       provider: 'Hilom Spa & Wellness',
-      placeDetail: 'Hilom Spa, fourth floor',
-      summary: '1:30 PM · 90 min · Hilom Spa, 4F',
+      placeDetail: 'Hilom Spa, garden wing',
+      summary: '1:30 PM · 90 min · Hilom Spa',
       facts: [
         { label: 'Duration', value: '90 minutes' },
         { label: 'Therapist', value: 'Assigned on arrival' },
@@ -931,12 +927,12 @@ export const MOCK_SESSION: GuestSession = {
       amount: '₱1,200',
       status: 'confirmed',
       // A transfer is a route.
-      summary: '4:00 PM · Lobby → NAIA Terminal 3',
+      summary: '4:00 PM · Lobby → Sibulan Airport',
       facts: [
         { label: 'Pick up', value: 'Main lobby' },
-        { label: 'Drop off', value: 'NAIA Terminal 3, Departures' },
-        { label: 'Flight', value: 'PR 2815 · departs 7:05 PM' },
-        { label: 'Vehicle', value: 'Sedan · up to 3 bags' },
+        { label: 'Drop off', value: 'Dumaguete–Sibulan Airport, Departures' },
+        { label: 'Flight', value: 'PR 2546 · departs 6:40 PM' },
+        { label: 'Vehicle', value: 'Van · up to 6 bags' },
         { label: 'Driver', value: 'Name and plate sent an hour before' },
       ],
     },
@@ -945,18 +941,21 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-dining-past',
       bookingId: 'HEN-241109',
-      serviceId: 'restaurant',
+      serviceId: 'dining',
       scheduledHour: 20,
       bookedAt: '2026-11-10',
-      title: 'Apartment 1B',
+      title: 'In-Room Dining',
       scheduledFor: 'Yesterday · November 10 · 8:00 PM',
       scheduledDate: '2026-11-10',
-      amount: '₱1,850',
+      amount: '₱1,280',
       status: 'completed',
       diningOrder: {
-        venueId: 'apartment-1b',
-        venueName: 'Apartment 1B',
-        items: [{ id: 'ribeye', name: 'Grilled Angus Ribeye', unitPrice: '₱1,850', quantity: 1 }],
+        venueId: 'dining',
+        venueName: 'In-Room Dining',
+        items: [
+          { id: 'ird-1', name: 'Filipino Breakfast Tocino Set', unitPrice: '₱480', quantity: 2 },
+          { id: 'ird-2', name: 'Seasonal Tropical Fruit Platter', unitPrice: '₱320', quantity: 1 },
+        ],
         fulfillment: { method: 'delivery', timing: 'asap', scheduledFor: 'November 10 · 8:00 PM' },
       },
       summary: '8:00 PM · Delivered to your room',
@@ -966,71 +965,74 @@ export const MOCK_SESSION: GuestSession = {
       ],
     },
     {
+      id: 'service-sans-rival-past',
+      bookingId: 'HEN-241109',
+      serviceId: 'sans-rival-box',
+      categoryId: 'services',
+      scheduledHour: 17,
+      bookedAt: '2026-11-09',
+      title: 'Sans rival cake, whole',
+      scheduledFor: 'Yesterday · November 10 · 5:00 PM',
+      scheduledDate: '2026-11-10',
+      amount: '₱900',
+      status: 'completed',
+      provider: 'Cafe Sans Rival',
+      place: 'Cafe Sans Rival',
+      // Pasalubong: packed by the café, held at the front desk, collected there.
+      summary: '2 × Sans rival cake · collected at the front desk',
+      items: [{ id: 'sans-rival-cake', name: 'Sans rival cake, whole', unitPrice: '₱450', quantity: 2 }],
+      facts: [
+        { label: 'Packed by', value: 'Cafe Sans Rival' },
+        { label: 'Held at', value: 'Front desk, chilled' },
+        { label: 'Collected', value: '5:20 PM' },
+      ],
+    },
+    {
       id: 'service-partner-crafts',
       bookingId: 'HEN-241109',
       serviceId: 'partner-crafts',
       scheduledHour: 16,
       // A walk-in purchase, not a booking: nothing was booked ahead.
-      title: 'Casa Capiz Crafts',
+      title: 'Partner craft shop',
       scheduledFor: 'Yesterday · November 10 · 4:12 PM',
       scheduledDate: '2026-11-10',
-      amount: '₱3,650',
+      amount: '₱1,850',
       status: 'completed',
-      provider: 'Casa Capiz Crafts',
-      // A partner shop across town, charged by scanning the room QR: the
+      provider: 'Partner craft shop',
+      // A partner shop in town, charged by scanning the room QR: the
       // purchase, itemised, and where it was made.
-      place: 'Intramuros',
-      summary: '4:12 PM · Intramuros',
+      place: 'Rizal Boulevard',
+      summary: '4:12 PM · Rizal Boulevard',
       items: [
         { id: 'runner', name: 'Handwoven table runner', unitPrice: '₱1,450', quantity: 1 },
-        { id: 'lamp', name: 'Capiz shell lamp', unitPrice: '₱2,200', quantity: 1 },
+        { id: 'magnet', name: 'Painted wooden magnet', unitPrice: '₱200', quantity: 2 },
       ],
       facts: [
         { label: 'Charged via', value: 'Your room QR' },
-        { label: 'Partner', value: 'Casa Capiz Crafts, Intramuros' },
+        { label: 'Partner', value: 'Partner craft shop (demo vendor), Rizal Boulevard' },
         { label: 'Shop receipt', value: 'CC-10482' },
       ],
     },
     {
-      id: 'service-bike-past',
+      id: 'service-apo-past',
       bookingId: 'HEN-241109',
-      serviceId: 'rental',
-      scheduledHour: 14,
-      bookedAt: '2026-11-09',
-      title: 'City bicycle',
-      scheduledFor: 'Yesterday · November 10 · 2:00 PM',
-      scheduledDate: '2026-11-10',
-      rentalQuantity: 1,
-      amount: '₱350',
-      status: 'completed',
-      summary: '2:00 – 4:00 PM · 1 bicycle',
-      facts: [
-        { label: 'Picked up', value: '2:00 PM, concierge desk' },
-        { label: 'Returned', value: '3:50 PM' },
-        { label: 'Rate', value: '₱350 per day' },
-      ],
-    },
-    {
-      id: 'service-kalesa-past',
-      bookingId: 'HEN-241109',
-      serviceId: 'kalesa',
-      categoryId: 'entertainment',
-      scheduledHour: 17,
-      bookedAt: '2026-11-09',
-      title: 'Intramuros kalesa ride',
-      scheduledFor: 'Yesterday · November 10 · 5:30 PM',
+      serviceId: 'apo-island-trip',
+      scheduledHour: 7,
+      bookedAt: '2026-11-08',
+      title: 'Apo Island boat trip',
+      scheduledFor: 'Yesterday · November 10 · 7:30 AM',
       scheduledDate: '2026-11-10',
       partySize: 2,
-      amount: '₱1,800',
+      amount: '₱3,200',
       status: 'completed',
-      provider: 'Kalesa Ko',
-      place: 'Intramuros',
-      summary: '5:30 – 6:30 PM · Intramuros',
+      provider: 'Partner boat operator',
+      place: 'Apo Island',
+      summary: '7:30 AM – 1:30 PM · 2 guests',
       facts: [
-        { label: 'Meeting point', value: 'Plaza de Roma, by the cathedral' },
-        { label: 'Duration', value: '1 hour' },
+        { label: 'Meeting point', value: 'Resort jetty' },
+        { label: 'Duration', value: 'About 6 hours' },
         { label: 'Guests', value: '2' },
-        { label: 'Run by', value: 'Kalesa Ko, a partner of the hotel' },
+        { label: 'Run by', value: 'Partner boat operator (demo vendor), confirmed the request' },
       ],
     },
     {
@@ -1045,7 +1047,7 @@ export const MOCK_SESSION: GuestSession = {
       amount: 'Free',
       status: 'completed',
       paymentStatus: 'complimentary',
-      placeDetail: 'Pool deck, second floor',
+      placeDetail: 'Pool deck',
       facts: [
         { label: 'Seats', value: '2 loungers, held under your name' },
         { label: 'Showing', value: 'A Filipino classic, with subtitles' },
@@ -1054,15 +1056,17 @@ export const MOCK_SESSION: GuestSession = {
     {
       id: 'service-cafe-cancelled',
       bookingId: 'HEN-241109',
-      serviceId: 'cafe',
-      scheduledHour: 7,
+      serviceId: 'coffee-collective',
+      scheduledHour: 8,
       bookedAt: '2026-11-09',
-      title: 'Kape Manila Café',
-      scheduledFor: 'Monday · November 9 · 7:00 AM',
+      title: 'Coffee Collective',
+      scheduledFor: 'Monday · November 9 · 8:00 AM',
       scheduledDate: '2026-11-09',
-      amount: '₱480',
+      amount: '',
       status: 'cancelled',
-      placeDetail: 'Lobby',
+      paymentStatus: 'pay-at-provider',
+      partySize: 2,
+      placeDetail: 'Coffee Collective, on the resort',
     },
   ],
   folioTotal: '₱12,730',
@@ -1726,8 +1730,8 @@ export type PropertyAnnouncement = {
 export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
   {
     id: 'announcement-pool',
-    title: 'Rooftop pool closed until 11:00 AM',
-    body: 'The rooftop pool will reopen at 11:00 AM after weekly maintenance. Azotea Rooftop remains open for drinks.',
+    title: 'Main pool closed until 11:00 AM',
+    body: 'The main pool will reopen at 11:00 AM after weekly maintenance. The Poolside Bar remains open for drinks.',
     tone: 'warning',
     important: true,
     activeFrom: '2026-11-09',
@@ -1736,7 +1740,7 @@ export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
   },
   {
     id: 'announcement-breakfast',
-    title: 'Kape Manila Café opens at 6:00 AM',
+    title: 'Noelle’s Brunch Bar opens at 7:00 AM',
     body: 'Early breakfast is available for guests with morning departures.',
     tone: 'neutral',
     important: true,
@@ -1746,8 +1750,8 @@ export const PROPERTY_ANNOUNCEMENTS: PropertyAnnouncement[] = [
   },
   {
     id: 'announcement-rooftop-seating',
-    title: 'Azotea Rooftop: last seating 10:30 PM',
-    body: 'The kitchen takes its last table at 10:30 PM tonight. The bar keeps pouring until midnight.',
+    title: 'Si Señor: last seating 8:00 PM',
+    body: 'The kitchen takes its last table at 8:00 PM tonight. The bar keeps pouring until 10:00 PM.',
     tone: 'neutral',
     important: true,
     activeFrom: '2026-11-08',
@@ -2042,13 +2046,14 @@ export const ESTATE_PROPERTIES: EstateProperty[] = [
   },
   {
     id: 'dumaguete',
-    name: 'The Henry Dumaguete',
+    name: 'The Henry Resort Dumaguete',
     city: 'Dumaguete',
     referenceCode: 'DGTE',
-    tagline: 'Quiet sea-facing wing, walking distance to Rizal Boulevard',
+    tagline: 'Sea-facing resort, six restaurants and cafés, Apo Island by boat',
     islandGroup: 'visayas',
     openedOn: '2026-09-01',
-    desk: { phone: '+63 35 422 0100', email: 'frontdesk.dumaguete@thehenry.ph', hours: 'Front desk · 7:00 AM–11:00 PM' },
+    // The pilot property: its front desk is staffed around the clock.
+    desk: { phone: '+63 35 422 0100', email: 'frontdesk.dumaguete@thehenry.ph', hours: 'Front desk · 24 hours' },
     roomTypes: [
       { id: 'dumaguete-deluxe', name: 'Deluxe room', detail: '26 sqm · Sea view · Up to 2 guests', nightlyRate: '₱4,900', maxGuests: 2 },
       { id: 'dumaguete-suite', name: 'Corner suite', detail: '40 sqm · Balcony · Up to 4 guests', nightlyRate: '₱7,600', maxGuests: 4 },
@@ -2526,7 +2531,7 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
       preArrivalTotal: 2,
       nextPreArrivalStep: undefined,
       folioTotal: undefined,
-      roomRate: '₱18,600',
+      roomRate: '₱14,700',
     };
 
     return {
@@ -2550,9 +2555,9 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
       preArrivalTotal: 2,
       nextPreArrivalStep: undefined,
       folioTotal: '₱3,050',
-      // Three nights of the Manila king room at the catalogue's own rate, so
+      // Three nights of the Dumaguete deluxe room at the catalogue's own rate, so
       // the receipt and `ESTATE_PROPERTIES` cannot quote different numbers.
-      roomRate: '₱18,600',
+      roomRate: '₱14,700',
     };
 
     return {
@@ -2577,7 +2582,7 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
       preArrivalTotal: 2,
       nextPreArrivalStep: undefined,
       folioTotal: '₱3,050',
-      roomRate: '₱18,600',
+      roomRate: '₱14,700',
     };
 
     return {
@@ -2623,7 +2628,7 @@ export function applyPrototypeStayState(state: PrototypeStayState): GuestSession
     preArrivalTotal: 2,
     nextPreArrivalStep: undefined,
     folioTotal: '₱3,050',
-    roomRate: '₱18,600',
+    roomRate: '₱14,700',
   };
 
   return {
@@ -3471,8 +3476,8 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
     screen: 'category-listing',
     title: 'Food & Drinks',
     shortTitle: 'Dining',
-    subtitle: 'Restaurants, in-room dining, bars',
-    badge: '3 venues',
+    subtitle: 'Six restaurants, in-room dining, bar',
+    badge: 'Reserve a table',
     tone: 'sand',
   },
   {
@@ -3489,7 +3494,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
     screen: 'category-listing',
     title: 'Entertainment & Tours',
     shortTitle: 'Tours',
-    subtitle: 'Day tours, live music & walks',
+    subtitle: 'Apo Island, dives, walks & live music',
     badge: 'Curated',
     tone: 'sun',
   },
@@ -3498,7 +3503,7 @@ export const MINI_APP_CATEGORIES: MiniAppCategory[] = [
     screen: 'category-listing',
     title: 'Rentals',
     shortTitle: 'Rentals',
-    subtitle: 'Motorbikes, cars and bikes',
+    subtitle: 'Bikes and scooters',
     badge: 'By the day',
     tone: 'blue',
   },
@@ -3711,6 +3716,8 @@ export type RestaurantVenue = {
   tone: string;
   /** ISO date the venue was first listed in the app. */
   listedOn?: string;
+  /** The menu the venue publishes as a PDF: a partner restaurant takes no orders in the app. */
+  menuPdf?: string;
   menu: MenuItem[];
 };
 
@@ -3719,6 +3726,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     id: 'apartment-1b',
     listedOn: '2021-04-12',
     name: 'Apartment 1B',
+    city: 'Manila',
     category: 'Restaurant & Bar',
     operator: 'Hotel operated',
     hours: '6:30 AM – 11:00 PM',
@@ -3846,7 +3854,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     category: 'Dining',
     operator: 'Hotel operated',
     hours: '24 hours daily',
-    property: 'The Henry Manila',
+    property: 'The Henry Resort Dumaguete',
     location: 'Delivered to your room',
     description: 'Comforting Filipino favorites, breakfast sets, and late-night cravings brought directly to your door.',
     cutoff: '2-hour cancellation cutoff',
@@ -3924,8 +3932,8 @@ export const RESTAURANTS: RestaurantVenue[] = [
     category: 'Bar & Lounge',
     operator: 'Hotel operated',
     hours: '11:00 AM – 12:00 MN',
-    property: 'The Henry Manila',
-    location: 'Second floor pool deck',
+    property: 'The Henry Resort Dumaguete',
+    location: 'Pool deck',
     description: 'Tropical cocktails, artisanal spirits, local craft brews, and savory tapas by the pool.',
     cutoff: 'Walk-in or call front desk',
     tone: 'clay',
@@ -4044,6 +4052,7 @@ export const RESTAURANTS: RestaurantVenue[] = [
     id: 'rooftop',
     listedOn: '2026-10-20',
     name: 'Azotea Rooftop',
+    city: 'Manila',
     category: 'Fine Dining',
     operator: 'Hotel operated',
     hours: '5:30 PM – 12:00 MN',
@@ -4123,6 +4132,74 @@ export const RESTAURANTS: RestaurantVenue[] = [
   },
 ];
 
+
+/*
+  The pilot property's restaurants and cafés: The Henry Resort Dumaguete.
+
+  The names are the resort's own. They are partners on the resort, on Cabana
+  through the vendor app: a guest reserves a table, free to hold, for the
+  times the venue publishes, and orders and pays there (to the room or in
+  full). No pre-orders in the app. Descriptions, hours and the few dishes
+  below are demo values; the menu a guest opens is the venue's PDF.
+*/
+const pilotVenue = (
+  id: string,
+  name: string,
+  category: string,
+  hours: string,
+  description: string,
+  tone: string,
+  menu: MenuItem[],
+): RestaurantVenue => ({
+  id,
+  listedOn: '2026-09-01',
+  name,
+  city: 'Dumaguete',
+  category,
+  operator: 'Partner on property',
+  hours,
+  property: 'The Henry Resort Dumaguete',
+  location: 'On the resort grounds',
+  description,
+  cutoff: 'Table reservation',
+  tone,
+  menuPdf: `/pilot/menus/${id}.pdf`,
+  menu,
+});
+
+RESTAURANTS.push(
+  pilotVenue('the-dining-room', 'The Dining Room', 'Restaurant', '10:00 AM – 10:00 PM', 'The resort’s main restaurant: Filipino and international plates for lunch and dinner.', 'clay', [
+    { id: 'tdr-1', name: 'Grilled Tanigue Steak', description: 'Spanish mackerel, calamansi butter, garlic rice.', price: '₱620', category: 'mains', dietary: ['seafood'] },
+    { id: 'tdr-2', name: 'Chicken Inasal', description: 'Annatto-basted chicken, atchara, rice.', price: '₱480', category: 'mains' },
+    { id: 'tdr-3', name: 'Ensaladang Talong', description: 'Charred eggplant, tomato, salted egg.', price: '₱280', category: 'starters', dietary: ['vegetarian'] },
+  ]),
+  pilotVenue('si-senor', 'Si Señor', 'Restaurant & bar', '10:00 AM – 10:00 PM', 'Latin-inspired plates and drinks for long evenings.', 'clay', [
+    { id: 'ss-1', name: 'Pork Belly Tacos', description: 'Three tacos, pickled onion, lime.', price: '₱420', category: 'mains' },
+    { id: 'ss-2', name: 'Grilled Corn', description: 'Lime, chili, cheese.', price: '₱220', category: 'starters', dietary: ['vegetarian'] },
+    { id: 'ss-3', name: 'Calamansi Margarita', description: 'Tequila, calamansi, salt rim.', price: '₱360', category: 'drinks', tag: 'Cocktail', dietary: ['vegetarian', 'vegan'] },
+  ]),
+  pilotVenue('popolo-pizzeria', 'Popolo Pizzeria', 'Pizzeria', '10:00 AM – 10:00 PM', 'Pizza from the oven, pasta and salads, for a table or the pool.', 'sand', [
+    { id: 'pp-1', name: 'Margherita', description: 'Tomato, mozzarella, basil.', price: '₱480', category: 'mains', dietary: ['vegetarian'] },
+    { id: 'pp-2', name: 'Longganisa Pizza', description: 'Local sausage, onion, chili oil.', price: '₱560', category: 'mains' },
+    { id: 'pp-3', name: 'Caesar Salad', description: 'Romaine, croutons, parmesan.', price: '₱320', category: 'starters' },
+  ]),
+  pilotVenue('the-red-kitchen', 'The Red Kitchen', 'Restaurant', '6:00 PM – 10:00 PM', 'Asian dishes to share, dinner only.', 'clay', [
+    { id: 'trk-1', name: 'Salt and Pepper Squid', description: 'Crisp squid, chili, spring onion.', price: '₱420', category: 'starters', dietary: ['seafood'] },
+    { id: 'trk-2', name: 'Braised Pork Belly', description: 'Soy, star anise, steamed buns.', price: '₱560', category: 'mains' },
+    { id: 'trk-3', name: 'Garlic Kangkong', description: 'Water spinach, garlic, oyster sauce.', price: '₱240', category: 'mains' },
+  ]),
+  pilotVenue('noelles-brunch-bar', 'Noelle’s Brunch Bar', 'Brunch', '7:00 AM – 3:00 PM', 'Brunch plates, pastries and juices until mid-afternoon.', 'sand', [
+    { id: 'nbb-1', name: 'Tocino Benedict', description: 'Sweet cured pork, poached eggs, hollandaise.', price: '₱420', category: 'mains' },
+    { id: 'nbb-2', name: 'Mango Pancakes', description: 'Fresh mango, coconut cream.', price: '₱360', category: 'mains', dietary: ['vegetarian'] },
+    { id: 'nbb-3', name: 'Fresh Calamansi Juice', description: 'Squeezed to order.', price: '₱160', category: 'drinks', dietary: ['vegetarian', 'vegan'] },
+  ]),
+  pilotVenue('coffee-collective', 'Coffee Collective', 'Café', '7:00 AM – 6:00 PM', 'Coffee, tea and something sweet, from early morning.', 'sand', [
+    { id: 'cc-1', name: 'Flat White', description: 'Local beans, steamed milk.', price: '₱180', category: 'drinks', dietary: ['vegetarian'] },
+    { id: 'cc-2', name: 'Silvanas', description: 'Cashew meringue, buttercream, crushed cookie.', price: '₱150', category: 'desserts', dietary: ['vegetarian'] },
+    { id: 'cc-3', name: 'Iced Tablea', description: 'Local cacao, milk, ice.', price: '₱190', category: 'drinks', dietary: ['vegetarian'] },
+  ]),
+);
+
 /**
  * Whether a catalogue row exists at the hotel a stay is in.
  *
@@ -4140,29 +4217,43 @@ export const SERVICES = [
   /* Dining -- the venues themselves live in RESTAURANTS; these are the rows
      the Home rail and cross-category search read. */
   { id: 'dining', name: 'In-room dining', category: 'Dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱450', cutoff: '2-hour cancellation cutoff', tone: 'sand' },
-  { id: 'restaurant', name: 'Apartment 1B', category: 'Restaurant & bar', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱550', cutoff: '2-hour cancellation cutoff', tone: 'clay' },
+  { id: 'restaurant', name: 'Apartment 1B', city: 'Manila', category: 'Restaurant & bar', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱550', cutoff: '2-hour cancellation cutoff', tone: 'clay' },
   { id: 'poolside-bar', name: 'The Poolside Bar & Lounge', category: 'Bar & Lounge', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱350', cutoff: 'Walk-in & lounge', tone: 'clay' },
   { id: 'cafe', name: 'Kape Manila Café', city: 'Manila', category: 'Café & bakery', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱180', cutoff: 'Walk-in & takeaway', tone: 'sand' },
-  { id: 'rooftop', name: 'Azotea Rooftop', category: 'Fine dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱1,200', cutoff: '24-hour cancellation cutoff', tone: 'clay' },
+  { id: 'rooftop', name: 'Azotea Rooftop', city: 'Manila', category: 'Fine dining', categoryId: 'dining', operator: 'Hotel operated', price: 'From ₱1,200', cutoff: '24-hour cancellation cutoff', tone: 'clay' },
+  /* The Henry Resort Dumaguete's restaurants and cafés: partners on the
+     resort, tables free to hold. Their venue pages are in RESTAURANTS. */
+  { id: 'the-dining-room', name: 'The Dining Room', city: 'Dumaguete', category: 'Restaurant', categoryId: 'dining', operator: 'Partner on property', price: 'Free to reserve', cutoff: 'Table reservation', tone: 'clay' },
+  { id: 'si-senor', name: 'Si Señor', city: 'Dumaguete', category: 'Restaurant & bar', categoryId: 'dining', operator: 'Partner on property', price: 'Free to reserve', cutoff: 'Table reservation', tone: 'clay' },
+  { id: 'popolo-pizzeria', name: 'Popolo Pizzeria', city: 'Dumaguete', category: 'Pizzeria', categoryId: 'dining', operator: 'Partner on property', price: 'Free to reserve', cutoff: 'Table reservation', tone: 'sand' },
+  { id: 'the-red-kitchen', name: 'The Red Kitchen', city: 'Dumaguete', category: 'Restaurant', categoryId: 'dining', operator: 'Partner on property', price: 'Free to reserve', cutoff: 'Table reservation', tone: 'clay' },
+  { id: 'noelles-brunch-bar', name: 'Noelle’s Brunch Bar', city: 'Dumaguete', category: 'Brunch', categoryId: 'dining', operator: 'Partner on property', price: 'Free to reserve', cutoff: 'Table reservation', tone: 'sand' },
+  { id: 'coffee-collective', name: 'Coffee Collective', city: 'Dumaguete', category: 'Café', categoryId: 'dining', operator: 'Partner on property', price: 'Free to reserve', cutoff: 'Table reservation', tone: 'sand' },
 
   /* Spa & wellness */
   { id: 'spa', name: 'Hilom signature massage', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,400', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
-  { id: 'scrub', name: 'Herbal body scrub & wrap', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,800', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
-  { id: 'hot-stone', name: 'Hot stone therapy', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱3,200', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
+  { id: 'scrub', name: 'Herbal body scrub & wrap', city: 'Manila', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱2,800', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
+  { id: 'hot-stone', name: 'Hot stone therapy', city: 'Manila', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱3,200', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'couples-massage', name: 'Couples massage suite', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱4,600', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
   { id: 'reflexology', name: 'Express foot reflexology', category: 'Spa & massage', categoryId: 'spa', operator: 'Third-party on property', price: '₱1,200', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
   { id: 'facial', name: 'Calamansi brightening facial', category: 'Facial & skin', categoryId: 'spa', operator: 'Third-party on property', price: '₱1,950', cutoff: '24-hour cancellation cutoff', tone: 'sage' },
+  /* The resort's own class: instant, charged as the guest confirms. */
+  { id: 'yoga-class', name: 'Sunrise yoga', city: 'Dumaguete', category: 'Movement', categoryId: 'spa', operator: 'Hotel operated', price: '₱500', cutoff: '12-hour cancellation cutoff', tone: 'sage' },
   { id: 'mani-pedi', name: 'Manicure & pedicure', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱900', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
-  { id: 'barber', name: 'Barber & blow-dry bar', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱1,100', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
+  { id: 'barber', name: 'Barber & blow-dry bar', city: 'Manila', category: 'Nails & grooming', categoryId: 'spa', operator: 'Curated guide', price: '₱1,100', cutoff: '2-hour cancellation cutoff', tone: 'sage' },
 
   /* Entertainment & tours */
-  { id: 'tour', name: 'Island day tour', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱3,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'tour', name: 'Island day tour', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱3,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  /* Dumaguete. The boat trip waits for the (simulated) partner boat operator
+     to confirm; the walking tour is the resort's own and instant. */
+  { id: 'apo-island-trip', name: 'Apo Island boat trip', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱1,600', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'walking-tour', name: 'Dumaguete walking tour', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱800', cutoff: '12-hour cancellation cutoff', tone: 'sun' },
   { id: 'heritage-walk', name: 'Old Manila cultural walk', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱1,500', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   { id: 'food-crawl', name: 'Binondo food crawl', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱2,200', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   { id: 'sunset-cruise', name: 'Manila Bay sunset cruise', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱2,600', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
-  { id: 'diving', name: 'Discover scuba session', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Third-party on property', price: '₱4,500', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
-  { id: 'museum-pass', name: 'Museum & gallery pass', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱850', cutoff: 'Same-day service', tone: 'sun' },
-  { id: 'cooking-class', name: 'Filipino cooking class', category: 'Workshops', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱1,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
+  { id: 'diving', name: 'Discover scuba dive', city: 'Dumaguete', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱3,500', cutoff: '48-hour cancellation cutoff', tone: 'sun' },
+  { id: 'museum-pass', name: 'Museum & gallery pass', city: 'Manila', category: 'Activities & tours', categoryId: 'entertainment', operator: 'Curated guide', price: '₱850', cutoff: 'Same-day service', tone: 'sun' },
+  { id: 'cooking-class', name: 'Filipino cooking class', city: 'Manila', category: 'Workshops', categoryId: 'entertainment', operator: 'Hotel operated', price: '₱1,800', cutoff: '24-hour cancellation cutoff', tone: 'sun' },
   { id: 'music', name: 'Sunset acoustic sessions', category: 'Live entertainment', categoryId: 'entertainment', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Friday–Sunday · 6 PM', tone: 'sun' },
   { id: 'film-night', name: 'Poolside film night', category: 'Live entertainment', categoryId: 'entertainment', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Saturday · 8 PM', tone: 'sun' },
 
@@ -4171,12 +4262,17 @@ export const SERVICES = [
   { id: 'private-car', name: 'Private car & driver', category: 'Transfers', categoryId: 'services', operator: 'Hotel arranged', price: '₱4,800 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
   /* Rentals -- by the day. Anything with an engine needs a licence, which
      the desk checks at pickup; the app only says so. */
-  { id: 'rental', name: 'City bicycle', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
-  { id: 'e-bike', name: 'E-bike', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱600 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
-  { id: 'scooter', name: 'Scooter · 125cc', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱900 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
-  { id: 'motorcycle', name: 'Motorcycle · 150cc', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱1,500 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
-  { id: 'car-rental', name: 'Compact car · self-drive', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱2,800 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
-  { id: 'suv-rental', name: 'SUV · 7 seats, self-drive', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱4,200 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  /* Dumaguete: the (simulated) partner bike shop on the resort driveway. Both
+     wait for the shop to confirm. Bikes cancel free up to 24 hours ahead, as
+     the pilot set; the scooter up to 2 hours, and needs a licence at pickup. */
+  { id: 'bike-rental', name: 'Bike rental', city: 'Dumaguete', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱450 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
+  { id: 'scooter-rental', name: 'Scooter · 125cc', city: 'Dumaguete', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱800 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'rental', name: 'City bicycle', city: 'Manila', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱350 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  { id: 'e-bike', name: 'E-bike', city: 'Manila', category: 'Bike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱600 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue' },
+  { id: 'scooter', name: 'Scooter · 125cc', city: 'Manila', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱900 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'motorcycle', name: 'Motorcycle · 150cc', city: 'Manila', category: 'Motorbike rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱1,500 / day', cutoff: '2-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'car-rental', name: 'Compact car · self-drive', city: 'Manila', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱2,800 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
+  { id: 'suv-rental', name: 'SUV · 7 seats, self-drive', city: 'Manila', category: 'Car rental', categoryId: 'rentals', operator: 'Third-party on property', price: '₱4,200 / day', cutoff: '24-hour cancellation cutoff', tone: 'blue', requires: 'Driver’s licence shown at pickup' },
   { id: 'laundry', name: 'Express laundry & pressing', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'From ₱250', cutoff: 'Same-day service', tone: 'blue' },
   { id: 'luggage', name: 'Luggage storage & delivery', category: 'Hotel services', categoryId: 'services', operator: 'Hotel operated', price: 'Complimentary', cutoff: 'Same-day service', tone: 'blue' },
   { id: 'celebration', name: 'Flowers & celebration setup', category: 'Hotel services', categoryId: 'services', operator: 'Curated guide', price: 'From ₱1,600', cutoff: '24-hour cancellation cutoff', tone: 'blue' },
@@ -4270,26 +4366,27 @@ export function filterServices<T extends { operator: string; category: string; p
  */
 export const LISTING_SUBCATEGORIES: Record<MiniAppCategoryId, ReadonlyArray<{ label: string; ids: readonly string[] }>> = {
   dining: [
-    { label: 'Breakfast & Brunch', ids: ['apartment-1b', 'dining', 'cafe'] },
-    { label: 'Filipino & International', ids: ['dining', 'rooftop', 'apartment-1b'] },
-    { label: 'Bars & Lounges', ids: ['poolside-bar', 'apartment-1b', 'rooftop'] },
-    { label: 'Desserts & Café', ids: ['cafe'] },
+    { label: 'Breakfast & Brunch', ids: ['apartment-1b', 'dining', 'cafe', 'noelles-brunch-bar', 'coffee-collective'] },
+    { label: 'Filipino & International', ids: ['dining', 'rooftop', 'apartment-1b', 'the-dining-room', 'popolo-pizzeria', 'the-red-kitchen'] },
+    { label: 'Bars & Lounges', ids: ['poolside-bar', 'apartment-1b', 'rooftop', 'si-senor'] },
+    { label: 'Desserts & Café', ids: ['cafe', 'coffee-collective'] },
   ],
   spa: [
     { label: 'Massage', ids: ['spa', 'hot-stone', 'couples-massage', 'reflexology'] },
     { label: 'Body Treatments', ids: ['scrub'] },
     { label: 'Beauty & Grooming', ids: ['facial', 'mani-pedi', 'barber'] },
-    { label: 'Mind & Movement', ids: [] },
+    { label: 'Mind & Movement', ids: ['yoga-class'] },
   ],
   entertainment: [
     { label: 'Manila Highlights', ids: ['heritage-walk', 'food-crawl', 'sunset-cruise', 'museum-pass'] },
-    { label: 'Culture & Heritage', ids: ['heritage-walk', 'food-crawl', 'museum-pass', 'cooking-class'] },
-    { label: 'Islands & Marine Life', ids: ['tour', 'diving'] },
-    { label: 'Day Trips', ids: ['tour'] },
+    { label: 'Culture & Heritage', ids: ['heritage-walk', 'food-crawl', 'museum-pass', 'cooking-class', 'walking-tour'] },
+    { label: 'Dumaguete Highlights', ids: ['apo-island-trip', 'walking-tour'] },
+    { label: 'Islands & Marine Life', ids: ['tour', 'diving', 'apo-island-trip'] },
+    { label: 'Day Trips', ids: ['tour', 'apo-island-trip'] },
     { label: 'Live Entertainment', ids: ['music', 'film-night'] },
   ],
   rentals: [
-    { label: 'Two wheels', ids: ['rental', 'e-bike', 'scooter', 'motorcycle'] },
+    { label: 'Two wheels', ids: ['rental', 'e-bike', 'scooter', 'motorcycle', 'bike-rental', 'scooter-rental'] },
     { label: 'Cars', ids: ['car-rental', 'suv-rental'] },
   ],
   services: [
@@ -4312,7 +4409,7 @@ export function matchesListingSubcategory(categoryId: MiniAppCategoryId, label: 
   return LISTING_SUBCATEGORIES[categoryId].find((chip) => chip.label === label)?.ids.includes(row.id) ?? false;
 }
 
-export const FEATURED_SERVICE_IDS = ['spa', 'restaurant', 'tour', 'transfer'] as const;
+export const FEATURED_SERVICE_IDS = ['spa', 'the-dining-room', 'apo-island-trip', 'transfer'] as const;
 
 export const getFeaturedServices = () =>
   FEATURED_SERVICE_IDS.map((id) => SERVICES.find((service) => service.id === id)!);
@@ -4323,10 +4420,12 @@ export const screenTitle = (id: ScreenId) => SCREENS.find((item) => item.id === 
 export function rentalUnitFor(serviceId: string): { singular: string; plural: string } {
   switch (serviceId) {
     case 'rental':
+    case 'bike-rental':
       return { singular: 'bike', plural: 'bikes' };
     case 'e-bike':
       return { singular: 'e-bike', plural: 'e-bikes' };
     case 'scooter':
+    case 'scooter-rental':
       return { singular: 'scooter', plural: 'scooters' };
     case 'motorcycle':
       return { singular: 'motorcycle', plural: 'motorcycles' };

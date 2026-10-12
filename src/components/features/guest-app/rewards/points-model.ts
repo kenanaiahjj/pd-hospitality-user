@@ -92,7 +92,7 @@ export const POINTS_EXPIRY_MONTHS = 24;
  */
 export const REWARD_MENU: Reward[] = [
   { id: 'late-checkout', title: 'Late checkout to 2 PM', detail: 'Subject to availability', points: 4000 },
-  { id: 'breakfast-two', title: 'Breakfast for two', detail: 'Kape Manila Café', points: 5000, cashPrice: '₱1,160' },
+  { id: 'breakfast-two', title: 'Breakfast for two', detail: 'Noelle’s Brunch Bar', points: 5000, cashPrice: '₱1,160' },
   { id: 'airport-transfer', title: 'Airport transfer', detail: 'Hotel arranged', points: 8000, cashPrice: '₱1,200' },
   { id: 'room-upgrade', title: 'Room upgrade, one night', detail: 'Subject to availability', points: 12000 },
   { id: 'hilom-massage', title: 'Hilom signature massage', detail: '90 minutes', points: 16000, cashPrice: '₱2,400' },

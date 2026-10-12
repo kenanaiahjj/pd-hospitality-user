@@ -241,15 +241,15 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "BKG-16",
-        text: "In the app every nearby listing is bookable in the app. Hotel-run services take room only. The desk can book by hand for a guest. There is no call-to-reserve path in the pilot.",
+        text: "Nearby partners on Cabana are booked in the app. An independent not on Cabana is never booked in the app: its page shows Call to reserve, with Ask the front desk to call as the fallback, and it pays the venue directly. Hotel-run services take room only. The desk can book by hand for a guest.",
         from: "Ken",
-        status: "Partly",
-        note: "The design had call to reserve for vendors outside Cabana.",
+        status: "Built",
+        note: "Two independents near the Dumaguete resort exercise it: a café on Silliman Avenue and the public market's pasalubong stalls.",
         drawn: "J, L"
       },
       {
         id: "BKG-17",
-        text: "Each listing can carry options: which payment ways it takes, a return-by time (20:00 for the Manila rentals), a lead time, a ready-at time, an order cap, a maximum party, a menu PDF, a unit name (bike, e-bike, scooter), a duration, and a price basis of per unit or one price for the booking.",
+        text: "Each listing can carry options: which payment ways it takes, a return-by time (20:00 for rentals), a lead time, a ready-at time, an order cap, a maximum party, a menu PDF, a unit name (bike, e-bike, scooter), a duration, and a price basis of per unit or one price for the booking.",
         from: "App",
         status: "Built",
         drawn: "Not drawn"
@@ -338,7 +338,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "CAN-10",
-        text: "Free-cancel hours are set per listing. Manila listings use 2 or 24 hours, and rentals cancel by the pickup time. The pilot catalogue uses 24 for the boat, bikes and Sans Rival, 12 for yoga and the walking tour, 48 for diving, and any time for tables. A default of 24 is declared and not used.",
+        text: "Free-cancel hours are set per listing. The app and the scenarios use 24 for the boat, bikes and Sans Rival, 12 for yoga and the walking tour, 48 for diving, and any time for tables. The app's scooter uses 2 hours, so both windows are on show. A default of 24 is declared and not used.",
         from: "App",
         status: "Built",
         drawn: "G"
@@ -622,24 +622,24 @@ export const RULE_GROUPS: RuleGroup[] = [
         id: "PLT-2",
         text: "Restaurants and cafés, all table reservations: The Dining Room, Si Señor, Popolo Pizzeria, The Red Kitchen, Noelle's Brunch Bar, Coffee Collective.",
         from: "Ken",
-        status: "Partly",
-        note: "In the scenarios only. The app uses the Manila catalogue.",
+        status: "Built",
+        note: "In the app and the scenarios. Each venue publishes its own table times and party size, and its page and booking card link its PDF menu.",
         drawn: "E"
       },
       {
         id: "PLT-3",
         text: "Pasalubong comes from Cafe Sans Rival only.",
         from: "Ken",
-        status: "Partly",
-        note: "In the scenarios only.",
+        status: "Built",
+        note: "In the app it leads the Gifts page: room or pay now, ready at 17:00, up to 50 to an order, with a chat of its own. The hotel's lobby shop stays below it, room only.",
         drawn: "D"
       },
       {
         id: "PLT-4",
         text: "The boat operator, the bike shop and Henry's own activities are simulated, with placeholder names.",
         from: "Test value",
-        status: "Partly",
-        note: "In the scenarios only.",
+        status: "Built",
+        note: "The app names them Partner boat operator and Partner bike shop. Henry's own activities post as the resort.",
         drawn: "B, C"
       },
       {
@@ -647,7 +647,7 @@ export const RULE_GROUPS: RuleGroup[] = [
         text: "A few vendors only, so alerts stay under control.",
         from: "Meeting",
         status: "Not built",
-        note: "The scenarios have 10 vendors and the app has 22. Alerts are not modelled.",
+        note: "The scenarios have 10 vendors. The app's Dumaguete stay shows 20 on Cabana and 2 independents, on purpose, to cover every kind of listing. Alerts are not modelled.",
         drawn: "Pilot"
       },
       {
@@ -776,7 +776,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "APP-8",
-        text: "The pilot runs two data sets. The scenarios use the Dumaguete venues. The app keeps its own demo: Ana in Room 304 at The Henry Manila, with 22 vendors and 58 listings, such as Sakay Rentals and Lakbay Island Tours.",
+        text: "The app and the scenarios share the pilot property. The demo stay is Ana in Room 304 at The Henry Resort Dumaguete. Its Explore holds one of every kind of listing: partner tables, Sans Rival goods, a confirm-first boat and bikes, instant resort activities, a pay-now spa, hotel services, nearby partners and call-to-reserve independents. Manila and Cebu remain as Ana's past stays and as hotels to book.",
         from: "App",
         status: "Built",
         drawn: "Pilot"

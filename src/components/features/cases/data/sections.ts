@@ -103,6 +103,22 @@ export const SECTIONS: Section[] = [
               "Staffed 24 hours per the resort listing, so desk tasks always reach someone. About 50 guests at one time per the design review.",
               "All"
             ]
+          },
+          {
+            cells: [
+              "Hilom Spa, a scooter, the Poolside Bar, hotel services",
+              "In the app only, to stress-test it [[pill:later:Simulated]]",
+              "A pay-now spa, a rental with a 2-hour cutoff and a licence check, a hotel outlet that talks in the desk chat, and room-only hotel services.",
+              "A, B, C"
+            ]
+          },
+          {
+            cells: [
+              "Nearby: a seafood grill, a hilot studio, a falls guide, a car hire, a laundry; a café and the market's pasalubong stalls",
+              "Around the resort, placeholder names [[pill:later:Simulated]]",
+              "The first five are partners, booked in the app: tables, pay per guest, confirm first, per car, or pay the vendor there. The last two are not on Cabana: Call to reserve, with Ask the front desk to call.",
+              "E, C, B, J"
+            ]
           }
         ]
       }
@@ -122,7 +138,7 @@ export const SECTIONS: Section[] = [
         items: [
           {
             title: "Two data sets",
-            text: "The 80 scenarios run on the Dumaguete venues. The app on screen keeps its own demo: Ana in Room 304 at The Henry Manila, with 22 vendors and 58 listings, such as Sakay Rentals, Lakbay Island Tours, Hilom Spa and The Poolside Bar & Lounge."
+            text: "The app and the 80 scenarios now share the pilot property. The demo stay is Ana in Room 304 at The Henry Resort Dumaguete, and its Explore lists only what that resort has: the six restaurants and cafés, Cafe Sans Rival, the Apo Island boat, the bike shop and the resort's own activities, plus extra listings of each kind to stress-test the app (the Hilom spa, a scooter, the Poolside Bar, hotel services, and nearby partners and independents)."
           },
           {
             title: "No vendor app, no desk app",
@@ -208,7 +224,7 @@ export const SECTIONS: Section[] = [
       {
         t: "flow",
         key: "C",
-        caption: "The Apo Island boat trip and the Manila island tours are confirm-first: the vendor accepts before anything is charged. Henry's own activities, such as yoga or a walking tour, are instant: they charge as the guest confirms and skip the vendor timer. The path is otherwise the same as rental, except that nothing is handed over, so the scan starts the service. Capacity is per slot: the boat runs about twice a day."
+        caption: "The Apo Island boat trip and outside guides, such as the Casaroro Falls guide, are confirm-first: the vendor accepts before anything is charged. Henry's own activities, such as yoga or a walking tour, are instant: they charge as the guest confirms and skip the vendor timer. The path is otherwise the same as rental, except that nothing is handed over, so the scan starts the service. Capacity is per slot: the boat runs about twice a day."
       }
     ],
     eyebrow: "Type 2 · Service",

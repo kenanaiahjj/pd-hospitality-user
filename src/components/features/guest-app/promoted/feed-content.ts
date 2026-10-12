@@ -1,4 +1,4 @@
-import { RESTAURANTS, SERVICES } from '../prototype-model';
+import { offeredIn, RESTAURANTS, SERVICES } from '../prototype-model';
 import { getRoomImage, type ServiceImageDefinition } from '../service-images';
 import type { FeedAction, FeedCandidate, FeedTags } from './feed-model';
 import { postingFor, restaurantStory, serviceStory, storyIsLive } from './story-model';
@@ -27,6 +27,12 @@ const RESTAURANT_TAGS: Record<string, TagsWithoutId> = {
   'poolside-bar': { dayparts: ['afternoon', 'evening'] },
   cafe: { dayparts: ['morning'] },
   rooftop: { dayparts: ['evening'], fits: 'couple', whenLabel: 'Tonight · 7:30 PM' },
+  'the-dining-room': { dayparts: ['afternoon', 'evening'] },
+  'si-senor': { dayparts: ['evening'], fits: 'couple', whenLabel: 'Tables tonight · from 6:00 PM' },
+  'popolo-pizzeria': { dayparts: ['afternoon', 'evening'], fits: 'family' },
+  'the-red-kitchen': { dayparts: ['evening'], fits: 'group' },
+  'noelles-brunch-bar': { dayparts: ['morning'], whenLabel: 'Brunch until 3:00 PM' },
+  'coffee-collective': { dayparts: ['morning', 'afternoon'] },
 };
 
 const SERVICE_TAGS: Record<string, TagsWithoutId> = {
@@ -42,7 +48,14 @@ const SERVICE_TAGS: Record<string, TagsWithoutId> = {
   'heritage-walk': { phases: ['mid-stay'], dayparts: ['morning'] },
   'food-crawl': { dayparts: ['afternoon'], follows: ['heritage-walk'] },
   'sunset-cruise': { dayparts: ['afternoon'], fits: 'couple', whenLabel: 'Sunset · 5:30 PM' },
-  diving: { phases: ['mid-stay'] },
+  diving: { phases: ['mid-stay'], dayparts: ['morning'] },
+  // Mid-stay, never ahead of breakfast: the afternoon boat is the one a morning reel would push.
+  'apo-island-trip': { phases: ['mid-stay'], dayparts: ['afternoon'], whenLabel: 'Boats at 7:30 AM and 1:30 PM' },
+  'walking-tour': { phases: ['mid-stay'], dayparts: ['morning'], whenLabel: 'Tomorrow · 8:00 AM' },
+  'yoga-class': { dayparts: ['morning', 'evening'], whenLabel: 'Tomorrow · 6:30 AM' },
+  // Dumaguete's two: the bike leads a mid-stay day, the scooter waits lower.
+  'bike-rental': { phases: ['mid-stay'] },
+  'scooter-rental': { onlyIn: ['arrival-day', 'first-night', 'mid-stay'] },
   'museum-pass': { dayparts: ['afternoon'] },
   'cooking-class': { phases: ['mid-stay'], fits: 'family' },
   music: { dayparts: ['evening'], whenLabel: 'Tonight · 6:00 PM' },
@@ -68,7 +81,8 @@ const stills = (story: Story): Story => ({
    Reels the catalogue did not have: the moments around the stay itself.
    -------------------------------------------------------------------------- */
 
-const HOTEL = { name: 'The Henry Manila', kind: 'property' as const, image: PROPERTY_IMAGE };
+/** The hotel posting in its own voice: the stay's own, else the brand. */
+const hotelAuthor = (property = 'The Henry') => ({ name: property, kind: 'property' as const, image: PROPERTY_IMAGE });
 const remote = (id: string, alt: string): ServiceImageDefinition => ({
   src: `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=82`,
   alt,
@@ -85,6 +99,8 @@ type Moment = {
   tags: FeedTags;
   action: FeedAction;
   postedHoursAgo: number;
+  /** Only at this hotel: a moment about its own venues. */
+  city?: string;
 };
 
 const MOMENTS: Moment[] = [
@@ -115,6 +131,22 @@ const MOMENTS: Moment[] = [
     tags: { itemId: 'moment-breakfast', category: 'dining', phases: ['mid-stay'], dayparts: ['morning'], whenLabel: 'This morning · until 10:30' },
     action: { kind: 'item', id: 'apartment-1b' },
     postedHoursAgo: 2.5,
+    city: 'Manila',
+  },
+  {
+    id: 'moment-breakfast',
+    title: 'Brunch at Noelle’s',
+    subtitle: 'Noelle’s Brunch Bar',
+    price: 'Free to reserve',
+    cta: 'Reserve a table',
+    slides: [
+      { headline: 'Brunch is on', detail: 'Brunch plates and juices until 3:00 PM.', image: storyImage('noelles-brunch-bar') },
+      { headline: 'Or just coffee', detail: 'Coffee Collective opens at 7:00 AM.', image: storyImage('coffee-collective') },
+    ],
+    tags: { itemId: 'moment-breakfast', category: 'dining', phases: ['mid-stay'], dayparts: ['morning'], whenLabel: 'This morning · until 3:00 PM' },
+    action: { kind: 'item', id: 'noelles-brunch-bar' },
+    postedHoursAgo: 2.5,
+    city: 'Dumaguete',
   },
   {
     id: 'moment-pasalubong',
@@ -129,6 +161,22 @@ const MOMENTS: Moment[] = [
     tags: { itemId: 'moment-pasalubong', category: 'gifts', phases: ['last-day', 'checkout-day'], dayparts: ['morning', 'afternoon'] },
     action: { kind: 'screen', screen: 'gifts-souvenirs' },
     postedHoursAgo: 3,
+    city: 'Manila',
+  },
+  {
+    id: 'moment-pasalubong',
+    title: 'Sans rival to take home',
+    subtitle: 'Cafe Sans Rival',
+    price: 'From ₱380',
+    cta: 'Order pasalubong',
+    slides: [
+      { headline: 'Something for home', detail: 'Sans rival and silvanas, packed by the café on the resort.', image: remote('photo-1606313564200-e75d5e30476c', 'A box of pastries to take home') },
+      { headline: 'Held for your flight', detail: 'The front desk keeps it chilled until you leave.', image: remote('photo-1549465220-1a8b9238cd48', 'A wrapped gift box') },
+    ],
+    tags: { itemId: 'moment-pasalubong', category: 'gifts', phases: ['last-day', 'checkout-day'], dayparts: ['morning', 'afternoon'] },
+    action: { kind: 'screen', screen: 'gifts-souvenirs' },
+    postedHoursAgo: 3,
+    city: 'Dumaguete',
   },
   {
     id: 'moment-transfer-home',
@@ -137,7 +185,7 @@ const MOMENTS: Moment[] = [
     price: SERVICES.find((service) => service.id === 'transfer')?.price ?? 'From ₱1,200',
     cta: 'Book the ride',
     slides: [
-      { headline: 'Leave the traffic to us', detail: 'A hotel driver, door to departures.', image: remote('photo-1764089859662-7b4773dff85b', 'Executive sedan at the kerb') },
+      { headline: 'Leave the driving to us', detail: 'A hotel driver, door to departures.', image: remote('photo-1764089859662-7b4773dff85b', 'Executive sedan at the kerb') },
       { headline: 'On your room bill', detail: 'Pick a time and it goes on your room.', image: remote('photo-1449965408869-eaa3f722e40d', 'Highway toward the airport') },
     ],
     tags: { itemId: 'moment-transfer-home', category: 'services', phases: ['last-day', 'checkout-day'], onlyIn: ['last-day', 'checkout-day'], dayparts: ['morning', 'afternoon'] },
@@ -159,7 +207,7 @@ const MOMENTS: Moment[] = [
   },
 ];
 
-const momentStory = (moment: Moment): Story => ({
+const momentStory = (moment: Moment, property?: string): Story => ({
   id: moment.id,
   title: moment.title,
   subtitle: moment.subtitle,
@@ -167,7 +215,7 @@ const momentStory = (moment: Moment): Story => ({
   cta: moment.cta,
   cover: moment.slides[0]!.image,
   slides: moment.slides,
-  author: HOTEL,
+  author: hotelAuthor(property),
   postedHoursAgo: moment.postedHoursAgo,
   livesForHours: 24,
 });
@@ -205,20 +253,31 @@ export function nearbyStory(place: NearbyStoryInput): Story {
    Everything, as candidates
    -------------------------------------------------------------------------- */
 
-export function buildFeedCandidates(input: { nearby: NearbyStoryInput[] }): FeedCandidate[] {
-  const venues: FeedCandidate[] = RESTAURANTS.map((venue) => ({
+/**
+ * Every reel the feed can rank. With a city, only what that hotel has: its own
+ * venues and services and the moments about them. The hotel's own posts sign
+ * with `property`.
+ */
+export function buildFeedCandidates(input: { nearby: NearbyStoryInput[]; city?: string; property?: string }): FeedCandidate[] {
+  const here = input.city ? offeredIn(input.city) : () => true;
+  const venues: FeedCandidate[] = RESTAURANTS.filter(here).map((venue) => ({
     story: stills(restaurantStory(venue)),
     tags: { itemId: venue.id, category: 'dining', ...RESTAURANT_TAGS[venue.id] },
     action: { kind: 'item', id: venue.id },
   }));
   const services: FeedCandidate[] = SERVICES
+    .filter(here)
     .filter((service) => service.categoryId === 'spa' || service.categoryId === 'entertainment' || service.categoryId === 'rentals')
     .map((service) => ({
       story: stills(serviceStory(service)),
       tags: { itemId: service.id, category: service.categoryId as FeedTags['category'], ...SERVICE_TAGS[service.id] },
       action: { kind: 'item', id: service.id },
     }));
-  const moments: FeedCandidate[] = MOMENTS.map((moment) => ({ story: momentStory(moment), tags: moment.tags, action: moment.action }));
+  const moments: FeedCandidate[] = MOMENTS
+    .filter((moment) => !moment.city || !input.city || moment.city === input.city)
+    // Without a city both versions of a moment would show: keep the first.
+    .filter((moment, index, all) => all.findIndex((other) => other.id === moment.id) === index)
+    .map((moment) => ({ story: momentStory(moment, input.property), tags: moment.tags, action: moment.action }));
   const nearby: FeedCandidate[] = input.nearby.map((place) => ({
     story: nearbyStory(place),
     tags: { itemId: `nearby-${place.id}`, category: 'nearby', dayparts: place.dayparts },

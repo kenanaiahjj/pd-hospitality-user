@@ -212,7 +212,7 @@ import type { Dispute, Message as EngineMessage } from './pilot/types';
 import type { Draft as EngineDraft } from './pilot/types';
 import { applyEngine, engineCancelLine, engineStatusLine, withoutEngineRecords } from './pilot/host/project';
 import { buildPilotEvents } from './pilot/host/events';
-import { LobbyShopScreen, type ShopProduct } from './pilot/host/shop';
+import { LobbyShopScreen, shopNameOf, type ShopPay, type ShopProduct } from './pilot/host/shop';
 import { BookingThreadScreen, MessagesList, useStickToLatest } from './pilot/host/messages';
 import { giftListingId } from './pilot/host/catalog';
 import { engineNews } from './pilot/host/notifications';
@@ -293,7 +293,7 @@ import { paymentsSummary, recordPayment, refundBookingItems, refundRemainingLink
 import { ArrivalCartConfirmation, ArrivalCartDock, ArrivalCartScreen } from './arrival-cart';
 import { addToCart, cartFor, cartTotals, removeFromCart, settleCart } from './arrival-cart-model';
 import type { AuthMethod, CartLine } from './prototype-model';
-import { GIFT_PRODUCTS, LOBBY_SHOP_NAME, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getRestaurantMenuImages, readChatOrder } from './dining';
+import { GIFT_PRODUCTS, RestaurantMenuScreen, RoomChargeDetails, ServiceDetail, describeRoomCharges, getRestaurantMenuImages, readChatOrder } from './dining';
 import './guest-app-prototype.css';
 import './promoted/promoted.css';
 import './rewards/rewards.css';
@@ -393,7 +393,12 @@ const EXPLORE_SCREENS: ActiveScreen[] = [
  */
 const SCAN_DETECT_MS = 2000;
 
-const EXPLORE_SEARCH_INDEX = buildSearchIndex();
+/** Each hotel's own search index, built once per city. */
+const SEARCH_INDEXES = new Map<string, ReturnType<typeof buildSearchIndex>>();
+const searchIndexFor = (city: string) => {
+  if (!SEARCH_INDEXES.has(city)) SEARCH_INDEXES.set(city, buildSearchIndex(city));
+  return SEARCH_INDEXES.get(city)!;
+};
 
 /** One line under each arrival card, in the guest's terms. */
 const ARRIVAL_BLURBS: Record<string, string> = {
@@ -2190,17 +2195,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     announceBookingChat(result.bookingId, record.id, shape.table ? 'Table reserved' : waits ? `${place.name} asked` : 'Booking confirmed');
   };
 
-  /* The lobby shop: each product is something the engine sells to the room and holds at the desk. */
-  const shopDraft = (product: ShopProduct, quantity: number, note?: string, ready: 'now' | 'departure' = 'now'): EngineDraft => ({
+  /* The lobby shop and Cafe Sans Rival: each product is something the engine sells and the desk holds. */
+  const shopDraft = (product: ShopProduct, quantity: number, note?: string, ready: 'now' | 'departure' = 'now', pay: ShopPay = 'room'): EngineDraft => ({
     listingId: giftListingId(product.name) ?? '',
     // Ready soon (today on the engine's clock, which the presenter can move past midnight), or held for the day they leave.
     date: ready === 'departure' ? contextBooking.checkOut : new Date(hostStore.host?.now() ?? Date.parse(`${PROTOTYPE_TODAY}T00:00:00Z`)).toISOString().slice(0, 10),
     qty: quantity,
-    payMode: 'room',
+    payMode: pay,
     note: note?.trim() || undefined,
     origin: 'app',
   });
-  const orderFromShop = (product: ShopProduct, quantity: number, note: string, ready: 'now' | 'departure'): string | void => {
+  const orderFromShop = (product: ShopProduct, quantity: number, note: string, ready: 'now' | 'departure', pay: ShopPay = 'room'): string | void => {
     const host = hostStore.host;
     const stay = host?.guestOf(contextBooking.id);
     if (!host || !stay) return 'The shop is not available right now.';
@@ -2210,7 +2215,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       setFailNext((current) => ({ ...current, booking: false }));
       return 'That did not go through. Try again, or ask the front desk.';
     }
-    const result = host.call<{ ok: boolean; message?: string; bookingId: string; duplicate?: boolean }>('guest.request', stay.guestId, shopDraft(product, quantity, note, ready));
+    const result = host.call<{ ok: boolean; message?: string; bookingId: string; duplicate?: boolean }>('guest.request', stay.guestId, shopDraft(product, quantity, note, ready, pay));
     if (!result.ok) return result.message ?? 'That did not go through.';
     // The engine answers with the order already placed a moment ago for the same thing: not a second order.
     if (result.duplicate) {
@@ -2220,19 +2225,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     const engineBooking = host.pilot.booking(result.bookingId);
     const id = `service-gift-${result.bookingId}`;
     const unit = parsePesoAmount(product.price);
+    const readyDay = new Date(engineBooking.start).toISOString().slice(0, 10);
+    const readyClock = new Date(engineBooking.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
     const record: ServiceBooking = {
       id,
       bookingId: contextBooking.id,
       engineId: result.bookingId,
       title: product.name,
-      scheduledFor: `${formatServiceDay(PROTOTYPE_TODAY).long} · ready in about 30 minutes`,
-      scheduledDate: PROTOTYPE_TODAY,
+      // When the engine says it is ready: half an hour for the lobby shop, 5:00 PM for the café, or the departure day.
+      scheduledFor: `${formatServiceDay(readyDay).long} · ready at ${readyClock}`,
+      scheduledDate: readyDay,
       scheduledHour: new Date(engineBooking.start).getUTCHours(),
       bookedAt: PROTOTYPE_TODAY,
       amount: formatPesoAmount(engineBooking.amount),
       status: 'confirmed',
       categoryId: 'services',
-      provider: LOBBY_SHOP_NAME,
+      provider: shopNameOf(product),
       summary: `${quantity} × ${product.name} · collect at the front desk`,
       items: [{ id: `${id}-1`, name: product.name, unitPrice: formatPesoAmount(unit), quantity }],
       ...(note.trim() ? { facts: noteFact(note) } : {}),
@@ -2240,6 +2248,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setSession((current) => ({ ...current, serviceBookings: [record, ...current.serviceBookings] }));
     setEngineNote(null);
     setSelectedStayEntryId(id);
+    // Paying now: the gateway opens over the order, as it does for any pay-now booking.
+    if (engineBooking.status === 'awaiting-payment') payEngineBooking(result.bookingId);
     go('stay-entry');
     // After the move: going to a screen clears the banner of the one before.
     announceBookingChat(result.bookingId, id, engineBooking.status === 'needs-approval' ? 'Waiting for the front desk' : 'Order placed');
@@ -2612,7 +2622,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           .map((service) => service.serviceId)
           .filter((id): id is string => Boolean(id)),
       }, clock),
-      buildFeedCandidates({ nearby: nearbyFeedInputs(booking.city) }),
+      buildFeedCandidates({ nearby: nearbyFeedInputs(booking.city), city: booking.city, property: booking.property }),
     // A weekend-only event is not promoted to a stay with no weekend in it.
     ).filter((entry) => !(SERVICE_SCHEDULES[entry.itemId] && bookableServiceDays(booking, PROTOTYPE_TODAY, entry.itemId).length === 0));
   };
@@ -4981,7 +4991,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             {feedSheet === 'browse' ? (
               <BrowseSheet
                 categories={BROWSE_CATEGORIES}
-                index={EXPLORE_SEARCH_INDEX}
+                index={searchIndexFor(contextBooking.city)}
                 recommendations={recommendedPicks(feedEntries, { limit: 4 })}
                 onOpenItem={(id) => { setFeedSheet(null); openExploreItem(id); }}
                 onOpenRecommendation={(entry) => runFeedAction(entry.action)}
@@ -4999,7 +5009,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           <BrowseSheet
             variant="page"
             categories={BROWSE_CATEGORIES}
-            index={EXPLORE_SEARCH_INDEX}
+            index={searchIndexFor(contextBooking.city)}
             recommendations={recommendedPicks(emptyCatalogue ? [] : stayFeed(contextBooking), { limit: 4 })}
             onOpenItem={(id) => openExploreItem(id)}
             onOpenRecommendation={(entry) => runFeedAction(entry.action)}
@@ -5017,7 +5027,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const matchesSubcategory = (row: { id: string }) => matchesListingSubcategory(selectedCategory, selectedSubcategory, row);
         const visibleVenues = stayVenues.filter(matchesSubcategory);
         const visibleServices = categoryServices.filter(matchesSubcategory);
-        const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', rentals: 'Motorbikes, cars and bikes by the day, from the hotel driveway.', services: 'Explore hotel services and local vendors nearby.' };
+        const categoryDescription: Record<MiniAppCategoryId, string> = { dining: 'Explore food and drink options at the hotel and nearby.', spa: 'Explore wellness options at the hotel and nearby.', entertainment: 'Explore activities and tours at the hotel and nearby.', rentals: 'Bikes, scooters and cars by the day, from the shop on the driveway and nearby.', services: 'Explore hotel services and local vendors nearby.' };
         const nearbyDescription: Record<MiniAppCategoryId, string> = { dining: 'Restaurants and cafés you can book directly near the hotel.', spa: 'Book wellness appointments with nearby vendors.', entertainment: 'Book nearby tours and attractions directly.', rentals: 'Book bikes and other rentals with local vendors.', services: 'Book local services directly with nearby vendors.' };
         return (
           <div className="guest-stack guest-category-listing">
@@ -5127,6 +5137,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'gifts-souvenirs':
         return (
           <LobbyShopScreen
+            city={contextBooking.city}
             quote={(product, quantity, ready) => {
               const host = hostStore.host;
               const stay = host?.guestOf(contextBooking.id);
@@ -5154,7 +5165,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'nearby-establishment': {
         // From today, or check-in if later, to check-out day: the days the guest is here to eat.
         const tableDays = Array.from({ length: 14 }, (_, i) => addDays(PROTOTYPE_TODAY > contextBooking.checkIn ? PROTOTYPE_TODAY : contextBooking.checkIn, i)).filter((day) => day <= contextBooking.checkOut);
-        const establishment = NEARBY_ESTABLISHMENTS.find((item) => item.id === selectedNearbyEstablishmentId) ?? NEARBY_ESTABLISHMENTS[0];
+        // Opened on its own (no place chosen): the first place near this stay's hotel.
+        const establishment = NEARBY_ESTABLISHMENTS.find((item) => item.id === selectedNearbyEstablishmentId)
+          ?? NEARBY_ESTABLISHMENTS.find((item) => item.city === contextBooking.city)
+          ?? NEARBY_ESTABLISHMENTS[0];
         return establishment ? (
           <NearbyEstablishmentScreen
             establishment={establishment}
@@ -5164,6 +5178,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             onBack={back}
             onNotifications={() => go('notifications')}
             onBookRide={() => openRideRequest({ from: contextBooking.property, to: establishment.name, toDetail: establishment.address })}
+            onAskDesk={() => { setChatDraft(`Could you call ${establishment.name} (${establishment.contact ?? 'number on their page'}) and reserve for ${contextBooking.guestCount} of us? Day and time: `); go('chat'); }}
             onBookNearby={(request) => bookNearbyPlace(establishment, request)}
             reserveDays={tableDays}
             dayLabel={(day) => (day === PROTOTYPE_TODAY ? 'Today' : formatServiceDay(day).short)}
@@ -5958,7 +5973,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               back to them.
             */}
             {noCabanaTotal || (engineEntryHost && entry.lines.length <= 1) ? null : (
-            <>
             <section>
               {entry.lines.length > 1 ? <SectionHeading title="Items" /> : null}
               <div className={`guest-summary${entryCancelled ? ' guest-summary--void' : ''}`}>
@@ -5982,7 +5996,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 />
               </div>
             </section>
+            )}
 
+            {/* Its state in words, even with no total to show: a free table, confirmed or cancelled, says so. */}
             {engineEntryHost ? null : <Notice
               tone={entryCancelled || tableWaiting || entry.settlement === 'Awaiting hotel confirmation' || entry.settlement === 'Awaiting provider confirmation' ? 'neutral' : 'positive'}
               title={entryCancelled ? 'Cancelled'
@@ -5995,7 +6011,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                           : entry.paidBy === 'complimentary' ? 'Complimentary'
                             : 'Charged to your room'}
             >
-              {entryCancelled ? 'Nothing was charged to room.'
+              {entryCancelled ? (isTable ? 'The table was released. Nothing was charged.' : 'Nothing was charged to room.')
                 : isTable ? tableWaiting ? 'The restaurant will confirm your reservation. Pay for your meal there; nothing is charged to a room.'
                   : 'No charge to reserve. Pay for your meal at the restaurant; nothing goes on your room bill.'
                 : entry.settlement === 'Awaiting provider confirmation' ? 'Nothing is charged in Cabana. The provider will confirm this request; you’ll pay them directly.'
@@ -6005,8 +6021,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                         : entryAhead && entry.paidBy === 'room' ? `Added to ${contextRoom.toLowerCase()} once it has happened, and settled at the front desk at checkout.`
                           : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
             </Notice>}
-            </>
-            )}
 
             {/*
               One way to talk about this booking, decided by who it is with:
@@ -6221,7 +6235,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom, clockHour);
         const folioTotal = getRoomChargesTotal(session, contextBooking, contextRoom);
         const visibleCharges = folioCharges;
-        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}{pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} to use on services you book in your stay</small></span><CaretRight aria-hidden="true" /></button> : null}{visibleCharges.length === 0 ? <StatePanel icon={<Receipt />} title="Nothing on your bill yet">{`What you order or book in the stay, and what the hotel posts, shows here as it lands on ${contextRoom}. It all settles at the front desk at checkout.`}</StatePanel> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
+        return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}{pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} to use on services you book in your stay</small></span><CaretRight aria-hidden="true" /></button> : null}{visibleCharges.length === 0 ? <StatePanel icon={<Receipt />} title="Nothing on your bill yet">{`What you order or book in the stay, and what the hotel posts, shows here as it lands on ${contextRoom}. It all settles at the front desk at checkout.`}</StatePanel> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} property={contextBooking.property} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
       }
 
       case 'chat':
@@ -6938,7 +6952,7 @@ const BROWSE_CATEGORIES: BrowseCategory[] = [
   { id: 'dining', label: 'Food & Drinks', detail: 'Restaurants, bars and room service', image: storyImage('dining') },
   { id: 'spa', label: 'Spa & Wellness', detail: 'Massages, facials and grooming', image: storyImage('spa') },
   { id: 'entertainment', label: 'Activities & Tours', detail: 'Tours, workshops and live music', image: storyImage('tour') },
-  { id: 'rentals', label: 'Rentals', detail: 'Motorbikes, cars and bikes', image: getCategoryCoverImage('rentals') },
+  { id: 'rentals', label: 'Rentals', detail: 'Bikes, scooters and cars', image: getCategoryCoverImage('rentals') },
   { id: 'services', label: 'Hotel Services', detail: 'Transfers, laundry and celebrations', image: storyImage('pool') },
   { id: 'gifts-souvenirs', label: 'Gifts & Souvenirs', detail: 'Pasalubong and keepsakes', image: storyImage('food-crawl') },
   { id: 'nearby', label: 'Nearby', detail: 'Partners and independent places around the hotel', image: storyImage('heritage-walk') },

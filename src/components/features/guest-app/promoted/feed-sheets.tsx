@@ -42,7 +42,8 @@ export function BrowseSheet({ categories, index = [], recommendations = [], onOp
   const [query, setQuery] = useState('');
   const [askedId, setAskedId] = useState<string | null>(null);
   const intent = askedId ? INTENTS.find((entry) => entry.id === askedId) : matchIntent(query);
-  const answer = intent ? resolveIntent(intent) : undefined;
+  // Only what this hotel has: the index is its own catalogue.
+  const answer = intent ? resolveIntent(intent, index.length ? new Set(index.map((item) => item.id)) : undefined) : undefined;
   const results = answer ? [] : searchCatalogue(index, query);
   const searching = query.trim().length > 0 || Boolean(askedId);
   const openItem = onOpenItem ?? (() => undefined);

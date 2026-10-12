@@ -217,7 +217,7 @@ export const STAY_HOTELS: StayHotel[] = [
     image: unsplash('1520250497591-112f2f40a3f4', 'The Henry Dumaguete coastal grounds', '50% 55%'),
     gallery: [ROOM_PHOTOS.queen, ROOM_PHOTOS.suite],
     summary: 'A peaceful garden retreat for families and creative travellers.',
-    about: 'Landscaped grounds, a coastal setting and several places to eat, a short ride from Rizal Boulevard.',
+    about: 'Landscaped grounds, a coastal setting and six restaurants and cafés, a short ride from Rizal Boulevard. Apo Island is a boat trip from the jetty.',
     amenities: ['pool', 'restaurant', 'wifi', 'breakfast', 'family', 'parking'],
     phone: '+63 35 531 5707',
     email: 'reservations.dumaguete@thehenryhotel.com',

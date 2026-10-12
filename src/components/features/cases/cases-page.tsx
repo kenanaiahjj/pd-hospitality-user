@@ -30,7 +30,7 @@ const CHOICES: Block[] = [
 type Extra = { after: string; section: Section; node?: 'screens' | 'states' | 'scenarios' };
 
 const EXTRAS: Extra[] = [
-  { after: 'situations', section: { id: 'screens', title: 'Chat screens, from the running app', eyebrow: 'Drawn by hand', blocks: [{ t: 'p', text: 'Redrawn from the app on the chat branch, using its demo data: Ana in Room 304 at The Henry Manila. Photos are shown as colour blocks.' }] }, node: 'screens' },
+  { after: 'situations', section: { id: 'screens', title: 'Chat screens, from the running app', eyebrow: 'Drawn by hand', blocks: [{ t: 'p', text: 'Redrawn from the app on the chat branch, using its demo data: Ana in Room 304 at The Henry Resort Dumaguete. Photos are shown as colour blocks.' }] }, node: 'screens' },
   { after: 'screens', section: { id: 'states', title: 'The same booking in eight states', blocks: [{ t: 'p', text: 'The card the desk chat shows for each state. The vendor chat shows the same facts in the booking bar.' }] }, node: 'states' },
   { after: 'states', section: { id: 'choices', title: 'Choices the app makes', blocks: CHOICES } },
   { after: 'open', section: { id: 'scenarios', title: 'Test scenarios', eyebrow: 'Read from the pilot code', blocks: [] }, node: 'scenarios' },

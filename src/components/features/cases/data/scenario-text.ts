@@ -9,9 +9,9 @@ export const SCENARIO_TEXT: Record<string, ScenarioText> = {
   },
   H2: {
     title: "Bike rental paid in full",
-    given: "Same as H1, guest picks Pay in full.",
-    when: "Shop accepts. Guest pays within 15 minutes.",
-    then: "Awaiting payment, then Confirmed. One Paid payment. No room charge. Nothing was taken before the shop accepted."
+    given: "Bike shop has 2 bikes free on Saturday. Maria picks Pay in full.",
+    when: "She asks and the card or wallet hold is placed. The shop accepts at minute 10.",
+    then: "The request goes to the shop only once the money is held, and nothing is taken until the shop accepts. On accept the hold is taken and the booking is Confirmed in one step: one Paid payment, no room charge."
   },
   H3: {
     title: "Apo Island trip from the app, by room",
@@ -129,21 +129,21 @@ export const SCENARIO_TEXT: Record<string, ScenarioText> = {
   },
   P4: {
     title: "Card payment fails three times",
-    given: "Vendor accepted. Gateway set to fail.",
-    when: "Guest tries three times.",
-    then: "Payment expired. Slot released. Vendor told it is free."
+    given: "She asks for a trip paying by card. The gateway is set to fail.",
+    when: "She tries the hold three times.",
+    then: "The request never goes out. The payment expires, the booking reads Not booked, and the slot is released. Nothing was taken."
   },
   P5: {
     title: "Guest never pays",
-    given: "Vendor accepted.",
+    given: "She asks, paying by card, and leaves the payment page.",
     when: "15 minutes pass.",
-    then: "Payment expired. Slot released. Guest can send a new request."
+    then: "The payment expires, the slot is released and the booking reads Not booked. She can send a new request, which waits for its own hold."
   },
   P6: {
     title: "Gateway took the money, callback lost",
-    given: "Callback set to be lost.",
-    when: "Guest pays. Two minutes pass.",
-    then: "Reconciliation finds it paid. Confirmed if the slot is held. If the slot was released, automatic refund."
+    given: "The gateway places the hold but the app never hears.",
+    when: "Two minutes pass. In a second run the hold lands at minute 14, after the window closed.",
+    then: "Run 1: reconciliation finds the hold and the request goes to the vendor, held and not taken. Run 2: the slot was already released, so the hold is let go. Nothing is refunded and the gateway holds nothing."
   },
   P7: {
     title: "Guest pays twice",
@@ -375,9 +375,9 @@ export const SCENARIO_TEXT: Record<string, ScenarioText> = {
   },
   Q1: {
     title: "One booking in three threads",
-    given: "Booking visible in the guest thread, the desk thread and the vendor thread.",
-    when: "Booking changes state.",
-    then: "All three cards show the new state at once. No stale copy. I6 holds."
+    given: "A boat trip request is waiting.",
+    when: "The vendor accepts.",
+    then: "While it waits there is no chat on either side. After accepting, the guest's chat and the operator's chat both show Confirmed at once. A card is a view of the booking, not a copy."
   },
   Q2: {
     title: "Thread closes 48 hours after the service",
@@ -387,9 +387,9 @@ export const SCENARIO_TEXT: Record<string, ScenarioText> = {
   },
   Q3: {
     title: "Vendor types ok instead of tapping Confirm",
-    given: "Request waiting.",
-    when: "Vendor sends the text ok.",
-    then: "Only a message. Status unchanged. Card reminds the vendor to tap Confirm."
+    given: "A boat trip request is waiting for the operator.",
+    when: "The vendor types ok in the chat. The guest tries to send a message.",
+    then: "No chat exists yet. The vendor is told to tap Confirm and the guest that there is no chat yet. The booking stays Requested."
   },
   Q4: {
     title: "Desk books for a guest who asked in person",
@@ -405,9 +405,9 @@ export const SCENARIO_TEXT: Record<string, ScenarioText> = {
   },
   Q6: {
     title: "A vendor chat opens only when the vendor commits",
-    given: "Boat operator is on Cabana. Guest requests the Apo Island trip.",
-    when: "The request waits, then the vendor accepts. In a second run it is declined or lapses.",
-    then: "While it waits there is no chat. The guest can call the vendor, add a note or ask the desk. On acceptance a one to one chat opens, and the desk is not in it. A declined or lapsed request never gets a chat."
+    given: "The boat operator is on Cabana. The guest requests the Apo Island trip.",
+    when: "The request waits, then the vendor accepts.",
+    then: "While it waits there is no chat: it is not in the guest's list and cannot be opened. On accept a one to one booking chat opens. Both sides see the same card and every message names its sender. The desk is not a participant and does not see it in its list."
   },
   Q7: {
     title: "Desk talks to the vendor privately",
@@ -417,9 +417,9 @@ export const SCENARIO_TEXT: Record<string, ScenarioText> = {
   },
   Q8: {
     title: "Vendor is not on Cabana, fallback to the desk",
-    given: "Venue is off the app.",
-    when: "Guest looks to book it.",
-    then: "Guest is sent to the front desk chat. The desk books by phone and puts the booking card in the desk chat. No vendor chat is created."
+    given: "The trip is confirmed.",
+    when: "The guest asks about a child seat. The vendor answers. The desk adds a note.",
+    then: "The vendor's automatic greeting comes first. After it only the guest and the vendor appear in the booking chat, in order. The desk's note is in its own chat with the guest, tied to the booking. The status stays Confirmed."
   },
   Q9: {
     title: "Vendor chat after a cancel",

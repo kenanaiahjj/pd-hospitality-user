@@ -155,10 +155,10 @@ export function Screens() {
   ];
   return (
     <div className="cases-phones">
-      <Fig label="Messages list with the front desk card and one chat per booking" title="Messages" caption="The front desk is its own plum card with a gold pill. Under it, one chat per outside-vendor booking that has opened, newest first, each with a photo tile, a type badge and its status in the line under the preview. A request still waiting for its vendor has no chat, so it is not listed.">
+      <Fig label="Chat page with the front desk card and one chat per booking" title="Chat" caption="The front desk is its own plum card with a gold pill. Under it, one chat per outside-vendor booking that has opened, newest first, each with a photo tile, a type badge and its status in the line under the preview. A request still waiting for its vendor has no chat, so it is not listed.">
         <Status>7:31</Status>
         <div className="ca-top"><span className="ca-circ"><Glyph name="back" /></span><span className="ca-circ ca-circ--dash"><Glyph name="wrench" /></span><span className="ca-circ ca-circ--bell"><Glyph name="bell" /></span></div>
-        <div className="ca-h1">Messages</div>
+        <div className="ca-h1">Chat</div>
         <div className="ca-deskcard">
           <Bell />
           <div>
@@ -180,7 +180,7 @@ export function Screens() {
         <Sys>A request still waiting for its vendor has no chat yet. It shows on its booking page.</Sys>
       </Fig>
 
-      <Fig label="Vendor chat for a confirmed bike rental with an automatic greeting and an extra charge in question" title="Guest and vendor" caption="One to one, opened when the vendor committed. It starts with the request, the note and who is in it. The vendor's greeting is an automatic message and says so. The booking bar keeps the booking in view, and the extra charge is a receipt card with its status.">
+      <Fig label="Vendor chat for a confirmed bike rental with an automatic greeting and an extra charge in question" title="Guest and vendor" caption="One to one, opened when the vendor committed. It starts with the request, the note and who is in it. The vendor's greeting is an automatic message and says so. It arrives once the booking is confirmed, so a card hold waits for its payment first. The booking bar keeps the booking in view, and the extra charge is a receipt card with its status.">
         <Status>7:31</Status>
         <Head kind="bike" title="Sakay Rentals" sub="City bicycle" />
         <div className="ca-bar">

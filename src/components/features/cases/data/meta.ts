@@ -1,2 +1,2 @@
 /** Update these when the page is next checked against the app. */
-export const CHECKED = { date: '12 Oct 2026', against: 'branch chat, commit 493c149' };
+export const CHECKED = { date: '12 Oct 2026', against: 'branch chat, commit 30e9e23' };

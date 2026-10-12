@@ -442,7 +442,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "CHT-5",
-        text: "There is one front desk chat screen. It is opened from the Messages list, from the shop and from a closed vendor chat.",
+        text: "There is one front desk chat screen. It is opened from the Chat page, from the shop and from a closed vendor chat.",
         from: "Ken",
         status: "Built",
         drawn: "Chat cards"
@@ -507,14 +507,14 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "CHT-14",
-        text: "Vendors send automatic messages so a chat is never empty, marked Auto-reply: a greeting when the booking settles, a reminder an hour before the start (not for goods, and only if the chat opened more than an hour earlier), a line when the service starts, a thank-you when it is done, a sorry when the vendor cancels, and a note when an extra charge is added. The wording is set per kind: rental, table, goods and service.",
+        text: "Vendors send automatic messages so a chat is never empty, marked Auto-reply: a greeting once the booking is confirmed (a card hold waits for its payment first), a reminder an hour before the start (not for goods, and only if the chat opened more than an hour earlier), a line when the service starts, a thank-you when it is done, a sorry when the vendor cancels, and a note when an extra charge is added. The wording is set per kind: rental, table, goods and service.",
         from: "App",
         status: "Built",
         drawn: "Chat cards"
       },
       {
         id: "CHT-15",
-        text: "Hotel outlets (The Henry and The Lobby Shop) talk in the front desk chat, not in a chat of their own. Their messages and receipts are copied there once, labelled Auto-reply, and the booking card goes on the first line. Their threads are hidden from Messages and do not count as unread.",
+        text: "Hotel outlets (The Henry and The Lobby Shop) talk in the front desk chat, not in a chat of their own. Their messages and receipts are copied there once, labelled Auto-reply, and the booking card goes on the first line. Their threads are hidden from the Chat page and do not count as unread.",
         from: "App",
         status: "Built",
         drawn: "Chat cards"
@@ -528,7 +528,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "CHT-17",
-        text: "Messages lists the front desk as a card with a gold Chat with the front desk pill, then one chat per outside vendor booking, newest first. The empty state reads \"Book something in Explore and you can message the vendor here.\"",
+        text: "The Chat page lists the front desk as a card with a gold Chat with the front desk pill, then one chat per outside vendor booking, newest first. The empty state reads \"Book something in Explore and you can message the vendor here.\"",
         from: "App",
         status: "Built",
         drawn: "Chat cards"

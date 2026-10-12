@@ -6719,7 +6719,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         strictLookup={strictLookup}
         onToggleStrictLookup={() => setStrictLookup((on) => !on)}
         simulatePostStayExpired={simulatePostStayExpired}
-        onTogglePostStayExpired={() => setSimulatePostStayExpired((expired) => !expired)}
+        onTogglePostStayExpired={() => {
+          const turningOn = !simulatePostStayExpired;
+          setSimulatePostStayExpired(turningOn);
+          // A day after checkout these screens are gone with the stay: land Home, with nothing to go Back into.
+          if (turningOn && ['messages', 'chat', 'booking-thread', 'my-stay', 'folio', 'stay-entry', 'cancel-before-cutoff', 'cancel-after-cutoff', 'room-qr-midstay'].includes(activeScreen)) {
+            setHistory([]);
+            replaceScreen('stay-overview');
+          }
+        }}
         feedClock={contextBooking ? feedClock ?? defaultFeedClock(contextBooking) : undefined}
         feedNights={contextBooking ? Math.max(1, countNightsBetween(contextBooking.checkIn, contextBooking.checkOut)) : 0}
         onFeedClockChange={changePrototypeClock}

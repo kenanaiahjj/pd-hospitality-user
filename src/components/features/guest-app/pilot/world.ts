@@ -6,7 +6,8 @@ import type { Booking, Dispute, Guest, GatewaySim, Listing, LogEntry, Notificati
   read it without going through the engine's own actions.
 */
 
-export type GatewayTxn = { id: string; paymentId: string; amount: number; state: 'paid' | 'failed' | 'refunded'; seen: boolean };
+/** `authorized`: a hold, not money; it becomes `paid` when captured or `voided` when released. */
+export type GatewayTxn = { id: string; paymentId: string; amount: number; state: 'paid' | 'failed' | 'refunded' | 'authorized' | 'voided'; seen: boolean };
 
 export type VendorRuntime = {
   online: boolean;

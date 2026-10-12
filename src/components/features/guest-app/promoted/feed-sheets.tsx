@@ -30,13 +30,15 @@ export type BrowseSheetProps = {
   /** Partner hotels, outside this stay's catalogue. Mid-stay this is how a guest reaches them. */
   onOpenHotels?: () => void;
   onClose: () => void;
+  /** `page`: the same browse as a full page (after a booking, "Book another service"), with no backdrop or close. */
+  variant?: 'sheet' | 'page';
 };
 
 /* Another property than the one the guest is at -- Hotel Services already shows that one. */
 const HOTELS_ART = PROPERTY_IMAGES.cebu;
 
 /** The categories, as they always were: each one lands on its existing page. */
-export function BrowseSheet({ categories, index = [], recommendations = [], onOpenItem, onOpenRecommendation, onOpen, onOpenHotels, onClose }: BrowseSheetProps) {
+export function BrowseSheet({ categories, index = [], recommendations = [], onOpenItem, onOpenRecommendation, onOpen, onOpenHotels, onClose, variant = 'sheet' }: BrowseSheetProps) {
   const [query, setQuery] = useState('');
   const [askedId, setAskedId] = useState<string | null>(null);
   const intent = askedId ? INTENTS.find((entry) => entry.id === askedId) : matchIntent(query);
@@ -46,12 +48,12 @@ export function BrowseSheet({ categories, index = [], recommendations = [], onOp
   const openItem = onOpenItem ?? (() => undefined);
   const openRecommendation = onOpenRecommendation ?? (() => undefined);
 
-  return (
-    <div className="feed-sheet-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="feed-sheet feed-sheet--browse" role="dialog" aria-modal="true" aria-labelledby="feed-browse-title">
+  const page = variant === 'page';
+  const content = (
+    <>
         <div className="feed-sheet__head">
-          <h2 id="feed-browse-title">Browse</h2>
-          <button type="button" className="feed-sheet__close" aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button>
+          {page ? <h1 id="feed-browse-title">Browse</h1> : <h2 id="feed-browse-title">Browse</h2>}
+          {page ? null : <button type="button" className="feed-sheet__close" aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button>}
         </div>
         <div className="feed-sheet__search feed-sheet__search--browse" role="search">
           <div className="discover__search">
@@ -151,6 +153,13 @@ export function BrowseSheet({ categories, index = [], recommendations = [], onOp
             </section>
           )}
         </div>
+    </>
+  );
+  if (page) return <section className="feed-sheet feed-sheet--browse feed-browse-page" aria-labelledby="feed-browse-title">{content}</section>;
+  return (
+    <div className="feed-sheet-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="feed-sheet feed-sheet--browse" role="dialog" aria-modal="true" aria-labelledby="feed-browse-title">
+        {content}
       </div>
     </div>
   );

@@ -33,8 +33,8 @@ export const CANCEL: Scenario[] = [
       const { p } = c;
       c.step('Paid in full; she cancels', () => {
         const id = c.ask(trip({ payMode: 'card' }));
-        c.must(p.vendor('boat-operator').confirm(id));
         c.must(p.guest().payCard(id));
+        c.must(p.vendor('boat-operator').confirm(id));
         c.must(p.guest().cancel(id));
         p.advanceMinutes(5);
         c.eq(p.payments(id)[0]!.state, 'refunded', 'Refunded to the same method');
@@ -114,8 +114,8 @@ export const CANCEL: Scenario[] = [
           const g = i === 0 ? { guestId: p.maria.guestId } : p.addGuest({ firstName: `Guest ${i}`, room: `Villa ${20 + i}`, checkIn: '2026-10-05', checkOut: S.tue });
           const mode = i % 2 === 0 ? 'room' : 'card';
           const id = (p.guest(g.guestId).request(trip({ qty: 1, payMode: mode })) as { ok: true; bookingId: string }).bookingId;
-          p.vendor('boat-operator').confirm(id);
           if (mode === 'card') p.guest(g.guestId).payCard(id);
+          p.vendor('boat-operator').confirm(id);
           ids.push(id);
         }
         c.eq(ids.filter((id) => p.booking(id).status === 'confirmed').length, 12, 'all confirmed');

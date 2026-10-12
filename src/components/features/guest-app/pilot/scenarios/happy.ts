@@ -43,30 +43,39 @@ export const HAPPY: Scenario[] = [
   {
     id: 'H2',
     group: G,
-    title: 'Bike rental paid in full',
+    title: 'Bike rental paid in full: held at booking, taken when the shop accepts',
     run(c) {
       const { p } = c;
       let id = '';
-      c.step('Maria asks for 2 bikes and picks Pay in full', () => {
+      c.step('Maria asks for 2 bikes, picks Pay in full, and the money is held', () => {
         id = c.ask(draft('bike-rental', S.sat, 2, { time: '08:00', days: 1, payMode: 'card' }));
-        c.eq(p.payments(id).length, 0, 'nothing taken yet');
+        c.eq(p.booking(id).status, 'awaiting-payment', 'the hold comes first');
+        c.ok(!p.outbox().some((n) => n.to === 'vendor' && n.topic === 'request' && n.bookingId === id), 'the shop hears nothing until it is held');
+        c.must(p.guest().payCard(id));
+        c.eq(p.booking(id).status, 'requested', 'held, so the request goes to the shop');
+        c.eq(p.payments(id)[0]!.state, 'held', 'held, not taken');
+        c.eq(p.gateway.net, 0, 'no money has moved');
       });
-      c.step('The shop accepts; she pays within 15 minutes', () => {
+      c.step('The shop accepts: the hold is taken, confirmed in one step', () => {
         p.advanceMinutes(10);
         c.must(p.vendor('bike-shop').confirm(id));
-        c.eq(p.booking(id).status, 'awaiting-payment', 'Awaiting payment');
         const pay = p.payments(id)[0]!;
         c.eq(pay.mode, 'card', 'paid in full by card');
-        c.eq(pay.state, 'awaiting', 'awaiting');
-        p.advanceMinutes(4);
-        const out = c.must(p.guest().payCard(id));
-        c.eq(out.outcome, 'paid', 'paid');
+        c.eq(pay.state, 'paid', 'captured');
       });
       c.step('Confirmed with one Paid payment and no room charge', () => {
         c.eq(p.booking(id).status, 'confirmed', 'Confirmed');
         const pays = p.payments(id);
         c.eq(pays.filter((x) => x.state === 'paid').length, 1, 'one Paid payment');
         c.eq(pays.filter((x) => x.mode === 'room').length, 0, 'no room charge');
+      });
+      c.step('Another held request the shop declines: the hold drops, nothing charged, nothing refunded', () => {
+        const other = c.ask(draft('bike-rental', S.sun, 1, { time: '08:00', days: 1, payMode: 'card' }));
+        c.must(p.guest().payCard(other));
+        const before = p.gateway.net;
+        c.must(p.vendor('bike-shop').decline(other, 'No bikes left'));
+        c.eq(p.payments(other)[0]!.state, 'released', 'released');
+        c.eq(p.gateway.net, before, 'no money moved either way');
       });
     },
   },

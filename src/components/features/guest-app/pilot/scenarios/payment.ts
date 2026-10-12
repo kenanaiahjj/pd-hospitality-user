@@ -81,36 +81,35 @@ export const PAYMENT: Scenario[] = [
   {
     id: 'P4',
     group: G,
-    title: 'Card payment fails three times',
+    title: 'The card hold fails three times',
     run(c) {
       const { p } = c;
       let id = '';
-      c.step('The vendor accepted; the gateway is set to fail', () => {
+      c.step('She asks, paying by card; the gateway is set to fail', () => {
         id = c.ask(trip({ payMode: 'card' }));
-        c.must(p.vendor('boat-operator').confirm(id));
         p.setGateway({ mode: 'fail' });
       });
-      c.step('She tries three times', () => {
+      c.step('She tries three times: the request never goes out', () => {
         const left = [1, 2, 3].map(() => c.must(p.guest().payCard(id)).triesLeft);
         c.eq(left.join(','), '2,1,0', 'tries left');
-        c.eq(p.booking(id).status, 'payment-expired', 'Payment expired');
+        c.eq(p.booking(id).status, 'payment-expired', 'Not booked');
         c.eq(p.payments(id)[0]!.state, 'expired', 'expired');
         const slot = p.slot('apo-island-trip', S.fri, '07:30');
         c.eq(slot.held + slot.confirmed, 0, 'slot released');
-        c.ok(p.outbox().some((n) => n.to === 'vendor' && n.topic === 'slot-free' && n.bookingId === id), 'the vendor is told it is free');
+        c.ok(!p.outbox().some((n) => n.to === 'vendor' && n.bookingId === id), 'the vendor never heard of it');
+        c.eq(p.gateway.net, 0, 'nothing taken');
       });
     },
   },
   {
     id: 'P5',
     group: G,
-    title: 'Guest never pays',
+    title: 'Guest never completes the hold',
     run(c) {
       const { p } = c;
       let id = '';
-      c.step('The vendor accepted; 15 minutes pass', () => {
+      c.step('She asks, paying by card, and leaves the payment page; 15 minutes pass', () => {
         id = c.ask(trip({ payMode: 'card' }));
-        c.must(p.vendor('boat-operator').confirm(id));
         p.advanceMinutes(15);
         c.eq(p.booking(id).status, 'payment-expired', 'Payment expired');
         c.eq(p.payments(id)[0]!.state, 'expired', 'expired');
@@ -119,35 +118,34 @@ export const PAYMENT: Scenario[] = [
       c.step('She can send a new request', () => {
         const again = c.ask(trip({ payMode: 'card' }));
         c.ok(again !== id, 'a new booking');
-        c.eq(p.booking(again).status, 'requested', 'Requested');
+        c.eq(p.booking(again).status, 'awaiting-payment', 'waiting for its hold');
       });
     },
   },
   {
     id: 'P6',
     group: G,
-    title: 'Gateway took the money, callback lost',
+    title: 'Gateway placed the hold, callback lost',
     run(c) {
-      c.step('Run 1: she pays; two minutes pass', () => {
+      c.step('Run 1: the hold goes through but the app does not hear; two minutes pass', () => {
         const q = c.fresh();
         const id = (q.guest().request(trip({ payMode: 'card' })) as { ok: true; bookingId: string }).bookingId;
-        q.vendor('boat-operator').confirm(id);
         q.setGateway({ loseCallbacks: true });
         q.guest().payCard(id);
         c.eq(q.booking(id).status, 'awaiting-payment', 'the app has not heard');
         q.advanceMinutes(2);
-        c.eq(q.booking(id).status, 'confirmed', 'reconciliation found it paid; the slot was held');
+        c.eq(q.booking(id).status, 'requested', 'reconciliation found the hold; the request went out');
+        c.eq(q.payments(id)[0]!.state, 'held', 'held, not taken');
       });
-      c.step('Run 2: she pays at minute 14, after which the slot is released', () => {
+      c.step('Run 2: the hold lands at minute 14, after the window closed: it is let go', () => {
         const q = c.fresh();
         const id = (q.guest().request(trip({ payMode: 'card' })) as { ok: true; bookingId: string }).bookingId;
-        q.vendor('boat-operator').confirm(id);
         q.setGateway({ loseCallbacks: true });
         q.advanceMinutes(14);
         q.guest().payCard(id);
         q.advanceMinutes(4);
         c.eq(q.booking(id).status, 'payment-expired', 'the slot was already released');
-        c.ok(q.payments(id).every((x) => x.state === 'refunded' || x.state === 'expired'), 'refunded automatically');
+        c.ok(q.payments(id).every((x) => x.state === 'released' || x.state === 'expired'), 'the hold was released, nothing refunded');
         c.eq(q.gateway.net, 0, 'the gateway holds nothing');
       });
     },
@@ -160,9 +158,9 @@ export const PAYMENT: Scenario[] = [
       const { p } = c;
       c.step('The gateway lets a second payment through', () => {
         const id = c.ask(trip({ payMode: 'card' }));
+        c.must(p.guest().payCard(id));
         c.must(p.vendor('boat-operator').confirm(id));
         p.setGateway({ allowDoublePay: true });
-        c.must(p.guest().payCard(id));
         p.guest().payCard(id);
         const pays = p.payments(id);
         c.eq(pays.filter((x) => x.state === 'paid').length, 1, 'one Paid payment remains');
@@ -180,8 +178,8 @@ export const PAYMENT: Scenario[] = [
       const { p } = c;
       c.step('The gateway fails refunds; she cancels a paid booking', () => {
         const id = c.ask(trip({ payMode: 'card' }));
-        c.must(p.vendor('boat-operator').confirm(id));
         c.must(p.guest().payCard(id));
+        c.must(p.vendor('boat-operator').confirm(id));
         p.setGateway({ failRefunds: true });
         c.must(p.guest().cancel(id));
         c.eq(p.payments(id)[0]!.state, 'refund-failed', 'Refund failed');
@@ -227,8 +225,8 @@ export const PAYMENT: Scenario[] = [
       let extraId = '';
       c.step('The booking was paid in full; an extra charge is added', () => {
         const id = c.ask(bike({ payMode: 'card' }));
-        c.must(p.vendor('bike-shop').confirm(id));
         c.must(p.guest().payCard(id));
+        c.must(p.vendor('bike-shop').confirm(id));
         p.advanceTo(p.at(S.sat, '08:05'));
         c.must(p.vendor('bike-shop').scan(id));
         extraId = c.must(p.vendor('bike-shop').addExtra(id, 150, 'Late return fee')).paymentId;

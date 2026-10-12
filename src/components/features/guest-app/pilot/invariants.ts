@@ -79,8 +79,11 @@ export function checkInvariants(w: World): Violation[] {
     const listing = w.listings.get(b.listingId);
     if (!listing || listing.confirm !== 'vendor') continue;
     const pays = b.paymentIds.map((id) => w.payments.get(id)!).filter(Boolean);
-    if (['needs-approval', 'pay-or-cancel', 'requested'].includes(b.status) && pays.length > 0 && b.acceptedAt === undefined) add('I3', `${b.id} has ${pays.length} payment record(s) before the vendor accepted`);
-    if (['awaiting-payment', 'confirmed', 'in-progress', 'ready', 'completed'].includes(b.status) && b.acceptedAt === undefined) add('I3', `${b.id} is ${b.status} but the vendor never accepted it`);
+    // A hold is not a charge: before the vendor answers, a hold booking may carry a card payment that is waiting, held, released or expired, and nothing else.
+    const beforeYes = pays.filter((p) => !(b.hold && p.mode === 'card' && ['awaiting', 'held', 'released', 'expired'].includes(p.state)));
+    if (['needs-approval', 'pay-or-cancel', 'requested'].includes(b.status) && beforeYes.length > 0 && b.acceptedAt === undefined) add('I3', `${b.id} has ${beforeYes.length} payment record(s) before the vendor accepted`);
+    if (['confirmed', 'in-progress', 'ready', 'completed'].includes(b.status) && b.acceptedAt === undefined) add('I3', `${b.id} is ${b.status} but the vendor never accepted it`);
+    if (b.status === 'awaiting-payment' && b.acceptedAt === undefined && !b.hold) add('I3', `${b.id} is awaiting payment but the vendor never accepted it`);
     if (b.acceptedAt === undefined && pays.some((p) => ['posted', 'settled', 'paid'].includes(p.state))) add('I3', `${b.id} was charged without acceptance`);
   }
 

@@ -140,7 +140,8 @@
   place-items: center;
   inline-size: 100%;
   block-size: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: #201f24;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
 }
@@ -402,7 +403,8 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-md, 16px);
   background: var(--guest-paper);
@@ -468,7 +470,8 @@
   display: block;
   inline-size: 100%;
   block-size: 2px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-pill);
   background: var(--guest-line);
 }
@@ -971,7 +974,8 @@
   justify-items: center;
   gap: 10px;
   padding: 20px 20px 12px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: transparent;
   color: var(--guest-ink);
 }
@@ -1003,7 +1007,7 @@
 }
 
 /* One narrow specular pass, clipped by the medal's own silhouette. */
-.badge-medal--shimmer { overflow: hidden; }
+.badge-medal--shimmer { overflow: clip; min-inline-size: 0; }
 .badge-medal--shimmer::after {
   position: absolute;
   z-index: 2;
@@ -1257,7 +1261,8 @@
 .guest-badge-detail__track {
   display: block;
   block-size: 7px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-pill);
   background: var(--guest-line);
 }
@@ -1558,7 +1563,8 @@
   display: grid;
   gap: 18px;
   padding: 20px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-lg);
   background: var(--guest-invert);
   color: var(--guest-on-invert);
@@ -1679,7 +1685,8 @@
   block-size: 4px;
   border-radius: var(--guest-radius-pill);
   background: rgb(255 255 255 / 0.2);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 
 .guest-achievements-overview__track i {
@@ -1804,7 +1811,8 @@
   border: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-sunken);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 
 .guest-achievements-points .points-wallet__ledger li + li { border-block-start-color: var(--guest-line); }
@@ -1815,7 +1823,8 @@
   border: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-sunken);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 
 .guest-achievements-page .reward-menu__rows li > button { padding: 13px 12px; }
@@ -1959,7 +1968,8 @@
 .guest-achievements-page .estate-map__groups {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
   background: var(--guest-paper);
@@ -2079,7 +2089,8 @@
   line-height: 1.25;
 }
 .guest-achievements-points .points-wallet__opportunities {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
   background: var(--guest-paper);
@@ -2160,7 +2171,8 @@
   letter-spacing: 0;
 }
 .guest-achievements-page .reward-menu__rows {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
   background: var(--guest-paper);

@@ -53,7 +53,8 @@
   aspect-ratio: 3 / 4;
   max-height: 52svh;
   border-radius: 24px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 
 /*
@@ -81,7 +82,8 @@
 .scanner__sweep {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   pointer-events: none;
 }
 .scanner__sweep::after {
@@ -320,7 +322,7 @@
 }
 .unlocked__tile:active { transform: scale(0.98); }
 /* Concentric: the tile's 20px radius is the photo's 14px plus its 6px inset. */
-.unlocked__tile-photo { position: relative; display: block; aspect-ratio: 4 / 3; margin-block-end: 8px; overflow: hidden; border-radius: 14px; }
+.unlocked__tile-photo { position: relative; display: block; aspect-ratio: 4 / 3; margin-block-end: 8px; overflow: clip; min-inline-size: 0; border-radius: 14px; }
 .unlocked__tile-photo img { object-fit: cover; }
 .unlocked__tile b, .unlocked__tile-row b { padding-inline: 6px; font-size: 14.5px; font-weight: 650; letter-spacing: -0.006em; }
 .unlocked__tile small, .unlocked__tile-row small { padding-inline: 6px; color: var(--guest-muted); font-size: 12.5px; line-height: 1.35; }
@@ -353,7 +355,8 @@
   position: absolute;
   inset: -20px -20px auto;
   height: 320px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   pointer-events: none;
 }
 .confetti__piece {
@@ -519,7 +522,8 @@
   height: 92px;
   border: 2px solid var(--guest-paper);
   border-radius: 18px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 .discover__story-art img { object-fit: cover; }
 /* The account that published it... */
@@ -535,7 +539,8 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   max-width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-ink);
   font-size: 11px;
   font-weight: 650;
@@ -561,7 +566,8 @@
   width: 100%;
   border: 0;
   border-radius: var(--guest-radius-lg);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   text-align: start;
   transition: transform var(--duration-press) var(--ease-out);
 }
@@ -636,7 +642,8 @@
   border: 0;
   /* 20px: the radius DESIGN.md already gives sheets and the folio total. */
   border-radius: var(--guest-radius-lg);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: oklch(1 0 0);
   text-align: start;
   isolation: isolate;
@@ -813,7 +820,8 @@
   position: absolute;
   inset: 0;
   border-radius: var(--guest-radius-lg);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--guest-sunken, var(--guest-surface));
   box-shadow: 0 10px 30px oklch(0.2 0.02 300 / 0.18);
   cursor: grab;
@@ -1123,7 +1131,8 @@
   width: 54px;
   height: 54px;
   border-radius: var(--guest-radius-sm);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 .ask__pick-art img { object-fit: cover; }
 .ask__pick-copy { display: grid; gap: 1px; min-width: 0; }
@@ -1158,7 +1167,8 @@
   width: 54px;
   height: 54px;
   border-radius: var(--guest-radius-sm);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   flex: 0 0 auto;
 }
 .discover__result-art img { object-fit: cover; }
@@ -1167,7 +1177,8 @@
 .discover__result-copy small {
   color: var(--guest-subtle);
   font-size: 12px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1329,7 +1340,8 @@
   /* Above the app bar too, not just the tab bar -- `--z-appbar` is 40. */
   z-index: var(--z-backdrop);
   display: grid;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: oklch(0.16 0.01 275);
   color: oklch(1 0 0);
 }
@@ -1389,7 +1401,8 @@
   flex: 0 0 auto;
   border: 1.5px solid oklch(1 0 0 / 0.9);
   border-radius: var(--radius-pill);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 .story__avatar img { object-fit: cover; }
 
@@ -1405,7 +1418,7 @@
      and made the header twice as tall as the thing it labels. */
   white-space: nowrap;
 }
-.story__who b > :first-child { overflow: hidden; text-overflow: ellipsis; }
+.story__who b > :first-child { overflow: clip; min-inline-size: 0; text-overflow: ellipsis; }
 .story__who small {
   display: flex;
   align-items: center;
@@ -1415,7 +1428,7 @@
   opacity: 0.78;
   font-variant-numeric: tabular-nums;
 }
-.story__where { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.story__where { overflow: clip; min-inline-size: 0; white-space: nowrap; text-overflow: ellipsis; }
 .story__who small i { font-style: normal; opacity: 0.6; }
 
 /* Not a tick on a coloured disc -- that reads as an identity claim about a
@@ -1555,7 +1568,8 @@
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 /* One word and an icon, the size of Places' Save: the photo does the selling. */
 .story__cta {

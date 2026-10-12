@@ -81,7 +81,8 @@
   position: relative;
   display: grid;
   height: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   isolation: isolate;
 }
 .reel__image { object-fit: cover; z-index: -2; }
@@ -103,7 +104,7 @@
   display: flex;
   gap: 4px;
 }
-.reel__progress span { position: relative; flex: 1; height: 2.5px; overflow: hidden; border-radius: 2px; background: oklch(1 0 0 / 0.3); }
+.reel__progress span { position: relative; flex: 1; height: 2.5px; overflow: clip; min-inline-size: 0; border-radius: 2px; background: oklch(1 0 0 / 0.3); }
 .reel__progress span.is-seen { background: oklch(1 0 0 / 0.95); }
 .reel__progress i { position: absolute; inset: 0; background: oklch(1 0 0 / 0.95); transform-origin: left; animation: reel-fill linear both; }
 @keyframes reel-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
@@ -125,7 +126,7 @@
 }
 .reel__story { display: grid; align-content: start; gap: 8px; max-width: 38ch; }
 .reel__author { display: inline-flex; align-items: center; gap: 8px; margin: 0; color: oklch(1 0 0 / 0.86); font-size: 13px; font-weight: 600; }
-.reel__avatar { position: relative; width: 26px; height: 26px; overflow: hidden; border-radius: 50%; box-shadow: 0 0 0 1.5px oklch(1 0 0 / 0.7); }
+.reel__avatar { position: relative; width: 26px; height: 26px; overflow: clip; min-inline-size: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px oklch(1 0 0 / 0.7); }
 .reel__avatar img { object-fit: cover; }
 .reel__badge { width: 15px; height: 15px; color: oklch(0.88 0.07 86); }
 .reel__title {
@@ -354,7 +355,8 @@
   flex-direction: column;
   gap: 6px;
   max-height: 82%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   padding: 16px 16px calc(var(--guest-nav-h, 72px) + 26px);
   border-radius: 24px 24px 0 0;
   background: var(--guest-paper);
@@ -385,7 +387,7 @@
   text-align: start;
   cursor: pointer;
 }
-.feed-sheet__art { position: relative; width: 52px; height: 52px; overflow: hidden; border-radius: 14px; }
+.feed-sheet__art { position: relative; width: 52px; height: 52px; overflow: clip; min-inline-size: 0; border-radius: 14px; }
 .feed-sheet__art img { object-fit: cover; }
 .feed-sheet__copy { display: grid; gap: 2px; min-width: 0; }
 .feed-sheet__copy b { font-size: 15px; font-weight: 650; }
@@ -407,7 +409,8 @@
   display: flex;
   flex-direction: column;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: oklch(0.16 0.02 350);
 }
 .guest-screen--reels > .reel-feed { flex: 1 1 auto; }
@@ -445,7 +448,8 @@
   flex-direction: column;
   justify-content: flex-end;
   aspect-ratio: 9 / 16;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: 16px;
   background: var(--guest-surface);
   box-shadow: 0 1px 2px oklch(0 0 0 / 0.06), 0 8px 20px oklch(0 0 0 / 0.08);
@@ -489,7 +493,8 @@
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   min-height: 0;
   font-size: 15px;
   font-weight: 600;
@@ -497,9 +502,9 @@
   line-height: 1.2;
   text-shadow: 0 1px 8px oklch(0 0 0 / 0.28);
 }
-.recommended__copy small { min-width: 0; overflow: hidden; color: oklch(1 0 0 / 0.78); font-size: 13px; line-height: 18px; text-overflow: ellipsis; text-shadow: 0 1px 6px oklch(0 0 0 / 0.24); white-space: nowrap; }
+.recommended__copy small { min-width: 0; overflow: clip; color: oklch(1 0 0 / 0.78); font-size: 13px; line-height: 18px; text-overflow: ellipsis; text-shadow: 0 1px 6px oklch(0 0 0 / 0.24); white-space: nowrap; }
 .recommended__price,
-.recommended__cta { min-width: 0; overflow: hidden; font-size: 13.5px; font-weight: 600; line-height: 18px; text-overflow: ellipsis; text-shadow: 0 1px 6px oklch(0 0 0 / 0.24); white-space: nowrap; }
+.recommended__cta { min-width: 0; overflow: clip; font-size: 13.5px; font-weight: 600; line-height: 18px; text-overflow: ellipsis; text-shadow: 0 1px 6px oklch(0 0 0 / 0.24); white-space: nowrap; }
 .recommended__price { color: #fff; font-variant-numeric: tabular-nums; }
 .recommended__cta { color: oklch(0.88 0.07 86); }
 .recommended__card:active .recommended__photo { transform: scale(0.97); }

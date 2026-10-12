@@ -1405,7 +1405,7 @@ describe('my stay', () => {
     );
     render(<GuestAppPrototype initialScreen="my-stay" initialSession={session} />);
 
-    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entries__date-group-cards\s*\{[\s\S]*?overflow:\s*hidden;[\s\S]*?border:\s*1px solid var\(--guest-line\);[\s\S]*?border-radius:\s*16px;/);
+    expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entries__date-group-cards\s*\{[\s\S]*?overflow:\s*clip;[\s\S]*?border:\s*1px solid var\(--guest-line\);[\s\S]*?border-radius:\s*16px;/);
     expect(guestStyles).toMatch(/\.guest-screen:not\(\.guest-screen--chat\) \.guest-my-stay-page \.guest-stay-entry\s*\{[\s\S]*?padding:\s*18px 16px;[\s\S]*?background:\s*var\(--guest-paper\);/);
 
     // Grouped by day, so each card's line carries the time, not the date again.

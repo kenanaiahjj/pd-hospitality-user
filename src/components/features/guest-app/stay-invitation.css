@@ -81,7 +81,8 @@
   display: grid;
   aspect-ratio: 4 / 5.15;
   padding: var(--sp-frame);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: linear-gradient(150deg, oklch(0.99 0.004 340), oklch(0.95 0.012 300) 40%, oklch(0.985 0.008 80) 70%, oklch(0.955 0.012 230));
   /* Scalloped corners: a quarter circle bitten out of each. */
   -webkit-mask:
@@ -112,7 +113,8 @@
   position: relative;
   display: grid;
   grid-template-rows: auto 1fr;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--sp-plum);
   color: oklch(0.99 0.004 345);
   -webkit-mask:

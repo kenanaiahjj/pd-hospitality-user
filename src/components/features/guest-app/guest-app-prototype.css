@@ -608,7 +608,8 @@
 .guest-screen--chat {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   padding-block-start: 0;
   padding-inline-end: 0;
   padding-inline-start: 0;
@@ -668,7 +669,8 @@
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   padding-inline-end: var(--app-inset);
   padding-inline-start: var(--app-inset);
   box-sizing: border-box;
@@ -762,8 +764,8 @@
 .guest-resume-float__open > svg { inline-size: 18px; block-size: 18px; }
 .guest-resume-float__text { display: grid; min-width: 0; gap: 1px; }
 .guest-resume-float__text small { color: var(--guest-accent-strong); font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
-.guest-resume-float__text b { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.guest-resume-float__text span { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-resume-float__text b { overflow: clip; min-inline-size: 0; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-resume-float__text span { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 /* A small glass badge on the card's top-right corner; the tap target reaches past it. */
 .guest-resume-float__dismiss {
   position: absolute;
@@ -1086,7 +1088,8 @@
   width: 100%;
   min-height: 104px;
   padding: 0 14px 0 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
@@ -1097,10 +1100,10 @@
 .guest-food-restaurant-card .guest-service-image { height: 104px; border-radius: 0; }
 .guest-food-restaurant-card__body { display: grid; gap: 4px; min-width: 0; }
 .guest-food-restaurant-card__title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.guest-food-restaurant-card h2 { min-width: 0; margin: 0; overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-food-restaurant-card h2 { min-width: 0; margin: 0; overflow: clip; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
 .guest-food-restaurant-card__title span { color: var(--guest-brand); font-size: 13px; font-weight: 700; }
 .guest-food-restaurant-card p,
-.guest-food-restaurant-card small { margin: 0; overflow: hidden; color: var(--guest-muted); font-size: 12px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.guest-food-restaurant-card small { margin: 0; overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 12px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .guest-food-restaurant-card > svg { width: 16px; height: 16px; color: var(--guest-subtle); }
 .guest-food-restaurant-card:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: -3px; }
 .guest-nearby-section { display: grid; gap: 0; margin-block-start: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--guest-line); }
@@ -1109,8 +1112,8 @@
 .guest-nearby-card { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 112px; padding: 10px 12px 10px 10px; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); color: var(--guest-ink); text-align: start; box-shadow: var(--shadow-xs); cursor: pointer; }
 .guest-nearby-card img { width: 88px; height: 88px; border-radius: calc(var(--guest-radius-md) - 4px); object-fit: cover; }
 .guest-nearby-card > span { display: grid; min-width: 0; gap: 2px; }
-.guest-nearby-card b { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.guest-nearby-card small { overflow: hidden; color: var(--guest-muted); font-size: 12px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.guest-nearby-card b { overflow: clip; min-inline-size: 0; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-nearby-card small { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 12px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .guest-nearby-card p { margin: 2px 0 0; color: var(--guest-muted); font-size: 12px; line-height: 1.35; }
 .guest-nearby-card > svg { width: 16px; color: var(--guest-subtle); }
 .guest-nearby-card:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
@@ -1165,7 +1168,7 @@
 .guest-location-row b { font-size: 14px; }
 .guest-location-row small { color: var(--guest-accent-strong); font-size: 12px; font-weight: 650; }
 .guest-location-row > svg:last-child { width: 16px; color: var(--guest-subtle); }
-.guest-upgrade-card { overflow: hidden; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
+.guest-upgrade-card { overflow: clip; min-inline-size: 0; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
 .guest-upgrade-card > img { display: block; width: 100%; height: 170px; object-fit: cover; }
 .guest-upgrade-card__body { display: grid; gap: 10px; padding: 16px; }
 .guest-upgrade-card__body h2 { margin: 0; font-size: 18px; }
@@ -1285,7 +1288,8 @@
 
 /* Inset grouped list, iOS-style: one surface, separators inset past the icon. */
 .guest-list-group {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   box-shadow: var(--shadow-xs);
@@ -1331,7 +1335,8 @@
 /* Category list: the same tile, stacked as a grouped list. */
 .guest-category-grid {
   display: grid;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   box-shadow: var(--shadow-xs);
@@ -1356,7 +1361,8 @@
   place-items: center;
   flex: 0 0 auto;
   border-radius: 10px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-ink);
 }
 /* A glyph tile has to supply the tinted square the illustrations bake in. */
@@ -1387,7 +1393,8 @@
 .guest-action-tile__text { display: grid; gap: 1px; min-width: 0; }
 .guest-action-tile__text b { font-size: 15px; font-weight: 600; }
 .guest-action-tile__text small {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-muted);
   font-size: 12.5px;
   text-overflow: ellipsis;
@@ -1428,7 +1435,7 @@
 .guest-home-booking__heading h2 { margin: 4px 0 0; font-size: 19px; font-weight: 700; letter-spacing: -0.018em; }
 .guest-home-booking__heading > strong { flex: 0 0 auto; color: var(--guest-accent-strong); font-size: 17px; font-variant-numeric: tabular-nums; }
 .guest-home-booking__heading > .guest-tag { flex: 0 0 auto; white-space: nowrap; }
-.guest-home-progress { height: 6px; overflow: hidden; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
+.guest-home-progress { height: 6px; overflow: clip; min-inline-size: 0; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
 .guest-home-progress > span {
   display: block;
   height: 100%;
@@ -1482,7 +1489,8 @@
   width: 100%;
   min-height: 236px;
   padding: 18px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 0;
   border-radius: var(--guest-radius-lg);
   /* Holds the card's shape while the photo loads. */
@@ -1753,7 +1761,8 @@
   gap: 10px;
   margin: 0;
   padding: 12px 14px 10px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: 12px;
   background: linear-gradient(160deg, #f3f5f1 0%, #e9eee9 55%, #f1efe8 100%);
   box-shadow: 0 0 0 1px rgb(40 50 45 / 0.14), 0 6px 18px -8px rgb(30 25 30 / 0.28);
@@ -1790,7 +1799,8 @@
 .guest-passport__fields dt { color: rgb(31 42 38 / 0.55); font-size: 8.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 .guest-passport__fields dd {
   margin: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.02em;
@@ -1805,7 +1815,8 @@
   gap: 1px;
   padding-block-start: 7px;
   border-block-start: 1px solid rgb(31 42 38 / 0.1);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   font-family: var(--font-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
   font-size: clamp(8px, 2.8vw, 12px);
   letter-spacing: 0.035em;
@@ -1846,7 +1857,7 @@
 @media (prefers-reduced-motion: reduce) { .guest-passport__scan { display: none; } }
 
 .guest-step { display: flex; align-items: center; gap: 12px; color: var(--guest-muted); font-size: 13px; font-weight: 600; }
-.guest-step i { flex: 1; height: 4px; overflow: hidden; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
+.guest-step i { flex: 1; height: 4px; overflow: clip; min-inline-size: 0; border-radius: var(--guest-radius-pill); background: var(--guest-sunken); }
 .guest-step i b { display: block; width: 42%; height: 100%; border-radius: inherit; background: var(--guest-accent-strong); }
 
 .guest-date-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -1999,7 +2010,7 @@
 .guest-profile-section__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-inline: 2px; }
 .guest-profile-section__header > div { display: grid; gap: 4px; }
 .guest-profile-section__header h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.018em; }
-.guest-profile-action-list { overflow: hidden; border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-sm); }
+.guest-profile-action-list { overflow: clip; min-inline-size: 0; border-radius: var(--guest-radius-lg); background: var(--guest-paper); box-shadow: var(--shadow-sm); }
 .guest-profile-action-list .guest-list-row {
   min-height: 74px;
   border-radius: 0;
@@ -2044,7 +2055,8 @@
 }
 
 .guest-stay-card {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   border: 1px solid var(--guest-line);
@@ -2053,7 +2065,8 @@
 .guest-stay-card__art {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--guest-placeholder);
 }
 .guest-stay-card__content,
@@ -2069,7 +2082,8 @@
 .guest-property-image {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--guest-placeholder);
 }
 .guest-property-image > img {
@@ -2095,14 +2109,14 @@
 }
 
 
-.guest-summary { overflow: hidden; border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
+.guest-summary { overflow: clip; min-inline-size: 0; border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
 .guest-summary-row { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 15px; font-size: 14px; }
 .guest-summary-row + .guest-summary-row { box-shadow: inset 0 1px 0 var(--guest-line); }
 .guest-summary-row span { color: var(--guest-muted); }
 .guest-summary-row b { max-width: 62%; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; font-weight: 650; text-align: end; }
 .guest-summary-row b.is-strong { font-size: 17px; }
 
-.guest-review-card { overflow: hidden; border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
+.guest-review-card { overflow: clip; min-inline-size: 0; border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
 .guest-review-block { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 14px; padding: 14px; }
 .guest-review-block + .guest-review-block { box-shadow: inset 0 1px 0 var(--guest-line); }
 .guest-review-block > span { display: grid; width: 26px; height: 26px; place-items: center; color: var(--guest-ink); }
@@ -2208,7 +2222,7 @@
 .guest-history-item p { margin: 0; color: var(--guest-muted); font-size: 13px; }
 .guest-history-item small { color: var(--guest-subtle); font-size: 12px; }
 
-.guest-folio { overflow: hidden; border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
+.guest-folio { overflow: clip; min-inline-size: 0; border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
 .guest-folio-item { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px; }
 .guest-folio-item + .guest-folio-item { box-shadow: inset 0 1px 0 var(--guest-line); }
 .guest-folio-item > span { color: var(--guest-subtle); font-size: 11px; font-weight: 700; }
@@ -2244,7 +2258,7 @@
    Services
    -------------------------------------------------------------------------- */
 
-.guest-featured-service { overflow: hidden; border-radius: var(--guest-radius-md); background: var(--guest-paper); border: 1px solid var(--guest-line); box-shadow: var(--shadow-sm); }
+.guest-featured-service { overflow: clip; min-inline-size: 0; border-radius: var(--guest-radius-md); background: var(--guest-paper); border: 1px solid var(--guest-line); box-shadow: var(--shadow-sm); }
 .guest-featured-service > div:last-child { display: grid; gap: 8px; padding: 16px; }
 .guest-featured-service h2 { margin: 2px 0 0; font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
 .guest-featured-service p { margin: 0; color: var(--guest-muted); font-size: 14px; }
@@ -2271,7 +2285,8 @@
 .guest-service-image {
   position: relative;
   height: 180px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--guest-placeholder);
 }
 .guest-service-image > img { z-index: 2; object-fit: cover; transition: opacity var(--duration-base) ease; }
@@ -2289,7 +2304,7 @@
 .guest-service-visual > span { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 50%; background: oklch(1 0 0 / 0.66); }
 .guest-service-visual i { display: none; }
 
-.guest-service-row { grid-template-columns: 104px 1fr auto; min-height: 104px; padding: 0 14px 0 0; overflow: hidden; }
+.guest-service-row { grid-template-columns: 104px 1fr auto; min-height: 104px; padding: 0 14px 0 0; overflow: clip; min-inline-size: 0; }
 .guest-service-row .guest-service-image { width: 104px; height: 104px; }
 .guest-service-row > div:nth-child(2) { display: grid; align-content: start; gap: 4px; padding: 0; }
 .guest-service-row h2 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.012em; }
@@ -2367,7 +2382,7 @@
 .guest-chat__mark svg { width: 22px; height: 22px; }
 .guest-chat__identity-copy { display: grid; min-width: 0; gap: 1px; }
 .guest-chat__identity-copy h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.018em; line-height: 1.15; }
-.guest-chat__identity-copy > span { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-chat__identity-copy > span { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .guest-chat__identity > .guest-tag { justify-self: end; white-space: nowrap; }
 .guest-chat__online {
   justify-self: end;
@@ -2451,8 +2466,8 @@
   touch-action: manipulation;
 }
 .guest-quick-actions__copy { display: grid; min-width: 0; gap: 4px; }
-.guest-quick-actions__copy b { overflow: hidden; font-size: 14px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.guest-quick-actions__copy small { overflow: hidden; color: var(--guest-muted); font-size: 12px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.guest-quick-actions__copy b { overflow: clip; min-inline-size: 0; font-size: 14px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.guest-quick-actions__copy small { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 12px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .guest-quick-actions button > svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--guest-muted); }
 .guest-quick-actions button:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
 .guest-quick-actions button:disabled { color: var(--guest-subtle); cursor: not-allowed; opacity: 0.64; }
@@ -2611,7 +2626,7 @@
   z-index: 5;
   display: grid;
   min-width: 188px;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
@@ -2659,7 +2674,7 @@
 .guest-composer__pending audio { min-width: 0; width: 100%; height: 36px; }
 .guest-composer__pending-name {
   min-width: 0;
-  overflow: hidden;
+  overflow: clip;
   flex: 1;
   color: var(--guest-ink);
   font-size: 13px;
@@ -2694,7 +2709,8 @@
   line-height: 1.4;
 }
 .guest-message__attachment {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   margin-block-start: 8px;
   border-radius: var(--guest-radius-md);
 }
@@ -2815,7 +2831,8 @@
     width: 100%;
     max-width: calc(var(--app-column) + 2 * var(--app-gutter));
     height: min(940px, calc(100svh - 56px));
-    overflow: hidden;
+    overflow: clip;
+    min-inline-size: 0;
     border-radius: 28px;
     box-shadow: var(--shadow-lg);
     /*
@@ -2899,7 +2916,8 @@
   flex: 0 0 auto;
   place-items: center;
   border-radius: var(--guest-radius-md);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: transparent;
 }
 .guest-miniapp-icon .guest-category-icon-img {
@@ -2920,7 +2938,7 @@
   color: var(--ds-accent-strong);
 }
 .guest-explore-catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.guest-explore-catalog__tile { position: relative; display: flex; min-height: 148px; overflow: hidden; align-items: flex-end; padding: 14px; border: 0; border-radius: var(--guest-radius-md); background: var(--guest-sunken); text-align: start; }
+.guest-explore-catalog__tile { position: relative; display: flex; min-height: 148px; overflow: clip; min-inline-size: 0; align-items: flex-end; padding: 14px; border: 0; border-radius: var(--guest-radius-md); background: var(--guest-sunken); text-align: start; }
 .guest-explore-catalog__tile--wide { grid-column: 1 / -1; min-height: 148px; }
 .guest-explore-catalog__tile img { object-fit: cover; transition: transform var(--duration-fast) ease; }
 .guest-explore-catalog__tile > span { position: absolute; inset: 0; background: linear-gradient(0deg, rgb(20 8 18 / .68), rgb(20 8 18 / 0) 70%); }
@@ -2930,7 +2948,7 @@
 .guest-explore-promotions { display: flex; gap: 10px; margin: 0 calc(var(--app-gutter) * -1); padding: 2px var(--app-gutter); overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: var(--app-gutter); scrollbar-width: none; overscroll-behavior-x: contain; }
 .guest-explore-promotions::-webkit-scrollbar { display: none; }
 .guest-explore-promotions li { flex: 0 0 calc(100% - 28px); min-width: 0; scroll-snap-align: start; list-style: none; }
-.guest-explore-promotions li button { position: relative; display: block; width: 100%; min-height: 230px; overflow: hidden; padding: 0; border: 0; border-radius: var(--guest-radius-md); background: var(--guest-sunken); text-align: start; }
+.guest-explore-promotions li button { position: relative; display: block; width: 100%; min-height: 230px; overflow: clip; min-inline-size: 0; padding: 0; border: 0; border-radius: var(--guest-radius-md); background: var(--guest-sunken); text-align: start; }
 .guest-explore-promotions li button > img { object-fit: cover; }
 .guest-explore-promotions li button > span { position: absolute; inset: 0; background: linear-gradient(0deg, rgb(18 6 16 / .78), rgb(18 6 16 / .06) 72%); }
 .guest-explore-promotions li button > div { position: absolute; inset-inline-end: 16px; inset-block-end: 14px; inset-inline-start: 16px; display: grid; gap: 3px; color: #fff; }
@@ -2977,7 +2995,8 @@
   display: block;
   width: 100%;
   height: 132px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   padding: 0;
   border: 0;
   border-radius: var(--guest-radius-md);
@@ -3021,7 +3040,8 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   min-height: calc(2 * 1.25em);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   line-height: 1.25;
   text-wrap: balance;
 }
@@ -3105,7 +3125,8 @@
   display: grid;
   width: 168px;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   /* Hairline, no shadow -- the design system allows one or the other. */
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-md);
@@ -3158,7 +3179,8 @@
    Stay Hero Card (Active & Upcoming Stays)
    -------------------------------------------------------------------------- */
 .guest-stay-hero-card {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   border: 1px solid var(--guest-line);
@@ -3167,7 +3189,8 @@
 .guest-stay-hero-card__media {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 .guest-stay-hero-card__badges {
   position: absolute;
@@ -3318,7 +3341,8 @@
 .guest-home-stay-actions:empty { display: none; }
 .guest-home-stay-actions > .guest-stay-hero-card__qr { padding: 0; border-block-start: 0; }
 .guest-home-stay-actions > .guest-stay-hero-card__actions {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-lg);
   background: var(--guest-paper);
@@ -3432,7 +3456,8 @@
 
 .guest-screen--welcome {
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--welcome-night);
 }
 
@@ -3446,7 +3471,8 @@
   position: relative;
   display: flex;
   min-height: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   isolation: isolate;
   color: var(--welcome-on);
   background: var(--welcome-night);
@@ -3476,7 +3502,8 @@
   position: absolute;
   inset: 0;
   z-index: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   pointer-events: none;
   background: var(--welcome-night);
 }
@@ -3601,7 +3628,7 @@
 
 /* The copy window. Its height is the tallest step's, so a two-line title does
    not shove the action down as the pager rotates. */
-.guest-welcome__steps { overflow: hidden; margin-block-end: 18px; }
+.guest-welcome__steps { overflow: clip; min-inline-size: 0; margin-block-end: 18px; }
 
 .guest-welcome__step {
   display: grid;
@@ -3653,7 +3680,8 @@
   position: relative;
   width: 28px;
   height: 3px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-pill);
   background: oklch(1 0 0 / 0.3);
 }
@@ -4060,7 +4088,8 @@
    Upcoming Stays & Multiple Booking Cards
    -------------------------------------------------------------------------- */
 .guest-upcoming-card {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   border: 1px solid var(--guest-line);
@@ -4071,7 +4100,8 @@
 .guest-upcoming-card__media {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 .guest-upcoming-card__badges {
   position: absolute;
@@ -4091,7 +4121,8 @@
    Stay History Cards
    -------------------------------------------------------------------------- */
 .guest-history-card {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   border: 1px solid var(--guest-line);
@@ -4102,7 +4133,8 @@
 .guest-history-card__media {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 .guest-history-card__media .guest-tag {
   position: absolute;
@@ -4184,7 +4216,8 @@
   position: relative;
   height: 220px;
   margin: -20px calc(-1 * var(--app-inset)) 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--guest-placeholder);
 }
 .guest-establishment-cover img { object-fit: cover; }
@@ -4244,7 +4277,8 @@
   display: inline-grid;
   grid-template-columns: 44px 32px 44px;
   align-items: center;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line-strong);
   border-radius: var(--guest-radius-pill);
   background: var(--guest-paper);
@@ -4535,7 +4569,7 @@
 .guest-essentials__list dt { display: inline-flex; align-items: center; gap: 8px; color: var(--guest-muted); font-size: 13px; }
 .guest-essentials__list dt svg { width: 16px; height: 16px; color: var(--guest-brand); }
 .guest-essentials__list dd { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; margin: 0; font-size: 13.5px; }
-.guest-essentials__list dd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guest-essentials__list dd > span { min-width: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .guest-essentials__list dd b { font-family: var(--font-mono), ui-monospace, monospace; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
 .guest-essentials__copy {
   display: inline-flex;
@@ -4674,7 +4708,8 @@ button.guest-tile:active { transform: scale(0.98); }
 .guest-tile > small { color: var(--guest-muted); font-size: 12.5px; font-weight: 500; }
 .guest-tile > b {
   max-width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   font-family: var(--font-serif), Georgia, 'Times New Roman', serif;
   font-size: 23px;
   font-weight: 500;
@@ -4689,7 +4724,8 @@ button.guest-tile:active { transform: scale(0.98); }
   gap: 6px;
   max-width: 100%;
   margin-block-start: 2px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-muted);
   font-size: 13px;
   text-overflow: ellipsis;
@@ -4719,11 +4755,11 @@ button.guest-tile:active { transform: scale(0.98); }
   background: var(--guest-paper);
   box-shadow: inset 0 0 0 1px var(--guest-line);
 }
-.guest-stay-card__thumb { overflow: hidden; width: 52px; height: 52px; border-radius: 12px; }
+.guest-stay-card__thumb { overflow: clip; min-inline-size: 0; width: 52px; height: 52px; border-radius: 12px; }
 .guest-stay-card__thumb .guest-property-image { width: 100%; height: 100%; border-radius: 0; }
 .guest-stay-card__summary { display: grid; gap: 2px; min-width: 0; }
-.guest-stay-card__summary b { overflow: hidden; font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.guest-stay-card__summary small { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-stay-card__summary b { overflow: clip; min-inline-size: 0; font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.guest-stay-card__summary small { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .guest-stay-card__state { color: var(--guest-positive); font-size: 12px; font-weight: 650; }
 button.guest-stay-card--compact { width: 100%; color: var(--guest-ink); font: inherit; text-align: start; cursor: pointer; }
 button.guest-stay-card--compact:active { transform: scale(0.99); }
@@ -4737,7 +4773,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   display: grid;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   list-style: none;
   border-radius: var(--guest-radius-lg);
   background: var(--guest-paper);
@@ -4770,7 +4807,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 
 .guest-manifest__who { display: grid; gap: 3px; min-width: 0; }
 .guest-manifest__who b {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-ink);
   font-size: 15px;
   font-weight: 600;
@@ -4913,7 +4951,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 
 .guest-notifications {
   display: grid;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-lg);
   background: var(--guest-paper);
   box-shadow: inset 0 0 0 1px var(--guest-line);
@@ -4959,7 +4998,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-notification__bottom { display: flex; min-inline-size: 0; align-items: center; justify-content: space-between; gap: 10px; }
 .guest-notification__top { align-items: baseline; }
 .guest-notification__top b,
-.guest-notification__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guest-notification__text { overflow: clip; min-inline-size: 0; text-overflow: ellipsis; white-space: nowrap; }
 .guest-notification__top b { font-size: 15px; font-weight: 550; line-height: 20px; letter-spacing: -0.008em; }
 .guest-notification__top small { flex: none; color: var(--guest-subtle); font-size: 12px; font-variant-numeric: tabular-nums; }
 .guest-notification__text { color: var(--guest-muted); font-size: 13.5px; line-height: 19px; }
@@ -5079,7 +5118,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-updates-strip__row > svg:first-child { width: 18px; height: 18px; color: var(--guest-brand); }
 .guest-updates-strip__row > svg:last-child { width: 16px; height: 16px; color: var(--guest-subtle); }
 .guest-updates-strip__row b {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   font-size: 14px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -5147,7 +5187,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 }
 
 .guest-dock__summary { display: grid; gap: 0; min-width: 0; }
-.guest-dock__summary span { overflow: hidden; color: var(--guest-muted); font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.guest-dock__summary span { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .guest-dock__summary strong {
   font-size: 18px;
   font-variant-numeric: tabular-nums;
@@ -5223,7 +5263,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   font-weight: 600;
 }
 .guest-stay-entry__parent > span:last-child {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5306,7 +5347,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-running-total { display: grid; }
 .guest-running-total .guest-total-card {
   border-radius: var(--guest-radius-xl);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   box-shadow: none;
 }
 .guest-running-total__action {
@@ -5608,7 +5650,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-checkout-card__extension small { color: var(--guest-muted); font-size: 12px; line-height: 1.35; }
 .guest-checkout-card__extension-action { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--guest-accent-strong); font-size: 13px; font-weight: 700; }
 .guest-checkout-card__extension-action svg { width: 14px; vertical-align: middle; }
-.guest-stay-overview { display: grid; gap: 0; overflow: hidden; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
+.guest-stay-overview { display: grid; gap: 0; overflow: clip; min-inline-size: 0; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-paper); box-shadow: var(--shadow-xs); }
 .guest-stay-overview__heading { display: grid; gap: 5px; padding: 16px; }
 .guest-stay-overview__heading > strong { font-size: 18px; }
 .guest-stay-overview__heading .guest-checked-in { margin: 0; }
@@ -5680,7 +5722,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 
 .guest-guest-list {
   display: grid;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
   box-shadow: var(--shadow-xs);
@@ -6034,7 +6077,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   aspect-ratio: 1;
   border-radius: var(--guest-radius-lg);
   background: oklch(0.24 0.01 275);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 
 /* Corner brackets, not a full border: the frame should read as a target the
@@ -6211,7 +6255,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   position: relative;
   width: 100%;
   height: 190px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: 16px;
 }
 
@@ -6267,7 +6312,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   display: block;
   aspect-ratio: 1;
   width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   padding: 0;
   border: 1px solid var(--guest-line);
   border-radius: 10px;
@@ -6354,7 +6400,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 
 .guest-folio-groups {
   display: block;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
   background: var(--guest-paper);
@@ -6423,7 +6470,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-folio-item--selectable small {
   display: block;
   min-width: 0;
-  overflow: hidden;
+  overflow: clip;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6481,7 +6528,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-stay-entry__headline { grid-area: headline; min-width: 0; }
 .guest-stay-entry__headline h2 {
   min-width: 0;
-  overflow: hidden;
+  overflow: clip;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 16px;
@@ -6495,7 +6542,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 
 .guest-stay-entry__location {
   grid-area: location;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-muted);
   font-size: 13px;
   line-height: 1.25;
@@ -6505,7 +6553,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 
 .guest-stay-entry__when {
   grid-area: when;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-muted);
   font-size: 13px;
   line-height: 1.25;
@@ -6519,7 +6568,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
    already settled. Quiet, because the card's own price is the loud part. */
 .guest-stay-entry__settlement {
   grid-area: settlement;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-subtle);
   font-size: 12.5px;
   line-height: 1.25;
@@ -6558,7 +6608,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-folio-help > span { min-width: 0; }
 .guest-folio-help > span b,
 .guest-folio-help > span small {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6570,7 +6621,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 }
 
 .guest-folio-card {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
   background: var(--guest-paper);
@@ -6598,7 +6650,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 
 .guest-folio-card__header b,
 .guest-folio-card__header small {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6753,7 +6806,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-my-stay-folio-link__icon svg { width: 19px; height: 19px; }
 .guest-my-stay-folio-link__copy { display: grid; min-width: 0; gap: 2px; }
 .guest-my-stay-folio-link__copy b { font-size: 14px; font-weight: 700; line-height: 20px; }
-.guest-my-stay-folio-link__copy small { overflow: hidden; color: var(--guest-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-my-stay-folio-link__copy small { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .guest-my-stay-folio-link > svg { width: 16px; height: 16px; color: var(--guest-subtle); }
 @media (hover: hover) and (pointer: fine) {
   .guest-my-stay-folio-link:hover { background: var(--guest-sunken); }
@@ -6840,7 +6893,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   transition: transform var(--duration-press) var(--ease-out), border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 .guest-my-stay-page .guest-stay-entry__body { display: grid; min-width: 0; gap: 4px; }
-.guest-my-stay-page .guest-stay-entry__body h3 { margin: 0; overflow: hidden; color: var(--guest-ink); font-size: 16px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.guest-my-stay-page .guest-stay-entry__body h3 { margin: 0; overflow: clip; min-inline-size: 0; color: var(--guest-ink); font-size: 16px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .guest-my-stay-page .guest-stay-entry__service { color: var(--guest-ink); font-size: 14px; line-height: 1.3; }
 .guest-my-stay-page .guest-stay-entry__settlement,
 .guest-my-stay-page .guest-stay-entry__when { color: var(--guest-muted); font-size: 12.5px; line-height: 1.3; }
@@ -6950,7 +7003,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-restaurant-browse__item-title h2 {
   min-width: 0;
   margin: 0;
-  overflow: hidden;
+  overflow: clip;
   font-size: 16px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -7010,7 +7063,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   display: block;
   width: 100%;
   min-height: 430px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   padding: 0;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
@@ -7055,7 +7109,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   position: relative;
   width: min(92vw, 720px);
   height: min(82dvh, 900px);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 
 .guest-restaurant-menu-viewer__image img {
@@ -7254,7 +7309,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   width: 100%;
   min-width: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-md);
   background: var(--guest-paper);
@@ -7266,7 +7321,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 }
 .guest-catalog-option-card:active { transform: scale(0.99); }
 .guest-catalog-option-card:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
-.guest-catalog-option-card__media { position: relative; height: 180px; overflow: hidden; }
+.guest-catalog-option-card__media { position: relative; height: 180px; overflow: clip; min-inline-size: 0; }
 .guest-catalog-option-card__media::after {
   position: absolute;
   z-index: 4;
@@ -7296,7 +7351,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   inset-inline-start: 18px;
   margin: 0;
   display: -webkit-box;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--ds-on-ink);
   font-size: 20px;
   font-weight: 650;
@@ -7326,7 +7382,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   background: var(--guest-paper);
 }
 .guest-catalog-option-card__details p,
-.guest-catalog-option-card__details small { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guest-catalog-option-card__details small { margin: 0; overflow: clip; min-inline-size: 0; text-overflow: ellipsis; white-space: nowrap; }
 .guest-catalog-option-card__details p { color: var(--guest-ink); font-size: 14px; line-height: 1.3; }
 .guest-catalog-option-card__details small { color: var(--guest-muted); font-size: 14px; line-height: 1.3; }
 .guest-catalog-option-card__details > svg { position: absolute; inset-inline-end: 18px; inset-block-end: 18px; width: 18px; height: 18px; color: var(--guest-subtle); }
@@ -7346,7 +7402,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-restaurant-hero {
   position: relative;
   height: 348px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--guest-placeholder);
 }
 .guest-restaurant-hero > .guest-service-image {
@@ -7413,7 +7470,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-restaurant-quick-info > div > span { display: grid; gap: 4px; min-width: 0; }
 .guest-restaurant-quick-info > div > span:first-child { padding-inline-start: 28px; }
 .guest-restaurant-quick-info small { color: var(--guest-muted); font-size: 12px; }
-.guest-restaurant-quick-info b { overflow: hidden; color: var(--guest-ink); font-size: 14px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.guest-restaurant-quick-info b { overflow: clip; min-inline-size: 0; color: var(--guest-ink); font-size: 14px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .guest-restaurant-quick-info > div > span:last-child b { color: var(--guest-positive); }
 .guest-restaurant-about,
 .guest-restaurant-additional-info,
@@ -7422,7 +7479,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-restaurant-about h2,
 .guest-restaurant-additional-info h2,
 .guest-restaurant-good-to-know h2 { margin: 0; color: var(--guest-ink); font-size: 20px; font-weight: 650; }
-.guest-restaurant-about p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--guest-muted); font-size: 15px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.guest-restaurant-about p { display: -webkit-box; margin: 0; overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 15px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .guest-restaurant-about p.is-expanded { display: block; overflow: visible; }
 .guest-restaurant-about__read-more { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--guest-accent-strong); font-size: 14px; font-weight: 550; }
 .guest-restaurant-additional-info { display: grid; gap: 8px; margin-block-start: 32px; }
@@ -7527,7 +7584,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
      anything to scroll: the padding box is already the scrollport. */
   inset: 0 0 calc(-1 * var(--guest-screen-pad-bottom));
   border-radius: 22px 22px 0 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: #e8e4dc;
   /* Leaflet's panes sit at z-index 400+; keep them under the app bar and sheets. */
   isolation: isolate;
@@ -7595,7 +7653,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-map-pill:active { transform: scale(0.97); }
 .guest-map-pill i { display: grid; place-items: center; flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; background: var(--pin); color: #fff; }
 .guest-map-pill svg { width: 12px; height: 12px; }
-.guest-map-pill b { overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 650; letter-spacing: -0.005em; }
+.guest-map-pill b { overflow: clip; min-inline-size: 0; text-overflow: ellipsis; font-size: 11.5px; font-weight: 650; letter-spacing: -0.005em; }
 
 /* The chosen place: its photograph on a tail, the name beneath. */
 .guest-map-marker--active { display: grid; justify-items: center; }
@@ -7706,11 +7764,11 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 }
 .guest-nearby-map__card.is-active { transform: translateY(-4px); box-shadow: 0 2px 4px rgb(0 0 0 / 0.1), 0 16px 34px rgb(0 0 0 / 0.2); }
 .guest-nearby-map__card:active { transform: scale(0.98); }
-.guest-nearby-map__photo { position: relative; display: block; width: 84px; height: 84px; overflow: hidden; border-radius: 12px; }
+.guest-nearby-map__photo { position: relative; display: block; width: 84px; height: 84px; overflow: clip; min-inline-size: 0; border-radius: 12px; }
 .guest-nearby-map__photo img { object-fit: cover; }
 .guest-nearby-map__copy { display: grid; gap: 3px; min-width: 0; }
-.guest-nearby-map__copy b { overflow: hidden; font-size: 15.5px; font-weight: 650; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
-.guest-nearby-map__copy small { overflow: hidden; color: var(--guest-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.guest-nearby-map__copy b { overflow: clip; min-inline-size: 0; font-size: 15.5px; font-weight: 650; letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
+.guest-nearby-map__copy small { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .guest-nearby-map__empty { color: var(--guest-muted); }
 
 /* "Open · until 9 PM" in green, "Closed · opens 6 AM" in the quiet ink. */
@@ -7728,7 +7786,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   position: relative;
   z-index: 4;
   margin: -24px 20px 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: 20px;
   background: var(--guest-paper);
@@ -7803,7 +7862,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-nearby-detail__hero {
   position: relative;
   height: 348px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   background: var(--guest-placeholder);
 }
 .guest-nearby-detail__hero > img { object-fit: cover; }
@@ -7849,7 +7909,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-nearby-detail__good-to-know { margin-inline: 24px; }
 .guest-nearby-detail__about { display: grid; gap: 8px; margin-block-start: 32px; }
 .guest-nearby-detail h2 { margin: 0; color: var(--guest-ink); font-size: 20px; font-weight: 650; }
-.guest-nearby-detail__about > p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--guest-muted); font-size: 15px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.guest-nearby-detail__about > p { display: -webkit-box; margin: 0; overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 15px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .guest-nearby-detail__contact { display: grid; gap: 4px; margin-block-start: 8px; }
 .guest-nearby-detail__contact small { color: var(--guest-muted); font-size: 12px; }
 .guest-nearby-detail__contact a { color: var(--guest-ink); font-size: 14px; font-weight: 500; text-decoration: none; }
@@ -7888,7 +7948,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-ride-choice__segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .guest-ride-choice__segmented button { min-height: 44px; padding: 0 12px; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-field); background: var(--guest-paper); color: var(--guest-muted); font-size: 14px; font-weight: 550; }
 .guest-ride-choice__segmented button.is-active { border-color: var(--guest-accent-strong); background: var(--guest-soft); color: var(--guest-accent-strong); }
-.guest-ride-stepper { display: inline-grid; width: fit-content; grid-template-columns: 44px 44px 44px; align-items: center; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-field); overflow: hidden; }
+.guest-ride-stepper { display: inline-grid; width: fit-content; grid-template-columns: 44px 44px 44px; align-items: center; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-field); overflow: clip; min-inline-size: 0; }
 .guest-ride-stepper button { display: grid; width: 44px; height: 44px; padding: 0; place-items: center; border: 0; background: var(--guest-paper); color: var(--guest-ink); font-size: 22px; }
 .guest-ride-stepper output { display: grid; height: 44px; place-items: center; border-inline: 1px solid var(--guest-line); color: var(--guest-ink); font-size: 15px; font-weight: 650; }
 .guest-ride-request-page .guest-button { width: 100%; min-height: 56px; margin-block-start: 4px; border-radius: 28px; }
@@ -7966,7 +8026,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-entries__date-group-cards {
   display: grid;
   gap: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: 16px;
   background: var(--guest-paper);
@@ -8157,7 +8218,8 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
   border: 1px solid var(--guest-line);
   border-radius: 16px;
   background: var(--guest-paper);
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   text-align: start;
   cursor: pointer;
 }
@@ -8603,7 +8665,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   border-radius: 16px;
   background: var(--guest-paper);
   box-shadow: none;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
 }
 .guest-screen:not(.guest-screen--chat) .guest-my-stay-page .guest-stay-context > button:first-child {
   grid-column: 1;
@@ -8656,7 +8719,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   position: relative;
   width: 48px;
   height: 48px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border-radius: 10px;
   background: var(--guest-sunken);
 }
@@ -8664,7 +8728,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-app .guest-my-stay-page .guest-stay-entry__body { display: grid; min-width: 0; gap: 2px; }
 .guest-app .guest-my-stay-page .guest-stay-entry__body h3 {
   margin: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-ink);
   font-size: 15px;
   font-weight: 650;
@@ -8675,7 +8740,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 }
 .guest-app .guest-my-stay-page .guest-stay-entry__line,
 .guest-app .guest-my-stay-page .guest-stay-entry__settlement {
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-muted);
   font-size: 13px;
   line-height: 18px;
@@ -8711,7 +8777,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   display: grid;
   align-content: end;
   min-height: 188px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   padding: 0;
   border: 0;
   border-radius: var(--guest-radius-lg);
@@ -8829,7 +8896,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   aspect-ratio: 4 / 5;
   max-height: 520px;
   width: 100%;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   padding: 0;
   border: 0;
   border-radius: 26px;
@@ -8930,7 +8998,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   display: grid;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   border: 1px solid var(--guest-line);
   border-radius: var(--guest-radius-lg);
   background: var(--guest-paper);
@@ -8944,7 +9013,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   padding: 14px 14px 14px 16px;
 }
 .guest-hotel-contact + .guest-hotel-contact { border-block-start: 1px solid var(--guest-line); }
-.guest-hotel-contact__thumb { display: block; width: 52px; height: 52px; overflow: hidden; border-radius: 14px; }
+.guest-hotel-contact__thumb { display: block; width: 52px; height: 52px; overflow: clip; min-inline-size: 0; border-radius: 14px; }
 .guest-hotel-contact__thumb .guest-property-image { width: 100%; height: 100%; border-radius: 0; }
 .guest-hotel-contact__copy { display: grid; gap: 2px; min-width: 0; }
 .guest-hotel-contact__copy b { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
@@ -8975,7 +9044,8 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   position: absolute;
   width: 1px;
   height: 1px;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
@@ -8999,7 +9069,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
    which otherwise painted over it; under the rig's own backdrop (60). */
 .guest-prototype-stage .guest-prototype-trigger { z-index: 55; touch-action: none; user-select: none; -webkit-user-select: none; }
 .guest-prototype-stage .guest-prototype-trigger.is-dragging { cursor: grabbing; transform: scale(1.08); box-shadow: 0 8px 22px oklch(0 0 0 / 0.22); transition: none; }
-.guest-prototype-trigger__state { overflow: hidden; color: var(--ds-ink); text-overflow: ellipsis; white-space: nowrap; }
+.guest-prototype-trigger__state { overflow: clip; min-inline-size: 0; color: var(--ds-ink); text-overflow: ellipsis; white-space: nowrap; }
 
 .guest-prototype-stage .guest-prototype-toolbar {
   width: min(360px, calc(100% - 32px));
@@ -9133,7 +9203,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 }
 .guest-prototype-booking__thumb img { object-fit: cover; }
 .guest-prototype-booking > span:last-child { display: grid; min-inline-size: 0; gap: 2px; }
-.guest-prototype-booking b { overflow: hidden; font-size: 14px; font-weight: 650; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.guest-prototype-booking b { overflow: clip; min-inline-size: 0; font-size: 14px; font-weight: 650; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 
 .guest-prototype-toolbar .guest-prototype-event {
   display: grid;
@@ -9293,7 +9363,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-manifest__row:not(.is-lead):not(.guest-manifest__row--add) { grid-template-columns: 40px minmax(0, 1fr) auto auto; gap: 14px 8px; }
 
 /* Payments: one row per gateway payment. */
-.guest-payment-list { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-surface); overflow: hidden; }
+.guest-payment-list { display: grid; margin: 0; padding: 0; list-style: none; border: 1px solid var(--guest-line); border-radius: var(--guest-radius-md); background: var(--guest-surface); overflow: clip; min-inline-size: 0; }
 .guest-payment-list li + li { border-block-start: 1px solid var(--guest-line); }
 .guest-payment-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 18px; align-items: center; gap: 12px; width: 100%; padding: 14px 14px 14px 16px; border: 0; background: transparent; color: var(--guest-ink); font: inherit; text-align: start; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
@@ -9391,7 +9461,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-app .guest-nearby-discovery__heading p,
 .guest-app .guest-nearby-discovery__empty { margin: 0; color: var(--guest-muted); font-size: 15px; line-height: 1.45; }
 .guest-app .guest-nearby-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.guest-app .guest-nearby-category-card { position: relative; display: flex; min-width: 0; min-height: 156px; align-items: flex-end; overflow: hidden; padding: 14px; border: 0; border-radius: 18px; background: var(--guest-sunken); color: white; text-align: start; cursor: pointer; isolation: isolate; }
+.guest-app .guest-nearby-category-card { position: relative; display: flex; min-width: 0; min-height: 156px; align-items: flex-end; overflow: clip; padding: 14px; border: 0; border-radius: 18px; background: var(--guest-sunken); color: white; text-align: start; cursor: pointer; isolation: isolate; }
 .guest-app .guest-nearby-category-card img { position: absolute; z-index: -2; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 180ms ease; }
 .guest-app .guest-nearby-category-card__scrim { position: absolute; z-index: -1; inset: 0; background: linear-gradient(180deg, rgb(28 13 20 / 7%) 10%, rgb(28 13 20 / 78%) 100%); }
 .guest-app .guest-nearby-category-card__copy { display: grid; gap: 3px; min-width: 0; padding-inline-end: 22px; }
@@ -9440,15 +9510,15 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-prototype-stage .guest-push__text { display: grid; gap: 1px; min-width: 0; }
 .guest-prototype-stage .guest-push__meta { display: flex; justify-content: space-between; gap: 8px; color: var(--ds-ink-muted); font-size: 12px; }
 .guest-prototype-stage .guest-push__meta b { font-weight: 650; letter-spacing: 0.01em; }
-.guest-prototype-stage .guest-push strong { overflow: hidden; font-size: 14.5px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
-.guest-prototype-stage .guest-push__text > span:last-child { display: -webkit-box; overflow: hidden; color: var(--ds-ink-muted); font-size: 13px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.guest-prototype-stage .guest-push strong { overflow: clip; min-inline-size: 0; font-size: 14.5px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.guest-prototype-stage .guest-push__text > span:last-child { display: -webkit-box; overflow: clip; min-inline-size: 0; color: var(--ds-ink-muted); font-size: 13px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 @keyframes guest-push-in { from { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(0.98); } to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .guest-prototype-stage .guest-push { animation: none; } }
 
 /* "More arrival services": the ride card's treatment, three pictures instead of one. */
 .guest-ride-card--mosaic { min-height: 224px; }
 .guest-ride-card__mosaic { position: absolute; inset: 0; z-index: -2; display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 2px; background: oklch(0.2 0.01 60); }
-.guest-ride-card__mosaic > span { position: relative; overflow: hidden; }
+.guest-ride-card__mosaic > span { position: relative; overflow: clip; min-inline-size: 0; }
 .guest-ride-card__mosaic img { object-fit: cover; }
 
 /* Profile > Stays, Upcoming: each trip with what the app is doing about it. */

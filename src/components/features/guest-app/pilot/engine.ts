@@ -404,7 +404,11 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (b.status === 'requested') return { amount: b.amount, line: b.payMode === 'room' ? 'Charged once confirmed' : 'Paid in full once confirmed' };
     if (b.status === 'awaiting-payment') return { amount: b.amount, line: 'Paid in full, by card or e-wallet' };
     if (b.status === 'no-show') return { amount: b.amount, line: 'No-show: the charge stands' };
-    if (['withdrawn', 'declined', 'lapsed', 'payment-expired'].includes(b.status)) return { amount: 0, line: 'Nothing was charged' };
+    // One label, "Not booked", for every way a booking falls through: the line under it says which, and that nothing was taken.
+    if (b.status === 'declined') return { amount: 0, line: "The vendor wasn't available · nothing charged" };
+    if (b.status === 'lapsed') return { amount: 0, line: 'No answer in time · nothing charged' };
+    if (b.status === 'withdrawn') return { amount: 0, line: 'You withdrew it · nothing charged' };
+    if (b.status === 'payment-expired') return { amount: 0, line: 'Not paid in time · nothing charged' };
     if (b.status === 'cancelled') {
       if (!pay) return { amount: 0, line: 'Nothing was charged' };
       if (pay.mode === 'room') return { amount: 0, line: pay.state === 'refund-due' ? 'Refund due: the desk settles it' : ['voided', 'reversed'].includes(pay.state) ? 'Room charge reversed' : 'The hotel is taking the charge off your bill' };
@@ -413,23 +417,27 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     if (!pay) return { amount: b.amount, line: b.payMode === 'room' ? 'Charged to your room' : 'Paid in full' };
     return { amount: b.amount, line: pay.mode === 'room' ? 'Charged to your room' : 'Paid in full' };
   };
+  /*
+    Nine labels for seventeen states, each one meaning the same thing wherever
+    it is used: Awaiting confirmation, Pay to confirm, Confirmed, Ready to
+    collect, In progress, Completed, Cancelled, No-show, Not booked. What sets
+    two states under one label apart (why it fell through, how it is paid) is
+    said in the line under it.
+  */
   const cardState = (b: Booking): { state: CardState; label: string } => {
     switch (b.status) {
       case 'needs-approval': return { state: 'for-confirmation', label: 'Awaiting confirmation' };
-      case 'pay-or-cancel': return { state: 'for-confirmation', label: 'Pay in full or cancel' };
+      case 'pay-or-cancel': return { state: 'pay-to-confirm', label: 'Pay to confirm' };
       case 'requested': return { state: 'for-confirmation', label: 'Awaiting confirmation' };
       case 'awaiting-payment': return { state: 'pay-to-confirm', label: 'Pay to confirm' };
       case 'confirmed': return { state: 'confirmed', label: 'Confirmed' };
       case 'in-progress': return { state: 'confirmed', label: 'In progress' };
       case 'completed': return { state: 'confirmed', label: 'Completed' };
-      case 'collected': return { state: 'confirmed', label: 'Collected' };
-      case 'seated': return { state: 'confirmed', label: 'Seated' };
-      case 'reserved': return { state: 'reserved', label: 'Reserved' };
+      case 'collected': return { state: 'confirmed', label: 'Completed' };
+      case 'seated': return { state: 'confirmed', label: 'Completed' };
+      case 'reserved': return { state: 'reserved', label: 'Confirmed' };
       case 'ready': return { state: 'ready', label: 'Ready to collect' };
-      case 'withdrawn': return { state: 'lapsed', label: 'Withdrawn' };
-      case 'declined': return { state: 'lapsed', label: 'Not available' };
-      case 'lapsed': return { state: 'lapsed', label: 'Not answered' };
-      case 'payment-expired': return { state: 'lapsed', label: 'Not booked' };
+      case 'withdrawn': case 'declined': case 'lapsed': case 'payment-expired': return { state: 'lapsed', label: 'Not booked' };
       case 'cancelled': return { state: 'cancelled', label: 'Cancelled' };
       case 'no-show': return { state: 'cancelled', label: 'No-show' };
     }

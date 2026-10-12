@@ -624,7 +624,7 @@ export function stayEntryImage(entry: Pick<StayEntry, 'serviceId' | 'category' |
  * that was; "The Henry Manila · Ninth floor terrace" answers it before they
  * ask.
  */
-export function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty, status }: { entry: StayEntry; onOpen?: () => void; showWhen?: boolean; homeProperty?: string; status?: { label: string; tone: string } }) {
+export function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty, status }: { entry: StayEntry; onOpen?: () => void; showWhen?: boolean; homeProperty?: string; status?: { label: string; tone: string; note?: string } }) {
   const date = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const time = entry.detail.match(/\d{1,2}:\d{2}\s*[AP]M/i)?.[0] ?? '';
   const day = entry.date === PROTOTYPE_TODAY ? ((entry.hour ?? 0) >= 17 ? 'Tonight' : 'Today') : date;
@@ -638,7 +638,8 @@ export function StayEntryCard({ entry, onOpen, showWhen = true, homeProperty, st
   // A booking that knows its own best line (a rental's window, a transfer's route) says it.
   const line = [showWhen ? day : undefined, ...(entry.summary ? [entry.summary] : [time, place])].filter(Boolean).join(' · ');
   const image = stayEntryImage(entry);
-  const settlement = !status || !entry.settlement ? entry.settlement
+  const settlement = status?.note ? status.note.charAt(0).toUpperCase() + status.note.slice(1)
+    : !status || !entry.settlement ? entry.settlement
     : /^Awaiting /.test(entry.settlement) ? undefined
       : entry.settlement.replace(/^(Cancelled|Completed) · (.)/, (_, _word, first: string) => first.toUpperCase());
   const body = (

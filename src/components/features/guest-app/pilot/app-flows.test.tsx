@@ -100,7 +100,7 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     await user.click(within(sheet).getByRole('button', { name: 'Reserve table' }));
 
     expect(screen.getByRole('heading', { name: /Table at Kape Lab Manila/ })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Reserved/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Kape Lab Manila, Confirmed/)).toBeInTheDocument();
     expect(screen.getAllByText(/Bill settled at the restaurant/).length).toBeGreaterThan(0);
   });
 
@@ -428,7 +428,7 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     const sheet = screen.getByRole('dialog');
     await user.click(within(sheet).getByRole('button', { name: 'Reserve table' }));
     expect(screen.getByRole('heading', { name: /Table at Kape Lab Manila/ })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Reserved/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Kape Lab Manila, Confirmed/)).toBeInTheDocument();
   });
 
   it('keeps one booking when the same slot is asked for twice', async () => {
@@ -687,7 +687,7 @@ describe('a stay with a life in it, and every trigger in view', { timeout: 50_00
     await user.click(screen.getByRole('button', { name: /^Front desk/ }));
     expect(screen.getByText(/This is Marites at the front desk/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Personal training session, Confirmed/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/The Poolside Bar & Lounge, Reserved/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/The Poolside Bar & Lounge, Confirmed/)).toBeInTheDocument();
     expect(screen.getByText(/We hold the table for/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Go back' }));
 

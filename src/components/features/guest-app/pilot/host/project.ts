@@ -36,15 +36,15 @@ export function engineStatusLine(eb: EngineBooking): string {
     case 'requested': return 'Waiting for the vendor to confirm';
     case 'awaiting-payment': return 'Confirmed once paid';
     case 'confirmed': return 'Confirmed';
-    case 'reserved': return 'Reserved';
+    case 'reserved': return 'Confirmed';
     case 'ready': return 'Ready at the front desk';
     case 'in-progress': return 'In progress';
     case 'completed': case 'collected': case 'seated': return 'Done';
     case 'no-show': return 'No-show';
-    case 'withdrawn': return 'Withdrawn';
+    case 'withdrawn': return 'You withdrew it';
     case 'declined': return 'The vendor is not available';
     case 'lapsed': return eb.reason ?? 'The vendor did not answer in time';
-    case 'payment-expired': return 'Payment expired';
+    case 'payment-expired': return 'Not paid in time';
     case 'cancelled': return 'Cancelled';
   }
 }

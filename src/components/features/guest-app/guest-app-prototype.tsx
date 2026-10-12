@@ -1859,17 +1859,18 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     it holds the booking (the same words its card and its chat bar use), and
     otherwise read from the booking the app keeps.
   */
-  const entryStatus = (entry: StayEntry): { label: string; tone: string; action: boolean } => {
+  const entryStatus = (entry: StayEntry): { label: string; tone: string; action: boolean; note?: string } => {
     const engineId = session.serviceBookings.find((service) => service.id === entry.id)?.engineId;
     const host = hostStore.host;
     if (engineId && host && host.pilot.bookings().some((b) => b.id === engineId)) {
       const card = host.pilot.card(engineId);
-      return { label: card.label, tone: STATUS_TONE(card.state, card.label), action: card.state === 'pay-to-confirm' || card.label === 'Pay in full or cancel' };
+      // "Not booked" carries its reason in the line under it.
+      return { label: card.label, tone: STATUS_TONE(card.state, card.label), action: card.state === 'pay-to-confirm', note: card.label === 'Not booked' ? card.cost.line : undefined };
     }
     if (entry.cancelled) return { label: 'Cancelled', tone: 'bad', action: false };
     if (entry.status === 'completed') return { label: 'Completed', tone: 'good', action: false };
     if (entry.settlement === 'Awaiting provider confirmation' || entry.settlement === 'Awaiting hotel confirmation') return { label: 'Awaiting confirmation', tone: 'wait', action: false };
-    return { label: entry.kind === 'dining' ? 'Reserved' : 'Confirmed', tone: 'good', action: false };
+    return { label: 'Confirmed', tone: 'good', action: false };
   };
   const cardHandlers = {
     imageFor: engineImage,

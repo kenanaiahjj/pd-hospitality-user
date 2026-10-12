@@ -80,7 +80,7 @@ export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpe
     .map(({ thread }) => thread);
   return (
     <div className="guest-stack pilot-messages">
-      <div className="guest-page-title"><h1>Messages</h1></div>
+      <div className="guest-page-title"><h1>Chat</h1></div>
       {/* The front desk, as a card of its own above the conversations: the one chat that is always there. */}
       <div className="pilot-desk-card">
         <button type="button" className={`pilot-chat-row pilot-chat-row--desk${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk chat${desk.unread ? ', new message' : ''}`}>

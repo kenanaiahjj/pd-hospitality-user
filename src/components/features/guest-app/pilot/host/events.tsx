@@ -260,7 +260,7 @@ export function buildPilotEvents({ host, stayId, canShortenStay, shortenStay, ca
   waiting(desk, (l) => l.startsWith('Desk reads the '), <ChatCircleDots />, 'Desk reads a guest and vendor chat', 'Needs an open dispute: a questioned charge, a contested no-show, a disputed cancellation or a damage claim');
   waiting(desk, (l) => l.startsWith('Desk leaves a private note'), <ChatCircleDots />, 'Desk leaves a private note for a vendor', 'Needs a booking');
 
-  desk.push({ icon: <Check />, label: 'Fill Messages with sample bookings and chats', detail: 'A scooter nobody answered, bicycles confirmed with a message from the shop, a tour waiting, a table, an order ready at the desk, a session the desk booked. And a front desk chat to match.', onClick: fillSamples, unavailable: fillBlocked });
+  desk.push({ icon: <Check />, label: 'Fill Chat with sample bookings and messages', detail: 'A scooter nobody answered, bicycles confirmed with a message from the shop, a tour waiting, a table, an order ready at the desk, a session the desk booked. And a front desk chat to match.', onClick: fillSamples, unavailable: fillBlocked });
   desk.push({ icon: <X />, label: 'Clear the sample bookings and chats', detail: 'Back to a stay with nothing booked and an empty desk chat.', onClick: clearSamples });
 
   // Each booking's buttons sit under its own heading, so with a dozen bookings the list can still be read.

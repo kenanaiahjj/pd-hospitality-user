@@ -172,7 +172,7 @@ export function ArrivalCartConfirmation({ bookings, method, onViewStay, onBrowse
         </div>
       ) : null}
       <Notice title="What happens next">The hotel confirms drivers and early check-in, and we tell you here. Luggage and celebrations are arranged for your arrival day.</Notice>
-      <Button className="guest-button guest-button--primary" type="button" onClick={onViewStay}>View my stay<ArrowRight aria-hidden="true" /></Button>
+      <Button className="guest-button guest-button--primary" type="button" onClick={onViewStay}>View My Stay<ArrowRight aria-hidden="true" /></Button>
       <TextButton onClick={onBrowse}>Arrange something else</TextButton>
     </ScreenIntro>
   );

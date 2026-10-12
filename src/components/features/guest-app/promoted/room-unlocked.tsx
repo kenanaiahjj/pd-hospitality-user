@@ -131,7 +131,7 @@ export function RoomUnlocked({
             Start exploring<ArrowRight aria-hidden="true" />
           </Button>
           <button className="unlocked__quiet" type="button" onClick={onViewStay}>
-            Back to my stay
+            Back to Home
           </button>
         </div>
       </section>

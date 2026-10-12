@@ -88,7 +88,7 @@ describe('promoted room QR surfaces', () => {
     expect(screen.getByText(/settles at check-out/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Start exploring/ }));
-    await user.click(screen.getByRole('button', { name: 'Back to my stay' }));
+    await user.click(screen.getByRole('button', { name: 'Back to Home' }));
 
     expect(onExplore).toHaveBeenCalledOnce();
     expect(onViewStay).toHaveBeenCalledOnce();

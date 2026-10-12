@@ -43,7 +43,7 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
     expect(screen.getByRole('heading', { name: /Request sent/ })).toBeInTheDocument();
     expect(screen.getAllByText(/Nothing is charged until/).length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     expect(screen.getByRole('button', { name: /City bicycle/ })).toBeInTheDocument();
     expect(screen.getByText(/Awaiting confirmation/)).toBeInTheDocument();
 
@@ -68,7 +68,7 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
     expect(screen.getByRole('heading', { name: /Request sent/ })).toBeInTheDocument();
 
     // The vendor says yes: the hold is taken, and it is confirmed with nothing more to do.
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     await fire(user, /Vendor confirms City bicycle/);
     await user.click(screen.getByRole('button', { name: /City bicycle.*return by/ }));
     expect(screen.getByText(/Paid · GCash/)).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
 
     await bookRental(user, 'room');
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     await user.click(screen.getByRole('button', { name: /City bicycle/ }));
     await user.click(screen.getByRole('button', { name: /Withdraw request/ }));
     // One more tap: there is no undo.
@@ -153,7 +153,7 @@ describe('messages: the front desk, and a thread for every booking', { timeout: 
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
 
     await openMessages(user);
-    expect(screen.getByRole('heading', { name: 'Messages' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Chat' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Front desk/ })).toBeInTheDocument();
     expect(screen.getByText(/you can message the vendor here/)).toBeInTheDocument();
 
@@ -330,26 +330,31 @@ describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
     await user.click(nav().getByRole('button', { name: 'Home' }));
   });
 
-  it('puts a confirmed room charge on the bill once it is today, and takes it off when it is cancelled', async () => {
+  it('puts a confirmed room charge on the bill once its hour comes, not the morning of', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
-    // Morning, so today's pickup is still ahead and the charge is due on the bill today.
-    await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
-    await user.click(screen.getByRole('tab', { name: 'Clock' }));
-    await user.click(screen.getByRole('button', { name: /Morning/ }));
-    await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
-
+    const setClock = async (label: RegExp) => {
+      await user.click(screen.getByRole('button', { name: 'Open prototype controls' }));
+      await user.click(screen.getByRole('tab', { name: 'Clock' }));
+      await user.click(screen.getByRole('button', { name: label }));
+      await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
+    };
+    // Morning: today's 1:30 PM pickup is still ahead.
+    await setClock(/Morning/);
     await bookRental(user, 'room');
     await fire(user, /Vendor confirms City bicycle/);
 
+    // The stay already has a bicycle on its bill from a day earlier; today's is not on it yet.
+    const lines = () => ((document.querySelector('.guest-folio-cards')?.textContent ?? '').match(/City bicycle/g) ?? []).length;
     await user.click(nav().getByRole('button', { name: /My Stay/ }));
     await user.click(screen.getByRole('button', { name: 'Room charges' }));
-    // The stay already has a bicycle on its bill from a day earlier; this is the second.
-    const lines = () => ((document.querySelector('.guest-folio-cards')?.textContent ?? '').match(/City bicycle/g) ?? []).length;
-    expect(lines()).toBe(2);
-
-    await fire(user, /Vendor cancels City bicycle/);
     expect(lines()).toBe(1);
+
+    // Afternoon: the pickup's hour has come, and it is on the bill.
+    await setClock(/Afternoon/);
+    await user.click(nav().getByRole('button', { name: /My Stay/ }));
+    await user.click(screen.getByRole('button', { name: 'Room charges' }));
+    expect(lines()).toBe(2);
   });
 });
 
@@ -370,7 +375,7 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
 
     expect(screen.queryByRole('heading', { name: /Waiting for the front desk/ })).toBeNull();
     // The vendor's turn, and nothing is charged yet.
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     expect(screen.getByText(/Awaiting confirmation/)).toBeInTheDocument();
     await fire(user, /Vendor confirms Compact car/);
     expect(screen.queryByText(/Awaiting confirmation/)).toBeNull();
@@ -663,13 +668,13 @@ describe('a stay with a life in it, and every trigger in view', { timeout: 50_00
     expect(screen.getByRole('button', { name: 'Desk approves an over-limit charge' })).toBeDisabled();
     // The ones that need nothing are live from the start.
     expect(screen.getByRole('button', { name: 'Desk sends a message in the chat' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Fill Messages with sample bookings and chats' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Fill Chat with sample bookings and messages' })).toBeEnabled();
   });
 
   it('fills Messages and the front desk chat with a stay already lived in, then clears it', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
-    await fire(user, /Fill Messages with sample bookings and chats/);
+    await fire(user, /Fill Chat with sample bookings and messages/);
     await openMessages(user);
 
     expect(screen.getByRole('button', { name: /City bicycle/ })).toBeInTheDocument();

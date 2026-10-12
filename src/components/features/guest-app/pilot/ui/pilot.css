@@ -717,3 +717,9 @@
 .pilot-status--live { color: var(--guest-brand); }
 /* A My Stay row's status: its own line under the details. */
 .guest-stay-entry__status { margin-block-start: 3px; }
+
+/* Payment methods in Profile: the logo where the row's icon goes, and no chevron (nothing to open). */
+.guest-payment-methods .guest-list-row { grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; }
+/* The wallet logos keep their own colours here, not the Profile row's icon tint. */
+.guest-screen .guest-payment-methods .guest-list-row > .guest-method-glyph[data-method='gcash'] { background: oklch(0.55 0.17 255); color: oklch(1 0 none); }
+.guest-screen .guest-payment-methods .guest-list-row > .guest-method-glyph[data-method='maya'] { background: oklch(0.2 0.02 160); color: oklch(0.85 0.2 150); }

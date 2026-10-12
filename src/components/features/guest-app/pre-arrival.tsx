@@ -248,6 +248,8 @@ export type AdditionalGuestsScreenProps = {
   /** People on record who did not fit, offered with one tap each. */
   suggestions?: SavedCompanion[];
   onSave: (companions: Companion[]) => void;
+  /** Opened from the review to change the list: the button saves and goes back, it does not finish the form. */
+  fromReview?: boolean;
 };
 
 /** "Ana Santos" -> "AS"; one name gives one letter. */
@@ -310,6 +312,7 @@ export function AdditionalGuestsScreen({
   initialCompanions,
   suggestions = [],
   onSave,
+  fromReview = false,
 }: AdditionalGuestsScreenProps) {
   const [mode, setMode] = useState<'list' | 'details'>('list');
   const [companions, setCompanions] = useState<Companion[]>(() => initialCompanions.map((person) => ({ ...person, nationality: person.nationality ?? '' })));
@@ -521,7 +524,7 @@ export function AdditionalGuestsScreen({
         type="button"
         onClick={() => onSave(companions.filter((person) => person.name.trim()))}
       >
-        {companions.length === 0 ? 'Just me — finish' : 'Finish'}<ArrowRight aria-hidden="true" />
+        {fromReview ? 'Save' : companions.length === 0 ? 'Just me — finish' : 'Finish'}<ArrowRight aria-hidden="true" />
       </Button>
     </FormScreen>
   );

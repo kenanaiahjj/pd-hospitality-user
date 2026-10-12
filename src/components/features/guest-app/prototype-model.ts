@@ -59,6 +59,7 @@ export type ScreenId =
   | 'payments'
   | 'saved-hotels'
   | 'payment-detail'
+  | 'payment-methods'
   | 'stay-detail'
   | 'stay-entry'
   | 'pre-arrival-services'
@@ -131,6 +132,7 @@ export const SCREENS: PrototypeScreen[] = [
   screen(78, 'Account', 'payments', 'Payments'),
   screen(81, 'Account', 'saved-hotels', 'Saved hotels'),
   screen(79, 'Account', 'payment-detail', 'Payment receipt'),
+  screen(84, 'Account', 'payment-methods', 'Payment methods'),
   screen(42, 'Stay', 'notifications', 'Notifications'),
   screen(43, 'Account', 'stay-detail', 'Stay detail'),
   screen(44, 'Stay', 'stay-entry', 'Booking receipt'),
@@ -2832,6 +2834,10 @@ const describeServiceSettlement = (
 export function getStayEntries(
   session: GuestSession,
   booking?: Booking,
+  /** The prototype clock's hour: a booking earlier today has passed. Omitted, the day alone decides. */
+  clockHour?: number,
+  /** Bookings still under way whatever their start time (happening now, waiting at the desk). */
+  stillOn?: (entryId: string) => boolean,
 ): { upcoming: StayEntry[]; past: StayEntry[] } {
   if (!booking) return { upcoming: [], past: [] };
 
@@ -2937,8 +2943,12 @@ export function getStayEntries(
     their date says.
   */
   const today = dayIndex(PROTOTYPE_TODAY);
+  // Today goes by the hour: a 1:30 PM massage is history at 7 PM, unless it is still under way.
   const isAhead = (entry: StayEntry) =>
-    entry.status === 'confirmed' && dayIndex(entry.date) >= today;
+    entry.status === 'confirmed' && (
+      dayIndex(entry.date) > today
+      || (dayIndex(entry.date) === today && (clockHour === undefined || entry.hour === undefined || entry.hour >= clockHour || Boolean(stillOn?.(entry.id))))
+    );
 
   const byDateAscending = (a: StayEntry, b: StayEntry) => a.date.localeCompare(b.date) || (a.hour ?? 0) - (b.hour ?? 0);
 
@@ -3607,6 +3617,8 @@ export function getRoomCharges(
   session: GuestSession,
   booking: Booking,
   roomLabel: string,
+  /** The prototype clock's hour: today's 6 PM spa is not on the bill at 9 AM. */
+  clockHour?: number,
 ): RoomCharge[] {
   void roomLabel;
   // A stay that has not started cannot have run anything up yet.
@@ -3616,7 +3628,10 @@ export function getRoomCharges(
   const booked: RoomCharge[] = session.serviceBookings
     .filter((service) => service.bookingId === booking.id
       && isChargedToRoom(service)
-      && (service.roomChargePostedAt ?? service.scheduledDate) <= PROTOTYPE_TODAY)
+      && ((service.roomChargePostedAt ?? service.scheduledDate) < PROTOTYPE_TODAY
+        || ((service.roomChargePostedAt ?? service.scheduledDate) === PROTOTYPE_TODAY
+          // Posted on its own date, it is on the bill already; a service today posts once its hour has come.
+          && (Boolean(service.roomChargePostedAt) || clockHour === undefined || (service.scheduledHour ?? 0) <= clockHour))))
     .map((service) => {
       const date = new Date(`${service.roomChargePostedAt ?? service.scheduledDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const serviceDate = new Date(`${service.scheduledDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });

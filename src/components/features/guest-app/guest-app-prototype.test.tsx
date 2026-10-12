@@ -337,7 +337,7 @@ describe('GuestAppPrototype', () => {
     behaviour this guarded was removed on purpose, so the test goes with it.
   */
 
-  it('names the pre-arrival handoff for the screen it renders', () => {
+  it('tells a guest whose room is ready to go straight up', () => {
     render(
       <GuestAppPrototype
         initialScreen="arrival-handoff"
@@ -345,8 +345,9 @@ describe('GuestAppPrototype', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'You’re ready for arrival' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue to arrival' })).toBeInTheDocument();
+    // The room is ready: the screen says so and sends the guest back to the stay, not on to another "ready" step.
+    expect(screen.getByRole('heading', { name: /is ready$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Back to Home/ })).toBeInTheDocument();
   });
 
   it('uses the booking-first voice when no stay is attached', () => {
@@ -377,8 +378,9 @@ describe('GuestAppPrototype', () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="prereg-complete" initialSession={MOCK_SESSION} />);
 
-    expect(screen.getByRole('button', { name: /view my stay/i })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /view my stay/i }));
+    // It goes Home (the stay overview), so it says Home.
+    expect(screen.getByRole('button', { name: /back to home/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /back to home/i }));
 
     expect(screen.getByTestId('guest-home-upcoming')).toBeInTheDocument();
   });
@@ -407,7 +409,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.queryByRole('dialog', { name: 'Secure checkout' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Confirm requests' }));
     expect(screen.getByRole('heading', { name: 'Your arrival is arranged' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     await user.click(screen.getByRole('button', { name: 'Home' }));
     const requested = screen.getByTestId('guest-early-checkin-requested');
     expect(requested).toHaveTextContent('11:00 AM');
@@ -525,7 +527,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getByText(/added to room 512/i)).toBeInTheDocument();
     expect(screen.getByText(/paid with your room bill at checkout/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     expect(screen.getByRole('button', { name: /Room charges/i })).not.toHaveTextContent('₱5,450');
   });
 
@@ -2294,7 +2296,7 @@ describe('booking the service the guest picked', () => {
     expect(screen.getByRole('heading', { name: 'Hot stone therapy is booked' })).toBeInTheDocument();
 
     // The massage already on the stay is still there, at its own time.
-    await user.click(screen.getByRole('button', { name: 'View my stay' }));
+    await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     expect(screen.getByRole('button', { name: /Hot stone therapy/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /hilom signature massage/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Upcoming \(2\)/ })).toBeInTheDocument();
@@ -2590,7 +2592,7 @@ describe('lifecycle gates', () => {
 
     // The Chat tab opens Messages, with the front desk pinned: the existing chat is one tap in.
     await user.click(screen.getByRole('button', { name: 'Chat' }));
-    expect(screen.getByRole('heading', { name: 'Messages' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Chat' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Front desk/ }));
 
     expect(screen.getByRole('heading', { name: 'Front desk' })).toBeInTheDocument();
@@ -3038,7 +3040,7 @@ describe('post-stay front desk window', () => {
     await user.click(screen.getByRole('button', { name: 'Rate your stay' }));
     await user.click(screen.getByRole('radio', { name: '5 stars' }));
     await user.click(screen.getByRole('button', { name: 'Send to the property' }));
-    await user.click(screen.getByRole('button', { name: /Back to my stay/ }));
+    await user.click(screen.getByRole('button', { name: /Back to My Stay/ }));
 
     expect(screen.queryByRole('button', { name: 'Rate your stay' })).toBeNull();
     expect(screen.getByText(/You rated this stay 5/)).toBeInTheDocument();
@@ -3647,7 +3649,7 @@ describe('orders and requests that go through the front desk', () => {
     await user.click(screen.getByRole('button', { name: /Request upgrade/ }));
 
     expect(screen.getByRole('heading', { name: 'Upgrade requested' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'View on My Stay' }));
+    await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     expect(screen.getByRole('button', { name: /Room upgrade/ })).toHaveTextContent('Awaiting confirmation');
   });
 });

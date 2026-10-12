@@ -41,7 +41,7 @@ export function StayReviewForm({
       <p>Your feedback is saved with this stay. Only the property sees this.</p>
       {mode === 'page' ? (
         <button className="guest-button guest-button--secondary" type="button" onClick={onBackToMyStay}>
-          <ArrowLeft aria-hidden="true" />Back to my stay
+          <ArrowLeft aria-hidden="true" />Back to My Stay
         </button>
       ) : null}
     </div>

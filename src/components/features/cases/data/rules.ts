@@ -28,38 +28,39 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "PAY-4",
-        text: "For a vendor that confirms first, a card payment is taken only after the vendor accepts. The guest has 15 minutes and 3 tries. If unpaid, the payment expires and the slot is released. A vendor that charges at once opens the same 15 minute window as the guest confirms.",
-        from: "Test value",
+        text: "For a confirm-first vendor, a card, GCash or Maya payment is held when the guest books: authorised, not taken. The request then goes to the vendor. If the vendor accepts, the hold is taken and the booking is Confirmed in one step. If they decline, do not answer, or the guest withdraws or cancels first, the hold is released and nothing was ever charged. An instant listing paid in full opens a 15 minute, 3 try window as the guest confirms.",
+        from: "Ken",
         status: "Built",
+        note: "Real e-wallets cannot hold money. The prototype treats GCash and Maya as holdable on purpose.",
         drawn: "A, H, I"
       },
       {
         id: "PAY-5",
-        text: "Charge to room is offered only when the service date falls inside the stay and the order is within the limits.",
+        text: "Charge to room is offered only when the service date falls inside the stay.",
         from: "Test value",
-        status: "Partly",
-        note: "The date check works. The limits are switched off in the app for now, so any amount can go on the room.",
+        status: "Built",
+        note: "A multi-day rental can still run past checkout, because only the start date is checked.",
         drawn: "A"
       },
       {
         id: "PAY-6",
-        text: "Limits are set by the hotel, per order and per stay. The test values are ₱5,000 per order and ₱20,000 per stay, and both are inclusive.",
-        from: "Meeting",
-        status: "Partly",
-        note: "Built and tested in the engine and the scenarios. In the app the limits are set to no limit for now, so the guest never sees them.",
+        text: "There are no room-charge limits for now, per order or per stay. Any amount can go on the room.",
+        from: "Ken",
+        status: "Not built",
+        note: "Left out for now. The engine keeps a limit rule and the scenarios test it, with the app switching it off.",
         drawn: "A"
       },
       {
         id: "PAY-7",
-        text: "An over-limit order goes to the front desk, which approves or declines within 10 minutes. The slot is held meanwhile. Declined, or no answer, moves the guest to Pay in full or cancel.",
-        from: "Meeting",
-        status: "Partly",
-        note: "Built and tested in the engine. In the app nothing is ever over the limit, so this never happens on screen.",
-        drawn: "A, H"
+        text: "Front desk approval of an over-limit order, within 10 minutes, is left out for now because there are no limits.",
+        from: "Ken",
+        status: "Not built",
+        note: "Left out for now. The engine keeps it and the scenarios test it.",
+        drawn: "A"
       },
       {
         id: "PAY-8",
-        text: "There is no deposit check for now. Any guest with a stay can charge to room, within the limits.",
+        text: "There is no deposit check for now. Any guest with a stay can charge to room.",
         from: "Ken",
         status: "Built",
         drawn: "A"
@@ -74,7 +75,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "PAY-10",
-        text: "Each extra charge is its own payment. The engine chooses the way, not the guest: room if the booking was paid by room, is inside the stay and within the limits, otherwise card. A card-paid booking never gets a room extra. An over-limit extra goes to card with no desk approval, and extra card charges have no 15 minute window.",
+        text: "Each extra charge is its own payment. The engine chooses the way, not the guest: room if the booking was paid by room and is inside the stay, otherwise card. A card-paid booking never gets a room extra. Extra card charges have no 15 minute window.",
         from: "Test value",
         status: "Built",
         drawn: "B, C, I"
@@ -97,11 +98,11 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "PAY-13",
-        text: "Pay in full or cancel: after a desk decline or silence the guest has 15 minutes to choose. On expiry the request lapses with \"No choice was made\". A room-only vendor offers Cancel only.",
+        text: "The Pay in full or cancel window, 15 minutes after a desk decline or silence, is left out for now because there are no limits.",
         from: "App",
-        status: "Partly",
-        note: "Built in the engine. Not reachable in the app while the limits are off.",
-        drawn: "A, H"
+        status: "Not built",
+        note: "Left out for now. The engine keeps it.",
+        drawn: "A"
       },
       {
         id: "PAY-14",
@@ -119,7 +120,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "PAY-16",
-        text: "A card payment that arrives after it expired is refunded with a note. A second payment for something already paid is refunded automatically. Lost and repeated gateway callbacks are handled. A failed refund becomes a desk task.",
+        text: "A card payment that arrives after it expired is refunded with a note. A second payment for something already paid is refunded automatically. A hold that is never taken is released, not refunded. Lost and repeated gateway callbacks are handled. A failed refund becomes a desk task.",
         from: "App",
         status: "Built",
         drawn: "I"
@@ -131,10 +132,10 @@ export const RULE_GROUPS: RuleGroup[] = [
     rules: [
       {
         id: "BKG-1",
-        text: "Rentals and boat or tour trips are confirm-first: the vendor must accept before anything is charged. Henry's own activities, pasalubong and shop goods are instant: they charge as the guest confirms, with stock and capacity held.",
+        text: "Rentals and boat or island tours are confirm-first: nothing is charged until the vendor accepts. A room charge is made on accept, and a card payment is only held until then and taken on accept. Henry's own activities, pasalubong and shop goods are instant: they charge as the guest confirms, with stock and capacity held.",
         from: "Meeting",
         status: "Built",
-        note: "Invariant I3 covers confirm-first bookings only.",
+        note: "Invariant I3 accepts a hold before the vendor's yes, never a charge.",
         drawn: "B, C, D, H"
       },
       {
@@ -160,7 +161,7 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "BKG-5",
-        text: "On a lapse nothing is charged, the guest is told by push and SMS, and the booking reads Not booked with the line \"No answer in time · nothing charged\". A desk task opens when the service is within 24 hours or the desk made the booking. A reinstated request tells the guest again.",
+        text: "On a lapse nothing is charged and any card hold is released. The guest is told by push and SMS, and the booking reads Not booked with the line \"No answer in time · nothing charged\". A desk task opens when the service is within 24 hours or the desk made the booking. A reinstated request tells the guest again.",
         from: "Test value",
         status: "Built",
         drawn: "B, C, H"
@@ -274,7 +275,7 @@ export const RULE_GROUPS: RuleGroup[] = [
     rules: [
       {
         id: "CAN-1",
-        text: "Each listing sets a free-cancel window. Inside it the booking cancels at once, a room charge is undone and a card payment is refunded to the same method.",
+        text: "Each listing sets a free-cancel window. Inside it the booking cancels at once. A room charge is undone, a card hold is released, and a card payment already taken is refunded to the same method.",
         from: "Test value",
         status: "Built",
         drawn: "G"
@@ -568,9 +569,10 @@ export const RULE_GROUPS: RuleGroup[] = [
       },
       {
         id: "PMS-5",
-        text: "Cabana's limits count only charges made through Cabana. A meal posted by a restaurant's own system is not counted.",
+        text: "A meal posted by a restaurant's own system is outside Cabana's ledger.",
         from: "Test value",
         status: "Built",
+        note: "There are no room-charge limits for now, so nothing is counted against one.",
         drawn: "Cases"
       },
       {
@@ -944,7 +946,7 @@ export const KNOWN_GAPS: KnownGap[] = [
     text: "Two code comments in the rewards folder still mention Phosphor."
   },
   {
-    title: "Room limits switched off",
-    text: "The limits are set to no limit in the app, so the over-limit copy and the pay-in-full-or-cancel window cannot be reached on screen."
+    title: "Old limit copy",
+    text: "The over-limit copy and the pay-in-full-or-cancel window are still in the code but cannot be reached while there are no limits."
   }
 ];

@@ -30,6 +30,7 @@ const LANE_NAMES: Record<string, string> = {
   goods: 'Goods',
   tables: 'Tables',
   tablesx: 'Table exits',
+  hold: 'Held',
 };
 
 /** Greedy word wrap, the same rule for every box so labels line up. */

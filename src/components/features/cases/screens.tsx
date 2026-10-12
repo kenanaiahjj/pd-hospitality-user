@@ -202,14 +202,14 @@ export function Screens() {
         <Composer placeholder="Message Sakay Rentals" />
       </Fig>
 
-      <Fig label="Booking page for a request waiting for the vendor, with no chat yet" title="Waiting for the vendor" caption="There is no chat yet. The guest sees the price, a quiet countdown, the note they sent and three actions: call the vendor, ask the front desk, or withdraw. Nothing is charged. The chat opens when the vendor accepts.">
+      <Fig label="Booking page for a request waiting for the vendor, with no chat yet" title="Waiting for the vendor" caption="There is no chat yet. The guest sees the price, a quiet countdown, the note they sent and three actions: call the vendor, ask the front desk, or withdraw. Nothing is charged, and a card is only held. The chat opens when the vendor accepts.">
         <Status>7:31</Status>
         <Head title="Island day tour" sub="Lakbay Island Tours" />
         <div className="ca-bk">
           <div className="ca-ph ca-ph--tall" style={{ background: TONE.tour }}><span className="ca-chip ca-chip--warn">Awaiting confirmation</span></div>
           <div className="ca-bd">
             <div className="ca-tk"><Stub /><div><b>10:00 AM</b><span>2 guests</span></div></div>
-            <div className="ca-price"><span>Charged once confirmed</span><b>₱3,800</b></div>
+            <div className="ca-price"><span>Held, not charged · taken only if they confirm</span><b>₱3,800</b></div>
             <div className="ca-count"><i />Lakbay Island Tours has 30 min to confirm<u>until 8:01 PM</u></div>
             <div className="ca-note">Your note: The early boat, if there is a choice.</div>
             <button type="button" className="ca-btn ca-btn--line"><Glyph name="phone" />Call Lakbay Island Tours</button>
@@ -280,8 +280,8 @@ export function Screens() {
 }
 
 const STATES: { title: string; text: string; where: string; card: ReactNode }[] = [
-  { title: 'Awaiting confirmation', text: 'The request waits for the vendor. A quiet countdown shows how long they have. Nothing is charged, and there is no chat yet. The guest can call the vendor.', where: 'Booking page and desk chat. No vendor chat yet.', card: <BookingCard tone="tour" chip="Awaiting confirmation" chipClass="warn" title="Island day tour" vendor="Lakbay Island Tours" line="Charged once confirmed" amount="₱3,800" secondary="Withdraw request" count={['Lakbay Island Tours has 30 min to confirm', 'until 8:01 PM']} /> },
-  { title: 'Pay to confirm', text: 'The vendor accepted a booking paid by card, or an instant listing is waiting for payment. The slot is held for 15 minutes. The vendor chat is open now.', where: 'Desk chat, vendor chat.', card: <BookingCard tone="bike" chip="Pay to confirm" chipClass="warn" title="City bicycle" vendor="Sakay Rentals" line="Pay in full" amount="₱700" primary="Pay now" secondary="Cancel" count={['Pay within 15 min to keep it', 'until 7:46 PM']} /> },
+  { title: 'Awaiting confirmation', text: 'The request waits for the vendor. A quiet countdown shows how long they have. Nothing is charged: a card is only held, and a room charge is made on accept. There is no chat yet, and the guest can call the vendor.', where: 'Booking page and desk chat. No vendor chat yet.', card: <BookingCard tone="tour" chip="Awaiting confirmation" chipClass="warn" title="Island day tour" vendor="Lakbay Island Tours" line="Held, not charged · taken only if they confirm" amount="₱3,800" secondary="Withdraw request" count={['Lakbay Island Tours has 30 min to confirm', 'until 8:01 PM']} /> },
+  { title: 'Pay to confirm', text: 'An instant listing paid in full is waiting for the payment to finish. The slot is held for 15 minutes. A confirm-first vendor never shows this: its money is held at booking, so there is no second payment.', where: 'Desk chat, vendor chat.', card: <BookingCard tone="bike" chip="Pay to confirm" chipClass="warn" title="City bicycle" vendor="Sakay Rentals" line="Pay in full" amount="₱700" primary="Pay now" secondary="Cancel" count={['Pay within 15 min to keep it', 'until 7:46 PM']} /> },
   { title: 'Confirmed', text: 'Charged as chosen. The main button is what the guest needs next, here the QR. Tables read Confirmed too, with nothing charged.', where: 'Everywhere the booking shows.', card: <BookingCard tone="bike" chip="Confirmed" chipClass="ok" title="City bicycle" vendor="Sakay Rentals" line="Charged to your room" amount="₱700" primary="Show QR" secondary="Cancel" /> },
   { title: 'Ready to collect', text: 'Goods are marked ready by the desk and held. The card says where to collect.', where: 'Vendor chat, desk chat.', card: <BookingCard tone="goods" chip="Ready to collect" chipClass="ok" title="Single-origin coffee, 2" vendor="The lobby shop" line="Charged to your room" amount="₱840" secondary="Message the front desk" note="At the front desk, held for you." /> },
   { title: 'In progress', text: 'The vendor scanned the QR. The only thing left for the guest is to question a charge.', where: 'Vendor chat.', card: <BookingCard tone="bike" chip="In progress" chipClass="live" title="City bicycle" vendor="Sakay Rentals" line="Charged to your room" amount="₱700" note="Back by 8:00 PM." /> },

@@ -51,8 +51,8 @@ const formatSetting = (value: number, unit: SettingLabel['unit']): string => {
 
 export type SettingRow = { key: string; label: string; value: string; rule: string };
 
-/** Room-bill limits are switched off in the app, so they are not listed. */
-const HIDDEN: (keyof Settings)[] = ['perOrderLimit', 'perStayLimit'];
+/** There are no room-charge limits for now, so the limits and the windows that only exist for them are not listed. */
+const HIDDEN: (keyof Settings)[] = ['perOrderLimit', 'perStayLimit', 'deskApprovalMin', 'payOrCancelMin'];
 
 export const settingRows = (): SettingRow[] =>
   (Object.entries(PILOT_SETTINGS) as [keyof Settings, number][])

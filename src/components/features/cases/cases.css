@@ -122,6 +122,8 @@
 .cases-lane--kabana .cases-band, .cases-lane--path .cases-band, .cases-lane--room .cases-band, .cases-lane--goods .cases-band { fill: var(--c-kabana-t); fill-opacity: 0.55; }
 .cases-lane--vendor .cases-band { fill: var(--c-vendor-t); }
 .cases-lane--tables .cases-band { fill: var(--c-guest-t); }
+.cases-lane--hold .cases-band { fill: var(--c-kabana-t); fill-opacity: 0.55; }
+.cases-node.cases-lane--hold rect { fill: var(--c-kabana-t); stroke: var(--c-kabana); }
 .cases-lane--exit .cases-band, .cases-lane--roomx .cases-band, .cases-lane--cardx .cases-band, .cases-lane--tablesx .cases-band { fill: var(--c-bad-t); fill-opacity: 0.5; }
 .cases-swatch.cases-lane--guest { background: var(--c-guest-t); border-color: var(--c-guest); }
 .cases-swatch.cases-lane--desk { background: var(--c-desk-t); border-color: var(--c-desk); }

@@ -2,10 +2,9 @@ import type { Flow } from './types';
 
 export const FLOWS: Record<string, Flow> = {
   A: {
-    label: "Payment gate: charge to room or pay in full, with date, limit and desk approval checks for the room path",
+    label: "Payment gate: charge to room or pay in full, with the date check for the room path",
     lanes: [
       "guest",
-      "desk",
       "kabana"
     ],
     nodes: [
@@ -26,7 +25,7 @@ export const FLOWS: Record<string, Flow> = {
         id: "A7",
         lane: "guest",
         col: 1,
-        text: "Vendor first, then pays in full",
+        text: "Money held, taken if they accept",
         kind: "end"
       },
       {
@@ -37,44 +36,17 @@ export const FLOWS: Record<string, Flow> = {
         kind: "dec"
       },
       {
-        id: "A4",
+        id: "A5",
         lane: "kabana",
         col: 3,
-        text: "Within order and stay limit?",
-        kind: "dec"
+        text: "Charged to room once they accept",
+        kind: "end"
       },
       {
         id: "A8",
         lane: "guest",
         col: 3,
-        text: "Pays in full instead. To the vendor first",
-        kind: "end"
-      },
-      {
-        id: "A5",
-        lane: "kabana",
-        col: 4,
-        text: "To the vendor. Charged to room once accepted",
-        kind: "end"
-      },
-      {
-        id: "A6",
-        lane: "desk",
-        col: 4,
-        text: "Approve over-limit order?",
-        kind: "dec"
-      },
-      {
-        id: "A9",
-        lane: "desk",
-        col: 5,
-        text: "Guest has 15 min to pay in full or cancel"
-      },
-      {
-        id: "A10",
-        lane: "guest",
-        col: 5,
-        text: "Pays in full, cancels, or it lapses",
+        text: "Pays in full instead. Money held",
         kind: "end"
       }
     ],
@@ -95,37 +67,13 @@ export const FLOWS: Record<string, Flow> = {
       ],
       [
         "A3",
-        "A4",
+        "A5",
         "Yes"
       ],
       [
         "A3",
         "A8",
         "No"
-      ],
-      [
-        "A4",
-        "A5",
-        "Yes"
-      ],
-      [
-        "A4",
-        "A6",
-        "No"
-      ],
-      [
-        "A6",
-        "A5",
-        "Approved"
-      ],
-      [
-        "A6",
-        "A9",
-        "Declined"
-      ],
-      [
-        "A9",
-        "A10"
       ]
     ]
   },
@@ -867,127 +815,85 @@ export const FLOWS: Record<string, Flow> = {
     ],
     nodes: [
       {
-        id: "H0",
-        lane: "path",
-        col: 0,
-        text: "Needs desk approval (room, over limit)"
-      },
-      {
         id: "H1",
         lane: "wait",
-        col: 1,
-        text: "Pay in full or cancel. 15 min"
+        col: 0,
+        text: "Awaiting card hold or payment. 15 min"
       },
       {
         id: "H2",
         lane: "path",
-        col: 2,
+        col: 1,
         text: "Requested. Slot held. Vendor timer runs"
-      },
-      {
-        id: "H3",
-        lane: "wait",
-        col: 3,
-        text: "Awaiting card payment. 15 min"
       },
       {
         id: "H4",
         lane: "path",
-        col: 4,
-        text: "Confirmed"
+        col: 2,
+        text: "Confirmed. Hold taken or room charged"
       },
       {
         id: "H5",
         lane: "path",
-        col: 5,
+        col: 3,
         text: "In progress. QR scanned"
       },
       {
         id: "H6",
         lane: "path",
-        col: 6,
+        col: 4,
         text: "Completed",
         kind: "end"
       },
       {
-        id: "X0",
-        lane: "exit",
-        col: 1,
-        text: "Lapsed. No choice was made"
-      },
-      {
         id: "X1",
         lane: "exit",
-        col: 2,
+        col: 1,
         text: "Withdrawn, declined or lapsed. Nothing charged"
       },
       {
         id: "X2",
         lane: "exit",
-        col: 3,
+        col: 0,
         text: "Payment expired. Slot released"
       },
       {
         id: "X3",
         lane: "exit",
-        col: 4,
+        col: 2,
         text: "Cancelled. Charge undone"
       },
       {
         id: "X4",
         lane: "exit",
-        col: 5,
+        col: 3,
         text: "No-show. Charge stands"
       }
     ],
     edges: [
       [
-        "H0",
-        "H1",
-        "declined, 10 min"
-      ],
-      [
-        "H0",
-        "H2",
-        "approved"
-      ],
-      [
         "H1",
         "H2",
-        "pays, vendor confirms"
+        "card held"
       ],
       [
         "H1",
-        "H3",
-        "pays, instant"
+        "H4",
+        "paid, instant"
       ],
       [
         "H1",
-        "X0",
-        "15 min"
-      ],
-      [
-        "H2",
-        "H3",
-        "accepted, card"
+        "X2",
+        "expired"
       ],
       [
         "H2",
         "H4",
-        "accepted, room"
-      ],
-      [
-        "H3",
-        "H4",
-        "paid"
+        "accepted"
       ],
       [
         "H2",
         "X1"
-      ],
-      [
-        "H3",
-        "X2"
       ],
       [
         "H4",
@@ -1097,6 +1003,7 @@ export const FLOWS: Record<string, Flow> = {
       "room",
       "roomx",
       "card",
+      "hold",
       "cardx"
     ],
     nodes: [
@@ -1153,27 +1060,33 @@ export const FLOWS: Record<string, Flow> = {
         id: "Q1",
         lane: "card",
         col: 0,
-        text: "Awaiting payment. 15 min"
+        text: "Awaiting. 15 min"
       },
       {
         id: "Q2",
         lane: "card",
-        col: 1,
+        col: 2,
         text: "Paid",
         kind: "end"
       },
       {
         id: "Q3",
         lane: "card",
-        col: 2,
+        col: 3,
         text: "Refund pending"
       },
       {
         id: "Q4",
         lane: "card",
-        col: 3,
+        col: 4,
         text: "Refunded",
         kind: "end"
+      },
+      {
+        id: "Q5",
+        lane: "hold",
+        col: 1,
+        text: "Held. Authorised, not taken"
       },
       {
         id: "Y1",
@@ -1182,9 +1095,15 @@ export const FLOWS: Record<string, Flow> = {
         text: "Expired. A late payment is refunded"
       },
       {
+        id: "Y2",
+        lane: "cardx",
+        col: 1,
+        text: "Released. Nothing was ever charged"
+      },
+      {
         id: "Y3",
         lane: "cardx",
-        col: 2,
+        col: 3,
         text: "Refund failed. Desk settles it"
       }
     ],
@@ -1226,8 +1145,23 @@ export const FLOWS: Record<string, Flow> = {
       ],
       [
         "Q1",
+        "Q5",
+        "hold placed"
+      ],
+      [
+        "Q1",
         "Q2",
         "paid"
+      ],
+      [
+        "Q5",
+        "Q2",
+        "vendor accepts"
+      ],
+      [
+        "Q5",
+        "Y2",
+        "declined or lapsed"
       ],
       [
         "Q2",

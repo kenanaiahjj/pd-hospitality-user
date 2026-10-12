@@ -13,7 +13,7 @@ export const SECTIONS: Section[] = [
           },
           {
             title: "The vendor must confirm",
-            text: "Nothing is charged to the room, and no card payment is taken, until the vendor accepts. A timer stops a request waiting on a vendor forever."
+            text: "Nothing is charged to the room, and no card payment is taken, until the vendor accepts. A card is only held until then. A timer stops a request waiting on a vendor forever."
           },
           {
             title: "Every state has a way out",
@@ -141,8 +141,8 @@ export const SECTIONS: Section[] = [
             text: "Awaiting confirmation, Pay to confirm, Confirmed, Ready to collect, In progress, Completed, Cancelled, No-show and Not booked, the same on every screen. The engine underneath still has 17 statuses."
           },
           {
-            title: "Room limits are off",
-            text: "The app sets the room-charge limits to no limit for now. The engine and the scenarios keep ₱5,000 per order and ₱20,000 per stay, so over-limit approval is tested but never seen on screen."
+            title: "No room-charge limits for now",
+            text: "There are no per-order or per-stay limits, so any amount can go on the room. The engine keeps a limit rule and the scenarios test it, but nothing in the app is ever over a limit."
           },
           {
             title: "Disputes",
@@ -174,7 +174,7 @@ export const SECTIONS: Section[] = [
       {
         t: "flow",
         key: "A",
-        caption: "The guest picks how to pay, with Charge to room pre-selected. Paying in full goes to the vendor first and the guest pays only after the vendor accepts, inside a 15 minute window, so there is nothing to refund if the vendor says no or does not answer. The room path has three checks: the service date must fall inside the stay, the order must be within the per-order and per-stay limits (both set by the hotel, ₱5,000 per order in the simulation), and an over-limit order goes to the desk. The desk approves it, or the guest gets 15 minutes to pay in full or cancel, after which the request lapses. After 10 minutes with no desk answer the guest gets the same offer. A room booking made before arrival waits as pending and posts at check-in."
+        caption: "The guest picks how to pay, with Charge to room pre-selected. The room path has one check: the service date must fall inside the stay. There are no room-charge limits for now. Paying in full holds the money when the guest books, for a vendor that confirms first. The hold is taken if the vendor accepts, and released if they decline, do not answer or the guest withdraws, so nothing is ever refunded. A room booking made before arrival waits as pending and posts at check-in."
       }
     ],
     eyebrow: "Applies to B to F",
@@ -286,9 +286,9 @@ export const SECTIONS: Section[] = [
           {
             cells: [
               "Payment",
-              "Room or in full (A), after the vendor accepts.",
-              "Room or in full (A), after the vendor accepts for tours.",
-              "Room or in full (A), as she confirms.",
+              "Room on accept, or card held then taken on accept (A).",
+              "Tours: room on accept, or card held then taken. Henry's own activities: charged as she confirms (A).",
+              "Room or card, charged as she confirms (A).",
               "None in Cabana. The bill is settled at the venue."
             ]
           },
@@ -372,7 +372,7 @@ export const SECTIONS: Section[] = [
       {
         t: "flow",
         key: "H",
-        caption: "The state map for rentals and services. Red boxes are exits, and each releases the slot and says what happened to the money. A request enters at Requested, at Needs desk approval when a room payment is over the limit, or, for an instant listing, at Pay in full or cancel and then Awaiting card payment. A lapsed request can be reinstated by the desk if the slot is still free. Any action the current state does not allow is refused. If two actions arrive together, the first one recorded wins."
+        caption: "The state map for rentals and services. Red boxes are exits, and each releases the slot and says what happened to the money. A request that is paid by card starts at Awaiting card hold or payment: when the hold is placed it goes to the vendor as Requested, and when the vendor accepts the hold is taken and it is Confirmed in one step. A room booking, or an instant listing, skips that and starts at Requested or Confirmed. A lapsed request can be reinstated by the desk if the slot is still free. Needs desk approval and Pay in full or cancel still exist in the engine but are switched off with the limits. Any action the current state does not allow is refused."
       },
       {
         t: "flow",
@@ -699,7 +699,7 @@ export const SECTIONS: Section[] = [
           },
           {
             title: "Money has its own ledger",
-            text: "Each charge has a unique reference, a payment mode and a state (diagram I). The limit check counts Cabana's own pending and posted charges for the stay, so it works when the PMS is slow or down."
+            text: "Each charge has a unique reference, a payment mode and a state (diagram I)."
           },
           {
             title: "Safe posting to the PMS",
@@ -719,7 +719,7 @@ export const SECTIONS: Section[] = [
           },
           {
             title: "The desk has one queue",
-            text: "Over-limit approvals, vendor nudges, PMS failures, failed refunds, questioned charges and checkout blockers all land in one list, each with an owner and a due time."
+            text: "Vendor nudges, PMS failures, failed refunds, questioned charges and checkout blockers all land in one list, each with an owner and a due time."
           },
           {
             title: "Chats are one to one",
@@ -825,13 +825,6 @@ export const SECTIONS: Section[] = [
           },
           {
             cells: [
-              "Room payment is over the limit",
-              "The slot is held. The desk approves or declines within 10 minutes. Declined or no answer means the guest pays in full or cancels.",
-              "Guest sees \"Waiting for the front desk\". Desk gets a task."
-            ]
-          },
-          {
-            cells: [
               "Service date falls outside the stay",
               "Charge to room is not offered. Only full payment.",
               "Guest sees why."
@@ -846,15 +839,15 @@ export const SECTIONS: Section[] = [
           },
           {
             cells: [
-              "Card payment fails",
-              "Up to 3 tries inside the 15 minute window, then the payment expires and the slot is released.",
+              "Card hold or payment fails",
+              "Up to 3 tries inside the 15 minute window, then the payment expires and the slot is released. Nothing was taken.",
               "Guest told. Vendor told the slot is free again."
             ]
           },
           {
             cells: [
-              "Guest never pays after the vendor accepts",
-              "The payment expires after 15 minutes and the slot is released. The guest can send a new request.",
+              "Guest does not finish the card hold or payment",
+              "The 15 minute window closes, the payment expires and the slot is released. The guest can send a new request.",
               "Guest and vendor told."
             ]
           },
@@ -882,7 +875,7 @@ export const SECTIONS: Section[] = [
           {
             cells: [
               "Extra charge on the day",
-              "Each extra charge is its own payment. The guest pays it by room (within limits) or in full, with their booking's method pre-selected. Anything unpaid stays open and blocks checkout.",
+              "Each extra charge is its own payment. The guest pays it by room or in full, with their booking's method pre-selected. Anything unpaid stays open and blocks checkout.",
               "Guest sees it at once. Desk sees it on the checkout screen."
             ]
           },
@@ -1090,7 +1083,7 @@ export const SECTIONS: Section[] = [
           {
             cells: [
               "A meal is charged to the room at the restaurant",
-              "The venue posts it to the folio through its own system. Cabana's limits count only charges made through Cabana.",
+              "The venue posts it to the folio through its own system. A meal posted by the venue's own system is outside Cabana's ledger.",
               "Desk sees it on the bill."
             ]
           },
@@ -1294,10 +1287,10 @@ export const SECTIONS: Section[] = [
           {
             cells: [
               "Bike rental or Apo Island trip, paid in full",
-              "For confirmation, then \"Pay now\" for 15 minutes, then Confirmed with a QR.",
+              "Money held at booking, then Confirmed when the vendor accepts.",
               "Sees the booking on the stay.",
-              "Same request. Sees it as confirmed once paid.",
-              "Holds the slot through the payment window. Releases it if unpaid."
+              "Same request. Accepting takes the hold.",
+              "Holds the slot and the money. Takes the hold on accept, releases it if not."
             ]
           },
           {
@@ -1325,15 +1318,6 @@ export const SECTIONS: Section[] = [
               "Nothing, unless the guest asks.",
               "Restaurant sees the reservation and replies in chat. Marks seated or no-show.",
               "Holds the table. No payment taken. The restaurant settles in its own system or charges the room."
-            ]
-          },
-          {
-            cells: [
-              "Room payment over the limit",
-              "Waiting for the front desk. After 10 minutes with no answer, asked to pay in full or cancel.",
-              "Approves, or declines and asks the guest to pay in full.",
-              "Sees nothing until it is approved.",
-              "Holds the slot and routes it to the desk."
             ]
           },
           {
@@ -1402,16 +1386,25 @@ export const SECTIONS: Section[] = [
             pill: "decided",
             pillText: "Decided",
             lines: [
-              "Each payment is charged to the room or paid in full through the gateway, never split. Room is pre-selected. Card payment is taken after the vendor accepts."
+              "Each payment is charged to the room or paid in full through the gateway, never split. Room is pre-selected. For a vendor that confirms first, a card payment is held at booking and taken only if the vendor accepts."
             ],
-            who: "Ken, 7 Oct"
+            who: "Ken, 12 Oct"
+          },
+          {
+            title: "Room-charge limits",
+            pill: "decided",
+            pillText: "Decided",
+            lines: [
+              "None for now, per order or per stay. The engine keeps a limit rule and the scenarios test it, with the app switching it off."
+            ],
+            who: "Ken, 12 Oct"
           },
           {
             title: "Deposit check",
             pill: "decided",
             pillText: "Decided",
             lines: [
-              "Removed for now. Any guest with a stay can charge to room, within the limits. It can come back later as a check in front of the limit check in flow A."
+              "Removed for now. Any guest with a stay can charge to room. It can come back later as a check in flow A."
             ],
             who: "Ken, 6 Oct"
           },
@@ -1432,16 +1425,6 @@ export const SECTIONS: Section[] = [
             lines: [
               "15 minutes after the vendor accepts, up to 3 tries. The slot stays held until it expires.",
               "Paying after acceptance means there is nothing to refund when a vendor declines or does not answer."
-            ],
-            who: "Simulation setting"
-          },
-          {
-            title: "Charge-to-room limits",
-            pill: "decided",
-            pillText: "Decided",
-            lines: [
-              "Per-order and per-stay limits set by the hotel, ₱5,000 per order in the simulation. If the desk has not answered in 10 minutes, ask the guest to pay in full or cancel.",
-              "The hotel decides how much credit it extends, and the guest is never left waiting."
             ],
             who: "Simulation setting"
           },

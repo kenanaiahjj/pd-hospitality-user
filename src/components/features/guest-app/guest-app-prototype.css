@@ -834,11 +834,10 @@
 }
 .guest-bottom-nav__badge {
   position: absolute;
-  top: 3px;
-  right: calc(50% - 18px);
-  width: 8px;
-  height: 8px;
-  border: 2px solid var(--guest-paper);
+  top: 4px;
+  right: calc(50% - 17px);
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--guest-danger);
 }
@@ -868,7 +867,6 @@
 }
 .guest-bottom-nav--dark button[aria-current='page']::before { background: currentColor; }
 .guest-bottom-nav--dark button:focus-visible { outline-color: color-mix(in oklch, var(--guest-brand) 45%, var(--guest-paper)); }
-.guest-bottom-nav--dark .guest-bottom-nav__badge { border-color: var(--guest-ink); }
 
 @media (hover: hover) and (pointer: fine) {
   .guest-bottom-nav button:hover:not([aria-current='page']) {

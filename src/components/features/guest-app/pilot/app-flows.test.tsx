@@ -130,7 +130,7 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     await user.click(screen.getByRole('button', { name: /Request with City Bike Rentals/ }));
     const sheet = screen.getByRole('dialog');
     await user.click(within(sheet).getByRole('button', { name: /^Pay now/ }));
-    await user.click(within(sheet).getByRole('button', { name: 'Send request' }));
+    await user.click(within(sheet).getByRole('button', { name: /^Hold ₱.* and send request$/ }));
 
     // The hold first, then the request goes to the shop.
     const gateway = screen.getByRole('dialog', { name: 'Secure checkout' });
@@ -407,7 +407,7 @@ describe('when things do not go the straight way', { timeout: 40_000 }, () => {
     // The vendor has half an hour; an hour on, it has lapsed.
     await fire(user, /Move the clock on an hour/);
 
-    expect(screen.getAllByText(/did not answer in time/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/(did not answer|no answer[^.]*) in time/i).length).toBeGreaterThan(0);
     // A lapsed request never had a chat.
     await openMessages(user);
     expect(screen.queryByRole('button', { name: /City bicycle/ })).toBeNull();

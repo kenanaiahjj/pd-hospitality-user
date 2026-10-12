@@ -304,7 +304,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
             </a>
           ) : (
             <button key={a} type="button" className={PRIMARY.includes(a) ? 'guest-button guest-button--primary pilot-actions__lead' : `pilot-actions__minor${a === 'cancel' || a === 'withdraw' ? ' pilot-actions__minor--quiet' : ''}`} onClick={() => act(a)}>
-              {a === 'pay' && card.cost.amount ? `Pay now ${peso(card.cost.amount)}` : LABEL[a]}
+              {a === 'pay' && card.cost.amount ? `${booking.hold && booking.status === 'awaiting-payment' ? 'Hold' : 'Pay now'} ${peso(card.cost.amount)}` : LABEL[a]}
             </button>
           ))}
         </div>

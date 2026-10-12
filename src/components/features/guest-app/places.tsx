@@ -369,7 +369,7 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
             />
           ) : null}
           <p className="guest-table-request__note">{waitsForVendor
-            ? payment ? `${establishment.name} confirms first. You are charged only once they do, and you can withdraw until then.` : `${establishment.name} confirms first. Cabana takes no payment; you can withdraw until they do.`
+            ? payment ? (paymentChoice === 'pay-now' ? `${establishment.name} confirms first. Your payment is held now and taken only if they say yes; released if they don't.` : `${establishment.name} confirms first. Nothing is charged unless they say yes, and you can withdraw until then.`) : `${establishment.name} confirms first. Cabana takes no payment; you can withdraw until they do.`
             : payment
             ? roomChargeAvailable && paymentChoice === 'room'
               ? `The ${formatPesoAmount(amount)} vendor charge goes on your room bill.`
@@ -382,7 +382,7 @@ function NearbyBookingSheet({ establishment, days, defaultParty, dayLabel, roomC
           {askDesk
             ? 'Ask the front desk to approve'
             : waitsForVendor
-            ? 'Send request'
+            ? (payment && amount > 0 && paymentChoice === 'pay-now' ? `Hold ${formatPesoAmount(amount)} and send request` : 'Send request')
             : payment
               ? roomChargeAvailable && paymentChoice === 'room'
                 ? 'Confirm and charge ' + formatPesoAmount(amount) + ' to room'

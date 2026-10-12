@@ -1067,6 +1067,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   /*
+    A tab in the bottom bar is a sideways move, not a step deeper: it starts that
+    tab fresh, so Back from it goes Home instead of bouncing between tabs.
+  */
+  const goTab = (next: ActiveScreen) => {
+    go(next);
+    setHistory([]);
+  };
+
+  /*
     Forward from a form that has just been submitted, without leaving the form
     behind in history: back from a confirmation should not reopen the filled-in
     request and invite a second one.
@@ -4556,7 +4565,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       }
 
       case 'room-upgrades':
-        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">Current stay · Room {contextBooking.roomNumber}</p><h1>Available upgrades</h1><p>Explore rooms available for the rest of your stay.</p></div>{ROOM_UPGRADES.map((upgrade) => <article className="guest-upgrade-card" key={upgrade.id}><Image src={upgrade.image} alt="" width={900} height={360} /><div className="guest-upgrade-card__body"><div><h2>{upgrade.name}</h2><p>{upgrade.type}</p></div><p>{upgrade.features}</p><small>Up to {upgrade.guests} · {upgrade.transfer}</small><strong>{upgrade.price} additional for the remaining stay</strong><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSelectedUpgradeId(upgrade.id); go('room-upgrade-confirmation'); }}>Select room<ArrowRight /></Button></div></article>)}</div>;
+        return <div className="guest-stack"><div className="guest-page-title"><p className="guest-eyebrow">{contextBooking.roomNumber ? `Current stay · Room ${contextBooking.roomNumber}` : 'Current stay'}</p><h1>Available upgrades</h1><p>Explore rooms available for the rest of your stay.</p></div>{ROOM_UPGRADES.map((upgrade) => <article className="guest-upgrade-card" key={upgrade.id}><Image src={upgrade.image} alt="" width={900} height={360} /><div className="guest-upgrade-card__body"><div><h2>{upgrade.name}</h2><p>{upgrade.type}</p></div><p>{upgrade.features}</p><small>Up to {upgrade.guests} · {upgrade.transfer}</small><strong>{upgrade.price} additional for the remaining stay</strong><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSelectedUpgradeId(upgrade.id); go('room-upgrade-confirmation'); }}>Select room<ArrowRight /></Button></div></article>)}</div>;
 
       case 'room-upgrade-confirmation': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
@@ -5388,7 +5397,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             )}
             {confirmFirst ? (
               <Notice title={`${provider.replace(/^Run by /, '')} confirms first`}>
-                You are charged only once they do. You can withdraw the request until then, and follow it under Messages.
+                {payingNow ? 'Your payment is held now and taken only if they say yes; released if they don\'t.' : 'Nothing is charged unless they say yes.'} You can withdraw until they answer.{' '}A chat with them opens once they accept.
               </Notice>
             ) : null}
             {quote && !quote.ok ? <Notice tone="warning" title="Not available">{quote.message}</Notice> : null}
@@ -5425,8 +5434,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         const engineHeadline = engineBooking?.status === 'requested' ? { title: `Request sent to ${vendorName}`, text: engineBooking.hold ? `${formatPesoAmount(engineBooking.amount)} is held, not charged. It's taken only when ${vendorName} confirms, and released if they don't. A chat with them opens once they accept.` : `Nothing is charged until ${vendorName} confirms. A chat with them opens once they accept; until then, call them or ask the front desk.`, tag: 'Waiting' }
           : engineBooking?.status === 'needs-approval' ? { title: 'Waiting for the front desk', text: 'The front desk approves charging this to your room. If they do not answer in 10 minutes you can pay in full or cancel.', tag: 'Waiting' }
           : engineBooking?.status === 'pay-or-cancel' ? { title: 'Pay in full or cancel', text: 'The front desk could not charge this to your room. Pay in full instead, or cancel.', tag: 'Waiting' }
+          // A request whose payment page was closed before the hold: it has not gone to the vendor, and nothing is held.
+          : engineBooking?.status === 'awaiting-payment' && engineBooking.hold ? { title: `Hold your payment to send the request`, text: `${vendorName} hasn't been asked yet. Hold ${formatPesoAmount(engineBooking.amount)} to send it; it is taken only if they say yes.`, tag: 'Pay to confirm' }
           : engineBooking?.status === 'awaiting-payment' ? { title: `Pay to confirm ${booked?.title ?? bookedService.name}`, text: 'Your slot is held while you pay. If it is not paid in time it is released.', tag: 'Pay to confirm' }
-          : engineBooking && ['cancelled', 'declined', 'lapsed', 'withdrawn', 'payment-expired'].includes(engineBooking.status) ? { title: `${booked?.title ?? bookedService.name} is not booked`, text: engineStatusLine(engineBooking) + '. Nothing was charged.', tag: 'Not booked' }
+          : engineBooking && ['cancelled', 'declined', 'lapsed', 'withdrawn', 'payment-expired'].includes(engineBooking.status) ? { title: `${booked?.title ?? bookedService.name} is not booked`, text: `${engineStatusLine(engineBooking).replace(/^Not booked · (.)/, (_, c: string) => c.toUpperCase())}. Nothing was charged.`, tag: 'Not booked' }
           : undefined;
         return (
           <ScreenIntro
@@ -5444,7 +5455,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             <div className="guest-summary">
               <SummaryRow label="Provider" value={booked?.provider ?? providerFor(bookedService)} />
               {booked?.facts?.find((fact) => fact.label === 'Your note') ? <SummaryRow label="Your note" value={booked.facts.find((fact) => fact.label === 'Your note')!.value} /> : null}
-              <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={engineHeadline && engineBooking && ['requested', 'needs-approval', 'pay-or-cancel'].includes(engineBooking.status) ? (engineBooking.payMode === 'card' ? (engineBooking.hold ? `Held on ${methodLabel} · taken when confirmed` : 'Paid in full once confirmed') : 'Charged to room once confirmed') : engineHeadline?.tag === 'Pay to confirm' ? 'Paid in full, by card or e-wallet' : paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? (isReservation(bookedService.id) ? 'No charge to reserve' : 'Complimentary') : 'Charged to room'} />
+              <SummaryRow label={paidBy === 'card' ? 'Payment status' : 'Payment method'} value={engineHeadline && engineBooking && ['requested', 'needs-approval', 'pay-or-cancel'].includes(engineBooking.status) ? (engineBooking.payMode === 'card' ? (engineBooking.hold ? `Held on ${methodLabel} · taken when confirmed` : 'Paid in full once confirmed') : 'Charged to room once confirmed') : engineHeadline?.tag === 'Pay to confirm' ? (engineBooking?.hold ? 'Held when you send it · taken if they say yes' : 'Paid in full, by card or e-wallet') : paidBy === 'card' ? `Paid · ${methodLabel}` : paidBy === 'complimentary' ? (isReservation(bookedService.id) ? 'No charge to reserve' : 'Complimentary') : 'Charged to room'} />
             </div>
             {engineBooking && engineHeadline ? null : <PointsEarned points={booked ? pointsForCharge(booked.amount) : 0} badges={badgeProgress(session).filter((row) => justEarned.includes(row.definition.id))} />}
             <Notice title="Cancellation">{engineHost && engineBooking ? engineCancelLine(engineHost.pilot, engineBooking) : booked ? describeCancellationWindow(cutoffFor(booked), booked, PROTOTYPE_TODAY, clockHour) : 'Changes to this booking go through the front desk. The booking remains.'}</Notice>
@@ -6763,7 +6774,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 icon={HugeHomeIcon}
                 activeIcon={HugeHomeSolidIcon}
                 active={activeScreen === 'stay-overview' || (!hasCurrentStay && !showNoBookingExplore && STAY_BOOKING_SCREENS.includes(activeScreen))}
-                onClick={() => go('stay-overview')}
+                onClick={() => goTab('stay-overview')}
               />
               {showNoBookingExplore ? (
                 <NavButton
@@ -6771,7 +6782,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   icon={HugeCompassIcon}
                   activeIcon={HugeCompassSolidIcon}
                   active={STAY_BOOKING_SCREENS.includes(activeScreen)}
-                  onClick={() => go('partner-hotels')}
+                  onClick={() => goTab('partner-hotels')}
                 />
               ) : null}
               {hasCurrentStay ? (
@@ -6780,7 +6791,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   icon={HugeCompassIcon}
                   activeIcon={HugeCompassSolidIcon}
                   active={EXPLORE_SCREENS.includes(activeScreen) || activeScreen === bookingSlot.screen || STAY_BOOKING_SCREENS.includes(activeScreen)}
-                  onClick={() => go(bookingSlot.screen)}
+                  onClick={() => goTab(bookingSlot.screen)}
                 />
               ) : null}
               {hasCurrentStay ? (
@@ -6789,7 +6800,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                     icon={HugeBedSingleIcon}
                     activeIcon={HugeBedSingleSolidIcon}
                     active={MY_STAY_SCREENS.includes(activeScreen)}
-                    onClick={() => go('my-stay')}
+                    onClick={() => goTab('my-stay')}
                   />
               ) : null}
               {hasCurrentStay ? (
@@ -6799,7 +6810,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   activeIcon={HugeChatSolidIcon}
                   active={activeScreen === 'messages'}
                   unread={hasUnreadChat || engineUnread > 0}
-                  onClick={() => go('messages')}
+                  onClick={() => goTab('messages')}
                 />
               ) : null}
               <NavButton
@@ -6807,7 +6818,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 icon={HugeProfileIcon}
                 activeIcon={HugeProfileSolidIcon}
                 active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'saved-hotels' || activeScreen === 'payments' || activeScreen === 'payment-detail' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
-                onClick={() => go('profile')}
+                onClick={() => goTab('profile')}
               />
             </nav>
           ) : null}

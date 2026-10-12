@@ -230,7 +230,7 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
         </section>
         {/* One line under the stay: what changed at the property today. */}
         <AnnouncementsSection booking={booking} hour={clockHour} />
-        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" aria-label={`View details for ${confirmedServices[0].title}`} onClick={() => onNavigate('my-stay')}>
+        {confirmedServices[0] ? <section className="guest-home-next-service"><SectionHeading title="Next up" action="See all" onAction={() => onNavigate('my-stay')} /><button className="guest-next-service-card" type="button" aria-label={`View details for ${confirmedServices[0].title}`} onClick={() => (onOpenEntry ? onOpenEntry(confirmedServices[0]!.id) : onNavigate('my-stay'))}>
           <span className="guest-next-service-card__marker" aria-hidden="true"><HugeiconsIcon icon={HugeCalendarCheckIcon} size={20} strokeWidth={1.75} focusable="false" /></span>
           <span className="guest-next-service-card__details">
             <b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b>

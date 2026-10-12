@@ -14,14 +14,15 @@ type Words = { title: string; body: string };
 function wordsFor(topic: string, title: string): Words | undefined {
   switch (topic) {
     case 'accepted': return { title: `${title} confirmed`, body: 'The vendor said yes.' };
-    case 'accepted-pay': return { title: `${title} accepted`, body: 'The vendor said yes. Pay now to keep your slot.' };
+    case 'accepted-pay': return { title: `${title}: pay to confirm`, body: 'The vendor said yes. Pay now to keep your slot.' };
     case 'stay-cancelled': return { title: `${title} cancelled`, body: 'Your stay was cancelled, so this booking is cancelled too. Anything charged is undone.' };
     case 'cancel-accepted': return { title: `${title} cancelled`, body: 'The vendor accepted your cancellation. Everything is undone.' };
     case 'approval-declined': return { title: 'Pay in full or cancel', body: `The front desk could not charge ${title} to your room.` };
     case 'confirmed': return { title: `${title} confirmed`, body: 'Your payment came through.' };
-    case 'declined': return { title: `${title} not available`, body: 'Nothing was charged. Pick another time.' };
-    case 'lapsed': return { title: `${title} was not answered`, body: 'The vendor did not answer in time. Nothing was charged.' };
-    case 'payment-expired': return { title: `${title}: payment expired`, body: 'The slot was released. Nothing was charged.' };
+    // One status, "Not booked", whatever the reason; the body says which.
+    case 'declined': return { title: `${title} not booked`, body: "The vendor wasn't available. Nothing was charged." };
+    case 'lapsed': return { title: `${title} not booked`, body: 'No answer from the vendor in time. Nothing was charged.' };
+    case 'payment-expired': return { title: `${title} not booked`, body: 'It was not paid in time, so the slot was released. Nothing was charged.' };
     case 'vendor-cancelled': return { title: `${title} was cancelled`, body: 'The vendor cancelled it. Everything is undone; pick another time.' };
     case 'pay-or-cancel': return { title: 'Pay in full or cancel', body: `The front desk has not answered about ${title}.` };
     case 'approved': return { title: `${title} approved`, body: 'The front desk approved charging it to your room.' };

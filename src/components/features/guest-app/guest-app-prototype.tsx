@@ -3246,8 +3246,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setCode('');
     setCodeNotice(null);
     setScrolled(false);
-    // An account with no booking lands on its home -- Home and Profile, with
-    // "Add a booking" there -- not straight on the lookup form.
+    // An account with no booking lands on Home, Explore and Profile, with the
+    // "Already booked?" lookup there -- not straight on the lookup form.
     const initialScreen: ActiveScreen = state === 'signed-out' ? 'entry-hub' : 'stay-overview';
     setActiveScreen(initialScreen);
   };

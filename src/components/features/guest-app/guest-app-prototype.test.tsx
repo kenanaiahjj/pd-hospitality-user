@@ -166,10 +166,10 @@ describe('GuestAppPrototype', () => {
     /*
       The lookup is not offered here, and that is the point. `ssoSession`
       returns a guest the estate already knows, reservation included, so
-      "Add a booking" lives on the no-booking home -- putting it here asked
-      someone holding a booking to go and look it up.
+      the "Already booked?" lookup lives on the no-booking home. Putting it
+      here asked someone holding a booking to go and look it up.
     */
-    expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Already booked\?/ })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
@@ -812,7 +812,7 @@ describe('guest account and entry flows', () => {
       Apple returns a guest the estate already knows, reservation included, so
       the booking-linked home opens directly without a lookup step.
     */
-    expect(screen.queryByRole('button', { name: /Add a booking/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Already booked\?/ })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
   });
 
@@ -3133,7 +3133,7 @@ describe('signed-in home with no booking', () => {
     expect(screen.queryByRole('heading', { name: 'Previous stays' })).toBeNull();
     // What must be absent is a stay the account has not had.
     expect(document.querySelector('.guest-history-card')).toBeNull();
-    expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Already booked\?/ })).toBeInTheDocument();
   });
 
   it('does not offer a scan to a guest with no room to scan', () => {
@@ -3737,7 +3737,7 @@ describe('navigation without a booking', () => {
     // Explore is there without a booking too: partner hotels to browse. My Stay and Chat wait for a stay.
     expect(within(nav).getAllByRole('button').map((b) => b.textContent)).toEqual(['Home', 'Explore', 'Profile']);
     expect(screen.queryByRole('heading', { name: 'Find your booking' })).toBeNull();
-    expect(screen.getByRole('button', { name: /Add a booking/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Already booked\?/ })).toBeInTheDocument();
   });
 
   it('restores them once a booking exists', () => {

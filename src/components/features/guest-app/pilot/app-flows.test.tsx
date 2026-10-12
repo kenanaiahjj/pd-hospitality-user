@@ -109,15 +109,15 @@ describe('nearby places and the lobby shop', { timeout: 30_000 }, () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="gifts-souvenirs" initialSession={live} />);
 
-    await user.click(screen.getByRole('button', { name: /Artisan pasalubong box/ }));
-    const sheet = screen.getByRole('dialog', { name: 'Order Artisan pasalubong box' });
-    await user.click(within(sheet).getByRole('button', { name: 'Order and charge ₱850 to room' }));
+    await user.click(screen.getByRole('button', { name: /Handwoven market tote/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Order Handwoven market tote' });
+    await user.click(within(sheet).getByRole('button', { name: 'Order and charge ₱680 to room' }));
 
-    expect(screen.getByRole('heading', { level: 1, name: /Artisan pasalubong box/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Handwoven market tote/ })).toBeInTheDocument();
     expect(screen.getByLabelText(/Confirmed/)).toBeInTheDocument();
     expect(screen.getAllByText(/Charged to your room/).length).toBeGreaterThan(0);
 
-    await fire(user, /Desk marks Artisan pasalubong box ready/);
+    await fire(user, /Desk marks Handwoven market tote ready/);
     expect(screen.getByLabelText(/Ready/)).toBeInTheDocument();
   });
 
@@ -454,8 +454,8 @@ describe('after the stay', { timeout: 30_000 }, () => {
   it('does not take a shop order for a stay that is over, and says why', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="gifts-souvenirs" initialSession={out} />);
-    await user.click(screen.getByRole('button', { name: /Artisan pasalubong box/ }));
-    const sheet = screen.getByRole('dialog', { name: 'Order Artisan pasalubong box' });
+    await user.click(screen.getByRole('button', { name: /Handwoven market tote/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Order Handwoven market tote' });
     expect(within(sheet).getByText(/Your stay is over/)).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: /Order and charge/ })).toBeDisabled();
   });
@@ -602,13 +602,13 @@ describe('what the audit asked for', { timeout: 50_000 }, () => {
   it('holds a lobby-shop order for the departure day, chilled, when the guest asks', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="gifts-souvenirs" initialSession={live} />);
-    await user.click(screen.getByRole('button', { name: /Artisan pasalubong box/ }));
-    const sheet = screen.getByRole('dialog', { name: 'Order Artisan pasalubong box' });
+    await user.click(screen.getByRole('button', { name: /Handwoven market tote/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Order Handwoven market tote' });
     await user.click(within(sheet).getByRole('button', { name: /Hold it for my departure day/ }));
-    await user.click(within(sheet).getByRole('button', { name: 'Order and charge ₱850 to room' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Order and charge ₱680 to room' }));
 
     expect(screen.getAllByText(/Departure day/).length).toBeGreaterThan(0);
-    await fire(user, /Desk marks Artisan pasalubong box ready/);
+    await fire(user, /Desk marks Handwoven market tote ready/);
     expect(screen.getAllByText(/Front desk, chilled/).length).toBeGreaterThan(0);
   });
 

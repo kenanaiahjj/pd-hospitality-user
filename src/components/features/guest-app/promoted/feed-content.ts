@@ -155,7 +155,7 @@ const MOMENTS: Moment[] = [
     price: 'From ₱280',
     cta: 'Browse the shop',
     slides: [
-      { headline: 'Something for home', detail: 'Pasalubong boxes, dried mango and local coffee.', image: remote('photo-1606313564200-e75d5e30476c', 'Artisan pasalubong box') },
+      { headline: 'Something for home', detail: 'Dried mango, cacao and local coffee.', image: remote('photo-1606313564200-e75d5e30476c', 'Treats to take home') },
       { headline: 'Made here', detail: 'Handwoven totes and ceramic keepsakes.', image: remote('photo-1594223274512-ad4803739b7c', 'Handwoven market tote') },
     ],
     tags: { itemId: 'moment-pasalubong', category: 'gifts', phases: ['last-day', 'checkout-day'], dayparts: ['morning', 'afternoon'] },

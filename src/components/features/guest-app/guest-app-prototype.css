@@ -2552,6 +2552,15 @@
   outline: 2px solid transparent;
   transition: background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
+/* The textarea sizes itself to its text between the 48px and 112px bounds, and
+   scrolls past the top one. Browsers without field-sizing keep the script that
+   measures scrollHeight in chat-composer.tsx. */
+@supports (field-sizing: content) {
+  .guest-composer__text-input {
+    field-sizing: content;
+    overflow-y: auto;
+  }
+}
 .guest-composer__text-input:focus { background: var(--guest-surface); box-shadow: var(--guest-focus-ring); }
 .guest-composer__text-input::placeholder { color: var(--guest-subtle); opacity: 1; }
 .guest-composer__submit {

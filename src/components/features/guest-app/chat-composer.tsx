@@ -124,6 +124,9 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
   useLayoutEffect(() => {
     const textArea = textAreaRef.current;
     if (!textArea) return;
+    // Where the browser sizes a textarea to its text (`field-sizing: content` in
+    // the stylesheet), CSS does all of this. The measuring below is the fallback.
+    if (typeof CSS !== 'undefined' && CSS.supports?.('field-sizing', 'content')) return;
 
     const previousScrollTop = textArea.scrollTop;
     const caretAtEnd = textArea.selectionStart === textArea.value.length;

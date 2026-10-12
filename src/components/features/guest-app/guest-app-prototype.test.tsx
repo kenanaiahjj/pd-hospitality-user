@@ -304,11 +304,11 @@ describe('GuestAppPrototype', () => {
     });
     fireEvent.submit(screen.getByRole('button', { name: 'Find booking' }).closest('form')!);
 
-    expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'We found your stay!' })).toBeInTheDocument();
     expect(screen.getByText('The Henry Manila')).toBeInTheDocument();
     expect(screen.getByText('Booked via')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Yes, this is my booking' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'No, this isn’t my booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue with this booking' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use a different booking' })).toBeInTheDocument();
   });
 
   it('opens the active stay home as soon as a room QR links the stay', async () => {
@@ -767,7 +767,7 @@ describe('guest account and entry flows', () => {
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'HEN-241109');
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
-    await user.click(screen.getByRole('button', { name: 'Yes, this is my booking' }));
+    await user.click(screen.getByRole('button', { name: 'Continue with this booking' }));
     // The card is stamped, holds a beat, then opens pre-arrival by itself --
     // step 1 of 2, without an account creation gate.
     expect(await screen.findByRole('heading', { name: 'You and your ID' }, { timeout: 4000 })).toBeInTheDocument();
@@ -1167,7 +1167,7 @@ describe('booking lookup', () => {
     await user.type(screen.getByLabelText(/Last name/), 'Reyes');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
 
-    expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'We found your stay!' })).toBeInTheDocument();
     expect(screen.getByText('Ana Reyes')).toBeInTheDocument();
   });
 
@@ -1178,7 +1178,7 @@ describe('booking lookup', () => {
     await user.type(screen.getByLabelText(/Booking or confirmation number/), 'demo-1');
     await user.type(screen.getByLabelText(/Last name/), 'Cruz');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
-    await user.click(screen.getByRole('button', { name: /Yes, this is my booking/ }));
+    await user.click(screen.getByRole('button', { name: /Continue with this booking/ }));
     await screen.findByRole('heading', { name: 'You and your ID' }, { timeout: 4000 });
 
     /*
@@ -1957,7 +1957,7 @@ describe('booking-reference re-entry', () => {
     await user.type(screen.getByLabelText(/Last name/), 'Santos');
     await user.click(screen.getByRole('button', { name: 'Find booking' }));
 
-    expect(screen.getByRole('heading', { name: 'Is this your stay?' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'We found your stay!' })).toBeInTheDocument();
   });
 
   it('sends an unknown reference to the no-booking screen', async () => {

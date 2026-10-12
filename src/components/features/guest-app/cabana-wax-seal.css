@@ -1,0 +1,7 @@
+.cabana-wax-seal {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  width: 100%;
+  background: url('/seals/cabana-wax-seal.svg') center / contain no-repeat;
+}

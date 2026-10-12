@@ -194,6 +194,7 @@ import {
   promoAccountFor,
   SavedHotelsScreen,
   useSavedHotels,
+  clearClaimedOffers,
   clearRecentSearches,
   savePendingVoucher,
   seedSavedHotels,
@@ -2095,6 +2096,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const clearDeviceData = () => {
     seedSavedHotels([]);
     clearRecentSearches();
+    clearClaimedOffers();
     savePendingVoucher(null);
     setStayDraft({ search: DEFAULT_STAY_SEARCH, cart: [], allocation: [], addOns: [] });
     setStayDetails(null);
@@ -3825,7 +3827,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* The guest keeps everything; only who holds it changes. */
   const signInGuest = (method: AuthMethod) => setSession((current) => convertGuestToAccount(current, method));
   const draftRooms = stayDraft.cart.reduce((sum, line) => sum + line.quantity, 0);
-  const resumeBooking = draftHotel && stayDraft.cart.length
+  const hideResumeBooking = hasCurrentStay && preArrival;
+  const resumeBooking = !hideResumeBooking && draftHotel && stayDraft.cart.length
     ? {
       title: draftHotel.name,
       detail: `${draftRooms} ${draftRooms === 1 ? 'room' : 'rooms'} · ${stayDatesLabel(stayDraft.search.checkIn, stayDraft.search.checkOut)}`,
@@ -4256,7 +4259,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ? `${displayBooking.property} is in your Cabana now, with everything for the stay.`
               : `${displayBooking.property} is in your Cabana now. A few details next, and you’re ready to arrive.`}
             onConfirm={claimBooking}
-            secondary={<TextButton onClick={() => go('identify')}>No, this isn&rsquo;t my booking</TextButton>}
+            secondary={<TextButton onClick={() => go('identify')}>Use a different booking</TextButton>}
           />
         );
 

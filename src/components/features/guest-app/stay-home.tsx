@@ -3,11 +3,10 @@
 import { Notice, PropertyImage, SectionHeading, Tag } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
-import { ANYWHERE, HotelResultCard, ExploreRails, OffersStrip, RegionTrail, recommendFromStays, pickupBlurb, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
+import { ANYWHERE, HotelResultCard, ExploreRails, OffersStrip, RegionTrail, recommendFromStays, pickupBlurb, STAY_HOTELS, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
 import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry, StayReview } from './prototype-model';
 import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, ITEM_THUMBNAIL_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
-import { ENTRY_ILLUSTRATIONS } from './illustrations';
 import { Button } from '@/components/ui';
 import { CabanaMark } from '@/components/ui/cabana-logo';
 import { CalendarCheck01Icon as HugeCalendarCheckIcon, ChevronRightIcon as HugeChevronRightIcon } from '@hugeicons-pro/core-stroke-rounded';
@@ -829,6 +828,17 @@ export function EmptyStayHome({
   const firstName = guestName.trim().split(' ')[0];
   const previousStay = [...pastStays].sort((a, b) => b.checkOut.localeCompare(a.checkOut))[0];
   const previousStayReview = previousStay ? reviews.find((review) => review.bookingId === previousStay.id) : undefined;
+  const externalStayImage = STAY_HOTELS.find((hotel) => !hotel.henry)?.image;
+  const alreadyBookedCard = (
+    <button className="guest-ride-card guest-ride-card--entry" type="button" onClick={() => onNavigate('identify')}>
+      {externalStayImage ? <Image className="guest-ride-card__image" src={externalStayImage.src} alt="" fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectPosition: externalStayImage.focalPoint }} /> : null}
+      <span className="guest-ride-card__action" aria-hidden="true"><ArrowRight /></span>
+      <span className="guest-ride-card__body">
+        <b>Already booked?</b>
+        <span>Add your booking from another site with its reference and last name.</span>
+      </span>
+    </button>
+  );
   return (
     <div className="guest-stack" data-testid="guest-home-empty">
       <div className="guest-page-title">
@@ -842,7 +852,7 @@ export function EmptyStayHome({
               : `Hello, ${firstName}`}
         </h1>
       </div>
-      {discovery ? <StaySearchAndDestinations value={discovery.staySearch} onSearch={discovery.onSearchStay} /> : null}
+      {discovery ? <StaySearchAndDestinations value={discovery.staySearch} onSearch={discovery.onSearchStay} afterSearch={alreadyBookedCard} /> : alreadyBookedCard}
       {/* One Offers row. A guest who has stayed before leads with the code for the next stay; the rest follow it. */}
       {offers ? (
         <section className="guest-empty-hotels">
@@ -851,27 +861,6 @@ export function EmptyStayHome({
         </section>
       ) : null}
       {discovery && returning ? <YouMightLikeRail pastStays={pastStays} search={discovery.staySearch} onOpenHotel={discovery.onOpenHotel} /> : null}
-      {/*
-        Keep external booking lookup available on Home for reservations made
-        outside Cabana. No scan here: without a stay, the guest has no room and
-        no code to point a camera at.
-      */}
-      <button className="guest-entry-card" type="button" onClick={() => onNavigate('identify')}>
-        <span className="guest-entry-card__art" aria-hidden="true">
-          <Image
-            src={ENTRY_ILLUSTRATIONS.bookingEmail.src}
-            alt=""
-            width={ENTRY_ILLUSTRATIONS.bookingEmail.width}
-            height={ENTRY_ILLUSTRATIONS.bookingEmail.height}
-            sizes="(max-width: 359px) 76px, 116px"
-          />
-        </span>
-        <div>
-          <b>Already booked?</b>
-          <small>Add a booking made elsewhere with its reference and last name.</small>
-        </div>
-        <ArrowRight aria-hidden="true" />
-      </button>
       {discovery ? <SavedHotelsRail search={discovery.staySearch} onOpenHotel={discovery.onOpenHotel} /> : null}
       {/* The last stay is a reminder further down, not the first thing on Home: search leads. */}
       {previousStay && (previousStayReview || onRatePreviousStay) ? <PreviousStayReviewCard stay={previousStay} review={previousStayReview} onRate={onRatePreviousStay} /> : null}
@@ -946,7 +935,7 @@ function ResumeBookingCard({ resumeBooking }: { resumeBooking: ResumeBooking }) 
   );
 }
 
-function StaySearchAndDestinations({ value, onSearch, showDestinations = true }: { value: StaySearch; onSearch: (search: StaySearch) => void; showDestinations?: boolean }) {
+function StaySearchAndDestinations({ value, onSearch, showDestinations = true, afterSearch }: { value: StaySearch; onSearch: (search: StaySearch) => void; showDestinations?: boolean; afterSearch?: ReactNode }) {
   const [sheet, setSheet] = useState<{ value: StaySearch; startAt: SearchStep } | null>(null);
   const destinations = STAY_LOCATIONS.filter((place) => place.label !== ANYWHERE);
 
@@ -955,6 +944,7 @@ function StaySearchAndDestinations({ value, onSearch, showDestinations = true }:
       <section className="sb-stay-search">
         <StaySearchBar value={value} onOpen={() => setSheet({ value, startAt: 'where' })} />
       </section>
+      {afterSearch}
       {sheet ? <StaySearchSheet value={sheet.value} startAt={sheet.startAt} onClose={() => setSheet(null)} onSearch={(search) => { setSheet(null); onSearch(search); }} /> : null}
       {showDestinations ? (
         <section className="sb-destinations">

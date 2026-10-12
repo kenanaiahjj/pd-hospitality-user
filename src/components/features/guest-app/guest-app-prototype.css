@@ -737,11 +737,11 @@
   z-index: var(--z-nav);
   display: grid;
   width: min(calc(100% - 24px), 408px);
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  border: 1px solid color-mix(in oklch, var(--guest-accent) 30%, var(--guest-line));
+  /* The tab bar's own glass, so the two read as one floating stack. */
   border-radius: var(--guest-radius-lg);
-  background: color-mix(in oklch, var(--guest-accent) 6%, var(--guest-paper));
+  background: rgb(255 255 255 / 0.58);
+  -webkit-backdrop-filter: blur(24px) saturate(1.22);
+  backdrop-filter: blur(24px) saturate(1.22);
   box-shadow: var(--shadow-md);
   transform: translateX(-50%);
   animation: guest-resume-float-in 220ms var(--ease-out) both;
@@ -752,7 +752,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 12px 4px 12px 16px;
+  padding: 12px 18px 12px 16px;
   border: 0;
   background: none;
   color: var(--guest-ink);
@@ -764,19 +764,26 @@
 .guest-resume-float__text small { color: var(--guest-accent-strong); font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
 .guest-resume-float__text b { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
 .guest-resume-float__text span { overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+/* A small glass badge on the card's top-right corner; the tap target reaches past it. */
 .guest-resume-float__dismiss {
+  position: absolute;
+  inset-block-start: -9px;
+  inset-inline-end: -5px;
   display: grid;
-  min-inline-size: 44px;
-  min-block-size: 44px;
-  margin-inline-end: 4px;
+  inline-size: 26px;
+  block-size: 26px;
   place-items: center;
-  border: 0;
-  border-radius: var(--guest-radius-pill);
-  background: none;
-  color: var(--guest-muted);
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.78);
+  -webkit-backdrop-filter: blur(24px) saturate(1.22);
+  backdrop-filter: blur(24px) saturate(1.22);
+  box-shadow: var(--shadow-md);
+  color: var(--guest-ink);
 }
-.guest-resume-float__dismiss:active { background: color-mix(in oklch, var(--guest-ink) 8%, transparent); }
-.guest-resume-float__dismiss svg { inline-size: 16px; block-size: 16px; }
+.guest-resume-float__dismiss::before { position: absolute; inset: -9px; content: ''; }
+.guest-resume-float__dismiss:active { transform: scale(0.9); }
+.guest-resume-float__dismiss svg { inline-size: 12px; block-size: 12px; }
 
 @keyframes guest-resume-float-in {
   from { opacity: 0; transform: translateX(-50%) translateY(10px); }
@@ -1027,56 +1034,6 @@
    -------------------------------------------------------------------------- */
 
 .guest-entry-options { display: grid; gap: 10px; margin: 4px 0 0; }
-
-/* The booking-access options. Peeled out of the plain-row rules above because
-   each one now carries its own illustration: a picture is the point here,
-   where a repeated list row deliberately takes a bare glyph. */
-.guest-entry-card {
-  display: grid;
-  width: 100%;
-  grid-template-columns: var(--entry-art, 116px) 1fr auto;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  border: 0;
-  border-radius: var(--guest-radius-md);
-  background: var(--guest-paper);
-  box-shadow: var(--shadow-sm);
-  text-align: left;
-  cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
-}
-
-.guest-entry-card:active { transform: scale(0.99); }
-
-.guest-entry-card__art { display: block; width: 100%; }
-
-/* pointer-events off so the whole card stays one tap target and the artwork
-   cannot start the browser's native image drag. */
-.guest-entry-card__art img {
-  display: block;
-  width: 100%;
-  height: auto;
-  pointer-events: none;
-}
-
-.guest-entry-card div { display: grid; gap: 2px; min-width: 0; }
-.guest-entry-card b { font-size: 15px; font-weight: 650; letter-spacing: -0.008em; }
-/* `pretty` rather than shaving the artwork to fit today's longest subtitle --
-   that would just break again on the next copy change. */
-.guest-entry-card small {
-  color: var(--guest-muted);
-  font-size: 13px;
-  line-height: 1.35;
-  text-wrap: pretty;
-}
-.guest-entry-card > svg { width: 16px; height: 16px; color: var(--guest-subtle); }
-
-/* Narrow phones: the artwork yields before the copy does. */
-@media (max-width: 359px) {
-  .guest-entry-card { --entry-art: 76px; gap: 12px; }
-}
 
 .guest-list-row,
 .guest-service-row {
@@ -1612,6 +1569,17 @@
 }
 .guest-ride-card__action svg { width: 18px; height: 18px; }
 .guest-ride-card:focus-visible { outline: 2px solid var(--guest-accent-strong); outline-offset: 2px; }
+
+/* The booking lookup uses the pickup-card treatment at a quieter height,
+   immediately below search and ahead of destination discovery. */
+.guest-ride-card--entry { min-height: 172px; padding: 18px; }
+.guest-ride-card--entry::before {
+  background: linear-gradient(180deg, oklch(0.14 0.01 60 / 0.12) 0%, oklch(0.13 0.01 60 / 0.48) 34%, oklch(0.12 0.01 60 / 0.82) 62%, oklch(0.12 0.01 60 / 0.94) 100%);
+}
+.guest-ride-card--entry .guest-ride-card__body { gap: 4px; }
+.guest-ride-card--entry .guest-ride-card__body > b { font-size: 21px; }
+.guest-ride-card--entry .guest-ride-card__body > span { max-width: 58ch; font-size: 14px; }
+.guest-ride-card--entry .guest-ride-card__action { transition: background-color var(--duration-fast) ease; }
 .guest-transfer-fare { display: grid; gap: 3px; padding: 14px; border-radius: var(--guest-radius-sm); background: var(--guest-surface); }
 .guest-transfer-fare > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .guest-transfer-fare span { color: var(--guest-muted); font-size: 14px; }
@@ -2772,7 +2740,6 @@
   .guest-app .guest-button--secondary:hover:not(:disabled) { background: var(--guest-surface); }
   .guest-app .guest-button--danger:hover:not(:disabled) { background: color-mix(in oklch, var(--guest-danger) 88%, black); }
   .guest-app .guest-text-button:hover { background: var(--guest-soft); }
-  .guest-entry-card:hover,
   .guest-list-row:not(.is-static):hover,
   .guest-service-row:hover,
   .guest-stay-card:hover,
@@ -2780,6 +2747,7 @@
   .guest-history-card:hover,
   .guest-booking-card:hover:not(.is-static) { background: var(--guest-surface); box-shadow: var(--shadow-sm); }
   .guest-miniapp-tile:hover { background: var(--guest-soft); }
+  .guest-ride-card--entry:hover .guest-ride-card__action { background: rgb(255 255 255 / 0.24); }
   .guest-featured-card:hover { border-color: var(--guest-line-strong); }
   .guest-filter-pill:not(.is-active):hover { background: var(--guest-sunken); color: var(--guest-ink); }
   .guest-stay-hero-card__actions .guest-list-row:hover { background: var(--guest-surface); }

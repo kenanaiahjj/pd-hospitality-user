@@ -17,8 +17,8 @@ import './stay-invitation.css';
 
   Confirming is a small ceremony rather than a page change: the screen's
   chrome steps back, the card steadies, and a crisp Cabana approval mark
-  lands in its upper-right corner with a brief, weighted contact. Then
-  everything else is gone -- the question, the buttons, the app bar -- and
+  lands in the card's center with a brief, weighted contact. Then
+  everything else is gone -- the intro, the choices, the app bar -- and
   the card, holding alone for a beat, zooms toward the guest and dissolves
   into the next screen, which settles in out of the same zoom.
 */
@@ -64,7 +64,7 @@ const STAMP_SUNBURST = Array.from({ length: 120 }, (_, index) => {
 }).join('');
 
 /*
-  An approval seal, finished like a premium foil sticker: a pearl die-cut
+  A Cabana approval stamp, finished like a premium foil sticker: a pearl die-cut
   edge (the card's own frame, in miniature) around a champagne-gold foil
   disc with a bevelled rim, deep plum for every line and letter, lightly
   debossed, over a fine engraved sunburst. On top, a holographic foil and a gloss band
@@ -284,9 +284,9 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
                 </span>
               </div>
 
-              <div className="stay-pass__top">
+              <span className="stay-pass__brand" aria-hidden="true">
                 <CabanaMark className="stay-pass__mark" />
-              </div>
+              </span>
 
               <div className="stay-pass__body">
                 {/* Always laid out, so the card does not reflow when it appears. */}
@@ -325,8 +325,8 @@ export function StayInvitation({ booking, art, phase = 'idle', onStamped }: {
 }
 
 /**
- * The whole booking-found screen: the question, the card, and the ceremony
- * that answers it. `onConfirm` runs only once the guest has seen the stay
+ * The whole booking-found screen: the headline, the card, and the ceremony
+ * that confirms it. `onConfirm` runs only once the guest has seen the stay
  * become theirs and chosen to continue.
  */
 export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
@@ -365,9 +365,8 @@ export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
 
   return (
     <div className="guest-stack guest-stack--intro stay-confirm" data-phase={phase}>
-      <div className="guest-page-title stay-confirm__title" key={done ? 'done' : 'ask'} aria-live="polite">
-        {done ? null : <p className="guest-eyebrow">Booking found</p>}
-        <h1>{done ? 'Stay connected' : 'Is this your stay?'}</h1>
+      <div className="guest-page-title stay-confirm__title" key={done ? 'done' : 'ready'} aria-live="polite">
+        <h1>{done ? 'Stay connected' : 'We found your stay!'}</h1>
         <p>{done ? doneText : 'Check the details, then continue.'}</p>
       </div>
 
@@ -379,7 +378,7 @@ export function StayConfirm({ booking, art, doneText, onConfirm, secondary }: {
         aria-disabled={phase !== 'idle' || undefined}
         onClick={() => { if (phase === 'idle') setPhase('stamping'); }}
       >
-        Yes, this is my booking
+        Continue with this booking
         <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
       </Button>
       <div className="stay-confirm__secondary">{secondary}</div>

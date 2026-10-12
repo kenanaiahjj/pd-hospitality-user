@@ -1035,50 +1035,165 @@
 .guest-app .sb-offers-strip { display: grid; gap: 8px; }
 .guest-app .sb-offers-strip__title { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; font-weight: 700; }
 .guest-app .sb-offers-strip__title svg { width: 16px; height: 16px; color: var(--guest-accent-strong); }
-.guest-app .sb-offers-strip__rail { grid-auto-columns: minmax(232px, 70%); }
+.guest-app .sb-offers-strip__rail { grid-auto-columns: 232px; justify-content: start; }
 .guest-app .sb-offer-card {
-  --offer-edge: #ca745d;
+  --offer-claim-duration: 400ms;
+  --offer-feedback-duration: 700ms;
+  --offer-metal: oklch(0.84 0.09 72);
+  --offer-base: oklch(0.34 0.055 48);
+  --offer-ink: oklch(0.96 0.015 84);
+  --offer-muted: color-mix(in oklch, var(--offer-ink) 72%, transparent);
+  position: relative;
+  isolation: isolate;
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 4px;
   padding: 14px;
-  border: 1px dashed color-mix(in srgb, var(--offer-edge) 34%, var(--guest-line));
+  border: 1px solid color-mix(in oklch, var(--offer-metal) 45%, var(--offer-base));
   border-radius: var(--guest-radius-lg);
   background:
-    radial-gradient(96% 112% at 4% 100%, rgb(255 178 115 / 55%) 0%, transparent 74%),
-    radial-gradient(84% 102% at 100% 2%, rgb(255 191 203 / 54%) 0%, transparent 68%),
-    radial-gradient(72% 82% at 62% 64%, rgb(255 230 161 / 48%) 0%, transparent 70%),
-    linear-gradient(128deg, #fff8ef 4%, #fffafa 56%, #fff4f5 100%);
+    linear-gradient(112deg, transparent 18%, rgb(255 255 255 / 0.075) 42%, transparent 63%),
+    radial-gradient(110% 90% at 100% 0%, color-mix(in oklch, var(--offer-metal) 22%, transparent), transparent 68%),
+    linear-gradient(148deg, color-mix(in oklch, var(--offer-base) 86%, var(--offer-metal)) 0%, var(--offer-base) 58%, color-mix(in oklch, var(--offer-base) 84%, black) 100%);
+  color: var(--offer-ink);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 -1px 0 rgb(0 0 0 / 0.22), 0 5px 12px -7px oklch(0.16 0.025 275 / 0.56);
 }
 .guest-app .sb-offer-card[data-offer-code='WELCOME500'] {
-  --offer-edge: #8d7bd6;
-  background:
-    radial-gradient(96% 110% at 100% 0%, rgb(174 167 255 / 58%) 0%, transparent 72%),
-    radial-gradient(92% 106% at 0% 100%, rgb(131 210 255 / 50%) 0%, transparent 69%),
-    radial-gradient(77% 90% at 44% 47%, rgb(255 179 220 / 46%) 0%, transparent 70%),
-    linear-gradient(135deg, #f4f5ff, #faf7ff 48%, #f1faff);
+  --offer-metal: oklch(0.86 0.035 280);
+  --offer-base: oklch(0.31 0.035 282);
 }
 .guest-app .sb-offer-card[data-offer-code='HENRY15'] {
-  --offer-edge: #4b9a83;
-  background:
-    radial-gradient(100% 105% at 0% 0%, rgb(118 220 189 / 52%) 0%, transparent 71%),
-    radial-gradient(96% 110% at 100% 96%, rgb(130 191 237 / 54%) 0%, transparent 70%),
-    radial-gradient(78% 84% at 60% 58%, rgb(250 219 132 / 46%) 0%, transparent 70%),
-    linear-gradient(135deg, #effaf5, #f8fcf5 54%, #f1f8ff);
+  --offer-metal: oklch(0.8 0.065 153);
+  --offer-base: oklch(0.31 0.05 152);
 }
-.guest-app .sb-offer-card--lead { gap: 6px; padding: 18px; border-style: solid; }
-.guest-app .sb-offer-card--lead .sb-offer-card__figure { color: #a4452d; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
-.guest-app .sb-offer-card--lead b { font-size: 16px; }
-.guest-app .sb-offer-card.is-saved { border-style: solid; border-color: color-mix(in oklch, var(--guest-positive) 45%, var(--guest-line)); }
-.guest-app .sb-offer-card b { font-size: 15px; line-height: 1.3; }
-.guest-app .sb-offer-card small { color: var(--guest-muted); font-size: 12.5px; line-height: 1.4; }
+.guest-app .sb-offer-card b { font-size: 16px; line-height: 1.28; }
+.guest-app .sb-offer-card small { color: var(--offer-muted); font-size: 12.5px; line-height: 1.4; }
 /* Title and terms together; the code and its button at the foot, wrapping rather than spilling out of the card. */
 .guest-app .sb-offer-card__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 10px; }
-.guest-app .sb-offer-card code { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 3px 8px; border-radius: 6px; background: var(--guest-paper); font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
-.guest-app .sb-offer-card button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; min-height: 36px; padding: 0 12px; border: 1px solid var(--guest-line-strong); border-radius: var(--guest-radius-pill); background: var(--guest-paper); color: var(--guest-ink); font-size: 13px; font-weight: 650; white-space: nowrap; }
-.guest-app .sb-offer-card.is-saved button { border-color: transparent; background: transparent; color: var(--guest-positive); }
+.guest-app .sb-offer-card code { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 4px 9px; border: 1px solid color-mix(in oklch, var(--offer-metal) 42%, transparent); border-radius: 7px; background: rgb(255 255 255 / 0.07); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14); color: var(--offer-metal); font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.055em; }
+.guest-app .sb-offer-card button { position: relative; display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 4px; min-inline-size: 84px; min-height: 40px; padding: 0 13px; border: 1px solid color-mix(in oklch, var(--offer-metal) 65%, black); border-radius: var(--guest-radius-pill); background: linear-gradient(155deg, color-mix(in oklch, var(--offer-metal) 80%, white), var(--offer-metal) 58%, color-mix(in oklch, var(--offer-metal) 80%, black)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.48), 0 2px 4px rgb(0 0 0 / 0.2); color: color-mix(in oklch, var(--offer-base) 88%, black); font-size: 13px; font-weight: 700; white-space: nowrap; transition: filter var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease; }
+.guest-app .sb-offer-card button:focus-visible { outline: 2px solid var(--offer-metal); outline-offset: 2px; }
 .guest-app .sb-offer-card button svg { width: 14px; height: 14px; }
+.guest-app .sb-offer-card button:active:not(:disabled) { filter: brightness(0.94); }
+.guest-app .sb-offer-card button:disabled { cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+  .guest-app .sb-offer-card button:hover:not(:disabled) { filter: brightness(1.04); }
+}
+.guest-app .sb-offer-card.is-saving {
+  pointer-events: none;
+  animation: sb-offer-saved var(--offer-feedback-duration) var(--ease-out) both;
+}
+.guest-app .sb-offer-card.is-dismissing { pointer-events: none; animation: sb-offer-claim var(--offer-claim-duration) var(--ease-in-out) both; }
+.guest-app .sb-offer-card.is-saving::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border: 1px solid color-mix(in oklch, var(--offer-metal) 68%, transparent);
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  content: '';
+  pointer-events: none;
+  animation: sb-offer-edge 700ms var(--ease-out) both;
+}
+.guest-app .sb-offer-card__sparkles { position: absolute; z-index: 2; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.guest-app .sb-offer-card__sparkle {
+  --sparkle-size: 8px;
+  --sparkle-start: 0px, 0px;
+  --sparkle-end: 0px, -18px;
+  --sparkle-turn: 12deg;
+  --sparkle-delay: 0ms;
+  --sparkle-duration: 420ms;
+  position: absolute;
+  inset-block-start: var(--sparkle-y);
+  inset-inline-start: var(--sparkle-x);
+  inline-size: var(--sparkle-size);
+  block-size: var(--sparkle-size);
+  background: linear-gradient(145deg, color-mix(in oklch, var(--offer-metal) 72%, white), var(--offer-metal) 76%);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  filter: drop-shadow(0 0 3px color-mix(in oklch, var(--offer-metal) 48%, transparent));
+  opacity: 0;
+  transform: translate(-50%, -50%) translate(var(--sparkle-start)) scale(0.3);
+}
+.guest-app .sb-offer-card__sparkle--lead { --sparkle-size: 13px; --sparkle-x: 88%; --sparkle-y: 20%; --sparkle-end: 4px, -4px; --sparkle-turn: 8deg; --sparkle-duration: 410ms; }
+.guest-app .sb-offer-card__sparkle--left { --sparkle-size: 9px; --sparkle-x: 12%; --sparkle-y: 28%; --sparkle-end: -4px, -3px; --sparkle-turn: -8deg; --sparkle-delay: 35ms; --sparkle-duration: 380ms; }
+.guest-app .sb-offer-card__sparkle--right { --sparkle-size: 11px; --sparkle-x: 91%; --sparkle-y: 48%; --sparkle-end: 4px, -1px; --sparkle-turn: 8deg; --sparkle-delay: 70ms; --sparkle-duration: 400ms; }
+.guest-app .sb-offer-card__sparkle--lower { --sparkle-size: 9px; --sparkle-x: 77%; --sparkle-y: 84%; --sparkle-end: 3px, 4px; --sparkle-turn: -8deg; --sparkle-delay: 100ms; --sparkle-duration: 370ms; }
+.guest-app .sb-offer-card__sparkle--upper { --sparkle-size: 8px; --sparkle-x: 46%; --sparkle-y: 12%; --sparkle-end: 1px, -4px; --sparkle-turn: 8deg; --sparkle-delay: 125ms; --sparkle-duration: 360ms; }
+.guest-app .sb-offer-card__sparkle--lower-left { --sparkle-size: 7px; --sparkle-x: 12%; --sparkle-y: 78%; --sparkle-end: -3px, 3px; --sparkle-turn: -8deg; --sparkle-delay: 145ms; --sparkle-duration: 360ms; }
+.guest-app .sb-offer-card__sparkle--lower-right { --sparkle-size: 9px; --sparkle-x: 90%; --sparkle-y: 80%; --sparkle-end: 3px, 3px; --sparkle-turn: 8deg; --sparkle-delay: 160ms; --sparkle-duration: 360ms; }
+.guest-app .sb-offer-card__sparkle--edge { --sparkle-size: 6px; --sparkle-x: 48%; --sparkle-y: 91%; --sparkle-end: 1px, 3px; --sparkle-turn: -8deg; --sparkle-delay: 180ms; --sparkle-duration: 350ms; }
+.guest-app .sb-offer-card.is-saving .sb-offer-card__sparkle {
+  animation: sb-offer-sparkle var(--sparkle-duration) var(--ease-out) var(--sparkle-delay) both;
+}
+@keyframes sb-offer-saved {
+  0%, 100% { transform: translateY(0) scale(1); }
+  12% { transform: translateY(-3px) scale(1.01); }
+  34% { transform: translateY(-1px) scale(1.004); }
+  52% { transform: translateY(0) scale(1); }
+}
+@keyframes sb-offer-claim {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  24% { opacity: 1; transform: translateY(-2px) scale(0.995); }
+  100% { opacity: 0; transform: translateY(-9px) scale(0.985); }
+}
+@keyframes sb-offer-sparkle {
+  0% { opacity: 0; transform: translate(-50%, -50%) translate(var(--sparkle-start)) scale(0.68); }
+  25% { opacity: 0.92; transform: translate(-50%, -50%) translate(var(--sparkle-start)) scale(1); }
+  66% { opacity: 0.74; transform: translate(-50%, -50%) translate(var(--sparkle-start)) scale(0.94); }
+  100% { opacity: 0; transform: translate(-50%, -50%) translate(var(--sparkle-end)) scale(0.72) rotate(var(--sparkle-turn)); }
+}
+@keyframes sb-offer-edge {
+  0%, 100% { opacity: 0; }
+  20%, 58% { opacity: 0.58; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guest-app .sb-offer-card.is-saving { animation: sb-offer-saved-reduced 520ms linear both; }
+  .guest-app .sb-offer-card.is-saving::after { animation-duration: 520ms; }
+  .guest-app .sb-offer-card.is-saving .sb-offer-card__sparkle { animation: sb-offer-sparkle-reduced 260ms linear var(--sparkle-delay) both; transform: translate(-50%, -50%) scale(1); }
+  .guest-app .sb-offer-card.is-dismissing { animation: sb-offer-claim-reduced 220ms linear both; }
+}
+@keyframes sb-offer-saved-reduced {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.88; }
+}
+@keyframes sb-offer-claim-reduced {
+  to { opacity: 0; }
+}
+@keyframes sb-offer-sparkle-reduced {
+  0% { opacity: 0; }
+  28% { opacity: 1; }
+  72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* The offer that matters most: a voucher in the brand's plum with a gold thread, so it reads as a different class of card, not a bigger one. */
+.guest-app .sb-offer-card--lead {
+  --lead-gold: oklch(0.84 0.1 82);
+  --offer-metal: var(--lead-gold);
+  position: relative;
+  overflow: clip;
+  gap: 6px;
+  padding: 16px 16px 14px;
+  border: 1px solid color-mix(in oklch, var(--lead-gold) 50%, transparent);
+  background:
+    radial-gradient(130% 80% at 100% 0%, color-mix(in oklch, var(--lead-gold) 24%, transparent) 0%, transparent 60%),
+    linear-gradient(112deg, transparent 22%, rgb(255 255 255 / 0.09) 45%, transparent 62%),
+    linear-gradient(165deg, color-mix(in oklch, var(--guest-brand) 86%, white) 0%, var(--guest-brand) 100%);
+  box-shadow: 0 3px 8px -4px color-mix(in oklch, var(--guest-brand) 70%, transparent), inset 0 1px rgb(255 255 255 / 0.22), inset 0 -1px rgb(0 0 0 / 0.12);
+  color: #fbf4e6;
+}
+.guest-app .sb-offer-card--lead::before { position: absolute; inset-block-start: 0; inset-inline: 18px; block-size: 1px; background: linear-gradient(90deg, transparent, var(--lead-gold), transparent); content: ''; }
+.guest-app .sb-offer-card--lead b { color: #fffaf0; font-family: var(--font-serif), Georgia, 'Times New Roman', serif; font-size: 17px; font-weight: 600; line-height: 1.25; }
+.guest-app .sb-offer-card--lead small { color: rgb(251 244 230 / 0.7); }
+/* The tear-off: a dashed line with a notch bitten out of each edge, like a ticket. */
+.guest-app .sb-offer-card--lead .sb-offer-card__foot { position: relative; margin-block-start: auto; padding-block-start: 14px; border-block-start: 1px dashed rgb(251 244 230 / 0.28); }
+.guest-app .sb-offer-card--lead .sb-offer-card__foot::before,
+.guest-app .sb-offer-card--lead .sb-offer-card__foot::after { position: absolute; inset-block-start: -6px; inline-size: 11px; block-size: 11px; border-radius: 50%; background: var(--guest-canvas); content: ''; }
+.guest-app .sb-offer-card--lead .sb-offer-card__foot::before { inset-inline-start: -22px; }
+.guest-app .sb-offer-card--lead .sb-offer-card__foot::after { inset-inline-end: -22px; }
+.guest-app .sb-offer-card--lead code { background: rgb(255 255 255 / 0.08); color: #fbf4e6; letter-spacing: 0.06em; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.16); }
+.guest-app .sb-offer-card--lead button { border-color: color-mix(in oklch, var(--lead-gold) 60%, black); background: linear-gradient(155deg, color-mix(in oklch, var(--lead-gold) 70%, white), var(--lead-gold) 60%, color-mix(in oklch, var(--lead-gold) 80%, black)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.58), 0 1px 2px rgb(0 0 0 / 0.18); color: color-mix(in oklch, var(--guest-brand) 85%, black); }
+.guest-app .sb-offer-card--lead:active button { filter: brightness(0.94); }
 .guest-app .sb-promo-section .sb-offers { margin-top: 2px; }
 
 /* ---------- arrival extras, booked with the rooms ---------- */

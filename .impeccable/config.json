@@ -1,0 +1,29 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "/Users/kenanaiahjolmfc/Documents/ChatGPT/Hospitality/src/components/features/guest-app/stay-invitation.css"
+        ],
+        "createdAt": "2026-10-12T02:02:46.953Z",
+        "reason": "Existing gold-foil status on the booking and room-key cards is an intentional material treatment documented in the stylesheet."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "iowan old style",
+        "createdAt": "2026-10-12T02:31:35.133Z",
+        "reason": "The existing story layout comment explicitly calls for a large editorial serif headline over photography."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "sf mono",
+        "createdAt": "2026-10-12T02:31:35.192Z",
+        "reason": "The existing badge coin uses this face for its intentional engraved label treatment."
+      }
+    ]
+  }
+}

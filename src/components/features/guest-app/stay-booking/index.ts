@@ -5,7 +5,7 @@ export { StayHotelScreen, clampCart } from './hotel-page';
 export { StayAddOnsScreen } from './add-ons';
 export { RegionTrail } from './region-trail';
 export { ExploreRails } from './explore-rails';
-export { OffersStrip, savePendingVoucher } from './offers';
+export { OffersStrip, clearClaimedOffers, savePendingVoucher } from './offers';
 export { recommendFromStays, type Recommendation, type StayTaste } from './recommended';
 export { SaveHotelButton, SavedHotelsScreen, seedSavedHotels, useSavedHotels } from './saved';
 export { StayCheckoutScreen, StayPaymentScreen, emptyGuestDetails } from './checkout';

@@ -620,8 +620,10 @@
 .guest-screen--chat {
   display: flex;
   flex-direction: column;
-  overflow: clip;
-  min-inline-size: 0;
+  /* hidden, not clip: the screen must stay a scroll container so, as the
+     device's flex item, it keeps a zero minimum height and the message list
+     inside it scrolls instead of the screen growing. */
+  overflow: hidden;
   padding-block-start: 0;
   padding-inline-end: 0;
   padding-inline-start: 0;
@@ -681,8 +683,7 @@
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
-  overflow: clip;
-  min-inline-size: 0;
+  overflow: hidden;
   padding-inline-end: var(--app-inset);
   padding-inline-start: var(--app-inset);
   box-sizing: border-box;
@@ -3524,8 +3525,7 @@
 
 .guest-screen--welcome {
   padding: 0;
-  overflow: clip;
-  min-inline-size: 0;
+  overflow: hidden;
   background: var(--welcome-night);
 }
 

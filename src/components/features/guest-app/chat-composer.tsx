@@ -142,6 +142,26 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
     textArea.scrollTop = isOverflowing && caretAtEnd ? textArea.scrollHeight : previousScrollTop;
   }, [draft]);
 
+  /*
+    Once a message wraps, the composer stacks: the text takes the full width
+    and the buttons move to a row under it. It goes back to one row only when
+    the box is empty, so it never flips between the two at the wrap point.
+  */
+  useLayoutEffect(() => {
+    const form = composerRef.current;
+    const textArea = textAreaRef.current;
+    if (!form || !textArea) return;
+    if (!draft) {
+      delete form.dataset.stacked;
+      return;
+    }
+    if (form.dataset.stacked) return;
+    const style = getComputedStyle(textArea);
+    const lineHeight = parseFloat(style.lineHeight) || 24;
+    const textHeight = textArea.scrollHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0);
+    if (draft.includes('\n') || textHeight > lineHeight * 1.5) form.dataset.stacked = 'true';
+  }, [draft]);
+
   const releaseStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;

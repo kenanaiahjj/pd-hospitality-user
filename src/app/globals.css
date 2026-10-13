@@ -127,9 +127,17 @@ nextjs-portal,
   --font-mono: var(--font-mono);
 }
 
-* { box-sizing: border-box; }
+*,
+*::before,
+*::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+:root { -webkit-text-size-adjust: 100%; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+h1, h2, h3, h4 { text-wrap: balance; }
 
 body {
   margin: 0;
@@ -149,6 +157,11 @@ textarea { font: inherit; }
 
 button,
 a { -webkit-tap-highlight-color: transparent; }
+
+/* No double-tap-to-zoom wait on a tap, and a long press on a control does not
+   select its label. Text people may copy stays selectable. */
+button, a, [role="button"] { touch-action: manipulation; }
+button, [role="button"] { -webkit-user-select: none; user-select: none; }
 
 button { cursor: pointer; }
 

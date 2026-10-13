@@ -1593,11 +1593,8 @@
 .guest-transfer-fare span { color: var(--guest-muted); font-size: 14px; }
 .guest-transfer-fare strong { font-size: 18px; }
 .guest-transfer-fare small { color: var(--guest-subtle); font-size: 12px; }
-.guest-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-@media (max-width: 420px) {
-  .guest-form__row { grid-template-columns: 1fr; gap: 0; }
-}
+/* Side by side, two label-and-value rows are too narrow to read. */
+.guest-form__row { display: grid; grid-template-columns: 1fr; gap: 12px; }
 
 /* Once a room number exists, make the room itself the primary message. */
 .guest-room-ready-card { gap: 12px; padding: 20px 18px 18px; }
@@ -4666,7 +4663,7 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
-.guest-make-it-yours__tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.guest-make-it-yours__tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 10px; }
 
 .guest-tile {
   display: grid;
@@ -8527,9 +8524,6 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   padding-block-end: 0;
   padding-block-start: 4px;
 }
-
-/* Side by side, two label-and-value rows are too narrow to read. */
-.guest-form__row { grid-template-columns: 1fr; gap: 12px; }
 
 /* --------------------------------------------------------------------------
    Choices, switches and counts, after Places

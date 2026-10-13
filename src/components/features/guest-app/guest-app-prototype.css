@@ -7632,12 +7632,15 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 }
 .guest-restaurant-quick-info__location { display: flex; align-items: center; gap: 8px; color: var(--guest-ink); font-size: 16px; }
 .guest-restaurant-quick-info__location svg { flex: 0 0 auto; color: var(--guest-accent-strong); }
-.guest-restaurant-quick-info > div { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+/* Hours take the room they need ("10:00 AM – 10:00 PM" was cut to "10:0…"),
+   and wrap rather than truncate if a range is longer still. */
+.guest-restaurant-quick-info > div { display: grid; grid-template-columns: fit-content(65%) 1fr; gap: 24px; }
 .guest-restaurant-quick-info > div > span { display: grid; gap: 4px; min-width: 0; }
 .guest-restaurant-quick-info > div > span:first-child { padding-inline-start: 28px; }
 .guest-restaurant-quick-info small { color: var(--guest-muted); font-size: 12px; }
 .guest-restaurant-quick-info b { overflow: clip; min-inline-size: 0; color: var(--guest-ink); font-size: 14px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .guest-restaurant-quick-info > div > span:last-child b { color: var(--guest-positive); }
+.guest-restaurant-quick-info > div > span:first-child b { white-space: normal; text-wrap: balance; }
 .guest-restaurant-about,
 .guest-restaurant-additional-info,
 .guest-restaurant-good-to-know { margin-inline: 24px; }

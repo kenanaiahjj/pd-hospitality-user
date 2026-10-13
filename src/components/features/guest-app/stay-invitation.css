@@ -514,7 +514,9 @@
   padding: 14px 16px 12px;
   text-align: start;
 }
-.room-key__property { color: oklch(0.86 0.06 85 / 0.95); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+/* Clear of the Unlocked stamp in the top corner: a long name ("The Henry
+   Resort Dumaguete") wraps onto a second line instead of running under it. */
+.room-key__property { padding-inline-end: 100px; color: oklch(0.86 0.06 85 / 0.95); font-size: 10px; font-weight: 700; line-height: 1.45; letter-spacing: 0.18em; text-transform: uppercase; text-wrap: balance; }
 .room-key__room { display: grid; align-content: center; }
 .room-key__room small { color: oklch(1 0 none / 0.66); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
 .room-key__room b.is-word { font-size: 30px; }

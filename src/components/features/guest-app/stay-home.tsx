@@ -1124,6 +1124,8 @@ export function UnlockTeaser({ onScan }: { onScan?: () => void }) {
 
 /** How the next booking is paid, in one line: a free table is not "charged to the room". */
 function nextUpPayment(service: Pick<ServiceBooking, 'amount' | 'paymentStatus' | 'bookingConfirmation'>, roomLabel: string): string {
+  // A request still with the vendor has not been charged anywhere yet.
+  if (service.bookingConfirmation === 'awaiting-provider') return service.amount ? `${service.amount} · Waiting for the vendor to confirm` : 'Waiting for the vendor to confirm';
   const paidBy = describeServicePaidBy(service);
   if (paidBy === 'complimentary') return 'Complimentary';
   if (paidBy === 'provider') return service.amount ? `${service.amount} · Pay the provider directly` : 'Free to reserve · pay at the venue';

@@ -5,7 +5,7 @@ import { ArrowRight, Minus, Plus, X } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import { useState } from 'react';
 import { GIFT_PRODUCTS, LOBBY_SHOP_NAME, SANS_RIVAL_NAME, SANS_RIVAL_PRODUCTS, type GiftProduct } from '../../dining';
-import { ChoiceList, NotesField, Notice } from '../../guest-ui';
+import { ChoiceList, NotesField, Notice, SectionHeading } from '../../guest-ui';
 import { formatPesoAmount, parsePesoAmount, PILOT_CITY } from '../../prototype-model';
 import type { PayOptions, Result } from '../types';
 import '../ui/pilot.css';
@@ -62,18 +62,16 @@ export function LobbyShopScreen({ city, quote, onOrder, onAskDesk, notice }: {
       </div>
       {notice ? <Notice tone="warning" title="That did not go through">{notice}</Notice> : null}
       {shops.map((shop) => (
-        <section key={shop.name} className="guest-stack" aria-label={shop.name}>
-          <div className="guest-page-title">
-            <h2>{shop.name}</h2>
-            <p>{shop.blurb}</p>
-            <div className="guest-establishment-chat-screen__details">{shop.details.map((detail) => <span key={detail}>{detail}</span>)}</div>
-          </div>
+        <section key={shop.name} className="pilot-shop" aria-label={shop.name}>
+          <SectionHeading title={shop.name} />
+          <p className="pilot-shop__blurb">{shop.blurb}</p>
+          <p className="pilot-shop__meta">{shop.details.join(' · ')}</p>
           {[...new Set(shop.products.map((product) => product.group))].map((group) => (
-            <div key={group} className="guest-stack" aria-label={group}>
-              {group !== shop.name ? <h3>{group}</h3> : null}
+            <div key={group} className="pilot-shop__list" aria-label={group}>
+              {group !== shop.name ? <h3 className="guest-eyebrow pilot-shop__group">{group}</h3> : null}
               {shop.products.filter((product) => product.group === group).map((product) => (
                 <button key={product.name} type="button" className="guest-list-row" onClick={() => setChosen(product)}>
-                  <span><Image src={product.image} alt="" width={56} height={56} unoptimized className="pilot-shop__thumb" /></span>
+                  <span className="pilot-shop__frame"><Image src={product.image} alt="" width={56} height={56} unoptimized className="pilot-shop__thumb" /></span>
                   <div><b>{product.name}</b><small>{product.price} · {product.availability}</small></div>
                 </button>
               ))}

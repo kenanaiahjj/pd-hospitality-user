@@ -1389,7 +1389,7 @@ describe('my stay', () => {
     expect(screen.getByRole('heading', { name: 'Room charges', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Current total')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Airport transfer/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /In-room dining/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /In-Room Dining/ })).toBeInTheDocument();
   });
 
   it('uses grouped premium surfaces and Hugeicons for stay entries', () => {

@@ -65,7 +65,7 @@ export function LobbyShopScreen({ city, quote, onOrder, onAskDesk, notice }: {
         <section key={shop.name} className="pilot-shop" aria-label={shop.name}>
           <SectionHeading title={shop.name} />
           <p className="pilot-shop__blurb">{shop.blurb}</p>
-          <p className="pilot-shop__meta">{shop.details.join(' · ')}</p>
+          <p className="pilot-shop__meta">{shop.details.map((detail, index) => <span key={detail}>{detail}{index < shop.details.length - 1 ? '\u00a0·' : ''}</span>).flatMap((item, index) => (index ? [' ', item] : [item]))}</p>
           {[...new Set(shop.products.map((product) => product.group))].map((group) => (
             <div key={group} className="pilot-shop__list" aria-label={group}>
               {group !== shop.name ? <h3 className="guest-eyebrow pilot-shop__group">{group}</h3> : null}
@@ -95,7 +95,10 @@ function ShopOrderSheet({ product, quote, onClose, onOrder, onAskDesk }: {
   const [pay, setPay] = useState<ShopPay>('room');
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
-  const [ready, setReady] = useState<Ready>('now');
+  // Today's slot can be gone (Cafe Sans Rival is ready at 5 PM): then the departure day is the only choice.
+  const todayGone = !quote(product, 1, 'now').ok;
+  const [chosenReady, setReady] = useState<Ready>('now');
+  const ready: Ready = todayGone ? 'departure' : chosenReady;
   const [problem, setProblem] = useState<string | null>(null);
   const priced = quote(product, quantity, ready);
   const total = formatPesoAmount(parsePesoAmount(product.price) * quantity);
@@ -125,7 +128,7 @@ function ShopOrderSheet({ product, quote, onClose, onOrder, onAskDesk }: {
             value={ready}
             onChange={setReady}
             options={[
-              { value: 'now', title: shop.readyNow, detail: 'Held for you at the front desk.' },
+              ...(todayGone ? [] : [{ value: 'now' as const, title: shop.readyNow, detail: 'Held for you at the front desk.' }]),
               { value: 'departure', title: 'Hold it for my departure day', detail: 'Kept chilled at the desk until you leave.' },
             ]}
           />

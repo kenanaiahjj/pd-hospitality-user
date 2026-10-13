@@ -241,7 +241,7 @@ export const ITEM_THUMBNAIL_IMAGES: Record<string, ServiceImageDefinition> = {
     focalPoint: '50% 50%',
   },
   reflexology: {
-    src: 'https://images.unsplash.com/photo-1519824145371-296894a0dc91?auto=format&fit=crop&w=600&q=80',
+    src: '/experiments/photo-1611073615830-9f76902c10fe.jpg',
     alt: 'Soothing foot and pressure point reflexology treatment',
     focalPoint: '50% 50%',
   },

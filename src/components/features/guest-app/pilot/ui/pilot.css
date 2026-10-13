@@ -732,6 +732,8 @@
 .pilot-shop .guest-section-heading { margin: 0; }
 .pilot-shop__blurb { margin: 0; color: var(--guest-muted); font-size: 14px; line-height: 1.45; }
 .pilot-shop__meta { margin: 0 0 4px; color: var(--guest-subtle); font-size: 13px; line-height: 1.4; text-wrap: pretty; }
+/* Each detail stays whole; a line breaks between them, never inside one. */
+.pilot-shop__meta > span { display: inline-block; }
 .pilot-shop__list { display: grid; gap: 8px; }
 .pilot-shop__group { margin-block: 8px 0; text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; }
 /* A list row's leading slot is an icon box (26 by 20); a product photo needs its own square, or it is squeezed out of shape. */

@@ -9592,7 +9592,13 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-app .guest-stay-pass__copy b { font-size: 17px; }
 
 /* Nearby: a table asked for through the front desk. */
-.guest-app .guest-table-request__body { display: grid; gap: 18px; margin: 18px 0; overflow-y: auto; }
+/* It scrolls, so it also cuts at its sides: a little inline room keeps the
+   selected option's outside ring and the focus outlines from being shaved off. */
+.guest-app .guest-table-request__body { display: flex; flex-direction: column; gap: 18px; min-block-size: 0; margin: 18px -6px; padding-inline: 6px; overflow-y: auto; }
+/* A column, not a grid: Safari shrank this scrolling body's grid rows below
+   their content, so option groups and the notes field ran into each other.
+   Nothing in the sheet is ever shorter than what it holds; the body scrolls. */
+.guest-app .guest-table-request__body > * { flex: none; }
 .guest-app .guest-table-request fieldset { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
 .guest-app .guest-table-request legend { margin-block-end: 8px; font-size: 14px; font-weight: 700; }
 .guest-app .guest-table-request__chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -9699,6 +9705,11 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 .guest-app .guest-stays-list__note { margin: 0; color: var(--guest-muted); font-size: 13px; }
 
 /* The notes field every booking shares: a hint under it, in the muted tone of other helper text. */
+/* Label, text box and hint stacked, whatever the generic field grid says:
+   Safari put the label and the text box in one cell. */
+.guest-app label.guest-notes-field { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-block-size: max-content; }
+.guest-app label.guest-notes-field > * { flex: none; }
+.guest-app label.guest-notes-field > textarea { min-block-size: 3lh; resize: none; }
 .guest-app .guest-notes-field .guest-notes-field__hint { margin-block-start: 2px; color: var(--guest-muted); font-size: 12.5px; line-height: 1.4; }
 .guest-app .guest-cart__note { color: var(--guest-muted); font-style: italic; overflow-wrap: anywhere; }
 

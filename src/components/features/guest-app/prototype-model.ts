@@ -3592,7 +3592,7 @@ export type RoomCharge = {
  */
 const POSTED_ROOM_CHARGES: RoomCharge[] = [
   { id: 'posted-transfer', date: 'Nov 9', title: 'Airport transfer', detail: 'Nov 9 · 2:30 PM', amount: '₱1,200', category: 'Hotel services', pointsSource: 'property-posted' },
-  { id: 'posted-dining', date: 'Nov 10', title: 'In-room dining', detail: 'Nov 10 · 7:00 PM', amount: '₱850', category: 'Dining', pointsSource: 'property-posted' },
+  { id: 'posted-dining', date: 'Nov 10', title: 'In-Room Dining', detail: 'Nov 10 · 7:00 PM', amount: '₱850', category: 'Dining', pointsSource: 'property-posted' },
   { id: 'posted-laundry', date: 'Nov 10', title: 'Laundry service', detail: 'Nov 10 · 10:30 AM', amount: '₱1,000', category: 'Hotel services', pointsSource: 'property-posted' },
 ];
 

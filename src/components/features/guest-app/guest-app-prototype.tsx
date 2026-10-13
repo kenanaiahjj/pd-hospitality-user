@@ -6128,17 +6128,27 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         return (
           <div className="guest-stack guest-inbox">
             {hasCurrentStay ? <><div className="guest-page-title"><h1>Chat</h1></div>{chatTabs('notifications')}</> : null}
-            <div className={`guest-inbox__title${hasCurrentStay ? ' guest-inbox__title--sub' : ''}`}>
-              {hasCurrentStay ? null : <h1>Notifications</h1>}
-              {unreadIds.length ? (
-                <button type="button" className="guest-inbox__mark" onClick={() => setReadNotificationIds((current) => [...new Set([...current, ...unreadIds])])}>
-                  Mark all as read
-                </button>
-              ) : null}
-            </div>
-            {groups.map((group) => (
+            {hasCurrentStay ? null : (
+              <div className="guest-inbox__title">
+                <h1>Notifications</h1>
+                {unreadIds.length ? (
+                  <button type="button" className="guest-inbox__mark" onClick={() => setReadNotificationIds((current) => [...new Set([...current, ...unreadIds])])}>
+                    Mark all as read
+                  </button>
+                ) : null}
+              </div>
+            )}
+            {groups.map((group, index) => (
               <section key={group.label} className="guest-inbox__group" aria-label={group.label}>
-                <h2>{group.label}</h2>
+                {/* Under Chat's switch, "Mark all as read" shares the first group's heading line instead of a row of its own. */}
+                {hasCurrentStay && index === 0 && unreadIds.length ? (
+                  <div className="guest-inbox__group-head">
+                    <h2>{group.label}</h2>
+                    <button type="button" className="guest-inbox__mark" onClick={() => setReadNotificationIds((current) => [...new Set([...current, ...unreadIds])])}>
+                      Mark all as read
+                    </button>
+                  </div>
+                ) : <h2>{group.label}</h2>}
                 <div className="guest-notifications">
                   {group.items.map((item) => {
                     const unread = !readNotificationIds.includes(item.id);

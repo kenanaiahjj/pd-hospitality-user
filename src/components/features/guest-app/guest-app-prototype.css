@@ -5046,7 +5046,7 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 }
 .guest-inbox__mark:active { color: var(--guest-ink); }
 .guest-inbox__group { display: grid; gap: 8px; }
-.guest-inbox__group > h2 {
+.guest-inbox__group h2 {
   margin: 0;
   padding-inline: 4px;
   color: var(--guest-muted);
@@ -9739,6 +9739,9 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
    The bell's inbox lives in the Chat tab now. Each side of the switch says
    when it has something new: a dot for messages, a count for notifications.
    -------------------------------------------------------------------------- */
+/* Tight to the title and to what follows: the page's 24px rhythm left a band
+   of empty space either side of the switch. */
+.guest-app .guest-chat-tabs { margin-block: -18px -8px; }
 .guest-app .guest-chat-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .guest-app .guest-chat-tabs__dot { inline-size: 7px; block-size: 7px; border-radius: 50%; background: var(--guest-danger); }
 .guest-app .guest-chat-tabs__count {
@@ -9755,6 +9758,6 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
-/* Under the switch, the inbox's own title row keeps only "Mark all as read", at the end. */
-.guest-app .guest-inbox__title--sub { justify-content: flex-end; min-block-size: 0; margin-block: -8px -12px; }
-.guest-app .guest-inbox__title--sub:empty { display: none; }
+/* Under the switch, "Mark all as read" rides on the first group's heading line. */
+.guest-app .guest-inbox__group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.guest-app .guest-inbox__group-head > h2 { margin: 0; }

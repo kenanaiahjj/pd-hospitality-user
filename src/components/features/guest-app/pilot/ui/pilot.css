@@ -174,7 +174,7 @@
   background: transparent;
   color: var(--guest-ink);
   font: inherit;
-  text-align: left;
+  text-align: start;
   transition: background-color 200ms var(--ease-out);
 }
 .pilot-chat-row:active { background: var(--guest-sunken); transition-duration: 0ms; }
@@ -187,18 +187,19 @@
 .pilot-chat-row__top b {
   flex: 1 1 auto;
   min-inline-size: 0;
-  overflow: hidden;
+  overflow: clip;
   font-size: 16px;
   font-weight: 500;
   line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pilot-chat-row__about { min-inline-size: 0; overflow: hidden; color: var(--guest-muted); font-size: 16px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-chat-row__about { min-inline-size: 0; overflow: clip; color: var(--guest-muted); font-size: 16px; line-height: 22px; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-chat-row__top time { flex: none; margin-inline-start: auto; padding-inline-start: 8px; color: var(--guest-subtle); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .pilot-chat-row__preview {
   display: -webkit-box;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   color: var(--guest-ink);
   font-size: 16px;
   line-height: 22px;
@@ -206,7 +207,7 @@
   -webkit-line-clamp: 2;
 }
 .pilot-chat-row__meta--preview .pilot-chat-row__preview { -webkit-line-clamp: 2; }
-.pilot-chat-row__meta-text { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-chat-row__meta-text { flex: 1 1 auto; min-inline-size: 0; overflow: clip; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-chat-row__meta {
   display: flex;
   min-block-size: 20px;
@@ -281,7 +282,7 @@
   background: transparent;
   color: var(--guest-ink);
   font: inherit;
-  text-align: left;
+  text-align: start;
   transition: opacity 160ms var(--ease-out);
 }
 .pilot-booking-bar__toggle:active { opacity: 0.6; transition-duration: 0ms; }
@@ -298,7 +299,7 @@
 .pilot-booking-bar__day b { margin-block-start: 3px; font-size: 18px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; }
 .pilot-booking-bar__text { display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; gap: 3px; }
 .pilot-booking-bar__text .pilot-status { font-size: 13.5px; }
-.pilot-booking-bar__when { overflow: hidden; color: var(--guest-muted); font-size: 13.5px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-booking-bar__when { overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 13.5px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-booking-bar__chevron {
   display: grid;
   inline-size: 32px;
@@ -381,7 +382,7 @@
 .pilot-card__title p,
 .pilot-card__status-row { display: flex; min-inline-size: 0; align-items: center; gap: 8px; color: var(--guest-muted); font-size: 13px; line-height: 1.3; }
 .pilot-card__title p > span:last-child,
-.pilot-card__status-row > span:last-child:not(.pilot-status) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-card__status-row > span:last-child:not(.pilot-status) { overflow: clip; min-inline-size: 0; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-card__title .pilot-status + span::before,
 .pilot-card__status-row .pilot-status + span::before { margin-inline-end: 8px; color: var(--guest-line-strong); content: '·'; }
 .pilot-card__status-row { padding-block: 12px; }
@@ -434,7 +435,7 @@
 }
 .pilot-card__receipt .pilot-card__title { display: grid; gap: 2px; padding: 0; }
 .pilot-card__receipt .pilot-card__title h3 { font-size: 15.5px; line-height: 20px; }
-.pilot-card__receipt .pilot-card__title p { display: block; overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-card__receipt .pilot-card__title p { display: block; overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-card__amount { display: grid; justify-items: end; gap: 3px; }
 .pilot-card__amount b { font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
 .pilot-card--extra.pilot-card--extra-charge .pilot-card__amount b { color: var(--guest-ink); }
@@ -592,7 +593,7 @@
   background: var(--guest-paper);
 }
 .pilot-dispute__head h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
-.pilot-dispute__head p { margin: 2px 0 0; overflow: hidden; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-dispute__head p { margin: 2px 0 0; overflow: clip; min-inline-size: 0; color: var(--guest-muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .pilot-dispute__tag {
   padding: 3px 10px;
   border-radius: 999px;
@@ -645,7 +646,7 @@
 /* Messages scrolling up meet the booking bar softly, not as a sliced line of text. The padding keeps the first line clear of the fade at rest. */
 .pilot-chat .guest-messages {
   padding-block-start: 16px;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+  mask-image: linear-gradient(to bottom, transparent 0, oklch(0 0 none) 16px);
 }
 
 /* ------------------------------------------------------------------ worst-case data (break-ui pass) */
@@ -656,7 +657,8 @@
 /* A long partner name in the chat header: smaller, two lines at most, never pushing the header off the top. */
 .guest-chat .guest-chat__identity-copy h1 {
   display: -webkit-box;
-  overflow: hidden;
+  overflow: clip;
+  min-inline-size: 0;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -723,3 +725,6 @@
 /* The wallet logos keep their own colours here, not the Profile row's icon tint. */
 .guest-screen .guest-payment-methods .guest-list-row > .guest-method-glyph[data-method='gcash'] { background: oklch(0.55 0.17 255); color: oklch(1 0 none); }
 .guest-screen .guest-payment-methods .guest-list-row > .guest-method-glyph[data-method='maya'] { background: oklch(0.2 0.02 160); color: oklch(0.85 0.2 150); }
+
+/* Lobby-shop product thumbnails: rounded and cropped to the square, whatever the file. */
+.guest-list-row .pilot-shop__thumb { border-radius: 12px; object-fit: cover; }

@@ -8,6 +8,7 @@ import { GIFT_PRODUCTS, LOBBY_SHOP_NAME, SANS_RIVAL_NAME, SANS_RIVAL_PRODUCTS, t
 import { ChoiceList, NotesField, Notice } from '../../guest-ui';
 import { formatPesoAmount, parsePesoAmount, PILOT_CITY } from '../../prototype-model';
 import type { PayOptions, Result } from '../types';
+import '../ui/pilot.css';
 
 /*
   The hotel's lobby shop as a shop: pick a product, say how many, and it is
@@ -72,7 +73,7 @@ export function LobbyShopScreen({ city, quote, onOrder, onAskDesk, notice }: {
               {group !== shop.name ? <h3>{group}</h3> : null}
               {shop.products.filter((product) => product.group === group).map((product) => (
                 <button key={product.name} type="button" className="guest-list-row" onClick={() => setChosen(product)}>
-                  <span><Image src={product.image} alt="" width={56} height={56} unoptimized style={{ borderRadius: 12, objectFit: 'cover' }} /></span>
+                  <span><Image src={product.image} alt="" width={56} height={56} unoptimized className="pilot-shop__thumb" /></span>
                   <div><b>{product.name}</b><small>{product.price} · {product.availability}</small></div>
                 </button>
               ))}

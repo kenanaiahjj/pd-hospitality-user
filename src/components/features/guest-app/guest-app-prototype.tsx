@@ -5092,7 +5092,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <SectionHeading title="At the hotel" />
               <p className="guest-catalog-section-description">{categoryData.title} available at {contextBooking.property}.</p>
               {visibleServices.length ? (
-              <div className="guest-stack guest-catalog-option-list" style={{ gap: '16px' }}>
+              <div className="guest-stack guest-catalog-option-list">
                 {visibleServices.map((service) => (
                   <button
                     key={service.id}

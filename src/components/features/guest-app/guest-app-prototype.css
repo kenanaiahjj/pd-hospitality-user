@@ -9670,3 +9670,24 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 /* The notes field every booking shares: a hint under it, in the muted tone of other helper text. */
 .guest-app .guest-notes-field .guest-notes-field__hint { margin-block-start: 2px; color: var(--guest-muted); font-size: 12.5px; line-height: 1.4; }
 .guest-app .guest-cart__note { color: var(--guest-muted); font-style: italic; overflow-wrap: anywhere; }
+
+/* --------------------------------------------------------------------------
+   Press feedback for the controls that had none. It is a phone app: a tap
+   gives no hover, so each of these answers on :active. The `scale` property
+   composes with any transform the control already uses for its position, and
+   :where() keeps it at zero specificity so a control's own :active wins.
+   -------------------------------------------------------------------------- */
+:where(
+  .guest-prototype-states__option, .guest-channel-choice__option, .guest-previous-stay__action,
+  .guest-passport-capture__retake, .guest-review-block--action, .guest-total-card--light,
+  .guest-filter-pill, .guest-filter-bar__all, .guest-sheet__option, .guest-menu-tab,
+  .guest-essentials__copy, .guest-checklist__step, .guest-announcement, .guest-stay-review__back,
+  .guest-vendor-folio-dialog__close, .guest-map-credit__toggle, .guest-map-cluster,
+  .guest-place-location__action, .guest-room-option, .guest-payment-chip, button.guest-field__row,
+  .guest-calendar__day, .guest-wheel__item, .guest-preference-chip, .guest-message__retry,
+  .guest-stay-pass__scan, .guest-nearby-detail__alt, .guest-push__body,
+  .sb-map-pin, .sb-voucher-entry, .sb-voucher-row, .sb-cancel__room, .sb-check,
+  .guest-journey__more, .folio-points, .guest-achievements-redeem__back,
+  .reel-feed__icon, .reel-feed__browse, .reel-end__quiet, .feed-sheet__cancel, .feed-sheet__close,
+  .unlocked__tile-row
+):where(:active:not(:disabled)) { scale: 0.98; }

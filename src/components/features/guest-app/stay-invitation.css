@@ -55,8 +55,11 @@
   background: radial-gradient(closest-side, oklch(0.305 0.062 351 / 0.18), oklch(0.305 0.062 351 / 0));
   opacity: 0;
   transform: scale(0.8);
-  transition: opacity 600ms var(--ease-out), transform 900ms var(--ease-out);
+  transition: opacity 600ms var(--ease-out);
   pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .stay-pass::before { transition: opacity 600ms var(--ease-out), transform 900ms var(--ease-out); }
 }
 .stay-pass:not([data-phase='idle'])::before { opacity: 1; transform: none; }
 

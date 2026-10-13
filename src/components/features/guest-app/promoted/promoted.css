@@ -92,7 +92,9 @@
   inset: 0 0 auto;
   height: 42%;
   background: linear-gradient(to bottom, transparent, oklch(1 0 none / 0.09) 62%, oklch(1 0 none / 0.16));
-  animation: scanner-sweep 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .scanner__sweep::after { animation: scanner-sweep 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
 }
 @keyframes scanner-sweep {
   0%, 8% { transform: translateY(-46%); }
@@ -149,7 +151,10 @@
      Two pink circles either side of a viewfinder is decoration. */
   background: var(--guest-sunken);
   color: var(--guest-ink);
-  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease;
+  transition: background-color var(--duration-fast) ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .scanner__button { transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-fast) ease; }
 }
 @media (hover: hover) and (pointer: fine) {
   .scanner__button:hover { background: var(--guest-line); }
@@ -318,7 +323,9 @@
   font: inherit;
   text-align: start;
   cursor: pointer;
-  transition: transform var(--duration-press) var(--ease-out);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .unlocked__tile { transition: transform var(--duration-press) var(--ease-out); }
 }
 .unlocked__tile:active { transform: scale(0.98); }
 /* Concentric: the tile's 20px radius is the photo's 14px plus its 6px inset. */
@@ -492,7 +499,9 @@
   padding: 2px;
   border-radius: 20px;
   background: var(--guest-accent);
-  transition: transform var(--duration-press) var(--ease-out);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .discover__story-ring { transition: transform var(--duration-press) var(--ease-out); }
 }
 .discover__story-ring.is-expiring { background: var(--guest-warning); }
 .discover__story:active .discover__story-ring { transform: scale(0.95); }
@@ -569,7 +578,10 @@
   overflow: clip;
   min-inline-size: 0;
   text-align: start;
-  transition: transform var(--duration-press) var(--ease-out);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .discover__hero,
+.discover__card { transition: transform var(--duration-press) var(--ease-out); }
 }
 .discover__hero { aspect-ratio: 4 / 3; }
 .discover__card { aspect-ratio: 3 / 4; }
@@ -889,8 +901,10 @@
   pointer-events: none;
   /* They step forward as the pile rotates, rather than snapping. */
   transition:
-    transform var(--deck-recycle-dur) var(--deck-recycle-ease),
     opacity var(--deck-recycle-dur) var(--deck-recycle-ease);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .deck__card--under { transition: transform var(--deck-recycle-dur) var(--deck-recycle-ease), opacity var(--deck-recycle-dur) var(--deck-recycle-ease); }
 }
 
 

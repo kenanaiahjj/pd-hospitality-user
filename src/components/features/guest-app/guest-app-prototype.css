@@ -2554,7 +2554,8 @@
 }
 .guest-composer__row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 48px auto;
+  /* Attach, the text, then one 48px action: the microphone, or send once there is text. */
+  grid-template-columns: 44px minmax(0, 1fr) 48px;
   align-items: end;
   gap: 8px;
 }
@@ -2582,6 +2583,9 @@
   font-size: 16px;
   line-height: 24px;
   outline: 2px solid transparent;
+  /* Lines scrolled past the top or bottom fade out inside the 11px padding
+     instead of being sliced at the edge. One line of text never reaches it. */
+  mask-image: linear-gradient(to bottom, transparent 0, black 9px, black calc(100% - 9px), transparent 100%);
   transition: background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 /* The textarea sizes itself to its text between the 48px and 112px bounds, and
@@ -2593,7 +2597,17 @@
     overflow-y: auto;
   }
 }
-.guest-composer__text-input:focus { background: var(--guest-surface); box-shadow: var(--guest-focus-ring); }
+/* One frame, not two: the composer itself shows focus, and the text inside it
+   stays flat. A ring and fill on the textarea drew a second box inside the
+   first and put the text against its edge. */
+.guest-composer__text-input:focus { border-color: transparent; background: transparent; box-shadow: none; }
+.guest-composer:has(.guest-composer__text-input:focus) {
+  border-color: color-mix(in oklch, var(--guest-accent-strong) 38%, var(--guest-line-strong));
+  box-shadow: var(--shadow-sm), 0 0 0 4px color-mix(in oklch, var(--guest-accent) 9%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .guest-composer { transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease; }
+}
 .guest-composer__text-input::placeholder { color: var(--guest-subtle); opacity: 1; }
 .guest-composer__submit {
   display: grid;

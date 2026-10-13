@@ -487,15 +487,7 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
           autoFocus={autoFocus}
           disabled={disabled || isRecording}
         />
-        <button
-          className="guest-composer__voice"
-          type="button"
-          aria-label="Start voice recording"
-          disabled={disabled || isRecording}
-          onClick={() => void startRecording()}
-        >
-          <Microphone aria-hidden="true" />
-        </button>
+        {/* Send takes the microphone's place once there is something to send, so a long message keeps the width. */}
         {canSend ? (
           <button
             className="guest-composer__submit"
@@ -505,7 +497,17 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
           >
             <ArrowUp aria-hidden="true" />
           </button>
-        ) : null}
+        ) : (
+          <button
+            className="guest-composer__voice"
+            type="button"
+            aria-label="Start voice recording"
+            disabled={disabled || isRecording}
+            onClick={() => void startRecording()}
+          >
+            <Microphone aria-hidden="true" />
+          </button>
+        )}
       </div>
     </form>
   );

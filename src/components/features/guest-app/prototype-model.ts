@@ -59,7 +59,6 @@ export type ScreenId =
   | 'payments'
   | 'saved-hotels'
   | 'payment-detail'
-  | 'payment-methods'
   | 'stay-detail'
   | 'stay-entry'
   | 'pre-arrival-services'
@@ -132,7 +131,6 @@ export const SCREENS: PrototypeScreen[] = [
   screen(78, 'Account', 'payments', 'Payments'),
   screen(81, 'Account', 'saved-hotels', 'Saved hotels'),
   screen(79, 'Account', 'payment-detail', 'Payment receipt'),
-  screen(84, 'Account', 'payment-methods', 'Payment methods'),
   screen(42, 'Stay', 'notifications', 'Notifications'),
   screen(43, 'Account', 'stay-detail', 'Stay detail'),
   screen(44, 'Stay', 'stay-entry', 'Booking receipt'),

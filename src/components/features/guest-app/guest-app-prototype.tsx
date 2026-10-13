@@ -14,7 +14,6 @@ import {
   Clock,
   ClockCountdown,
   Compass,
-  CreditCard,
   ForkKnife,
   IdentificationCard,
   MapPin,
@@ -276,7 +275,7 @@ import {
 import { clearStoredSession, readAccountStash, readStoredSession, readStoredStayDraft, writeAccountStash, writeStoredSession, writeStoredStayDraft } from './session-storage';
 import { AccountSignInCard } from './guest-account';
 import { ChoiceList, Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, NotesField, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
-import { HeroIcon, PaymentMethodGlyph, formatPastStayDates } from './guest-ui';
+import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
 import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen, passportDate } from './pre-arrival';
 import type { PassportFields } from './pre-arrival';
@@ -1507,7 +1506,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   // No bar while paying for a stay (checkout, vouchers, payment): a tap away mid-payment left the guest unsure what went through.
-  const showNav = ['stay-overview', 'partner-hotels', 'book-stay', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'browse', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'vendor-service', 'service-detail', 'restaurant-menu', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'payment-methods', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'messages', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
+  const showNav = ['stay-overview', 'partner-hotels', 'book-stay', 'book-stay-results', 'book-stay-hotel', 'book-stay-addons', 'book-stay-confirmation', 'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'marketplace', 'category-listing', 'browse', 'nearby-recommendations', 'nearby-establishment', 'gifts-souvenirs', 'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details', 'vendor-service', 'service-detail', 'restaurant-menu', 'service-booking', 'booking-confirmation', 'booking-blocked', 'my-stay', 'notifications', 'stay-entry', 'payments', 'payment-detail', 'cancel-before-cutoff', 'cancel-after-cutoff', 'folio', 'chat', 'messages', 'room-qr-midstay', 'stay-review', 'stay-review-sent', 'profile', 'stay-history', 'saved-hotels', 'stay-detail', 'rate-detail', 'rewards', 'reward-detail', 'badge-detail'].includes(activeScreen);
   const showPrimaryNav = showNav && !isChatScreen(activeScreen) && (session.auth === 'authenticated' || session.bookings.length > 0);
   const isWelcome = activeScreen === 'entry-hub';
   const primaryBooking = getPrimaryBooking(session.bookings, session.activeBookingId);
@@ -6365,12 +6364,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   <div><b>{isGuest ? 'This stay’s payments' : 'Payments'}</b><small>{paymentsSummary(session).count ? `${paymentsSummary(session).count} ${paymentsSummary(session).count === 1 ? 'payment' : 'payments'} · ${formatPesoAmount(paymentsSummary(session).net)} paid` : 'Nothing paid in the app yet'}</small></div>
                   <CaretRight />
                 </button>
-                {/* Nothing is stored: each payment goes through the payment partner. This says how, in one place. */}
-                <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('payment-methods')}>
-                  <span><CreditCard /></span>
-                  <div><b>Payment methods</b><small>Card, GCash or Maya</small></div>
-                  <CaretRight />
-                </button>
                 <button className="guest-list-row guest-profile-action" type="button" onClick={() => go('saved-hotels')}>
                   <span><Heart /></span>
                   <div><b>Saved hotels</b><small>{savedHotelIds.length ? `${savedHotelIds.length} ${savedHotelIds.length === 1 ? 'hotel' : 'hotels'}` : 'Tap the heart on any hotel'}{isGuest ? ' · on this phone' : ''}</small></div>
@@ -6527,27 +6520,6 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'payments':
         return <PaymentsScreen session={session} onOpen={(id) => { setSelectedPaymentId(id); go('payment-detail'); }} onExplore={() => go('partner-hotels')} />;
-
-      case 'payment-methods':
-        return (
-          <div className="guest-stack">
-            <div className="guest-page-title">
-              <h1>Payment methods</h1>
-              <p>Cabana doesn&rsquo;t keep your card or wallet. You choose how to pay each time, and pay through our payment partner.</p>
-            </div>
-            {/* The Profile list's own card, so the page reads as part of Profile. */}
-            <div className="guest-profile-action-list guest-payment-methods">
-              {(['card', 'gcash', 'maya'] as const).map((method) => (
-                <div key={method} className="guest-list-row guest-profile-action">
-                  <PaymentMethodGlyph method={method} />
-                  <div><b>{GATEWAY_METHOD_LABELS[method]}</b><small>{method === 'card' ? 'Visa, Mastercard, JCB' : `Approve in the ${GATEWAY_METHOD_LABELS[method]} app`}</small></div>
-                </div>
-              ))}
-            </div>
-            <Notice title="Or charge it to your room">During a stay, most things can go on your room bill instead, settled at the front desk at checkout.</Notice>
-            <Notice title="Requests hold, then take">For a request the vendor confirms first, the amount is held when you book and taken only if they say yes.</Notice>
-          </div>
-        );
 
       case 'payment-detail': {
         const selectedPayment = (session.payments ?? []).find((payment) => payment.id === selectedPaymentId);
@@ -6927,7 +6899,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 label="Profile"
                 icon={HugeProfileIcon}
                 activeIcon={HugeProfileSolidIcon}
-                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'saved-hotels' || activeScreen === 'payments' || activeScreen === 'payment-detail' || activeScreen === 'payment-methods' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
+                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'saved-hotels' || activeScreen === 'payments' || activeScreen === 'payment-detail' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
                 onClick={() => goTab('profile')}
               />
             </nav>

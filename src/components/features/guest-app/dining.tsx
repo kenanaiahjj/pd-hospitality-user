@@ -127,7 +127,7 @@ export const getRestaurantMenuImages = (venue: RestaurantVenue) => {
   return RESTAURANT_MENU_IMAGE_PAGES;
 };
 
-export function RestaurantMenuScreen({ venue, onOrder, onReserve, onBack, onNotifications }: { venue: RestaurantVenue; onOrder: () => void; /** A venue with tables: the page's main action is a reservation, and ordering is a question for the desk. */ onReserve?: () => void; onBack: () => void; onNotifications: () => void }) {
+export function RestaurantMenuScreen({ venue, onOrder, onReserve, onBack, onNotifications }: { venue: RestaurantVenue; onOrder: () => void; /** A venue with tables: the page's main action is a reservation, and ordering is a question for the desk. */ onReserve?: () => void; onBack: () => void; /** Absent where notifications live in the Chat tab. */ onNotifications?: () => void }) {
   const [page, setPage] = useState(0);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -171,7 +171,7 @@ export function RestaurantMenuScreen({ venue, onOrder, onReserve, onBack, onNoti
         <ServiceImage imageKey={getServiceImageKey({ id: venue.id, categoryId: 'dining' })} itemId={venue.id} categoryId="dining" variant="card" tone={venue.tone} icon={<ForkKnife size={38} />} decorative />
         <div className="guest-restaurant-hero__scrim" aria-hidden="true" />
         <button className="guest-restaurant-hero__control guest-restaurant-hero__back" type="button" onClick={onBack} aria-label="Back"><ArrowLeft /></button>
-        <button className="guest-restaurant-hero__control guest-restaurant-hero__notifications" type="button" onClick={onNotifications} aria-label="Notifications"><Bell /></button>
+        {onNotifications ? <button className="guest-restaurant-hero__control guest-restaurant-hero__notifications" type="button" onClick={onNotifications} aria-label="Notifications"><Bell /></button> : null}
         <div className="guest-restaurant-hero__copy">
           <h1>{venue.name}</h1>
           <div className="guest-restaurant-top-tags" aria-label="Restaurant details">

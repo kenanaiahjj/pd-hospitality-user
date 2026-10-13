@@ -26,6 +26,12 @@ const fire = async (user: User, eventName: string | RegExp) => {
   await user.click(screen.getByRole('button', { name: 'Close prototype controls' }));
 };
 
+/** The bell's inbox lives in the Chat tab: open Chat, then its Notifications side. */
+const openInbox = async (user: User) => {
+  await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /^Chat/ }));
+  await user.click(screen.getByRole('tab', { name: /^Notifications/ }));
+};
+
 const bookRental = async (user: User, pay: 'room' | 'pay-now') => {
   await openCategory(user, 'Rentals');
   await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
@@ -299,20 +305,20 @@ describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
     await user.click(banner);
     const thread = screen.getByRole('region', { name: /Scooter · 125cc conversation/ });
     expect(within(thread).getByText(/Only you and them are in this chat/)).toBeInTheDocument();
-    // The bell keeps a note of it. (The bell is outside the chat; back out first.)
+    // Chat's Notifications side keeps a note of it.
     await user.click(within(thread).getByRole('button', { name: 'Go back' }));
-    await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
+    await openInbox(user);
     expect(screen.getByText('Chat open with Partner bike shop')).toBeInTheDocument();
   });
 
-  it('tells the guest when the vendor says yes: a banner, then the bell', async () => {
+  it('tells the guest when the vendor says yes: a banner, then Chat › Notifications', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await bookRental(user, 'room');
     await fire(user, /Vendor confirms Scooter · 125cc/);
 
     expect(screen.getByText('Scooter · 125cc confirmed')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
+    await openInbox(user);
     expect(screen.getAllByText('Scooter · 125cc confirmed').length).toBeGreaterThan(0);
   });
 
@@ -323,7 +329,7 @@ describe('what reaches the guest after a booking', { timeout: 30_000 }, () => {
     await fire(user, /Vendor confirms Scooter · 125cc/);
     await fire(user, /Vendor cancels Scooter · 125cc/);
 
-    await user.click(screen.getByRole('button', { name: /^Notifications, \d+ unread/ }));
+    await openInbox(user);
     expect(screen.getAllByText(/Scooter · 125cc was cancelled/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Text message/).length).toBeGreaterThan(0);
     // And it can be rebooked from the card.

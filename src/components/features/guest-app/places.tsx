@@ -424,7 +424,8 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
   property: string;
   now: MapClock;
   onBack: () => void;
-  onNotifications: () => void;
+  /** Absent where notifications live in the Chat tab. */
+  onNotifications?: () => void;
   onBookRide: () => void;
   /** A place not on Cabana: the front desk can call for the guest. */
   onAskDesk?: () => void;
@@ -459,7 +460,7 @@ export function NearbyEstablishmentScreen({ establishment, city, property, now, 
       <Image src={establishment.image} alt="" fill sizes="100vw" priority />
       <div className="guest-nearby-detail__scrim" aria-hidden="true" />
       <button className="guest-nearby-detail__control guest-nearby-detail__back" type="button" onClick={onBack} aria-label="Back"><ArrowLeft /></button>
-      <button className="guest-nearby-detail__control guest-nearby-detail__notifications" type="button" onClick={onNotifications} aria-label="Notifications"><Bell /></button>
+      {onNotifications ? <button className="guest-nearby-detail__control guest-nearby-detail__notifications" type="button" onClick={onNotifications} aria-label="Notifications"><Bell /></button> : null}
       <div className="guest-nearby-detail__hero-copy">
         <h1>{establishment.name}</h1>
         <div className="guest-nearby-detail__tags" aria-label="Recommendation details"><span>{establishment.type}</span><span>{independent ? 'Not on Cabana' : 'Local partner'}</span></div>

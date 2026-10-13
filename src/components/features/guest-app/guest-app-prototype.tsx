@@ -444,7 +444,6 @@ const MY_STAY_SCREENS: ActiveScreen[] = [
   'cancel-before-cutoff',
   'cancel-after-cutoff',
   'room-qr-midstay',
-  'notifications',
   'stay-entry',
 ];
 
@@ -1737,6 +1736,22 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     readEngineNews(engineFeed);
     go('notifications');
   };
+
+  /*
+    Chat holds both: the conversations and what happened (the bell's inbox).
+    One switch at the top of the tab moves between them, like Explore's.
+  */
+  const chatTabs = (current: 'messages' | 'notifications') => (
+    <div className="sb-segmented sb-explore-tabs guest-chat-tabs" role="tablist" aria-label="Chat">
+      <button type="button" role="tab" aria-selected={current === 'messages'} onClick={() => goTab('messages')}>
+        Chats{hasUnreadChat || engineUnread > 0 ? <span className="guest-chat-tabs__dot" aria-label="new messages" /> : null}
+      </button>
+      <button type="button" role="tab" aria-selected={current === 'notifications'} onClick={() => { setSeenNotificationIds(notifications.map((item) => item.id)); readEngineNews(engineFeed); goTab('notifications'); }}>
+        {/* No count on the side being read: it is already in front of the guest. */}
+        Notifications{unreadNotifications && current !== 'notifications' ? <span className="guest-chat-tabs__count" aria-label={`${unreadNotifications} new`}>{unreadNotifications}</span> : null}
+      </button>
+    </div>
+  );
 
   const openNotification = (item: GuestNotification) => {
     readEngineNews(engineFeed.filter((news) => news.notification.id === item.id));
@@ -5177,7 +5192,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             property={contextBooking.property}
             now={mapClock}
             onBack={back}
-            onNotifications={() => go('notifications')}
+            onNotifications={hasCurrentStay ? undefined : openNotifications}
             onBookRide={() => openRideRequest({ from: contextBooking.property, to: establishment.name, toDetail: establishment.address })}
             onAskDesk={() => { setChatDraft(`Could you call ${establishment.name} (${establishment.contact ?? 'number on their page'}) and reserve for ${contextBooking.guestCount} of us? Day and time: `); go('chat'); }}
             onBookNearby={(request) => bookNearbyPlace(establishment, request)}
@@ -5209,7 +5224,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} onReserve={TABLE_VENUE_SERVICE_IDS[venue.id] ? () => openServiceBooking(TABLE_VENUE_SERVICE_IDS[venue.id]!) : undefined} onBack={() => go('category-listing')} onNotifications={() => go('notifications')} />;
+        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} onReserve={TABLE_VENUE_SERVICE_IDS[venue.id] ? () => openServiceBooking(TABLE_VENUE_SERVICE_IDS[venue.id]!) : undefined} onBack={() => go('category-listing')} onNotifications={hasCurrentStay ? undefined : openNotifications} />;
       }
 
       case 'transfer-booking': {
@@ -6091,7 +6106,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         if (!notifications.length) {
           return (
             <div className="guest-stack guest-inbox">
-              <div className="guest-inbox__title"><h1>Notifications</h1></div>
+              {hasCurrentStay ? <><div className="guest-page-title"><h1>Chat</h1></div>{chatTabs('notifications')}</> : <div className="guest-inbox__title"><h1>Notifications</h1></div>}
               <StatePanel icon={<BellRinging />} title="You’re all caught up">Room updates, booking confirmations and new charges show up here as they happen.</StatePanel>
             </div>
           );
@@ -6113,8 +6128,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
         return (
           <div className="guest-stack guest-inbox">
-            <div className="guest-inbox__title">
-              <h1>Notifications</h1>
+            {hasCurrentStay ? <><div className="guest-page-title"><h1>Chat</h1></div>{chatTabs('notifications')}</> : null}
+            <div className={`guest-inbox__title${hasCurrentStay ? ' guest-inbox__title--sub' : ''}`}>
+              {hasCurrentStay ? null : <h1>Notifications</h1>}
               {unreadIds.length ? (
                 <button type="button" className="guest-inbox__mark" onClick={() => setReadNotificationIds((current) => [...new Set([...current, ...unreadIds])])}>
                   Mark all as read
@@ -6256,6 +6272,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             categoryFor={engineCategory}
             onOpenDesk={() => go('chat')}
             onOpenThread={(threadId) => { setSelectedThreadId(threadId); go('booking-thread'); }}
+            tabs={chatTabs('messages')}
           />
         ) : (
           <div className="guest-stack"><div className="guest-page-title"><h1>Chat</h1></div><button type="button" className="guest-list-row" onClick={() => go('chat')}><div><b>Front desk</b><small>Ask anything about your stay</small></div></button></div>
@@ -6799,7 +6816,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               duplication this pass removed elsewhere.
             */}
             <div className="guest-appbar__side guest-appbar__side--end">
-              {showPrimaryNav ? (
+              {/* With a Chat tab, notifications live there; the bell is only for states without one. */}
+              {showPrimaryNav && !hasCurrentStay ? (
                 <button
                   className="guest-icon-button guest-bell"
                   type="button"
@@ -6900,8 +6918,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   label="Chat"
                   icon={HugeChatIcon}
                   activeIcon={HugeChatSolidIcon}
-                  active={activeScreen === 'messages'}
-                  unread={hasUnreadChat || engineUnread > 0}
+                  active={activeScreen === 'messages' || activeScreen === 'notifications'}
+                  unread={hasUnreadChat || engineUnread > 0 || unreadNotifications > 0}
                   onClick={() => goTab('messages')}
                 />
               ) : null}

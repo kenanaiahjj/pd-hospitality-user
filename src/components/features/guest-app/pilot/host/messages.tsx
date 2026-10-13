@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight, Bicycle, CaretDown, Compass, ForkKnife, ShoppingBag, HandHeart } from '@/components/ui/huge-icons';
 import Image from 'next/image';
 import type { ServiceImageDefinition } from '../../service-images';
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { ChatComposer } from '../../chat-composer';
 import { Notice } from '../../guest-ui';
 import type { Message, ThreadSummary } from '../types';
@@ -61,8 +61,10 @@ const vendorOf = (host: Host, bookingId: string) => {
   return host.pilot.vendors().find((v) => v.id === listing.vendorId)?.name ?? 'The vendor';
 };
 
-export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpenDesk, onOpenThread }: {
+export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpenDesk, onOpenThread, tabs }: {
   host: Host;
+  /** The Chats | Notifications switch, under the title. */
+  tabs?: ReactNode;
   guestId: string;
   desk: DeskRow;
   /** A booking's photo and its category in the app, for the tile and its badge. */
@@ -81,6 +83,7 @@ export function MessagesList({ host, guestId, desk, imageFor, categoryFor, onOpe
   return (
     <div className="guest-stack pilot-messages">
       <div className="guest-page-title"><h1>Chat</h1></div>
+      {tabs}
       {/* The front desk, as a card of its own above the conversations: the one chat that is always there. */}
       <div className="pilot-desk-card">
         <button type="button" className={`pilot-chat-row pilot-chat-row--desk${desk.unread ? ' is-unread' : ''}`} onClick={onOpenDesk} aria-label={`Front desk chat${desk.unread ? ', new message' : ''}`}>

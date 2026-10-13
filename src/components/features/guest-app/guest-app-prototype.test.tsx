@@ -688,15 +688,21 @@ describe('GuestAppPrototype', () => {
     expect(navigation.querySelectorAll('button')).toHaveLength(5);
     expect(within(navigation).getAllByRole('button').map((b) => b.textContent))
       .toEqual(['Home', 'Explore', 'My Stay', 'Chat', 'Profile']);
-    expect(screen.getByRole('button', { name: 'Chat' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Chat/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Wallet' })).toBeNull();
   });
 
-  it('promotes profile out of the app bar and gives the bell its slot', () => {
+  it('keeps profile out of the app bar, and the bell inside Chat when there is a stay', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={MOCK_SESSION} />);
 
     expect(screen.queryByRole('button', { name: 'Open profile' })).toBeNull();
-    expect(screen.getByRole('button', { name: /Notifications/ })).toBeInTheDocument();
+    expect(within(screen.getByRole('banner')).queryByRole('button', { name: /Notifications/ })).toBeNull();
+  });
+
+  it('keeps the bell in the app bar where there is no Chat tab', () => {
+    render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('account-only')} />);
+
+    expect(within(screen.getByRole('banner')).getByRole('button', { name: /Notifications/ })).toBeInTheDocument();
   });
 
   it('navigates from home to the explore catalogue', () => {
@@ -711,12 +717,12 @@ describe('GuestAppPrototype', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
     expect(screen.getByRole('navigation', { name: /primary navigation/i })).toBeInTheDocument();
-    // The bell announces its unread count rather than leaving the dot as the
-    // only signal that there is something new.
-    expect(screen.getByRole('button', { name: /Notifications, \d+ unread/ })).toBeInTheDocument();
+    // Chat announces that something is new rather than leaving the dot as the
+    // only signal; notifications count towards it now that they live there.
+    expect(within(screen.getByRole('navigation', { name: /primary navigation/i })).getByRole('button', { name: /^Chat, new/ })).toBeInTheDocument();
   });
 
-  it('shows the Cabana logo and the notification bell in the Home app bar', async () => {
+  it('shows the Cabana logo in the Home app bar, and no bell while Chat holds notifications', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="profile" initialSession={activeSession} />);
 
@@ -725,7 +731,7 @@ describe('GuestAppPrototype', () => {
     const appBar = screen.getByRole('banner');
     expect(within(appBar).queryByRole('button', { name: 'Go back' })).toBeNull();
     expect(within(appBar).getByText('Cabana', { exact: true })).toBeInTheDocument();
-    expect(within(appBar).getByRole('button', { name: /Notifications/ })).toBeInTheDocument();
+    expect(within(appBar).queryByRole('button', { name: /Notifications/ })).toBeNull();
   });
 
   it('keeps the back button on non-Home screens', () => {
@@ -1313,21 +1319,22 @@ describe('stay history', () => {
 });
 
 describe('notifications', () => {
-  it('opens the inbox from the bell and clears its dot', async () => {
+  it('opens the inbox from Chat and clears its count', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={activeSession} />);
 
-    const bell = screen.getByRole('button', { name: /Notifications, \d+ unread/ });
-    expect(bell.querySelector('.guest-bell__dot')).not.toBeNull();
+    await user.click(within(screen.getByRole('navigation', { name: 'Primary navigation' })).getByRole('button', { name: /^Chat/ }));
+    const tab = screen.getByRole('tab', { name: /^Notifications\d+ new/ });
+    await user.click(tab);
 
-    await user.click(bell);
-
-    expect(screen.getByRole('heading', { name: 'Notifications', level: 1 })).toBeInTheDocument();
-    // Seen, so the bell stops nagging -- but the rows keep their own unread
+    expect(screen.getByRole('heading', { name: 'Chat', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Notifications' })).toHaveAttribute('aria-selected', 'true');
+    // Seen, so the count stops nagging -- but the rows keep their own unread
     // marks until they are actually opened.
-    const seenBell = screen.getByRole('button', { name: 'Notifications' });
-    expect(seenBell.querySelector('.guest-bell__dot')).toBeNull();
     expect(document.querySelectorAll('.guest-notification[data-unread="true"]').length).toBeGreaterThan(0);
+    // And back to the conversations from the same switch.
+    await user.click(screen.getByRole('tab', { name: /^Chats/ }));
+    expect(screen.getByRole('button', { name: /^Front desk/ })).toBeInTheDocument();
   });
 
   it('takes the guest to the screen a notification is about', async () => {
@@ -2575,7 +2582,7 @@ describe('lifecycle gates', () => {
       render(<GuestAppPrototype initialScreen="stay-overview" initialSession={session} />);
       const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
       expect(within(nav).getAllByRole('button')).toHaveLength(5);
-      expect(within(nav).getByRole('button', { name: 'Chat' })).toBeInTheDocument();
+      expect(within(nav).getByRole('button', { name: /^Chat/ })).toBeInTheDocument();
       cleanup();
     }
   });
@@ -3941,7 +3948,7 @@ describe('eyebrows', () => {
   it('drops the eyebrow element entirely when there is nothing to say', () => {
     render(<GuestAppPrototype initialScreen="notifications" initialSession={applyPrototypeStayState('live')} />);
 
-    expect(screen.getByRole('heading', { name: 'Notifications', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Notifications' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByText('Updates')).toBeNull();
   });
 });

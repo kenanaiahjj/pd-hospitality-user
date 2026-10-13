@@ -4,8 +4,8 @@ import { Notice, PropertyImage, SectionHeading, Tag } from './guest-ui';
 import type { FeedClock, FeedEntry } from './promoted';
 import { RecommendedRail } from './promoted';
 import { ANYWHERE, HotelResultCard, ExploreRails, OffersStrip, RegionTrail, recommendFromStays, pickupBlurb, STAY_HOTELS, STAY_LOCATIONS, StaySearchBar, StaySearchSheet, airportForCity, cancellationReminder, locationImage, searchHotels, useSavedHotels, weekdayDate, type PromoAccount, type SearchStep, type StaySearch } from './stay-booking';
-import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, StayEntry, StayReview } from './prototype-model';
-import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
+import type { Booking, GuestSession, PastStay, PropertyAnnouncement, RoomPreferences, ServiceBooking, StayEntry, StayReview } from './prototype-model';
+import { CHECK_IN_FROM, CHECK_OUT_BY, bookingCompanions, describeServicePaidBy, PROPERTY_ANNOUNCEMENTS, PROTOTYPE_TODAY, canUseOnPropertyServices, countNightsBetween, describeCheckoutCountdown, describeRoomAssignment, describeStayStatus, getHomeVariant, hasSavedDetails, hasStayStarted, isAnnouncementLive, isStayUnderWay, summarizeRoomPreferences } from './prototype-model';
 import { CATEGORY_IMAGES, ITEM_THUMBNAIL_IMAGES, PARTNER_IMAGES, getServiceImage } from './service-images';
 import { Button } from '@/components/ui';
 import { CabanaMark } from '@/components/ui/cabana-logo';
@@ -234,7 +234,7 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
           <span className="guest-next-service-card__details">
             <b>{confirmedServices[0].title === 'Hilom signature massage' ? 'Hilom Signature Massage' : confirmedServices[0].title}</b>
             <small className="guest-next-service-card__schedule">{confirmedServices[0].scheduledFor}</small>
-            <small className="guest-next-service-card__charge">{confirmedServices[0].amount} · Charged to {roomLabel}</small>
+            <small className="guest-next-service-card__charge">{nextUpPayment(confirmedServices[0], roomLabel)}</small>
           </span>
           <span className="guest-next-service-card__action" aria-hidden="true"><span className="guest-next-service-card__action-icon"><HugeiconsIcon icon={HugeChevronRightIcon} size={15} strokeWidth={1.75} focusable="false" /></span></span>
         </button></section> : null}
@@ -1120,6 +1120,15 @@ export function UnlockTeaser({ onScan }: { onScan?: () => void }) {
       ) : null}
     </section>
   );
+}
+
+/** How the next booking is paid, in one line: a free table is not "charged to the room". */
+function nextUpPayment(service: Pick<ServiceBooking, 'amount' | 'paymentStatus' | 'bookingConfirmation'>, roomLabel: string): string {
+  const paidBy = describeServicePaidBy(service);
+  if (paidBy === 'complimentary') return 'Complimentary';
+  if (paidBy === 'provider') return service.amount ? `${service.amount} · Pay the provider directly` : 'Free to reserve · pay at the venue';
+  if (paidBy === 'card') return `${service.amount} · Paid up front`;
+  return `${service.amount} · Charged to ${roomLabel}`;
 }
 
 /** The house facts a guest asks the desk for first, by property. */

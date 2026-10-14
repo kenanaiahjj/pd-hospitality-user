@@ -9767,3 +9767,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 /* Under the switch, "Mark all as read" rides on the first group's heading line. */
 .guest-app .guest-inbox__group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .guest-app .guest-inbox__group-head > h2 { margin: 0; }
+
+/* Explore before the scan: the unlock note, then its two actions, spaced rather than touching. */
+.guest-arrival-unlock { display: grid; gap: 12px; }
+.guest-arrival-unlock > .guest-text-button { margin-block-start: -4px; }

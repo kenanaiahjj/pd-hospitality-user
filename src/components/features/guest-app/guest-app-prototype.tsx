@@ -2559,6 +2559,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       return;
     }
     setSession((current) => verifyRoomPresence(current, primaryBooking.id, 'scan'));
+    // The locked pages that sent the guest here are out of date now: Back skips "Before you scan in" and the like.
+    setHistory((items) => items.filter((item) => item !== 'pre-arrival-services' && item !== 'booking-blocked' && item !== 'room-qr-landing'));
     replaceScreen('room-qr-midstay');
   };
 
@@ -3902,7 +3904,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         </section>
 
         {bookingSlot.locked ? (
-          <section>
+          <section className="guest-arrival-unlock">
             {unlockPending ? (
               <>
                 <Notice title="The front desk has your request">

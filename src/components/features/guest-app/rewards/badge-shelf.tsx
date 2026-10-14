@@ -50,7 +50,8 @@ export function BadgeShelf({ earned, nearly, all, onOpenBadge }: BadgeShelfProps
     <section className="badge-shelf">
       <h2 className="badge-shelf__heading" aria-label="Your badges">
         Your badges
-        <small aria-hidden="true">{all.length}</small>
+        {/* "14 of 42": a bare 42 under "14 badges earned" read as a second, different count. */}
+        <small aria-hidden="true">{earned.length} of {all.length}</small>
       </h2>
 
       {hero ? (

@@ -3,7 +3,11 @@
 import { ExpandableField } from './field-controls';
 import { Field, FormScreen, Notice, TextButton } from './guest-ui';
 import type { GuestRecord, RoomPreferences, SavedCompanion } from './prototype-model';
-import { ROOM_PREFERENCE_OPTIONS, isCompleteCompanion } from './prototype-model';
+import { PROTOTYPE_TODAY, ROOM_PREFERENCE_OPTIONS, isCompleteCompanion } from './prototype-model';
+
+/** An ID the hotel can register: one that has not run out before today. */
+const isExpired = (expiry?: string) => Boolean(expiry && expiry < PROTOTYPE_TODAY);
+const EXPIRED_ID = 'This ID has expired. Use one that is still valid.';
 import { Button } from '@/components/ui';
 import { ArrowRight, Camera, Check, CheckCircle, PencilSimple, Plus, UploadSimple, X } from '@/components/ui/huge-icons';
 import type { FormEvent } from 'react';
@@ -250,6 +254,12 @@ export type AdditionalGuestsScreenProps = {
   onSave: (companions: Companion[]) => void;
   /** Opened from the review to change the list: the button saves and goes back, it does not finish the form. */
   fromReview?: boolean;
+  /**
+   * The add/edit form is a step inside this screen, so the app's Back has to
+   * close it rather than leave the screen: the app owns whether it is open.
+   */
+  formOpen: boolean;
+  onFormOpenChange: (open: boolean) => void;
 };
 
 /** "Ana Santos" -> "AS"; one name gives one letter. */
@@ -280,12 +290,13 @@ export function IdentityStep({ guestName, email, record, passportFields, onPassp
     onPassportFieldsChange(fields);
   }, [onPassportFieldsChange]);
   const onFile = Boolean(record);
-  const ready = Boolean(person.name.trim() && person.nationality.trim() && passportFields.documentNumber?.trim() && passportFields.expiry);
+  const expired = isExpired(passportFields.expiry);
+  const ready = Boolean(person.name.trim() && person.nationality.trim() && passportFields.documentNumber?.trim() && passportFields.expiry) && !expired;
   return (
     <FormScreen
       step="1 of 2"
       title={onFile ? 'Confirm your ID' : 'You and your ID'}
-      text={onFile ? 'We filled in what the hotel has from your last stay. Check it, and change anything that is different. Sent securely to the property for registration.' : 'Scan your passport or ID and we fill in the rest. Sent securely to the property for registration.'}
+      text={onFile ? 'We filled in the details you saved. Check them, and change anything that is different. Sent securely to the property for registration.' : 'Scan your passport or ID and we fill in the rest. Sent securely to the property for registration.'}
     >
       {onFile && !rescan ? (
         <TextButton onClick={() => setRescan(true)}>Scan a new passport or ID</TextButton>
@@ -295,12 +306,12 @@ export function IdentityStep({ guestName, email, record, passportFields, onPassp
       <Field label="Full name" name="guest-name" value={person.name} onValueChange={(name) => setPerson((current) => ({ ...current, name }))} required />
       <Field label="Nationality" name="nationality" placeholder="e.g. Filipino" value={person.nationality} onValueChange={(nationality) => setPerson((current) => ({ ...current, nationality }))} required />
       <Field label="Passport or ID number" name="document-number" placeholder="As printed on the document" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} required />
-      <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} required />
+      <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} helper={expired ? EXPIRED_ID : undefined} required />
       <ExpandableField label="Contact" value={[contact.email, contact.mobile].filter(Boolean).join(' · ') || 'Add contact details'} aside={email ? 'From your account' : 'Optional'} open={contactOpen} onToggle={() => setContactOpen((open) => !open)}>
         <Field label="Email" name="guest-email" type="email" value={contact.email} onValueChange={(value) => setContact((current) => ({ ...current, email: value }))} />
         <Field label="Mobile" name="guest-mobile" type="tel" value={contact.mobile} onValueChange={(mobile) => setContact((current) => ({ ...current, mobile }))} />
       </ExpandableField>
-      <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => onContinue({ name: person.name.trim(), email: contact.email.trim(), mobile: contact.mobile.trim(), nationality: person.nationality.trim(), passport: passportFields })}>{ready ? (onFile ? 'Confirm and continue' : 'Continue') : 'Scan or fill in your ID to continue'}<ArrowRight aria-hidden="true" /></Button>
+      <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => onContinue({ name: person.name.trim(), email: contact.email.trim(), mobile: contact.mobile.trim(), nationality: person.nationality.trim(), passport: passportFields })}>{ready ? (onFile ? 'Confirm and continue' : 'Continue') : (expired ? 'Use an ID that is still valid' : 'Scan or fill in your ID to continue')}<ArrowRight aria-hidden="true" /></Button>
     </FormScreen>
   );
 }
@@ -313,8 +324,11 @@ export function AdditionalGuestsScreen({
   suggestions = [],
   onSave,
   fromReview = false,
+  formOpen,
+  onFormOpenChange,
 }: AdditionalGuestsScreenProps) {
-  const [mode, setMode] = useState<'list' | 'details'>('list');
+  const mode = formOpen ? 'details' : 'list';
+  const setMode = (next: 'list' | 'details') => onFormOpenChange(next === 'details');
   const [companions, setCompanions] = useState<Companion[]>(() => initialCompanions.map((person) => ({ ...person, nationality: person.nationality ?? '' })));
   /** Which row the details form is changing; null means it is adding one. */
   const [editing, setEditing] = useState<number | null>(null);
@@ -336,6 +350,8 @@ export function AdditionalGuestsScreen({
       expiry: fields.expiry,
     }));
   }, []);
+  const draftExpired = isExpired(draft.expiry);
+  const draftReady = Boolean(draft.name.trim() && draft.nationality?.trim() && draft.documentNumber?.trim() && draft.expiry) && !draftExpired;
 
   const handleRemoveGuest = (index: number) => {
     setCompanions((prev) => prev.filter((_, i) => i !== index));
@@ -358,7 +374,7 @@ export function AdditionalGuestsScreen({
           onSubmit={(e: FormEvent<HTMLFormElement>) => {
             e.preventDefault();
             const name = draft.name.trim();
-            if (!name) return;
+            if (!name || !draftReady) return;
             const saved: Companion = {
               name,
               nationality: draft.nationality?.trim() || '',
@@ -404,6 +420,7 @@ export function AdditionalGuestsScreen({
             type="date"
             value={draft.expiry ?? ''}
             onValueChange={(expiry) => setDraft((current) => ({ ...current, expiry }))}
+            helper={draftExpired ? EXPIRED_ID : undefined}
             required
           />
           <Field
@@ -422,8 +439,8 @@ export function AdditionalGuestsScreen({
             value={draft.mobile ?? ''}
             onValueChange={(mobile) => setDraft((current) => ({ ...current, mobile }))}
           />
-          <Button className="guest-button guest-button--primary" type="submit" disabled={!draft.name.trim() || !draft.nationality?.trim() || !draft.documentNumber?.trim() || !draft.expiry}>
-            {draft.name.trim() && draft.nationality?.trim() && draft.documentNumber?.trim() && draft.expiry ? (editing === null ? 'Save guest' : 'Save changes') : 'Scan or fill in their ID to save'}<ArrowRight aria-hidden="true" />
+          <Button className="guest-button guest-button--primary" type="submit" disabled={!draftReady}>
+            {draftReady ? (editing === null ? 'Save guest' : 'Save changes') : draftExpired ? 'Use an ID that is still valid' : 'Scan or fill in their ID to save'}<ArrowRight aria-hidden="true" />
           </Button>
           <TextButton onClick={() => { setEditing(null); setMode('list'); }}>Cancel</TextButton>
         </form>
@@ -625,7 +642,8 @@ export function RoomPreferencesScreen({ preferences, property, onSave, onCancel 
         <Button className="guest-button guest-button--primary" type="submit">
           Save preferences<ArrowRight aria-hidden="true" />
         </Button>
-        <TextButton onClick={onCancel}>{property ? 'Back to home' : 'Back to profile'}</TextButton>
+        {/* Back to wherever it was opened from -- Home, the review, or Profile -- so it does not name one. */}
+        <TextButton onClick={onCancel}>Cancel</TextButton>
       </form>
     </div>
   );

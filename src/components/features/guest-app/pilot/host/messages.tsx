@@ -292,7 +292,8 @@ export function BookingThreadScreen({ host, threadId, onBack, onOpenDesk, onAskD
       {note ? <Notice tone={note.tone} title={note.tone === 'warning' ? 'That did not go through' : 'Done'}>{note.text}</Notice> : null}
       {view.readOnly ? <Notice title="This thread has closed">It closed 48 hours after the service. Anything you send now goes to the front desk.</Notice> : null}
       <div className="guest-chat__dock">
-        <ChatComposer draft={draft} onDraftChange={setDraft} onSubmit={({ body }) => send(body)} placeholder={view.readOnly ? 'Ask the front desk' : name.length <= 16 ? `Message ${name}` : 'Message'} />
+        {/* send() forwards text alone, so a photo or voice note would vanish: the vendor thread takes words only. */}
+        <ChatComposer attachments={false} draft={draft} onDraftChange={setDraft} onSubmit={({ body }) => send(body)} placeholder={view.readOnly ? 'Ask the front desk' : name.length <= 16 ? `Message ${name}` : 'Message'} />
       </div>
     </div>
   );

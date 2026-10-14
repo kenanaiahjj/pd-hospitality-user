@@ -91,6 +91,12 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
 
   const missingAge = draft.childAges.some((age) => age === NO_AGE);
   const datesOk = validSearchDates(draft);
+  // Name the rule the dates broke, in the order validSearchDates checks them.
+  const datesError = draft.checkIn <= PROTOTYPE_TODAY
+    ? 'Choose a check-in date after today.'
+    : countNightsBetween(draft.checkIn, draft.checkOut) < 1
+      ? 'Choose a check-out date after check-in.'
+      : `Stays can be at most ${MAX_NIGHTS} nights.`;
   const canSearch = !missingAge && datesOk && draft.location.trim().length > 0;
   const next = (after: SearchStep) => steps[steps.indexOf(after) + 1];
 
@@ -176,7 +182,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
         ) : null}
         {tried && !canSearch ? (
           <p className="sb-error" role="alert">
-            {missingAge ? 'Add each child’s age to see rooms that fit.' : !datesOk ? 'Choose a check-out date after check-in.' : 'Choose where you want to stay.'}
+            {missingAge ? 'Add each child’s age to see rooms that fit.' : !datesOk ? datesError : 'Choose where you want to stay.'}
           </p>
         ) : null}
       </div>

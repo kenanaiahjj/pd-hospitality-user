@@ -90,7 +90,7 @@ import {
   emailLoginSession,
   getPrimaryBooking,
   getRoomCharges,
-  getRoomChargesTotal,
+  sumRoomCharges,
   canReportRoomReady,
   markRoomReady,
   describeRoomAssignment,
@@ -202,6 +202,7 @@ import {
   type StayBookingDraft,
   type StayGuestDetails,
   type StaySearch,
+  clampCart,
 } from './stay-booking';
 import { PMS_LAST_SYNC, PrototypeControls, slug, type PrototypeEvent } from './prototype-controls';
 import { HostStore, hostClock, type StayInput } from './pilot/host/host';
@@ -300,6 +301,13 @@ import './rewards/rewards.css';
 const isChatScreen = (screen: ActiveScreen) => screen === 'chat' || screen === 'booking-thread';
 /** Only the front desk's own chat reads the desk's messages: a booking thread is about something else. */
 const readsDeskChat = (screen: ActiveScreen) => screen === 'chat';
+
+/** The surname typed ends the name on the record in whole words, ignoring case: "tos" is not "Santos", "Dela Cruz" is. */
+const surnameMatches = (fullName: string, typed: string) => {
+  const surname = typed.trim().toLowerCase().replace(/\s+/g, ' ');
+  const name = fullName.trim().toLowerCase().replace(/\s+/g, ' ');
+  return Boolean(surname) && (name === surname || name.endsWith(` ${surname}`));
+};
 
 type ChatMessage = {
   /** The stay this thread belongs to; stamped when the message is added. */
@@ -430,6 +438,8 @@ const VIEWED_TRIP_SCREENS: ActiveScreen[] = [
   'room-upgrades', 'room-upgrade-confirmation', 'room-upgrade-success', 'room-transfer-details',
   'additional-guests', 'guest-details', 'room-preferences', 'repeat-review',
   'pre-arrival-services', 'arrival-cart', 'arrival-cart-confirmation', 'service-detail', 'vendor-service',
+  // The booking form and its outcomes, or a service picked for that trip lands on the followed one.
+  'service-booking', 'booking-confirmation', 'booking-blocked',
 ];
 
 /* Booking a hotel starts from Home, so Home stays lit through it. */
@@ -653,6 +663,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* Badges the last confirmed booking tipped over, for the confirmation. */
   const [justEarned, setJustEarned] = useState<string[]>([]);
   const [history, setHistory] = useState<ActiveScreen[]>([]);
+  /** Whether the additional-guests screen is showing its add/edit form; see `back`. */
+  const [companionFormOpen, setCompanionFormOpen] = useState(false);
   /** The screen the stamped stay pass zooms into, so it can enter out of that zoom. */
   const [passEntranceScreen, setPassEntranceScreen] = useState<ActiveScreen | null>(null);
   const [online, setOnline] = useState(initialOnline ?? true);
@@ -1051,6 +1063,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     activeScreenRef.current = activeScreen;
   }, [activeScreen]);
 
+  /*
+    Opening the desk chat reads it, and with it the inbox notes that were only
+    pointing at it: otherwise the Chat tab dot stays lit for a message the
+    guest has just read.
+  */
+  const readDeskChat = () => {
+    setHasUnreadChat(false);
+    const ids = chatNotifications.filter((item) => item.screen === 'chat').map((item) => item.id);
+    if (!ids.length) return;
+    setSeenNotificationIds((current) => [...new Set([...current, ...ids])]);
+    setReadNotificationIds((current) => [...new Set([...current, ...ids])]);
+  };
+
   /** `viewBooking`: open View booking for that trip, not the one the app is following. */
   const go = (next: ActiveScreen, viewBooking?: string) => {
     if (next === 'rate-detail') setViewedBookingId(viewBooking ?? null);
@@ -1062,10 +1087,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     // Leaving that screen avoids duplicate actions beside the destination item.
     setPushNotice(null);
     setPushFocused(false);
+    setCompanionFormOpen(false);
     setPassEntranceScreen(null);
     setRoomCancelNotice(null);
     setEngineNote(null);
-    if (readsDeskChat(next)) setHasUnreadChat(false);
+    if (readsDeskChat(next)) readDeskChat();
     setHistory((items) => [...items, activeScreen]);
     setActiveScreen(next);
     setScrolled(false);
@@ -1088,7 +1114,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   */
   const goReplacing = (next: ActiveScreen) => {
     setEngineNote(null);
-    if (readsDeskChat(next)) setHasUnreadChat(false);
+    if (readsDeskChat(next)) readDeskChat();
     setActiveScreen(next);
     setScrolled(false);
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -1097,7 +1123,19 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   /* A different hotel starts a fresh cart; coming back to the same one keeps it. */
   const openPartnerHotel = (hotelId: string) => {
     setStayGatewayMethod(null);
-    setStayDraft((draft) => (draft.hotelId === hotelId ? draft : { ...draft, hotelId, cart: [], allocation: [], addOns: [] }));
+    setStayDraft((draft) => {
+      if (draft.hotelId !== hotelId) return { ...draft, hotelId, cart: [], allocation: [], addOns: [] };
+      /*
+        Same hotel, but the dates may have changed since the rooms were picked
+        (from the results or Home): keep only what those dates still offer, at
+        a rate they still offer, so a sold-out room cannot ride along to payment.
+      */
+      const hotel = findStayHotel(hotelId);
+      if (!hotel || !draft.cart.length) return draft;
+      const cart = clampCart(hotel, draft.search, draft.cart, heldRooms(session.bookings));
+      if (JSON.stringify(cart) === JSON.stringify(draft.cart)) return draft;
+      return { ...draft, cart, allocation: cart.length ? defaultAllocation(hotel, draft.search, cart) : [] };
+    });
     go('book-stay-hotel');
   };
 
@@ -1112,7 +1150,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   /** `go` without leaving the current screen in history, for steps Back should skip. */
   const replaceScreen = (next: ActiveScreen) => {
-    if (readsDeskChat(next)) setHasUnreadChat(false);
+    if (readsDeskChat(next)) readDeskChat();
     setActiveScreen(next);
     setScrolled(false);
     window.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -1122,10 +1160,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const back = () => {
     setEngineNote(null);
     setScrolled(false);
+    // The companion form is a step inside its screen: Back closes it first.
+    if (activeScreen === 'additional-guests' && companionFormOpen) {
+      setCompanionFormOpen(false);
+      return;
+    }
     setHistory((items) => {
       const next = [...items];
       const nextScreen = next.pop() ?? 'entry-hub';
-      if (readsDeskChat(nextScreen)) setHasUnreadChat(false);
+      if (readsDeskChat(nextScreen)) readDeskChat();
       setActiveScreen(nextScreen);
       return next;
     });
@@ -1142,6 +1185,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         screen: options.screen ?? 'chat',
       };
       setChatNotifications((current) => [notification, ...current.filter((item) => item.id !== notification.id)]);
+      // Already reading the desk chat it points at: it arrives read.
+      if (notification.screen === 'chat' && readsDeskChat(activeScreenRef.current)) {
+        setSeenNotificationIds((current) => [...current, notification.id]);
+        setReadNotificationIds((current) => [...current, notification.id]);
+      }
     }
     setPushNotice({ id, headline, detail, screen: options.screen, threadId: options.threadId });
   };
@@ -2003,7 +2051,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         },
         cancelStay: () => {
           const stay = hostStore.host?.guestOf(primaryBooking.id);
-          if (stay) hostStore.host?.call('desk.cancelStay', stay.stayId);
+          if (!stay) return;
+          const result = hostStore.host?.call<{ ok: boolean; message?: string }>('desk.cancelStay', stay.stayId);
+          if (!result?.ok) return;
+          // The app's record follows what the desk did, as it does when the guest cancels: the stay and what hung off it leave.
+          setSession((current) => ({
+            ...current,
+            bookings: current.bookings.filter((item) => item.id !== primaryBooking.id),
+            activeBookingId: current.activeBookingId === primaryBooking.id ? undefined : current.activeBookingId,
+            serviceBookings: current.serviceBookings.filter((item) => item.bookingId !== primaryBooking.id),
+            cart: current.cart?.filter((line) => line.booking.bookingId !== primaryBooking.id),
+          }));
+          setCancelNotice(`The hotel cancelled your stay at ${primaryBooking.property}. Anything booked for it was cancelled too; the front desk can tell you more.`);
+          setSelectedThreadId(null);
+          setHistory([]);
+          replaceScreen('stay-overview');
         },
         deskBooks: deskBooksForGuest,
         imageFor: engineImage,
@@ -2021,9 +2083,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           for (const stay of pilotStays) host.ensureGuest(stay);
           markSampleCleared(host, primaryBooking.id);
           setAllChatMessages([]);
+          // The notes pointed at chats that no longer exist.
+          setChatNotifications([]);
           setSeenNotificationIds([]);
           setReadNotificationIds([]);
           setSelectedThreadId(null);
+          // A vendor chat that was open has gone with them: land on the list, not a blank page.
+          if (activeScreen === 'booking-thread') replaceScreen('messages');
           setEnginePay(null);
           setDisputeView(null);
         },
@@ -2529,6 +2595,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
    * roster skipped this check entirely and landed there too.
    */
   const openServiceBooking = (serviceId: string = selectedServiceId) => {
+    // A ride is a desk request with a direction, whichever list it was picked from -- never a bare room charge.
+    if (serviceId === 'transfer') {
+      if (hasStayStarted(contextBooking)) openDepartureRide();
+      else openArrivalRide();
+      return;
+    }
     setSelectedServiceId(serviceId);
     setServiceDate(null);
     // A slot the vendor actually offers: a rooftop has no 1:30 PM.
@@ -2702,7 +2774,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
   const confirmService = (paidWith?: GatewayMethod) => {
     setGatewayOpen(false);
-    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+    // The trip opened from View booking, when there is one: the service is for that stay.
+    const booking = viewedTrip ?? getPrimaryBooking(session.bookings, session.activeBookingId);
     // Already vetted before the gateway opened: a payment taken is never refused afterwards.
     const vetted = paidWith ? Boolean(booking) : serviceGate(booking);
     if (!vetted || !booking) return;
@@ -2882,7 +2955,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const submitEngineBooking = (payingNow: boolean) => {
-    const booking = getPrimaryBooking(session.bookings, session.activeBookingId);
+    // The trip opened from View booking, when there is one: the service is for that stay.
+    const booking = viewedTrip ?? getPrimaryBooking(session.bookings, session.activeBookingId);
     if (!serviceGate(booking, true) || !booking) return;
     const host = hostStore.host;
     const stay = host?.guestOf(booking.id);
@@ -3213,7 +3287,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   };
 
   const claimBooking = () => {
-    const next = connectBooking(session, lookupBooking ?? undefined);
+    const connected = connectBooking(session, lookupBooking ?? undefined);
+    // After a finished stay, the app follows the one just claimed; otherwise Home stays on the old one and the new stay is nowhere.
+    const next = lookupBooking && primaryBooking?.status === 'completed' && connected.bookings.some((item) => item.id === lookupBooking.id)
+      ? { ...connected, activeBookingId: lookupBooking.id }
+      : connected;
     setSession(next);
     // A booking-first guest still needs the registration flow. Authenticated
     // guests use the shared pre-arrival home after connecting another stay.
@@ -3268,6 +3346,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     setReviewingStayId(null);
     setHistory([]);
     setProfileMatch(null);
+    setStayDetails(null);
+    setPrimaryPassportFields(null);
+    setLookupBooking(null);
+    setPendingEmail('');
     setCode('');
     setCodeNotice(null);
     setScrolled(false);
@@ -3282,9 +3364,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     them. Each page sets up its stay and conditions from scratch, so the
     screens show exactly the state named and nothing left over from before.
   */
-  const openPrototypePage = (setup: { state: PrototypeStayState; patch?: (current: GuestSession) => GuestSession; online?: boolean; pmsDown?: boolean; emptyCatalogue?: boolean; postStayExpired?: boolean; reason?: BlockedReason; category?: MiniAppCategoryId; chat?: ChatMessage[]; screen: ActiveScreen }) => {
+  const openPrototypePage = (setup: { state: PrototypeStayState; patch?: (current: GuestSession) => GuestSession; online?: boolean; pmsDown?: boolean; emptyCatalogue?: boolean; postStayExpired?: boolean; reason?: BlockedReason; category?: MiniAppCategoryId; chat?: ChatMessage[]; noSamples?: boolean; screen: ActiveScreen }) => {
     applyStayState(setup.state);
     const bookingId = applyPrototypeStayState(setup.state).activeBookingId;
+    // An empty state has to stay empty: without this the sample bookings and desk chat are seeded straight back in.
+    if (setup.noSamples && hostStore.host && bookingId) markSampleCleared(hostStore.host, bookingId);
     if (setup.patch) setSession((current) => setup.patch!(current));
     setOnline(setup.online ?? true);
     setPmsDown(Boolean(setup.pmsDown));
@@ -3414,10 +3498,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     ...profilePages,
     { group: 'Error states', label: 'Payment · offline', detail: 'Hotel booking can’t be paid', open: () => openBookingPage({ screen: 'book-stay-payment', hotelId: 'manila', search: FAMILY_SEARCH, cart: MIXED_CART, withDetails: true, online: false }) },
     { group: 'Empty states', label: 'Home · no booking', detail: 'Signed in, nothing connected', open: () => openPrototypePage({ state: 'account-only', screen: 'stay-overview' }) },
-    { group: 'Empty states', label: 'My Stay · nothing booked', detail: 'A live stay with no services', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'my-stay' }) },
-    { group: 'Empty states', label: 'Room charges · empty bill', detail: 'Nothing posted or booked yet', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'folio' }) },
-    { group: 'Empty states', label: 'Notifications · all caught up', detail: 'Nothing to report', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, screen: 'notifications' }) },
-    { group: 'Empty states', label: 'Chat · no messages yet', detail: 'The front desk, before the first message', open: () => openPrototypePage({ state: 'live', screen: 'chat' }) },
+    { group: 'Empty states', label: 'My Stay · nothing booked', detail: 'A live stay with no services', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, noSamples: true, screen: 'my-stay' }) },
+    { group: 'Empty states', label: 'Room charges · empty bill', detail: 'Nothing posted or booked yet', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, noSamples: true, screen: 'folio' }) },
+    { group: 'Empty states', label: 'Notifications · all caught up', detail: 'Nothing to report', open: () => openPrototypePage({ state: 'live', patch: nothingBooked, noSamples: true, screen: 'notifications' }) },
+    { group: 'Empty states', label: 'Chat · no messages yet', detail: 'The front desk, before the first message', open: () => openPrototypePage({ state: 'live', noSamples: true, screen: 'chat' }) },
     { group: 'Empty states', label: 'Explore · nothing to book', detail: 'Empty catalogue', open: () => openPrototypePage({ state: 'live', emptyCatalogue: true, screen: 'marketplace' }) },
     { group: 'Empty states', label: 'Category · nothing to book', detail: 'Spa & wellness, empty', open: () => openPrototypePage({ state: 'live', emptyCatalogue: true, category: 'spa', screen: 'category-listing' }) },
     { group: 'Empty states', label: 'Nearby · no places', detail: 'No independent places listed', open: () => openPrototypePage({ state: 'live', emptyCatalogue: true, screen: 'nearby-recommendations' }) },
@@ -3486,11 +3570,25 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       on the next sign-in: "sign back in to see your stays" has to be true, and
       a guest who paid for a hotel here must not lose it by signing out.
     */
-    writeAccountStash(accountActivity(session));
+    // A booking-only guest has no account to keep; leave whatever an earlier account on this phone kept.
+    if (session.auth === 'authenticated') writeAccountStash(accountActivity(session));
     clearStoredSession();
     setSession(signOutSession());
     setCode('');
     setCodeNotice(null);
+    // Nothing from this guest's stay follows them out: not its notes, banners or open thread.
+    setChatNotifications([]);
+    setSeenNotificationIds([]);
+    setReadNotificationIds([]);
+    setHasUnreadChat(false);
+    setPushNotice(null);
+    setSelectedThreadId(null);
+    // Nor what they typed: the next guest on this phone starts with empty forms.
+    setStayDetails(null);
+    setPrimaryPassportFields(null);
+    setProfileMatch(null);
+    setLookupBooking(null);
+    setPendingEmail('');
     setHistory([]);
     setActiveScreen('entry-hub');
     setScrolled(false);
@@ -3510,7 +3608,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           const lastName = String(data.get('last-name') ?? '');
 
           const match = findBookingByLookup(reference);
-          if (match) {
+          // A reference with someone else's surname is not this guest's booking.
+          if (match && surnameMatches(match.guestName, lastName)) {
             setLookupBooking(match);
             go('booking-found');
             return;
@@ -3551,7 +3650,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           required
         />
         <Field label="Last name" name="last-name" placeholder="As on the booking" autoComplete="family-name" required />
-        <Button className="guest-button guest-button--primary" type="submit">
+        {/* Finding a booking asks the hotel's system, like every other way in. */}
+        {!online ? <Notice tone="offline" icon={<WifiSlash />} title="You’re offline">Connect to find your booking.</Notice> : null}
+        <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
           Find booking<ArrowRight aria-hidden="true" />
         </Button>
       </form>
@@ -3746,12 +3847,13 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     */
     const inStay = hasStayStarted(contextBooking);
     const arrivalServices = [
-      ...SERVICES.filter((service) => isPreArrivalService(service.id)),
+      // Before the scan, only the ride can go through (as a desk request); the rest would end on "scan first".
+      ...SERVICES.filter((service) => isPreArrivalService(service.id) && (!inStay || service.id === 'transfer')),
       ...(inStay ? [] : [{ id: 'early-check-in', name: 'Early check-in', note: cartLines.some((line) => line.earlyCheckIn) ? 'In your cart' : contextBooking.earlyCheckIn ? 'Requested' : 'Subject to hotel confirmation' }]),
     ];
     const inCartIds = new Set(cartLines.map((line) => line.booking.serviceId));
     const arrivalDescription = inStay
-      ? 'Scan the code in your room to open dining, spa, tours and room charging. Until then, the hotel can still arrange these.'
+      ? 'Scan the code in your room to open dining, spa, tours and room charging. Until then, the hotel can still arrange your ride to the airport.'
       : bookingSlot.locked
       ? contextBooking.roomNumber
         ? 'Arrange a transfer, luggage help, or another arrival service. Scan the code in your room to unlock dining, spa, tours, and room charging.'
@@ -3903,7 +4005,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
     if (activeScreen === 'book-stay-confirmation') {
       const booking = session.bookings.find((item) => item.id === confirmedStayId);
       return booking
-        ? <StayConfirmationScreen booking={booking} onGoToStay={() => { setHistory([]); replaceScreen('stay-overview'); }} onArrangeTransfer={() => { setHistory(['stay-overview']); replaceScreen('pre-arrival-services'); }} />
+        ? <StayConfirmationScreen booking={booking} onGoToStay={() => { setHistory([]); replaceScreen('stay-overview'); }} onArrangeTransfer={() => { setHistory(['stay-overview']); /* For the stay just booked, not whichever one the app follows. */ setViewedBookingId(booking.id); replaceScreen('pre-arrival-services'); }} />
         : searchPage;
     }
     // The old partner routes had no hotel of their own; they open the first.
@@ -4275,18 +4377,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       case 'identify':
         return renderBookingLookup();
 
-      case 'booking-found':
+      case 'booking-found': {
+        // The stay just looked up -- not whichever one the app was already following (a finished stay, say).
+        const found = lookupBooking ?? displayBooking;
         return (
           <StayConfirm
-            booking={displayBooking}
-            art={<PropertyImage property={displayBooking.property} decorative />}
+            booking={found}
+            art={<PropertyImage property={found.property} decorative />}
             doneText={session.auth === 'authenticated'
-              ? `${displayBooking.property} is in your Cabana now, with everything for the stay.`
-              : `${displayBooking.property} is in your Cabana now. A few details next, and you’re ready to arrive.`}
+              ? `${found.property} is in your Cabana now, with everything for the stay.`
+              : `${found.property} is in your Cabana now. A few details next, and you’re ready to arrive.`}
             onConfirm={claimBooking}
             secondary={<TextButton onClick={() => go('identify')}>Use a different booking</TextButton>}
           />
         );
+      }
 
       case 'stay-overview':
         return (
@@ -4346,9 +4451,9 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 event.preventDefault();
                 const data = new FormData(event.currentTarget);
                 const reference = String(data.get('reentry-reference') ?? '');
-                const lastName = String(data.get('reentry-last-name') ?? '').trim().toLowerCase();
+                const lastName = String(data.get('reentry-last-name') ?? '');
                 const match = findProfileByLookup(reference);
-                if (!match || !lastName || !match.guestName.toLowerCase().endsWith(lastName)) {
+                if (!match || !surnameMatches(match.guestName, lastName)) {
                   go('no-booking');
                   return;
                 }
@@ -4477,7 +4582,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         );
 
       case 'no-booking':
-        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try the confirmation number from your hotel or booking provider.</Notice>{primary('Try again', 'identify')}<TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton><TextButton onClick={() => go('partner-hotels')}>Find a hotel’s contact details</TextButton></ScreenIntro>;
+        return <ScreenIntro icon={<Receipt size={30} />} eyebrow="No booking found" title="Connect a hotel booking" text="Cabana connects to confirmed hotel bookings."><Notice title="Already booked?">Try the confirmation number from your hotel or booking provider.</Notice><Button className="guest-button guest-button--primary" type="button" onClick={() => (['identify', 'identify-returning'].includes(history[history.length - 1] ?? '') ? back() : go('identify'))}>Try again<ArrowRight aria-hidden="true" /></Button>{history[history.length - 1] === 'identify-returning' ? null : <TextButton onClick={() => go('identify-returning')}>Stayed with us before? Use a booking reference</TextButton>}<TextButton onClick={() => go('partner-hotels')}>Find a hotel’s contact details</TextButton></ScreenIntro>;
 
       case 'guest-details':
         return (
@@ -4505,12 +4610,21 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-preferences': {
         const fromHome = history[history.length - 1] === 'stay-overview';
+        // From Home or the pre-arrival review these are for this stay as well as the next; from Profile, only the next.
+        const forStay = fromHome || history[history.length - 1] === 'repeat-review';
         return (
           <RoomPreferencesScreen
             preferences={session.roomPreferences}
-            property={fromHome ? primaryBooking?.property : undefined}
+            property={forStay ? contextBooking.property : undefined}
             onSave={(roomPreferences) => {
-              setSession((cur) => ({ ...cur, roomPreferences }));
+              setSession((cur) => ({
+                ...cur,
+                roomPreferences,
+                // Already sent with the registration: the change goes to the hotel too, as the screen says.
+                bookings: fromHome
+                  ? cur.bookings.map((booking) => (booking.id === contextBooking.id && booking.honouredPreferences ? { ...booking, honouredPreferences: summarizeRoomPreferences(roomPreferences) } : booking))
+                  : cur.bookings,
+              }));
               if (history.length > 0) back();
               else go('profile');
             }}
@@ -4530,6 +4644,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             initialCompanions={plan.selected}
             suggestions={plan.suggestions}
             fromReview={history[history.length - 1] === 'repeat-review'}
+            formOpen={companionFormOpen}
+            onFormOpenChange={setCompanionFormOpen}
             onSave={(companions) => {
               const patch = {
                 additionalGuests: companions.map((person) => person.name.trim()),
@@ -4539,6 +4655,12 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               if (history[history.length - 1] === 'repeat-review') {
                 setSession((current) => ({ ...current, ...patch }));
                 back();
+                return;
+              }
+              // Reached straight from the checklist with no ID yet: the list is kept, and step 1 comes before anything is sent.
+              if (!hasSavedDetails(session)) {
+                setSession((current) => ({ ...current, ...patch }));
+                go('guest-details');
                 return;
               }
               completePreArrival(patch);
@@ -4626,8 +4748,15 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-transfer-details': {
         const upgrade = contextBooking.roomUpgrade;
-        if (!upgrade) return primary('View My Stay', 'my-stay');
-        return <ScreenIntro icon={<Bed size={30} />} title="Complete your room transfer" text="Both rooms remain available until you confirm the move."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.newRoomType} · Room ${upgrade.newRoomNumber}`} /><SummaryRow label="Transfer deadline" value={upgrade.transferDeadline} /><SummaryRow label="Transfer time" value={upgrade.transferTime} /></div><Notice title="Moving your belongings">Pack your belongings and contact the front desk if you need help transferring your bags.</Notice><Notice title="Keys">Collect or activate the new key at the front desk, then return your Room {contextBooking.roomNumber} key there.</Notice><button className="guest-list-row" type="button" onClick={() => go('chat')}><span><ChatCircleDots /></span><div><b>Contact the front desk</b><small>Chat with the hotel team about your transfer</small></div><CaretRight /></button><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomType: booking.roomUpgrade.newRoomType, roomNumber: booking.roomUpgrade.newRoomNumber, roomUpgrade: undefined } : booking) })); go('stay-overview'); }}>Confirm room transfer<ArrowRight /></Button></ScreenIntro>;
+        // Reached with nothing to move (Back after confirming, or an old link): say so, not a lone button.
+        if (!upgrade) {
+          return (
+            <ScreenIntro icon={<Bed size={30} />} title="No room move waiting" text={`You are in ${contextBooking.roomType}${contextBooking.roomNumber ? `, Room ${contextBooking.roomNumber}` : ''}. Nothing else needs confirming.`}>
+              {primary('View My Stay', 'my-stay')}
+            </ScreenIntro>
+          );
+        }
+        return <ScreenIntro icon={<Bed size={30} />} title="Complete your room transfer" text="Both rooms remain available until you confirm the move."><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="New room" value={`${upgrade.newRoomType} · Room ${upgrade.newRoomNumber}`} /><SummaryRow label="Transfer deadline" value={upgrade.transferDeadline} /><SummaryRow label="Transfer time" value={upgrade.transferTime} /></div><Notice title="Moving your belongings">Pack your belongings and contact the front desk if you need help transferring your bags.</Notice><Notice title="Keys">Collect or activate the new key at the front desk, then return your Room {contextBooking.roomNumber} key there.</Notice><button className="guest-list-row" type="button" onClick={() => go('chat')}><span><ChatCircleDots /></span><div><b>Contact the front desk</b><small>Chat with the hotel team about your transfer</small></div><CaretRight /></button><Button className="guest-button guest-button--primary" type="button" onClick={() => { setSession((current) => ({ ...current, bookings: current.bookings.map((booking) => booking.id === contextBooking.id && booking.roomUpgrade ? { ...booking, roomType: booking.roomUpgrade.newRoomType, roomNumber: booking.roomUpgrade.newRoomNumber, roomUpgrade: undefined } : booking) })); setHistory([]); replaceScreen('stay-overview'); }}>Confirm room transfer<ArrowRight /></Button></ScreenIntro>;
       }
 
       case 'rate-detail': {
@@ -5223,7 +5352,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'restaurant-menu': {
         const venue = RESTAURANTS.find((r) => r.id === selectedRestaurantId) ?? RESTAURANTS[0];
-        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} onReserve={TABLE_VENUE_SERVICE_IDS[venue.id] ? () => openServiceBooking(TABLE_VENUE_SERVICE_IDS[venue.id]!) : undefined} onBack={() => go('category-listing')} onNotifications={hasCurrentStay ? undefined : openNotifications} />;
+        return <RestaurantMenuScreen venue={venue} onOrder={() => openRestaurantChat(venue)} onReserve={TABLE_VENUE_SERVICE_IDS[venue.id] ? () => openServiceBooking(TABLE_VENUE_SERVICE_IDS[venue.id]!) : undefined} onBack={history.length ? back : () => go('category-listing')} onNotifications={hasCurrentStay ? undefined : openNotifications} />;
       }
 
       case 'transfer-booking': {
@@ -5766,13 +5895,14 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             ) : null}
 
             {/*
-              Once the desk closes the stay is over, and asking for the rating
-              is the only thing left to do here -- so this is where it is asked,
+              Once the guest is checked out, asking for the rating is what is
+              left to do here -- so this is where it is asked (in the desk
+              window: once it closes, My Stay is no longer in the tab bar),
               not buried behind "Rate your stay", which a checked-out guest has
               no reason to press again. Asked once: a rating already given is
               reported back rather than re-requested.
             */}
-            {checkedOut && !postStayWindow.deskOpen ? (
+            {checkedOut ? (
               stayReview ? (
                 <p className="guest-desk-window">
                   <Check aria-hidden="true" />
@@ -6124,6 +6254,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           { label: 'Earlier this stay', items: notifications.filter((item) => !isToday(item.time)) },
         ].filter((group) => group.items.length);
         const unreadIds = notifications.filter((item) => !readNotificationIds.includes(item.id)).map((item) => item.id);
+        // Both lists: the rows' dots read one, the Chat tab's dot counts the other.
+        const markAllRead = () => {
+          setReadNotificationIds((current) => [...new Set([...current, ...unreadIds])]);
+          setSeenNotificationIds((current) => [...new Set([...current, ...notifications.map((item) => item.id)])]);
+        };
 
         return (
           <div className="guest-stack guest-inbox">
@@ -6132,7 +6267,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               <div className="guest-inbox__title">
                 <h1>Notifications</h1>
                 {unreadIds.length ? (
-                  <button type="button" className="guest-inbox__mark" onClick={() => setReadNotificationIds((current) => [...new Set([...current, ...unreadIds])])}>
+                  <button type="button" className="guest-inbox__mark" onClick={markAllRead}>
                     Mark all as read
                   </button>
                 ) : null}
@@ -6144,7 +6279,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 {hasCurrentStay && index === 0 && unreadIds.length ? (
                   <div className="guest-inbox__group-head">
                     <h2>{group.label}</h2>
-                    <button type="button" className="guest-inbox__mark" onClick={() => setReadNotificationIds((current) => [...new Set([...current, ...unreadIds])])}>
+                    <button type="button" className="guest-inbox__mark" onClick={markAllRead}>
                       Mark all as read
                     </button>
                   </div>
@@ -6187,7 +6322,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'cancel-before-cutoff':
       case 'cancel-after-cutoff': {
-        if (selectedStayEntryId && !session.serviceBookings.some((service) => service.id === selectedStayEntryId)) {
+        // Gone, or already cancelled (Back after cancelling lands here again): nothing left to cancel twice.
+        if (selectedStayEntryId && !session.serviceBookings.some((service) => service.id === selectedStayEntryId && service.status !== 'cancelled')) {
           return (
             <ScreenIntro title="This booking isn't here any more" text="Nothing was cancelled. Your bookings are all in My Stay.">
               {primary('View My Stay', 'my-stay')}
@@ -6219,21 +6355,28 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               : cancellable.serviceId === 'room-upgrade'
                 ? current.bookings.map((booking) => (booking.id === cancellable.bookingId ? { ...booking, roomUpgrade: undefined } : booking))
                 : current.bookings,
-            // A room charge comes back off the running total; nothing else touched it.
-            folioTotal: paidBy === 'room'
+            // A room charge comes back off the running total; nothing else touched it. A request was never added to it.
+            folioTotal: paidBy === 'room' && !isRequest
               ? formatPesoAmount(Math.max(0, parsePesoAmount(current.folioTotal) - parsePesoAmount(cancellable.amount)))
               : current.folioTotal,
           }));
-          go('my-stay');
+          // Back to My Stay as it was: Back from there must not reopen this screen, or the entry, for a booking that is gone.
+          setHistory((items) => {
+            const at = items.lastIndexOf('my-stay');
+            return at >= 0 ? items.slice(0, at) : items;
+          });
+          goReplacing('my-stay');
         };
-        const settlement = paidBy === 'card'
+        const settlement = isRequest
+          ? { title: 'Nothing was charged', body: 'The request is withdrawn before anyone accepted it. No money moves.' }
+          : paidBy === 'card'
           ? { title: 'Your payment is refunded', body: 'It goes back the way you paid. Nothing else changes.' }
           : paidBy === 'complimentary'
             ? { title: 'Nothing to refund', body: 'This one was complimentary.' }
             : paidBy === 'provider'
               ? { title: 'No provider payment made', body: 'Nothing was charged in Cabana or to your room.' }
             : { title: 'The charge will be removed from your room', body: 'This service has not settled. No money moves when you cancel.' };
-        return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title={isRequest ? 'Withdraw this request?' : 'Cancel this booking?'} text={`This is before the provider’s ${cutoffHours ?? 24}-hour cutoff, so you can cancel it yourself.`}><div className="guest-ticket"><div><small>{withoutTime(cancellable.scheduledFor)}</small><h2>{time}</h2><p>{cancellable.title}{cancellable.amount ? ' · ' + cancellable.amount : ''}{paidBy === 'room' ? ` · ${contextRoom}` : ''}</p></div></div><Notice tone="positive" title={settlement.title}>{settlement.body}</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">{isRequest ? 'Withdraw request' : 'Cancel service'}</button><TextButton onClick={() => go('my-stay')}>{isRequest ? 'Keep request' : 'Keep booking'}</TextButton></ScreenIntro>;
+        return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title={isRequest ? 'Withdraw this request?' : 'Cancel this booking?'} text={isRequest ? 'It has not been accepted yet, so you can withdraw it yourself.' : `This is before the provider’s ${cutoffHours ?? 24}-hour cutoff, so you can cancel it yourself.`}><div className="guest-ticket"><div><small>{withoutTime(cancellable.scheduledFor)}</small><h2>{time}</h2><p>{cancellable.title}{cancellable.amount ? ' · ' + cancellable.amount : ''}{paidBy === 'room' ? ` · ${contextRoom}` : ''}</p></div></div><Notice tone="positive" title={settlement.title}>{settlement.body}</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">{isRequest ? 'Withdraw request' : 'Cancel service'}</button><TextButton onClick={() => go('my-stay')}>{isRequest ? 'Keep request' : 'Keep booking'}</TextButton></ScreenIntro>;
       }
 
       case 'folio': {
@@ -6259,7 +6402,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           );
         }
         const folioCharges = getRoomCharges(session, contextBooking, contextRoom, clockHour);
-        const folioTotal = getRoomChargesTotal(session, contextBooking, contextRoom);
+        // The same lines the list shows: a charge later today is in neither until its hour.
+        const folioTotal = sumRoomCharges(folioCharges);
         const visibleCharges = folioCharges;
         return <div className="guest-stack guest-folio-page"><div className="guest-page-title"><h1>Room charges</h1><p>Charges added to {contextRoom} during your stay.</p></div>{!online ? <Notice tone="offline" title="Last-known folio">Reconnect for the latest charges.</Notice> : null}{pmsDown ? <StaleDataNotice asOf={PMS_LAST_SYNC} onRetry={() => setPmsDown(false)} onAsk={() => go('chat')} /> : null}<div className="guest-folio-summary"><div><span>Current total</span><small>Due at checkout</small></div><strong>{folioTotal}</strong></div>{pointsBalance(session) >= 1000 ? <button type="button" className="folio-points" onClick={() => go('rewards')}><span><b>{pointsBalance(session).toLocaleString('en-US')} points</b><small>{pointsAsPesos(pointsBalance(session))} to use on services you book in your stay</small></span><CaretRight aria-hidden="true" /></button> : null}{visibleCharges.length === 0 ? <StatePanel icon={<Receipt />} title="Nothing on your bill yet">{`What you order or book in the stay, and what the hotel posts, shows here as it lands on ${contextRoom}. It all settles at the front desk at checkout.`}</StatePanel> : null}<div className="guest-folio-cards">{visibleCharges.map((charge) => { const isExpanded = expandedChargeId === charge.id; const service = session.serviceBookings.find((item) => item.id === charge.id); return <article key={charge.id} className={`guest-folio-card${isExpanded ? ' is-expanded' : ''}`}><button type="button" className="guest-folio-card__header" aria-expanded={isExpanded} onClick={() => setExpandedChargeId(isExpanded ? null : charge.id)}><span><b>{charge.title}</b><small>{charge.detail}</small></span><strong>{charge.amount}</strong><CaretDown className="guest-folio-card__chevron" /></button>{isExpanded ? <RoomChargeDetails charge={charge} service={service} roomLabel={contextRoom} property={contextBooking.property} onQuestion={(message) => { setChatDraft(message); go('chat'); }} /> : null}</article>; })}</div><button className="guest-folio-help" type="button" onClick={() => { setChatDraft('I have a question about a room charge. Could you help me review it?'); go('chat'); }}><span><b>Question about a charge?</b><small>Message the front desk</small></span></button></div>;
       }
@@ -6518,12 +6662,17 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   { from: 'guest', body: `I’ve redeemed ${reward.title} with my points (${code}). Please have it ready.`, state: 'Sent' },
                   { from: 'desk', body: `Thank you. We have ${reward.title} noted against ${code} and will have it ready for you.`, state: 'Seen' },
                 ]);
-                notifyGuestRequest(`reward-${code}`, `${reward.title} redeemed`, `Code ${code} · the front desk has it.`);
+                notifyGuestRequest(`reward-${code}`, `${reward.title} redeemed`, `Code ${code} · the front desk has it.`, { screen: 'chat' });
               }
               setRedeemedReward({ code, toldDesk });
             }}
             redeemed={redeemedReward ?? undefined}
-            onDone={() => { setRedeemedReward(null); go('rewards'); }}
+            onDone={() => {
+              setRedeemedReward(null);
+              // Not pushed: Back from Achievements must not reopen this reward with its Redeem button live again.
+              if (history[history.length - 1] === 'rewards') back();
+              else goReplacing('rewards');
+            }}
           />
         );
       }
@@ -6865,10 +7014,11 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 label="Home"
                 icon={HugeHomeIcon}
                 activeIcon={HugeHomeSolidIcon}
-                active={activeScreen === 'stay-overview' || (!hasCurrentStay && !showNoBookingExplore && STAY_BOOKING_SCREENS.includes(activeScreen))}
+                active={activeScreen === 'stay-overview'}
                 onClick={() => goTab('stay-overview')}
               />
-              {showNoBookingExplore ? (
+              {/* No stay in hand -- never booked, or the desk window after checkout has closed: Home, Explore, Profile. */}
+              {!hasCurrentStay ? (
                 <NavButton
                   label="Explore"
                   icon={HugeCompassIcon}
@@ -6909,7 +7059,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 label="Profile"
                 icon={HugeProfileIcon}
                 activeIcon={HugeProfileSolidIcon}
-                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'saved-hotels' || activeScreen === 'payments' || activeScreen === 'payment-detail' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
+                active={activeScreen === 'profile' || activeScreen === 'stay-history' || activeScreen === 'stay-detail' || activeScreen === 'saved-hotels' || activeScreen === 'payments' || activeScreen === 'payment-detail' || activeScreen === 'rewards' || activeScreen === 'reward-detail' || activeScreen === 'badge-detail'}
                 onClick={() => goTab('profile')}
               />
             </nav>

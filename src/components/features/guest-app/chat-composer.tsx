@@ -32,6 +32,8 @@ type ChatComposerProps = {
   onSubmit: (payload: ChatComposerSubmit) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  /** False where the other side only receives text: no photo, voice note or location to lose on the way. */
+  attachments?: boolean;
 };
 
 const formatDuration = (seconds: number) => {
@@ -40,7 +42,7 @@ const formatDuration = (seconds: number) => {
   return `${minutes}:${remainder}`;
 };
 
-export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit, placeholder, autoFocus = false }: ChatComposerProps) {
+export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit, placeholder, autoFocus = false, attachments = true }: ChatComposerProps) {
   const [pendingAttachment, setPendingAttachment] = useState<ChatAttachment | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -473,8 +475,8 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
         <button
           className="guest-composer__tool"
           type="button"
-          aria-label={attachmentMenuOpen ? 'Close attachment menu' : 'Open attachment menu'}
-          disabled={disabled || isRecording}
+          aria-label={!attachments ? 'Attachments are not available in this chat' : attachmentMenuOpen ? 'Close attachment menu' : 'Open attachment menu'}
+          disabled={disabled || isRecording || !attachments}
           onClick={() => setAttachmentMenuOpen((open) => !open)}
         >
           <Plus aria-hidden="true" />
@@ -508,12 +510,12 @@ export function ChatComposer({ disabled = false, draft, onDraftChange, onSubmit,
           disabled={disabled || isRecording}
         />
         {/* Send takes the microphone's place once there is something to send, so a long message keeps the width. */}
-        {canSend ? (
+        {canSend || !attachments ? (
           <button
             className="guest-composer__submit"
             type="submit"
             aria-label="Send message"
-            disabled={disabled || isRecording}
+            disabled={disabled || isRecording || !canSend}
           >
             <ArrowUp aria-hidden="true" />
           </button>

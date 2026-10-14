@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui';
 import { ArrowRight, LockSimple, X } from '@/components/ui/huge-icons';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChoiceList, PaymentMethodGlyph } from './guest-ui';
 
 /*
@@ -33,6 +33,10 @@ export function GatewayCheckout({ merchant, amount, item, onPaid, onClose, hint,
   const [processing, setProcessing] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
+  // Leaving the sheet mid-payment must not charge them after they have gone.
+  useEffect(() => () => {
+    if (timer.current) window.clearTimeout(timer.current);
+  }, []);
 
   const pay = () => {
     if (!method || processing) return;

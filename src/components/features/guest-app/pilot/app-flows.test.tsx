@@ -517,16 +517,14 @@ describe('what the reviews found', { timeout: 40_000 }, () => {
     expect(screen.getByRole('heading', { name: /Request sent/ })).toBeInTheDocument();
   });
 
-  it('keeps a stay the desk cancelled cancelled, even after the clock moves', async () => {
+  it('takes a stay the desk cancelled out of the app, so nothing more can be booked on it', async () => {
     const user = userEvent.setup();
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={live} />);
     await fire(user, /Desk cancels the stay/);
-    await fire(user, /Move the clock on an hour/);
 
-    await openCategory(user, 'Rentals');
-    await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
-    await user.click(within(screen.getByTestId('service-page')).getByRole('button', { name: 'Choose a time' }));
-    expect(screen.getByText(/This stay was cancelled/)).toBeInTheDocument();
+    expect(screen.getByText(/The hotel cancelled your stay/)).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(within(nav).queryByRole('button', { name: 'My Stay' })).toBeNull();
   });
 
   it('does not clear the front desk’s unread while the guest reads a booking thread', async () => {

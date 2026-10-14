@@ -93,9 +93,10 @@ export function RewardDetail({ reward, balance, onRedeem, redeemed, onDone }: Re
           <p className="guest-eyebrow">Redeemed</p>
           <h1>{reward.title}</h1>
           <p>
+            {/* Not told covers both no stay under way and offline mid-stay: nothing is queued, so the code is the only record the desk will see. */}
             {redeemed.toldDesk
               ? 'The front desk has your request and will have this ready. Quote the code if they ask.'
-              : 'Show this code at the front desk on your next stay and they will have it ready.'}
+              : 'The front desk has not been told yet. Show them this code when you are at the hotel and they will have it ready.'}
           </p>
         </div>
 
@@ -147,7 +148,7 @@ export function RewardDetail({ reward, balance, onRedeem, redeemed, onDone }: Re
       </button>
 
       <p className="reward-detail__note">
-        Redeeming does not earn points. You will get a code to quote, and the front desk is told.
+        Redeeming does not earn points. You will get a code to quote. During a stay, and while you are online, the front desk is told too.
       </p>
     </div>
   );

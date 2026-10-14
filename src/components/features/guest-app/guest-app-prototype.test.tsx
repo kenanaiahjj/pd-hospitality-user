@@ -2587,10 +2587,10 @@ describe('lifecycle gates', () => {
     }
   });
 
-  it('drops to Home and Profile once the front desk window has closed', () => {
+  it('drops to Home, Explore and Profile once the front desk window has closed', () => {
     render(<GuestAppPrototype initialScreen="stay-overview" initialSession={applyPrototypeStayState('closed')} />);
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual(['Home', 'Profile']);
+    expect(within(nav).getAllByRole('button').map((button) => button.textContent)).toEqual(['Home', 'Explore', 'Profile']);
     expect(screen.getByTestId('guest-home-empty')).toBeInTheDocument();
   });
 

@@ -1291,7 +1291,7 @@
 .guest-app .sb-confirmation__dock .guest-button { flex: 1 1 auto; width: 100%; justify-content: center; }
 
 /* Explore before the scan: this stay, or hotels. Full width, two equal halves. */
-.guest-app .sb-explore-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; margin-block-end: 4px; }
+.guest-app .sb-explore-tabs { display: grid; grid-template-columns: 1fr 1fr; width: 100%; margin-block-end: 14px; }
 .guest-app .sb-explore-tabs button { justify-content: center; }
 .guest-app .sb-hotel__actions { display: inline-flex; gap: 8px; }
 /* One line: the price and what it includes. */

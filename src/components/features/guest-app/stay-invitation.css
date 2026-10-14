@@ -171,9 +171,10 @@
 .stay-pass__brand {
   position: absolute;
   z-index: 5;
-  inset-block-start: 50%;
+  /* Top of the photo, clear of a property name that wraps to two lines. */
+  inset-block-start: 22px;
   inset-inline-start: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   pointer-events: none;
 }
 .stay-pass__mark {

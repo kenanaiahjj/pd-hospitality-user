@@ -188,8 +188,15 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
   }
 
   if (variant === 'active') {
+    /*
+      The same "still ahead" rule My Stay files by (getStayEntries): today goes
+      by the clock hour, so a slot earlier today is history, not Next up. A
+      request with no time on it (an upgrade waiting on the hotel) is not a
+      thing to turn up for, so it never leads here.
+    */
     const confirmedServices = session.serviceBookings.filter(
-      (service) => service.status === 'confirmed' && service.bookingId === booking.id && service.scheduledDate >= PROTOTYPE_TODAY,
+      (service) => service.status === 'confirmed' && service.bookingId === booking.id && service.scheduledHour !== undefined
+        && (service.scheduledDate > PROTOTYPE_TODAY || (service.scheduledDate === PROTOTYPE_TODAY && service.scheduledHour >= clockHour)),
     // Soonest first: "Next up" is the next thing, not the first one booked.
     ).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate) || (a.scheduledHour ?? 0) - (b.scheduledHour ?? 0));
     const roomLabel = booking.roomNumber ? `Room ${booking.roomNumber}` : 'Active room';

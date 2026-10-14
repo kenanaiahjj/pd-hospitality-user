@@ -6376,6 +6376,10 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 .guest-home-booking--completed .guest-property-image {
   aspect-ratio: 16 / 5 !important;
 }
+/* Except the photo card, which names the hotel on the picture under its status pill: at 16:5 the two collide. */
+.guest-home-booking--completed .guest-stay-hero-card--photo .guest-property-image {
+  aspect-ratio: 2 / 1 !important;
+}
 
 .guest-establishment-chat-screen {
   gap: 16px;

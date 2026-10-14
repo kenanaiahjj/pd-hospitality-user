@@ -1191,6 +1191,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         setReadNotificationIds((current) => [...current, notification.id]);
       }
     }
+    // No banner pointing at the desk chat while the guest is reading it: they can see the message land.
+    if (options.screen === 'chat' && readsDeskChat(activeScreenRef.current)) return;
     setPushNotice({ id, headline, detail, screen: options.screen, threadId: options.threadId });
   };
 
@@ -1263,7 +1265,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
         ? GIFT_PRODUCTS.slice(0, 2).map((product) => product.image)
         : undefined;
       const deskReply = messageBody.includes('towel')
-        ? `We’ll bring two fresh towels to ${contextRoom.toLowerCase()} shortly.`
+        ? `We’ll bring two fresh towels to ${contextRoomInline} shortly.`
         : productCatalogRequest
           ? checkedOut
             ? `Here is the current ${establishment} product catalog. Send the item names and quantities you’re interested in, and we’ll check stock and prices. Since you’ve checked out, the front desk will confirm the total, take payment there, and add the purchase to your stay’s total charges.`
@@ -1715,6 +1717,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
   const cartLines = cartFor(session, contextBooking.id);
   const cartSummary = cartTotals(cartLines);
   const contextRoom = contextBooking.roomNumber ? `Room ${contextBooking.roomNumber}` : 'Room assigned at arrival';
+  /* Mid-sentence, as the rest of the app writes it: "added to room 304"; with no room yet, "your room". */
+  const contextRoomInline = contextBooking.roomNumber ? `room ${contextBooking.roomNumber}` : 'your room';
   const contextService = session.serviceBookings.find(
     (service) => service.id === 'service-hilom-1' && service.bookingId === contextBooking.id,
   );
@@ -5636,7 +5640,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               ? `Paid with ${methodLabel}, direct to ${merchantFrom(booked?.provider ?? '')}. It is not on your room bill; your receipt is in My Stay.`
               : paidBy === 'complimentary'
                 ? 'Complimentary, so there is nothing to pay. It is on your stay in My Stay.'
-                : `The charge has been added to ${contextRoom.toLowerCase()} and is paid with your room bill at checkout.`}
+                : `The charge has been added to ${contextRoomInline} and is paid with your room bill at checkout.`}
           >
             <div className="guest-ticket"><div><small>{withoutTime(slot)}</small><h2>{time}</h2><p>{booked?.title ?? bookedService.name} · {bookingCount}</p></div><Tag>{engineHeadline?.tag ?? 'Confirmed'}</Tag></div>
             <div className="guest-summary">
@@ -6012,7 +6016,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                           // Gated, and said so: services open with the room scan, not before it.
                           : bookingSlot.locked
                           ? `Dining, spa, tours and hotel services open once you scan the code in your room. Bookings then go on ${contextBooking.roomNumber ? `room ${contextBooking.roomNumber}` : 'your room'} and settle at checkout.`
-                          : `Dining, spa, tours, and hotel services are in Explore. Bookings are added to ${contextRoom.toLowerCase()} and settle at checkout.`}
+                          : `Dining, spa, tours, and hotel services are in Explore. Bookings are added to ${contextRoomInline} and settle at checkout.`}
                     </p>
                     {stayTab === 'upcoming' && !started ? (
                       <Button className="guest-button guest-button--secondary" type="button" onClick={() => go('pre-arrival-services')}>
@@ -6163,8 +6167,8 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                   : entry.settlement === 'Awaiting hotel confirmation' ? 'Nothing is charged until the hotel confirms. You can withdraw the request until then.'
                     : entry.settlement === 'Pay the provider directly' ? 'This booking is outside the hotel. Pay the provider directly; nothing is added to your room bill.'
                       : entry.paidBy === 'complimentary' ? 'On the house. Nothing is added to your room.'
-                        : entryAhead && entry.paidBy === 'room' ? `Added to ${contextRoom.toLowerCase()} once it has happened, and settled at the front desk at checkout.`
-                          : entry.settlement ?? `Added to ${contextRoom.toLowerCase()} and settles with the hotel at checkout.`}
+                        : entryAhead && entry.paidBy === 'room' ? `Added to ${contextRoomInline} once it has happened, and settled at the front desk at checkout.`
+                          : entry.settlement ?? `Added to ${contextRoomInline} and settles with the hotel at checkout.`}
             </Notice>}
 
             {/*

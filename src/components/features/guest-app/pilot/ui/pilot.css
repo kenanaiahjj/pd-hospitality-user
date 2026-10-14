@@ -510,6 +510,8 @@
 .pilot-card > .pilot-actions { border-block-start: 0; padding-block-start: 2px; }
 .pilot-card > .pilot-countdown + .pilot-actions { padding-block-start: 12px; }
 .pilot-actions .guest-button { min-block-size: 44px; flex: 1 1 calc(50% - 4px); padding: 0 16px; font-size: 14px; }
+/* The app's own button rule is more specific; this wins it back. A label that does not fit takes its own row rather than breaking in two. */
+.guest-app .pilot-actions .guest-button { padding-inline: 16px; font-size: 14px; white-space: nowrap; }
 .pilot-actions .pilot-actions__lead { flex-basis: 100%; order: -1; }
 /* What is not the next step is a quiet word, not another big pill. */
 .pilot-actions__minor {

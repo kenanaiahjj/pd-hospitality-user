@@ -1,0 +1,26 @@
+/*
+  Two thin fixed strips that mobile Safari samples for the colour behind its
+  status bar and bottom controls. They take no taps, sit above everything
+  (a scrim included, since the sampled colour already has it blended in), and
+  are as tall as the safe area, so app content never reaches into them.
+*/
+.edge-top,
+.edge-bottom {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+.edge-top { inset-block-start: 0; height: max(12px, env(safe-area-inset-top)); }
+.edge-bottom { inset-block-end: 0; height: max(12px, env(safe-area-inset-bottom)); }
+
+.edge-top::after,
+.edge-bottom::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.edge-top::after { background: var(--edge-top-background, transparent); }
+.edge-bottom::after { background: var(--edge-bottom-background, transparent); }

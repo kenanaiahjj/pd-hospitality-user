@@ -1,5 +1,10 @@
-import { GuestAppPrototype } from '@/components/features/guest-app';
+import { GuestAppPrototype, SafariEdges } from '@/components/features/guest-app';
 
 export default function HomePage() {
-  return <GuestAppPrototype />;
+  return (
+    <>
+      <GuestAppPrototype />
+      <SafariEdges />
+    </>
+  );
 }

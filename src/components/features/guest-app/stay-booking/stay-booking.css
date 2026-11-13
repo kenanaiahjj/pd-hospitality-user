@@ -274,6 +274,7 @@
 
 .guest-app .sb-checkout { gap: 26px; }
 .guest-app .sb-form { display: grid; gap: 14px; }
+.guest-app .sb-small + .sb-form { margin-block-start: 6px; }
 .guest-app .sb-textarea {
   width: 100%;
   min-height: 88px;
@@ -455,10 +456,11 @@
   background-size: 16px 16px;
 }
 .guest-app .sb-field input:focus,
-.guest-app .sb-field select:focus { box-shadow: var(--guest-focus-ring); }
+.guest-app .sb-field select:focus { border-color: var(--guest-accent-strong); box-shadow: var(--guest-focus-ring); }
 .guest-app .sb-field.is-invalid input,
 .guest-app .sb-field.is-invalid select { border-color: var(--guest-danger); }
 .guest-app .sb-field > small { color: var(--guest-muted); font-size: 12.5px; }
+
 
 /* ---------- search bar + full-screen sheet ---------- */
 

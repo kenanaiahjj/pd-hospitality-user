@@ -1,7 +1,6 @@
 'use client';
 
-import { ExpandableField } from './field-controls';
-import { Field, FormScreen, Notice, TextButton } from './guest-ui';
+import { Field, FieldGroup, FormScreen, Notice, TextButton } from './guest-ui';
 import type { GuestRecord, RoomPreferences, SavedCompanion } from './prototype-model';
 import { PROTOTYPE_TODAY, ROOM_PREFERENCE_OPTIONS, isCompleteCompanion } from './prototype-model';
 
@@ -282,7 +281,6 @@ export function IdentityStep({ guestName, email, record, passportFields, onPassp
   onContinue: (identity: { name: string; email: string; mobile: string; nationality: string; passport: PassportFields }) => void;
 }) {
   const [contact, setContact] = useState({ email, mobile: record?.mobile ?? '' });
-  const [contactOpen, setContactOpen] = useState(false);
   const [person, setPerson] = useState({ name: guestName, nationality: record?.nationality ?? '' });
   const [rescan, setRescan] = useState(false);
   const readDocument = useCallback((fields: PassportFields) => {
@@ -303,14 +301,16 @@ export function IdentityStep({ guestName, email, record, passportFields, onPassp
       ) : (
         <PassportCapturePanel subjectName={person.name} onAutofill={readDocument} />
       )}
-      <Field label="Full name" name="guest-name" value={person.name} onValueChange={(name) => setPerson((current) => ({ ...current, name }))} required />
-      <Field label="Nationality" name="nationality" placeholder="e.g. Filipino" value={person.nationality} onValueChange={(nationality) => setPerson((current) => ({ ...current, nationality }))} required />
-      <Field label="Passport or ID number" name="document-number" placeholder="As printed on the document" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} required />
-      <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} helper={expired ? EXPIRED_ID : undefined} required />
-      <ExpandableField className="guest-field--contact" label="Contact" value={[contact.email, contact.mobile].filter(Boolean).join(' · ') || 'Add contact details'} aside={email ? 'From your account' : 'Optional'} open={contactOpen} onToggle={() => setContactOpen((open) => !open)}>
-        <Field label="Email" name="guest-email" type="email" value={contact.email} onValueChange={(value) => setContact((current) => ({ ...current, email: value }))} />
-        <Field label="Mobile" name="guest-mobile" type="tel" value={contact.mobile} onValueChange={(mobile) => setContact((current) => ({ ...current, mobile }))} />
-      </ExpandableField>
+      <FieldGroup title="ID details">
+        <Field label="Full name" name="guest-name" value={person.name} onValueChange={(name) => setPerson((current) => ({ ...current, name }))} required />
+        <Field label="Nationality" name="nationality" placeholder="e.g. Filipino" value={person.nationality} onValueChange={(nationality) => setPerson((current) => ({ ...current, nationality }))} required />
+        <Field label="Passport or ID number" name="document-number" placeholder="As printed on the document" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} required />
+        <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} helper={expired ? EXPIRED_ID : undefined} required />
+      </FieldGroup>
+      <FieldGroup title="Contact" hint={email ? 'From your account' : 'So the property can reach you'}>
+        <Field label="Email" name="guest-email" type="email" optional value={contact.email} onValueChange={(value) => setContact((current) => ({ ...current, email: value }))} />
+        <Field label="Mobile" name="guest-mobile" type="tel" optional value={contact.mobile} onValueChange={(mobile) => setContact((current) => ({ ...current, mobile }))} />
+      </FieldGroup>
       <Button className="guest-button guest-button--primary" type="button" disabled={!ready} onClick={() => onContinue({ name: person.name.trim(), email: contact.email.trim(), mobile: contact.mobile.trim(), nationality: person.nationality.trim(), passport: passportFields })}>{ready ? (onFile ? 'Confirm and continue' : 'Continue') : (expired ? 'Use an ID that is still valid' : 'Scan or fill in your ID to continue')}<ArrowRight aria-hidden="true" /></Button>
     </FormScreen>
   );
@@ -389,56 +389,62 @@ export function AdditionalGuestsScreen({
           }}
         >
           <PassportCapturePanel subjectName={draft.name} sample={DEMO_COMPANION_PASSPORT} onAutofill={handlePassportAutofill} />
-          <Field
-            label="Full name"
-            name="companion-name"
-            placeholder="As shown on the ID"
-            value={draft.name}
-            onValueChange={(name) => setDraft((current) => ({ ...current, name }))}
-            required
-          />
-          <Field
-            label="Nationality"
-            name="companion-nationality"
-            placeholder="e.g. Filipino"
-            value={draft.nationality ?? ''}
-            onValueChange={(nationality) => setDraft((current) => ({ ...current, nationality }))}
-            required
-          />
-          {/* The hotel registers every guest, so a companion needs the same ID details as the lead. */}
-          <Field
-            label="Passport or ID number"
-            name="companion-document"
-            placeholder="As printed on the document"
-            value={draft.documentNumber ?? ''}
-            onValueChange={(documentNumber) => setDraft((current) => ({ ...current, documentNumber }))}
-            required
-          />
-          <Field
-            label="Expiry date"
-            name="companion-expiry"
-            type="date"
-            value={draft.expiry ?? ''}
-            onValueChange={(expiry) => setDraft((current) => ({ ...current, expiry }))}
-            helper={draftExpired ? EXPIRED_ID : undefined}
-            required
-          />
-          <Field
-            label="Email (optional)"
-            name="companion-email"
-            type="email"
-            placeholder="companion@example.com"
-            value={draft.email ?? ''}
-            onValueChange={(email) => setDraft((current) => ({ ...current, email }))}
-          />
-          <Field
-            label="Mobile (optional)"
-            name="companion-mobile"
-            type="tel"
-            placeholder="+63 917 555 0100"
-            value={draft.mobile ?? ''}
-            onValueChange={(mobile) => setDraft((current) => ({ ...current, mobile }))}
-          />
+          <FieldGroup title="ID details">
+            <Field
+              label="Full name"
+              name="companion-name"
+              placeholder="As shown on the ID"
+              value={draft.name}
+              onValueChange={(name) => setDraft((current) => ({ ...current, name }))}
+              required
+            />
+            <Field
+              label="Nationality"
+              name="companion-nationality"
+              placeholder="e.g. Filipino"
+              value={draft.nationality ?? ''}
+              onValueChange={(nationality) => setDraft((current) => ({ ...current, nationality }))}
+              required
+            />
+            {/* The hotel registers every guest, so a companion needs the same ID details as the lead. */}
+            <Field
+              label="Passport or ID number"
+              name="companion-document"
+              placeholder="As printed on the document"
+              value={draft.documentNumber ?? ''}
+              onValueChange={(documentNumber) => setDraft((current) => ({ ...current, documentNumber }))}
+              required
+            />
+            <Field
+              label="Expiry date"
+              name="companion-expiry"
+              type="date"
+              value={draft.expiry ?? ''}
+              onValueChange={(expiry) => setDraft((current) => ({ ...current, expiry }))}
+              helper={draftExpired ? EXPIRED_ID : undefined}
+              required
+            />
+          </FieldGroup>
+          <FieldGroup title="Contact">
+            <Field
+              label="Email"
+              optional
+              name="companion-email"
+              type="email"
+              placeholder="companion@example.com"
+              value={draft.email ?? ''}
+              onValueChange={(email) => setDraft((current) => ({ ...current, email }))}
+            />
+            <Field
+              label="Mobile"
+              optional
+              name="companion-mobile"
+              type="tel"
+              placeholder="+63 917 555 0100"
+              value={draft.mobile ?? ''}
+              onValueChange={(mobile) => setDraft((current) => ({ ...current, mobile }))}
+            />
+          </FieldGroup>
           <Button className="guest-button guest-button--primary" type="submit" disabled={!draftReady}>
             {draftReady ? (editing === null ? 'Save guest' : 'Save changes') : draftExpired ? 'Use an ID that is still valid' : 'Scan or fill in their ID to save'}<ArrowRight aria-hidden="true" />
           </Button>

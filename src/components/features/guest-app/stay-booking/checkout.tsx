@@ -9,7 +9,7 @@ import { countNightsBetween } from '../prototype-model';
 import { readPendingVoucher, savePendingVoucher } from './offers';
 import type { CartLine, PromoAccount, RoomAllocation, StayAddOn, StayGuestDetails, StayHotel, StaySearch } from './model';
 import { NEW_ACCOUNT, RATE_PLAN_LABELS, SERVICE_RATE, VAT_RATE, addOnLines, addOnsPayNowTotal, addOnsRoomChargeTotal, cartRooms, describeRooms, offersFor, partyLabel, peso, quoteStay, roomCancellationPolicy, voucherOptionsFor } from './model';
-import { longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
+import { compactRange, longDate, nightsLabel, shortDate, stayDatesLabel } from './format';
 
 export const BED_PREFERENCES = ['No preference', 'One large bed', 'Two separate beds'] as const;
 export const ARRIVAL_TIMES = ['I don’t know yet', '12:00–3:00 PM', '3:00–6:00 PM', '6:00–9:00 PM', 'After 9:00 PM'] as const;
@@ -41,11 +41,11 @@ export function detailsErrors(details: StayGuestDetails) {
   };
 }
 
-function TextField({ label, value, onChange, error, type = 'text', autoComplete, placeholder, show, required }: { label: string; value: string; onChange: (value: string) => void; error?: string; type?: string; autoComplete?: string; placeholder?: string; show: boolean; required?: boolean }) {
+function TextField({ label, value, onChange, error, type = 'text', autoComplete, placeholder, show, optional }: { label: string; value: string; onChange: (value: string) => void; error?: string; type?: string; autoComplete?: string; placeholder?: string; show: boolean; optional?: boolean }) {
   const invalid = show && Boolean(error);
   return (
-    <label className={`sb-field${invalid ? ' is-invalid' : ''}`}>
-      <span>{label}{required ? <span className="guest-required-marker" aria-hidden="true"> *</span> : null}</span>
+    <label className={`sb-field${invalid ? ' is-invalid' : ''}`} data-optional={optional ? '' : undefined}>
+      <span>{label}</span>
       <input type={type} value={value} autoComplete={autoComplete} placeholder={placeholder} aria-invalid={invalid || undefined} onChange={(event) => onChange(event.currentTarget.value)} />
       {invalid ? <small className="sb-field-error">{error}</small> : null}
     </label>
@@ -92,18 +92,17 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
   return (
     <div className="guest-stack sb-checkout">
       <div className="guest-page-title">
-        <p className="guest-eyebrow">{hotel.name}</p>
         <h1>Guest details</h1>
-        <p>{stayDatesLabel(search.checkIn, search.checkOut)} · {partyLabel(search)}</p>
+        <p>{hotel.name} · {compactRange(search.checkIn, search.checkOut)}</p>
       </div>
 
       <section className="sb-section" aria-labelledby="sb-contact-details">
         <h2 id="sb-contact-details">Your details</h2>
         <p className="sb-small">From your Cabana profile. Change anything that’s different for this trip.</p>
         <div className="sb-form">
-          <TextField label="Full name" value={details.name} autoComplete="name" onChange={(name) => set({ name, roomLeads: details.roomLeads.map((lead, i) => (i === 0 && (lead === details.name || !lead) ? name : lead)) })} error={errors.name} show={tried} required />
-          <TextField label="Email" type="email" value={details.email} autoComplete="email" onChange={(email) => set({ email })} error={errors.email} show={tried} required />
-          <TextField label="Mobile number" type="tel" value={details.phone} autoComplete="tel" placeholder="+63 9XX XXX XXXX" onChange={(phone) => set({ phone })} error={errors.phone} show={tried} required />
+          <TextField label="Full name" value={details.name} autoComplete="name" onChange={(name) => set({ name, roomLeads: details.roomLeads.map((lead, i) => (i === 0 && (lead === details.name || !lead) ? name : lead)) })} error={errors.name} show={tried} />
+          <TextField label="Email" type="email" value={details.email} autoComplete="email" onChange={(email) => set({ email })} error={errors.email} show={tried} />
+          <TextField label="Mobile number" type="tel" value={details.phone} autoComplete="tel" placeholder="+63 9XX XXX XXXX" onChange={(phone) => set({ phone })} error={errors.phone} show={tried} />
         </div>
       </section>
 
@@ -117,7 +116,9 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
                 <b>{room.roomType.name}</b>
                 <span>{RATE_PLAN_LABELS[room.ratePlanId].title} · {roomCancellationPolicy(room.ratePlanId, search.checkIn).reason === 'free' ? `Free cancellation until ${longDate(quote.freeCancellationUntil!)}` : room.ratePlanId === 'saver' ? RATE_PLAN_LABELS[room.ratePlanId].detail : 'No refund · free cancellation has ended'}</span>
               </header>
-              <TextField label="Guest name for this room" value={details.roomLeads[index] ?? ''} onChange={(value) => setAt('roomLeads', index, value)} placeholder={index === 0 ? 'Lead guest' : `Optional · else ${details.name || 'you'}`} show={false} />
+              <div className="sb-form">
+                <TextField label="Guest name for this room" value={details.roomLeads[index] ?? ''} onChange={(value) => setAt('roomLeads', index, value)} placeholder={index === 0 ? 'Lead guest' : `Optional · else ${details.name || 'you'}`} show={false} />
+              </div>
               {/* No bed preference: each room class has one bed setup, so choosing the room chose the beds. */}
             </article>
           ))}
@@ -132,9 +133,9 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
         </label>
         {details.receipt ? (
           <div className="sb-form">
-            <TextField label="Company name" value={details.receipt.company} autoComplete="organization" onChange={(company) => set({ receipt: { ...details.receipt!, company } })} error={errors.company} show={tried} required />
-            <TextField label="TIN" value={details.receipt.tin} placeholder="123-456-789-000" onChange={(tin) => set({ receipt: { ...details.receipt!, tin } })} error={errors.tin} show={tried} required />
-            <TextField label="Registered address" value={details.receipt.address} autoComplete="street-address" placeholder="Optional" onChange={(address) => set({ receipt: { ...details.receipt!, address } })} show={false} />
+            <TextField label="Company name" value={details.receipt.company} autoComplete="organization" onChange={(company) => set({ receipt: { ...details.receipt!, company } })} error={errors.company} show={tried} />
+            <TextField label="TIN" value={details.receipt.tin} placeholder="123-456-789-000" onChange={(tin) => set({ receipt: { ...details.receipt!, tin } })} error={errors.tin} show={tried} />
+            <TextField label="Registered address" value={details.receipt.address} autoComplete="street-address" onChange={(address) => set({ receipt: { ...details.receipt!, address } })} show={false} optional />
           </div>
         ) : null}
       </section>

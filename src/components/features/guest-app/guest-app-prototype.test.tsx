@@ -246,7 +246,7 @@ describe('GuestAppPrototype', () => {
     // Straight to the email screen: its entry on the welcome screen is off for now.
     render(<GuestAppPrototype initialScreen="sign-in" />);
 
-    const email = screen.getByLabelText('Email *');
+    const email = screen.getByLabelText('Email');
     expect(email).toHaveAttribute('autocomplete', 'email');
     expect(email).toHaveAttribute('spellcheck', 'false');
     await user.type(email, 'guest@example.com');
@@ -254,7 +254,7 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
 
-    const code = screen.getByLabelText('6-digit code *');
+    const code = screen.getByLabelText('6-digit code');
     expect(code).toHaveAttribute('inputmode', 'numeric');
     expect(code).toHaveAttribute('autocomplete', 'one-time-code');
 
@@ -271,9 +271,9 @@ describe('GuestAppPrototype', () => {
     // Straight to the email screen: its entry on the welcome screen is off for now.
     render(<GuestAppPrototype initialScreen="sign-in" />);
 
-    await user.type(screen.getByLabelText('Email *'), 'guest@example.com');
+    await user.type(screen.getByLabelText('Email'), 'guest@example.com');
     await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.type(screen.getByLabelText('6-digit code *'), '123');
+    await user.type(screen.getByLabelText('6-digit code'), '123');
     await user.click(screen.getByRole('button', { name: 'Verify' }));
 
     expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument();
@@ -1547,7 +1547,7 @@ describe('pre-arrival onboarding flow', () => {
     // Step 1 of 2: details and ID on one screen, contact pre-filled from the account.
     expect(screen.getByText('1 of 2')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'You and your ID' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Contact/ })).toHaveTextContent('ana@example.com');
+    expect(screen.getByLabelText(/^Email/)).toHaveValue('ana@example.com');
     await fillIdentityDocument(user);
     await user.click(screen.getByRole('button', { name: 'Continue' }));
 
@@ -2149,7 +2149,7 @@ describe('booking another stay', () => {
     // "Book another stay" opens the search itself, full screen, on its first question.
     const sheet = screen.getByRole('dialog', { name: 'Find a stay' });
     expect(within(sheet).getByRole('heading', { name: 'Where to?' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: /Search/ })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Next' })).toBeInTheDocument();
   });
 
   it('books a partner hotel in the app rather than sending the guest to another site', async () => {
@@ -2176,10 +2176,10 @@ describe('booking another stay', () => {
     // The bar opens the search full screen; Where, When and Who each take the sheet in turn.
     await user.click(screen.getByRole('button', { name: /^Search stays/ }));
     const sheet = screen.getByRole('dialog', { name: 'Find a stay' });
-    await user.click(within(sheet).getByRole('button', { name: /Who/ }));
+    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
+    await user.click(within(sheet).getByRole('button', { name: 'Next' }));
     await user.click(within(sheet).getByRole('button', { name: 'More adults' }));
     await user.click(within(sheet).getByRole('button', { name: 'More children' }));
-    await user.selectOptions(within(sheet).getByRole('combobox', { name: 'Child 1 age' }), '8');
     await user.click(within(sheet).getByRole('button', { name: /^Search$/ }));
 
     await user.click(screen.getAllByRole('button', { name: /The Henry Hotel Manila/ })[0]!);
@@ -3839,7 +3839,7 @@ describe('floating tab bar styling', () => {
 
   it('uses a translucent frosted surface for the floating capsule', () => {
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav\s*\{[^}]*background:\s*oklch\(1 0 none \/ 0\.58\)/,
+      /\.guest-bottom-nav\s*\{[^}]*background:\s*oklch\(1 0 none \/ 0\.88\)/,
     );
     expect(guestStyles).toMatch(
       /\.guest-bottom-nav\s*\{[^}]*backdrop-filter:\s*blur\(24px\)\s+saturate\(1\.22\)/,
@@ -3881,7 +3881,7 @@ describe('floating tab bar styling', () => {
       /\.guest-screen\.has-nav\s*\{[^}]*--guest-screen-pad-bottom:\s*calc\(var\(--guest-nav-h\)\s*\+\s*env\(safe-area-inset-bottom\)\s*\+\s*24px\)[^}]*padding-block-end:\s*var\(--guest-screen-pad-bottom\)/,
     );
     expect(guestStyles).toMatch(
-      /\.guest-bottom-nav\s*\{[^}]*position:\s*absolute[^}]*inset-block-end:\s*calc\(8px\s*\+\s*env\(safe-area-inset-bottom\)\)[^}]*inset-inline-start:\s*50%[^}]*transform:\s*translateX\(-50%\)/,
+      /\.guest-bottom-nav\s*\{[^}]*position:\s*absolute[^}]*inset-block-end:\s*calc\(24px\s*\+\s*env\(safe-area-inset-bottom\)\)[^}]*inset-inline-start:\s*50%[^}]*transform:\s*translateX\(-50%\)/,
     );
     expect(guestStyles).not.toMatch(
       /\.guest-bottom-nav\s*\{[^}]*flex:\s*0 0 auto/,

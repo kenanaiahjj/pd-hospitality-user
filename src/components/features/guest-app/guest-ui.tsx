@@ -8,21 +8,21 @@ import { getItemCardImage, getItemThumbnail, getPropertyImage, getServiceImage, 
 import { Button, Input } from '@/components/ui';
 import type { IconSvgElement } from '@hugeicons/react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CaretRight, CheckCircle, CreditCard, House, WarningCircle } from '@/components/ui/huge-icons';
+import { CalendarBlank, CaretRight, CheckCircle, CreditCard, House, WarningCircle } from '@/components/ui/huge-icons';
 import type { FormEvent, ReactNode } from 'react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 /*
   The guest app's shared building blocks: fields, notices, rows, headings and
   the empty/error pattern. No screen logic lives here.
 */
 
-export function Field({ label, name, type = 'text', placeholder, autoComplete, spellCheck, defaultValue, helper, required, value, onValueChange, min }: FieldProps) {
+export function Field({ label, name, type = 'text', placeholder, autoComplete, spellCheck, defaultValue, helper, required, optional, value, onValueChange, min }: FieldProps) {
   const helperId = helper ? `${name}-helper` : undefined;
   const controlled = value !== undefined;
   return (
-    <label className="guest-field" htmlFor={name}>
-      <span>{label}{required ? <span className="guest-required-marker" aria-hidden="true"> *</span> : null}</span>
+    <label className="guest-field" htmlFor={name} data-optional={optional ? '' : undefined}>
+      <span>{label}</span>
       <Input
         id={name}
         name={name}
@@ -37,8 +37,29 @@ export function Field({ label, name, type = 'text', placeholder, autoComplete, s
         aria-describedby={helperId}
         required={required}
       />
+      {type === 'date' ? <CalendarBlank className="guest-field__icon" aria-hidden="true" /> : null}
       {helper ? <small id={helperId}>{helper}</small> : null}
     </label>
+  );
+}
+
+/**
+ * Fields that belong together, as one card with a hairline between rows. The
+ * heading and hint sit above it, outside the card. Required is the default, so
+ * only a field marked `optional` says anything.
+ */
+export function FieldGroup({ title, hint, children }: { title?: string; hint?: string; children: ReactNode }) {
+  const titleId = useId();
+  return (
+    <section className="guest-fieldgroup-section" aria-labelledby={title ? titleId : undefined}>
+      {title ? (
+        <header className="guest-fieldgroup-head">
+          <h3 id={titleId}>{title}</h3>
+          {hint ? <p>{hint}</p> : null}
+        </header>
+      ) : null}
+      <div className="guest-fieldgroup">{children}</div>
+    </section>
   );
 }
 
@@ -340,6 +361,8 @@ export type FieldProps = {
   defaultValue?: string;
   helper?: string;
   required?: boolean;
+  /** Says "Optional" beside the label. A field is required unless it is marked. */
+  optional?: boolean;
   /** Controlled value. Pass with `onValueChange` where the value is read back. */
   value?: string;
   onValueChange?: (next: string) => void;

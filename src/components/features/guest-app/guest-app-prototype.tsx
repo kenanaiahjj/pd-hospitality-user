@@ -275,7 +275,7 @@ import {
 } from './rewards';
 import { clearStoredSession, readAccountStash, readStoredSession, readStoredStayDraft, writeAccountStash, writeStoredSession, writeStoredStayDraft } from './session-storage';
 import { AccountSignInCard } from './guest-account';
-import { ChoiceList, Field, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, NotesField, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
+import { ChoiceList, Field, FieldGroup, FormScreen, GuestNavIcon, HistoryItem, NavButton, Notice, NotesField, PropertyImage, ReviewBlock, ScreenIntro, SectionHeading, ServiceImage, StaleDataNotice, StatePanel, StayMiniCard, SummaryRow, Tag, TextButton } from './guest-ui';
 import { HeroIcon, formatPastStayDates } from './guest-ui';
 import { WelcomeScreen } from './welcome-screen';
 import { AdditionalGuestsScreen, IdentityStep, RoomPreferencesScreen, passportDate } from './pre-arrival';
@@ -3650,14 +3650,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           go('booking-found');
         }}
       >
-        <Field
-          label="Booking or confirmation number"
-          name="booking-number"
-          placeholder="e.g. HEN-241109"
-          helper="Hotel, Agoda, or Booking.com reference"
-          required
-        />
-        <Field label="Last name" name="last-name" placeholder="As on the booking" autoComplete="family-name" required />
+        <FieldGroup>
+          <Field
+            label="Booking or confirmation number"
+            name="booking-number"
+            placeholder="e.g. HEN-241109"
+            helper="Hotel, Agoda, or Booking.com reference"
+            required
+          />
+          <Field label="Last name" name="last-name" placeholder="As on the booking" autoComplete="family-name" required />
+        </FieldGroup>
         {/* Finding a booking asks the hotel's system, like every other way in. */}
         {!online ? <Notice tone="offline" icon={<WifiSlash />} title="You’re offline">Connect to find your booking.</Notice> : null}
         <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
@@ -4325,7 +4327,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               }}
             >
               <label className="guest-field guest-code-field" htmlFor="login-code">
-                <span>6-digit code <span className="guest-required-marker" aria-hidden="true">*</span></span>
+                <span>6-digit code</span>
                 <Input
                   ref={codeInputRef}
                   id="login-code"
@@ -4471,14 +4473,16 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 go('verify-contact');
               }}
             >
-              <Field
-                label="Booking or confirmation number"
-                name="reentry-reference"
-                placeholder="HEN-CEBU-250508"
-                helper="From a confirmation email, or the receipt for a stay you have finished"
-                required
-              />
-              <Field label="Last name" name="reentry-last-name" placeholder="As on the booking" autoComplete="family-name" required />
+              <FieldGroup>
+                <Field
+                  label="Booking or confirmation number"
+                  name="reentry-reference"
+                  placeholder="HEN-CEBU-250508"
+                  helper="From a confirmation email, or the receipt for a stay you have finished"
+                  required
+                />
+                <Field label="Last name" name="reentry-last-name" placeholder="As on the booking" autoComplete="family-name" required />
+              </FieldGroup>
               <Button className="guest-button guest-button--primary" type="submit" disabled={!online}>
                 Continue<ArrowRight aria-hidden="true" />
               </Button>
@@ -4545,7 +4549,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               }}
             >
               <label className="guest-field guest-code-field" htmlFor="reentry-code">
-                <span>6-digit verification code <span className="guest-required-marker" aria-hidden="true">*</span></span>
+                <span>6-digit verification code</span>
                 <Input
                   id="reentry-code"
                   name="reentry-code"
@@ -5434,7 +5438,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 </div>
               ) : null}
               {pickUp ? (
-                <Field label="Flight number (optional)" name="ride-flight" placeholder="e.g. PR 102" value={rideFlight} onValueChange={setRideFlight} helper="The driver tracks it, so a delay does not leave you waiting." />
+                <Field label="Flight number" optional name="ride-flight" placeholder="e.g. PR 102" value={rideFlight} onValueChange={setRideFlight} helper="The driver tracks it, so a delay does not leave you waiting." />
               ) : null}
               <StepperField label="Passengers" unit="passenger" value={ridePassengers} min={1} max={8} onChange={setRidePassengers} />
               <NotesField name="ride-note" value={rideNote} onChange={setRideNote} placeholder="Luggage, a child seat, a wheelchair…" />

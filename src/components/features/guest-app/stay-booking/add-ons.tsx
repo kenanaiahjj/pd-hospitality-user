@@ -97,7 +97,7 @@ export function StayAddOnsScreen({ hotel, search, addOns, onChange, onContinue }
                 <div className="sb-addon__fields">
                   <p className="sb-addon__fact"><small>Pick up</small><b>{airportForCity(hotel.city)}</b><span>{weekdayDate(search.checkIn)}</span></p>
                   <label className="sb-field">
-                    <span>Flight lands at <span className="guest-required-marker" aria-hidden="true">*</span> <small className="sb-required">Required</small></span>
+                    <span>Flight lands at <small className="sb-required">Required</small></span>
                     <input type="time" value={addOn.time ?? ''} required aria-required="true" onChange={(event) => patch(id, { time: event.currentTarget.value })} />
                     {error ? <small>The driver meets your flight, so they need its landing time.</small> : null}
                   </label>

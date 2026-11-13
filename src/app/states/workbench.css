@@ -1,0 +1,62 @@
+/* Inspection chrome intentionally uses system fonts, outside Cabana's theme. */
+.states-workbench { min-height:100dvh; background:#17191c; color:#ebedf0; padding:28px; font:14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+.states-workbench [hidden] { display:none!important; }
+.states-workbench :is(button,input,select,a):focus-visible,.states-machine button:focus-visible { outline:2px solid #d1dcf7; outline-offset:3px; }
+.states-workbench button,.states-workbench select,.states-machine button { font:inherit; border:1px solid #444850; border-radius:7px; color:inherit; background:#24272c; padding:9px 12px; cursor:pointer; }
+.states-workbench a { color:inherit; text-decoration:none; }
+.states-header { display:flex; justify-content:space-between; gap:24px; align-items:center; max-width:1600px; margin:0 auto 28px; }
+.states-header a,.states-header p,.states-help { color:#a1a7b0; font-size:12px; }
+.states-header h1 { font:600 25px/1.3 system-ui; letter-spacing:-.6px; margin:8px 0 4px; }
+.states-header p { margin:0; }
+.states-header-actions { display:flex; align-items:center; gap:18px; font-size:12px; }
+.states-header-actions span { color:#a1a7b0; }
+.states-layout { display:grid; grid-template-columns:250px minmax(0,1fr) 250px; gap:28px; max-width:1600px; margin:auto; align-items:start; }
+.states-catalog,.states-inspector { min-width:0; position:sticky; top:24px; max-height:calc(100dvh - 48px); overflow:auto; scrollbar-width:thin; padding:8px; }
+.states-catalog label { display:block; font-size:12px; color:#b2b8c2; margin-bottom:20px; }
+.states-catalog input { display:block; width:100%; background:#202328; border:1px solid #3d4148; border-radius:7px; padding:10px; color:#fff; margin-top:8px; font:inherit; }
+.states-catalog section { margin-bottom:22px; }
+.states-catalog h2,.states-inspector h2 { font:500 12px system-ui; color:#959ca8; display:flex; justify-content:space-between; margin:0 0 10px; }
+.states-catalog nav a { display:flex; justify-content:space-between; gap:12px; padding:8px 10px; border-radius:6px; font-size:12px; min-height:36px; }
+.states-catalog a[aria-current="page"] { background:#353941; color:#fff; }
+.states-catalog small { color:#a4abb5; }
+.states-catalog details { border-top:1px solid #3a3e45; padding-top:16px; font-size:12px; }
+.states-catalog details p,.states-catalog details li { color:#aab0ba; }
+.states-catalog details ul { padding-left:16px; }
+.states-catalog details li { margin:14px 0; }
+.states-catalog details small,.states-catalog details span { display:block; overflow-wrap:anywhere; }
+.states-center { min-width:0; }
+.states-stage-heading { display:flex; justify-content:space-between; gap:16px; margin:8px 0 20px; }
+.states-stage-heading h2 { font:500 17px/1.3 system-ui; margin:0 0 6px; }
+.states-stage-heading code { display:block; color:#a1a7b0; font:11px/1.6 ui-monospace,monospace; overflow-wrap:anywhere; }
+.states-stage-heading label { flex-shrink:0; font-size:11px; color:#a1a7b0; }
+.states-stage-heading select { display:block; margin-top:6px; padding:6px; font-size:11px; }
+.states-stage { width:100%; margin:0 auto; background:#faf9f6; border-radius:10px; overflow:hidden; border:1px solid #454951; }
+.states-stage iframe { display:block; border:0; width:100%; height:780px; background:#faf9f6; }
+.states-stage-note { color:#a1a7b0; font-size:12px; max-width:520px; margin:18px auto; }
+.states-inspector nav { display:flex; flex-direction:column; gap:20px; }
+.states-inspector h3 { color:#a1a7b0; font:500 11px system-ui; margin:8px 0; }
+.states-inspector nav button { display:block; width:100%; text-align:left; border:0; background:transparent; color:#b0b7c2; padding:8px 10px; margin-bottom:2px; text-transform:capitalize; }
+.states-inspector button[aria-pressed="true"] { background:#353941; color:white; }
+.states-fixture-meta { border-top:1px solid #3a3e45; margin-top:24px; padding-top:12px; font-size:11px; color:#a1a7b0; }
+.states-fixture-meta pre { white-space:pre-wrap; overflow-wrap:anywhere; font:11px/1.6 ui-monospace,monospace; }
+.states-select { display:none; }
+.states-reveal { position:fixed; top:16px; right:16px; z-index:10; }
+.states-workbench[data-workbench-hidden="true"] .states-layout { display:block; }
+.states-fixture { max-width:480px; margin:0 auto; padding:24px 18px; min-height:100dvh; background:var(--ds-background); }
+.states-fixture .guest-app { min-height:0; }
+.states-app-preview { min-height:100dvh; }
+.states-machine { color:#e4e7ec; background:#202328; border-radius:8px; padding:16px; margin-bottom:24px; font:12px/1.5 system-ui; }
+.states-machine p { margin:0 0 10px; }
+.states-machine strong { display:block; font:600 19px system-ui; margin-top:4px; }
+.states-next { display:flex; flex-wrap:wrap; gap:6px; color:#b3becf; margin-bottom:14px; }
+.states-next span { padding:4px 6px; border:1px solid #444850; border-radius:4px; }
+.states-events { display:flex; gap:6px; flex-wrap:wrap; }
+.states-machine button { font:11px system-ui; padding:8px; }
+.states-machine ol { padding-left:16px; margin-bottom:0; color:#b3becf; }
+.states-feedback,.states-empty { font:12px/1.5 system-ui; padding:12px; margin-top:16px; border:1px dashed #c2c6cf; color:#555c68; }
+.states-icon-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+.states-icon-grid figure { margin:0; text-align:center; }
+.states-icon-grid figcaption { font:9px/1.4 system-ui; overflow-wrap:anywhere; margin-top:8px; }
+@media(max-width:1100px){ .states-layout { grid-template-columns:190px minmax(0,1fr) 190px; gap:14px; } .states-workbench{padding:20px 12px;} .states-header-actions span{display:none;} }
+@media(max-width:850px){ .states-layout{grid-template-columns:180px minmax(0,1fr);} .states-inspector{position:static;grid-column:2;grid-row:1;max-height:none;} .states-inspector nav,.states-inspector .states-fixture-meta,.states-inspector h2,.states-help{display:none;} .states-select{display:flex;align-items:center;gap:10px;font-size:12px;} .states-select select{min-width:0;max-width:100%;} .states-center{grid-column:2;grid-row:2;} .states-catalog{grid-row:1 / span 2;} }
+@media(max-width:580px){ .states-header{display:block;margin-bottom:18px;} .states-header-actions{margin-top:16px;} .states-layout{display:flex;flex-direction:column;gap:14px;} .states-catalog{position:static;max-height:240px;width:100%;border:1px solid #393d45;border-radius:8px;} .states-catalog nav{display:block;} .states-catalog section{margin-bottom:12px;} .states-catalog label{margin-bottom:12px;} .states-catalog details{display:none;} .states-center,.states-inspector{width:100%;} .states-inspector{order:1;padding:0;} .states-center{order:2;} .states-stage-heading{margin-top:0;} .states-stage iframe{height:740px;} .states-stage-heading code{max-width:220px;} .states-stage-heading label{font-size:10px;} }

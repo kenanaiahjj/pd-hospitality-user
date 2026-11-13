@@ -1,0 +1,1461 @@
+{
+  "at": "2026-10-13T06:37:20.966Z",
+  "base": "http://localhost:3000",
+  "checked": [
+    {
+      "component": "booking-card",
+      "state": "requested"
+    },
+    {
+      "component": "booking-card",
+      "state": "confirmed"
+    },
+    {
+      "component": "booking-card",
+      "state": "needs-approval"
+    },
+    {
+      "component": "booking-card",
+      "state": "pay-or-cancel"
+    },
+    {
+      "component": "booking-card",
+      "state": "awaiting-payment"
+    },
+    {
+      "component": "booking-card",
+      "state": "reserved"
+    },
+    {
+      "component": "booking-card",
+      "state": "in-progress"
+    },
+    {
+      "component": "booking-card",
+      "state": "ready"
+    },
+    {
+      "component": "booking-card",
+      "state": "lapsed"
+    },
+    {
+      "component": "booking-card",
+      "state": "completed"
+    },
+    {
+      "component": "booking-card",
+      "state": "collected"
+    },
+    {
+      "component": "booking-card",
+      "state": "seated"
+    },
+    {
+      "component": "booking-card",
+      "state": "withdrawn"
+    },
+    {
+      "component": "booking-card",
+      "state": "declined"
+    },
+    {
+      "component": "booking-card",
+      "state": "payment-expired"
+    },
+    {
+      "component": "booking-card",
+      "state": "cancelled"
+    },
+    {
+      "component": "booking-card",
+      "state": "no-show"
+    },
+    {
+      "component": "booking-card",
+      "state": "extra-charge"
+    },
+    {
+      "component": "booking-card",
+      "state": "damage-claim"
+    },
+    {
+      "component": "booking-card",
+      "state": "refund-failed"
+    },
+    {
+      "component": "booking-card",
+      "state": "pms-pending"
+    },
+    {
+      "component": "Button",
+      "state": "primary"
+    },
+    {
+      "component": "Button",
+      "state": "secondary"
+    },
+    {
+      "component": "Button",
+      "state": "ghost"
+    },
+    {
+      "component": "Button",
+      "state": "small"
+    },
+    {
+      "component": "Button",
+      "state": "disabled"
+    },
+    {
+      "component": "Input",
+      "state": "empty"
+    },
+    {
+      "component": "Input",
+      "state": "filled"
+    },
+    {
+      "component": "Input",
+      "state": "disabled"
+    },
+    {
+      "component": "Input",
+      "state": "invalid"
+    },
+    {
+      "component": "Card",
+      "state": "default"
+    },
+    {
+      "component": "CardTitle",
+      "state": "default"
+    },
+    {
+      "component": "CardDescription",
+      "state": "default"
+    },
+    {
+      "component": "Spinner",
+      "state": "loading"
+    },
+    {
+      "component": "SourceButton",
+      "state": "primary"
+    },
+    {
+      "component": "SourceButton",
+      "state": "secondary"
+    },
+    {
+      "component": "SourceButton",
+      "state": "quiet"
+    },
+    {
+      "component": "SourceButton",
+      "state": "danger"
+    },
+    {
+      "component": "SourceButton",
+      "state": "small"
+    },
+    {
+      "component": "SourceButton",
+      "state": "large"
+    },
+    {
+      "component": "SourceButton",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceButton",
+      "state": "with-icons"
+    },
+    {
+      "component": "SourceAccordion",
+      "state": "closed"
+    },
+    {
+      "component": "SourceAccordion",
+      "state": "open"
+    },
+    {
+      "component": "SourceCheckbox",
+      "state": "unchecked"
+    },
+    {
+      "component": "SourceCheckbox",
+      "state": "checked"
+    },
+    {
+      "component": "SourceCheckbox",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceSwitch",
+      "state": "off"
+    },
+    {
+      "component": "SourceSwitch",
+      "state": "on"
+    },
+    {
+      "component": "SourceSwitch",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceColorPicker",
+      "state": "default"
+    },
+    {
+      "component": "SourceColorPicker",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceDatePicker",
+      "state": "empty"
+    },
+    {
+      "component": "SourceDatePicker",
+      "state": "selected"
+    },
+    {
+      "component": "SourceDatePicker",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceRadioGroup",
+      "state": "room"
+    },
+    {
+      "component": "SourceRadioGroup",
+      "state": "card"
+    },
+    {
+      "component": "SourceRadioGroup",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceRatingControl",
+      "state": "unrated"
+    },
+    {
+      "component": "SourceRatingControl",
+      "state": "three-stars"
+    },
+    {
+      "component": "SourceRatingControl",
+      "state": "five-stars"
+    },
+    {
+      "component": "SourceRatingControl",
+      "state": "read-only"
+    },
+    {
+      "component": "SourceRatingControl",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceSearchBar",
+      "state": "empty"
+    },
+    {
+      "component": "SourceSearchBar",
+      "state": "query"
+    },
+    {
+      "component": "SourceSearchBar",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceSegmentedControl",
+      "state": "upcoming"
+    },
+    {
+      "component": "SourceSegmentedControl",
+      "state": "past"
+    },
+    {
+      "component": "SourceSlider",
+      "state": "minimum"
+    },
+    {
+      "component": "SourceSlider",
+      "state": "middle"
+    },
+    {
+      "component": "SourceSlider",
+      "state": "maximum"
+    },
+    {
+      "component": "SourceSlider",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceFloatingActionButton",
+      "state": "default"
+    },
+    {
+      "component": "SourceFloatingActionButton",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceTab",
+      "state": "inactive"
+    },
+    {
+      "component": "SourceTab",
+      "state": "active"
+    },
+    {
+      "component": "SourceTab",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceTextField",
+      "state": "empty"
+    },
+    {
+      "component": "SourceTextField",
+      "state": "filled"
+    },
+    {
+      "component": "SourceTextField",
+      "state": "hint"
+    },
+    {
+      "component": "SourceTextField",
+      "state": "error"
+    },
+    {
+      "component": "SourceTextField",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceTile",
+      "state": "unselected"
+    },
+    {
+      "component": "SourceTile",
+      "state": "selected"
+    },
+    {
+      "component": "SourceBadge",
+      "state": "neutral"
+    },
+    {
+      "component": "SourceBadge",
+      "state": "accent"
+    },
+    {
+      "component": "SourceBadge",
+      "state": "success"
+    },
+    {
+      "component": "SourceBadge",
+      "state": "warning"
+    },
+    {
+      "component": "SourceBadge",
+      "state": "danger"
+    },
+    {
+      "component": "SourceBanner",
+      "state": "neutral"
+    },
+    {
+      "component": "SourceBanner",
+      "state": "accent"
+    },
+    {
+      "component": "SourceBanner",
+      "state": "success"
+    },
+    {
+      "component": "SourceBanner",
+      "state": "warning"
+    },
+    {
+      "component": "SourceBanner",
+      "state": "danger"
+    },
+    {
+      "component": "SourceCard",
+      "state": "simple"
+    },
+    {
+      "component": "SourceCard",
+      "state": "with-footer"
+    },
+    {
+      "component": "SourceCarousel",
+      "state": "empty"
+    },
+    {
+      "component": "SourceCarousel",
+      "state": "one"
+    },
+    {
+      "component": "SourceCarousel",
+      "state": "multiple"
+    },
+    {
+      "component": "SourceChip",
+      "state": "default"
+    },
+    {
+      "component": "SourceChip",
+      "state": "selected"
+    },
+    {
+      "component": "SourceChip",
+      "state": "dismissible"
+    },
+    {
+      "component": "SourceDivider",
+      "state": "default"
+    },
+    {
+      "component": "SourceGallery",
+      "state": "empty"
+    },
+    {
+      "component": "SourceGallery",
+      "state": "one"
+    },
+    {
+      "component": "SourceGallery",
+      "state": "multiple"
+    },
+    {
+      "component": "SourceLoadingIndicator",
+      "state": "loading"
+    },
+    {
+      "component": "SourceTable",
+      "state": "empty"
+    },
+    {
+      "component": "SourceTable",
+      "state": "one"
+    },
+    {
+      "component": "SourceTable",
+      "state": "multiple"
+    },
+    {
+      "component": "SourceProgressIndicator",
+      "state": "zero"
+    },
+    {
+      "component": "SourceProgressIndicator",
+      "state": "half"
+    },
+    {
+      "component": "SourceProgressIndicator",
+      "state": "complete"
+    },
+    {
+      "component": "SourceProgressIndicator",
+      "state": "hidden-value"
+    },
+    {
+      "component": "SourceSkeleton",
+      "state": "lines"
+    },
+    {
+      "component": "SourceSkeleton",
+      "state": "avatar"
+    },
+    {
+      "component": "SourceStackedList",
+      "state": "empty"
+    },
+    {
+      "component": "SourceStackedList",
+      "state": "one"
+    },
+    {
+      "component": "SourceStackedList",
+      "state": "multiple"
+    },
+    {
+      "component": "SourceStatusDot",
+      "state": "online"
+    },
+    {
+      "component": "SourceStatusDot",
+      "state": "pending"
+    },
+    {
+      "component": "SourceStatusDot",
+      "state": "offline"
+    },
+    {
+      "component": "SourceStatusDot",
+      "state": "neutral"
+    },
+    {
+      "component": "SourceTabBar",
+      "state": "home"
+    },
+    {
+      "component": "SourceTabBar",
+      "state": "chat"
+    },
+    {
+      "component": "SourceTabBar",
+      "state": "profile"
+    },
+    {
+      "component": "SourceToolbar",
+      "state": "default"
+    },
+    {
+      "component": "SourceTopNavigationBar",
+      "state": "simple"
+    },
+    {
+      "component": "SourceTopNavigationBar",
+      "state": "with-actions"
+    },
+    {
+      "component": "SourceInlineAction",
+      "state": "default"
+    },
+    {
+      "component": "SourceInlineAction",
+      "state": "disabled"
+    },
+    {
+      "component": "SourceAvatar",
+      "state": "initials"
+    },
+    {
+      "component": "SourceAvatar",
+      "state": "photo"
+    },
+    {
+      "component": "SourceAvatar",
+      "state": "small"
+    },
+    {
+      "component": "SourceAvatar",
+      "state": "large"
+    },
+    {
+      "component": "SourceIcon",
+      "state": "accent"
+    },
+    {
+      "component": "SourceIcon",
+      "state": "neutral"
+    },
+    {
+      "component": "SourceIcon",
+      "state": "soft"
+    },
+    {
+      "component": "SourceIllustration",
+      "state": "default"
+    },
+    {
+      "component": "SourceIllustration",
+      "state": "caption"
+    },
+    {
+      "component": "SourcePhoto",
+      "state": "placeholder"
+    },
+    {
+      "component": "SourcePhoto",
+      "state": "photo"
+    },
+    {
+      "component": "SourcePhoto",
+      "state": "caption"
+    },
+    {
+      "component": "SourceLogo",
+      "state": "letter"
+    },
+    {
+      "component": "SourceLogo",
+      "state": "image"
+    },
+    {
+      "component": "SourceBottomSheet",
+      "state": "closed"
+    },
+    {
+      "component": "SourceBottomSheet",
+      "state": "open"
+    },
+    {
+      "component": "SourceFullScreenOverlay",
+      "state": "closed"
+    },
+    {
+      "component": "SourceFullScreenOverlay",
+      "state": "open"
+    },
+    {
+      "component": "SourceDropdownMenu",
+      "state": "closed"
+    },
+    {
+      "component": "SourceDropdownMenu",
+      "state": "open"
+    },
+    {
+      "component": "SourceToast",
+      "state": "closed"
+    },
+    {
+      "component": "SourceToast",
+      "state": "open"
+    },
+    {
+      "component": "SourceToast",
+      "state": "with-action"
+    },
+    {
+      "component": "CabanaMark",
+      "state": "default"
+    },
+    {
+      "component": "CabanaLockup",
+      "state": "default"
+    },
+    {
+      "component": "CabanaWordmark",
+      "state": "default"
+    },
+    {
+      "component": "CabanaFullLockup",
+      "state": "default"
+    },
+    {
+      "component": "state-panel",
+      "state": "empty"
+    },
+    {
+      "component": "state-panel",
+      "state": "error"
+    },
+    {
+      "component": "stale-notice",
+      "state": "stale"
+    },
+    {
+      "component": "guest-nav-icon",
+      "state": "default"
+    },
+    {
+      "component": "nav-button",
+      "state": "inactive"
+    },
+    {
+      "component": "nav-button",
+      "state": "active"
+    },
+    {
+      "component": "nav-button",
+      "state": "unread"
+    },
+    {
+      "component": "field",
+      "state": "empty"
+    },
+    {
+      "component": "field",
+      "state": "filled"
+    },
+    {
+      "component": "field",
+      "state": "helper"
+    },
+    {
+      "component": "field",
+      "state": "required"
+    },
+    {
+      "component": "tag",
+      "state": "neutral"
+    },
+    {
+      "component": "tag",
+      "state": "positive"
+    },
+    {
+      "component": "tag",
+      "state": "warning"
+    },
+    {
+      "component": "tag",
+      "state": "dark"
+    },
+    {
+      "component": "choice-list",
+      "state": "room"
+    },
+    {
+      "component": "choice-list",
+      "state": "card"
+    },
+    {
+      "component": "choice-list",
+      "state": "disabled"
+    },
+    {
+      "component": "notice",
+      "state": "neutral"
+    },
+    {
+      "component": "notice",
+      "state": "positive"
+    },
+    {
+      "component": "notice",
+      "state": "warning"
+    },
+    {
+      "component": "notice",
+      "state": "offline"
+    },
+    {
+      "component": "payment-glyph",
+      "state": "card"
+    },
+    {
+      "component": "payment-glyph",
+      "state": "gcash"
+    },
+    {
+      "component": "payment-glyph",
+      "state": "maya"
+    },
+    {
+      "component": "summary-row",
+      "state": "default"
+    },
+    {
+      "component": "summary-row",
+      "state": "strong"
+    },
+    {
+      "component": "service-visual",
+      "state": "sand"
+    },
+    {
+      "component": "service-visual",
+      "state": "sage"
+    },
+    {
+      "component": "service-visual",
+      "state": "sun"
+    },
+    {
+      "component": "service-visual",
+      "state": "blue"
+    },
+    {
+      "component": "service-image",
+      "state": "thumbnail"
+    },
+    {
+      "component": "service-image",
+      "state": "card"
+    },
+    {
+      "component": "property-image",
+      "state": "dumaguete"
+    },
+    {
+      "component": "property-image",
+      "state": "manila"
+    },
+    {
+      "component": "screen-intro",
+      "state": "default"
+    },
+    {
+      "component": "screen-intro",
+      "state": "with-eyebrow"
+    },
+    {
+      "component": "form-screen",
+      "state": "first-step"
+    },
+    {
+      "component": "form-screen",
+      "state": "last-step"
+    },
+    {
+      "component": "text-button",
+      "state": "default"
+    },
+    {
+      "component": "text-button",
+      "state": "disabled"
+    },
+    {
+      "component": "stay-mini-card",
+      "state": "upcoming"
+    },
+    {
+      "component": "stay-mini-card",
+      "state": "active"
+    },
+    {
+      "component": "stay-mini-card",
+      "state": "completed"
+    },
+    {
+      "component": "review-block",
+      "state": "read-only"
+    },
+    {
+      "component": "review-block",
+      "state": "editable"
+    },
+    {
+      "component": "notes-field",
+      "state": "empty"
+    },
+    {
+      "component": "notes-field",
+      "state": "filled"
+    },
+    {
+      "component": "notes-field",
+      "state": "long-note"
+    },
+    {
+      "component": "section-heading",
+      "state": "simple"
+    },
+    {
+      "component": "section-heading",
+      "state": "action"
+    },
+    {
+      "component": "section-heading",
+      "state": "count"
+    },
+    {
+      "component": "history-item",
+      "state": "default"
+    },
+    {
+      "component": "hero-icon",
+      "state": "plain"
+    },
+    {
+      "component": "hero-icon",
+      "state": "sage"
+    },
+    {
+      "component": "guest-tabs",
+      "state": "upcoming"
+    },
+    {
+      "component": "guest-tabs",
+      "state": "past"
+    },
+    {
+      "component": "expandable-field",
+      "state": "closed"
+    },
+    {
+      "component": "expandable-field",
+      "state": "open"
+    },
+    {
+      "component": "calendar-picker",
+      "state": "selected"
+    },
+    {
+      "component": "calendar-picker",
+      "state": "one-day"
+    },
+    {
+      "component": "calendar-picker",
+      "state": "empty"
+    },
+    {
+      "component": "time-wheel",
+      "state": "morning"
+    },
+    {
+      "component": "time-wheel",
+      "state": "afternoon"
+    },
+    {
+      "component": "time-wheel",
+      "state": "evening"
+    },
+    {
+      "component": "stepper-field",
+      "state": "minimum"
+    },
+    {
+      "component": "stepper-field",
+      "state": "middle"
+    },
+    {
+      "component": "stepper-field",
+      "state": "maximum"
+    },
+    {
+      "component": "chat-composer",
+      "state": "empty"
+    },
+    {
+      "component": "chat-composer",
+      "state": "draft"
+    },
+    {
+      "component": "chat-composer",
+      "state": "multiline"
+    },
+    {
+      "component": "chat-composer",
+      "state": "disabled"
+    },
+    {
+      "component": "stay-card",
+      "state": "upcoming"
+    },
+    {
+      "component": "stay-card",
+      "state": "active"
+    },
+    {
+      "component": "stay-card",
+      "state": "completed"
+    },
+    {
+      "component": "stay-card",
+      "state": "compact"
+    },
+    {
+      "component": "upcoming-card",
+      "state": "upcoming"
+    },
+    {
+      "component": "upcoming-card",
+      "state": "assigned"
+    },
+    {
+      "component": "upcoming-card",
+      "state": "ready"
+    },
+    {
+      "component": "arrival-checklist",
+      "state": "incomplete"
+    },
+    {
+      "component": "arrival-checklist",
+      "state": "complete"
+    },
+    {
+      "component": "unlock-teaser",
+      "state": "default"
+    },
+    {
+      "component": "announcements",
+      "state": "morning"
+    },
+    {
+      "component": "announcements",
+      "state": "afternoon"
+    },
+    {
+      "component": "announcements",
+      "state": "evening"
+    },
+    {
+      "component": "announcements",
+      "state": "late"
+    },
+    {
+      "component": "room-charge-qr",
+      "state": "closed"
+    },
+    {
+      "component": "room-charge-qr",
+      "state": "open"
+    },
+    {
+      "component": "stay-review-form",
+      "state": "unrated"
+    },
+    {
+      "component": "stay-review-form",
+      "state": "submitted"
+    },
+    {
+      "component": "stay-review-form",
+      "state": "checkout-day"
+    },
+    {
+      "component": "wax-seal",
+      "state": "default"
+    },
+    {
+      "component": "stay-invitation",
+      "state": "idle"
+    },
+    {
+      "component": "stay-invitation",
+      "state": "stamping"
+    },
+    {
+      "component": "stay-invitation",
+      "state": "done"
+    },
+    {
+      "component": "stay-invitation",
+      "state": "leaving"
+    },
+    {
+      "component": "stay-confirm",
+      "state": "default"
+    },
+    {
+      "component": "room-key",
+      "state": "assigned"
+    },
+    {
+      "component": "room-key",
+      "state": "unassigned"
+    },
+    {
+      "component": "badge-medal",
+      "state": "locked"
+    },
+    {
+      "component": "badge-medal",
+      "state": "earned"
+    },
+    {
+      "component": "badge-medal",
+      "state": "shimmer"
+    },
+    {
+      "component": "badge-coin",
+      "state": "earned"
+    },
+    {
+      "component": "badge-detail",
+      "state": "locked"
+    },
+    {
+      "component": "badge-detail",
+      "state": "earned"
+    },
+    {
+      "component": "badge-shelf",
+      "state": "empty"
+    },
+    {
+      "component": "badge-shelf",
+      "state": "typical"
+    },
+    {
+      "component": "reward-menu",
+      "state": "insufficient"
+    },
+    {
+      "component": "reward-menu",
+      "state": "affordable"
+    },
+    {
+      "component": "reward-detail",
+      "state": "insufficient"
+    },
+    {
+      "component": "reward-detail",
+      "state": "affordable"
+    },
+    {
+      "component": "reward-detail",
+      "state": "redeemed"
+    },
+    {
+      "component": "points-wallet",
+      "state": "zero"
+    },
+    {
+      "component": "points-wallet",
+      "state": "available"
+    },
+    {
+      "component": "points-wallet",
+      "state": "pending"
+    },
+    {
+      "component": "points-activity",
+      "state": "empty"
+    },
+    {
+      "component": "points-activity",
+      "state": "earned"
+    },
+    {
+      "component": "points-activity",
+      "state": "redeemed"
+    },
+    {
+      "component": "points-earned",
+      "state": "none"
+    },
+    {
+      "component": "points-earned",
+      "state": "earned"
+    },
+    {
+      "component": "points-earned",
+      "state": "with-badge"
+    },
+    {
+      "component": "points-apply",
+      "state": "insufficient"
+    },
+    {
+      "component": "points-apply",
+      "state": "available"
+    },
+    {
+      "component": "points-apply",
+      "state": "applied"
+    },
+    {
+      "component": "icons",
+      "state": "stroke"
+    },
+    {
+      "component": "icons",
+      "state": "solid"
+    },
+    {
+      "component": "app-lifecycle",
+      "state": "signed-out"
+    },
+    {
+      "component": "app-lifecycle",
+      "state": "account-only"
+    },
+    {
+      "component": "app-lifecycle",
+      "state": "pre-arrival"
+    },
+    {
+      "component": "app-lifecycle",
+      "state": "arrived"
+    },
+    {
+      "component": "app-lifecycle",
+      "state": "live"
+    },
+    {
+      "component": "app-lifecycle",
+      "state": "checkout-day"
+    },
+    {
+      "component": "app-lifecycle",
+      "state": "just-checked-out"
+    },
+    {
+      "component": "app-lifecycle",
+      "state": "closed"
+    },
+    {
+      "component": "screen:room-qr-landing",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:identify",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:front-desk-assist",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:no-booking",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:booking-found",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:stay-overview",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:guest-details",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:room-preferences",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:additional-guests",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:repeat-review",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:rate-detail",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:early-check-in",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:arrival-handoff",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:prereg-complete",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:prereg-queued",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:marketplace",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:category-listing",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:browse",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:nearby-recommendations",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:nearby-establishment",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:rewards",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:reward-detail",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:badge-detail",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:gifts-souvenirs",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:vendor-service",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:service-detail",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:restaurant-menu",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:service-booking",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:booking-confirmation",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:booking-blocked",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:my-stay",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:cancel-before-cutoff",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:cancel-after-cutoff",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:folio",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:chat",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:messages",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:booking-thread",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:room-qr-midstay",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:profile",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:stay-history",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:payments",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:saved-hotels",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:payment-detail",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:notifications",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:stay-detail",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:stay-entry",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:identify-returning",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:verify-contact",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:pre-arrival-services",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:transfer-booking",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:arrival-cart",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:arrival-cart-confirmation",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:stay-review",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:stay-review-sent",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:scan-room-code",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:sign-in",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:verify-code",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:partner-hotels",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:entry-hub",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:book-stay",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:book-stay-results",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:book-stay-hotel",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:book-stay-addons",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:book-stay-checkout",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:book-stay-payment",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:book-stay-vouchers",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:book-stay-confirmation",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:room-upgrades",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:room-upgrade-confirmation",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:room-upgrade-success",
+      "state": "fixture"
+    },
+    {
+      "component": "screen:room-transfer-details",
+      "state": "fixture"
+    }
+  ],
+  "errors": [],
+  "passed": true,
+  "runtimeErrors": []
+}

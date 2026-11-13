@@ -146,7 +146,7 @@ export function HotelResultCard({ result, search, onOpen, compact, reason }: { r
           <span className="sb-hotel-card__notes">
             {result.soldOut ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Sold out on your dates</span>
               : !result.fitsParty ? <span className="sb-note sb-note--warning"><Warning aria-hidden="true" />Not enough rooms for {partyLabel(search)}</span>
-                : result.freeCancellation ? <span className="sb-note sb-note--positive"><CheckCircle weight="fill" aria-hidden="true" />{result.cheapestRefundable || result.fromRefundable === undefined ? 'Free cancellation' : `Free cancellation from ${peso(result.fromRefundable)}`}</span> : null}
+                : result.freeCancellation ? <span className="sb-note sb-note--positive"><CheckCircle weight="bold" aria-hidden="true" />{result.cheapestRefundable || result.fromRefundable === undefined ? 'Free cancellation' : `Free cancellation from ${peso(result.fromRefundable)}`}</span> : null}
           </span>
           {result.fromPrice !== undefined && !result.soldOut ? (
             <span className="sb-price">

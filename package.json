@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "pilot:report": "PILOT_REPORT=1 vitest run src/components/features/guest-app/pilot/report.test.ts",
-    "pilot:replay": "vitest run src/components/features/guest-app/pilot/scenarios.test.ts -t \"S6\""
+    "pilot:replay": "vitest run src/components/features/guest-app/pilot/scenarios.test.ts -t \"S6\"",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@hugeicons-pro/core-solid-rounded": "4.3.2",
@@ -31,6 +33,10 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "^10.6.2",
+    "@storybook/addon-docs": "^10.6.2",
+    "@storybook/addon-mcp": "^10.6.2",
+    "@storybook/nextjs-vite": "^10.6.2",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -42,9 +48,12 @@
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "eslint-plugin-storybook": "^10.6.2",
     "jsdom": "^30.0.1",
+    "storybook": "^10.6.2",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "^8.3.4",
     "vitest": "^5.0.0"
   }
 }

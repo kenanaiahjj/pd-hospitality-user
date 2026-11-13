@@ -49,3 +49,6 @@ next-env.d.ts
 
 # claude code worktrees
 .claude/worktrees/
+
+# storybook
+/storybook-static

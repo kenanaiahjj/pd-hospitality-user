@@ -1,0 +1,104 @@
+html,
+body,
+#storybook-root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ds-background);
+  color: var(--ds-ink);
+  font-family: var(--font-asbir-sans);
+}
+
+/* Storybook Controls replace the prototype's floating developer toolbar. */
+.guest-prototype-trigger,
+.guest-prototype-toolbar,
+.guest-prototype-modal-backdrop {
+  display: none !important;
+}
+
+.storybook-state-card {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 540px);
+  padding: 20px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--radius-lg);
+  background: var(--ds-paper);
+  color: var(--ds-ink);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-asbir-sans);
+}
+
+.storybook-state-card p {
+  margin: 0;
+}
+
+.storybook-state-card__heading {
+  display: grid;
+  gap: 4px;
+}
+
+.storybook-state-card__heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.storybook-state-card__heading p {
+  color: var(--ds-ink-muted);
+  font-size: 13px;
+}
+
+.storybook-state-card .states-machine {
+  display: grid;
+  gap: 12px;
+}
+
+.storybook-state-card .states-next,
+.storybook-state-card .states-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.storybook-state-card .states-next span {
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--ds-surface-sunken);
+  color: var(--ds-ink-muted);
+  font-size: 12px;
+}
+
+.storybook-state-card .states-events button {
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--ds-line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--ds-paper);
+  color: var(--ds-ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.storybook-state-card .states-events button:hover {
+  background: var(--ds-surface);
+}
+
+.storybook-state-card .states-machine ol {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-inline-start: 20px;
+  color: var(--ds-ink-muted);
+  font-size: 12px;
+}
+
+.storybook-preview-note {
+  width: min(100%, 540px);
+  margin: 0 auto 12px;
+  color: var(--ds-ink-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}

@@ -79,6 +79,8 @@ export const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, 
 export type PrototypePage = { group: PrototypePageGroup; label: string; detail: string; open: () => void };
 const PAGE_GROUPS = ['Find a hotel', 'Book', 'After booking', 'Profile', 'Empty states', 'Error states'] as const;
 export type PrototypePageGroup = (typeof PAGE_GROUPS)[number];
+export type PrototypeDevice = 'iphone' | 'iphone-duo';
+export type PrototypeDuoPose = 'closed' | 'open';
 /** An event the host app computes, such as the hotel answering a request. */
 export type PrototypeEvent = { icon: ReactNode; label: string; detail: string; onClick: () => void; unavailable?: string; /** A sub-heading within its group, such as the booking it is about. */ section?: string; /** Stands in for a trigger that has nothing to act on yet. */ placeholder?: boolean };
 /** A booking's heading in the Events tab: what it is and where it stands, as Messages lists it. */
@@ -164,6 +166,10 @@ export function PrototypeControls({
   guestEvents = [],
   onClearDeviceData,
   pilotEvents,
+  device,
+  duoPose,
+  onDeviceChange,
+  onDuoPoseChange,
 }: {
   online: boolean;
   stayState: PrototypeStayState;
@@ -206,6 +212,10 @@ export function PrototypeControls({
   onClearDeviceData?: () => void;
   /** The other side of the conversation: the vendor, the front desk, the clock, and what can go wrong. */
   pilotEvents?: { vendor: PrototypeEvent[]; desk: PrototypeEvent[]; clock: PrototypeEvent[]; faults: PrototypeEvent[]; sections?: PrototypeSection[] };
+  device: PrototypeDevice;
+  duoPose: PrototypeDuoPose;
+  onDeviceChange: (device: PrototypeDevice) => void;
+  onDuoPoseChange: (pose: PrototypeDuoPose) => void;
 }) {
   /*
     Collapsed by default. This is scaffolding, not part of the product, and as
@@ -215,7 +225,7 @@ export function PrototypeControls({
   */
   const [open, setOpen] = useState(false);
   /* Kept while the page lives, so reopening lands where the presenter was. */
-  const [tab, setTab] = useState<'state' | 'clock' | 'events' | 'conditions' | 'pages'>('state');
+  const [tab, setTab] = useState<'state' | 'clock' | 'events' | 'conditions' | 'pages' | 'device'>('state');
   /* A downward swipe on the sheet's head closes it, as a phone sheet does. */
   const dragFrom = useRef<number | null>(null);
 
@@ -346,7 +356,7 @@ export function PrototypeControls({
       </div>
 
       <div className="guest-prototype-tabs" role="tablist" aria-label="Controls">
-        {([['state', 'State'], ['clock', 'Clock'], ['events', 'Events'], ['conditions', 'Conditions'], ['pages', 'Pages']] as const).map(([id, label]) => (
+        {([['state', 'State'], ['clock', 'Clock'], ['events', 'Events'], ['conditions', 'Conditions'], ['pages', 'Pages'], ['device', 'Device']] as const).map(([id, label]) => (
           <button key={id} type="button" role="tab" id={`prototype-tab-${id}`} aria-selected={tab === id} aria-controls={`prototype-panel-${id}`} className={tab === id ? 'is-active' : ''} onClick={() => setTab(id)}>
             {label}
           </button>
@@ -382,6 +392,35 @@ export function PrototypeControls({
               </label>
             ))}
           </fieldset>
+        ) : null}
+
+        {tab === 'device' ? (
+          <div className="guest-prototype-device-controls">
+            <fieldset className="guest-prototype-states">
+              <legend>Device</legend>
+              <label className={`guest-prototype-states__option${device === 'iphone' ? ' is-current' : ''}`}>
+                <input type="radio" name="prototype-device" value="iphone" checked={device === 'iphone'} onChange={() => onDeviceChange('iphone')} />
+                <span><b>iPhone</b><small>Standard preview</small></span>
+              </label>
+              <label className={`guest-prototype-states__option${device === 'iphone-duo' ? ' is-current' : ''}`}>
+                <input type="radio" name="prototype-device" value="iphone-duo" checked={device === 'iphone-duo'} onChange={() => onDeviceChange('iphone-duo')} />
+                <span><b>iPhone Duo</b><small>Foldable preview</small></span>
+              </label>
+            </fieldset>
+            {device === 'iphone-duo' ? (
+              <fieldset className="guest-prototype-states">
+                <legend>iPhone Duo display</legend>
+                <label className={`guest-prototype-states__option${duoPose === 'closed' ? ' is-current' : ''}`}>
+                  <input type="radio" name="prototype-duo-pose" value="closed" checked={duoPose === 'closed'} onChange={() => onDuoPoseChange('closed')} />
+                  <span><b>Closed</b><small>Outer display</small></span>
+                </label>
+                <label className={`guest-prototype-states__option${duoPose === 'open' ? ' is-current' : ''}`}>
+                  <input type="radio" name="prototype-duo-pose" value="open" checked={duoPose === 'open'} onChange={() => onDuoPoseChange('open')} />
+                  <span><b>Open</b><small>Inner display</small></span>
+                </label>
+              </fieldset>
+            ) : null}
+          </div>
         ) : null}
 
         {tab === 'clock' ? (

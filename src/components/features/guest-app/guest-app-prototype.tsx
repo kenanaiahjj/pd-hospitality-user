@@ -204,7 +204,7 @@ import {
   type StaySearch,
   clampCart,
 } from './stay-booking';
-import { PMS_LAST_SYNC, PrototypeControls, slug, type PrototypeEvent } from './prototype-controls';
+import { PMS_LAST_SYNC, PrototypeControls, slug, type PrototypeDevice, type PrototypeDuoPose, type PrototypeEvent } from './prototype-controls';
 import { HostStore, hostClock, type StayInput } from './pilot/host/host';
 import { EngineBookingCard, STATUS_TONE } from './pilot/host/booking-card';
 import { DisputeSheet } from './pilot/host/dispute';
@@ -604,6 +604,8 @@ function ChatMenuGallery({ images, onOpen }: { images: string[]; onOpen: (image:
 
 export function GuestAppPrototype({ initialSession, initialScreen, initialOnline }: GuestAppPrototypeProps = {}) {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>(initialScreen ?? 'entry-hub');
+  const [device, setDevice] = useState<PrototypeDevice>('iphone');
+  const [duoPose, setDuoPose] = useState<PrototypeDuoPose>('closed');
   const activeScreenRef = useRef(activeScreen);
   const [vendorFolioQrOpen, setVendorFolioQrOpen] = useState(false);
   const [rawSession, setSession] = useState<GuestSession>(() => initialSession ?? ANONYMOUS_SESSION);
@@ -4323,7 +4325,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               }}
             >
               <label className="guest-field guest-code-field" htmlFor="login-code">
-                <span>6-digit code *</span>
+                <span>6-digit code <span className="guest-required-marker" aria-hidden="true">*</span></span>
                 <Input
                   ref={codeInputRef}
                   id="login-code"
@@ -4543,7 +4545,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
               }}
             >
               <label className="guest-field guest-code-field" htmlFor="reentry-code">
-                <span>6-digit verification code *</span>
+                <span>6-digit verification code <span className="guest-required-marker" aria-hidden="true">*</span></span>
                 <Input
                   id="reentry-code"
                   name="reentry-code"
@@ -6865,6 +6867,10 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       </div>
 
       <PrototypeControls
+        device={device}
+        duoPose={duoPose}
+        onDeviceChange={setDevice}
+        onDuoPoseChange={setDuoPose}
         online={online}
         // "Simulate 24 hours after checkout" closes the window without changing the stay, so it is read here too.
         stayState={primaryBooking && !hasCurrentStay ? 'account-only' : getPrototypeStayState(session)}
@@ -6940,7 +6946,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
       ) : null}
 
       <main className="guest-prototype guest-app">
-        <section className={`guest-device ${isWelcome ? 'is-welcome' : ''}`} aria-label="Cabana guest app">
+        <section className={`guest-device ${isWelcome ? 'is-welcome' : ''}`} data-device={device} data-pose={duoPose} aria-label="Cabana guest app">
           {!isWelcome && !reelsOnScreen && activeScreen !== 'restaurant-menu' && activeScreen !== 'nearby-establishment' && !isChatScreen(activeScreen) ? <header className="guest-appbar" data-scrolled={scrolled}>
             <div className="guest-appbar__side">
               {activeScreen !== 'stay-overview' && !(showNoBookingExplore && activeScreen === 'partner-hotels') ? <button className="guest-icon-button guest-icon-button--back" type="button" onClick={history.length ? back : () => go('stay-overview')} aria-label="Go back"><ArrowLeft /></button> : <span className="guest-brand"><CabanaLockup className="guest-brand__lockup" /><span className="sr-only">Cabana</span></span>}

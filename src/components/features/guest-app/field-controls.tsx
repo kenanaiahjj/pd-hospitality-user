@@ -10,7 +10,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
   stack of answers instead of a wall of chips.
 */
 
-export function ExpandableField({ label, value, aside, open, onToggle, children }: {
+export function ExpandableField({ label, value, aside, open, onToggle, children, className }: {
   label: string;
   value: ReactNode;
   /** What the row says on the right while open, e.g. "7-day window". */
@@ -18,9 +18,10 @@ export function ExpandableField({ label, value, aside, open, onToggle, children 
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className={`guest-field${open ? ' is-open' : ''}`}>
+    <section className={`guest-field${open ? ' is-open' : ''}${className ? ` ${className}` : ''}`}>
       <button type="button" className="guest-field__row" aria-expanded={open} onClick={onToggle}>
         <span>{label}</span>
         <b className={open ? 'guest-field__aside' : undefined}>{open ? aside : value}</b>

@@ -17,8 +17,6 @@ export const nightsLabel = (checkIn: string, checkOut: string) => {
 /** "Dec 11 – Dec 14 · 3 nights" */
 export const stayDatesLabel = (checkIn: string, checkOut: string) => `${shortDate(checkIn)} – ${shortDate(checkOut)} · ${nightsLabel(checkIn, checkOut)}`;
 
-export const childAgeLabel = (age: number) => (age === 0 ? 'Under 1' : `${age} ${age === 1 ? 'year' : 'years'}`);
-
 export const roomsLabel = (count: number) => `${count} ${count === 1 ? 'room' : 'rooms'}`;
 
 /** "Dec 11 – 14" within a month, "Dec 30 – Jan 2" across one. */

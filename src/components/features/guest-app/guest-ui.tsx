@@ -22,7 +22,7 @@ export function Field({ label, name, type = 'text', placeholder, autoComplete, s
   const controlled = value !== undefined;
   return (
     <label className="guest-field" htmlFor={name}>
-      <span>{label}{required ? ' *' : ''}</span>
+      <span>{label}{required ? <span className="guest-required-marker" aria-hidden="true"> *</span> : null}</span>
       <Input
         id={name}
         name={name}

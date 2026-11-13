@@ -41,11 +41,11 @@ export function detailsErrors(details: StayGuestDetails) {
   };
 }
 
-function TextField({ label, value, onChange, error, type = 'text', autoComplete, placeholder, show }: { label: string; value: string; onChange: (value: string) => void; error?: string; type?: string; autoComplete?: string; placeholder?: string; show: boolean }) {
+function TextField({ label, value, onChange, error, type = 'text', autoComplete, placeholder, show, required }: { label: string; value: string; onChange: (value: string) => void; error?: string; type?: string; autoComplete?: string; placeholder?: string; show: boolean; required?: boolean }) {
   const invalid = show && Boolean(error);
   return (
     <label className={`sb-field${invalid ? ' is-invalid' : ''}`}>
-      <span>{label}</span>
+      <span>{label}{required ? <span className="guest-required-marker" aria-hidden="true"> *</span> : null}</span>
       <input type={type} value={value} autoComplete={autoComplete} placeholder={placeholder} aria-invalid={invalid || undefined} onChange={(event) => onChange(event.currentTarget.value)} />
       {invalid ? <small className="sb-field-error">{error}</small> : null}
     </label>
@@ -101,9 +101,9 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
         <h2 id="sb-contact-details">Your details</h2>
         <p className="sb-small">From your Cabana profile. Change anything that’s different for this trip.</p>
         <div className="sb-form">
-          <TextField label="Full name" value={details.name} autoComplete="name" onChange={(name) => set({ name, roomLeads: details.roomLeads.map((lead, i) => (i === 0 && (lead === details.name || !lead) ? name : lead)) })} error={errors.name} show={tried} />
-          <TextField label="Email" type="email" value={details.email} autoComplete="email" onChange={(email) => set({ email })} error={errors.email} show={tried} />
-          <TextField label="Mobile number" type="tel" value={details.phone} autoComplete="tel" placeholder="+63 9XX XXX XXXX" onChange={(phone) => set({ phone })} error={errors.phone} show={tried} />
+          <TextField label="Full name" value={details.name} autoComplete="name" onChange={(name) => set({ name, roomLeads: details.roomLeads.map((lead, i) => (i === 0 && (lead === details.name || !lead) ? name : lead)) })} error={errors.name} show={tried} required />
+          <TextField label="Email" type="email" value={details.email} autoComplete="email" onChange={(email) => set({ email })} error={errors.email} show={tried} required />
+          <TextField label="Mobile number" type="tel" value={details.phone} autoComplete="tel" placeholder="+63 9XX XXX XXXX" onChange={(phone) => set({ phone })} error={errors.phone} show={tried} required />
         </div>
       </section>
 
@@ -132,8 +132,8 @@ export function StayCheckoutScreen({ hotel, search, cart, allocation, details, o
         </label>
         {details.receipt ? (
           <div className="sb-form">
-            <TextField label="Company name" value={details.receipt.company} autoComplete="organization" onChange={(company) => set({ receipt: { ...details.receipt!, company } })} error={errors.company} show={tried} />
-            <TextField label="TIN" value={details.receipt.tin} placeholder="123-456-789-000" onChange={(tin) => set({ receipt: { ...details.receipt!, tin } })} error={errors.tin} show={tried} />
+            <TextField label="Company name" value={details.receipt.company} autoComplete="organization" onChange={(company) => set({ receipt: { ...details.receipt!, company } })} error={errors.company} show={tried} required />
+            <TextField label="TIN" value={details.receipt.tin} placeholder="123-456-789-000" onChange={(tin) => set({ receipt: { ...details.receipt!, tin } })} error={errors.tin} show={tried} required />
             <TextField label="Registered address" value={details.receipt.address} autoComplete="street-address" placeholder="Optional" onChange={(address) => set({ receipt: { ...details.receipt!, address } })} show={false} />
           </div>
         ) : null}

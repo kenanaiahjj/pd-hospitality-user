@@ -81,9 +81,9 @@ export type StayRoomType = {
   beds: string;
   view: string;
   features: string[];
-  /** Guests aged 12+ the room takes. */
+  /** Adults the room takes. */
   maxAdults: number;
-  /** Guests aged 6+ the room takes; under-6s stay free on top. */
+  /** Total adults and children the room sleeps. */
   sleeps: number;
   /** Weekday rate for the room, in pesos. */
   base: number;
@@ -711,13 +711,11 @@ export function fromPrice(hotel: StayHotel, search: StaySearch, held: HeldRooms 
 
 /* ---------- party and capacity ---------- */
 
-export type Party = { leads: number; sixPlus: number; underSix: number; total: number };
+export type Party = { adults: number; guests: number };
 
-/** Children 12+ count as adults for room limits; under-6s ride free. */
+/** Hotel search counts children as guests without asking for their ages. */
 export function describeParty(adults: number, childAges: number[]): Party {
-  const teens = childAges.filter((age) => age >= 12).length;
-  const underSix = childAges.filter((age) => age < 6).length;
-  return { leads: adults + teens, sixPlus: adults + childAges.length - underSix, underSix, total: adults + childAges.length };
+  return { adults, guests: adults + childAges.length };
 }
 
 export const partyLabel = (search: Pick<StaySearch, 'adults' | 'childAges'>) => {
@@ -739,34 +737,29 @@ export type CartFit = { rooms: number; fits: boolean; message: string };
 export function cartFit(hotel: StayHotel, search: StaySearch, cart: CartLine[]): CartFit {
   const rooms = cartRooms(hotel, cart);
   const party = describeParty(search.adults, search.childAges);
-  const guests = `${party.total} ${party.total === 1 ? 'guest' : 'guests'}`;
+  const guests = `${party.guests} ${party.guests === 1 ? 'guest' : 'guests'}`;
   if (!rooms.length) return { rooms: 0, fits: false, message: `Pick rooms for ${guests}` };
-  if (rooms.length > party.leads) {
-    return { rooms: rooms.length, fits: false, message: `More rooms than guests aged 12+. Remove ${rooms.length - party.leads === 1 ? 'a room' : `${rooms.length - party.leads} rooms`}.` };
+  if (rooms.length > party.adults) {
+    return { rooms: rooms.length, fits: false, message: `More rooms than adults. Remove ${rooms.length - party.adults === 1 ? 'a room' : `${rooms.length - party.adults} rooms`}.` };
   }
   const sleeps = rooms.reduce((sum, item) => sum + item.roomType.sleeps, 0);
-  const leadRoom = rooms.reduce((sum, item) => sum + item.roomType.maxAdults, 0);
-  const fitsSixPlus = sleeps >= party.sixPlus && leadRoom >= party.leads;
-  const fitsUnderSix = party.underSix <= rooms.length * 2;
-  if (!fitsSixPlus || !fitsUnderSix) {
-    const placed = Math.min(party.total, Math.min(sleeps, party.sixPlus) + Math.min(party.underSix, rooms.length * 2));
-    return { rooms: rooms.length, fits: false, message: `${placed} of ${party.total} fit · add a room` };
+  const adultCapacity = rooms.reduce((sum, item) => sum + item.roomType.maxAdults, 0);
+  const guestsThatFit = Math.min(sleeps, adultCapacity + party.guests - party.adults);
+  if (guestsThatFit < party.guests) {
+    return { rooms: rooms.length, fits: false, message: `${guestsThatFit} of ${party.guests} fit · add a room` };
   }
   return { rooms: rooms.length, fits: true, message: `Fits your ${guests}` };
 }
 
-type RoomLoad = { leads: number; sixPlus: number; underSix: number };
+type RoomLoad = { adults: number; guests: number };
 
-function loadOf(allocation: RoomAllocation, childAges: number[]): RoomLoad {
-  const ages = allocation.childIndexes.map((index) => childAges[index] ?? 0);
-  const teens = ages.filter((age) => age >= 12).length;
-  const underSix = ages.filter((age) => age < 6).length;
-  return { leads: allocation.adults + teens, sixPlus: allocation.adults + ages.length - underSix, underSix };
+function loadOf(allocation: RoomAllocation): RoomLoad {
+  return { adults: allocation.adults, guests: allocation.adults + allocation.childIndexes.length };
 }
 
 /**
  * A first split that usually needs no editing: one lead per room, then the
- * rest of the adults, then children oldest first, each into the first room
+ * rest of the adults, then each child into the first room
  * with space. Anyone who fits nowhere lands in the first room, where
  * `validateAllocation` flags it.
  */
@@ -774,7 +767,7 @@ export function defaultAllocation(hotel: StayHotel, search: StaySearch, cart: Ca
   const rooms = cartRooms(hotel, cart);
   const split: RoomAllocation[] = rooms.map(() => ({ adults: 0, childIndexes: [] }));
   if (!rooms.length) return split;
-  const load = (i: number) => loadOf(split[i]!, search.childAges);
+  const load = (i: number) => loadOf(split[i]!);
   let adults = search.adults;
   for (let i = 0; i < rooms.length && adults > 0; i++) {
     split[i]!.adults++;
@@ -782,24 +775,14 @@ export function defaultAllocation(hotel: StayHotel, search: StaySearch, cart: Ca
   }
   // Spread the rest where the lead limit allows, roomiest first.
   while (adults > 0) {
-    const i = rooms.findIndex((item, index) => load(index).leads < item.roomType.maxAdults && load(index).sixPlus < item.roomType.sleeps);
+    const i = rooms.findIndex((item, index) => load(index).adults < item.roomType.maxAdults && load(index).guests < item.roomType.sleeps);
     const target = i >= 0 ? i : 0;
     split[target]!.adults++;
     adults--;
   }
-  const children = search.childAges.map((age, index) => ({ age, index })).sort((a, b) => b.age - a.age);
-  for (const child of children) {
-    const fits = (i: number) => {
-      const current = load(i);
-      const roomType = rooms[i]!.roomType;
-      if (child.age < 6) return current.underSix < 2;
-      if (child.age >= 12) return current.leads < roomType.maxAdults && current.sixPlus < roomType.sleeps;
-      return current.sixPlus < roomType.sleeps;
-    };
-    // A room with no lead yet takes a teen first, so every room has one.
-    const needsLead = child.age >= 12 ? rooms.findIndex((_, i) => load(i).leads === 0 && fits(i)) : -1;
-    const i = needsLead >= 0 ? needsLead : rooms.findIndex((_, index) => fits(index));
-    split[i >= 0 ? i : 0]!.childIndexes.push(child.index);
+  for (let childIndex = 0; childIndex < search.childAges.length; childIndex++) {
+    const i = rooms.findIndex((_, index) => load(index).guests < rooms[index]!.roomType.sleeps);
+    split[i >= 0 ? i : 0]!.childIndexes.push(childIndex);
   }
   return split;
 }
@@ -809,12 +792,11 @@ export type AllocationCheck = { ok: boolean; roomErrors: (string | null)[]; summ
 export function validateAllocation(hotel: StayHotel, search: StaySearch, cart: CartLine[], allocation: RoomAllocation[]): AllocationCheck {
   const rooms = cartRooms(hotel, cart);
   const roomErrors = rooms.map((item, i) => {
-    const current = loadOf(allocation[i] ?? { adults: 0, childIndexes: [] }, search.childAges);
+    const current = loadOf(allocation[i] ?? { adults: 0, childIndexes: [] });
     const { roomType } = item;
-    if (current.leads === 0) return 'Needs a guest aged 12 or over';
-    if (current.leads > roomType.maxAdults) return `Takes up to ${roomType.maxAdults} guests aged 12 or over`;
-    if (current.sixPlus > roomType.sleeps) return `Up to ${roomType.sleeps} guests aged 6 or older; children under 6 don't count toward this limit`;
-    if (current.underSix > 2) return 'Takes at most 2 children under 6';
+    if (current.adults === 0) return 'Needs an adult guest';
+    if (current.adults > roomType.maxAdults) return `Takes up to ${roomType.maxAdults} adults`;
+    if (current.guests > roomType.sleeps) return `Up to ${roomType.sleeps} guests fit in this room`;
     return null;
   });
   const placedAdults = allocation.reduce((sum, item) => sum + item.adults, 0);
@@ -1060,7 +1042,7 @@ export function searchHotels(search: StaySearch, filters: StayFilters = NO_FILTE
         return filters.freeCancellation || Boolean(cheapest?.refundable);
       })(),
       soldOut: offers.length === 0,
-      fitsParty: capacity >= party.sixPlus,
+      fitsParty: capacity >= party.guests,
     };
   });
   const filtered = results.filter((result) => {
@@ -1285,7 +1267,7 @@ export function suggestRooms(hotel: StayHotel, search: StaySearch, held: HeldRoo
   const planOf = (offer: RoomOffer) => (offer.plans.find((plan) => plan.id === 'flex') ?? offer.plans.find((plan) => plan.id === 'saver'))!;
   const open = roomOffers(hotel, search, held).filter((offer) => offer.left > 0 && offer.plans.some((plan) => plan.id === 'flex' || plan.id === 'saver'));
   if (!open.length) return undefined;
-  const cap = Math.max(1, party.leads);
+  const cap = Math.max(1, party.adults);
   let best: RoomSuggestion | undefined;
   const counts = open.map(() => 0);
   const visit = (index: number, rooms: number) => {

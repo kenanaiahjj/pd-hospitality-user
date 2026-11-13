@@ -307,7 +307,7 @@ export function IdentityStep({ guestName, email, record, passportFields, onPassp
       <Field label="Nationality" name="nationality" placeholder="e.g. Filipino" value={person.nationality} onValueChange={(nationality) => setPerson((current) => ({ ...current, nationality }))} required />
       <Field label="Passport or ID number" name="document-number" placeholder="As printed on the document" value={passportFields.documentNumber} onValueChange={(documentNumber) => onPassportFieldsChange({ ...passportFields, documentNumber })} required />
       <Field label="Expiry date" name="expiry" type="date" value={passportFields.expiry} onValueChange={(expiry) => onPassportFieldsChange({ ...passportFields, expiry })} helper={expired ? EXPIRED_ID : undefined} required />
-      <ExpandableField label="Contact" value={[contact.email, contact.mobile].filter(Boolean).join(' · ') || 'Add contact details'} aside={email ? 'From your account' : 'Optional'} open={contactOpen} onToggle={() => setContactOpen((open) => !open)}>
+      <ExpandableField className="guest-field--contact" label="Contact" value={[contact.email, contact.mobile].filter(Boolean).join(' · ') || 'Add contact details'} aside={email ? 'From your account' : 'Optional'} open={contactOpen} onToggle={() => setContactOpen((open) => !open)}>
         <Field label="Email" name="guest-email" type="email" value={contact.email} onValueChange={(value) => setContact((current) => ({ ...current, email: value }))} />
         <Field label="Mobile" name="guest-mobile" type="tel" value={contact.mobile} onValueChange={(mobile) => setContact((current) => ({ ...current, mobile }))} />
       </ExpandableField>

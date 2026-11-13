@@ -1042,10 +1042,19 @@ export function HotelBrowse({ staySearch, onSearchStay, onOpenHotel, resumeBooki
 export function formatStayDateRange(booking: Booking) {
   const checkIn = new Date(`${booking.checkIn}T12:00:00`);
   const checkOut = new Date(`${booking.checkOut}T12:00:00`);
-  const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
-  const start = formatter.format(checkIn);
-  const end = formatter.format(checkOut);
-  return `${start}–${end}, ${booking.checkIn.slice(0, 4)}`;
+  const monthDayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+  const dayFormatter = new Intl.DateTimeFormat('en-US', { day: 'numeric' });
+  const yearFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric' });
+  const sameYear = checkIn.getFullYear() === checkOut.getFullYear();
+  const sameMonth = sameYear && checkIn.getMonth() === checkOut.getMonth();
+
+  if (!sameYear) {
+    const fullDateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${fullDateFormatter.format(checkIn)}–${fullDateFormatter.format(checkOut)}`;
+  }
+
+  const end = sameMonth ? dayFormatter.format(checkOut) : monthDayFormatter.format(checkOut);
+  return `${monthDayFormatter.format(checkIn)}–${end}, ${yearFormatter.format(checkIn)}`;
 }
 
 export function formatCheckoutDate(isoDate: string) {
@@ -1055,9 +1064,8 @@ export function formatCheckoutDate(isoDate: string) {
 }
 
 /**
- * `compact` is a one-line reminder of which stay a detail screen is about --
- * the home already shows this stay large, so a second hero only pushes the
- * details below the fold.
+ * `compact` keeps the stay identity and dates easy to scan without the full
+ * photo card, leaving room for the details below.
  */
 export function StayCard({ booking, compact = false, statusLabel = 'Confirmed', onOpen }: { booking: Booking; compact?: boolean; statusLabel?: string; onOpen?: () => void }) {
   const checkIn = new Date(`${booking.checkIn}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
@@ -1068,9 +1076,10 @@ export function StayCard({ booking, compact = false, statusLabel = 'Confirmed', 
         <span className="guest-stay-card__thumb"><PropertyImage property={booking.property} aspectRatio="1" decorative /></span>
         <span className="guest-stay-card__summary">
           <b>{booking.property}</b>
-          <small>{booking.roomType} · {formatStayDateRange(booking)}</small>
+          <small className="guest-stay-card__room">{booking.roomType}</small>
+          <small className="guest-stay-card__dates">{formatStayDateRange(booking)}</small>
+          <span className="guest-stay-card__state">{statusLabel}</span>
         </span>
-        <span className="guest-stay-card__state">{statusLabel}</span>
       </>
     );
     return onOpen ? (
@@ -1209,7 +1218,7 @@ export function PreArrivalChecklist({ booking, onNavigate, confirmScreen }: {
               >
                 <span className="guest-checklist__mark" aria-hidden="true">{complete ? <Check weight="bold" /> : null}</span>
                 <span className="guest-checklist__label">{step.label}<span className="sr-only">{complete ? ', done' : ', to do'}</span></span>
-                {next ? <span className="guest-checklist__action" aria-hidden="true">{complete ? 'Edit' : 'Add'}<CaretRight /></span> : null}
+                {next ? <span className="guest-checklist__action" aria-hidden="true">{complete ? 'Edit' : 'Add'}{complete ? <CaretRight /> : <Plus />}</span> : null}
               </button>
             </li>
           );

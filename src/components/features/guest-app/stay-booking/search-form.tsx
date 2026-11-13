@@ -6,20 +6,21 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { PROTOTYPE_TODAY, countNightsBetween } from '../prototype-model';
 import type { StayLocation, StaySearch } from './model';
 import { ANYWHERE, DEFAULT_STAY_SEARCH, MAX_ADULTS, MAX_CHILDREN, MAX_NIGHTS, STAY_HOTELS, STAY_LOCATIONS, addDays, locationImage, matchesWords, partyLabel, quickDates, resolveLocation, stayNights, validSearchDates } from './model';
-import { childAgeLabel, compactRange, longDate, shortDate, stayDatesLabel, weekdayDate } from './format';
+import { compactRange, longDate, shortDate, stayDatesLabel, weekdayDate } from './format';
 
 /*
   The search, in two parts. On a page it is one bar that says what is being
   searched for; tapping it opens the search full screen, where Where, When
-  and Who each get the width of the phone -- one open at a time, as the
-  booking apps do it, with the button fixed at the bottom. Children need an
-  age before the search runs: it decides whether they count toward a room's
-  beds.
+  and Who each get the width of the phone -- one open at a time, as Airbnb
+  does it: steps already passed sit above as one line each, steps not reached
+  yet are hidden, and Next (Search on the last step) is fixed at the bottom.
+  Guests are counted by adults and children; each child counts toward room
+  capacity.
 */
 
 export type SearchStep = 'where' | 'when' | 'who';
-/** A child whose age has not been chosen yet. */
-const NO_AGE = -1;
+/** A child count entry. Hotel search no longer asks for an individual age. */
+const UNSPECIFIED_CHILD_AGE = -1;
 
 /** The bar and the sheet it opens, for any page that searches. */
 export function StaySearchLauncher({ value, onSearch, submitLabel }: { value: StaySearch; onSearch: (search: StaySearch) => void; submitLabel?: string }) {
@@ -89,7 +90,6 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const missingAge = draft.childAges.some((age) => age === NO_AGE);
   const datesOk = validSearchDates(draft);
   // Name the rule the dates broke, in the order validSearchDates checks them.
   const datesError = draft.checkIn <= PROTOTYPE_TODAY
@@ -97,13 +97,27 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
     : countNightsBetween(draft.checkIn, draft.checkOut) < 1
       ? 'Choose a check-out date after check-in.'
       : `Stays can be at most ${MAX_NIGHTS} nights.`;
-  const canSearch = !missingAge && datesOk && draft.location.trim().length > 0;
+  const canSearch = datesOk && draft.location.trim().length > 0;
   const next = (after: SearchStep) => steps[steps.indexOf(after) + 1];
+  // Steps already passed stay above the open card as one line each; steps not reached yet are not shown.
+  const shows = (which: SearchStep) => steps.includes(which) && steps.indexOf(which) <= steps.indexOf(step);
+  const isLast = next(step) === undefined;
+
+  // Next moves on to the following step, once the answer to this one is good enough to move on from.
+  const goNext = () => {
+    const after = next(step);
+    if (!after) return;
+    if ((step === 'where' && !draft.location.trim()) || (step === 'when' && !datesOk)) {
+      setTried(true);
+      return;
+    }
+    setStep(after);
+  };
 
   const submit = () => {
     setTried(true);
     if (!canSearch) {
-      setStep(missingAge ? 'who' : !datesOk ? 'when' : 'where');
+      setStep(!datesOk ? 'when' : 'where');
       return;
     }
     const search = { ...draft, location: resolveLocation(draft.location) };
@@ -127,7 +141,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
       </header>
 
       <div className="sb-sheet__body">
-        {steps.includes('where') ? (
+        {shows('where') ? (
           <SheetSection icon={<MapPin />} label="Where" question="Where to?" value={!draft.location || draft.location === ANYWHERE ? 'Anywhere' : draft.location} open={step === 'where'} onOpen={() => setStep('where')}>
             {recent.length && steps.includes('when') && (!draft.location || draft.location === ANYWHERE) ? (
               <div className="sb-recent">
@@ -147,7 +161,7 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
             />
           </SheetSection>
         ) : null}
-        {steps.includes('when') ? (
+        {shows('when') ? (
           <SheetSection icon={<CalendarBlank />} label="When" question="When’s your trip?" value={datesOk ? stayDatesLabel(draft.checkIn, draft.checkOut) : 'Choose dates'} open={step === 'when'} onOpen={() => setStep('when')}>
             {/* At a hotel, only the quick dates it has room on. */}
             {quickDates().some((option) => !stayNights(option.checkIn, option.checkOut).some((night) => isBlocked?.(night))) ? (
@@ -170,19 +184,18 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
             />
           </SheetSection>
         ) : null}
-        {steps.includes('who') ? (
+        {shows('who') ? (
           <SheetSection icon={<Users />} label="Who" question="Who’s coming?" value={partyLabel(draft)} open={step === 'who'} onOpen={() => setStep('who')}>
             <GuestsPanel
               adults={draft.adults}
               childAges={draft.childAges}
-              showErrors={tried}
               onChange={(adults, childAges) => setDraft((current) => ({ ...current, adults, childAges }))}
             />
           </SheetSection>
         ) : null}
         {tried && !canSearch ? (
           <p className="sb-error" role="alert">
-            {missingAge ? 'Add each child’s age to see rooms that fit.' : !datesOk ? datesError : 'Choose where you want to stay.'}
+            {!datesOk ? datesError : 'Choose where you want to stay.'}
           </p>
         ) : null}
       </div>
@@ -192,9 +205,13 @@ export function StaySearchSheet({ value, onSearch, onClose, submitLabel = 'Searc
           <b>{awaitingCheckOut ? `${shortDate(draft.checkIn)} → check-out?` : datesOk ? `${compactRange(draft.checkIn, draft.checkOut)} · ${countNightsBetween(draft.checkIn, draft.checkOut)} ${countNightsBetween(draft.checkIn, draft.checkOut) === 1 ? 'night' : 'nights'}` : 'Choose dates'}</b>
           <button type="button" className="sb-sheet__clear" onClick={() => { setDraft(steps.includes('where') ? DEFAULT_STAY_SEARCH : { ...DEFAULT_STAY_SEARCH, location: draft.location }); setTried(false); setStep(steps[0]!); }}>Clear all</button>
         </span>
-        <button className="guest-button guest-button--primary sb-sheet__submit" type="button" onClick={submit}>
-          <MagnifyingGlass aria-hidden="true" />{submitLabel}
-        </button>
+        {isLast ? (
+          <button className="guest-button guest-button--primary sb-sheet__submit" type="button" onClick={submit}>
+            <MagnifyingGlass aria-hidden="true" />{submitLabel}
+          </button>
+        ) : (
+          <button className="guest-button guest-button--primary sb-sheet__submit" type="button" onClick={goNext}>Next</button>
+        )}
       </footer>
     </div>
   );
@@ -402,36 +419,19 @@ function Counter({ label, detail, value, min, max, unit, onChange }: { label: st
   );
 }
 
-export function GuestsPanel({ adults, childAges, onChange, showErrors }: { adults: number; childAges: number[]; onChange: (adults: number, childAges: number[]) => void; showErrors?: boolean }) {
+export function GuestsPanel({ adults, childAges, onChange }: { adults: number; childAges: number[]; onChange: (adults: number, childAges: number[]) => void }) {
   return (
     <div className="sb-guests">
       <Counter label="Adults" detail="Ages 18 and over" value={adults} min={1} max={MAX_ADULTS} unit="adults" onChange={(next) => onChange(next, childAges)} />
       <Counter
         label="Children"
-        detail="Ages 0–17 · 12 and up take an adult’s place in a room"
+        detail="Under 18"
         value={childAges.length}
         min={0}
         max={MAX_CHILDREN}
         unit="children"
-        onChange={(next) => onChange(adults, next > childAges.length ? [...childAges, NO_AGE] : childAges.slice(0, next))}
+        onChange={(next) => onChange(adults, Array.from({ length: next }, () => UNSPECIFIED_CHILD_AGE))}
       />
-      {childAges.length ? (
-        <div className="sb-guests__ages">
-          {childAges.map((age, index) => (
-            <label key={index} className={`sb-field sb-guests__age${showErrors && age === NO_AGE ? ' is-invalid' : ''}`}>
-              <span>Child {index + 1} age</span>
-              <select
-                value={age}
-                aria-invalid={showErrors && age === NO_AGE ? true : undefined}
-                onChange={(event) => onChange(adults, childAges.map((current, i) => (i === index ? Number(event.currentTarget.value) : current)))}
-              >
-                <option value={NO_AGE} disabled>Select</option>
-                {Array.from({ length: 18 }, (_, value) => <option key={value} value={value}>{childAgeLabel(value)}</option>)}
-              </select>
-            </label>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

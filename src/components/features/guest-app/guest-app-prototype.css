@@ -5,11 +5,11 @@
    ========================================================================== */
 
 .guest-prototype-stage {
-  /* The capsule is 64px high with an 8px breathing gap beneath it. In-app
+  /* The capsule is 64px high with a 24px breathing gap beneath it. In-app
      docks and the screen's scroll inset use this footprint so they stop above
      the capsule rather than hiding behind it; the safe-area inset is added at
      each bottom offset. */
-  --guest-nav-h: 72px;
+  --guest-nav-h: 88px;
 
   min-height: 100dvh;
   background: var(--ds-background);
@@ -718,7 +718,7 @@
    room above the device edge. */
 .guest-bottom-nav {
   position: absolute;
-  inset-block-end: calc(8px + env(safe-area-inset-bottom));
+  inset-block-end: calc(24px + env(safe-area-inset-bottom));
   inset-inline-start: 50%;
   z-index: var(--z-nav);
   display: grid;
@@ -729,8 +729,9 @@
   min-height: 64px;
   margin: 0;
   padding: 6px 8px;
+  border: 1px solid oklch(1 0 none / 0.72);
   border-radius: var(--guest-radius-pill);
-  background: oklch(1 0 none / 0.58);
+  background: oklch(1 0 none / 0.88);
   -webkit-backdrop-filter: blur(24px) saturate(1.22);
   backdrop-filter: blur(24px) saturate(1.22);
   box-shadow: var(--shadow-md);
@@ -747,7 +748,7 @@
 .guest-screen.has-resume-float { padding-block-end: calc(var(--guest-screen-pad-bottom) + 76px); }
 .guest-resume-float {
   position: absolute;
-  inset-block-end: calc(8px + 64px + 8px + env(safe-area-inset-bottom));
+  inset-block-end: calc(24px + 64px + 8px + env(safe-area-inset-bottom));
   inset-inline-start: 50%;
   z-index: var(--z-nav);
   display: grid;
@@ -1953,6 +1954,11 @@
 .guest-notice--positive,
 .guest-notice--warning,
 .guest-notice--offline { box-shadow: none; }
+.guest-notice--neutral {
+  border-radius: var(--guest-radius-sm);
+  background: var(--guest-sunken);
+  box-shadow: none;
+}
 .guest-notice--positive .guest-notice__icon,
 .guest-notice--warning .guest-notice__icon,
 .guest-notice--offline .guest-notice__icon { background: oklch(1 0 none / 0.7); }
@@ -4853,11 +4859,11 @@ button.guest-tile:active { transform: scale(0.98); }
 .guest-tile__meta svg { width: 14px; height: 14px; }
 .guest-tile.is-done .guest-tile__meta { color: var(--guest-positive); font-weight: 600; }
 
-/* The stay as a one-line reminder on its own detail screens. */
+/* A compact booking summary with room, dates, and status easy to scan. */
 .guest-stay-card--compact {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: start;
   gap: 12px;
   padding: 10px 14px 10px 10px;
   border: 0;
@@ -4867,10 +4873,12 @@ button.guest-tile:active { transform: scale(0.98); }
 }
 .guest-stay-card__thumb { overflow: clip; min-inline-size: 0; width: 52px; height: 52px; border-radius: 12px; }
 .guest-stay-card__thumb .guest-property-image { width: 100%; height: 100%; border-radius: 0; }
-.guest-stay-card__summary { display: grid; gap: 2px; min-width: 0; }
-.guest-stay-card__summary b { overflow: clip; min-inline-size: 0; font-size: 15px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.guest-stay-card__summary small { min-inline-size: 0; color: var(--guest-muted); font-size: 13px; text-wrap: pretty; }
-.guest-stay-card__state { color: var(--guest-positive); font-size: 12px; font-weight: 650; }
+.guest-stay-card__summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.guest-stay-card__summary b { grid-column: 1 / -1; min-inline-size: 0; font-size: 15px; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
+.guest-stay-card__summary small { min-inline-size: 0; color: var(--guest-muted); font-size: 13px; }
+.guest-stay-card__room { grid-column: 1; grid-row: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.guest-stay-card__dates { grid-column: 1; grid-row: 3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.guest-stay-card__state { grid-column: 2; grid-row: 3; justify-self: end; color: var(--guest-positive); font-size: 12px; font-weight: 650; white-space: nowrap; }
 button.guest-stay-card--compact { width: 100%; color: var(--guest-ink); font: inherit; text-align: start; cursor: pointer; }
 button.guest-stay-card--compact:active { transform: scale(0.99); }
 
@@ -8509,6 +8517,18 @@ button.guest-stay-card--compact:active { transform: scale(0.99); }
 button.guest-field__row { cursor: pointer; }
 .guest-field__row > b { color: var(--guest-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .guest-field__row > b.guest-field__aside { color: var(--guest-subtle); font-weight: 500; }
+.guest-field--contact > .guest-field__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-content: stretch;
+  justify-items: start;
+  gap: 4px;
+  min-height: 72px;
+  padding-block: 10px;
+}
+.guest-field--contact > .guest-field__row > span { font-size: 13px; line-height: 1.25; }
+.guest-field--contact > .guest-field__row > b { min-width: 0; max-width: 100%; font-size: 14px; line-height: 1.35; text-align: start; overflow-wrap: anywhere; }
 .guest-field.is-open > .guest-field__row { color: var(--guest-ink); }
 .guest-field__body { display: grid; gap: 10px; padding: 0 14px 16px; }
 
@@ -8614,6 +8634,7 @@ label.guest-field {
   padding: 0 18px;
 }
 label.guest-field > span { color: var(--guest-muted); font-size: 15px; font-weight: 400; letter-spacing: 0; line-height: 1.3; text-wrap: balance; }
+.guest-app .guest-required-marker { color: var(--guest-danger); font-weight: 700; }
 label.guest-field input,
 label.guest-field select {
   min-height: 54px;
@@ -9258,6 +9279,7 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 
 /* Tabs: a segmented control, so the three kinds of control never share a scroll. */
 .guest-prototype-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: 12px; background: var(--ds-surface-sunken); }
+.guest-prototype-device-controls { display: grid; gap: 14px; }
 .guest-prototype-toolbar .guest-prototype-tabs button {
   min-height: 36px;
   padding: 0 8px;
@@ -9771,3 +9793,157 @@ label.guest-field:has(> input:is([type="text"], [type="email"], [type="tel"], [t
 /* Explore before the scan: the unlock note, then its two actions, spaced rather than touching. */
 .guest-arrival-unlock { display: grid; gap: 12px; }
 .guest-arrival-unlock > .guest-text-button { margin-block-start: -4px; }
+
+/* --------------------------------------------------------------------------
+   iPhone Duo prototype preview
+   The frame scales from the published display ratios. In the open pose, the
+   existing app stays in one pane, the center crease stays clear, and the
+   primary navigation moves to a vertical rail.
+   -------------------------------------------------------------------------- */
+.guest-prototype:has(.guest-device[data-device='iphone-duo']) {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  overflow: clip;
+  padding: 12px;
+  box-sizing: border-box;
+  background: var(--ds-surface-sunken);
+}
+
+.guest-device[data-device='iphone-duo'] {
+  --app-inset: var(--app-gutter);
+
+  flex: 0 0 auto;
+  height: auto;
+  min-height: 0;
+  max-width: none;
+  overflow: clip;
+  border-radius: var(--guest-radius-lg);
+  box-shadow: var(--shadow-lg);
+  transform: translateZ(0);
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='closed'] {
+  width: min(calc(100vw - 24px), calc(68.7dvh - 16.5px));
+  aspect-ratio: 1398 / 2034;
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] {
+  --guest-duo-pane-width: calc(50% - 24px);
+  --guest-duo-content-start: calc(72px + var(--app-gutter));
+  --guest-float-width: calc(var(--guest-duo-pane-width) - var(--guest-duo-content-start) - var(--app-gutter));
+  --guest-float-bottom: calc(16px + env(safe-area-inset-bottom));
+
+  width: min(calc(100vw - 24px), calc(142.2dvh - 34px));
+  aspect-ratio: 2670 / 1878;
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open']::after {
+  position: absolute;
+  z-index: 1;
+  inset-block: 0;
+  inset-inline-start: 50%;
+  width: clamp(2px, 1.5%, 16px);
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, var(--guest-line-strong), transparent);
+  box-shadow: inset 1px 0 var(--guest-line), inset -1px 0 var(--guest-line);
+  opacity: 0.45;
+  content: '';
+  pointer-events: none;
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-appbar,
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-screen {
+  width: var(--guest-duo-pane-width);
+  box-sizing: border-box;
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-appbar {
+  padding-inline-start: var(--guest-duo-content-start);
+  padding-inline-end: var(--app-gutter);
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-screen {
+  padding-inline-start: var(--guest-duo-content-start);
+  padding-inline-end: var(--app-gutter);
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-screen.has-nav {
+  --guest-screen-pad-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-bottom-nav {
+  inset-block-start: 50%;
+  inset-block-end: auto;
+  inset-inline-start: 8px;
+  display: grid;
+  width: 64px;
+  height: max-content;
+  max-height: calc(100% - 32px);
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  grid-auto-rows: max-content;
+  gap: 2px;
+  overflow-y: auto;
+  padding: 8px 4px;
+  border-radius: 20px;
+  transform: translateY(-50%);
+  animation: none;
+  scrollbar-width: none;
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-bottom-nav::-webkit-scrollbar { display: none; }
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-bottom-nav button {
+  min-width: 0;
+  min-height: 48px;
+  padding-inline: 2px;
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-bottom-nav button[aria-current='page']::before {
+  inset-block-start: 50%;
+  inset-inline-start: -5px;
+  width: 3px;
+  height: 22px;
+  transform: translateY(-50%);
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-resume-float {
+  inset-inline-start: var(--guest-duo-content-start);
+  inset-block-end: calc(16px + env(safe-area-inset-bottom));
+  width: var(--guest-float-width);
+  transform: none;
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-screen.has-resume-float {
+  padding-block-end: calc(var(--guest-screen-pad-bottom) + 92px);
+}
+
+.guest-device[data-device='iphone-duo'][data-pose='open'] .guest-dock {
+  inset-inline-start: var(--guest-duo-content-start);
+}
+
+@media (max-width: 719px) {
+  .guest-device[data-device='iphone-duo'][data-pose='open'] {
+    --guest-duo-pane-width: calc(100% - 20px);
+    --guest-duo-content-start: calc(64px + var(--app-gutter));
+  }
+
+  .guest-device[data-device='iphone-duo'][data-pose='open']::after {
+    width: 2px;
+    opacity: 0.3;
+    box-shadow: none;
+  }
+}
+
+@media (min-width: 720px) {
+  .guest-prototype:has(.guest-device[data-device='iphone-duo']) { padding: 28px; }
+
+  .guest-device[data-device='iphone-duo'][data-pose='closed'] {
+    width: min(calc(100vw - 56px), calc(68.7dvh - 38.5px));
+  }
+
+  .guest-device[data-device='iphone-duo'][data-pose='open'] {
+    width: min(calc(100vw - 56px), calc(142.2dvh - 79.5px));
+  }
+}

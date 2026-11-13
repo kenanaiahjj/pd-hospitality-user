@@ -38,8 +38,6 @@
 .guest-app .sb-stepper button:disabled { opacity: 0.35; }
 .guest-app .sb-stepper svg { width: 16px; height: 16px; }
 .guest-app .sb-stepper output { min-width: 26px; font-size: 16px; font-variant-numeric: tabular-nums; font-weight: 700; text-align: center; }
-.guest-app .sb-guests__ages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-block-start: 6px; }
-.guest-app .sb-guests__ages select { min-height: 46px; }
 .guest-app .sb-guests__note { grid-column: 1 / -1; margin: 0; color: var(--guest-muted); font-size: 12.5px; line-height: 1.45; }
 
 /* ---------- results ---------- */
@@ -871,8 +869,6 @@
   .guest-app .sb-calendar__ends { gap: 6px; }
 }
 
-/* Two ages side by side on a phone: room for "Select" and "10 years" without clipping. */
-.guest-app .sb-guests__age select { min-height: 46px; padding: 0 32px 0 12px; background-position: right 12px center; font-size: 15px; text-overflow: ellipsis; }
 @media (max-height: 720px) {
   .guest-app .sb-sheet__card { gap: 12px; padding: 18px 16px 16px; }
   .guest-app .sb-sheet__card h3 { font-size: 25px; }

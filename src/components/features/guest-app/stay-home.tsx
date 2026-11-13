@@ -395,7 +395,7 @@ export function StayOverviewHome({ session, pastStays = session.pastStays, revie
                 <span className="guest-tile__icon" aria-hidden="true"><Clock /></span>
                 <small>Check in early</small>
                 <b>{booking.earlyCheckIn.time}</b>
-                <span className="guest-tile__meta"><CheckCircle weight="fill" aria-hidden="true" />Requested · view or withdraw</span>
+                <span className="guest-tile__meta"><CheckCircle weight="fill" aria-hidden="true" />Requested · view or cancel</span>
               </button>
             ) : session.cart?.some((line) => line.earlyCheckIn && line.booking.bookingId === booking.id) ? (
               <button className="guest-tile is-done" type="button" data-testid="guest-early-checkin-incart" onClick={() => onNavigate('early-check-in')}>

@@ -41,7 +41,7 @@ export function engineStatusLine(eb: EngineBooking): string {
     case 'in-progress': return 'In progress';
     case 'completed': case 'collected': case 'seated': return 'Completed';
     case 'no-show': return 'No-show';
-    case 'withdrawn': return 'Not booked · you withdrew it';
+    case 'withdrawn': return 'Not booked · you cancelled it';
     case 'declined': return "Not booked · the vendor wasn't available";
     case 'lapsed': return 'Not booked · no answer in time';
     case 'payment-expired': return 'Not booked · not paid in time';
@@ -54,7 +54,7 @@ export function engineCancelLine(pilot: Pilot, eb: EngineBooking): string {
   const listing = pilot.listing(eb.listingId);
   if (['cancelled', 'declined', 'lapsed', 'withdrawn', 'payment-expired', 'no-show', 'completed', 'collected', 'seated'].includes(eb.status)) return 'This booking is closed.';
   if (eb.kind === 'table') return 'Free to cancel any time before you are seated. The table is held 15 minutes past your time.';
-  if (['requested', 'needs-approval', 'pay-or-cancel', 'awaiting-payment'].includes(eb.status)) return eb.hold && eb.status === 'requested' ? 'Withdraw any time before it is confirmed. Your hold is released, nothing is taken.' : 'Withdraw any time before it is confirmed. Nothing is charged until then.';
+  if (['requested', 'needs-approval', 'pay-or-cancel', 'awaiting-payment'].includes(eb.status)) return eb.hold && eb.status === 'requested' ? 'Cancel any time before it is confirmed. Your hold is released, nothing is taken.' : 'Cancel any time before it is confirmed. Nothing is charged until then.';
   const until = eb.start - listing.freeCancelHours * 3_600_000;
   if (until <= pilot.now()) return 'The free-cancel time has passed. You can ask to cancel, and the vendor has to accept.';
   const d = new Date(until);

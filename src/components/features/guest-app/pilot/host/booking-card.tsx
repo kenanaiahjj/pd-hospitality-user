@@ -34,7 +34,7 @@ const KIND_ICON = { rental: Bicycle, service: HandHeart, table: ForkKnife, goods
 
 const LABEL: Record<CardAction, string> = {
   cancel: 'Cancel',
-  withdraw: 'Withdraw request',
+  withdraw: 'Cancel request',
   pay: 'Pay now',
   'pay-in-full': 'Pay in full instead',
   'show-qr': 'Show QR',
@@ -160,7 +160,7 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
     const r = host.call<{ ok: boolean; message?: string; outcome?: string }>('guest.cancel', guestId, bookingId);
     if (!r.ok) handlers.onNote?.({ tone: 'warning', text: r.message ?? 'That did not go through.' });
     else if (r.outcome === 'requested') handlers.onNote?.({ tone: 'positive', text: 'You asked to cancel. It is past the free-cancel time, so the vendor has to accept.' });
-    else handlers.onNote?.({ tone: 'positive', text: r.outcome === 'withdrawn' ? 'Withdrawn. Nothing was charged.' : 'Cancelled.' });
+    else handlers.onNote?.({ tone: 'positive', text: r.outcome === 'withdrawn' ? 'Request cancelled. Nothing was charged.' : 'Cancelled.' });
   };
 
   const act = (action: CardAction) => {
@@ -284,10 +284,10 @@ export function EngineBookingCard({ host, bookingId, paymentId, inThread, bare, 
       <div className="pilot-card__cost"><span>{card.cost.line}</span>{card.cost.amount && !paymentId ? <b>{peso(card.cost.amount)}</b> : null}</div>
       {card.timer ? <Countdown timer={card.timer} vendor={vendorName} /> : null}
       {confirming === 'withdraw' && card.actions.includes('withdraw') ? (
-        <div className="pilot-actions" role="group" aria-label="Confirm withdrawing">
-          <p className="pilot-muted">Withdraw this request? {vendorName} stops holding it. Nothing is charged.</p>
+        <div className="pilot-actions" role="group" aria-label="Confirm cancelling the request">
+          <p className="pilot-muted">Cancel this request? {vendorName} stops holding it. Nothing is charged.</p>
           <button type="button" className="guest-button guest-button--secondary" onClick={() => setConfirming(null)}>Keep it</button>
-          <button type="button" className="guest-button guest-button--primary" onClick={doCancel}>Yes, withdraw</button>
+          <button type="button" className="guest-button guest-button--primary" onClick={doCancel}>Yes, cancel request</button>
         </div>
       ) : confirming === 'cancel' && card.actions.includes('cancel') ? (
         <div className="pilot-actions" role="group" aria-label="Confirm cancelling">

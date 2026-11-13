@@ -585,7 +585,7 @@ describe('GuestAppPrototype', () => {
     expect(screen.getAllByText(/room 512/i).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('button', { name: /hilom signature massage/i }));
     await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
-    await user.click(screen.getByRole('button', { name: /cancel service/i }));
+    await user.click(screen.getByRole('button', { name: /cancel booking/i }));
     // Cancelling moves the booking out of Upcoming and into Past: the status says
     // Cancelled, and the line under it says only the money.
     await user.click(screen.getByRole('tab', { name: /Past/ }));
@@ -598,7 +598,7 @@ describe('GuestAppPrototype', () => {
 
   /*
     Every "Change or cancel" used to open the self-service screen -- eyebrow
-    fixed at "30 hours before service" -- and cancel the Hilom massage whatever
+    fixed at "Starts in 30 hours" -- and cancel the Hilom massage whatever
     had been opened. Inside the provider's cutoff the change is the desk's.
   */
   it('sends a change inside the provider cutoff to the front desk', async () => {
@@ -629,8 +629,8 @@ describe('GuestAppPrototype', () => {
 
     expect(screen.getByRole('heading', { name: 'Contact the front desk to change this' })).toBeInTheDocument();
     // Measured from the prototype clock's 7 PM, not a fixed noon.
-    expect(screen.getByText('3 hours before service')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /cancel service/i })).toBeNull();
+    expect(screen.getByText('Starts in 3 hours')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cancel booking/i })).toBeNull();
   });
 
   it('cancels the booking that was opened, not the massage', async () => {
@@ -654,7 +654,7 @@ describe('GuestAppPrototype', () => {
     await user.click(screen.getByRole('button', { name: /Old Manila cultural walk/i }));
     await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
     expect(screen.getByText(/Old Manila cultural walk · ₱1,500/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /cancel service/i }));
+    await user.click(screen.getByRole('button', { name: /cancel booking/i }));
 
     // The massage is still ahead; only the walk moved to Past.
     expect(screen.getByRole('tab', { name: /Upcoming \(1\)/ })).toBeInTheDocument();
@@ -2448,7 +2448,7 @@ describe('booking the service the guest picked', () => {
     await user.click(screen.getByRole('button', { name: 'My Stay' }));
     await user.click(screen.getByRole('button', { name: /Private car & driver/ }));
     await user.click(screen.getByRole('button', { name: /Change or cancel/i }));
-    await user.click(screen.getByRole('button', { name: /cancel service/i }));
+    await user.click(screen.getByRole('button', { name: /cancel booking/i }));
     await user.click(screen.getByRole('button', { name: 'Profile' }));
     await user.click(screen.getByRole('button', { name: /Payments/ }));
     expect(within(screen.getByRole('list', { name: 'Payments' })).getByText('Partly refunded')).toBeInTheDocument();

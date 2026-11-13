@@ -88,9 +88,9 @@ describe('a rental, asked of the vendor', { timeout: 30_000 }, () => {
     await bookRental(user, 'room');
     await user.click(screen.getByRole('button', { name: 'View My Stay' }));
     await user.click(screen.getByRole('button', { name: /Scooter · 125cc/ }));
-    await user.click(screen.getByRole('button', { name: /Withdraw request/ }));
+    await user.click(screen.getByRole('button', { name: /Cancel request/ }));
     // One more tap: there is no undo.
-    await user.click(screen.getByRole('button', { name: 'Yes, withdraw' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, cancel request' }));
     expect(screen.getAllByText(/Nothing was charged/).length).toBeGreaterThan(0);
   });
 });

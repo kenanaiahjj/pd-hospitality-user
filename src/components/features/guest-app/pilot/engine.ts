@@ -407,7 +407,7 @@ export function createPilot(options: PilotOptions = {}): Pilot {
     // One label, "Not booked", for every way a booking falls through: the line under it says which, and that nothing was taken.
     if (b.status === 'declined') return { amount: 0, line: "The vendor wasn't available · nothing charged" };
     if (b.status === 'lapsed') return { amount: 0, line: 'No answer in time · nothing charged' };
-    if (b.status === 'withdrawn') return { amount: 0, line: 'You withdrew it · nothing charged' };
+    if (b.status === 'withdrawn') return { amount: 0, line: 'You cancelled it · nothing charged' };
     if (b.status === 'payment-expired') return { amount: 0, line: 'Not paid in time · nothing charged' };
     if (b.status === 'cancelled') {
       if (!pay) return { amount: 0, line: 'Nothing was charged' };

@@ -539,7 +539,7 @@ const merchantFrom = (provider: string) => (provider.startsWith('Run by ') ? pro
 /** "Friday · November 20 · 11:00 AM" -> "Friday · November 20", for a line that sits above the time. */
 const withoutTime = (when: string) => when.replace(/\s*·\s*\d{1,2}:\d{2}\s*[AP]M.*$/i, '');
 /** Hours for today and tomorrow; days beyond, where "215 hours" means nothing. */
-const timeUntilLabel = (hours: number) => (hours < 48 ? `${hours} ${hours === 1 ? 'hour' : 'hours'} before service` : `${Math.round(hours / 24)} days before service`);
+const timeUntilLabel = (hours: number) => (hours < 1 ? 'Starts within the hour' : hours < 48 ? `Starts in ${hours} ${hours === 1 ? 'hour' : 'hours'}` : `Starts in ${Math.round(hours / 24)} days`);
 
 function guestDetailsFromSession(session: GuestSession, rooms: number): StayGuestDetails {
   const name = session.guestName.trim() || GUEST_PROFILE.name;
@@ -4755,7 +4755,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
 
       case 'room-upgrade-success': {
         const upgrade = ROOM_UPGRADES.find((item) => item.id === selectedUpgradeId) ?? ROOM_UPGRADES[0];
-        return <ScreenIntro icon={<CheckCircle size={30} />} title="Upgrade requested" text={`The hotel will confirm your ${upgrade.name} and assign its room number. You keep Room ${contextBooking.roomNumber} until then.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="Requested" value={upgrade.name} /><SummaryRow label="If approved" value={upgrade.price} strong /></div><Notice title="Nothing charged yet">It goes on your room bill once the hotel approves. You can withdraw the request from My Stay until then.</Notice>{primary('View My Stay', 'my-stay')}</ScreenIntro>;
+        return <ScreenIntro icon={<CheckCircle size={30} />} title="Upgrade requested" text={`The hotel will confirm your ${upgrade.name} and assign its room number. You keep Room ${contextBooking.roomNumber} until then.`}><div className="guest-summary"><SummaryRow label="Current room" value={`${contextBooking.roomType} · Room ${contextBooking.roomNumber}`} /><SummaryRow label="Requested" value={upgrade.name} /><SummaryRow label="If approved" value={upgrade.price} strong /></div><Notice title="Nothing charged yet">It goes on your room bill once the hotel approves. You can cancel the request from My Stay until then.</Notice>{primary('View My Stay', 'my-stay')}</ScreenIntro>;
       }
 
       case 'room-transfer-details': {
@@ -5596,7 +5596,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             )}
             {confirmFirst ? (
               <Notice title={`${provider.replace(/^Run by /, '')} confirms first`}>
-                {payingNow ? 'Your payment is held now and taken only if they say yes; released if they don\'t.' : 'Nothing is charged unless they say yes.'} You can withdraw until they answer.{' '}A chat with them opens once they accept.
+                {payingNow ? 'Your payment is held now and taken only if they say yes; released if they don\'t.' : 'Nothing is charged unless they say yes.'} You can cancel until they answer.{' '}A chat with them opens once they accept.
               </Notice>
             ) : null}
             {quote && !quote.ok ? <Notice tone="warning" title="Not available">{quote.message}</Notice> : null}
@@ -6172,7 +6172,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
                 : isTable ? tableWaiting ? 'The restaurant will confirm your reservation. Pay for your meal there; nothing is charged to a room.'
                   : 'No charge to reserve. Pay for your meal at the restaurant; nothing goes on your room bill.'
                 : entry.settlement === 'Awaiting provider confirmation' ? 'Nothing is charged in Cabana. The provider will confirm this request; you’ll pay them directly.'
-                  : entry.settlement === 'Awaiting hotel confirmation' ? 'Nothing is charged until the hotel confirms. You can withdraw the request until then.'
+                  : entry.settlement === 'Awaiting hotel confirmation' ? 'Nothing is charged until the hotel confirms. You can cancel the request until then.'
                     : entry.settlement === 'Pay the provider directly' ? 'This booking is outside the hotel. Pay the provider directly; nothing is added to your room bill.'
                       : entry.paidBy === 'complimentary' ? 'On the house. Nothing is added to your room.'
                         : entryAhead && entry.paidBy === 'room' ? `Added to ${contextRoomInline} once it has happened, and settled at the front desk at checkout.`
@@ -6380,7 +6380,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
           goReplacing('my-stay');
         };
         const settlement = isRequest
-          ? { title: 'Nothing was charged', body: 'The request is withdrawn before anyone accepted it. No money moves.' }
+          ? { title: 'Nothing was charged', body: 'The request is cancelled before anyone accepted it. No money moves.' }
           : paidBy === 'card'
           ? { title: 'Your payment is refunded', body: 'It goes back the way you paid. Nothing else changes.' }
           : paidBy === 'complimentary'
@@ -6388,7 +6388,7 @@ export function GuestAppPrototype({ initialSession, initialScreen, initialOnline
             : paidBy === 'provider'
               ? { title: 'No provider payment made', body: 'Nothing was charged in Cabana or to your room.' }
             : { title: 'The charge will be removed from your room', body: 'This service has not settled. No money moves when you cancel.' };
-        return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title={isRequest ? 'Withdraw this request?' : 'Cancel this booking?'} text={isRequest ? 'It has not been accepted yet, so you can withdraw it yourself.' : `This is before the provider’s ${cutoffHours ?? 24}-hour cutoff, so you can cancel it yourself.`}><div className="guest-ticket"><div><small>{withoutTime(cancellable.scheduledFor)}</small><h2>{time}</h2><p>{cancellable.title}{cancellable.amount ? ' · ' + cancellable.amount : ''}{paidBy === 'room' ? ` · ${contextRoom}` : ''}</p></div></div><Notice tone="positive" title={settlement.title}>{settlement.body}</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">{isRequest ? 'Withdraw request' : 'Cancel service'}</button><TextButton onClick={() => go('my-stay')}>{isRequest ? 'Keep request' : 'Keep booking'}</TextButton></ScreenIntro>;
+        return <ScreenIntro eyebrow={timeUntilLabel(hoursLeft)} title={isRequest ? 'Cancel this request?' : 'Cancel this booking?'} text={isRequest ? 'It has not been accepted yet, so you can cancel it yourself.' : `This is before the provider’s ${cutoffHours ?? 24}-hour cutoff, so you can cancel it yourself.`}><div className="guest-ticket"><div><small>{withoutTime(cancellable.scheduledFor)}</small><h2>{time}</h2><p>{cancellable.title}{cancellable.amount ? ' · ' + cancellable.amount : ''}{paidBy === 'room' ? ` · ${contextRoom}` : ''}</p></div></div><Notice tone="positive" title={settlement.title}>{settlement.body}</Notice><button className="guest-button guest-button--danger" onClick={cancelService} type="button">{isRequest ? 'Cancel request' : 'Cancel booking'}</button><TextButton onClick={() => go('my-stay')}>{isRequest ? 'Keep request' : 'Keep booking'}</TextButton></ScreenIntro>;
       }
 
       case 'folio': {

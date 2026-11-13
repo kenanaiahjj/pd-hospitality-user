@@ -463,7 +463,7 @@ export function AdditionalGuestsScreen({
       {/* More guests than the booking was made for is the hotel's call, and possibly a charge. */}
       {bookedGuests && companions.length + 1 > bookedGuests ? (
         <Notice tone="warning" title={`Your booking is for ${bookedGuests} ${bookedGuests === 1 ? 'guest' : 'guests'}`}>
-          {`You have listed ${companions.length + 1}. The front desk confirms whether the room takes an extra guest, and any charge for one.`}
+          {`You have listed ${companions.length + 1} ${companions.length + 1 === 1 ? 'guest' : 'guests'}. The front desk will confirm whether the room can accommodate extra guests and if additional charges apply.`}
         </Notice>
       ) : null}
       {/*
